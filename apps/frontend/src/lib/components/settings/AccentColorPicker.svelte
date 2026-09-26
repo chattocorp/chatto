@@ -32,11 +32,11 @@ The owner applies and saves changes. Samples retain their own palette colours.
           value={color}
           checked={value === color}
           onchange={() => onchange(color)}
-          class="peer sr-only top-1 start-1"
+          class="peer sr-only start-1 top-1"
         />
         <span
           class={[
-            'relative flex h-20 items-end justify-end overflow-hidden rounded-lg accent-swatch shimmer-hover p-2 transition-transform duration-150 group-hover/accent:-translate-y-0.5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-text motion-reduce:transform-none motion-reduce:before:animate-none',
+            'shimmer-hover relative flex h-20 items-end justify-end overflow-hidden rounded-lg accent-swatch p-2 transition-transform duration-150 group-hover/accent:-translate-y-0.5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-text motion-reduce:transform-none motion-reduce:before:animate-none',
             value === color && 'ring-2 ring-text ring-offset-2 ring-offset-background'
           ]}
           aria-hidden="true"

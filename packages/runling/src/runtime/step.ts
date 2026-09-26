@@ -1,8 +1,5 @@
-import {
-  emitRunlingEvent,
-  withRunlingActivity,
-} from "./events.ts";
-import { log, logStep } from "./log.ts";
+import { emitRunlingEvent, withRunlingActivity } from './events.ts';
+import { log, logStep } from './log.ts';
 
 export type StepWork<T> = () => T;
 
@@ -13,39 +10,39 @@ export function step<T>(label: string, work: StepWork<T>): T {
   const id = crypto.randomUUID();
   const startedAt = performance.now();
   emitRunlingEvent({
-    type: "step.started",
+    type: 'step.started',
     id,
-    label,
+    label
   });
   logStep(label);
 
-  const finish = (status: "completed" | "failed") =>
+  const finish = (status: 'completed' | 'failed') =>
     emitRunlingEvent({
-      type: "step.finished",
+      type: 'step.finished',
       id,
       status,
-      durationMs: performance.now() - startedAt,
+      durationMs: performance.now() - startedAt
     });
 
   try {
     const result = withRunlingActivity(id, () => log.indented(work));
     if (isPromiseLike(result)) {
       void Promise.resolve(result).then(
-        () => finish("completed"),
-        () => finish("failed"),
+        () => finish('completed'),
+        () => finish('failed')
       );
     } else {
-      finish("completed");
+      finish('completed');
     }
     return result;
   } catch (error) {
-    finish("failed");
+    finish('failed');
     throw error;
   }
 }
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
-  (typeof value === "object" || typeof value === "function") &&
+  (typeof value === 'object' || typeof value === 'function') &&
   value !== null &&
-  "then" in value &&
-  typeof value.then === "function";
+  'then' in value &&
+  typeof value.then === 'function';

@@ -58,8 +58,7 @@
     serverRegistry.isOriginServer(serverId) && page.data.serverInfo?.setupRequired === true
   );
   const isActiveServer = $derived(
-    page.params.serverId === serverSegment ||
-      (setupRequired && page.route.id === '/setup')
+    page.params.serverId === serverSegment || (setupRequired && page.route.id === '/setup')
   );
 
   const privateDataLoaded = $derived(stores.projection?.viewer != null);
@@ -77,8 +76,7 @@
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
   const needsSignIn = $derived(
-    !setupRequired && !stores.isAuthenticated &&
-    (!registeredServer?.token || needsReauth)
+    !setupRequired && !stores.isAuthenticated && (!registeredServer?.token || needsReauth)
   );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
@@ -96,9 +94,7 @@
         return null;
     }
   });
-  const compatibilityWarning = $derived(
-    !awaitingDiscovery && compatibility.status !== 'supported'
-  );
+  const compatibilityWarning = $derived(!awaitingDiscovery && compatibility.status !== 'supported');
   const gutterWarning = $derived(compatibilityWarning || serverConnection.showConnectionLostIcon);
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
   const connectionWarningMessage = $derived(
@@ -291,7 +287,9 @@
 <!-- One icon per connected server. -->
 <ServerIcon
   server={iconServer}
-  href={setupRequired ? resolve('/setup') : resolve('/chat/[serverId]', { serverId: serverSegment })}
+  href={setupRequired
+    ? resolve('/setup')
+    : resolve('/chat/[serverId]', { serverId: serverSegment })}
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.attention.unreadNotificationCount}
@@ -383,7 +381,12 @@
     </div>
 
     {#if recoveryNeeded}
-      <MenuItem onclick={() => { closeContextMenu(); void serverRegistry.recoverServer(serverId); }}>
+      <MenuItem
+        onclick={() => {
+          closeContextMenu();
+          void serverRegistry.recoverServer(serverId);
+        }}
+      >
         {m('common.retry')}
       </MenuItem>
     {/if}

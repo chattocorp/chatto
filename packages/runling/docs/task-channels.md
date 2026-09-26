@@ -5,7 +5,7 @@ ordinary functions. The context type declares incoming messages and outgoing
 updates:
 
 ```ts
-import { task, type WorkflowContext } from "runling";
+import { task, type WorkflowContext } from 'runling';
 
 const sum = task(async (ctx: WorkflowContext<number, { total: number }>) => {
   let total = 0;
@@ -16,8 +16,7 @@ const sum = task(async (ctx: WorkflowContext<number, { total: number }>) => {
   return total;
 });
 
-await using run = ctx.spawn((ctx: WorkflowContext<number, { total: number }>) =>
-  sum(ctx));
+await using run = ctx.spawn((ctx: WorkflowContext<number, { total: number }>) => sum(ctx));
 await run.send(2);
 await run.send(3);
 run.closeInput();
@@ -94,9 +93,9 @@ A task can publish a JSON object for people who inspect the run in the web app:
 
 ```ts
 const scan = task(async (ctx: WorkflowContext, files: string[]) => {
-  ctx.publishState({ phase: "scanning", checked: 0 });
+  ctx.publishState({ phase: 'scanning', checked: 0 });
   // Scan files and publish a new snapshot when the visible state changes.
-  ctx.publishState({ phase: "done", checked: files.length });
+  ctx.publishState({ phase: 'done', checked: files.length });
 });
 ```
 

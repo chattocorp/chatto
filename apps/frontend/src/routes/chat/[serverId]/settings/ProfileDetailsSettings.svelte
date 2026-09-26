@@ -45,9 +45,7 @@
   const bioModified = $derived((bio || '') !== (currentUser.user?.bio ?? ''));
   const isModified = $derived(displayNameModified || loginModified || bioModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
-  const canBypassLoginCooldown = $derived(
-    serverScope.store.permissions.canAdminManageAccounts
-  );
+  const canBypassLoginCooldown = $derived(serverScope.store.permissions.canAdminManageAccounts);
   const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
 
   function clearMessages() {
@@ -131,9 +129,10 @@
       });
 
       if (currentUser.user) {
-        const lastLoginChange = normalizedLogin && !canBypassLoginCooldown
-          ? new Date().toISOString()
-          : currentUser.user.lastLoginChange;
+        const lastLoginChange =
+          normalizedLogin && !canBypassLoginCooldown
+            ? new Date().toISOString()
+            : currentUser.user.lastLoginChange;
         currentUser.user = {
           ...currentUser.user,
           displayName: updated.displayName,

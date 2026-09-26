@@ -45,7 +45,6 @@ timelines. Attach content size observers to that wrapper.
     keyboardFocusable = true,
     ...rest
   }: Props = $props();
-
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-col', fill && 'flex-1', className]}>

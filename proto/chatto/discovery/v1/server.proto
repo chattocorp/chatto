@@ -39,7 +39,8 @@ message NeighborhoodServer {
   // Canonical origin of the server.
   string origin = 1;
   // Public profile that the called server loaded. The welcome message is
-  // absent. The logo and banner URLs identify copies on the called server.
+  // absent. The logo and banner URLs are server-relative paths of copies on
+  // the called server. Resolve them against the origin of the called server.
   chatto.api.v1.ServerPublicProfile profile = 2;
   // Whether the called server advertises this server as a Neighbor.
   bool direct_neighbor = 3;

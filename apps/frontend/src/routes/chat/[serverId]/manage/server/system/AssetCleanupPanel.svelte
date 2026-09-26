@@ -42,7 +42,6 @@
               ? m('admin.system.asset_cleanup_inactive_summary')
               : m('admin.system.asset_cleanup_unavailable_summary')
   );
-
 </script>
 
 <Panel title={m('admin.system.asset_cleanup')} icon="iconify icon-[uil--trash-alt]">

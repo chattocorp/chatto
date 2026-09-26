@@ -206,7 +206,9 @@ describe('NotificationSync', () => {
     mocks.stores.origin.notifications.needsAttention.mockReturnValue(false);
     await renderAndWaitForSubscription();
     dispatch(true);
-    await vi.waitFor(() => expect(mocks.stores.origin.notifications.needsAttention).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(mocks.stores.origin.notifications.needsAttention).toHaveBeenCalled()
+    );
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     expect(mocks.stores.origin.notifications.occurrences[0].unread).toBe(true);
   });
@@ -420,9 +422,7 @@ describe('NotificationSync', () => {
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' }));
   });
 
   it('clears the badge when only ambient notifications are unread', async () => {
@@ -430,9 +430,7 @@ describe('NotificationSync', () => {
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 
   it('uses the server aggregate independently of the bounded group page', async () => {
@@ -442,9 +440,7 @@ describe('NotificationSync', () => {
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' }));
   });
 
   it('includes important attention from another authenticated server', async () => {
@@ -455,9 +451,7 @@ describe('NotificationSync', () => {
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' }));
   });
 
   it('ignores important attention from signed-out servers', async () => {
@@ -467,25 +461,19 @@ describe('NotificationSync', () => {
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 
   it('reasserts the unchanged aggregate badge after a regular push', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
     mocks.stores.origin.notifications.importantUnreadNotificationCount = 1;
     await renderAndWaitForSubscription();
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' }));
     mocks.updateAppBadge.mockClear();
 
     for (const refresh of mocks.badgeRefreshHandlers) refresh();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' }));
   });
 
   it('clears the flag after the last important notification is read with ambient activity remaining', async () => {

@@ -125,15 +125,24 @@ describe('createAdminUserManagementAPI', () => {
   });
 
   it('counts IDs omitted during hydration and skips the batch for an empty page', async () => {
-    mocks.listMembers.mockResolvedValueOnce({ userIds: ['missing'], page: { totalCount: 2n, hasMore: true } })
+    mocks.listMembers
+      .mockResolvedValueOnce({ userIds: ['missing'], page: { totalCount: 2n, hasMore: true } })
       .mockResolvedValueOnce({ userIds: [], page: { totalCount: 0n, hasMore: false } });
     mocks.batchGetMembers.mockResolvedValue({ members: [], roles: [] });
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
     expect(await api.listMembers({ limit: 20, offset: 0 })).toEqual({
-      users: [], roles: [], consumedCount: 1, totalCount: 2, hasMore: true
+      users: [],
+      roles: [],
+      consumedCount: 1,
+      totalCount: 2,
+      hasMore: true
     });
     expect(await api.listMembers({ limit: 20, offset: 1 })).toEqual({
-      users: [], roles: [], consumedCount: 0, totalCount: 0, hasMore: false
+      users: [],
+      roles: [],
+      consumedCount: 0,
+      totalCount: 0,
+      hasMore: false
     });
     expect(mocks.batchGetMembers).toHaveBeenCalledOnce();
   });

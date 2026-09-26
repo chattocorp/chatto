@@ -443,7 +443,10 @@ async function navigateViaQuickSwitcher(page: import('@playwright/test').Page, t
     .getByPlaceholder('Go somewhere, or type ? to search messages...')
     .fill(`#${targetRoom}`);
   await expect(
-    dialog.getByRole('navigation').getByRole('button').filter({ hasText: `#${targetRoom}` })
+    dialog
+      .getByRole('navigation')
+      .getByRole('button')
+      .filter({ hasText: `#${targetRoom}` })
   ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   await page.keyboard.press('Enter');
 

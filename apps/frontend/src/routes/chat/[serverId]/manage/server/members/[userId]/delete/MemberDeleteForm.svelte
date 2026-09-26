@@ -50,10 +50,12 @@
 <Panel title={m('admin.members.danger_zone')} icon="iconify icon-[uil--exclamation-triangle]">
   <form class="flex max-w-md flex-col gap-4" onsubmit={handleSubmit}>
     <Hint tone="danger">
-      <strong><AccountNameTokens
-        text={m('admin.member_delete.warning', { name: accountNameToken(0) })}
-        accounts={[{ name: member.displayName, identity: member }]}
-      /></strong>
+      <strong
+        ><AccountNameTokens
+          text={m('admin.member_delete.warning', { name: accountNameToken(0) })}
+          accounts={[{ name: member.displayName, identity: member }]}
+        /></strong
+      >
     </Hint>
 
     <p class="text-sm text-muted">{m('admin.member_delete.consequences_intro')}</p>

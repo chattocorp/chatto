@@ -293,7 +293,7 @@
           icon="icon-[uil--bell]"
         >
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0 max-w-2xl">
+            <div class="max-w-2xl min-w-0">
               <h2 class="font-semibold text-text-top">
                 {m('settings.notifications.push.title')}
               </h2>

@@ -14,7 +14,10 @@ test('warm room posts share all reconciliation reads', async ({ page }) => {
     const methods: string[] = [];
     const record = (request: import('@playwright/test').Request) => {
       // Typing leases have a separate timer and can overlap the posting cycle.
-      if (request.url().includes('/api/connect/') && !request.url().endsWith('/RefreshTypingIndicator')) {
+      if (
+        request.url().includes('/api/connect/') &&
+        !request.url().endsWith('/RefreshTypingIndicator')
+      ) {
         methods.push(request.url().split('/').at(-1)!);
       }
     };
@@ -26,14 +29,16 @@ test('warm room posts share all reconciliation reads', async ({ page }) => {
     await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
     await page.waitForLoadState('networkidle');
     page.off('request', record);
-    expect(methods.sort()).toEqual([
-      'BatchGetMessages', 'CreateMessage'
-    ]);
+    expect(methods.sort()).toEqual(['BatchGetMessages', 'CreateMessage']);
   }
   expect(errors).toEqual([]);
 });
 
-test('a known remote author does not cause a user read on each received post', async ({ page, browser, serverURL }) => {
+test('a known remote author does not cause a user read on each received post', async ({
+  page,
+  browser,
+  serverURL
+}) => {
   const { roomPage } = await loginAndEnterRoom(page);
   await withServerUser(browser, serverURL, async ({ chatPage, roomPage: sender }) => {
     await chatPage.enterRoom('general');
@@ -42,7 +47,11 @@ test('a known remote author does not cause a user read on each received post', a
     await page.waitForLoadState('networkidle');
     const redundantReads: string[] = [];
     page.on('request', (request) => {
-      if (['BatchGetUsers', 'ListNotificationOccurrences'].some((method) => request.url().endsWith(`/${method}`))) {
+      if (
+        ['BatchGetUsers', 'ListNotificationOccurrences'].some((method) =>
+          request.url().endsWith(`/${method}`)
+        )
+      ) {
         redundantReads.push(request.url().split('/').at(-1)!);
       }
     });
@@ -54,9 +63,15 @@ test('a known remote author does not cause a user read on each received post', a
   });
 });
 
-test('notification creation and read state fetch the changed occurrence list', async ({ page, browser, serverURL }) => {
+test('notification creation and read state fetch the changed occurrence list', async ({
+  page,
+  browser,
+  serverURL
+}) => {
   const receiver = await loginAndEnterRoom(page, 'announcements');
-  const badge = receiver.chatPage.roomList.locator('a', { hasText: '# general' }).getByTestId('room-notification-badge');
+  const badge = receiver.chatPage.roomList
+    .locator('a', { hasText: '# general' })
+    .getByTestId('room-notification-badge');
   await withServerUser(browser, serverURL, async ({ chatPage, roomPage: sender }) => {
     await chatPage.enterRoom('general');
     await sender.sendMessage('Warm notification sender');
@@ -64,7 +79,11 @@ test('notification creation and read state fetch the changed occurrence list', a
     await page.waitForLoadState('networkidle');
     const reads: string[] = [];
     const record = (request: import('@playwright/test').Request) => {
-      if (['ListRooms', 'ListNotificationOccurrences'].some((method) => request.url().endsWith(`/${method}`))) {
+      if (
+        ['ListRooms', 'ListNotificationOccurrences'].some((method) =>
+          request.url().endsWith(`/${method}`)
+        )
+      ) {
         reads.push(request.url().split('/').at(-1)!);
       }
     };
@@ -85,7 +104,9 @@ test('notification creation and read state fetch the changed occurrence list', a
   });
 });
 
-test('warm thread replies reuse authors across command and realtime hydration', async ({ page }) => {
+test('warm thread replies reuse authors across command and realtime hydration', async ({
+  page
+}) => {
   const { roomPage } = await loginAndEnterRoom(page);
   const root = await roomPage.sendMessage('Thread request accounting');
   await root.openThread();
@@ -96,7 +117,10 @@ test('warm thread replies reuse authors across command and realtime hydration', 
   const methods: string[] = [];
   page.on('request', (request) => {
     // Count posting/reconciliation, independently of the typing lease timer.
-    if (request.url().includes('/api/connect/') && !request.url().endsWith('/RefreshTypingIndicator')) {
+    if (
+      request.url().includes('/api/connect/') &&
+      !request.url().endsWith('/RefreshTypingIndicator')
+    ) {
       methods.push(request.url().split('/').at(-1)!);
     }
   });
@@ -105,11 +129,16 @@ test('warm thread replies reuse authors across command and realtime hydration', 
   // Include read-marker and notification reconciliation in the measurement.
   await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
   await page.waitForLoadState('networkidle');
-  const counts = Object.fromEntries([...new Set(methods)].map((method) =>
-    [method, methods.filter((value) => value === method).length]
-  ));
+  const counts = Object.fromEntries(
+    [...new Set(methods)].map((method) => [
+      method,
+      methods.filter((value) => value === method).length
+    ])
+  );
   expect(Object.keys(counts).sort()).toEqual([
-    'BatchGetMessages', 'CreateMessage', 'MarkThreadAsRead'
+    'BatchGetMessages',
+    'CreateMessage',
+    'MarkThreadAsRead'
   ]);
   expect(counts.CreateMessage).toBe(1);
   expect(counts.MarkThreadAsRead).toBe(1);

@@ -22,7 +22,7 @@
     ></button>
     <div
       data-testid="motd-preview"
-      class="prose prose-compact pointer-events-none min-w-0 max-w-none truncate [&_a]:pointer-events-auto [&_a]:relative"
+      class="prose prose-compact pointer-events-none max-w-none min-w-0 truncate [&_a]:pointer-events-auto [&_a]:relative"
     >
       {#await html}
         {motd}

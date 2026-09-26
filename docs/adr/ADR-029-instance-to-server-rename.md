@@ -23,16 +23,16 @@ Rename `Instance` → `Server` in identifiers, types, public API surface, proto 
 
 Drop the prefix entirely when there's nothing left to disambiguate against (single role tier, single admin list); keep `Server` when the prefix carries meaning by paralleling `Room`/`Space` at the same layer.
 
-| Drop prefix | Keep `Server` prefix |
-|---|---|
-| `CreateInstanceRole` → `CreateRole` | `IsInstanceAdmin` → `IsServerAdmin` (parallels `IsRoomAdmin` etc.) |
-| `AssignInstanceRole` → `AssignRole` | `HasInstancePermission` → `HasServerPermission` (parallels `HasSpacePermission`, `HasRoomPermission`) |
-| `RevokeInstanceRole` → `RevokeRole` | `GrantInstancePermission` → `GrantServerPermission` (parallels `GrantRoomPermission`) |
-| `ListInstanceRoles` → `ListRoles` | `InstanceEvent` → `ServerEvent` (later consolidated into the public event DTO) |
-| `GetInstanceRole` → `GetRole` | `InstanceConfig` → `ServerConfig` (top-level type) |
-| `GetInstanceRolePermissions` → `GetRolePermissions` | |
-| `ReorderInstanceRoles` → `ReorderRoles` | |
-| `ListInstanceAdmins` → `ListAdmins` | |
+| Drop prefix                                         | Keep `Server` prefix                                                                                  |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `CreateInstanceRole` → `CreateRole`                 | `IsInstanceAdmin` → `IsServerAdmin` (parallels `IsRoomAdmin` etc.)                                    |
+| `AssignInstanceRole` → `AssignRole`                 | `HasInstancePermission` → `HasServerPermission` (parallels `HasSpacePermission`, `HasRoomPermission`) |
+| `RevokeInstanceRole` → `RevokeRole`                 | `GrantInstancePermission` → `GrantServerPermission` (parallels `GrantRoomPermission`)                 |
+| `ListInstanceRoles` → `ListRoles`                   | `InstanceEvent` → `ServerEvent` (later consolidated into the public event DTO)                        |
+| `GetInstanceRole` → `GetRole`                       | `InstanceConfig` → `ServerConfig` (top-level type)                                                    |
+| `GetInstanceRolePermissions` → `GetRolePermissions` |                                                                                                       |
+| `ReorderInstanceRoles` → `ReorderRoles`             |                                                                                                       |
+| `ListInstanceAdmins` → `ListAdmins`                 |                                                                                                       |
 
 ### Scope decisions
 

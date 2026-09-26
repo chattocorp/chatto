@@ -12,7 +12,12 @@ The wrapper preserves its layout space until the exit transition completes.
   import { cubicInOut } from 'svelte/easing';
   import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from './motion';
 
-  let { children, class: className, id, testId }: {
+  let {
+    children,
+    class: className,
+    id,
+    testId
+  }: {
     children: Snippet;
     class?: ClassValue;
     id?: string;
@@ -25,7 +30,11 @@ The wrapper preserves its layout space until the exit transition completes.
   class={['min-w-0 origin-bottom-left rtl:origin-bottom-right', className]}
   data-testid={testId}
   in:scale|global={{ ...expoOutTransition(COMPACT_MOTION_DURATION_MS), start: 0.96 }}
-  out:scale|global={{ ...expoOutTransition(COMPACT_MOTION_DURATION_MS), easing: cubicInOut, start: 0.96 }}
+  out:scale|global={{
+    ...expoOutTransition(COMPACT_MOTION_DURATION_MS),
+    easing: cubicInOut,
+    start: 0.96
+  }}
 >
   {@render children()}
 </div>

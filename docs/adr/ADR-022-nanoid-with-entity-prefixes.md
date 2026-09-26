@@ -24,19 +24,19 @@ approximately 83.4 bits of entropy.
 Add one or more prefix characters that identify the entity type or token
 purpose. Chatto uses these prefixes for primary entity identifiers:
 
-| Prefix | Entity type |
-|--------|-------------|
-| `U` | User |
-| `S` | Legacy space |
-| `R` | Room |
-| `C` | Call |
-| `CP` | Call media publisher |
-| `G` | Room group |
-| `L` | Sidebar link |
-| `A` | Asset |
-| `I` | Invitation |
-| `E` | Event |
-| `N` | Legacy notification |
+| Prefix | Entity type          |
+| ------ | -------------------- |
+| `U`    | User                 |
+| `S`    | Legacy space         |
+| `R`    | Room                 |
+| `C`    | Call                 |
+| `CP`   | Call media publisher |
+| `G`    | Room group           |
+| `L`    | Sidebar link         |
+| `A`    | Asset                |
+| `I`    | Invitation           |
+| `E`    | Event                |
+| `N`    | Legacy notification  |
 
 Multi-character prefixes also identify opaque tokens. Current examples include
 password-reset (`PR`), registration-completion (`RG`), external-identity

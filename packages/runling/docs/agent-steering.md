@@ -4,10 +4,10 @@ Use `agent.steer(text)` to send plain text into a running `run()` or `runOutcome
 interaction. Steering does not expand slash commands or prompt templates.
 
 ```ts
-const interaction = planner.runOutcome(ctx, "Investigate this change");
-const delivered = planner.steer("Keep the existing public API");
+const interaction = planner.runOutcome(ctx, 'Investigate this change');
+const delivered = planner.steer('Keep the existing public API');
 const result = await interaction;
-if (!await delivered) {
+if (!(await delivered)) {
   // Keep the message for the next interaction.
 }
 ```

@@ -83,6 +83,8 @@ export async function waitForRoomReady(
   // A saved room can render before its replacement snapshot completes.
   // Tests that mutate or inspect live room data must wait for that handoff.
   await expect(page.getByTestId('server-subscription-active')).toHaveAttribute(
-    'data-projection-ready', 'true', { timeout }
+    'data-projection-ready',
+    'true',
+    { timeout }
   );
 }

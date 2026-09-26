@@ -32,8 +32,7 @@ const joined = (id: string): RoomsListItem => listedRoom(id, { viewerIsMember: t
 
 function findButton(container: Element, label: string): HTMLButtonElement | undefined {
   return [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === label) as
-    | HTMLButtonElement
-    | undefined;
+    HTMLButtonElement | undefined;
 }
 
 describe('RoomDirectory', () => {

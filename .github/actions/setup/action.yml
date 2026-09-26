@@ -1,28 +1,28 @@
-name: "Setup Environment"
-description: "Sets up mise with caching, then installs Go, Node.js, pnpm, and dependencies"
+name: 'Setup Environment'
+description: 'Sets up mise with caching, then installs Go, Node.js, pnpm, and dependencies'
 inputs:
   install-ffmpeg:
-    description: "Install ffmpeg (only needed for E2E tests with video processing)"
+    description: 'Install ffmpeg (only needed for E2E tests with video processing)'
     required: false
-    default: "false"
+    default: 'false'
   install-cli-deps:
-    description: "Install Go/CLI dependencies"
+    description: 'Install Go/CLI dependencies'
     required: false
-    default: "true"
+    default: 'true'
   install-frontend-deps:
-    description: "Install frontend dependencies"
+    description: 'Install frontend dependencies'
     required: false
-    default: "true"
+    default: 'true'
   save-go-build-cache:
-    description: "Save the workload-specific Go build cache when the job completes"
+    description: 'Save the workload-specific Go build cache when the job completes'
     required: false
-    default: "false"
+    default: 'false'
   go-build-cache-scope:
-    description: "Cache scope for jobs that compile the same Go workload"
+    description: 'Cache scope for jobs that compile the same Go workload'
     required: false
-    default: ""
+    default: ''
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Cache Go modules
       if: inputs.install-cli-deps == 'true'

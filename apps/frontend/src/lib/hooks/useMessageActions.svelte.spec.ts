@@ -73,9 +73,7 @@ describe('useReactionActions', () => {
     await useReactionActions().addReaction(params, 'heart');
 
     expect(mocks.rollback).toHaveBeenCalledOnce();
-    expect(mocks.toastError).toHaveBeenCalledWith(
-      'You can add up to 20 reactions to a message.'
-    );
+    expect(mocks.toastError).toHaveBeenCalledWith('You can add up to 20 reactions to a message.');
   });
 
   it('rolls back and keeps the generic message for other failures', async () => {

@@ -27,15 +27,15 @@ cold replay. Projection snapshots are disposable and can be rebuilt from EVT.
 Chatto separates internal protobufs into packages that name their lifecycle and
 storage contract:
 
-| Package | Contract |
-| --- | --- |
-| `chatto.core.evt.v1` | Durable facts and values stored in `EVT` |
-| `chatto.core.notification.v1` | Facts stored in `NOTIFICATIONS` |
+| Package                        | Contract                                               |
+| ------------------------------ | ------------------------------------------------------ |
+| `chatto.core.evt.v1`           | Durable facts and values stored in `EVT`               |
+| `chatto.core.notification.v1`  | Facts stored in `NOTIFICATIONS`                        |
 | `chatto.core.runtime_state.v1` | Durable latest-value records stored in `RUNTIME_STATE` |
-| `chatto.core.key_material.v1` | KMS records stored in `ENCRYPTION_KEYS` |
-| `chatto.core.cache_state.v1` | Volatile shared records stored in `MEMORY_CACHE` |
-| `chatto.core.projection.v1` | Rebuildable projection snapshot payloads |
-| `chatto.core.pubsub.v1` | Internal pubsub events published on `live.sync.>` |
+| `chatto.core.key_material.v1`  | KMS records stored in `ENCRYPTION_KEYS`                |
+| `chatto.core.cache_state.v1`   | Volatile shared records stored in `MEMORY_CACHE`       |
+| `chatto.core.projection.v1`    | Rebuildable projection snapshot payloads               |
+| `chatto.core.pubsub.v1`        | Internal pubsub events published on `live.sync.>`      |
 
 Types that are part of an EVT fact stay in `chatto.core.evt.v1`, even when a
 projection or runtime operation also uses them. For example, notification

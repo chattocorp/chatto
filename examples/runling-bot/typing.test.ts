@@ -1,9 +1,9 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
-import { startTyping } from "./typing.ts";
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { startTyping } from './typing.ts';
 
-test("refreshes every three seconds and stops without another update", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+test('refreshes every three seconds and stops without another update', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   let updates = 0;
   const stop = await startTyping(async () => {
     updates++;
@@ -19,8 +19,8 @@ test("refreshes every three seconds and stops without another update", async (t)
   assert.equal(updates, 2);
 });
 
-test("does not overlap refreshes or reschedule after stopping an in-flight update", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+test('does not overlap refreshes or reschedule after stopping an in-flight update', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   let updates = 0;
   let finish!: () => void;
   const stop = await startTyping(async () => {
@@ -42,10 +42,10 @@ test("does not overlap refreshes or reschedule after stopping an in-flight updat
   assert.equal(updates, 2);
 });
 
-test("typing failures are best effort", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+test('typing failures are best effort', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const stop = await startTyping(async () => {
-    throw new Error("Unavailable");
+    throw new Error('Unavailable');
   });
   stop();
 });

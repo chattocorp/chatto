@@ -8,7 +8,7 @@ export type TypingUpdate = (signal: AbortSignal) => Promise<unknown>;
 export async function withTyping<Result>(
   signal: AbortSignal,
   update: TypingUpdate | undefined,
-  work: () => Promise<Result>,
+  work: () => Promise<Result>
 ): Promise<Result> {
   if (!update) return work();
   const controller = new AbortController();
@@ -21,7 +21,10 @@ export async function withTyping<Result>(
     } catch {
       // Presence is optional and must not prevent the primary operation.
     }
-    if (!refreshSignal.aborted) timer = setTimeout(() => { void refresh(); }, 3000);
+    if (!refreshSignal.aborted)
+      timer = setTimeout(() => {
+        void refresh();
+      }, 3000);
   };
   void refresh();
   try {

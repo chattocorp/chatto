@@ -85,8 +85,7 @@
                   aria-label={descriptionActionLabel}
                   title={descriptionActionLabel}
                 >
-                  <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"
-                  ></span>
+                  <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
                 </button>
               {/if}
               <button

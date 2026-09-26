@@ -7,19 +7,23 @@
   const { Story } = defineMeta({ title: 'UI/UserCard', component: UserCard, tags: ['autodocs'] });
 </script>
 
-<Story name="Bot identity" asChild>
-  <div class="w-64"><UserCard name="Assistant" identity={{ isBot: true }} username="assistant_bot" {avatar} /></div>
-</Story>
-
 <script lang="ts">
   let lastAction = $state('No action yet');
   let speaking = $state(true);
 
   function speechLevel() {
     const time = performance.now() / 1000;
-    return speaking && time % 7 < 4.5 ? 0.005 + Math.pow((Math.sin(time * 8) + 1) / 2, 2) * 0.075 : 0;
+    return speaking && time % 7 < 4.5
+      ? 0.005 + Math.pow((Math.sin(time * 8) + 1) / 2, 2) * 0.075
+      : 0;
   }
 </script>
+
+<Story name="Bot identity" asChild>
+  <div class="w-64">
+    <UserCard name="Assistant" identity={{ isBot: true }} username="assistant_bot" {avatar} />
+  </div>
+</Story>
 
 {#snippet avatar()}
   <span
@@ -182,8 +186,20 @@
 
 <Story name="Voice glow levels" asChild>
   <div class="flex w-72 flex-col gap-2">
-    <UserCard name="Quiet speech" username="quiet" variant="card" {avatar} voiceLevel={() => 0.005} />
-    <UserCard name="Normal speech" username="normal" variant="card" {avatar} voiceLevel={() => 0.03} />
+    <UserCard
+      name="Quiet speech"
+      username="quiet"
+      variant="card"
+      {avatar}
+      voiceLevel={() => 0.005}
+    />
+    <UserCard
+      name="Normal speech"
+      username="normal"
+      variant="card"
+      {avatar}
+      voiceLevel={() => 0.03}
+    />
     <UserCard name="Loud speech" username="loud" variant="card" {avatar} voiceLevel={() => 0.2} />
   </div>
 </Story>

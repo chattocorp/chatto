@@ -6,7 +6,11 @@ import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_p
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
-import { MessageSearchScope, MessageSearchGroupBy, MessageSearchOrder } from '@chatto/api-types/api/v1/message_search_pb';
+import {
+  MessageSearchScope,
+  MessageSearchGroupBy,
+  MessageSearchOrder
+} from '@chatto/api-types/api/v1/message_search_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -47,15 +51,30 @@ describe('createThreadAPI', () => {
   });
 
   it('searches followed threads with normalized input, paging, and cancellation', async () => {
-    mocks.searchMessages.mockResolvedValue({ results: [], threadTotalCount: 25n, nextCursor: 'next-page' });
+    mocks.searchMessages.mockResolvedValue({
+      results: [],
+      threadTotalCount: 25n,
+      nextCursor: 'next-page'
+    });
     const signal = new AbortController().signal;
-    const api = createThreadAPI({ baseUrl: 'https://remote.example.test/api/connect', bearerToken: null });
-    const result = await api.listFollowedThreads({ limit: 20, offset: 0, cursor: 'previous-page', query: '  from:alice  ' }, { signal });
+    const api = createThreadAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+    const result = await api.listFollowedThreads(
+      { limit: 20, offset: 0, cursor: 'previous-page', query: '  from:alice  ' },
+      { signal }
+    );
     expect(mocks.createClient).toHaveBeenCalledWith(MessageSearchService, expect.anything());
     expect(mocks.searchMessages).toHaveBeenCalledWith(
-      { query: 'from:alice', scope: MessageSearchScope.FOLLOWED_THREADS,
-        groupBy: MessageSearchGroupBy.THREAD, order: MessageSearchOrder.THREAD_ACTIVITY,
-        pageSize: 20, cursor: 'previous-page' },
+      {
+        query: 'from:alice',
+        scope: MessageSearchScope.FOLLOWED_THREADS,
+        groupBy: MessageSearchGroupBy.THREAD,
+        order: MessageSearchOrder.THREAD_ACTIVITY,
+        pageSize: 20,
+        cursor: 'previous-page'
+      },
       { signal }
     );
     expect(mocks.listFollowedThreads).not.toHaveBeenCalled();
@@ -119,25 +138,36 @@ describe('createThreadAPI', () => {
 
   it('maps grouped search context while keeping the matching reply separate', async () => {
     mocks.searchMessages.mockResolvedValue({
-      results: [{
-        message: { id: 'matching-reply' },
-        relevanceScore: 3,
-        threadContext: {
-          room: { id: 'room-1', name: 'general' },
-          thread: {
-            threadRootEventId: 'root-1', replyCount: 2,
-            viewerState: { isFollowing: true, hasUnreadReplies: true }
+      results: [
+        {
+          message: { id: 'matching-reply' },
+          relevanceScore: 3,
+          threadContext: {
+            room: { id: 'room-1', name: 'general' },
+            thread: {
+              threadRootEventId: 'root-1',
+              replyCount: 2,
+              viewerState: { isFollowing: true, hasUnreadReplies: true }
+            }
           }
         }
-      }],
-      threadTotalCount: 1n, nextCursor: '', includes: { users: {} }
+      ],
+      threadTotalCount: 1n,
+      nextCursor: '',
+      includes: { users: {} }
     });
-    const api = createThreadAPI({ baseUrl: 'https://remote.example.test/api/connect', bearerToken: null });
+    const api = createThreadAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
     const page = await api.listFollowedThreads({ limit: 20, offset: 0, query: 'needle' });
     expect(page.threads).toHaveLength(1);
     expect(page.threads[0]).toMatchObject({
-      roomId: 'room-1', threadRootEventId: 'root-1', replyCount: 2,
-      rootMessage: null, hasUnreadReplies: true
+      roomId: 'room-1',
+      threadRootEventId: 'root-1',
+      replyCount: 2,
+      rootMessage: null,
+      hasUnreadReplies: true
     });
     expect(page.nextCursor).toBeNull();
   });

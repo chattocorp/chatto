@@ -77,11 +77,7 @@ test.describe('Mobile Navigation', () => {
     // Sidebar should now be visible
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    for (const testId of [
-      'mobile-sidebar-panel',
-      'server-sidebar',
-      'mobile-sidebar-backdrop'
-    ]) {
+    for (const testId of ['mobile-sidebar-panel', 'server-sidebar', 'mobile-sidebar-backdrop']) {
       await expect
         .poll(() =>
           page.getByTestId(testId).evaluate((element) => ({

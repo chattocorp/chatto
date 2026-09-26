@@ -13,9 +13,5 @@ import { serverRegistry } from './server/registry.svelte';
  * resolves the value on every call.
  */
 export function getActiveServer(): string {
-  return (
-    segmentToServerId(page.params.serverId ?? '-')
-    ?? serverRegistry.originServer?.id
-    ?? ''
-  );
+  return segmentToServerId(page.params.serverId ?? '-') ?? serverRegistry.originServer?.id ?? '';
 }

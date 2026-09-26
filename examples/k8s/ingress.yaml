@@ -5,15 +5,15 @@ metadata:
   name: chatto
   namespace: chatto
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
 spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - chat.example.com  # Change to your domain
+        - chat.example.com # Change to your domain
       secretName: chatto-tls
   rules:
-    - host: chat.example.com  # Change to your domain
+    - host: chat.example.com # Change to your domain
       http:
         paths:
           - path: /

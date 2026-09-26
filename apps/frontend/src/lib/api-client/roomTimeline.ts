@@ -89,7 +89,9 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
     let response!: { page?: RoomTimelinePage };
     const readProfiles = async () => {
       response = await read();
-      return Object.values(response.page?.includes?.users ?? {}).map((user) => new DirectoryMember({ user }));
+      return Object.values(response.page?.includes?.users ?? {}).map(
+        (user) => new DirectoryMember({ user })
+      );
     };
     if (userStore) await userStore.readSnapshot(readProfiles, true);
     else await readProfiles();
@@ -192,7 +194,9 @@ async function batchTimelineUsers(
     const api = createUserAPI(config);
     const summaries: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
     for (let offset = 0; offset < userIds.length; offset += 100) {
-      summaries.push(...await api.batchGetUsers(userIds.slice(offset, offset + 100), minimumCursor));
+      summaries.push(
+        ...(await api.batchGetUsers(userIds.slice(offset, offset + 100), minimumCursor))
+      );
     }
     const users: Record<string, User> = {};
     for (const summary of summaries) {

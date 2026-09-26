@@ -54,7 +54,9 @@
     return 0;
   }
 
-  export function getItemOffset(index: number) { return index * 50; }
+  export function getItemOffset(index: number) {
+    return index * 50;
+  }
 </script>
 
 <output data-testid="virtualizer-scroll-index">{renderedIndex ?? ''}</output>

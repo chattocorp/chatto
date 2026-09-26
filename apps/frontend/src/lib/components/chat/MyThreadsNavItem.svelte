@@ -19,7 +19,9 @@
       // A loaded room timeline can prove that a thread is not followed. When
       // the timeline is not loaded, trust the authoritative notification
       // occurrence until the explicit thread read supplies that state.
-      return serverScope.store.loadedThreadFollowState(target.roomId, target.threadRootId) !== false;
+      return (
+        serverScope.store.loadedThreadFollowState(target.roomId, target.threadRootId) !== false
+      );
     })
   );
   const hasNotification = $derived(threadNotifications.length > 0);

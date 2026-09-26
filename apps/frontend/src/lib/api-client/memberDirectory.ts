@@ -30,7 +30,10 @@ export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
   const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   const readProfiles = async (read: () => Promise<APIDirectoryMember[]>) =>
     (store ? await store.readSnapshot(read) : await read()).map(mapDirectoryMember);
-  const batchUsers = async (userIds: string[], minimumCursor?: string): Promise<APIDirectoryMember[]> => {
+  const batchUsers = async (
+    userIds: string[],
+    minimumCursor?: string
+  ): Promise<APIDirectoryMember[]> => {
     const response = await users.batchGetUsers(
       { userIds },
       {
@@ -40,17 +43,20 @@ export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
     );
     return response.users;
   };
-  const loadUsers =
-    store
-      ? async (ids: string[], minimumCursor?: string) =>
-          (await store.resolve(ids, batchUsers, minimumCursor)).map(mapDirectoryMember)
-      : async (ids: string[], minimumCursor?: string) => {
-          const members: DirectoryMember[] = [];
-          for (let offset = 0; offset < ids.length; offset += 100) {
-            members.push(...(await batchUsers(ids.slice(offset, offset + 100), minimumCursor)).map(mapDirectoryMember));
-          }
-          return members;
-        };
+  const loadUsers = store
+    ? async (ids: string[], minimumCursor?: string) =>
+        (await store.resolve(ids, batchUsers, minimumCursor)).map(mapDirectoryMember)
+    : async (ids: string[], minimumCursor?: string) => {
+        const members: DirectoryMember[] = [];
+        for (let offset = 0; offset < ids.length; offset += 100) {
+          members.push(
+            ...(await batchUsers(ids.slice(offset, offset + 100), minimumCursor)).map(
+              mapDirectoryMember
+            )
+          );
+        }
+        return members;
+      };
 
   return {
     async listUsers(

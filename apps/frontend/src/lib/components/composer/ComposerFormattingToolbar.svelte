@@ -82,7 +82,7 @@ input row.
         compact
         gaps={false}
         label={m('composer.formatting_options')}
-        class="mobile-presentation:pill-button-group-touch w-max shrink-0"
+        class="w-max shrink-0 mobile-presentation:pill-button-group-touch"
       >
         {#each formattingControls as control (control.command)}
           {@const label = formattingLabel(control.command)}
@@ -110,8 +110,7 @@ input row.
               title={m('composer.format.outdent')}
               class="pill-button"
             >
-              <span class="iconify icon-[mdi--format-indent-decrease] rtl:scale-x-[-1]"
-              ></span>
+              <span class="iconify icon-[mdi--format-indent-decrease] rtl:scale-x-[-1]"></span>
             </button>
             <button
               type="button"
@@ -123,8 +122,7 @@ input row.
               title={m('composer.format.indent')}
               class="pill-button"
             >
-              <span class="iconify icon-[mdi--format-indent-increase] rtl:scale-x-[-1]"
-              ></span>
+              <span class="iconify icon-[mdi--format-indent-increase] rtl:scale-x-[-1]"></span>
             </button>
           {/if}
         {/each}

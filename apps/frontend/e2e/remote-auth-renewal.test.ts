@@ -28,9 +28,12 @@ test.describe('Remote bearer renewal', () => {
     const user = await createUserOnRemote(baseURL, 'remote-renewal-viewer', 'password123');
     await connectRemoteInstance(page, { ...remote!, baseURL }, user.userId);
     const initialExpiry = await page.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
+      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+        (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+      );
+      const auth = JSON.parse(
+        localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+      );
       return auth.accessTokenExpiresAt as number;
     });
 
@@ -39,27 +42,47 @@ test.describe('Remote bearer renewal', () => {
     const icon = secondPage.locator('[data-testid="server-icon"][href*="127.0.0.1"]').first();
     await expect(icon).toBeVisible();
 
-    await expect.poll(async () => secondPage.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      if (!server) return false;
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
-      return !!auth?.accessTokenExpiresAt && auth.accessTokenExpiresAt > Date.now() &&
-        auth.reauthRequiredAt === null;
-    }), { timeout: 20_000 }).toBe(true);
+    await expect
+      .poll(
+        async () =>
+          secondPage.evaluate(() => {
+            const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+              (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+            );
+            if (!server) return false;
+            const auth = JSON.parse(
+              localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+            );
+            return (
+              !!auth?.accessTokenExpiresAt &&
+              auth.accessTokenExpiresAt > Date.now() &&
+              auth.reauthRequiredAt === null
+            );
+          }),
+        { timeout: 20_000 }
+      )
+      .toBe(true);
 
     await page.bringToFront();
-    await expect.poll(() => Date.now(), { timeout: 20_000 })
-      .toBeGreaterThan(initialExpiry + 1_000);
+    await expect.poll(() => Date.now(), { timeout: 20_000 }).toBeGreaterThan(initialExpiry + 1_000);
     await secondPage.bringToFront();
     await secondPage.reload();
     await expect(icon).not.toHaveAttribute('title', /Sign in to reconnect/, { timeout: 20_000 });
-    await expect.poll(async () => secondPage.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
-      return auth.accessTokenExpiresAt as number;
-    }), { timeout: 20_000 }).toBeGreaterThan(initialExpiry);
+    await expect
+      .poll(
+        async () =>
+          secondPage.evaluate(() => {
+            const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+              (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+            );
+            const auth = JSON.parse(
+              localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+            );
+            return auth.accessTokenExpiresAt as number;
+          }),
+        { timeout: 20_000 }
+      )
+      .toBeGreaterThan(initialExpiry);
   });
 
   test('recovers a lost refresh response with the persisted request ID', async ({ page }) => {
@@ -67,7 +90,9 @@ test.describe('Remote bearer renewal', () => {
     const baseURL = remote!.baseURL.replace('localhost', '127.0.0.1');
     const user = await createUserOnRemote(baseURL, 'remote-lost-response', 'password123');
     let releaseLostResponse!: () => void;
-    const lostResponse = new Promise<void>((resolve) => { releaseLostResponse = resolve; });
+    const lostResponse = new Promise<void>((resolve) => {
+      releaseLostResponse = resolve;
+    });
     let loseNextRefresh = true;
     await page.context().route(`${baseURL}/oauth/token`, async (route) => {
       const grant = (route.request().postDataJSON() as { grant_type?: string }).grant_type;
@@ -84,9 +109,12 @@ test.describe('Remote bearer renewal', () => {
     await lostResponse;
 
     const pending = await page.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
+      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+        (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+      );
+      const auth = JSON.parse(
+        localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+      );
       return { pendingRefresh: !!auth?.refreshRequestId, reauthRequired: !!auth?.reauthRequiredAt };
     });
     expect(pending).toEqual({ pendingRefresh: true, reauthRequired: false });
@@ -94,15 +122,29 @@ test.describe('Remote bearer renewal', () => {
     await page.reload();
     const icon = page.locator('[data-testid="server-icon"][href*="127.0.0.1"]').first();
     await expect(icon).not.toHaveAttribute('title', /Sign in to reconnect/, { timeout: 20_000 });
-    await expect.poll(async () => page.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
-      return { pendingRefresh: !!auth?.refreshRequestId, reauthRequired: !!auth?.reauthRequiredAt };
-    }), { timeout: 20_000 }).toEqual({ pendingRefresh: false, reauthRequired: false });
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+              (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+            );
+            const auth = JSON.parse(
+              localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+            );
+            return {
+              pendingRefresh: !!auth?.refreshRequestId,
+              reauthRequired: !!auth?.reauthRequiredAt
+            };
+          }),
+        { timeout: 20_000 }
+      )
+      .toEqual({ pendingRefresh: false, reauthRequired: false });
   });
 
-  test('retries viewer recovery when an API rejects a newly rotated access token', async ({ page }) => {
+  test('retries viewer recovery when an API rejects a newly rotated access token', async ({
+    page
+  }) => {
     await createAndLoginTestUser(page);
     const baseURL = remote!.baseURL.replace('localhost', '127.0.0.1');
     const user = await createUserOnRemote(baseURL, 'remote-retry-viewer', 'password123');
@@ -136,9 +178,12 @@ test.describe('Remote bearer renewal', () => {
     await expect(icon).toBeVisible();
     await expect(icon).not.toHaveAttribute('title', /Sign in to reconnect/);
     const reauthRequired = await page.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
+      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+        (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+      );
+      const auth = JSON.parse(
+        localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+      );
       return !!auth?.reauthRequiredAt;
     });
     expect(reauthRequired).toBe(false);
@@ -150,9 +195,12 @@ test.describe('Remote bearer renewal', () => {
     const user = await createUserOnRemote(baseURL, 'remote-revoked-viewer', 'password123');
     await connectRemoteInstance(page, { ...remote!, baseURL }, user.userId);
     const refreshToken = await page.evaluate(() => {
-      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
-        .find((entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1');
-      const auth = JSON.parse(localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null');
+      const server = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]').find(
+        (entry: { url: string }) => new URL(entry.url).hostname === '127.0.0.1'
+      );
+      const auth = JSON.parse(
+        localStorage.getItem(`chatto:i:${server.id}:authentication`) ?? 'null'
+      );
       return auth.refreshToken as string;
     });
 

@@ -76,7 +76,6 @@ EOF
 
 The included `ingress.yaml` is already configured to use cert-manager. After applying it, verify the certificate:
 
-
 ```bash
 # Check certificate status
 kubectl -n chatto get certificate

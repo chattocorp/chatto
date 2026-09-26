@@ -188,9 +188,7 @@ describe('Verify email page', () => {
     rejectConfirmation(new Error('verification failed'));
     await settle();
 
-    expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe(
-      'alice.new@example.com'
-    );
+    expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe('alice.new@example.com');
     expect(mocks.goto).not.toHaveBeenCalled();
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });

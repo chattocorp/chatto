@@ -179,366 +179,371 @@
         </Panel>
 
         {#if systemInfo.accountAvailable}
-        <div>
-          <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
-            {m('admin.system.jetstream_account')}
-          </h2>
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              value={formatBytes(systemInfo.account.storageUsed)}
-              label={m('admin.system.account_storage')}
-              icon="iconify icon-[uil--hdd]"
-              color="action"
-              subtitle={m('admin.system.limit', {
-                limit: formatLimit(systemInfo.account.storage, formatBytes)
-              })}
-            />
-            <StatCard
-              value={formatBytes(systemInfo.account.memoryUsed)}
-              label={m('admin.system.account_memory')}
-              icon="iconify icon-[uil--processor]"
-              color="success"
-              subtitle={m('admin.system.limit', {
-                limit: formatLimit(systemInfo.account.memory, formatBytes)
-              })}
-            />
-            <StatCard
-              value={formatPercent(systemInfo.account.streamsUsed, systemInfo.account.streams)}
-              label={m('admin.system.stream_capacity')}
-              icon="iconify icon-[uil--exchange]"
-              color="warning"
-              subtitle={m('admin.system.used_of_limit', {
-                used: formatNumber(systemInfo.account.streamsUsed),
-                limit: formatLimit(systemInfo.account.streams)
-              })}
-            />
-            <StatCard
-              value={formatPercent(systemInfo.account.consumersUsed, systemInfo.account.consumers)}
-              label={m('admin.system.consumer_capacity')}
-              icon="iconify icon-[uil--users-alt]"
-              color="danger"
-              subtitle={m('admin.system.used_of_limit', {
-                used: formatNumber(systemInfo.account.consumersUsed),
-                limit: formatLimit(systemInfo.account.consumers)
-              })}
-            />
+          <div>
+            <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
+              {m('admin.system.jetstream_account')}
+            </h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                value={formatBytes(systemInfo.account.storageUsed)}
+                label={m('admin.system.account_storage')}
+                icon="iconify icon-[uil--hdd]"
+                color="action"
+                subtitle={m('admin.system.limit', {
+                  limit: formatLimit(systemInfo.account.storage, formatBytes)
+                })}
+              />
+              <StatCard
+                value={formatBytes(systemInfo.account.memoryUsed)}
+                label={m('admin.system.account_memory')}
+                icon="iconify icon-[uil--processor]"
+                color="success"
+                subtitle={m('admin.system.limit', {
+                  limit: formatLimit(systemInfo.account.memory, formatBytes)
+                })}
+              />
+              <StatCard
+                value={formatPercent(systemInfo.account.streamsUsed, systemInfo.account.streams)}
+                label={m('admin.system.stream_capacity')}
+                icon="iconify icon-[uil--exchange]"
+                color="warning"
+                subtitle={m('admin.system.used_of_limit', {
+                  used: formatNumber(systemInfo.account.streamsUsed),
+                  limit: formatLimit(systemInfo.account.streams)
+                })}
+              />
+              <StatCard
+                value={formatPercent(
+                  systemInfo.account.consumersUsed,
+                  systemInfo.account.consumers
+                )}
+                label={m('admin.system.consumer_capacity')}
+                icon="iconify icon-[uil--users-alt]"
+                color="danger"
+                subtitle={m('admin.system.used_of_limit', {
+                  used: formatNumber(systemInfo.account.consumersUsed),
+                  limit: formatLimit(systemInfo.account.consumers)
+                })}
+              />
+            </div>
           </div>
-        </div>
         {:else}
           <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
         {/if}
 
         {#if systemInfo.natsAvailable}
-        <div>
-          <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
-            {m('admin.system.stream_activity')}
-          </h2>
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              value={formatNumber(systemInfo.nats.totalMessages)}
-              label={m('admin.system.messages_stored')}
-              icon="iconify icon-[uil--database]"
-              color="action"
-              subtitle={m('admin.system.average_message_size', {
-                size: formatBytes(averageEventBytes)
-              })}
-            />
-            <StatCard
-              value={formatBytes(systemInfo.nats.totalBytes)}
-              label={m('admin.system.stream_bytes')}
-              icon="iconify icon-[uil--hdd]"
-              color="success"
-              subtitle={m('admin.system.storage_mix', {
-                file: formatNumber(fileStreamCount),
-                memory: formatNumber(memoryStreamCount)
-              })}
-            />
-            <StatCard
-              value={formatNumber(systemInfo.nats.totalConsumerPending)}
-              label={m('admin.system.consumer_backlog')}
-              icon="iconify icon-[uil--clock]"
-              color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
-              subtitle={m('admin.system.consumer_backlog_subtitle', {
-                count: formatNumber(consumersWithBacklog)
-              })}
-            />
-            <StatCard
-              value={formatNumber(systemInfo.nats.totalAckPending)}
-              label={m('admin.system.ack_pending')}
-              icon="iconify icon-[uil--check-circle]"
-              color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
-              subtitle={m('admin.system.redelivered_total', {
-                count: formatNumber(totalRedelivered)
-              })}
-            />
+          <div>
+            <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
+              {m('admin.system.stream_activity')}
+            </h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                value={formatNumber(systemInfo.nats.totalMessages)}
+                label={m('admin.system.messages_stored')}
+                icon="iconify icon-[uil--database]"
+                color="action"
+                subtitle={m('admin.system.average_message_size', {
+                  size: formatBytes(averageEventBytes)
+                })}
+              />
+              <StatCard
+                value={formatBytes(systemInfo.nats.totalBytes)}
+                label={m('admin.system.stream_bytes')}
+                icon="iconify icon-[uil--hdd]"
+                color="success"
+                subtitle={m('admin.system.storage_mix', {
+                  file: formatNumber(fileStreamCount),
+                  memory: formatNumber(memoryStreamCount)
+                })}
+              />
+              <StatCard
+                value={formatNumber(systemInfo.nats.totalConsumerPending)}
+                label={m('admin.system.consumer_backlog')}
+                icon="iconify icon-[uil--clock]"
+                color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
+                subtitle={m('admin.system.consumer_backlog_subtitle', {
+                  count: formatNumber(consumersWithBacklog)
+                })}
+              />
+              <StatCard
+                value={formatNumber(systemInfo.nats.totalAckPending)}
+                label={m('admin.system.ack_pending')}
+                icon="iconify icon-[uil--check-circle]"
+                color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
+                subtitle={m('admin.system.redelivered_total', {
+                  count: formatNumber(totalRedelivered)
+                })}
+              />
+            </div>
           </div>
-        </div>
 
-        <div class="grid gap-4 lg:grid-cols-2">
-          <Panel title={m('admin.system.stream_summary')} icon="iconify icon-[uil--chart-line]">
-            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.file_streams')}</div>
-                <div class="font-mono text-lg">{formatNumber(fileStreamCount)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.memory_streams')}</div>
-                <div class="font-mono text-lg">{formatNumber(memoryStreamCount)}</div>
-              </div>
-              <div class="col-span-2">
-                <div class="text-sm text-muted">{m('admin.system.largest_stream')}</div>
-                {#if largestStream}
-                  <div class="min-w-0">
-                    <div class="truncate font-medium" title={largestStream.name}>
-                      {largestStream.name}
-                    </div>
-                    <div class="font-mono text-sm text-muted">
-                      {formatBytes(largestStream.bytes)} / {formatNumber(largestStream.messages)}
-                      {m('admin.system.messages_lower')}
-                    </div>
-                  </div>
-                {:else}
-                  <div class="font-mono text-sm text-muted">-</div>
-                {/if}
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title={m('admin.system.consumer_summary')} icon="iconify icon-[uil--users-alt]">
-            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.pull_consumers')}</div>
-                <div class="font-mono text-lg">{formatNumber(pullConsumerCount)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.push_consumers')}</div>
-                <div class="font-mono text-lg">{formatNumber(pushConsumerCount)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.unbound_push_consumers')}</div>
-                <div
-                  class={['font-mono text-lg', unboundPushConsumerCount > 0 ? 'text-warning' : '']}
-                >
-                  {formatNumber(unboundPushConsumerCount)}
+          <div class="grid gap-4 lg:grid-cols-2">
+            <Panel title={m('admin.system.stream_summary')} icon="iconify icon-[uil--chart-line]">
+              <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <div class="text-sm text-muted">{m('admin.system.file_streams')}</div>
+                  <div class="font-mono text-lg">{formatNumber(fileStreamCount)}</div>
                 </div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.redelivered')}</div>
-                <div class={['font-mono text-lg', totalRedelivered > 0 ? 'text-warning' : '']}>
-                  {formatNumber(totalRedelivered)}
+                <div>
+                  <div class="text-sm text-muted">{m('admin.system.memory_streams')}</div>
+                  <div class="font-mono text-lg">{formatNumber(memoryStreamCount)}</div>
                 </div>
-              </div>
-            </div>
-          </Panel>
-
-        </div>
-
-        <Panel title={m('admin.system.streams')} icon="iconify icon-[uil--exchange]" noPadding>
-          <DataTable items={streams} columns={6} emptyMessage={m('admin.system.no_streams')}>
-            {#snippet header()}
-              <th class="table-header-cell">{m('admin.system.stream')}</th>
-              <th class="table-header-cell">{m('admin.system.storage')}</th>
-              <th class="table-header-cell">{m('admin.system.messages')}</th>
-              <th class="table-header-cell">{m('admin.system.bytes')}</th>
-              <th class="table-header-cell">{m('admin.system.consumers')}</th>
-              <th class="table-header-cell">{m('admin.system.replicas')}</th>
-            {/snippet}
-            {#snippet row(stream)}
-              <td class="px-4 py-3">
-                <div class="font-medium">{stream.name}</div>
-                {#if stream.description}
-                  <div class="text-xs text-muted">{stream.description}</div>
-                {/if}
-              </td>
-              <td class="px-4 py-3">{stream.storage}</td>
-              <td class="px-4 py-3 font-mono text-sm">{formatNumber(stream.messages)}</td>
-              <td class="px-4 py-3 font-mono text-sm">{formatBytes(stream.bytes)}</td>
-              <td class="px-4 py-3 font-mono text-sm">{formatNumber(stream.consumerCount)}</td>
-              <td class="px-4 py-3">
-                <div class="font-mono text-sm">{formatNumber(stream.replicas)}</div>
-                {#if stream.clusterLeader}
-                  <div class="text-xs text-muted">{stream.clusterLeader}</div>
-                {/if}
-              </td>
-            {/snippet}
-          </DataTable>
-        </Panel>
-
-        <Panel title={m('admin.system.consumers')} icon="iconify icon-[uil--users-alt]" noPadding>
-          <DataTable items={consumers} columns={7} emptyMessage={m('admin.system.no_consumers')}>
-            {#snippet header()}
-              <th class="table-header-cell">{m('admin.system.consumer')}</th>
-              <th class="table-header-cell">{m('admin.system.mode')}</th>
-              <th class="table-header-cell">{m('admin.system.filters')}</th>
-              <th class="table-header-cell">{m('admin.system.pending')}</th>
-              <th class="table-header-cell">{m('admin.system.ack_pending')}</th>
-              <th class="table-header-cell">{m('admin.system.redelivered')}</th>
-              <th class="table-header-cell">{m('admin.system.acked_through')}</th>
-            {/snippet}
-            {#snippet row(consumer)}
-              <td class="px-4 py-3">
-                <div class="font-medium">{consumer.name}</div>
-                <div class="font-mono text-xs text-muted">{consumer.stream}</div>
-                {#if consumer.durable}
-                  <div class="text-xs text-muted">
-                    {m('admin.system.durable', { name: consumer.durable })}
-                  </div>
-                {/if}
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  <Pill tone={consumer.pullBased ? 'neutral' : 'muted'}>
-                    {consumer.pullBased ? m('admin.system.pull') : m('admin.system.push')}
-                  </Pill>
-                  {#if !consumer.pullBased}
-                    <Pill tone={consumer.pushBound ? 'success' : 'danger'}>
-                      {consumer.pushBound ? m('admin.system.bound') : m('admin.system.unbound')}
-                    </Pill>
+                <div class="col-span-2">
+                  <div class="text-sm text-muted">{m('admin.system.largest_stream')}</div>
+                  {#if largestStream}
+                    <div class="min-w-0">
+                      <div class="truncate font-medium" title={largestStream.name}>
+                        {largestStream.name}
+                      </div>
+                      <div class="font-mono text-sm text-muted">
+                        {formatBytes(largestStream.bytes)} / {formatNumber(largestStream.messages)}
+                        {m('admin.system.messages_lower')}
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="font-mono text-sm text-muted">-</div>
                   {/if}
                 </div>
-                <div class="mt-1 text-xs text-muted">{consumer.ackPolicy}</div>
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  {#each consumerFilters(consumer) as filter (filter)}
-                    <span
-                      class="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted"
-                    >
-                      {filter}
-                    </span>
-                  {/each}
+              </div>
+            </Panel>
+
+            <Panel title={m('admin.system.consumer_summary')} icon="iconify icon-[uil--users-alt]">
+              <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <div class="text-sm text-muted">{m('admin.system.pull_consumers')}</div>
+                  <div class="font-mono text-lg">{formatNumber(pullConsumerCount)}</div>
                 </div>
-              </td>
-              <td class="px-4 py-3">
-                <span class={[consumer.pending > 0 ? 'font-semibold text-warning' : '']}>
-                  {formatNumber(consumer.pending)}
-                </span>
-              </td>
-              <td class="px-4 py-3">
-                <span class={[consumer.ackPending > 0 ? 'font-semibold text-warning' : '']}>
-                  {formatNumber(consumer.ackPending)}
-                </span>
-              </td>
-              <td class="px-4 py-3 font-mono text-sm">{formatNumber(consumer.redelivered)}</td>
-              <td class="px-4 py-3 whitespace-nowrap">
-                <div class="font-mono text-sm">stream {consumer.ackFloorStreamSequence}</div>
-                <div class="font-mono text-xs text-muted">
-                  consumer {consumer.ackFloorConsumerSequence}
+                <div>
+                  <div class="text-sm text-muted">{m('admin.system.push_consumers')}</div>
+                  <div class="font-mono text-lg">{formatNumber(pushConsumerCount)}</div>
                 </div>
-              </td>
-            {/snippet}
-          </DataTable>
-        </Panel>
+                <div>
+                  <div class="text-sm text-muted">{m('admin.system.unbound_push_consumers')}</div>
+                  <div
+                    class={[
+                      'font-mono text-lg',
+                      unboundPushConsumerCount > 0 ? 'text-warning' : ''
+                    ]}
+                  >
+                    {formatNumber(unboundPushConsumerCount)}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-sm text-muted">{m('admin.system.redelivered')}</div>
+                  <div class={['font-mono text-lg', totalRedelivered > 0 ? 'text-warning' : '']}>
+                    {formatNumber(totalRedelivered)}
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <Panel title={m('admin.system.streams')} icon="iconify icon-[uil--exchange]" noPadding>
+            <DataTable items={streams} columns={6} emptyMessage={m('admin.system.no_streams')}>
+              {#snippet header()}
+                <th class="table-header-cell">{m('admin.system.stream')}</th>
+                <th class="table-header-cell">{m('admin.system.storage')}</th>
+                <th class="table-header-cell">{m('admin.system.messages')}</th>
+                <th class="table-header-cell">{m('admin.system.bytes')}</th>
+                <th class="table-header-cell">{m('admin.system.consumers')}</th>
+                <th class="table-header-cell">{m('admin.system.replicas')}</th>
+              {/snippet}
+              {#snippet row(stream)}
+                <td class="px-4 py-3">
+                  <div class="font-medium">{stream.name}</div>
+                  {#if stream.description}
+                    <div class="text-xs text-muted">{stream.description}</div>
+                  {/if}
+                </td>
+                <td class="px-4 py-3">{stream.storage}</td>
+                <td class="px-4 py-3 font-mono text-sm">{formatNumber(stream.messages)}</td>
+                <td class="px-4 py-3 font-mono text-sm">{formatBytes(stream.bytes)}</td>
+                <td class="px-4 py-3 font-mono text-sm">{formatNumber(stream.consumerCount)}</td>
+                <td class="px-4 py-3">
+                  <div class="font-mono text-sm">{formatNumber(stream.replicas)}</div>
+                  {#if stream.clusterLeader}
+                    <div class="text-xs text-muted">{stream.clusterLeader}</div>
+                  {/if}
+                </td>
+              {/snippet}
+            </DataTable>
+          </Panel>
+
+          <Panel title={m('admin.system.consumers')} icon="iconify icon-[uil--users-alt]" noPadding>
+            <DataTable items={consumers} columns={7} emptyMessage={m('admin.system.no_consumers')}>
+              {#snippet header()}
+                <th class="table-header-cell">{m('admin.system.consumer')}</th>
+                <th class="table-header-cell">{m('admin.system.mode')}</th>
+                <th class="table-header-cell">{m('admin.system.filters')}</th>
+                <th class="table-header-cell">{m('admin.system.pending')}</th>
+                <th class="table-header-cell">{m('admin.system.ack_pending')}</th>
+                <th class="table-header-cell">{m('admin.system.redelivered')}</th>
+                <th class="table-header-cell">{m('admin.system.acked_through')}</th>
+              {/snippet}
+              {#snippet row(consumer)}
+                <td class="px-4 py-3">
+                  <div class="font-medium">{consumer.name}</div>
+                  <div class="font-mono text-xs text-muted">{consumer.stream}</div>
+                  {#if consumer.durable}
+                    <div class="text-xs text-muted">
+                      {m('admin.system.durable', { name: consumer.durable })}
+                    </div>
+                  {/if}
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap gap-1">
+                    <Pill tone={consumer.pullBased ? 'neutral' : 'muted'}>
+                      {consumer.pullBased ? m('admin.system.pull') : m('admin.system.push')}
+                    </Pill>
+                    {#if !consumer.pullBased}
+                      <Pill tone={consumer.pushBound ? 'success' : 'danger'}>
+                        {consumer.pushBound ? m('admin.system.bound') : m('admin.system.unbound')}
+                      </Pill>
+                    {/if}
+                  </div>
+                  <div class="mt-1 text-xs text-muted">{consumer.ackPolicy}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap gap-1">
+                    {#each consumerFilters(consumer) as filter (filter)}
+                      <span
+                        class="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted"
+                      >
+                        {filter}
+                      </span>
+                    {/each}
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class={[consumer.pending > 0 ? 'font-semibold text-warning' : '']}>
+                    {formatNumber(consumer.pending)}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class={[consumer.ackPending > 0 ? 'font-semibold text-warning' : '']}>
+                    {formatNumber(consumer.ackPending)}
+                  </span>
+                </td>
+                <td class="px-4 py-3 font-mono text-sm">{formatNumber(consumer.redelivered)}</td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <div class="font-mono text-sm">stream {consumer.ackFloorStreamSequence}</div>
+                  <div class="font-mono text-xs text-muted">
+                    consumer {consumer.ackFloorConsumerSequence}
+                  </div>
+                </td>
+              {/snippet}
+            </DataTable>
+          </Panel>
         {:else}
           <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
         {/if}
 
         {#if systemInfo.projectionsAvailable}
-        <Panel title={m('admin.system.projection_summary')} icon="iconify icon-[uil--layers]">
-          <div class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3">
-            <div>
-              <div class="text-sm text-muted">{m('admin.system.projections')}</div>
-              <div class="font-mono text-lg">{formatNumber(projections.length)}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m('admin.system.entries')}</div>
-              <div class="font-mono text-lg">{formatNumber(totalEntries)}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m('admin.system.projection_memory')}</div>
-              <div class="font-mono text-lg">{formatBytes(totalEstimatedBytes)}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m('admin.system.average_entry_size')}</div>
-              <div class="font-mono text-lg">{formatBytes(averageProjectionEntryBytes)}</div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m('admin.system.projection_failures')}</div>
-              <div class={['font-mono text-lg', failedProjectionCount > 0 ? 'text-danger' : '']}>
-                {formatNumber(failedProjectionCount)}
+          <Panel title={m('admin.system.projection_summary')} icon="iconify icon-[uil--layers]">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3">
+              <div>
+                <div class="text-sm text-muted">{m('admin.system.projections')}</div>
+                <div class="font-mono text-lg">{formatNumber(projections.length)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m('admin.system.entries')}</div>
+                <div class="font-mono text-lg">{formatNumber(totalEntries)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m('admin.system.projection_memory')}</div>
+                <div class="font-mono text-lg">{formatBytes(totalEstimatedBytes)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m('admin.system.average_entry_size')}</div>
+                <div class="font-mono text-lg">{formatBytes(averageProjectionEntryBytes)}</div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m('admin.system.projection_failures')}</div>
+                <div class={['font-mono text-lg', failedProjectionCount > 0 ? 'text-danger' : '']}>
+                  {formatNumber(failedProjectionCount)}
+                </div>
+              </div>
+              <div>
+                <div class="text-sm text-muted">{m('admin.system.projection_lag')}</div>
+                <div class={['font-mono text-lg', laggingCount > 0 ? 'text-warning' : '']}>
+                  {formatNumber(laggingCount)}
+                </div>
               </div>
             </div>
-            <div>
-              <div class="text-sm text-muted">{m('admin.system.projection_lag')}</div>
-              <div class={['font-mono text-lg', laggingCount > 0 ? 'text-warning' : '']}>
-                {formatNumber(laggingCount)}
-              </div>
-            </div>
-          </div>
-        </Panel>
+          </Panel>
 
-        <Panel
-          title={m('admin.system.projections')}
-          icon="iconify icon-[uil--chart-line]"
-          noPadding
-        >
-          <DataTable
-            items={projections}
-            columns={7}
-            emptyMessage={m('admin.system.no_projections')}
+          <Panel
+            title={m('admin.system.projections')}
+            icon="iconify icon-[uil--chart-line]"
+            noPadding
           >
-            {#snippet header()}
-              <th class="table-header-cell">{m('admin.system.projection')}</th>
-              <th class="table-header-cell">{m('admin.system.state')}</th>
-              <th class="table-header-cell">{m('admin.system.startup')}</th>
-              <th class="table-header-cell">{m('admin.system.applied')}</th>
-              <th class="table-header-cell">{m('admin.system.lag')}</th>
-              <th class="table-header-cell">{m('admin.system.entries')}</th>
-              <th class="table-header-cell">{m('admin.system.memory')}</th>
-            {/snippet}
-            {#snippet row(projection)}
-              <td class="px-4 py-3">
-                <div class="font-medium">{projection.name}</div>
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  <Pill
-                    tone={projection.failed ? 'danger' : projection.started ? 'success' : 'muted'}
-                  >
-                    {projection.failed
-                      ? m('admin.system.failed')
-                      : projection.started
-                        ? m('admin.system.started')
-                        : m('admin.system.stopped')}
-                  </Pill>
-                </div>
-                {#if projection.failed}
-                  <div class="mt-1 max-w-[28rem] font-mono text-xs break-words text-danger">
-                    {projection.failure}
+            <DataTable
+              items={projections}
+              columns={7}
+              emptyMessage={m('admin.system.no_projections')}
+            >
+              {#snippet header()}
+                <th class="table-header-cell">{m('admin.system.projection')}</th>
+                <th class="table-header-cell">{m('admin.system.state')}</th>
+                <th class="table-header-cell">{m('admin.system.startup')}</th>
+                <th class="table-header-cell">{m('admin.system.applied')}</th>
+                <th class="table-header-cell">{m('admin.system.lag')}</th>
+                <th class="table-header-cell">{m('admin.system.entries')}</th>
+                <th class="table-header-cell">{m('admin.system.memory')}</th>
+              {/snippet}
+              {#snippet row(projection)}
+                <td class="px-4 py-3">
+                  <div class="font-medium">{projection.name}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap gap-1">
+                    <Pill
+                      tone={projection.failed ? 'danger' : projection.started ? 'success' : 'muted'}
+                    >
+                      {projection.failed
+                        ? m('admin.system.failed')
+                        : projection.started
+                          ? m('admin.system.started')
+                          : m('admin.system.stopped')}
+                    </Pill>
                   </div>
-                {/if}
-              </td>
-              <td class="px-4 py-3 font-mono text-sm whitespace-nowrap">
-                <span class={[projection.startupDurationSeconds == null ? 'text-muted' : '']}>
-                  {formatDurationSeconds(projection.startupDurationSeconds)}
-                </span>
-              </td>
-              <td class="px-4 py-3 font-mono text-sm whitespace-nowrap">
-                {projection.lastAppliedSequence}
-                <span class="text-muted">/ {projection.matchingStreamSequence}</span>
-                {#if projection.failed}
-                  <div class="text-xs text-danger">
-                    {m('admin.system.failed_at', { sequence: projection.failedSequence })}
+                  {#if projection.failed}
+                    <div class="mt-1 max-w-[28rem] font-mono text-xs break-words text-danger">
+                      {projection.failure}
+                    </div>
+                  {/if}
+                </td>
+                <td class="px-4 py-3 font-mono text-sm whitespace-nowrap">
+                  <span class={[projection.startupDurationSeconds == null ? 'text-muted' : '']}>
+                    {formatDurationSeconds(projection.startupDurationSeconds)}
+                  </span>
+                </td>
+                <td class="px-4 py-3 font-mono text-sm whitespace-nowrap">
+                  {projection.lastAppliedSequence}
+                  <span class="text-muted">/ {projection.matchingStreamSequence}</span>
+                  {#if projection.failed}
+                    <div class="text-xs text-danger">
+                      {m('admin.system.failed_at', { sequence: projection.failedSequence })}
+                    </div>
+                  {/if}
+                </td>
+                <td class="px-4 py-3">
+                  <span class={[projection.lag > 0 ? 'font-semibold text-warning' : '']}>
+                    {formatNumber(projection.lag)}
+                  </span>
+                </td>
+                <td class="px-4 py-3 font-mono text-sm">{formatNumber(projection.entryCount)}</td>
+                <td class="px-4 py-3">
+                  <div class="font-mono text-sm whitespace-nowrap">
+                    {formatBytes(projection.estimatedBytes)}
                   </div>
-                {/if}
-              </td>
-              <td class="px-4 py-3">
-                <span class={[projection.lag > 0 ? 'font-semibold text-warning' : '']}>
-                  {formatNumber(projection.lag)}
-                </span>
-              </td>
-              <td class="px-4 py-3 font-mono text-sm">{formatNumber(projection.entryCount)}</td>
-              <td class="px-4 py-3">
-                <div class="font-mono text-sm whitespace-nowrap">
-                  {formatBytes(projection.estimatedBytes)}
-                </div>
-                <div class="text-xs whitespace-nowrap text-muted">
-                  {formatBytes(projection.averageEntryBytes)} avg
-                </div>
-              </td>
-            {/snippet}
-          </DataTable>
-        </Panel>
+                  <div class="text-xs whitespace-nowrap text-muted">
+                    {formatBytes(projection.averageEntryBytes)} avg
+                  </div>
+                </td>
+              {/snippet}
+            </DataTable>
+          </Panel>
         {:else}
           <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
         {/if}

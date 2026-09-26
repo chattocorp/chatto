@@ -414,9 +414,7 @@ describe('TipTapEditor Markdown autolinks', () => {
     api.focus('end');
     api.insertText(' after');
 
-    await vi.waitFor(() =>
-      expect(updates.at(-1)).toBe('<https://example.com/chatto_bot> after')
-    );
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/chatto_bot> after'));
     expect(renderInlineMarkdown(updates.at(-1)!)).toContain(
       'href="https://example.com/chatto_bot"'
     );
@@ -493,9 +491,7 @@ describe('TipTapEditor Markdown autolinks', () => {
     api.insertText(' after');
 
     await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/unclosed after'));
-    expect(container.querySelector('a')?.getAttribute('href')).toBe(
-      'https://example.com/unclosed'
-    );
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('https://example.com/unclosed');
   });
 
   it('preserves an angle-bracket URL pasted into the visual editor', async () => {

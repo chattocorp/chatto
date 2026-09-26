@@ -9,18 +9,23 @@ const mocks = vi.hoisted(() => ({ batchGetUsers: vi.fn() }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'owner-test',
-    connection: { queryScope: 'session', getAPI: () => ({
-      batchGetUsers: async (ids: string[]) => {
-        const users = await mocks.batchGetUsers(ids);
-        const store = getUserStore('owner-test', 'session');
-        for (const user of users) store.set(user.id, userProfileFixture(user));
-        return users;
-      }
-    }) },
+    connection: {
+      queryScope: 'session',
+      getAPI: () => ({
+        batchGetUsers: async (ids: string[]) => {
+          const users = await mocks.batchGetUsers(ids);
+          const store = getUserStore('owner-test', 'session');
+          for (const user of users) store.set(user.id, userProfileFixture(user));
+          return users;
+        }
+      })
+    },
     isCurrent: () => true,
     store: {
       permissions: { loaded: false },
-      get projection() { return { users: getUserStore('owner-test', 'session') }; }
+      get projection() {
+        return { users: getUserStore('owner-test', 'session') };
+      }
     }
   })
 }));

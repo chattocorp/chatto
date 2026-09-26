@@ -4,27 +4,27 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/docs-website/**"
-      - ".npmrc"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "LICENSES/Apache-2.0.txt"
-      - "NOTICE"
+      - 'apps/docs-website/**'
+      - '.npmrc'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'LICENSES/Apache-2.0.txt'
+      - 'NOTICE'
   workflow_call:
     inputs:
       channel:
-        description: "Documentation channel to publish."
+        description: 'Documentation channel to publish.'
         required: true
         type: string
       ref:
-        description: "Git ref or SHA to build."
+        description: 'Git ref or SHA to build.'
         required: true
         type: string
   workflow_dispatch:
     inputs:
       channel:
-        description: "Documentation channel to publish."
+        description: 'Documentation channel to publish.'
         required: true
         default: dev
         type: choice
@@ -32,7 +32,7 @@ on:
           - dev
           - stable
       ref:
-        description: "Git ref or SHA to build. Defaults to the selected workflow ref."
+        description: 'Git ref or SHA to build. Defaults to the selected workflow ref.'
         required: false
         type: string
 

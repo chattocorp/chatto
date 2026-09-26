@@ -3,13 +3,13 @@
 Use `timeout` in seconds. Omit it to wait without a deadline.
 
 ```ts
-import { input, runWorkflow, task, TimeoutError } from "runling";
+import { input, runWorkflow, task, TimeoutError } from 'runling';
 
-const review = task(async ctx => {
+const review = task(async (ctx) => {
   try {
-    return await input(ctx, "Approve the change?", { timeout: 300 });
+    return await input(ctx, 'Approve the change?', { timeout: 300 });
   } catch (error) {
-    if (error instanceof TimeoutError) return "No answer received";
+    if (error instanceof TimeoutError) return 'No answer received';
     throw error;
   }
 });
@@ -17,10 +17,10 @@ const review = task(async ctx => {
 await runWorkflow(review, {
   input: undefined,
   timeout: 3600,
-  onInput: async request => {
+  onInput: async (request) => {
     // The host supplies the answer and uses request.signal for cancellation.
-    return "Approved";
-  },
+    return 'Approved';
+  }
 });
 ```
 

@@ -255,10 +255,12 @@ describe('RoomMembersPanel', () => {
     expect(addMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'bob' });
     expect(container.textContent).toContain('Bob');
     await vi.waitFor(() =>
-      expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.objectContaining({
-        text: `Added ${accountNameToken(0)} to the room`,
-        accounts: [expect.objectContaining({ name: 'Bob' })]
-      }))
+      expect(mocks.toastSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: `Added ${accountNameToken(0)} to the room`,
+          accounts: [expect.objectContaining({ name: 'Bob' })]
+        })
+      )
     );
   });
 
@@ -277,10 +279,12 @@ describe('RoomMembersPanel', () => {
 
     expect(removeMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'alice' });
     await vi.waitFor(() =>
-      expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.objectContaining({
-        text: `Removed ${accountNameToken(0)} from the room`,
-        accounts: [expect.objectContaining({ name: 'Alice' })]
-      }))
+      expect(mocks.toastSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: `Removed ${accountNameToken(0)} from the room`,
+          accounts: [expect.objectContaining({ name: 'Alice' })]
+        })
+      )
     );
   });
 
@@ -506,10 +510,12 @@ describe('RoomMembersPanel', () => {
     buttonByText(rendered.container, 'Add member').click();
     await settle();
 
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.objectContaining({
-      text: `Added ${accountNameToken(0)} to the room`,
-      accounts: [expect.objectContaining({ name: 'Bob' })]
-    }));
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: `Added ${accountNameToken(0)} to the room`,
+        accounts: [expect.objectContaining({ name: 'Bob' })]
+      })
+    );
     expect(rendered.container.textContent).toContain('projection temporarily unavailable');
     expect(rendered.container.textContent).not.toContain('Bob');
   });

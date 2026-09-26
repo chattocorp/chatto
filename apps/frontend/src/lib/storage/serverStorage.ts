@@ -9,5 +9,5 @@
  * @example serverStorageKey("chat-example-com", "lastRooms") → "chatto:i:chat-example-com:lastRooms"
  */
 export function serverStorageKey(serverId: string, key: string): string {
-	return `chatto:i:${serverId}:${key}`;
+  return `chatto:i:${serverId}:${key}`;
 }

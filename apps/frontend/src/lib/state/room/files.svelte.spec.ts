@@ -1,10 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
-import {
-  RoomMessagePosted,
-  RoomTimelineEvent
-} from '@chatto/api-types/api/v1/room_timeline_pb';
+import { RoomMessagePosted, RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 import { RoomFilesStore, type RoomFileItem } from './files.svelte';
@@ -250,10 +247,16 @@ describe('RoomFilesStore', () => {
     const loading = store.loadMore();
     store.applyMessageUpdate('off-page', null, false, 'delete-cursor');
     await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(3));
-    pending.resolve({ items: [roomFileItem('deleted', 'off-page')], totalCount: 2, hasMore: false });
+    pending.resolve({
+      items: [roomFileItem('deleted', 'off-page')],
+      totalCount: 2,
+      hasMore: false
+    });
     await loading;
     expect(store.items.map((item) => item.messageEventId)).toEqual(['event-1']);
-    expect(attachmentMocks.listRoomAttachments).toHaveBeenLastCalledWith(expect.objectContaining({ minimumCursor: 'delete-cursor' }));
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ minimumCursor: 'delete-cursor' })
+    );
   });
 
   it('does not perturb pagination or URL overrides for an identical attachment snapshot', async () => {
@@ -300,11 +303,15 @@ describe('RoomFilesStore', () => {
       });
     const store = new RoomFilesStore(serverConnection(), 'room-1');
     const release = store.retain();
-    await vi.waitFor(() => expect(store.items.map((item) => item.attachment.id)).toEqual(['att-1']));
+    await vi.waitFor(() =>
+      expect(store.items.map((item) => item.attachment.id)).toEqual(['att-1'])
+    );
 
     store.reset({ rehydrateRetained: true });
 
-    await vi.waitFor(() => expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']));
+    await vi.waitFor(() =>
+      expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2'])
+    );
     expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
     release();
   });
@@ -343,7 +350,9 @@ describe('RoomFilesStore', () => {
 
     store.restoreAfterAccessGrant();
 
-    await vi.waitFor(() => expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']));
+    await vi.waitFor(() =>
+      expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2'])
+    );
     expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
     release();
   });

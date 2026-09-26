@@ -10,7 +10,7 @@
 </script>
 
 <Story name="Narrow actions" asChild>
-  <div class="@container/composer w-80 chat-input-surface p-2">
+  <div class="@container/composer chat-input-surface w-80 p-2">
     <ComposerToolbar
       editorApi={null}
       inputDisabled={false}
@@ -26,7 +26,7 @@
 </Story>
 
 <Story name="Very narrow thread reply" asChild>
-  <div class="@container/composer w-[180px] chat-input-surface p-2">
+  <div class="@container/composer chat-input-surface w-[180px] p-2">
     <ComposerToolbar
       editorApi={null}
       inputDisabled={false}
@@ -41,7 +41,7 @@
 </Story>
 
 <Story name="With labels" asChild>
-  <div class="@container/composer flex w-[640px] justify-end chat-input-surface p-2">
+  <div class="@container/composer flex chat-input-surface w-[640px] justify-end p-2">
     <ComposerToolbar
       editorApi={null}
       inputDisabled={false}
@@ -57,7 +57,7 @@
 </Story>
 
 <Story name="Expanded draft actions" asChild>
-  <div class="@container/composer w-[640px] chat-input-surface p-2">
+  <div class="@container/composer chat-input-surface w-[640px] p-2">
     <ComposerToolbar
       editorApi={null}
       inputDisabled={false}

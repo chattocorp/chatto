@@ -4,8 +4,8 @@ Use `sources` in `runling.config.ts` to receive events through outbound
 connections or other adapters. Runling does not require an inbound webhook.
 
 ```ts
-import { defineWebConfig, startWorkflow } from "runling/web";
-import echo from "./workflows/echo.ts";
+import { defineWebConfig, startWorkflow } from 'runling/web';
+import echo from './workflows/echo.ts';
 
 export default defineWebConfig({
   sources: {
@@ -18,8 +18,8 @@ export default defineWebConfig({
       } finally {
         await input.close();
       }
-    },
-  },
+    }
+  }
 });
 ```
 

@@ -1,16 +1,7 @@
-import { connectAgent } from "runling/agents";
-import {
-  createChannel,
-  type RunlingAgent,
-  type WorkflowContext,
-} from "runling";
-import { withChattoTyping, type ChattoTyping } from "./typing.ts";
-import {
-  messageSignal,
-  type ChattoInbox,
-  type ChattoPost,
-  type Destination,
-} from "./webhook.ts";
+import { connectAgent } from 'runling/agents';
+import { createChannel, type RunlingAgent, type WorkflowContext } from 'runling';
+import { withChattoTyping, type ChattoTyping } from './typing.ts';
+import { messageSignal, type ChattoInbox, type ChattoPost, type Destination } from './webhook.ts';
 
 export interface ChattoAgentOptions {
   destination: Destination;
@@ -24,9 +15,9 @@ export interface ChattoAgentOptions {
 /** Run an agent with typing, live steering, and ordered replies to its Chatto thread. */
 export function runChattoAgent(
   ctx: WorkflowContext,
-  agent: Pick<RunlingAgent, "runOutcome" | "steer">,
+  agent: Pick<RunlingAgent, 'runOutcome' | 'steer'>,
   prompt: string,
-  { destination, inbox, post, typing, reservedCommands }: ChattoAgentOptions,
+  { destination, inbox, post, typing, reservedCommands }: ChattoAgentOptions
 ) {
   return withChattoTyping(ctx, destination, typing, async () => {
     const messages = createChannel<string>();
@@ -57,7 +48,7 @@ export function runChattoAgent(
         onDelivery: (_text, consumed) => {
           const entry = offered.shift();
           if (entry) entry.consumed = consumed;
-        },
+        }
       });
 
       const run = connection.runOutcome(prompt);
@@ -66,9 +57,7 @@ export function runChattoAgent(
     } finally {
       unsubscribe();
       messages.close();
-      inbox.prepend(
-        pending.filter((entry) => !entry.consumed).map((entry) => entry.text),
-      );
+      inbox.prepend(pending.filter((entry) => !entry.consumed).map((entry) => entry.text));
     }
   });
 }

@@ -5,7 +5,12 @@
     "open_quick_switcher": "Malfermu rapidan ŝaltilon",
     "quick_switcher_shortcut": "Rapida ŝaltilo (Cmd+K)",
     "realtime_paused": "Realtempaj ĝisdatigoj paŭzis. Rekonektante...",
-    "saved_view": {"cache_title":"Loka kaŝmemoro","cache_description":"Ĉi tiu aparato konservas limigitan tekstan vidon de babilejoj por eksterreta legado.","clear_cache":"Forigi konservitajn babilejojn","cache_cleared":"Konservitaj babilejoj estis forigitaj."},
+    "saved_view": {
+      "cache_title": "Loka kaŝmemoro",
+      "cache_description": "Ĉi tiu aparato konservas limigitan tekstan vidon de babilejoj por eksterreta legado.",
+      "clear_cache": "Forigi konservitajn babilejojn",
+      "cache_cleared": "Konservitaj babilejoj estis forigitaj."
+    },
     "update_available": "Nova versio disponeblas",
     "reload": "Reŝargi",
     "sign_out": "Eliru",

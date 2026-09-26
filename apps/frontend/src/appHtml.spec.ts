@@ -267,11 +267,18 @@ describe('app.html theme bootstrap', () => {
     [30, 30],
     [34.5, 34],
     [40, 40]
-  ])('restores saved contrast value %s as the 10%% step %s before the app starts', (contrastAge, step) => {
-    const { root } = runThemeScript({ preferences: { contrastAge }, systemDark: false });
-    expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(`${Math.max(0, 30 - step) * 10}%`);
-    expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(`${Math.max(0, step - 30) * 10}%`);
-  });
+  ])(
+    'restores saved contrast value %s as the 10%% step %s before the app starts',
+    (contrastAge, step) => {
+      const { root } = runThemeScript({ preferences: { contrastAge }, systemDark: false });
+      expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(
+        `${Math.max(0, 30 - step) * 10}%`
+      );
+      expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(
+        `${Math.max(0, step - 30) * 10}%`
+      );
+    }
+  );
 
   it.each([
     ['light', '#ffffff'],
@@ -392,7 +399,9 @@ describe('app.html theme bootstrap', () => {
   it.each([
     'not json',
     JSON.stringify({ light: { background: 'red' } }),
-    JSON.stringify({ light: { background: '#fff', highlight: '#000', text: '#000', surface: '#000' } })
+    JSON.stringify({
+      light: { background: '#fff', highlight: '#000', text: '#000', surface: '#000' }
+    })
   ])('ignores an unusable saved tone palette: %s', (raw) => {
     const { root, themeColor } = runThemeScript({
       systemDark: false,

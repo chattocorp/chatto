@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let {
     width = $bindable<number | undefined>(undefined),
@@ -7,7 +7,7 @@
     label,
     minWidth = 120,
     maxWidth = 600,
-    class: className = "",
+    class: className = ''
   }: {
     width?: number;
     storageKey: string;
@@ -43,10 +43,10 @@
   function keyboard(event: KeyboardEvent) {
     let next: number;
     const step = event.shiftKey ? 40 : 10;
-    if (event.key === "ArrowLeft") next = measuredWidth() - step;
-    else if (event.key === "ArrowRight") next = measuredWidth() + step;
-    else if (event.key === "Home") next = minWidth;
-    else if (event.key === "End") next = maxWidth;
+    if (event.key === 'ArrowLeft') next = measuredWidth() - step;
+    else if (event.key === 'ArrowRight') next = measuredWidth() + step;
+    else if (event.key === 'Home') next = minWidth;
+    else if (event.key === 'End') next = maxWidth;
     else return;
     event.preventDefault();
     event.stopPropagation();
@@ -81,12 +81,12 @@
   aria-valuemin={minWidth}
   aria-valuemax={maxWidth}
   aria-valuenow={Math.round(actualWidth ?? width ?? minWidth)}
-  aria-valuetext={actualWidth === undefined ? "Default width" : `${Math.round(actualWidth)} pixels`}
+  aria-valuetext={actualWidth === undefined ? 'Default width' : `${Math.round(actualWidth)} pixels`}
   title={`${label}. Drag or use the arrow keys to resize.`}
   class={[
-    "absolute inset-y-0 right-0 z-10 w-1.5 cursor-col-resize touch-none select-none pointer-events-auto hover:bg-primary/50 focus-visible:bg-primary/50 focus-visible:outline-2 focus-visible:outline-primary",
-    drag && "bg-primary/50",
-    className,
+    'absolute inset-y-0 right-0 z-10 w-1.5 cursor-col-resize touch-none select-none pointer-events-auto hover:bg-primary/50 focus-visible:bg-primary/50 focus-visible:outline-2 focus-visible:outline-primary',
+    drag && 'bg-primary/50',
+    className
   ]}
   onpointerdown={(event) => {
     if (event.button !== 0) return;

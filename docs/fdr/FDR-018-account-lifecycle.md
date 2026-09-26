@@ -161,7 +161,7 @@ refresh before email management continues.
 
 **Decision:** After account deletion, the deleted user's login is available for re-use by a new signup.
 **Why:** Holding usernames forever would gradually exhaust the namespace. Re-use is acceptable because the new owner gets a new identity (new user ID, new encryption key) — they don't inherit any of the previous user's data or messages.
-**Tradeoff:** Old @mentions of the previous user may visually point at the new user once the login is reclaimed. The underlying mention link is to the user *id*, which is gone; the rendering falls back to plain text.
+**Tradeoff:** Old @mentions of the previous user may visually point at the new user once the login is reclaimed. The underlying mention link is to the user _id_, which is gone; the rendering falls back to plain text.
 
 ## Permissions
 

@@ -28,11 +28,7 @@
 <div class={['flex flex-col items-center', compact ? 'gap-3' : 'gap-5']}>
   <div class={['flex items-center', compact ? 'gap-3' : 'gap-4']}>
     {#if iconUrl}
-      <img
-        src={iconUrl}
-        alt=""
-        class={compact ? 'h-10 w-10 rounded-lg' : 'h-12 w-12 rounded-xl'}
-      />
+      <img src={iconUrl} alt="" class={compact ? 'h-10 w-10 rounded-lg' : 'h-12 w-12 rounded-xl'} />
     {/if}
 
     <h3 class={compact ? 'text-lg font-bold' : 'text-2xl font-bold'}>{name}</h3>

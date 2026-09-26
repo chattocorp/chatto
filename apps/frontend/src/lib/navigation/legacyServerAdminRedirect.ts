@@ -28,11 +28,7 @@ export function legacyServerAdminDestination(
       serverId,
       roomId: segments[2]
     });
-  } else if (
-    segments.length === 3 &&
-    segments[0] === 'rooms' &&
-    segments[1] === 'group'
-  ) {
+  } else if (segments.length === 3 && segments[0] === 'rooms' && segments[1] === 'group') {
     destination = resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
       serverId,
       groupId: segments[2]

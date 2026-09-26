@@ -7,7 +7,7 @@
 **Update (2026-05-24):** The locator payload is now extended with the
 calling user's ID (`u`) and a Unix-second expiry (`e`), both signed.
 The HTTP handler no longer reads the session cookie — the signed
-claims *are* the authorization (verified signature + non-expired +
+claims _are_ the authorization (verified signature + non-expired +
 signed user is still a room member). This unblocks cross-origin `<img>`
 loads from remote-server SPAs, where neither cookies nor bearer
 headers reach the asset endpoint. The "HMAC isn't the access control"
@@ -115,7 +115,7 @@ No standalone-record bucket is consulted.
 - **Authorization surface changed by the ticket update.** For the 2026-05-24 ticket-bearing locator flow, the signed URL was a short-lived capability: a leaked URL could be used until it expired or the signed user lost room membership. Stable `/assets/files/...` URLs use the same ticket capability model directly in browser media URLs.
 - **Forgery prevention.** The previous URL shape (`/assets/attachments/{id}`) let attackers probe arbitrary attachment IDs to enumerate the space. The locator URL requires a valid HMAC; only IDs the server has issued URLs for can be tested.
 - **Longer URLs.** ~150 chars vs ~30. Irrelevant for our use case (URLs aren't human-typed and aren't shared as bare share-links outside the app).
-- **URLs weren't individually revocable.** Rotating `[core.assets].signing_secret` invalidated *all* URLs at once. Ticketed URL leaks were bounded by expiry and the signed user's current room membership. If we ever want share links with single-use semantics, we'd extend the payload or add server-side revocation state; none of that is needed today.
+- **URLs weren't individually revocable.** Rotating `[core.assets].signing_secret` invalidated _all_ URLs at once. Ticketed URL leaks were bounded by expiry and the signed user's current room membership. If we ever want share links with single-use semantics, we'd extend the payload or add server-side revocation state; none of that is needed today.
 - **Expiry became signed into issued browser URLs.** The original design did not include an expiry claim, but the 2026-05-24 update added one because signed browser asset URLs became standalone capabilities. Stable `/assets/files/...` tickets use the same bounded capability model.
 - **Operational: secret rotation invalidates in-flight URLs.** Currently-loaded pages reload their asset URLs through projected timeline/attachment responses after a signing-secret rotation, so the impact is bounded to "until next refresh."
 - **Cleaner internal API.** `GetAttachmentReader(*Attachment)` and `DeleteAttachmentFromStorage(*Attachment)` take the proto directly; the previous `(spaceID, attachmentID)` shape and the multi-layout S3 key probing are gone. Reads `Storage.S3.Key` straight off the proto.

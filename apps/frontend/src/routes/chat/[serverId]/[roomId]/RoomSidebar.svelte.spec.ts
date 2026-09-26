@@ -788,10 +788,17 @@ describe('RoomSidebar', () => {
       ]);
     });
 
-    getUserStore('test-server').set('user-1', userProfileFixture({
-      id: 'user-1', displayName: 'Aaron', login: 'aaron', deleted: false,
-      avatarUrl: null, presenceStatus: PresenceStatus.ONLINE
-    }));
+    getUserStore('test-server').set(
+      'user-1',
+      userProfileFixture({
+        id: 'user-1',
+        displayName: 'Aaron',
+        login: 'aaron',
+        deleted: false,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.ONLINE
+      })
+    );
     await vi.waitFor(() => {
       expect(renderedMemberTitles(memberGroup(container, 'Online (2)'))).toEqual([
         'View profile of Aaron',

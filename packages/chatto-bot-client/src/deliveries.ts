@@ -8,20 +8,30 @@ export interface DeliveryTracker {
 
 /** Create a process-local replay filter. Retain the object across configuration reloads.
  * Expired IDs can be accepted again. The default retention is 24 hours. */
-export function createDeliveryTracker({ retentionMs = 86_400_000, now = Date.now, accepted = new Map<string, number>() }: {
+export function createDeliveryTracker({
+  retentionMs = 86_400_000,
+  now = Date.now,
+  accepted = new Map<string, number>()
+}: {
   retentionMs?: number;
   now?: () => number;
   /** Optional retained storage: delivery ID to expiry time in milliseconds. */
   accepted?: Map<string, number>;
 } = {}): DeliveryTracker {
-  if (!Number.isFinite(retentionMs) || retentionMs <= 0) throw new Error("Delivery retention must be positive and finite");
+  if (!Number.isFinite(retentionMs) || retentionMs <= 0)
+    throw new Error('Delivery retention must be positive and finite');
   function prune() {
     const time = now();
     for (const [id, expires] of accepted) if (expires <= time) accepted.delete(id);
     return time;
   }
   return {
-    has(id) { prune(); return accepted.has(id); },
-    accept(id) { accepted.set(id, prune() + retentionMs); },
+    has(id) {
+      prune();
+      return accepted.has(id);
+    },
+    accept(id) {
+      accepted.set(id, prune() + retentionMs);
+    }
   };
 }

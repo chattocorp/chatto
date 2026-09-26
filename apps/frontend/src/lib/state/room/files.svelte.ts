@@ -158,17 +158,36 @@ export class RoomFilesStore {
   }
 
   /** Apply a shared message read without clearing loaded pages or signed URLs. */
-  applyMessageUpdate(id: string, message: Message | null, insert: boolean, minimumCursor?: string): void {
-    this.reconcileMessage(id, message ? roomFileItemsForMessage(message) : [], insert, minimumCursor);
+  applyMessageUpdate(
+    id: string,
+    message: Message | null,
+    insert: boolean,
+    minimumCursor?: string
+  ): void {
+    this.reconcileMessage(
+      id,
+      message ? roomFileItemsForMessage(message) : [],
+      insert,
+      minimumCursor
+    );
   }
 
   /** Loaded echo rows share original attachment IDs, even outside the timeline. */
   relatedMessageIds(id: string): string[] {
-    const assets = new SvelteSet(this.items.filter((item) => item.messageEventId === id).map((item) => item.attachment.id));
-    return this.items.filter((item) => assets.has(item.attachment.id)).map((item) => item.messageEventId);
+    const assets = new SvelteSet(
+      this.items.filter((item) => item.messageEventId === id).map((item) => item.attachment.id)
+    );
+    return this.items
+      .filter((item) => assets.has(item.attachment.id))
+      .map((item) => item.messageEventId);
   }
 
-  private reconcileMessage(id: string, replacement: RoomFileItem[], isNewMessage: boolean, minimumCursor?: string): void {
+  private reconcileMessage(
+    id: string,
+    replacement: RoomFileItem[],
+    isNewMessage: boolean,
+    minimumCursor?: string
+  ): void {
     if (isNewMessage && replacement.length === 0) return;
 
     if (!this.hydrated) {
@@ -210,10 +229,9 @@ export class RoomFilesStore {
       return;
     }
 
-    this.items = [
-      ...this.items.filter((item) => item.messageEventId !== id),
-      ...replacement
-    ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    this.items = [...this.items.filter((item) => item.messageEventId !== id), ...replacement].sort(
+      (a, b) => b.createdAt.localeCompare(a.createdAt)
+    );
     this.totalCount = Math.max(0, this.totalCount - current.length + replacement.length);
     this.hasMore = this.totalCount > this.items.length;
     if (retryPagination) void this.loadMore(minimumCursor);
@@ -245,7 +263,13 @@ export class RoomFilesStore {
     const paginationEpoch = this.paginationEpoch;
     this.isLoadingMore = true;
     try {
-      await this.loadPage(this.items.length, false, ROOM_FILES_PAGE_SIZE, paginationEpoch, minimumCursor);
+      await this.loadPage(
+        this.items.length,
+        false,
+        ROOM_FILES_PAGE_SIZE,
+        paginationEpoch,
+        minimumCursor
+      );
     } finally {
       if (
         this.roomId === roomId &&

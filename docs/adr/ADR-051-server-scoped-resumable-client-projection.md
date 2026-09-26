@@ -49,20 +49,17 @@ later changes:
 “Every room” includes joined DMs with no message yet. The public directory's
 conversation-list policy may hide those rows, but the realtime projection and
 live authorization capture are exhaustive so the room can receive its first
-message and be opened directly.
-2. The subscription names timeline rooms already retained by the client. On a
-   room's first view, the client sends `hydrate_room` on the same WebSocket and
-   receives an atomic room-membership upsert plus the latest 50 timeline events
-   as normal projection operations. Later timeline mutations are emitted only
-   for retained rooms. Unretained room facts still update lightweight room and
-   viewer state; root messages carry a content-free room-activity operation so
-   DM ordering, unread, notification, and call state remain current while the
-   single resume cursor advances.
-3. A cursor is issued only at EVT boundaries. A socket reconnect in the same
-   in-memory client session supplies its last applied cursor and receives
-   projection operations derived from later EVT facts before `caught_up`.
-4. A missing, invalid, expired, foreign-incarnation, authorization-sensitive,
-   or oversized cursor causes another `reset` plus current compacted state.
+message and be opened directly. 2. The subscription names timeline rooms already retained by the client. On a
+room's first view, the client sends `hydrate_room` on the same WebSocket and
+receives an atomic room-membership upsert plus the latest 50 timeline events
+as normal projection operations. Later timeline mutations are emitted only
+for retained rooms. Unretained room facts still update lightweight room and
+viewer state; root messages carry a content-free room-activity operation so
+DM ordering, unread, notification, and call state remain current while the
+single resume cursor advances. 3. A cursor is issued only at EVT boundaries. A socket reconnect in the same
+in-memory client session supplies its last applied cursor and receives
+projection operations derived from later EVT facts before `caught_up`. 4. A missing, invalid, expired, foreign-incarnation, authorization-sensitive,
+or oversized cursor causes another `reset` plus current compacted state.
 
 The 0.5 bundled client requires a 0.5 server and does not retain the 0.4
 ConnectRPC bootstrap as a fallback. A 0.4 server is therefore an explicit

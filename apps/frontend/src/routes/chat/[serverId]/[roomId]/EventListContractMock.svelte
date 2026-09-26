@@ -1,17 +1,21 @@
 <script lang="ts">
+  import type { MessagesStore } from '$lib/state/room';
+
   let {
+    messageStore,
     unreadAfterEventId = null,
     showStartMarker = true,
     emptyMessage = '',
-    isLoading = false,
     onReachedBottom
   }: {
+    messageStore?: Pick<MessagesStore, 'isInitialLoading'>;
     unreadAfterEventId?: string | null;
     showStartMarker?: boolean;
     emptyMessage?: string;
-    isLoading?: boolean;
     onReachedBottom?: () => void;
   } = $props();
+
+  const isLoading = $derived(messageStore?.isInitialLoading ?? false);
 </script>
 
 <output data-testid="event-list-start-marker">{showStartMarker}</output>

@@ -5,7 +5,12 @@
     "open_quick_switcher": "開啟快速切換器",
     "quick_switcher_shortcut": "快速切換器 (Cmd+K)",
     "realtime_paused": "即時更新已暫停。正在重新連線...",
-    "saved_view": {"cache_title":"本機快取","cache_description":"此裝置儲存有限的聊天文字檢視，供離線閱讀。","clear_cache":"清除已儲存的聊天","cache_cleared":"已清除儲存的聊天。"},
+    "saved_view": {
+      "cache_title": "本機快取",
+      "cache_description": "此裝置儲存有限的聊天文字檢視，供離線閱讀。",
+      "clear_cache": "清除已儲存的聊天",
+      "cache_cleared": "已清除儲存的聊天。"
+    },
     "update_available": "有新版本可用",
     "reload": "重新載入",
     "sign_out": "登出",

@@ -151,7 +151,9 @@ describe('ContextMenu', () => {
     await expect
       .element(q(container, 'dialog.bottom-sheet'))
       .toHaveAttribute('aria-label', 'Room actions');
-    await expect.element(q(container, '[role="menu"]')).toHaveAttribute('aria-label', 'Room actions');
+    await expect
+      .element(q(container, '[role="menu"]'))
+      .toHaveAttribute('aria-label', 'Room actions');
     await expect.element(q(container, '[role="menu"]')).toHaveClass('flex', 'flex-col', 'gap-1');
     expect(container.textContent).toContain('Menu body');
   });

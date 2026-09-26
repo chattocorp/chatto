@@ -144,9 +144,13 @@ test.describe('Notification policy', () => {
     await chatPage.enterRoom('announcements');
 
     const newMessage = `No Badge, cursor retained ${Date.now()}`;
-    const newMessageEventId = await withServerUser(browser!, serverURL, async ({ page: actorPage }) => {
-      return postMessageViaConnect(actorPage, roomId, newMessage);
-    });
+    const newMessageEventId = await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: actorPage }) => {
+        return postMessageViaConnect(actorPage, roomId, newMessage);
+      }
+    );
 
     // Observe the source through this viewer's room timeline while the room is
     // still closed. This proves that the following absence checks run after

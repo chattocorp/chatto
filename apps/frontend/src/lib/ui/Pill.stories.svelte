@@ -20,7 +20,16 @@
 </script>
 
 <script lang="ts">
-  const tones = ['default', 'success', 'danger', 'action', 'neutral', 'muted', 'subtle', 'server'] as const;
+  const tones = [
+    'default',
+    'success',
+    'danger',
+    'action',
+    'neutral',
+    'muted',
+    'subtle',
+    'server'
+  ] as const;
 </script>
 
 <Story name="All tones" asChild>

@@ -44,8 +44,11 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 import { load } from './+layout';
 
-function routeLoad(user: { id: string } | null = { id: 'viewer-1' }, setupRequired = false,
-  startupServerId?: string) {
+function routeLoad(
+  user: { id: string } | null = { id: 'viewer-1' },
+  setupRequired = false,
+  startupServerId?: string
+) {
   return load({
     params: { serverId: '-' },
     parent: async () => ({ user, serverInfo: { setupRequired }, startupServerId }),

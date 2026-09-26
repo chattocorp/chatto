@@ -5,8 +5,10 @@
  */
 export function usesAppleShortcutModifier(
   navigatorLike:
-    | { platform?: string; userAgentData?: { platform?: string } }
-    | undefined = typeof navigator === 'undefined' ? undefined : navigator
+    { platform?: string; userAgentData?: { platform?: string } } | undefined = typeof navigator ===
+  'undefined'
+    ? undefined
+    : navigator
 ): boolean {
   const platform = navigatorLike?.userAgentData?.platform ?? navigatorLike?.platform ?? '';
   return /Mac|iPhone|iPad|iPod/i.test(platform);

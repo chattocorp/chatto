@@ -4,7 +4,7 @@ export function concat(...parts: ConcatPart[]): string {
   const lines: string[] = [];
 
   const append = (part: ConcatPart) => {
-    if (typeof part === "string") {
+    if (typeof part === 'string') {
       lines.push(part);
       return;
     }
@@ -18,5 +18,5 @@ export function concat(...parts: ConcatPart[]): string {
     append(part);
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

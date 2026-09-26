@@ -35,10 +35,10 @@ spec:
         - name: nats
           image: nats:latest
           args:
-            - "--jetstream"
-            - "--store_dir=/data"
-            - "--auth=$(NATS_TOKEN)"
-            - "--http_port=8222"
+            - '--jetstream'
+            - '--store_dir=/data'
+            - '--auth=$(NATS_TOKEN)'
+            - '--http_port=8222'
           env:
             - name: NATS_TOKEN
               valueFrom:
@@ -75,7 +75,7 @@ spec:
     - metadata:
         name: data
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: ['ReadWriteOnce']
         resources:
           requests:
             storage: 80Gi

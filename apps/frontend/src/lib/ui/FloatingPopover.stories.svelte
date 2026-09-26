@@ -47,7 +47,7 @@
         {anchor}
         role="menu"
         ariaLabel="Example menu"
-        class="menu min-w-44 p-1 shadow-lg"
+        class="min-w-44 menu p-1 shadow-lg"
         onclose={() => (open = false)}
       >
         <button type="button" class="menu-item" role="menuitem">Rename</button>

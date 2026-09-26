@@ -1,62 +1,60 @@
-import assert from "node:assert/strict";
-import { execFile, spawn } from "node:child_process";
-import {
-  copyFile,
-  mkdtemp,
-  mkdir,
-  readFile,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { resolve, dirname, delimiter } from "node:path";
-import { createServer } from "node:net";
-import { promisify } from "node:util";
-import { setTimeout as delay } from "node:timers/promises";
-import { cleanupConsumer, stopConsumer } from "./cleanup-consumer.mjs";
+import assert from 'node:assert/strict';
+import { execFile, spawn } from 'node:child_process';
+import { copyFile, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve, dirname, delimiter } from 'node:path';
+import { createServer } from 'node:net';
+import { promisify } from 'node:util';
+import { setTimeout as delay } from 'node:timers/promises';
+import { cleanupConsumer, stopConsumer } from './cleanup-consumer.mjs';
 
 const exec = promisify(execFile);
 // Keep npm and its child executables on the runtime used to launch this test.
-process.env.PATH = `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ""}`;
-const root = resolve(import.meta.dirname, "..");
-const directory = await mkdtemp(resolve(tmpdir(), "runling-consumer-"));
+process.env.PATH = `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ''}`;
+const root = resolve(import.meta.dirname, '..');
+const directory = await mkdtemp(resolve(tmpdir(), 'runling-consumer-'));
 let server;
-let serverOutput = "";
+let serverOutput = '';
 try {
-  const { stdout } = await exec(
-    "npm",
-    ["pack", "--json", "--pack-destination", directory],
-    { cwd: root },
-  );
+  const { stdout } = await exec('npm', ['pack', '--json', '--pack-destination', directory], {
+    cwd: root
+  });
   const [packed] = JSON.parse(stdout);
-  assert.equal(packed.name, "runling");
-  const manifest = JSON.parse(
-    await readFile(resolve(root, "package.json"), "utf8"),
-  );
+  assert.equal(packed.name, 'runling');
+  const manifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
   assert.equal(packed.version, manifest.version);
-  assert(packed.files.some(({ path }) => path === "README.md"));
-  assert(packed.files.some(({ path }) => path === "LICENSE"));
-  assert(packed.files.some(({ path }) => path === "bin/runling.js"));
-  assert(!packed.files.some(({ path }) => path === "bin/factory.js"));
-  assert(packed.files.some(({ path }) => path === "dist/web/index.js"));
-  assert(packed.files.some(({ path }) => path === "dist/src/runtime/index.d.ts"));
-  assert(!packed.files.some(({ path }) => path.endsWith(".test.ts")));
-  const project = resolve(directory, "project with spaces");
+  assert(packed.files.some(({ path }) => path === 'README.md'));
+  assert(packed.files.some(({ path }) => path === 'LICENSE'));
+  assert(packed.files.some(({ path }) => path === 'bin/runling.js'));
+  assert(!packed.files.some(({ path }) => path === 'bin/factory.js'));
+  assert(packed.files.some(({ path }) => path === 'dist/web/index.js'));
+  assert(packed.files.some(({ path }) => path === 'dist/src/runtime/index.d.ts'));
+  assert(!packed.files.some(({ path }) => path.endsWith('.test.ts')));
+  const project = resolve(directory, 'project with spaces');
   await mkdir(project);
   await writeFile(
-    resolve(project, "package.json"),
+    resolve(project, 'package.json'),
     JSON.stringify({
-      name: "runling-consumer-test",
+      name: 'runling-consumer-test',
       private: true,
-      type: "module",
-      scripts: { runling: "runling" },
-    }),
+      type: 'module',
+      scripts: { runling: 'runling' }
+    })
   );
   await exec(
-    "npm",
-    ["install", "--no-audit", "--no-fund", resolve(directory, packed.filename), `zod@${manifest.devDependencies.zod}`],
-    { cwd: project, maxBuffer: 8 * 1024 * 1024 },
+    'npm',
+    [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      resolve(directory, packed.filename),
+      `zod@${manifest.devDependencies.zod}`
+    ],
+    { cwd: project, maxBuffer: 8 * 1024 * 1024 }
   );
-  await writeFile(resolve(project, "channels.mjs"), `
+  await writeFile(
+    resolve(project, 'channels.mjs'),
+    `
 import assert from "node:assert/strict";
 import { createWorkflowContext, createChannel, spawn, task, Type, agent as rootAgent } from "runling";
 import { connectAgent, agent, taskTool, runAgentConversation, observeAgentTasks, createAgentTasks, agentTasksExtension } from "runling/agents";
@@ -104,16 +102,14 @@ assert.equal(await child.result, 5);
 const channel = createChannel({ capacity: 1 });
 channel.close();
 await assert.rejects(channel.send(1), { name: "ChannelClosedError" });
-`);
-  await exec(process.execPath, ["channels.mjs"], { cwd: project });
-  await writeFile(resolve(project, "message.txt"), "consumer cwd");
-  await writeFile(
-    resolve(project, ".env"),
-    "RUNLING_PACKAGE_TEST_ENV=loaded\n",
+`
   );
-  await writeFile(resolve(project, "helper.ts"), 'export const suffix = "";\n');
+  await exec(process.execPath, ['channels.mjs'], { cwd: project });
+  await writeFile(resolve(project, 'message.txt'), 'consumer cwd');
+  await writeFile(resolve(project, '.env'), 'RUNLING_PACKAGE_TEST_ENV=loaded\n');
+  await writeFile(resolve(project, 'helper.ts'), 'export const suffix = "";\n');
   await writeFile(
-    resolve(project, "workflow.ts"),
+    resolve(project, 'workflow.ts'),
     `import { task, exec, step, log } from "runling";
 import { z } from "zod";
 import { suffix } from "./helper.ts";
@@ -125,10 +121,10 @@ export default task({ name: "Consumer echo", input: z.object({ topic: z.string()
     return input.topic + ": " + cwd + suffix;
   });
 });
-`,
+`
   );
   await writeFile(
-    resolve(project, "cli.ts"),
+    resolve(project, 'cli.ts'),
     `import { task, Type, exec, step, log, createWorkflowContext } from "runling";
 import * as git from "runling/git";
 import { connectAgent, agent, runAgent, defineAgentExtension } from "runling/agents";
@@ -148,10 +144,10 @@ export default task({ name: "CLI echo", input: Type.String(), output: Type.Strin
   ctx.recordUsage({ input: 10, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
   return input;
 });
-`,
+`
   );
   await writeFile(
-    resolve(project, "runling.config.ts"),
+    resolve(project, 'runling.config.ts'),
     `import { defineWebConfig, startWorkflow } from "runling/web";
 import { appendFile } from "node:fs/promises";
 import echo from "./workflow.ts";
@@ -165,96 +161,103 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     await appendFile("source-lifecycle.txt", "stop:" + count + "\\n");
   }
 } });
-`,
+`
   );
   const cli = await exec(
-    "npm",
-    ["run", "--silent", "runling", "--", "run", "cli.ts", "explicit input", "--json"],
-    { cwd: project },
+    'npm',
+    ['run', '--silent', 'runling', '--', 'run', 'cli.ts', 'explicit input', '--json'],
+    { cwd: project }
   );
-  assert.equal(JSON.parse(cli.stdout).output, "explicit input");
+  assert.equal(JSON.parse(cli.stdout).output, 'explicit input');
   assert.deepEqual(JSON.parse(cli.stdout).usage, {
-    input: 10, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0.25,
+    input: 10,
+    output: 2,
+    cacheRead: 0,
+    cacheWrite: 0,
+    cost: 0.25
   });
   const structured = await exec(
-    "npm",
-    ["run", "--silent", "runling", "--", "run", "workflow.ts", "--input", JSON.stringify({ directory: project, topic: "structured" }), "--json"],
-    { cwd: project },
+    'npm',
+    [
+      'run',
+      '--silent',
+      'runling',
+      '--',
+      'run',
+      'workflow.ts',
+      '--input',
+      JSON.stringify({ directory: project, topic: 'structured' }),
+      '--json'
+    ],
+    { cwd: project }
   );
-  assert.equal(JSON.parse(structured.stdout).output, "structured: consumer cwd");
+  assert.equal(JSON.parse(structured.stdout).output, 'structured: consumer cwd');
   // A normal npm project need not declare itself an ESM package.
   await writeFile(
-    resolve(project, "package.json"),
+    resolve(project, 'package.json'),
     JSON.stringify({
-      name: "runling-consumer-test",
+      name: 'runling-consumer-test',
       private: true,
-      scripts: { runling: "runling" },
-      dependencies: { runling: packed.version },
-    }),
+      scripts: { runling: 'runling' },
+      dependencies: { runling: packed.version }
+    })
   );
   const commonjsCli = await exec(
-    "npm",
-    [
-      "run",
-      "--silent",
-      "runling",
-      "--",
-      "run",
-      "cli.ts",
-      "commonjs project",
-      "--json",
-    ],
-    { cwd: project },
+    'npm',
+    ['run', '--silent', 'runling', '--', 'run', 'cli.ts', 'commonjs project', '--json'],
+    { cwd: project }
   );
-  assert.equal(JSON.parse(commonjsCli.stdout).output, "commonjs project");
+  assert.equal(JSON.parse(commonjsCli.stdout).output, 'commonjs project');
   await exec(
     process.execPath,
     [
-      resolve(root, "node_modules/typescript/bin/tsc"),
-      "--noEmit",
-      "--strict",
-      "--module",
-      "nodenext",
-      "--target",
-      "esnext",
-      "--allowImportingTsExtensions",
-      "--skipLibCheck",
-      "runling.config.ts",
-      "workflow.ts",
-      "cli.ts",
+      resolve(root, 'node_modules/typescript/bin/tsc'),
+      '--noEmit',
+      '--strict',
+      '--module',
+      'nodenext',
+      '--target',
+      'esnext',
+      '--allowImportingTsExtensions',
+      '--skipLibCheck',
+      'runling.config.ts',
+      'workflow.ts',
+      'cli.ts'
     ],
-    { cwd: project },
+    { cwd: project }
   );
 
   const portServer = createServer();
-  await new Promise((resolve) => portServer.listen(0, "127.0.0.1", resolve));
+  await new Promise((resolve) => portServer.listen(0, '127.0.0.1', resolve));
   const port = portServer.address().port;
   await new Promise((resolve) => portServer.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
   server = spawn(
-    "npm",
-    ["run", "runling", "--", "serve", "--watch", "--host", "127.0.0.1", "--port", String(port)],
+    'npm',
+    ['run', 'runling', '--', 'serve', '--watch', '--host', '127.0.0.1', '--port', String(port)],
     {
       cwd: project,
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe']
+    }
   );
-  server.stdout.on("data", (chunk) => {
+  server.stdout.on('data', (chunk) => {
     serverOutput += chunk;
   });
-  server.stderr.on("data", (chunk) => {
+  server.stderr.on('data', (chunk) => {
     serverOutput += chunk;
   });
   // A source must run before the first HTTP request, including in an installed package.
-  let lifecycle = "";
+  let lifecycle = '';
   for (let attempt = 0; attempt < 100; attempt++) {
     if (server.exitCode !== null) throw new Error(serverOutput);
-    try { lifecycle = await readFile(resolve(project, "source-lifecycle.txt"), "utf8"); } catch {}
-    if (lifecycle.includes("start:1")) break;
+    try {
+      lifecycle = await readFile(resolve(project, 'source-lifecycle.txt'), 'utf8');
+    } catch {}
+    if (lifecycle.includes('start:1')) break;
     await delay(100);
   }
-  assert.equal(lifecycle, "start:1\n", `Source did not start eagerly:\n${serverOutput}`);
+  assert.equal(lifecycle, 'start:1\n', `Source did not start eagerly:\n${serverOutput}`);
   let response;
   for (let attempt = 0; attempt < 100; attempt++) {
     if (server.exitCode !== null) throw new Error(serverOutput);
@@ -266,149 +269,134 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     }
   }
   assert(response, `Server did not start:\n${serverOutput}`);
-  assert(serverOutput.includes(`Runling ready → ${origin}`),
-    "Startup prints a welcome message with the configured console URL");
+  assert(
+    serverOutput.includes(`Runling ready → ${origin}`),
+    'Startup prints a welcome message with the configured console URL'
+  );
   const html = await response.text();
   assert.equal(response.status, 200, html + serverOutput);
-  assert(html.includes("Consumer echo"));
+  assert(html.includes('Consumer echo'));
   const asset = html.match(/(?:href|src)="([^" ]+\.css)"/)?.[1];
-  assert(asset, "UI contains a stylesheet");
+  assert(asset, 'UI contains a stylesheet');
   assert.equal((await fetch(new URL(asset, origin))).status, 200);
   const schemaResponse = await fetch(`${origin}/api/webhooks/echo`);
   assert.equal(schemaResponse.status, 200);
   const schemas = await schemaResponse.json();
-  assert.equal(schemas.input.type, "object");
-  assert.equal(schemas.input.properties.topic.type, "string");
-  assert.equal(schemas.output.type, "string");
-  assert(!JSON.stringify(schemas).includes("~standard"));
+  assert.equal(schemas.input.type, 'object');
+  assert.equal(schemas.input.properties.topic.type, 'string');
+  assert.equal(schemas.output.type, 'string');
+  assert(!JSON.stringify(schemas).includes('~standard'));
   const post = (path, body) =>
     fetch(`${origin}${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(typeof body === "object" ? { ...body, directory: project } : body),
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(typeof body === 'object' ? { ...body, directory: project } : body)
     });
-  assert.equal((await post("/api/webhooks/echo", "invalid")).status, 400);
-  const webhook = await post("/api/webhooks/echo", { topic: "webhook" });
+  assert.equal((await post('/api/webhooks/echo', 'invalid')).status, 400);
+  const webhook = await post('/api/webhooks/echo', { topic: 'webhook' });
   assert.equal(webhook.status, 202);
   const waitForRun = async (id) => {
     for (let attempt = 0; attempt < 100; attempt++) {
       const run = await (await fetch(`${origin}/api/runs/${id}`)).json();
-      if (run.status !== "running" && run.status !== "waiting") return run;
+      if (run.status !== 'running' && run.status !== 'waiting') return run;
       await delay(100);
     }
     throw new Error(`Run did not finish: ${id}`);
   };
   const webhookRun = await waitForRun((await webhook.json()).runs[0].id);
-  assert.equal(webhookRun.output, "webhook: consumer cwd");
-  const workflowPath = resolve(project, "workflow.ts");
-  const originalWorkflow = await readFile(workflowPath, "utf8");
-  await writeFile(
-    workflowPath,
-    originalWorkflow.replace("Consumer echo", "Reloaded echo"),
-  );
+  assert.equal(webhookRun.output, 'webhook: consumer cwd');
+  const workflowPath = resolve(project, 'workflow.ts');
+  const originalWorkflow = await readFile(workflowPath, 'utf8');
+  await writeFile(workflowPath, originalWorkflow.replace('Consumer echo', 'Reloaded echo'));
   const waitForPage = async (text) => {
     for (let attempt = 0; attempt < 100; attempt++) {
       if (server?.exitCode !== null) throw new Error(`Server stopped:\n${serverOutput}`);
       try {
         if ((await (await fetch(origin)).text()).includes(text)) return;
-      } catch { /* The replacement process may not have opened its listener yet. */ }
+      } catch {
+        /* The replacement process may not have opened its listener yet. */
+      }
       await delay(100);
     }
     throw new Error(`Config did not reload: ${text}\n${serverOutput}`);
   };
-  await waitForPage("Reloaded echo");
-  const active = await post("/api/runs/start/echo", { topic: "slow" });
+  await waitForPage('Reloaded echo');
+  const active = await post('/api/runs/start/echo', { topic: 'slow' });
   const activeId = (await active.json()).runs[0].id;
-  await writeFile(
-    resolve(project, "helper.ts"),
-    'export const suffix = " updated";\n',
-  );
+  await writeFile(resolve(project, 'helper.ts'), 'export const suffix = " updated";\n');
   let updated = false;
   for (let attempt = 0; attempt < 30; attempt++) {
-    const output = await (
-      await post("/api/webhooks/echo", { topic: "new" })
-    ).json();
-    if ((await waitForRun(output.runs[0].id)).output === "new: consumer cwd updated") {
+    const output = await (await post('/api/webhooks/echo', { topic: 'new' })).json();
+    if ((await waitForRun(output.runs[0].id)).output === 'new: consumer cwd updated') {
       updated = true;
       break;
     }
     await delay(100);
   }
-  assert(updated, "Transitive imports reload for new runs");
+  assert(updated, 'Transitive imports reload for new runs');
   let oldRun;
   for (let attempt = 0; attempt < 50; attempt++) {
     oldRun = await (await fetch(`${origin}/api/runs/${activeId}`)).json();
-    if (oldRun.status !== "running") break;
+    if (oldRun.status !== 'running') break;
     await delay(100);
   }
-  assert.equal(
-    oldRun.output,
-    "slow: consumer cwd",
-    "Active runs keep their original modules",
-  );
-  const configPath = resolve(project, "runling.config.ts");
+  assert.equal(oldRun.output, 'slow: consumer cwd', 'Active runs keep their original modules');
+  const configPath = resolve(project, 'runling.config.ts');
   const configState = async () => {
     const response = await fetch(`${origin}/api/config/events`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(5000)
     });
     const reader = response.body.getReader();
-    let text = "";
+    let text = '';
     try {
-      while (!text.includes("\n\n")) {
+      while (!text.includes('\n\n')) {
         const { value, done } = await reader.read();
-        if (done)
-          throw new Error("Config event stream closed before its snapshot");
+        if (done) throw new Error('Config event stream closed before its snapshot');
         text += new TextDecoder().decode(value);
       }
       return JSON.parse(
         text
-          .split("\n")
-          .find((line) => line.startsWith("data: "))
-          .slice(6),
+          .split('\n')
+          .find((line) => line.startsWith('data: '))
+          .slice(6)
       );
     } finally {
       await reader.cancel();
     }
   };
-  const originalConfig = await readFile(configPath, "utf8");
-  const beforeInvalid = await readFile(resolve(project, "source-lifecycle.txt"), "utf8");
-  await writeFile(configPath, "export default { broken: true };\n");
-  for (
-    let attempt = 0;
-    attempt < 100 && !serverOutput.includes("Config reload failed");
-    attempt++
-  )
+  const originalConfig = await readFile(configPath, 'utf8');
+  const beforeInvalid = await readFile(resolve(project, 'source-lifecycle.txt'), 'utf8');
+  await writeFile(configPath, 'export default { broken: true };\n');
+  for (let attempt = 0; attempt < 100 && !serverOutput.includes('Config reload failed'); attempt++)
     await delay(100);
-  assert(
-    serverOutput.includes("Config reload failed"),
-    "Invalid reload is reported",
-  );
-  assert((await configState()).error, "Browser clients receive reload errors");
-  assert.equal(await readFile(resolve(project, "source-lifecycle.txt"), "utf8"), beforeInvalid,
-    "Invalid config must not replace active sources");
+  assert(serverOutput.includes('Config reload failed'), 'Invalid reload is reported');
+  assert((await configState()).error, 'Browser clients receive reload errors');
   assert.equal(
-    (await post("/api/webhooks/echo", { topic: "retained" })).status,
-    202,
+    await readFile(resolve(project, 'source-lifecycle.txt'), 'utf8'),
+    beforeInvalid,
+    'Invalid config must not replace active sources'
   );
-  await writeFile(configPath, originalConfig.replace("echo: startWorkflow", "renamed: startWorkflow"));
-  await waitForPage("/api/webhooks/renamed");
-  assert.equal(
-    (await configState()).error,
-    null,
-    "Recovery clears the browser error",
+  assert.equal((await post('/api/webhooks/echo', { topic: 'retained' })).status, 202);
+  await writeFile(
+    configPath,
+    originalConfig.replace('echo: startWorkflow', 'renamed: startWorkflow')
   );
+  await waitForPage('/api/webhooks/renamed');
+  assert.equal((await configState()).error, null, 'Recovery clears the browser error');
   assert.equal((await fetch(`${origin}/api/webhooks/echo`)).status, 404);
   await writeFile(configPath, originalConfig);
-  await waitForPage("/api/webhooks/echo");
-  const started = await post("/api/runs/start/echo", { topic: "console" });
+  await waitForPage('/api/webhooks/echo');
+  const started = await post('/api/runs/start/echo', { topic: 'console' });
   assert.equal(started.status, 202);
-  const { runs: [{ id }] } = await started.json();
+  const {
+    runs: [{ id }]
+  } = await started.json();
   const streamAbort = new AbortController();
   const stream = await fetch(`${origin}/api/runs/${id}/events`, {
-    signal: streamAbort.signal,
+    signal: streamAbort.signal
   });
   const reader = stream.body.getReader();
-  let streamed = "";
+  let streamed = '';
   try {
     await Promise.race([
       (async () => {
@@ -419,75 +407,91 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
         }
       })(),
       delay(5000).then(() => {
-        throw new Error("Timed out waiting for live events: " + streamed);
-      }),
+        throw new Error('Timed out waiting for live events: ' + streamed);
+      })
     ]);
   } finally {
     streamAbort.abort();
   }
   const detail = await (await fetch(`${origin}/api/runs/${id}`)).json();
-  assert.equal(detail.status, "completed");
-  assert(
-    streamed.includes("command.started"),
-    "Workflow and web UI share the event runtime",
-  );
-  const history = await readFile(
-    resolve(project, ".runling/runs", `${id}.jsonl`),
-    "utf8",
-  );
-  assert(history.includes("console: consumer cwd"));
-  const serverLog = (await readFile(resolve(project, ".runling/logs/server.jsonl"), "utf8"))
-    .trim().split("\n").map((line) => JSON.parse(line));
-  assert(serverLog.some((record) => record.event === "server.listening"));
-  assert(serverLog.some((record) => record.event === "http.response" && record.status === 200));
-  assert(serverLog.some((record) => record.event === "run.finished" && record.runId === id));
-  assert(serverLog.some((record) => record.event === "config.reload_failed"));
-  assert(serverLog.some((record) => record.event === "run.started" && record.source === "source"));
+  assert.equal(detail.status, 'completed');
+  assert(streamed.includes('command.started'), 'Workflow and web UI share the event runtime');
+  const history = await readFile(resolve(project, '.runling/runs', `${id}.jsonl`), 'utf8');
+  assert(history.includes('console: consumer cwd'));
+  const serverLog = (await readFile(resolve(project, '.runling/logs/server.jsonl'), 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  assert(serverLog.some((record) => record.event === 'server.listening'));
+  assert(serverLog.some((record) => record.event === 'http.response' && record.status === 200));
+  assert(serverLog.some((record) => record.event === 'run.finished' && record.runId === id));
+  assert(serverLog.some((record) => record.event === 'config.reload_failed'));
+  assert(serverLog.some((record) => record.event === 'run.started' && record.source === 'source'));
 
   await stopConsumer(server);
   server = undefined;
-  const sourceLifecyclePath = resolve(project, "source-lifecycle.txt");
-  const stoppedLifecycle = await readFile(sourceLifecyclePath, "utf8");
-  const sourceLifecycle = stoppedLifecycle.trim().split("\n");
-  assert(sourceLifecycle.length >= 4, "Sources reload with configuration");
-  assert.equal(sourceLifecycle.length % 2, 0, "Shutdown releases the final source");
+  const sourceLifecyclePath = resolve(project, 'source-lifecycle.txt');
+  const stoppedLifecycle = await readFile(sourceLifecyclePath, 'utf8');
+  const sourceLifecycle = stoppedLifecycle.trim().split('\n');
+  assert(sourceLifecycle.length >= 4, 'Sources reload with configuration');
+  assert.equal(sourceLifecycle.length % 2, 0, 'Shutdown releases the final source');
   for (let index = 0; index < sourceLifecycle.length; index += 2) {
     const generation = index / 2 + 1;
     assert.equal(sourceLifecycle[index], `start:${generation}`);
-    assert.equal(sourceLifecycle[index + 1], `stop:${generation}`, "Old source must stop before replacement starts");
+    assert.equal(
+      sourceLifecycle[index + 1],
+      `stop:${generation}`,
+      'Old source must stop before replacement starts'
+    );
   }
 
   // Default serving must stay on its initial configuration, even if an old
   // environment setting requests watching. Only Commander --watch enables it.
-  server = spawn("npm", ["run", "runling", "--", "serve", "--host", "127.0.0.1", "--port", String(port)], {
-    cwd: project,
-    env: { ...process.env, RUNLING_WATCH: "1" },
-    detached: process.platform !== "win32",
-    stdio: ["ignore", "pipe", "pipe"],
+  server = spawn(
+    'npm',
+    ['run', 'runling', '--', 'serve', '--host', '127.0.0.1', '--port', String(port)],
+    {
+      cwd: project,
+      env: { ...process.env, RUNLING_WATCH: '1' },
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe']
+    }
+  );
+  server.stdout.on('data', (chunk) => {
+    serverOutput += chunk;
   });
-  server.stdout.on("data", chunk => { serverOutput += chunk; });
-  server.stderr.on("data", chunk => { serverOutput += chunk; });
-  await waitForPage("/api/webhooks/echo");
+  server.stderr.on('data', (chunk) => {
+    serverOutput += chunk;
+  });
+  await waitForPage('/api/webhooks/echo');
   let beforeEdit = stoppedLifecycle;
   for (let attempt = 0; attempt < 100; attempt++) {
     if (server.exitCode !== null) throw new Error(`Server stopped:\n${serverOutput}`);
-    beforeEdit = await readFile(sourceLifecyclePath, "utf8");
+    beforeEdit = await readFile(sourceLifecyclePath, 'utf8');
     if (beforeEdit !== stoppedLifecycle) break;
     await delay(100);
   }
-  assert.equal(beforeEdit, `${stoppedLifecycle}start:1\n`,
-    "Default serving starts its source before the file edit");
-  await writeFile(configPath, "export default { invalid: true };\n");
+  assert.equal(
+    beforeEdit,
+    `${stoppedLifecycle}start:1\n`,
+    'Default serving starts its source before the file edit'
+  );
+  await writeFile(configPath, 'export default { invalid: true };\n');
   await delay(500);
   assert.equal((await fetch(`${origin}/api/webhooks/echo`)).status, 200);
-  assert(!((await configState()).error), "Default serving does not reload invalid edits");
-  assert.equal(await readFile(sourceLifecyclePath, "utf8"), beforeEdit,
-    "Default serving does not replace sources on file changes");
+  assert(!(await configState()).error, 'Default serving does not reload invalid edits');
+  assert.equal(
+    await readFile(sourceLifecyclePath, 'utf8'),
+    beforeEdit,
+    'Default serving does not replace sources on file changes'
+  );
   await stopConsumer(server);
   server = undefined;
 
   // Restart preserves history, but never restarts a workflow or restores its state.
-  await writeFile(configPath, `
+  await writeFile(
+    configPath,
+    `
     import { defineWebConfig } from "runling/web";
     const work = async (ctx, input) => {
       if (!input.wait) return input.message;
@@ -496,53 +500,62 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     export default defineWebConfig({
       webhooks: { example: (ctx, input) => ctx.start(work, { input }) },
     });
-  `);
+  `
+  );
   let previous;
   for (const restarted of [false, true]) {
-    server = spawn("npm", ["run", "runling", "--", "serve", "--host", "127.0.0.1", "--port", String(port)], {
-      cwd: project, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"],
+    server = spawn(
+      'npm',
+      ['run', 'runling', '--', 'serve', '--host', '127.0.0.1', '--port', String(port)],
+      {
+        cwd: project,
+        detached: process.platform !== 'win32',
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    );
+    server.stdout.on('data', (chunk) => {
+      serverOutput += chunk;
     });
-    server.stdout.on("data", chunk => { serverOutput += chunk; });
-    server.stderr.on("data", chunk => { serverOutput += chunk; });
-    await waitForPage("/api/webhooks/example");
+    server.stderr.on('data', (chunk) => {
+      serverOutput += chunk;
+    });
+    await waitForPage('/api/webhooks/example');
     if (!restarted) {
-      const response = await post("/api/webhooks/example", { wait: true });
+      const response = await post('/api/webhooks/example', { wait: true });
       previous = (await response.json()).runs[0].id;
       const detail = await (await fetch(`${origin}/api/runs/${previous}`)).json();
-      assert.equal(detail.status, "running");
+      assert.equal(detail.status, 'running');
     } else {
       const before = await (await fetch(`${origin}/api/runs/${previous}`)).json();
-      assert.equal(before.status, "interrupted");
-      const journalPath = resolve(project, ".runling/runs", `${previous}.jsonl`);
-      const journal = await readFile(journalPath, "utf8");
+      assert.equal(before.status, 'interrupted');
+      const journalPath = resolve(project, '.runling/runs', `${previous}.jsonl`);
+      const journal = await readFile(journalPath, 'utf8');
       assert.equal((await post(`/api/runs/${previous}/resume`, {})).status, 404);
-      const response = await post("/api/webhooks/example", { message: "fresh input" });
+      const response = await post('/api/webhooks/example', { message: 'fresh input' });
       const current = (await response.json()).runs[0].id;
       assert.notEqual(current, previous);
       let after;
       for (let attempt = 0; attempt < 100; attempt++) {
         after = await (await fetch(`${origin}/api/runs/${current}`)).json();
-        if (after.status === "completed") break;
+        if (after.status === 'completed') break;
         await delay(50);
       }
-      assert.equal(after.output, "fresh input");
+      assert.equal(after.output, 'fresh input');
       assert.notEqual(after.reference, before.reference);
-      assert.equal(await readFile(journalPath, "utf8"), journal);
-      assert(!after.events.some(event => event.type === "workflow.resumed"));
+      assert.equal(await readFile(journalPath, 'utf8'), journal);
+      assert(!after.events.some((event) => event.type === 'workflow.resumed'));
     }
-    await stopConsumer(server); server = undefined;
+    await stopConsumer(server);
+    server = undefined;
   }
 
   if (process.env.RUNLING_RELEASE_DIR) {
     const destination = resolve(process.env.RUNLING_RELEASE_DIR);
     await mkdir(destination, { recursive: true });
-    await copyFile(
-      resolve(directory, packed.filename),
-      resolve(destination, packed.filename),
-    );
+    await copyFile(resolve(directory, packed.filename), resolve(destination, packed.filename));
   }
   console.log(
-    "Packed npm consumer passed: CLI, UI/assets, config reload, source lifecycle, webhooks, live events, and history.",
+    'Packed npm consumer passed: CLI, UI/assets, config reload, source lifecycle, webhooks, live events, and history.'
   );
 } catch (error) {
   console.error(serverOutput);

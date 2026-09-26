@@ -21,7 +21,8 @@ describe('wrapValidMentions', () => {
   const members = [member('alice', 'Alice'), member('bob', 'Bob')];
   const aliceMention = '<span class="mention" data-user-id="alice" dir="auto">@Alice</span>';
   const bobMention = '<span class="mention" data-user-id="bob" dir="auto">@Bob</span>';
-  const selfMention = '<span class="mention mention-self" data-user-id="alice" dir="auto">@Alice</span>';
+  const selfMention =
+    '<span class="mention mention-self" data-user-id="alice" dir="auto">@Alice</span>';
 
   it('wraps valid mention in span tag', () => {
     const result = wrapValidMentions('<p>Hello @alice!</p>', members);
@@ -29,9 +30,7 @@ describe('wrapValidMentions', () => {
   });
 
   it('shows the current display name while keeping the original member target', () => {
-    const result = wrapValidMentions('<p>Hello @hendrik!</p>', [
-      member('hendrik', 'Hendrik Mans')
-    ]);
+    const result = wrapValidMentions('<p>Hello @hendrik!</p>', [member('hendrik', 'Hendrik Mans')]);
     expect(result).toContain(
       '<span class="mention" data-user-id="hendrik" dir="auto">@Hendrik Mans</span>'
     );

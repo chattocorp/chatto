@@ -103,7 +103,14 @@ The submit button's color follows `submitTone` (`action` by default; use
   const descriptionId = `${formDialogId}-description`;
 </script>
 
-<Dialog bind:visible {title} {titleContent} {size} describedBy={description ? descriptionId : undefined} {onclose}>
+<Dialog
+  bind:visible
+  {title}
+  {titleContent}
+  {size}
+  describedBy={description ? descriptionId : undefined}
+  {onclose}
+>
   <form id={formId} onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
       <div id={descriptionId} class="text-muted">

@@ -24,7 +24,7 @@ NATS JetStream supports either shape. The tradeoffs:
 - **One stream**: a single position to track, one backup target, one replication policy, one stream config to tune. Cross-aggregate retention is uniform. All operational tooling sees one resource.
 - **Many streams**: per-type retention and replication factors, bounded blast radius for corruption, independent throughput scaling. Multiplies the operational surface: backup orchestration, consumer fanout, subject-namespace coordination.
 
-A common worry with the single-stream shape is *ordering*: that "per-aggregate ordering" — events for room X are linearly ordered — would somehow require a dedicated stream. It does not. NATS provides per-subject sequence numbers within a single stream. The subject `evt.room.{roomId}.message_posted` has its own monotonic sequence inside the larger stream, and OCC against `Nats-Expected-Last-Subject-Sequence` operates at that granularity. When an invariant spans multiple event types for the same aggregate, callers use wildcard-filter OCC against `evt.room.{roomId}.>`. Per-subject and per-filter ordering are stream-level guarantees, not stream-per-aggregate guarantees.
+A common worry with the single-stream shape is _ordering_: that "per-aggregate ordering" — events for room X are linearly ordered — would somehow require a dedicated stream. It does not. NATS provides per-subject sequence numbers within a single stream. The subject `evt.room.{roomId}.message_posted` has its own monotonic sequence inside the larger stream, and OCC against `Nats-Expected-Last-Subject-Sequence` operates at that granularity. When an invariant spans multiple event types for the same aggregate, callers use wildcard-filter OCC against `evt.room.{roomId}.>`. Per-subject and per-filter ordering are stream-level guarantees, not stream-per-aggregate guarantees.
 
 Cross-aggregate ordering — "did the user join the room before or after sending this message?" — is intentionally not provided. Two events on different subjects have no guaranteed order relative to each other. Projections that need to relate state across aggregates do so through their own bookkeeping (e.g. a `RoomMemberJoined` event carrying a `joined_at` timestamp).
 
@@ -56,7 +56,7 @@ The subject identifies both **the aggregate** and **what happened**. An earlier 
 
 The original three objections to event-type-in-subject and why they don't hold up:
 
-- **"Single source of truth"** — The protobuf oneof is still the only place event type is *defined*. The subject token is *derived* from it via `EventTypeOf`. There is no convention to keep in sync; the framework computes the subject from the payload.
+- **"Single source of truth"** — The protobuf oneof is still the only place event type is _defined_. The subject token is _derived_ from it via `EventTypeOf`. There is no convention to keep in sync; the framework computes the subject from the payload.
 - **"OCC scope is wrong"** — Per-(aggregate, event-type) OCC is the new default. Two different event types on the same aggregate are no longer mutually serialised, which is usually what you want (a message post shouldn't contend with a member join). Cross-event-type invariants — "no joins after delete" and similar — use wildcard-filter OCC via `Aggregate.AllEventsFilter()` (the `Nats-Expected-Last-Subject-Sequence-Subject` JetStream header). The framework exposes both forms; callers pick the OCC scope they need.
 - **"Slot creep"** — `{aggregateType}.{aggregateId}.{eventType}` is the cap. Adding more tokens is a deliberate ADR-level decision, not a casual subject change.
 
@@ -89,9 +89,9 @@ Rationale:
 
 - **Room-scoped delivery stays mechanically derivable.** Every per-room event is present on that room aggregate's history and can be surfaced through `EVT` republish (`live.evt.>`). With a single "user deleted" event, room subscribers would not see the room-level effect unless we built derived live-event machinery.
 - **Per-room audit moments.** Each room's history records exactly when each member was removed and by which action. Derivable from a single upstream event is not the same as a recorded fact.
-- **Projections stay decoupled.** A projection consuming `evt.room.>` doesn't have to know about user-deletion semantics; it just reacts to membership events. Cross-aggregate coupling lives in actor code, where the cascade *originates*.
+- **Projections stay decoupled.** A projection consuming `evt.room.>` doesn't have to know about user-deletion semantics; it just reacts to membership events. Cross-aggregate coupling lives in actor code, where the cascade _originates_.
 
-When *not* to use per-aggregate fan-out: pure internal-state cleanup that no other consumer subscribes to. Dropping a user's preferences cache when the user is deleted, for example, can be handled by a preferences projection subscribing to `evt.user.>` and reacting to `UserDeleted` — no per-aggregate event needed. The criterion is "does anyone besides this projection care that this individual effect happened?" If yes, emit per-aggregate events; if no, let the projection derive.
+When _not_ to use per-aggregate fan-out: pure internal-state cleanup that no other consumer subscribes to. Dropping a user's preferences cache when the user is deleted, for example, can be handled by a preferences projection subscribing to `evt.user.>` and reacting to `UserDeleted` — no per-aggregate event needed. The criterion is "does anyone besides this projection care that this individual effect happened?" If yes, emit per-aggregate events; if no, let the projection derive.
 
 ### Live delivery
 

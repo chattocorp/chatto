@@ -7,7 +7,8 @@ import '../../app.css';
 import { cdp, page } from 'vitest/browser';
 
 const actions = createRawSnippet(() => ({
-  render: () => '<div><button type="button" data-testid="members">Members</button><button type="button">Call</button></div>'
+  render: () =>
+    '<div><button type="button" data-testid="members">Members</button><button type="button">Call</button></div>'
 }));
 const collapsedActions = createRawSnippet(() => ({
   render: () => '<button type="button" data-testid="active-call">Active call</button>'

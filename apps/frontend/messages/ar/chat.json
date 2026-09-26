@@ -8,6 +8,7 @@
     "notifications": {
       "title": "الإشعارات",
       "subtitle": "إليك ما هو جديد",
+      "list_title": "النشاط الأخير",
       "clear_read": "حذف المقروءة",
       "empty_title": "لا توجد إخطارات",
       "empty_body": "أنتم جميعًا محاصرون!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "مواضيعي",
       "subtitle": "المواضيع التي تتابعها",
+      "list_title": "المواضيع المتابَعة",
       "filter_label": "تصفية المواضيع",
       "filter_all": "الكل",
       "filter_unread": "غير مقروءة",

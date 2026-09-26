@@ -281,16 +281,15 @@ describe('EventList jump completion', () => {
       const rendered = render(EventListTestHarness, {
         props: {
           eventIds: ['msg-target'],
-          scrollToEventId: null,
-          updateCounter: 0
+          scrollToEventId: null
         }
       });
 
       await vi.waitFor(() => expect(animationFrames.length).toBeGreaterThan(0));
+      // A newly arrived message starts a second bottom scroll.
       await rendered.rerender({
-        eventIds: ['msg-target'],
-        scrollToEventId: null,
-        updateCounter: 1
+        eventIds: ['msg-target', 'msg-next'],
+        scrollToEventId: null
       });
 
       for (let frame = 0; frame < 50; frame++) {
@@ -324,8 +323,7 @@ describe('EventList jump completion', () => {
       props: {
         eventIds: initialEventIds,
         eventKind: 'join',
-        scrollToEventId: null,
-        updateCounter: initialEventIds.length
+        scrollToEventId: null
       }
     });
 
@@ -338,8 +336,7 @@ describe('EventList jump completion', () => {
     await rendered.rerender({
       eventIds: extendedEventIds,
       eventKind: 'join',
-      scrollToEventId: null,
-      updateCounter: extendedEventIds.length
+      scrollToEventId: null
     });
     await expect
       .element(page.getByTestId('virtualizer-rendered-key'))
@@ -354,8 +351,7 @@ describe('EventList jump completion', () => {
       eventIds: extendedEventIds,
       roomId: 'room-2',
       eventKind: 'join',
-      scrollToEventId: null,
-      updateCounter: extendedEventIds.length
+      scrollToEventId: null
     });
     await expect.element(page.getByRole('button', { name: '3 others' })).toBeVisible();
   });
@@ -400,7 +396,7 @@ describe('EventList unread entry landing', () => {
     setVirtualizerScrollOffset(400);
     try {
       const rendered = render(EventListTestHarness, {
-        props: { eventIds, scrollToEventId: null, scrollToUnreadOnEntry: true }
+        props: { eventIds, scrollToEventId: null }
       });
       await expect
         .element(page.getByTestId('virtualizer-scroll-alignment'))
@@ -409,7 +405,6 @@ describe('EventList unread entry landing', () => {
       await rendered.rerender({
         eventIds,
         scrollToEventId: null,
-        scrollToUnreadOnEntry: true,
         unreadAfterEventId: 'msg-2'
       });
 
@@ -439,7 +434,6 @@ describe('EventList unread entry landing', () => {
         props: {
           eventIds,
           scrollToEventId: null,
-          scrollToUnreadOnEntry: true,
           unreadAfterEventId: 'msg-2'
         }
       });
@@ -467,7 +461,6 @@ describe('EventList unread entry landing', () => {
       props: {
         eventIds,
         scrollToEventId: null,
-        scrollToUnreadOnEntry: true,
         unreadAfterEventId: 'msg-2',
         pendingHighlightId: 'msg-3'
       }
@@ -479,10 +472,8 @@ describe('EventList unread entry landing', () => {
     await rendered.rerender({
       eventIds,
       scrollToEventId: null,
-      scrollToUnreadOnEntry: true,
       unreadAfterEventId: 'msg-2',
-      pendingHighlightId: null,
-      updateCounter: 1
+      pendingHighlightId: null
     });
     await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
     await nextFrames();
@@ -495,7 +486,6 @@ describe('EventList unread entry landing', () => {
       eventIds,
       permalinkThreadRootEventId: threadId,
       scrollToEventId: null,
-      scrollToUnreadOnEntry: true,
       unreadAfterEventId: marker
     });
     const rendered = render(EventListTestHarness, { props: threadProps('thread-1', 'msg-2') });
@@ -504,10 +494,13 @@ describe('EventList unread entry landing', () => {
       .toHaveAttribute('data-rendered-key', 'unread-separator-msg-2');
 
     await rendered.rerender(threadProps('thread-2', null));
-    await rendered.rerender({ ...threadProps('thread-2', null), updateCounter: 1 });
+    await rendered.rerender({ ...threadProps('thread-2', null), eventIds: [...eventIds, 'msg-4'] });
     await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
 
-    await rendered.rerender({ ...threadProps('thread-2', 'msg-3'), updateCounter: 1 });
+    await rendered.rerender({
+      ...threadProps('thread-2', 'msg-3'),
+      eventIds: [...eventIds, 'msg-4']
+    });
     await expect
       .element(page.getByTestId('virtualizer-scroll-alignment'))
       .toHaveTextContent('start');
@@ -518,7 +511,7 @@ describe('EventList unread entry landing', () => {
 
   it('keeps the viewport when the user scrolls before the marker resolves', async () => {
     const rendered = render(EventListTestHarness, {
-      props: { eventIds, scrollToEventId: null, scrollToUnreadOnEntry: true }
+      props: { eventIds, scrollToEventId: null }
     });
     await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
 
@@ -529,21 +522,8 @@ describe('EventList unread entry landing', () => {
     await rendered.rerender({
       eventIds,
       scrollToEventId: null,
-      scrollToUnreadOnEntry: true,
       unreadAfterEventId: 'msg-2'
     });
-    await nextFrames();
-
-    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
-  });
-
-  it('does not land on the separator unless the timeline opts in', async () => {
-    const rendered = render(EventListTestHarness, {
-      props: { eventIds, scrollToEventId: null }
-    });
-    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
-
-    await rendered.rerender({ eventIds, scrollToEventId: null, unreadAfterEventId: 'msg-2' });
     await nextFrames();
 
     expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');

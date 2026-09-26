@@ -145,11 +145,15 @@ describe('service worker notifications', () => {
     const handler = worker.handlers.get('fetch')?.[0];
     handler?.({
       request: { url: 'https://chatto.example/chat/-/R1', method: 'GET', mode: 'navigate' },
-      respondWith: (pending: Promise<unknown>) => { response = pending; }
+      respondWith: (pending: Promise<unknown>) => {
+        response = pending;
+      }
     } as never);
 
     expect(response).toBeDefined();
-    expect(await response).toBe(await (await cacheStorage.open('chatto-shell-test-version')).match('/login'));
+    expect(await response).toBe(
+      await (await cacheStorage.open('chatto-shell-test-version')).match('/login')
+    );
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -164,7 +168,10 @@ describe('service worker notifications', () => {
     await worker.dispatch('install');
     await worker.dispatch('activate');
 
-    await expect(cacheStorage.keys()).resolves.toEqual(['unrelated-cache', 'chatto-shell-test-version']);
+    await expect(cacheStorage.keys()).resolves.toEqual([
+      'unrelated-cache',
+      'chatto-shell-test-version'
+    ]);
     expect(worker.clients.claim).toHaveBeenCalledOnce();
   });
 
@@ -251,9 +258,7 @@ describe('service worker notifications', () => {
             : {
                 data: {
                   json: () =>
-                    format === 'legacy'
-                      ? { title: 'Activity', attentionLevel }
-                      : { notification }
+                    format === 'legacy' ? { title: 'Activity', attentionLevel } : { notification }
                 }
               }
         );

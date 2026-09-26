@@ -176,9 +176,7 @@ describe('MarkdownEditor', () => {
     selectCurrentLine(textbox);
     pasteText(textbox, 'https://chatto.dev/docs');
 
-    await vi.waitFor(() =>
-      expect(api.getText()).toBe('[Chatto docs](https://chatto.dev/docs)')
-    );
+    await vi.waitFor(() => expect(api.getText()).toBe('[Chatto docs](https://chatto.dev/docs)'));
     expect(onPaste).toHaveBeenCalledOnce();
   });
 
@@ -241,9 +239,7 @@ describe('MarkdownEditor', () => {
     await vi.waitFor(() => expect(container.querySelectorAll('.cm-line')).toHaveLength(2));
 
     api.focus();
-    expect(getComputedStyle(content!).caretColor).toBe(
-      getComputedStyle(content!).color
-    );
+    expect(getComputedStyle(content!).caretColor).toBe(getComputedStyle(content!).color);
   });
 
   it('highlights programming syntax inside labelled code fences', async () => {

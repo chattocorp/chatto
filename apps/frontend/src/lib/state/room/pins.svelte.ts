@@ -104,7 +104,8 @@ export class RoomPinsStore {
     try {
       await this.loadPage(this.items.length, false, epoch, paginationEpoch, minimumCursor);
     } finally {
-      if (this.requestEpoch === epoch && this.paginationEpoch === paginationEpoch) this.isLoadingMore = false;
+      if (this.requestEpoch === epoch && this.paginationEpoch === paginationEpoch)
+        this.isLoadingMore = false;
     }
   }
 
@@ -147,13 +148,18 @@ export class RoomPinsStore {
   }
 
   /** Reconcile shared message data without restarting the pin collection. */
-  applyMessageUpdate(messageEventId: string, message: Message | null, minimumCursor?: string): void {
+  applyMessageUpdate(
+    messageEventId: string,
+    message: Message | null,
+    minimumCursor?: string
+  ): void {
     if (this.accessBlocked) return;
     if (!this.hydrated) {
       if (this.hydrationPromise) this.pendingMessages.set(messageEventId, message);
       return;
     }
-    if (!this.isPinned(messageEventId) && (!this.isLoadingMore || (message && !message.pinned))) return;
+    if (!this.isPinned(messageEventId) && (!this.isLoadingMore || (message && !message.pinned)))
+      return;
     const retryPagination = this.isLoadingMore;
     this.paginationEpoch++;
     this.isLoadingMore = false;
@@ -215,13 +221,23 @@ export class RoomPinsStore {
     this.invalidateAndReload();
   }
 
-  private async loadPage(offset: number, replace: boolean, epoch: number, paginationEpoch?: number, minimumCursor?: string): Promise<void> {
+  private async loadPage(
+    offset: number,
+    replace: boolean,
+    epoch: number,
+    paginationEpoch?: number,
+    minimumCursor?: string
+  ): Promise<void> {
     if (replace) this.isInitialLoading = true;
     if (replace) this.error = false;
     else this.loadMoreError = false;
     try {
       const page = await this.api.list(this.roomId, ROOM_PINS_PAGE_SIZE, offset, minimumCursor);
-      if (this.requestEpoch !== epoch || (paginationEpoch !== undefined && this.paginationEpoch !== paginationEpoch)) return;
+      if (
+        this.requestEpoch !== epoch ||
+        (paginationEpoch !== undefined && this.paginationEpoch !== paginationEpoch)
+      )
+        return;
       this.items = replace ? page.items : [...this.items, ...page.items];
       for (const item of page.items) {
         if (item.message?.id) this.pinStatuses.set(item.message.id, true);
@@ -234,7 +250,10 @@ export class RoomPinsStore {
       for (const [id, message] of pending) this.applyMessageUpdate(id, message);
       if (replace) this.noteLatest(page.latestPinMarker);
     } catch {
-      if (this.requestEpoch === epoch && (paginationEpoch === undefined || this.paginationEpoch === paginationEpoch)) {
+      if (
+        this.requestEpoch === epoch &&
+        (paginationEpoch === undefined || this.paginationEpoch === paginationEpoch)
+      ) {
         if (replace) this.error = true;
         else this.loadMoreError = true;
       }

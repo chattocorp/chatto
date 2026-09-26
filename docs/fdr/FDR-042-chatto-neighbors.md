@@ -37,13 +37,17 @@ recommendation, not a trust or reciprocal relationship.
   with six active requests and a ten-second timeout for each request.
 - Neighborhood discovery rejects redirects and servers on loopback, private,
   and link-local network addresses. It stores re-encoded copies of logos and
-  banners and serves them from the called server.
+  banners and serves them from the called server. A logo or banner URL can use
+  another public HTTP or HTTPS host than the advertised origin. The
+  `ListNeighborhoodServers` response gives each copy as a server-relative path
+  on the called server.
 - The Add Server action in the Server Gutter opens the Server Directory in a
   history-backed dialog. The browser Back action closes it. The
   `/chat/servers` route shows the same directory as a page. The standalone
   client uses this page before it registers a server.
-- The Server Directory starts with a direct server-address lookup, followed
-  by the recommendations.
+- The Server Directory starts with the recommendations. A **Connect by
+  address** action opens the direct server-address lookup. The lookup shows
+  immediately when the directory has no recommendations.
 - The Server Directory loads the cached Neighborhood of each server that is
   registered in the client. It contacts no other server to show results and
   does not ask for consent. A registered server already knows the user's
@@ -54,13 +58,15 @@ recommendation, not a trust or reciprocal relationship.
   source.
 - The Server Directory shows its results as server profile cards in a grid. A
   card without a banner shows a gradient that the server name selects.
-- The Neighbor administration page loads each advertised server's public name,
-  description, logo, and banner directly. It keeps an advertised server visible
-  so that an administrator can review or remove it. A failed request does not
-  hide profiles that loaded successfully.
-- A public profile card accepts a logo or banner only from one origin. On the
-  Neighbor administration page, this is the advertised server. In the Server
-  Directory, this is the registered server that supplied the cached copy. The
+- The Neighbor administration page reads each advertised server's public name,
+  description, logo, and banner from the current server's cached Neighborhood.
+  It contacts no advertised server. It keeps an advertised server visible so
+  that an administrator can review or remove it. After a Neighbor change, it
+  shows the profile as loading and reads the cache again every three seconds
+  for up to one minute.
+- A public profile card accepts a logo or banner only from one origin. For a
+  cached profile, this is the server that supplied the cached copy. For a
+  direct server-address lookup, this is the server at that address. The
   client loads the image without credentials or referrer data, rejects
   redirects, and accepts only responses that declare a supported raster image
   media type and contain at most 5 MiB.
@@ -82,9 +88,9 @@ recommendation, not a trust or reciprocal relationship.
   its own compatible client.
 - A user can enter a server address directly when the wanted server is not in
   the directory.
-- Neighbor administration does not contact a Neighbor. Background
-  Neighborhood discovery reads public data from Neighbors and their mutual
-  recommendations. It does not test compatibility, ownership, or consent.
+- Neighbor administration does not contact a Neighbor, on the server or in
+  the browser. Background Neighborhood discovery reads public data from
+  Neighbors and their mutual recommendations. It does not test compatibility, ownership, or consent.
 - `server.manage-neighbors` controls administrative access. The permission is
   independently grantable. An effective `server.manage` allow includes it
   through explicit permission metadata.
@@ -124,11 +130,10 @@ observation can change between requests.
 
 ### 3. The server stays passive and the client loads public profiles
 
-**Status:** Partially superseded by ADR-106 and Design Decision 14. The server
-now contacts Neighbors for background Neighborhood discovery, and the Server
-Directory reads the cached result. Neighbor administration writes remain
-passive. The Neighbor administration page still loads public profiles in the
-browser.
+**Status:** Superseded by ADR-106, Design Decision 14, and Design Decision 16.
+The server now contacts Neighbors for background Neighborhood discovery. The
+Server Directory and the Neighbor administration page read the cached result.
+Neighbor administration writes remain passive.
 
 **Decision:** The server validates and stores canonical origins. It does not
 request discovery data, images, or health information from a Neighbor. The
@@ -274,8 +279,8 @@ administrator does not get a separate connection prompt on the management page.
 ### 13. Public profile images use a restricted source
 
 **Decision:** A public profile card accepts an image only from one expected
-origin: the advertised server on the Neighbor administration page, or the
-registered server that supplied the cached copy in the Server Directory. The
+origin: the server that supplied the cached copy, or the server at the address
+of a direct lookup. The
 request sends no credentials or referrer data, does not follow redirects, and
 accepts a limited set of declared raster image media types. It rejects an image
 response after its body exceeds 5 MiB.
@@ -304,6 +309,40 @@ replaces a separate crawl for each user visit.
 
 **Tradeoff:** The server makes outbound requests and cannot reach servers on
 private network addresses. Results can be up to one hour old.
+
+### 15. Discovery accepts profile images from other hosts
+
+**Decision:** Neighborhood discovery accepts a logo or banner URL on any public
+HTTP or HTTPS host. A relative URL resolves against the advertised origin.
+`ListNeighborhoodServers` returns each cached copy as a server-relative path.
+The Server Directory resolves the path against the registered server that it
+called.
+
+**Why:** A server builds its image URLs from its configured `webserver.url`.
+That host often differs from the origin that a Neighbor advertises, for
+example when a reverse proxy serves an alias. Discovery runs on the server, so
+the image host does not see the user's network address. A server-relative path
+always names the origin that the client called, also when the server does not
+configure that origin.
+
+**Tradeoff:** A remote profile can make the server request an image from an
+unrelated public host. The request limits, private-address rejection, redirect
+rejection, and media-type and size limits of discovery still apply.
+
+### 16. Neighbor administration uses the cached Neighborhood
+
+**Decision:** The Neighbor administration page reads public profiles from the
+current server's cached Neighborhood. It does not request profiles or images
+from advertised servers. After a Neighbor change, it polls the cache for a
+short time until discovery adds the new profile.
+
+**Why:** An administrator's network address must not reach the advertised
+servers, as for other users of the Server Directory. The cached Neighborhood
+already has each direct Neighbor whose public profile loads.
+
+**Tradeoff:** A new or changed Neighbor shows its profile only after the next
+discovery pass, which usually starts within about fifteen seconds. A profile
+can be up to one hour old.
 
 ## Permissions
 

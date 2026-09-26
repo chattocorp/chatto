@@ -18,7 +18,7 @@ export async function setCustomStatus(
     emoji: string;
     text: string;
     expiresAt?: string | null;
-  },
+  }
 ): Promise<CustomUserStatus | null> {
   const client = createChattoClient(MyAccountService, config);
   const response = await client.setCustomStatus({
@@ -30,7 +30,7 @@ export async function setCustomStatus(
 }
 
 export async function deleteCustomStatus(
-  config: CustomUserStatusAPIConfig,
+  config: CustomUserStatusAPIConfig
 ): Promise<CustomUserStatus | null> {
   const client = createChattoClient(MyAccountService, config);
   const response = await client.deleteCustomStatus({});
@@ -44,14 +44,12 @@ function apiStatus(
         text: string;
         expiresAt?: { toDate(): Date };
       }
-    | undefined,
+    | undefined
 ): CustomUserStatus | null {
   if (!status) return null;
   return {
     emoji: status.emoji,
     text: status.text,
-    expiresAt: status.expiresAt
-      ? status.expiresAt.toDate().toISOString()
-      : null,
+    expiresAt: status.expiresAt ? status.expiresAt.toDate().toISOString() : null
   };
 }

@@ -1,12 +1,12 @@
-import { serverLog } from "./server-log.ts";
-import { dirname, relative, sep } from "node:path";
-import { stat } from "node:fs/promises";
-import { watch } from "chokidar";
-import { createJiti } from "jiti";
-import * as runling from "./index.ts";
-import * as agents from "./agents/index.ts";
-import * as web from "./web-config.ts";
-import { isWebConfig, type WebConfig } from "./web-config.ts";
+import { serverLog } from './server-log.ts';
+import { dirname, relative, sep } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { watch } from 'chokidar';
+import { createJiti } from 'jiti';
+import * as runling from './index.ts';
+import * as agents from './agents/index.ts';
+import * as web from './web-config.ts';
+import { isWebConfig, type WebConfig } from './web-config.ts';
 
 /** Reload project modules without replacing active runs or installed packages. */
 export class ConfigReloader {
@@ -22,10 +22,13 @@ export class ConfigReloader {
   revision = 0;
 
   /** Load once by default. Explicit reload() remains available without a watcher. */
-  constructor(readonly path: string, options: { watch?: boolean } = {}) {
+  constructor(
+    readonly path: string,
+    options: { watch?: boolean } = {}
+  ) {
     if (!options.watch) return;
     const root = dirname(path);
-    const watcher = this.watcher = watch(root, {
+    const watcher = (this.watcher = watch(root, {
       ignoreInitial: true,
       persistent: false,
       ignored: (file, stats) => {
@@ -34,24 +37,23 @@ export class ConfigReloader {
         if (
           parts.some(
             (part) =>
-              part.startsWith(".") ||
-              ["node_modules", "dist", "build", "coverage"].includes(part),
+              part.startsWith('.') || ['node_modules', 'dist', 'build', 'coverage'].includes(part)
           )
         )
           return true;
         return stats?.isFile() ? !/\.(?:[cm]?[jt]sx?|json)$/.test(file) : false;
-      },
-    });
+      }
+    }));
     this.ready = new Promise((resolve, reject) => {
-      watcher.once("ready", resolve);
-      watcher.on("error", (error) => {
+      watcher.once('ready', resolve);
+      watcher.on('error', (error) => {
         reject(error);
         this.error = `Configuration watcher failed: ${error instanceof Error ? error.message : String(error)}`;
-        serverLog("error", "config.watch_failed", { config: this.path, message: this.error });
+        serverLog('error', 'config.watch_failed', { config: this.path, message: this.error });
         for (const listener of this.listeners) listener();
       });
     });
-    this.watcher.on("all", () => {
+    this.watcher.on('all', () => {
       clearTimeout(this.timer);
       this.timer = setTimeout(() => {
         void (this.pending ?? Promise.resolve())
@@ -63,9 +65,7 @@ export class ConfigReloader {
     });
   }
   load(): Promise<WebConfig> {
-    return this.current
-      ? Promise.resolve(this.current)
-      : (this.pending ?? this.reload());
+    return this.current ? Promise.resolve(this.current) : (this.pending ?? this.reload());
   }
   reload(): Promise<WebConfig> {
     if (this.pending) return this.pending;
@@ -82,8 +82,7 @@ export class ConfigReloader {
         await stat(this.path);
       } catch (error) {
         // Only an absent entry file is optional, not failed imports or invalid config.
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT" || this.hasLoadedFile)
-          throw error;
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || this.hasLoadedFile) throw error;
         missing = true;
       }
       if (missing) {
@@ -97,20 +96,21 @@ export class ConfigReloader {
         tryNative: false,
         interopDefault: false,
         // Reuse the host runtime: live events must reach its AsyncLocalStorage.
-        virtualModules: { runling, "runling/agents": agents, "runling/web": web },
+        virtualModules: { runling, 'runling/agents': agents, 'runling/web': web }
       });
       const module = await jiti.import<{ default?: unknown }>(this.path);
       if (!isWebConfig(module.default))
-        throw new Error(
-          `${this.path} must export a valid Runling configuration`,
-        );
+        throw new Error(`${this.path} must export a valid Runling configuration`);
       this.current = module.default;
       this.hasLoadedFile = true;
       this.error = undefined;
       this.revision++;
     } catch (error) {
       this.error = error instanceof Error ? error.message : String(error);
-      serverLog("error", "config.reload_failed", { config: this.path, message: `Config reload failed: ${this.error}` });
+      serverLog('error', 'config.reload_failed', {
+        config: this.path,
+        message: `Config reload failed: ${this.error}`
+      });
       if (!this.current) throw error;
     } finally {
       for (const listener of this.listeners) listener();

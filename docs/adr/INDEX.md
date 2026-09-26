@@ -14,110 +14,110 @@ Partially superseded records retain a current foundation while later ADRs
 replace part of their original design. Completed records describe a one-time
 rollout decision whose implementation and cleanup are finished.
 
-| # | Decision | Status | Date |
-|---|----------|--------|------|
-| [ADR-001](ADR-001-nats-jetstream-as-primary-data-store.md) | NATS JetStream as Primary Data Store | Partially superseded | 2026-03-01 |
-| [ADR-002](ADR-002-single-binary-with-embedded-nats.md) | Single Binary with Embedded NATS Server | Accepted | 2026-03-01 |
-| [ADR-003](ADR-003-graphql-as-primary-api.md) | GraphQL as the Primary API | Superseded | 2026-03-01 |
-| [ADR-004](ADR-004-authorization-at-api-boundary.md) | Authorization Enforced at the API Boundary, Not in Core | Superseded | 2026-03-01 |
-| [ADR-005](ADR-005-hierarchy-wins-rbac.md) | Hierarchy-Wins RBAC Permission Resolution | Superseded | 2026-03-01 |
-| [ADR-006](ADR-006-kv-source-of-truth-streams-audit-log.md) | KV as Source of Truth, Streams as Audit Logs | Superseded | 2026-03-01 |
-| [ADR-007](ADR-007-per-user-encryption-with-crypto-shredding.md) | Per-User Encryption Keys with Crypto-Shredding for GDPR | Accepted | 2026-03-01 |
-| [ADR-008](ADR-008-protobuf-for-event-serialization.md) | Protobuf for Event Serialization | Accepted | 2026-03-01 |
-| [ADR-009](ADR-009-webhook-driven-voice-call-state.md) | Durable LiveKit Call State | Accepted | 2026-03-01 |
-| [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md) | Svelte 5 Reactive Cache Whitelisting | Accepted | 2026-03-01 |
-| [ADR-011](ADR-011-message-body-event-split.md) | Message Body / Event Split | Partially superseded | 2026-03-01 |
-| [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | Partially superseded | 2026-03-01 |
-| [ADR-013](ADR-013-per-space-stream-sharding.md) | Per-Space JetStream Stream Sharding with Lazy Initialization | Superseded | 2026-03-01 |
-| [ADR-014](ADR-014-single-subscription-per-space.md) | Single GraphQL Subscription Per Space | Superseded | 2026-03-01 |
-| [ADR-015](ADR-015-dms-as-hidden-space.md) | Direct Messages as a Hidden Space | Superseded | 2026-03-01 |
-| [ADR-016](ADR-016-occ-for-message-publishing.md) | Optimistic Concurrency Control for Message Publishing | Partially superseded | 2026-03-01 |
-| [ADR-017](ADR-017-cookie-session-auth-for-websocket.md) | Cookie-Session Authentication Propagated to WebSocket | Accepted | 2026-03-01 |
-| [ADR-018](ADR-018-sveltekit-spa-embedded-in-go.md) | SvelteKit SPA Embedded in Go Binary | Accepted | 2026-03-01 |
-| [ADR-019](ADR-019-dataloaders-http-only.md) | Dataloaders Scoped to HTTP Requests Only | Superseded | 2026-03-01 |
-| [ADR-020](ADR-020-build-tag-test-endpoints.md) | Build-Tag Gated Test Endpoints | Accepted | 2026-03-01 |
-| [ADR-021](ADR-021-dual-asset-storage.md) | Dual Asset Storage — NATS ObjectStore Default, S3 Optional | Accepted | 2026-03-01 |
-| [ADR-022](ADR-022-nanoid-with-entity-prefixes.md) | NanoID with Entity-Type Prefixes | Accepted | 2026-03-01 |
-| [ADR-023](ADR-023-hmac-signed-image-transform-urls.md) | HMAC-Signed Image Transform URLs | Accepted | 2026-03-01 |
-| [ADR-024](ADR-024-opaque-bearer-tokens-for-cross-origin-auth.md) | Opaque Bearer Tokens for Cross-Origin Authentication | Partially superseded | 2026-03-03 |
-| [ADR-025](ADR-025-multi-instance-client-architecture.md) | Multi-Server Client Architecture | Partially superseded | 2026-03-20 |
-| [ADR-026](ADR-026-event-identity-via-nanoid.md) | Event Identity via NanoID, Not JetStream Sequence Numbers | Accepted | 2026-03-26 |
-| [ADR-027](ADR-027-instance-space-server-consolidation.md) | Consolidate Instance + Space into a Single "Server" Concept | Accepted | 2026-05-04 |
-| [ADR-028](ADR-028-event-id-keyed-read-state.md) | Event-ID-Keyed Read State | Partially superseded | 2026-05-06 |
-| [ADR-029](ADR-029-instance-to-server-rename.md) | Rename `Instance` → `Server` across the codebase | Accepted | 2026-05-11 |
-| [ADR-030](ADR-030-space-tier-retirement.md) | Retire the Space tier | Accepted | 2026-05-11 |
-| [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | Partially superseded | 2026-05-13 |
-| [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | Superseded | 2026-05-23 |
-| [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections | Accepted | 2026-05-24 |
-| [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Partially superseded | 2026-05-24 |
-| [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Completed | 2026-05-24 |
-| [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Partially superseded | 2026-05-27 |
-| [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Partially superseded | 2026-05-31 |
-| [ADR-038](ADR-038-room-owned-thread-state.md) | Room-Owned Thread State | Accepted | 2026-06-05 |
-| [ADR-039](ADR-039-service-worker-virtual-asset-urls.md) | Service Worker Virtual Asset URLs with Ticketed Fallback | Superseded | 2026-06-08 |
-| [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | Partially superseded | 2026-06-15 |
-| [ADR-041](ADR-041-runtime-units.md) | Runtime Units for Optional Chatto Processes | Accepted | 2026-06-21 |
-| [ADR-042](ADR-042-protobuf-first-public-api.md) | Protobuf-First Public API with ConnectRPC and Realtime WebSocket | Accepted | 2026-06-22 |
-| [ADR-043](ADR-043-client-shell-internationalization.md) | Client-Shell Internationalization | Superseded | 2026-06-22 |
-| [ADR-044](ADR-044-connectrpc-service-conventions.md) | ConnectRPC Service Conventions | Accepted | 2026-06-25 |
-| [ADR-045](ADR-045-public-api-stability-tiers.md) | Public API Stability Tiers | Accepted | 2026-06-28 |
-| [ADR-046](ADR-046-typed-runtime-credentials.md) | Typed Runtime Credentials | Partially superseded | 2026-06-30 |
-| [ADR-047](ADR-047-direct-ticketed-asset-urls.md) | Direct Ticketed Asset URLs for Browser Media | Accepted | 2026-07-05 |
-| [ADR-048](ADR-048-frontend-optimistic-ui.md) | Frontend Optimistic UI Uses Scoped Provisional Patches | Accepted | 2026-07-09 |
-| [ADR-049](ADR-049-process-wide-realtime-event-hub.md) | Process-Wide Realtime Event Hub | Accepted | 2026-07-14 |
-| [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) | Ephemeral Encrypted Projection Snapshots | Accepted | 2026-07-13 |
-| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | Superseded | 2026-07-16 |
-| [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md) | Subject-Specific RBAC with an Everyone Baseline | Accepted | 2026-07-19 |
-| [ADR-053](ADR-053-versioned-nats-service-namespaces.md) | Versioned NATS Service Namespaces | Accepted | 2026-07-20 |
-| [ADR-054](ADR-054-optional-projection-persistence.md) | Projection Persistence Is Optional | Accepted | 2026-07-20 |
-| [ADR-055](ADR-055-pluggable-message-search-over-nats.md) | Pluggable Message Search over NATS | Accepted | 2026-07-21 |
-| [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md) | Incubate an Extractable NATS Event-Sourcing Framework | Accepted | 2026-07-30 |
-| [ADR-057](ADR-057-temporarily-incubate-authling.md) | Temporarily Incubate Authling in the Chatto Repository | Accepted | 2026-07-30 |
-| [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md) | Extract an Application-Neutral Embedded NATS Runtime | Accepted | 2026-07-31 |
-| [ADR-059](ADR-059-apache-license-shared-framework-modules.md) | License Shared Framework Modules under Apache-2.0 | Accepted | 2026-07-31 |
-| [ADR-060](ADR-060-application-neutral-data-cryptography.md) | Extract Application-Neutral Data Cryptography | Accepted | 2026-07-31 |
-| [ADR-061](ADR-061-application-neutral-configuration-loading.md) | Extract Application-Neutral Configuration Loading | Accepted | 2026-07-31 |
-| [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md) | TanStack Query for Snapshot-Style Frontend Reads | Accepted | 2026-09-17 |
-| [ADR-063](ADR-063-deno-desktop-cef-client.md) | Package Chatto Desktop with Deno Desktop and CEF | Superseded | 2026-08-02 |
-| [ADR-064](ADR-064-separate-server-catalog-and-sessions.md) | Separate the Frontend Server Catalogue from Device Sessions | Superseded | 2026-08-02 |
-| [ADR-065](ADR-065-runtime-json-client-internationalization.md) | Runtime JSON Client Internationalization | Accepted | 2026-08-05 |
-| [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md) | Durable Asset Processing as a Runtime Unit | Accepted | 2026-08-08 |
-| [ADR-067](ADR-067-electron-desktop-client.md) | Package Chatto Desktop with Electron | Partially superseded | 2026-08-08 |
-| [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Partially superseded | 2026-08-10 |
-| [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md) | Manage Durable Consumer Lifecycles Explicitly | Accepted | 2026-08-11 |
-| [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
-| [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) | Identify Open OAuth Clients through CIMD | Accepted | 2026-08-11 |
-| [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md) | Optional Host Capabilities in the Shared Frontend | Accepted | 2026-08-13 |
-| [ADR-073](ADR-073-define-the-loom-architecture.md) | Define the Loom Architecture | Accepted | 2026-08-14 |
-| [ADR-074](ADR-074-keep-server-catalogue-device-local.md) | Keep the Frontend Server Catalogue Device-Local | Accepted | 2026-08-14 |
-| [ADR-075](ADR-075-native-pitchfork-development-stack.md) | Run the Regular Development Stack Natively with Pitchfork | Superseded | 2026-08-17 |
-| [ADR-076](ADR-076-deterministic-notification-occurrences.md) | Store Notification Lifecycle Facts in a Bounded Event Stream | Accepted | 2026-08-10 |
-| [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |
-| [ADR-078](ADR-078-portless-native-development-stack.md) | Route the Native Development Stack with Portless | Accepted | 2026-08-21 |
-| [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Partially superseded | 2026-08-22 |
-| [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Partially superseded | 2026-08-23 |
-| [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
-| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Partially superseded | 2026-08-25 |
-| [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |
-| [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
-| [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
-| [ADR-086](ADR-086-atomic-room-layout-structural-mutations.md) | Commit Room-Layout Structural Mutations Atomically | Accepted | 2026-08-30 |
-| [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md) | Use Request-Time Authorization with Aggregate OCC | Accepted | 2026-09-01 |
-| [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier | Accepted | 2026-09-02 |
-| [ADR-089](ADR-089-server-content-view.md) | Project Client-Readable EVT State into ServerContentView | Partially superseded | 2026-09-02 |
-| [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md) | Hydrate Room Timeline Payloads from EVT | Accepted | 2026-09-03 |
-| [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Partially superseded | 2026-08-30 |
-| [ADR-093](ADR-093-use-a-public-realtime-event-union.md) | Use a Public Realtime Event Union with Dedicated Payloads | Accepted | 2026-09-03 |
-| [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) | Separate Durable and Pubsub Event Envelopes | Accepted | 2026-09-03 |
-| [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md) | Direct-Message Permission Scope and Threads | Accepted | 2026-09-04 |
-| [ADR-096](ADR-096-session-scoped-privileged-mode.md) | Require Session-Scoped Privileged Mode | Accepted | 2026-09-03 |
-| [ADR-097](ADR-097-durable-outbound-bot-webhooks.md) | Deliver Best-Effort Outbound Bot Webhooks from EVT | Accepted | 2026-09-05 |
-| [ADR-098](ADR-098-retained-operational-log.md) | Retain Operational Diagnostics in LOG | Accepted | 2026-09-08 |
-| [ADR-099](ADR-099-capacitor-mobile-client.md) | Package Chatto Mobile with Capacitor | Accepted | 2026-09-19 |
-| [ADR-100](ADR-100-shared-chatto-integration-client.md) | Share Chatto Integration Client Helpers | Accepted | 2026-09-21 |
-| [ADR-101](ADR-101-shared-client-user-profiles.md) | Share Public User Profiles Within Each Client Connection | Accepted | 2026-09-21 |
-| [ADR-102](ADR-102-turborepo-workspace-tasks.md) | Order Workspace Tasks with Turborepo | Accepted | 2026-09-21 |
-| [ADR-103](ADR-103-cached-first-client-startup.md) | Open a Saved Chat View Before Client Connection | Partially superseded | 2026-09-23 |
-| [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md) | Persist Checkpointed Client Projections | Accepted | 2026-09-25 |
-| [ADR-105](ADR-105-privileged-mode-gates-owner-override.md) | Gate the Effective-Owner Override with Privileged Mode | Accepted | 2026-09-25 |
-| [ADR-106](ADR-106-server-side-neighborhood-discovery.md) | Discover the Neighborhood on the Server | Accepted | 2026-09-25 |
+| #                                                                        | Decision                                                         | Status               | Date       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------- | ---------- |
+| [ADR-001](ADR-001-nats-jetstream-as-primary-data-store.md)               | NATS JetStream as Primary Data Store                             | Partially superseded | 2026-03-01 |
+| [ADR-002](ADR-002-single-binary-with-embedded-nats.md)                   | Single Binary with Embedded NATS Server                          | Accepted             | 2026-03-01 |
+| [ADR-003](ADR-003-graphql-as-primary-api.md)                             | GraphQL as the Primary API                                       | Superseded           | 2026-03-01 |
+| [ADR-004](ADR-004-authorization-at-api-boundary.md)                      | Authorization Enforced at the API Boundary, Not in Core          | Superseded           | 2026-03-01 |
+| [ADR-005](ADR-005-hierarchy-wins-rbac.md)                                | Hierarchy-Wins RBAC Permission Resolution                        | Superseded           | 2026-03-01 |
+| [ADR-006](ADR-006-kv-source-of-truth-streams-audit-log.md)               | KV as Source of Truth, Streams as Audit Logs                     | Superseded           | 2026-03-01 |
+| [ADR-007](ADR-007-per-user-encryption-with-crypto-shredding.md)          | Per-User Encryption Keys with Crypto-Shredding for GDPR          | Accepted             | 2026-03-01 |
+| [ADR-008](ADR-008-protobuf-for-event-serialization.md)                   | Protobuf for Event Serialization                                 | Accepted             | 2026-03-01 |
+| [ADR-009](ADR-009-webhook-driven-voice-call-state.md)                    | Durable LiveKit Call State                                       | Accepted             | 2026-03-01 |
+| [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md)                | Svelte 5 Reactive Cache Whitelisting                             | Accepted             | 2026-03-01 |
+| [ADR-011](ADR-011-message-body-event-split.md)                           | Message Body / Event Split                                       | Partially superseded | 2026-03-01 |
+| [ADR-012](ADR-012-two-tier-realtime-events.md)                           | Two-Tier Real-Time Event System                                  | Partially superseded | 2026-03-01 |
+| [ADR-013](ADR-013-per-space-stream-sharding.md)                          | Per-Space JetStream Stream Sharding with Lazy Initialization     | Superseded           | 2026-03-01 |
+| [ADR-014](ADR-014-single-subscription-per-space.md)                      | Single GraphQL Subscription Per Space                            | Superseded           | 2026-03-01 |
+| [ADR-015](ADR-015-dms-as-hidden-space.md)                                | Direct Messages as a Hidden Space                                | Superseded           | 2026-03-01 |
+| [ADR-016](ADR-016-occ-for-message-publishing.md)                         | Optimistic Concurrency Control for Message Publishing            | Partially superseded | 2026-03-01 |
+| [ADR-017](ADR-017-cookie-session-auth-for-websocket.md)                  | Cookie-Session Authentication Propagated to WebSocket            | Accepted             | 2026-03-01 |
+| [ADR-018](ADR-018-sveltekit-spa-embedded-in-go.md)                       | SvelteKit SPA Embedded in Go Binary                              | Accepted             | 2026-03-01 |
+| [ADR-019](ADR-019-dataloaders-http-only.md)                              | Dataloaders Scoped to HTTP Requests Only                         | Superseded           | 2026-03-01 |
+| [ADR-020](ADR-020-build-tag-test-endpoints.md)                           | Build-Tag Gated Test Endpoints                                   | Accepted             | 2026-03-01 |
+| [ADR-021](ADR-021-dual-asset-storage.md)                                 | Dual Asset Storage — NATS ObjectStore Default, S3 Optional       | Accepted             | 2026-03-01 |
+| [ADR-022](ADR-022-nanoid-with-entity-prefixes.md)                        | NanoID with Entity-Type Prefixes                                 | Accepted             | 2026-03-01 |
+| [ADR-023](ADR-023-hmac-signed-image-transform-urls.md)                   | HMAC-Signed Image Transform URLs                                 | Accepted             | 2026-03-01 |
+| [ADR-024](ADR-024-opaque-bearer-tokens-for-cross-origin-auth.md)         | Opaque Bearer Tokens for Cross-Origin Authentication             | Partially superseded | 2026-03-03 |
+| [ADR-025](ADR-025-multi-instance-client-architecture.md)                 | Multi-Server Client Architecture                                 | Partially superseded | 2026-03-20 |
+| [ADR-026](ADR-026-event-identity-via-nanoid.md)                          | Event Identity via NanoID, Not JetStream Sequence Numbers        | Accepted             | 2026-03-26 |
+| [ADR-027](ADR-027-instance-space-server-consolidation.md)                | Consolidate Instance + Space into a Single "Server" Concept      | Accepted             | 2026-05-04 |
+| [ADR-028](ADR-028-event-id-keyed-read-state.md)                          | Event-ID-Keyed Read State                                        | Partially superseded | 2026-05-06 |
+| [ADR-029](ADR-029-instance-to-server-rename.md)                          | Rename `Instance` → `Server` across the codebase                 | Accepted             | 2026-05-11 |
+| [ADR-030](ADR-030-space-tier-retirement.md)                              | Retire the Space tier                                            | Accepted             | 2026-05-11 |
+| [ADR-031](ADR-031-room-group-centric-acl.md)                             | Room-Group-Centric ACL for Room-Scope Permissions                | Partially superseded | 2026-05-13 |
+| [ADR-032](ADR-032-signed-attachment-locator-urls.md)                     | Self-Describing Signed Attachment URLs                           | Superseded           | 2026-05-23 |
+| [ADR-033](ADR-033-event-sourced-state-with-projections.md)               | Event-Sourced State with Derived Projections                     | Accepted             | 2026-05-24 |
+| [ADR-034](ADR-034-single-event-stream.md)                                | Single Domain Event Stream with Event-Type Subject Lanes         | Partially superseded | 2026-05-24 |
+| [ADR-035](ADR-035-per-aggregate-phased-migration.md)                     | Per-Aggregate Phased Migration to Event Sourcing                 | Completed            | 2026-05-24 |
+| [ADR-036](ADR-036-runtime-state-kv-boundary.md)                          | Persist Runtime State in RUNTIME_STATE                           | Partially superseded | 2026-05-27 |
+| [ADR-037](ADR-037-dm-access-via-membership.md)                           | DM Access via Membership, Not a Read Permission                  | Partially superseded | 2026-05-31 |
+| [ADR-038](ADR-038-room-owned-thread-state.md)                            | Room-Owned Thread State                                          | Accepted             | 2026-06-05 |
+| [ADR-039](ADR-039-service-worker-virtual-asset-urls.md)                  | Service Worker Virtual Asset URLs with Ticketed Fallback         | Superseded           | 2026-06-08 |
+| [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md)           | Permission-Only RBAC with Owner Override                         | Partially superseded | 2026-06-15 |
+| [ADR-041](ADR-041-runtime-units.md)                                      | Runtime Units for Optional Chatto Processes                      | Accepted             | 2026-06-21 |
+| [ADR-042](ADR-042-protobuf-first-public-api.md)                          | Protobuf-First Public API with ConnectRPC and Realtime WebSocket | Accepted             | 2026-06-22 |
+| [ADR-043](ADR-043-client-shell-internationalization.md)                  | Client-Shell Internationalization                                | Superseded           | 2026-06-22 |
+| [ADR-044](ADR-044-connectrpc-service-conventions.md)                     | ConnectRPC Service Conventions                                   | Accepted             | 2026-06-25 |
+| [ADR-045](ADR-045-public-api-stability-tiers.md)                         | Public API Stability Tiers                                       | Accepted             | 2026-06-28 |
+| [ADR-046](ADR-046-typed-runtime-credentials.md)                          | Typed Runtime Credentials                                        | Partially superseded | 2026-06-30 |
+| [ADR-047](ADR-047-direct-ticketed-asset-urls.md)                         | Direct Ticketed Asset URLs for Browser Media                     | Accepted             | 2026-07-05 |
+| [ADR-048](ADR-048-frontend-optimistic-ui.md)                             | Frontend Optimistic UI Uses Scoped Provisional Patches           | Accepted             | 2026-07-09 |
+| [ADR-049](ADR-049-process-wide-realtime-event-hub.md)                    | Process-Wide Realtime Event Hub                                  | Accepted             | 2026-07-14 |
+| [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md)           | Ephemeral Encrypted Projection Snapshots                         | Accepted             | 2026-07-13 |
+| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md)          | Server-Scoped Resumable Client Projection                        | Superseded           | 2026-07-16 |
+| [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md)       | Subject-Specific RBAC with an Everyone Baseline                  | Accepted             | 2026-07-19 |
+| [ADR-053](ADR-053-versioned-nats-service-namespaces.md)                  | Versioned NATS Service Namespaces                                | Accepted             | 2026-07-20 |
+| [ADR-054](ADR-054-optional-projection-persistence.md)                    | Projection Persistence Is Optional                               | Accepted             | 2026-07-20 |
+| [ADR-055](ADR-055-pluggable-message-search-over-nats.md)                 | Pluggable Message Search over NATS                               | Accepted             | 2026-07-21 |
+| [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md)          | Incubate an Extractable NATS Event-Sourcing Framework            | Accepted             | 2026-07-30 |
+| [ADR-057](ADR-057-temporarily-incubate-authling.md)                      | Temporarily Incubate Authling in the Chatto Repository           | Accepted             | 2026-07-30 |
+| [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md)          | Extract an Application-Neutral Embedded NATS Runtime             | Accepted             | 2026-07-31 |
+| [ADR-059](ADR-059-apache-license-shared-framework-modules.md)            | License Shared Framework Modules under Apache-2.0                | Accepted             | 2026-07-31 |
+| [ADR-060](ADR-060-application-neutral-data-cryptography.md)              | Extract Application-Neutral Data Cryptography                    | Accepted             | 2026-07-31 |
+| [ADR-061](ADR-061-application-neutral-configuration-loading.md)          | Extract Application-Neutral Configuration Loading                | Accepted             | 2026-07-31 |
+| [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md)                  | TanStack Query for Snapshot-Style Frontend Reads                 | Accepted             | 2026-09-17 |
+| [ADR-063](ADR-063-deno-desktop-cef-client.md)                            | Package Chatto Desktop with Deno Desktop and CEF                 | Superseded           | 2026-08-02 |
+| [ADR-064](ADR-064-separate-server-catalog-and-sessions.md)               | Separate the Frontend Server Catalogue from Device Sessions      | Superseded           | 2026-08-02 |
+| [ADR-065](ADR-065-runtime-json-client-internationalization.md)           | Runtime JSON Client Internationalization                         | Accepted             | 2026-08-05 |
+| [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md)              | Durable Asset Processing as a Runtime Unit                       | Accepted             | 2026-08-08 |
+| [ADR-067](ADR-067-electron-desktop-client.md)                            | Package Chatto Desktop with Electron                             | Partially superseded | 2026-08-08 |
+| [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md)   | Select Event Mutation Consistency Boundaries Explicitly          | Partially superseded | 2026-08-10 |
+| [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md)                | Manage Durable Consumer Lifecycles Explicitly                    | Accepted             | 2026-08-11 |
+| [ADR-070](ADR-070-deterministic-invite-link-capabilities.md)             | Derive Invite-Link Capabilities from Durable EVT Identity        | Accepted             | 2026-08-11 |
+| [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md)                 | Identify Open OAuth Clients through CIMD                         | Accepted             | 2026-08-11 |
+| [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md)  | Optional Host Capabilities in the Shared Frontend                | Accepted             | 2026-08-13 |
+| [ADR-073](ADR-073-define-the-loom-architecture.md)                       | Define the Loom Architecture                                     | Accepted             | 2026-08-14 |
+| [ADR-074](ADR-074-keep-server-catalogue-device-local.md)                 | Keep the Frontend Server Catalogue Device-Local                  | Accepted             | 2026-08-14 |
+| [ADR-075](ADR-075-native-pitchfork-development-stack.md)                 | Run the Regular Development Stack Natively with Pitchfork        | Superseded           | 2026-08-17 |
+| [ADR-076](ADR-076-deterministic-notification-occurrences.md)             | Store Notification Lifecycle Facts in a Bounded Event Stream     | Accepted             | 2026-08-10 |
+| [ADR-077](ADR-077-persistent-notification-list.md)                       | Present Notifications as One Persistent Occurrence List          | Accepted             | 2026-08-10 |
+| [ADR-078](ADR-078-portless-native-development-stack.md)                  | Route the Native Development Stack with Portless                 | Accepted             | 2026-08-21 |
+| [ADR-079](ADR-079-renewable-bearer-sessions.md)                          | Renewable Bearer Sessions with Rotating Refresh Credentials      | Partially superseded | 2026-08-22 |
+| [ADR-080](ADR-080-explicit-message-read-permissions.md)                  | Gate Message Content with `message.read`                         | Partially superseded | 2026-08-23 |
+| [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)    | Explicit Expiry for Mutable Runtime Credentials                  | Accepted             | 2026-08-24 |
+| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md)      | Derive Thread Interactions from Message Facts                    | Partially superseded | 2026-08-25 |
+| [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md)               | Use Action-Limited Credentials for Bot Incoming Webhooks         | Accepted             | 2026-08-27 |
+| [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md)    | Separate Internal Protobufs by Storage Contract                  | Accepted             | 2026-08-28 |
+| [ADR-085](ADR-085-agent-integration-through-mcp.md)                      | Provide User-Scoped Agent Integration through MCP                | Accepted             | 2026-08-29 |
+| [ADR-086](ADR-086-atomic-room-layout-structural-mutations.md)            | Commit Room-Layout Structural Mutations Atomically               | Accepted             | 2026-08-30 |
+| [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md)      | Use Request-Time Authorization with Aggregate OCC                | Accepted             | 2026-09-01 |
+| [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier        | Accepted             | 2026-09-02 |
+| [ADR-089](ADR-089-server-content-view.md)                                | Project Client-Readable EVT State into ServerContentView         | Partially superseded | 2026-09-02 |
+| [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md)            | Hydrate Room Timeline Payloads from EVT                          | Accepted             | 2026-09-03 |
+| [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md)       | Use Semantic Realtime Events with Bounded Resume                 | Partially superseded | 2026-08-30 |
+| [ADR-093](ADR-093-use-a-public-realtime-event-union.md)                  | Use a Public Realtime Event Union with Dedicated Payloads        | Accepted             | 2026-09-03 |
+| [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md)        | Separate Durable and Pubsub Event Envelopes                      | Accepted             | 2026-09-03 |
+| [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md)        | Direct-Message Permission Scope and Threads                      | Accepted             | 2026-09-04 |
+| [ADR-096](ADR-096-session-scoped-privileged-mode.md)                     | Require Session-Scoped Privileged Mode                           | Accepted             | 2026-09-03 |
+| [ADR-097](ADR-097-durable-outbound-bot-webhooks.md)                      | Deliver Best-Effort Outbound Bot Webhooks from EVT               | Accepted             | 2026-09-05 |
+| [ADR-098](ADR-098-retained-operational-log.md)                           | Retain Operational Diagnostics in LOG                            | Accepted             | 2026-09-08 |
+| [ADR-099](ADR-099-capacitor-mobile-client.md)                            | Package Chatto Mobile with Capacitor                             | Accepted             | 2026-09-19 |
+| [ADR-100](ADR-100-shared-chatto-integration-client.md)                   | Share Chatto Integration Client Helpers                          | Accepted             | 2026-09-21 |
+| [ADR-101](ADR-101-shared-client-user-profiles.md)                        | Share Public User Profiles Within Each Client Connection         | Accepted             | 2026-09-21 |
+| [ADR-102](ADR-102-turborepo-workspace-tasks.md)                          | Order Workspace Tasks with Turborepo                             | Accepted             | 2026-09-21 |
+| [ADR-103](ADR-103-cached-first-client-startup.md)                        | Open a Saved Chat View Before Client Connection                  | Partially superseded | 2026-09-23 |
+| [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md)           | Persist Checkpointed Client Projections                          | Accepted             | 2026-09-25 |
+| [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)               | Gate the Effective-Owner Override with Privileged Mode           | Accepted             | 2026-09-25 |
+| [ADR-106](ADR-106-server-side-neighborhood-discovery.md)                 | Discover the Neighborhood on the Server                          | Accepted             | 2026-09-25 |

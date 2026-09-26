@@ -19,6 +19,8 @@
 </script>
 
 <Story name="Search palette" asChild>
-  <button type="button" class="btn-secondary" onclick={() => quickSwitcher.open()}>Open quick finder</button>
+  <button type="button" class="btn-secondary" onclick={() => quickSwitcher.open()}
+    >Open quick finder</button
+  >
   <QuickSwitcher />
 </Story>

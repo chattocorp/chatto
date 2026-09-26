@@ -102,9 +102,7 @@
               ? '#000000'
               : '#ffffff'
             : (surface ?? (dark ? '#262626' : '#e5e7eb'));
-          document
-            .querySelector('meta[name="theme-color"]')
-            ?.setAttribute('content', shellColor);
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', shellColor);
         }
 
         function textDirection(locale) {

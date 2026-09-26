@@ -1,10 +1,20 @@
+<!--
+@component
+
+Neighbor administration. Each card shows the public profile from the current
+server's cached Neighborhood, so the browser contacts no advertised server.
+Discovery picks up a Neighbor change within about fifteen seconds; the page
+polls the cache briefly after a change. See FDR-042.
+-->
 <script lang="ts">
   import { createMutation, createQuery } from '@tanstack/svelte-query';
+  import { onDestroy } from 'svelte';
   import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
+  import { listNeighborhoodServers, type NeighborhoodServer } from '$lib/api-client/server';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import { loadServerProfiles, serverOriginFromInput } from '$lib/serverDirectory';
+  import { canonicalServerOrigin, serverOriginFromInput } from '$lib/serverDirectory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
@@ -56,6 +66,7 @@
           neighbor
         ]);
         newOrigin = '';
+        expectDiscovery();
         toast.success(m('admin.neighbors.created'));
       },
       onError: (error, variables) => {
@@ -76,6 +87,7 @@
         );
         editTarget = null;
         editOrigin = '';
+        expectDiscovery();
         toast.success(m('admin.neighbors.updated'));
       },
       onError: (error, variables) => {
@@ -106,21 +118,59 @@
   );
 
   const neighbors = $derived(neighborsQuery.data ?? []);
-  const profilesQuery = createQuery(
-    () => ({
-      queryKey: ['public', 'neighbor-profiles', neighbors.map((neighbor) => neighbor.origin)],
-      queryFn: ({ signal }) =>
-        loadServerProfiles(
-          neighbors.map((neighbor) => neighbor.origin),
-          { signal }
-        ),
-      enabled: neighbors.length > 0
-    }),
+  /** Origin of the current server. It hosts the cached profile images. */
+  const serverOrigin = $derived(new URL(serverScope.connection.connectBaseUrl).origin);
+
+  /** How long the page polls the cached Neighborhood after a Neighbor change. */
+  const DISCOVERY_WAIT_MS = 60_000;
+  const DISCOVERY_POLL_MS = 3_000;
+  /** A Neighbor change is recent, so discovery can still add its profile. */
+  let awaitingDiscovery = $state(false);
+  let discoveryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function expectDiscovery() {
+    awaitingDiscovery = true;
+    clearTimeout(discoveryTimer);
+    discoveryTimer = setTimeout(() => (awaitingDiscovery = false), DISCOVERY_WAIT_MS);
+  }
+
+  onDestroy(() => clearTimeout(discoveryTimer));
+
+  const neighborhoodQuery = createQuery(
+    () => {
+      // Read the flag here so that a Neighbor change updates the poll timer.
+      const polling = awaitingDiscovery;
+      return {
+        queryKey: ['public', 'neighborhood', serverOrigin],
+        queryFn: ({ signal }) => listNeighborhoodServers(serverOrigin, { signal }),
+        enabled: neighbors.length > 0,
+        refetchInterval: (query) =>
+          polling &&
+          neighbors.some((neighbor) => !cachedProfiles(query.state.data).has(neighbor.origin))
+            ? DISCOVERY_POLL_MS
+            : false
+      };
+    },
     () => queryClient
   );
-  const profilesByOrigin = $derived(
-    new Map((profilesQuery.data ?? []).map((entry) => [entry.origin, entry.profile]))
-  );
+  const profilesByOrigin = $derived(cachedProfiles(neighborhoodQuery.data));
+
+  /** Map cached Neighborhood profiles by canonical origin. */
+  function cachedProfiles(servers: NeighborhoodServer[] = []) {
+    return new Map(
+      servers.flatMap((server) => {
+        const origin = canonicalServerOrigin(server.origin);
+        return origin ? [[origin, server.profile] as const] : [];
+      })
+    );
+  }
+
+  /** `undefined` shows a loading card; `null` shows an unavailable profile. */
+  function neighborProfile(origin: string) {
+    const profile = profilesByOrigin.get(origin);
+    if (profile) return profile;
+    return neighborhoodQuery.isPending || awaitingDiscovery ? undefined : null;
+  }
 
   function startEdit(neighbor: Neighbor) {
     editTarget = {
@@ -269,9 +319,8 @@
               {/snippet}
               <ServerProfileCard
                 origin={neighbor.origin}
-                profile={profilesQuery.isPending
-                  ? undefined
-                  : (profilesByOrigin.get(neighbor.origin) ?? null)}
+                imageOrigin={serverOrigin}
+                profile={neighborProfile(neighbor.origin)}
                 {actions}
                 testId="neighbor-card"
               />

@@ -106,7 +106,7 @@
       disabled || loading ? 'pointer-events-none opacity-60' : ''
     ]}
   >
-    <span class="button-content inline-flex items-center gap-2 [&>.iconify]:shrink-0">
+    <span class="inline-flex button-content items-center gap-2 [&>.iconify]:shrink-0">
       {@render content()}
     </span>
   </a>
@@ -129,7 +129,7 @@
       fullWidth ? 'w-full' : ''
     ]}
   >
-    <span class="button-content inline-flex items-center gap-2 [&>.iconify]:shrink-0">
+    <span class="inline-flex button-content items-center gap-2 [&>.iconify]:shrink-0">
       {@render content()}
     </span>
   </button>

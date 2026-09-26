@@ -18,19 +18,38 @@ export class UserStore {
   readonly #revisions = new SvelteMap<string, number>();
   readonly #statusExpiry = new SvelteMap<string, () => void>();
 
-  get size(): number { return this.#members.size; }
-  get(id: string): DirectoryMember | undefined { return this.#members.get(id); }
-  has(id: string): boolean { return this.#members.has(id); }
-  isDeleted(id: string): boolean { return this.#deleted.has(id); }
-  keys() { return this.#members.keys(); }
-  values() { return this.#members.values(); }
-  entries() { return this.#members.entries(); }
-  [Symbol.iterator]() { return this.entries(); }
+  get size(): number {
+    return this.#members.size;
+  }
+  get(id: string): DirectoryMember | undefined {
+    return this.#members.get(id);
+  }
+  has(id: string): boolean {
+    return this.#members.has(id);
+  }
+  isDeleted(id: string): boolean {
+    return this.#deleted.has(id);
+  }
+  keys() {
+    return this.#members.keys();
+  }
+  values() {
+    return this.#members.values();
+  }
+  entries() {
+    return this.#members.entries();
+  }
+  [Symbol.iterator]() {
+    return this.entries();
+  }
 
   /** Accept an authoritative profile, fencing older reads for the same identity. */
   set(id: string, member: DirectoryMember): this {
     if (this.#disposed || !id || member.user?.id !== id) return this;
-    if (member.user.deleted) { this.delete(id); return this; }
+    if (member.user.deleted) {
+      this.delete(id);
+      return this;
+    }
     this.#pending.delete(id);
     this.#deleted.delete(id);
     this.#revisions.set(id, ++this.#revision);
@@ -38,12 +57,15 @@ export class UserStore {
     this.#statusExpiry.get(id)?.();
     const expiresAt = member.user.customStatus?.expiresAt?.toDate().toISOString();
     if (expiresAt) {
-      this.#statusExpiry.set(id, scheduleCustomStatusExpiry({ emoji: '', text: '', expiresAt }, () => {
-        const current = this.get(id)?.clone();
-        if (current?.user?.customStatus?.expiresAt?.toDate().toISOString() !== expiresAt) return;
-        current.user.customStatus = undefined;
-        this.set(id, current);
-      }));
+      this.#statusExpiry.set(
+        id,
+        scheduleCustomStatusExpiry({ emoji: '', text: '', expiresAt }, () => {
+          const current = this.get(id)?.clone();
+          if (current?.user?.customStatus?.expiresAt?.toDate().toISOString() !== expiresAt) return;
+          current.user.customStatus = undefined;
+          this.set(id, current);
+        })
+      );
     } else this.#statusExpiry.delete(id);
     return this;
   }
@@ -94,7 +116,10 @@ export class UserStore {
   }
 
   /** A disposed connection can never publish again, even through a retained API facade. */
-  dispose(): void { this.clear(); this.#disposed = true; }
+  dispose(): void {
+    this.clear();
+    this.#disposed = true;
+  }
 
   /** Ingest a list/detail response without overwriting profiles changed since it began.
    * The returned rows use current identities; deleted accounts stay absent. */
@@ -137,26 +162,33 @@ export class UserStore {
     const missing = this.missing(ids).filter((id) => !this.#pending.has(id));
     for (let offset = 0; offset < missing.length; offset += 100) {
       const batch = missing.slice(offset, offset + 100);
-      const request = Promise.resolve().then(async () => {
-        if (generation !== this.#generation) throw new StaleResponseError(false);
-        const current = batch.filter((id) => this.#pending.get(id)?.completion === request);
-        const users = current.length ? await read(current, cursor) : [];
-        if (generation !== this.#generation) throw new StaleResponseError(false);
-        const byId = new SvelteMap(users.flatMap((member) => member.user?.id ? [[member.user.id, member] as const] : []));
-        for (const id of batch) {
-          if (this.#pending.get(id)?.completion !== request) {
-            if (!this.has(id) && !this.#deleted.has(id)) throw new StaleResponseError(false);
-            continue;
+      const request = Promise.resolve()
+        .then(async () => {
+          if (generation !== this.#generation) throw new StaleResponseError(false);
+          const current = batch.filter((id) => this.#pending.get(id)?.completion === request);
+          const users = current.length ? await read(current, cursor) : [];
+          if (generation !== this.#generation) throw new StaleResponseError(false);
+          const byId = new SvelteMap(
+            users.flatMap((member) => (member.user?.id ? [[member.user.id, member] as const] : []))
+          );
+          for (const id of batch) {
+            if (this.#pending.get(id)?.completion !== request) {
+              if (!this.has(id) && !this.#deleted.has(id)) throw new StaleResponseError(false);
+              continue;
+            }
+            const member = byId.get(id);
+            if (member) this.set(id, member);
           }
-          const member = byId.get(id);
-          if (member) this.set(id, member);
-        }
-      }).finally(() => {
-        for (const id of batch) if (this.#pending.get(id)?.completion === request) this.#pending.delete(id);
-      });
+        })
+        .finally(() => {
+          for (const id of batch)
+            if (this.#pending.get(id)?.completion === request) this.#pending.delete(id);
+        });
       for (const id of batch) this.#pending.set(id, { completion: request, cursor });
     }
-    await Promise.all([...new SvelteSet(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))]);
+    await Promise.all([
+      ...new SvelteSet(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))
+    ]);
     if (generation !== this.#generation) throw new StaleResponseError(false);
     if (this.missing(weaker).length) return this.resolve(ids, read, cursor);
     return [...new SvelteSet(ids)].flatMap((id) => this.get(id) ?? []);
@@ -168,8 +200,8 @@ const stores: Record<string, Record<string, UserStore>> = Object.create(null);
 /** Resolve the owner for an explicit server and connection scope. The standalone
  * scope supports isolated API clients that do not have a ServerConnection. */
 export function getUserStore(serverId: string, scope = 'standalone'): UserStore {
-  const sessions = stores[serverId] ??= Object.create(null);
-  return sessions[scope] ??= new UserStore();
+  const sessions = (stores[serverId] ??= Object.create(null));
+  return (sessions[scope] ??= new UserStore());
 }
 
 /** Clear a server's private data without replacing owners retained by current consumers. */

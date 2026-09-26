@@ -193,11 +193,7 @@ describe('server member delete page', () => {
     await vi.waitFor(() => expect(mocks.getMember).toHaveBeenCalledWith('bob', expect.anything()));
     await settle();
 
-    const bobKey = adminQueryKeys.member(
-      'server-1',
-      { queryScope: 'session-1' },
-      'bob'
-    );
+    const bobKey = adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'bob');
     expect(queryClient.getQueryData(bobKey)).toEqual(details(member('bob')));
 
     deletion.resolve();

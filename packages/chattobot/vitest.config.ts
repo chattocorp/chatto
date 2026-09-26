@@ -1,10 +1,10 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ["**/*.test.ts"],
-    exclude: ["**/node_modules/**", "**/.runling/**"],
+    include: ['**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/.runling/**'],
     testTimeout: 15000,
-    fileParallelism: false,
-  },
+    fileParallelism: false
+  }
 });

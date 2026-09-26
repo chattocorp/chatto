@@ -45,17 +45,17 @@ remain separate behind that barrier.
 
 The content view contains these state areas:
 
-| Area | State |
-| --- | --- |
-| Server presentation and preferences | Server profile, branding, Neighbor records, and client-visible user preferences |
-| User directory | Account and profile state, custom status, verified-email state, bot ownership, and encrypted PII needed for authorized hydration |
-| Rooms | Room metadata, membership, bans, Universal-room behavior, Room Groups, and sidebar layout |
-| Timelines | Compact visible room-entry and message-body references, tombstones, channel echoes, pins, and message hydration metadata |
-| Threads | Thread identity, replies, participants, follow state, and interaction relationships |
-| Reactions and calls | Current message reactions and active durable room-call state |
-| Assets | Asset declarations, ownership, processing state, derivative relationships, deletion state, and client-visible references |
-| Authorization and mentions | RBAC roles and decisions plus mentionable identities |
-| Content support | Wrapped content-key facts and other non-client-facing indexes required to hydrate included content safely |
+| Area                                | State                                                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Server presentation and preferences | Server profile, branding, Neighbor records, and client-visible user preferences                                                  |
+| User directory                      | Account and profile state, custom status, verified-email state, bot ownership, and encrypted PII needed for authorized hydration |
+| Rooms                               | Room metadata, membership, bans, Universal-room behavior, Room Groups, and sidebar layout                                        |
+| Timelines                           | Compact visible room-entry and message-body references, tombstones, channel echoes, pins, and message hydration metadata         |
+| Threads                             | Thread identity, replies, participants, follow state, and interaction relationships                                              |
+| Reactions and calls                 | Current message reactions and active durable room-call state                                                                     |
+| Assets                              | Asset declarations, ownership, processing state, derivative relationships, deletion state, and client-visible references         |
+| Authorization and mentions          | RBAC roles and decisions plus mentionable identities                                                                             |
+| Content support                     | Wrapped content-key facts and other non-client-facing indexes required to hydrate included content safely                        |
 
 Component names and ownership can follow current domain model boundaries. The
 table defines state scope, not one required Go type per row.

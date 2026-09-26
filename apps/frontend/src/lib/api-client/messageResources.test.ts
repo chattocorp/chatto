@@ -5,7 +5,7 @@ import { REALTIME_MINIMUM_CURSOR_HEADER } from './connect';
 
 const mocks = vi.hoisted(() => ({ messages: vi.fn(), users: vi.fn() }));
 vi.mock('./connect', async (actual) => ({
-  ...await actual<typeof import('./connect')>(),
+  ...(await actual<typeof import('./connect')>()),
   createChattoClient: () => ({ batchGetMessages: mocks.messages })
 }));
 vi.mock('./users', () => ({ createUserAPI: () => ({ batchGetUsers: mocks.users }) }));
@@ -17,13 +17,24 @@ describe('shared message resource reads', () => {
   });
 
   it('shares the raw message and normalized view and bounds user batches', async () => {
-    const messages = Array.from({ length: 100 }, (_, i) => new Message({
-      id: `M${i}`, roomId: 'R', actorId: `U${i}`, body: 'hello',
-      thread: { participantPreviewUserIds: [`V${i}`] }
-    }));
+    const messages = Array.from(
+      { length: 100 },
+      (_, i) =>
+        new Message({
+          id: `M${i}`,
+          roomId: 'R',
+          actorId: `U${i}`,
+          body: 'hello',
+          thread: { participantPreviewUserIds: [`V${i}`] }
+        })
+    );
     mocks.messages.mockResolvedValue({ messages });
     const api = createMessageResourcesAPI({ baseUrl: 'http://localhost', bearerToken: null });
-    const resources = await api.read('R', messages.map((message) => message.id), 'cursor');
+    const resources = await api.read(
+      'R',
+      messages.map((message) => message.id),
+      'cursor'
+    );
     expect(resources[0].message).toBe(messages[0]);
     expect(resources[0].timeline?.event).toMatchObject({ body: 'hello' });
     const [request, options] = mocks.messages.mock.calls[0];

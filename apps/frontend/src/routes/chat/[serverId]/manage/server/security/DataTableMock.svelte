@@ -21,7 +21,6 @@
     loadMoreRoot?: HTMLElement;
     loadingMoreMessage?: string;
   } = $props();
-
 </script>
 
 <table>

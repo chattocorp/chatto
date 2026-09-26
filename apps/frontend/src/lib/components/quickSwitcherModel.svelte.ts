@@ -224,10 +224,14 @@ export class QuickSwitcherModel {
       const store = serverRegistry.tryGetStore(item.serverId);
       // Recheck the live scope before an action from a row that may have become stale.
       if (
-        !store?.isAuthenticated || !store.realtimeSync.hasUsableProjection ||
+        !store?.isAuthenticated ||
+        !store.realtimeSync.hasUsableProjection ||
         !store.permissions.canStartDMs
-      ) return;
-      const user = item.targetUserId ? store.projection.users.get(item.targetUserId)?.user : undefined;
+      )
+        return;
+      const user = item.targetUserId
+        ? store.projection.users.get(item.targetUserId)?.user
+        : undefined;
       if (!user || user.deleted) return;
       quickSwitcher.close();
       try {
@@ -358,11 +362,13 @@ export class QuickSwitcherModel {
             m('common.you')
           );
           // Count full membership, not visible avatars: a group can lose profile data.
-          const memberIds = store?.projection.rooms.get(room.id)?.memberUserIds ??
+          const memberIds =
+            store?.projection.rooms.get(room.id)?.memberUserIds ??
             room.members.map((user) => user.id);
           if (currentUserId && memberIds.includes(currentUserId) && memberIds.length <= 2) {
             for (const userId of memberIds) {
-              if (userId !== currentUserId || memberIds.length === 1) directMessageUserIds.add(userId);
+              if (userId !== currentUserId || memberIds.length === 1)
+                directMessageUserIds.add(userId);
             }
           }
           items.push({
@@ -396,9 +402,14 @@ export class QuickSwitcherModel {
         });
       }
 
-      if (store?.isAuthenticated && store.realtimeSync.hasUsableProjection && store.permissions.canStartDMs) {
+      if (
+        store?.isAuthenticated &&
+        store.realtimeSync.hasUsableProjection &&
+        store.permissions.canStartDMs
+      ) {
         for (const member of store.projection.users.values()) {
-          if (!member.user?.id || member.user.deleted || directMessageUserIds.has(member.user.id)) continue;
+          if (!member.user?.id || member.user.deleted || directMessageUserIds.has(member.user.id))
+            continue;
           const user = avatarUser(mapDirectoryMember(member));
           items.push({
             kind: 'user',
@@ -487,9 +498,7 @@ export class QuickSwitcherModel {
           id: message.id,
           label: message.body,
           detail: [
-            message.actor
-              ? accountNameToken(0)
-              : undefined,
+            message.actor ? accountNameToken(0) : undefined,
             message.roomName ? `#${message.roomName}` : null,
             serverName
           ]

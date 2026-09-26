@@ -3,13 +3,13 @@
 Tasks can send user-facing text through an optional context handler:
 
 ```ts
-const implement = task(async ctx => {
-  await ctx.onText?.("Running checks.");
+const implement = task(async (ctx) => {
+  await ctx.onText?.('Running checks.');
 });
 
 await runWorkflow(implement, {
   input: undefined,
-  onText: async text => postToThread(text),
+  onText: async (text) => postToThread(text)
 });
 ```
 
@@ -19,7 +19,9 @@ compose a handler without changing the shared context:
 ```ts
 await child({
   ...ctx,
-  onText: async text => { await ctx.onText?.(`Implementation: ${text}`); },
+  onText: async (text) => {
+    await ctx.onText?.(`Implementation: ${text}`);
+  }
 });
 ```
 

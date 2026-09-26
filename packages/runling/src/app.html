@@ -7,16 +7,14 @@
       (() => {
         let theme;
         try {
-          theme =
-            localStorage.getItem("runling-theme") ??
-            localStorage.getItem("factory-theme");
+          theme = localStorage.getItem('runling-theme') ?? localStorage.getItem('factory-theme');
         } catch {}
         document.documentElement.dataset.theme =
-          theme === "light" || theme === "dark"
+          theme === 'light' || theme === 'dark'
             ? theme
-            : matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
+            : matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
       })();
     </script>
     %sveltekit.head%

@@ -95,7 +95,7 @@ ignored (the BottomSheet handles its own positioning).
     {anchor}
     {role}
     {ariaLabel}
-    class={['min-w-48 menu overlay-enter', className]}
+    class={['min-w-48 overlay-enter menu', className]}
     {scrollDismissal}
     {onclose}
     {onmouseenter}

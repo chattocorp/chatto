@@ -84,7 +84,9 @@ describe('ThreadFollowState', () => {
       threadRootEventId: 'thread-1'
     });
 
-    followRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true } });
+    followRequest.resolve({
+      state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true }
+    });
     await request;
 
     expect(state.following).toBe(true);
@@ -145,7 +147,9 @@ describe('ThreadFollowState', () => {
     expect(state.following).toBe(false);
     expect(api.unfollowThread).toHaveBeenCalledOnce();
 
-    unfollowRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: false } });
+    unfollowRequest.resolve({
+      state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: false }
+    });
     await request;
     expect(state.following).toBe(false);
     expect(state.pending).toBe(false);
@@ -155,7 +159,9 @@ describe('ThreadFollowState', () => {
     const { followRequest, setSnapshot, state } = setup();
 
     const request = state.toggle();
-    followRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true } });
+    followRequest.resolve({
+      state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true }
+    });
     await request;
 
     setSnapshot({
@@ -194,7 +200,9 @@ describe('ThreadFollowState', () => {
     expect(state.pending).toBe(false);
     expect(rollback).toHaveBeenCalledOnce();
 
-    followRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true } });
+    followRequest.resolve({
+      state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true }
+    });
     await request;
 
     expect(state.following).toBe(true);

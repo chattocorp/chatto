@@ -65,10 +65,14 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastTypingAt: Date.now()
     });
     const profiles = serverScope.store.projection.users;
-    if (!profiles.has(data.userId) && !profiles.isDeleted(data.userId) &&
-      !profileReadAttempts.has(data.userId)) {
+    if (
+      !profiles.has(data.userId) &&
+      !profiles.isDeleted(data.userId) &&
+      !profileReadAttempts.has(data.userId)
+    ) {
       profileReadAttempts.add(data.userId);
-      void serverScope.connection.getAPI(createMemberDirectoryAPI)
+      void serverScope.connection
+        .getAPI(createMemberDirectoryAPI)
         .batchGetUsers([data.userId])
         // Typing is transient. A later burst can retry without failing this one.
         .catch(() => undefined);

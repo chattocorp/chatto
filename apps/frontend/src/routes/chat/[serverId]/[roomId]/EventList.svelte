@@ -35,90 +35,45 @@
     permalinkThreadRootEventId = null,
     messageStore,
     events,
-    // Scroll behavior
-    alwaysScrollToBottom = false,
-    showNewMessagesIndicator = true,
-    // Pagination
-    enablePagination = false,
-    isLoadingMore = false,
-    hasReachedStart = false,
     showStartMarker = true,
-    onLoadMore,
-    // Event updates
-    updateCounter = 0,
     // Threading - only root messages can open threads
     onOpenThread,
     onOpenCall,
     onOpenProfile,
     // Filtering - whether to filter out thread replies (false for thread pane)
     filterThreadReplies = true,
-    // Up-arrow-to-edit
-    enableLastEditableFinder = false,
-    // Loading states
-    isLoading = false,
     emptyMessage = m('room.message.empty'),
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId = null,
-    scrollToUnreadOnEntry = false,
     // Typing indicator
     typingUserIds = [],
     typingMembers = [],
-    // Jump to message
-    scrollToEventId = null,
     onScrollToEventComplete,
-    isJumpedMode = false,
-    isLoadingNewer = false,
-    hasReachedEnd = false,
-    onLoadNewer,
-    onJumpToPresent,
-    onReachedPresent,
     onReachedBottom,
     pendingHighlightId = null,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     roomId: string;
     permalinkThreadRootEventId?: string | null;
+    /** Owns loading, pagination, and jump requests for this timeline. */
     messageStore: MessagesStore;
     events: TimelineEventView[];
-    // Scroll behavior
-    alwaysScrollToBottom?: boolean;
-    showNewMessagesIndicator?: boolean;
-    // Pagination
-    enablePagination?: boolean;
-    isLoadingMore?: boolean;
-    hasReachedStart?: boolean;
     showStartMarker?: boolean;
-    onLoadMore?: () => Promise<void>;
-    // Event updates
-    updateCounter?: number;
     // Threading
     onOpenThread?: OpenThreadHandler;
     onOpenCall?: () => void;
     onOpenProfile?: (userId: string) => void;
     // Filtering
     filterThreadReplies?: boolean;
-    // Up-arrow-to-edit
-    enableLastEditableFinder?: boolean;
-    // Loading states
-    isLoading?: boolean;
     emptyMessage?: string;
-    // Event ID of the first unread message (for showing the unread separator)
+    // Event ID of the first unread message (for showing the unread separator).
+    // The timeline lands on it once per entry unless the user moves first.
     unreadAfterEventId?: string | null;
-    // Land on the unread separator, not the newest message, when it first
-    // appears after entering a room and the user has not moved the viewport.
-    scrollToUnreadOnEntry?: boolean;
     // Typing indicator
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
-    // Jump to message
-    scrollToEventId?: string | null;
+    /** Reports whether a jump-to-message request found and highlighted its target. */
     onScrollToEventComplete?: (landed: boolean) => void;
-    isJumpedMode?: boolean;
-    isLoadingNewer?: boolean;
-    hasReachedEnd?: boolean;
-    onLoadNewer?: () => Promise<void>;
-    onJumpToPresent?: () => Promise<boolean>;
-    onReachedPresent?: () => void;
     onReachedBottom?: () => void;
     // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
     pendingHighlightId?: string | null;
@@ -147,9 +102,18 @@
     }
   }
 
-  // Get composer context (scrollState may be null - ThreadPane doesn't provide it)
+  // The room and thread panes each provide their own composer context. Its jump
+  // state and the message store together drive loading and jump-to-message.
   const composerContext = getComposerContext();
   const scrollState = composerContext.scrollState;
+  const jumpState = composerContext.jumpState;
+  const isLoading = $derived(messageStore.isInitialLoading);
+  const isLoadingMore = $derived(messageStore.isLoadingMore);
+  const hasReachedStart = $derived(messageStore.hasReachedStart);
+  const isJumpedMode = $derived(jumpState.isJumpedMode);
+  const isLoadingNewer = $derived(jumpState.isLoadingNewer);
+  const hasReachedEnd = $derived(jumpState.hasReachedEnd);
+  const scrollToEventId = $derived(jumpState.scrollToEventId);
   const serverScope = useServerScope();
   const stores = $derived(serverScope.store);
   const currentUser = $derived(stores.currentUser);
@@ -177,7 +141,6 @@
       ? formatDayLabel(viewport.firstVisibleAt, userSettings, activeLocale)
       : null
   );
-  const reloadsTimelineOnReturn = $derived(isJumpedMode && !!onJumpToPresent);
 
   // First apply structural timeline filtering. Context-free tombstones are a
   // separate stage so row removal cannot be mistaken for a newly arrived message.
@@ -218,9 +181,7 @@
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
-    if (!enableLastEditableFinder) return;
-
-    lastEditableMessageCtx?.setFinder(() => {
+    lastEditableMessageCtx.setFinder(() => {
       return findLastEditableMessage({
         events: filteredEvents,
         currentUserId: currentUser.user?.id,
@@ -242,16 +203,12 @@
     const currentTimelineKey = timelineKey;
     const jumped = isJumpedMode;
     const newestId = timelineEvents.at(-1)?.id ?? null;
-    const newestOptions = {
-      showNewMessagesIndicator,
-      alwaysScrollToBottom
-    };
     untrack(() => {
       if (viewport.enterRoom(currentTimelineKey)) expandedSystemEventIds.clear();
       viewport.observeJumpedMode(jumped);
       // Comparing the newest ID rather than the count keeps prepended
       // pagination rows from looking like newly arrived messages.
-      viewport.observeNewestEvent(newestId, newestOptions);
+      viewport.observeNewestEvent(newestId);
     });
   });
 
@@ -262,7 +219,7 @@
   // been scrolled up — unmeasured items at the bottom have only estimated heights,
   // causing scrollToIndex to undershoot.
   $effect(() => {
-    if (!scrollState || alwaysScrollToBottom) return;
+    if (!scrollState) return;
     const counter = scrollState.scrollRequestCounter;
     if (counter > 0) {
       viewport.requestBottom();
@@ -372,7 +329,6 @@
   // TimelineViewportController.beginUnreadEntryLanding). An entry that
   // targets a specific message skips the landing.
   const unreadEntryLanding = $derived.by(() => {
-    if (!scrollToUnreadOnEntry) return null;
     if (scrollToEventId || pendingHighlightId) return { timelineKey, skip: true };
     if (!effectiveUnreadAfterEventId || isJumpedMode) return null;
     if (!virtualizerHandle || virtualItems.length === 0) return null;
@@ -405,17 +361,15 @@
         const { position, index, store } = target;
         if (index >= 0) {
           viewport.beginJump();
-          if (composerContext.jumpState) {
-            // Requests for the discarded window cannot release this flag.
-            composerContext.jumpState.isLoadingNewer = false;
-            composerContext.jumpState.isJumpedMode = position.hasNewer ?? false;
-            composerContext.jumpState.hasReachedEnd = !position.hasNewer;
-          }
+          // Requests for the discarded window cannot release this flag.
+          jumpState.isLoadingNewer = false;
+          jumpState.isJumpedMode = position.hasNewer ?? false;
+          jumpState.hasReachedEnd = !position.hasNewer;
           safeScrollToIndex(index, { align: 'start', offset: position.offset });
           store.recoveryViewport = null;
         } else {
           store.clearViewport();
-          composerContext.jumpState?.reset();
+          jumpState.reset();
           viewport.followBottom();
           void requestBottomScroll();
         }
@@ -449,7 +403,7 @@
         !destroyed &&
         !stores.realtimeSync.isRecoveringSnapshot &&
         !messageStore.recoveryViewport &&
-        viewport.canContinueBottomScroll(token, roomId, isJumpedMode, alwaysScrollToBottom) &&
+        viewport.canContinueBottomScroll(token, roomId, isJumpedMode) &&
         Boolean(scrollContainer && virtualizerHandle),
       waitForFrame: async () => {
         await tick();
@@ -490,7 +444,7 @@
 
   // Keep ScrollState's shouldScroll flag in sync with our local state
   $effect(() => {
-    scrollState?.setShouldScroll(alwaysScrollToBottom || viewport.shouldScrollToBottom);
+    scrollState?.setShouldScroll(viewport.shouldScrollToBottom);
   });
 
   // Auto-scroll to bottom when new events arrive or existing events update.
@@ -500,13 +454,13 @@
   // Suppressed when pendingHighlightId is set — a highlight scroll is pending and
   // auto-scroll would race with it, scrolling to bottom before the highlight can fire.
   $effect(() => {
-    void updateCounter;
+    void events.length;
 
     if (isJumpedMode) return;
     if (pendingHighlightId) return;
 
     if (virtualItems.length > 0 && virtualizerHandle) {
-      const shouldScroll = untrack(() => alwaysScrollToBottom || viewport.shouldScrollToBottom);
+      const shouldScroll = untrack(() => viewport.shouldScrollToBottom);
       if (shouldScroll) {
         void requestBottomScroll();
       }
@@ -528,7 +482,7 @@
     onReachedBottom?.();
     const requestedRoomId = roomId;
     const intentRevision = viewport.captureIntentRevision();
-    if (!(await onJumpToPresent?.())) return;
+    if (!(await messageStore.jumpToPresent(jumpState))) return;
     await tick();
     if (roomId !== requestedRoomId || !viewport.hasIntentRevision(intentRevision)) return;
     void requestBottomScroll();
@@ -581,14 +535,14 @@
       virtualizerHandle.getScrollSize() -
       virtualizerHandle.getScrollOffset() -
       virtualizerHandle.getViewportSize();
-    viewport.reconcileAfterTabResume(dist, alwaysScrollToBottom);
+    viewport.reconcileAfterTabResume(dist);
   });
 
   let forwardLoadInFlight = false;
   let underfilledBackfillInFlight = false;
 
   function exitJumpedModeAtPresent(bottomDistance: number): boolean {
-    if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50 || !onReachedPresent) return false;
+    if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50) return false;
 
     viewport.followBottom();
     onReachedBottom?.();
@@ -597,16 +551,16 @@
       bottomDistance,
       itemCount: virtualItems.length
     });
-    onReachedPresent();
+    jumpState.reset();
     return true;
   }
 
   async function loadNewerAndMaybeExitAtPresent(): Promise<void> {
-    if (!onLoadNewer || forwardLoadInFlight) return;
+    if (forwardLoadInFlight) return;
 
     forwardLoadInFlight = true;
     try {
-      await onLoadNewer();
+      await messageStore.loadNewer(jumpState);
       await tick();
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -622,8 +576,6 @@
   async function loadOlderIfTimelineNeedsBackfill(): Promise<void> {
     if (stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return;
     if (
-      !enablePagination ||
-      !onLoadMore ||
       isLoading ||
       isLoadingMore ||
       hasReachedStart ||
@@ -639,7 +591,7 @@
       // Virtualizer in that state, but pagination still needs to walk backward
       // until it finds visible history or reaches the beginning.
       if (timelineEvents.length > 0 && filteredEvents.length === 0) {
-        await onLoadMore();
+        await messageStore.loadMore();
         return;
       }
 
@@ -663,7 +615,7 @@
         timelineEvents.length > 0 &&
         messageEventCount < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET;
       if (scrollSize <= viewportSize + 50 || lacksInitialRoomMessages) {
-        await onLoadMore();
+        await messageStore.loadMore();
       }
     } finally {
       underfilledBackfillInFlight = false;
@@ -675,7 +627,6 @@
     void timelineEvents.length;
     void filteredEvents.length;
     void messageEventCount;
-    void enablePagination;
     void isLoading;
     void isLoadingMore;
     void hasReachedStart;
@@ -713,7 +664,6 @@
       scrollSize,
       viewportSize,
       firstVisibleAt,
-      alwaysScrollToBottom,
       now: Date.now()
     });
     const { distanceFromBottom } = scrollResult;
@@ -743,21 +693,18 @@
     // Trigger pagination when scrolled near the top.
     // Guard: only when content actually overflows the viewport (avoids firing in short rooms).
     if (
-      enablePagination &&
-      onLoadMore &&
       offset < viewportSize * 3 &&
       scrollSize > viewportSize + 50 &&
       !isLoadingMore &&
       !hasReachedStart
     ) {
       // No manual scroll restoration needed — virtua's shift=true handles it
-      onLoadMore();
+      void messageStore.loadMore();
     }
 
     // Forward pagination when near bottom in jumped mode
     if (
       isJumpedMode &&
-      onLoadNewer &&
       distanceFromBottom < viewportSize * 3 &&
       !isLoadingNewer &&
       !forwardLoadInFlight &&
@@ -885,10 +832,10 @@
 
   <TypingIndicator {typingUserIds} members={typingMembers} profiles={stores.projection.users} />
 
-  {#if !viewport.shouldScrollToBottom && (reloadsTimelineOnReturn || !alwaysScrollToBottom)}
+  {#if !viewport.shouldScrollToBottom}
     <button
       transition:fade={{ duration: 150 }}
-      onclick={reloadsTimelineOnReturn ? handleJumpToPresentClick : scrollToBottom}
+      onclick={isJumpedMode ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
@@ -898,7 +845,7 @@
           <span class="text-muted/40">|</span>
         {/if}
         <span>
-          {!reloadsTimelineOnReturn && viewport.hasNewMessages
+          {!isJumpedMode && viewport.hasNewMessages
             ? m('room.unread_separator')
             : m('room.jump_to_present')}
         </span>

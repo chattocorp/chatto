@@ -444,7 +444,7 @@
           layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
           layout === 'overlay' && 'absolute top-3 right-2',
           layout !== 'row' &&
-            'transition-opacity feedback-quick compact-input:hover-actions:opacity-0 group-hover/attachment:opacity-100 focus-within:opacity-100'
+            'transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0'
         ]}
       >
         {@render deleteAttachmentButton(attachment)}
@@ -479,7 +479,7 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={imageButtonStyle(display, variant)}
-        class="embed-frame relative block min-w-0 cursor-pointer overflow-hidden"
+        class="relative embed-frame block min-w-0 cursor-pointer overflow-hidden"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -621,9 +621,7 @@
           {@render attachmentControls(attachment, true, 'row')}
         </div>
       {:else}
-        <div
-          class="group/attachment embed-frame attachment-card min-w-[min(14rem,100%)]"
-        >
+        <div class="group/attachment embed-frame attachment-card min-w-[min(14rem,100%)]">
           <button
             type="button"
             onclick={() => openAttachmentModal(attachment)}

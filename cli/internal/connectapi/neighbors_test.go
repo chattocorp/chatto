@@ -129,7 +129,7 @@ func TestServerDiscoveryListNeighborhoodServers(t *testing.T) {
 	require.Equal(t, "A", server.GetProfile().GetName())
 	require.Equal(t, "0.5.0", server.GetProfile().GetVersion())
 	require.Equal(t, "First", server.GetProfile().GetDescription())
-	require.Equal(t, "https://self.example/assets/neighborhood/"+logoName, server.GetProfile().GetLogoUrl())
+	require.Equal(t, "/assets/neighborhood/"+logoName, server.GetProfile().GetLogoUrl())
 	require.Nil(t, server.GetProfile().BannerUrl)
 	require.Nil(t, server.GetProfile().WelcomeMessage)
 }

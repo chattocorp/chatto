@@ -1098,6 +1098,35 @@ func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 		}
 	})
 
+	t.Run("uses the configured origin that matches the request host", func(t *testing.T) {
+		s := &HTTPServer{config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{
+				URL:            "https://configured.example.com",
+				AllowedOrigins: []string{"https://alias.example.com", "*"},
+			},
+		}}
+		// A TLS-terminating proxy forwards plain HTTP; the configured scheme applies.
+		req := httptest.NewRequest(http.MethodGet, "http://alias.example.com/api/connect", nil)
+
+		if got, want := s.requestBaseURL(req), "https://alias.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("ignores a request host that no exact origin configures", func(t *testing.T) {
+		s := &HTTPServer{config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{
+				URL:            "https://configured.example.com",
+				AllowedOrigins: []string{"*"},
+			},
+		}}
+		req := httptest.NewRequest(http.MethodGet, "https://spoofed.example.com/api/connect", nil)
+
+		if got, want := s.requestBaseURL(req), "https://configured.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
 	t.Run("canonicalizes configured default port", func(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{
 			Webserver: config.WebserverConfig{URL: "https://configured.example.com:443/path"},

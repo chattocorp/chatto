@@ -39,7 +39,9 @@
       'https://example.com'
     );
     await waitFor(() =>
-      expect(within(dialog).getByText('Please save your work before maintenance starts.')).toBeVisible()
+      expect(
+        within(dialog).getByText('Please save your work before maintenance starts.')
+      ).toBeVisible()
     );
     const footer = within(dialog.querySelector('footer')!);
     await userEvent.click(footer.getByRole('button', { name: 'Close' }));

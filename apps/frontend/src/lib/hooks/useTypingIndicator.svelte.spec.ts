@@ -19,7 +19,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 }));
 
 vi.mock('./useEvent.svelte', () => ({
-  useTypingEvent: (handler: (signal: TypingSignal) => void) => { mocks.typingHandler = handler; }
+  useTypingEvent: (handler: (signal: TypingSignal) => void) => {
+    mocks.typingHandler = handler;
+  }
 }));
 
 const profiles = new UserStore();
@@ -44,7 +46,9 @@ describe('createTypingIndicator profile hydration', () => {
   it('reads an unknown typer once per burst and retries on a later burst', async () => {
     const dispose = $effect.root(() => {
       createTypingIndicator(() => ({
-        roomId: 'room', threadRootEventId: null, currentUserId: 'viewer'
+        roomId: 'room',
+        threadRootEventId: null,
+        currentUserId: 'viewer'
       }));
     });
     flushSync();
@@ -65,7 +69,9 @@ describe('createTypingIndicator profile hydration', () => {
     profiles.set('known', new DirectoryMember({ user: { id: 'known' } }));
     const dispose = $effect.root(() => {
       createTypingIndicator(() => ({
-        roomId: 'room', threadRootEventId: null, currentUserId: 'viewer'
+        roomId: 'room',
+        threadRootEventId: null,
+        currentUserId: 'viewer'
       }));
     });
     flushSync();
@@ -82,7 +88,9 @@ describe('createTypingIndicator profile hydration', () => {
     let indicator!: ReturnType<typeof createTypingIndicator>;
     const dispose = $effect.root(() => {
       indicator = createTypingIndicator(() => ({
-        roomId: 'room', threadRootEventId: null, currentUserId: 'viewer'
+        roomId: 'room',
+        threadRootEventId: null,
+        currentUserId: 'viewer'
       }));
     });
     flushSync();
@@ -101,9 +109,13 @@ describe('createTypingIndicator profile hydration', () => {
     let indicator!: ReturnType<typeof createTypingIndicator>;
     const dispose = $effect.root(() => {
       indicator = createTypingIndicator(() => ({
-        roomId: 'room', threadRootEventId: null, currentUserId: viewerId
+        roomId: 'room',
+        threadRootEventId: null,
+        currentUserId: viewerId
       }));
-      $effect(() => { visibleIds = indicator.userIds; });
+      $effect(() => {
+        visibleIds = indicator.userIds;
+      });
     });
     flushSync();
     expect(visibleIds).toEqual([]);

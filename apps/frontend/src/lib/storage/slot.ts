@@ -121,11 +121,7 @@ export class StorageSlot<T> {
 }
 
 /** Build a globally-scoped `StorageSlot<T>` at `chatto:{suffix}`. */
-export function globalSlot<T>(
-  suffix: string,
-  defaultValue: T,
-  codec: Codec<T>
-): StorageSlot<T> {
+export function globalSlot<T>(suffix: string, defaultValue: T, codec: Codec<T>): StorageSlot<T> {
   return new StorageSlot(`chatto:${suffix}`, defaultValue, codec);
 }
 

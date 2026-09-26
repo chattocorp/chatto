@@ -113,9 +113,7 @@ describe('VideoPlayer', () => {
   it('plays a newly processed HLS-only video', async () => {
     const canPlayType = vi
       .spyOn(HTMLMediaElement.prototype, 'canPlayType')
-      .mockImplementation((type) =>
-        type === 'application/vnd.apple.mpegurl' ? 'probably' : ''
-      );
+      .mockImplementation((type) => (type === 'application/vnd.apple.mpegurl' ? 'probably' : ''));
     const hlsUrl = 'https://chat.example.test/assets/hls/a/master.m3u8?access=ticket';
     try {
       const { container } = renderPostedVideo({
@@ -152,9 +150,11 @@ describe('VideoPlayer', () => {
     await mediaPlayer(container);
     for (const width of [240, 120, 640]) {
       container.style.width = `${width}px`;
-      await expect.poll(() => frame(container).getBoundingClientRect().width).toBeLessThanOrEqual(width);
+      await expect
+        .poll(() => frame(container).getBoundingClientRect().width)
+        .toBeLessThanOrEqual(width);
       const bounds = frame(container).getBoundingClientRect();
-      expect(bounds.height).toBeCloseTo(bounds.width * 9 / 16, 0);
+      expect(bounds.height).toBeCloseTo((bounds.width * 9) / 16, 0);
     }
   });
 

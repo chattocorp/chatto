@@ -3,12 +3,10 @@
   import { getComposerContext } from '$lib/state/room';
 
   let {
-    inReplyTo,
     showCreateThread = false,
     createThreadRequired = false,
     onMessageSent
   }: {
-    inReplyTo?: string;
     showCreateThread?: boolean;
     createThreadRequired?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
@@ -76,10 +74,7 @@
   emit returned post
 </button>
 
-<button
-  data-testid="emit-created-thread"
-  onclick={() => onMessageSent?.(returnedThreadPost)}
->
+<button data-testid="emit-created-thread" onclick={() => onMessageSent?.(returnedThreadPost)}>
   emit created thread
 </button>
 
@@ -94,6 +89,7 @@
   start composer reply
 </button>
 
-<output data-testid="composer-in-reply-to">{inReplyTo ?? ''}</output>
+<output data-testid="composer-in-reply-to">{composerContext.replyState.messageEventId ?? ''}</output
+>
 <output data-testid="composer-can-create-thread">{String(showCreateThread)}</output>
 <output data-testid="composer-requires-thread">{String(createThreadRequired)}</output>

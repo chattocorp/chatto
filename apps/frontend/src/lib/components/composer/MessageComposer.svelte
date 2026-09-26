@@ -50,10 +50,6 @@
   let {
     roomId,
     inThread,
-    inReplyTo,
-    replyDisplayName,
-    replyIdentity,
-    replyExcerpt,
     placeholder,
     canPost = true,
     canAttach = true,
@@ -65,7 +61,6 @@
     onTyping,
     onMessageSent,
     onThreadMessageSent,
-    onCancelReply,
     onEscape,
     showAlsoSendToChannel = false,
     echoToConversation = false,
@@ -137,11 +132,11 @@
 
   const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
   const composerContext = getComposerContext();
+  const replyState = composerContext.replyState;
   const membersStore = useRoomMembersStore();
   const composer = new MessageComposerState({
     getRoomId: () => roomId,
     getThreadRootEventId: () => inThread,
-    getReplyEventId: () => inReplyTo,
     getCanPost: () => canPost,
     getCanAttach: () => canAttach,
     getSlowModeBlocked: () => slowModeBlocked,
@@ -161,7 +156,6 @@
         onMessageSent?.(event);
       },
       onThreadMessageSent,
-      onCancelReply,
       onEscape
     }),
     onPostError: (error) => {
@@ -261,7 +255,7 @@
     </p>
   {/if}
 
-  {#if threadsEncouraged && inReplyTo && !inThread}
+  {#if threadsEncouraged && replyState.messageEventId && !inThread}
     <p class="px-0.5 text-xs text-muted" data-testid="threads-encouraged-hint">
       {m('composer.threads_encouraged')}
     </p>
@@ -291,7 +285,8 @@
     data-testid="composer-input-surface"
     class={[
       'relative grid chat-input-surface min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1 px-2.5 py-1.5',
-      !expandedDraft && '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:mobile-presentation:items-center'
+      !expandedDraft &&
+        '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:mobile-presentation:items-center'
     ]}
     class:opacity-50={composer.inputDisabled}
   >
@@ -316,7 +311,10 @@
     {/if}
 
     <CompactActionButton
-      wrapperClass={['mobile-presentation:pill-button-group-touch', !expandedDraft && '@min-[560px]/composer:desktop-presentation:mb-1']}
+      wrapperClass={[
+        'mobile-presentation:pill-button-group-touch',
+        !expandedDraft && '@min-[560px]/composer:desktop-presentation:mb-1'
+      ]}
       label={m('composer.formatting_options')}
       type="button"
       onpointerdown={(event) => event.preventDefault()}
@@ -386,12 +384,12 @@
   </div>
 
   <ComposerModeIndicators
-    {inReplyTo}
-    {replyDisplayName}
-    {replyIdentity}
-    {replyExcerpt}
+    inReplyTo={replyState.messageEventId ?? undefined}
+    replyDisplayName={replyState.actorDisplayName || undefined}
+    replyIdentity={replyState.actorIdentity}
+    replyExcerpt={replyState.excerpt || undefined}
     isEditing={composer.isEditing}
-    oncancelreply={() => onCancelReply?.()}
+    oncancelreply={() => replyState.cancelReply()}
     oncanceledit={() => composer.cancelEdit()}
   />
 </div>

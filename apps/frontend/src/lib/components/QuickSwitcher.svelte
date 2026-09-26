@@ -77,12 +77,11 @@
   class="quick-switcher m-auto mt-[15vh] max-h-none max-w-none overflow-visible border-none bg-transparent p-0 text-inherit backdrop:bg-black/50"
 >
   {#if quickSwitcher.visible}
-    <div
-      class="command-palette"
-    >
+    <div class="command-palette">
       <div class="menu-section">
         <div class="flex min-h-10 items-center gap-2 px-3 py-1.5">
-          <span class="iconify sidebar-icon icon-[uil--search] text-muted" aria-hidden="true"></span>
+          <span class="iconify sidebar-icon icon-[uil--search] text-muted" aria-hidden="true"
+          ></span>
           <input
             {@attach registerInput}
             value={model.query}
@@ -136,12 +135,18 @@
               >
                 {#if item.kind === 'message'}
                   <span class="command-palette-leading">
-                    <span class="iconify sidebar-icon icon-[uil--comment-alt-message]" aria-hidden="true"></span>
+                    <span
+                      class="iconify sidebar-icon icon-[uil--comment-alt-message]"
+                      aria-hidden="true"
+                    ></span>
                   </span>
                 {:else if item.kind === 'destination' && item.icon}
-                  <span class="command-palette-leading"><span class="iconify sidebar-icon {item.icon}" aria-hidden="true"></span></span>
+                  <span class="command-palette-leading"
+                    ><span class="iconify sidebar-icon {item.icon}" aria-hidden="true"></span></span
+                  >
                 {:else if item.kind === 'user' && item.participants?.[0]}
-                  <span class="command-palette-leading">{@render avatar(item.participants[0])}</span>
+                  <span class="command-palette-leading">{@render avatar(item.participants[0])}</span
+                  >
                 {:else if item.kind === 'dm' && item.participants}
                   <span class="command-palette-leading">
                     <span class="flex -space-x-2">
@@ -161,8 +166,10 @@
                         src={logo.logoUrl}
                         alt={logo.name}
                         class="h-full w-full object-cover"
-                        onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-                        onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                        onload={(event) =>
+                          ((event.currentTarget as HTMLImageElement).style.display = '')}
+                        onerror={(event) =>
+                          ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                       />
                     {:else}
                       <span class="text-white">{logo.name[0]?.toUpperCase() ?? '?'}</span>
@@ -183,10 +190,16 @@
                       <span
                         data-testid="message-search-provenance"
                         dir="auto"
-                        class="mt-0.5 block truncate text-muted"><AccountNameTokens
+                        class="mt-0.5 block truncate text-muted"
+                        ><AccountNameTokens
                           text={item.detail}
                           accounts={item.message?.actor
-                            ? [{ name: item.message.actor.displayName || item.message.actor.login, identity: item.message.actor }]
+                            ? [
+                                {
+                                  name: item.message.actor.displayName || item.message.actor.login,
+                                  identity: item.message.actor
+                                }
+                              ]
                             : []}
                         /></span
                       >

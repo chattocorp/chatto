@@ -11,7 +11,9 @@ describe('FormDialog', () => {
     const { container } = render(FormDialog, {
       visible: true,
       title: 'Create Room',
-      children: testSnippet('<div><label for="room-name">Room name</label><input id="room-name" required /></div>'),
+      children: testSnippet(
+        '<div><label for="room-name">Room name</label><input id="room-name" required /></div>'
+      ),
       onsubmit,
       onclose: vi.fn()
     });
@@ -59,7 +61,9 @@ describe('FormDialog', () => {
       }
     });
 
-    q(container, 'form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    q(container, 'form')?.dispatchEvent(
+      new SubmitEvent('submit', { bubbles: true, cancelable: true })
+    );
 
     expect(onsubmit).toHaveBeenCalledOnce();
   });

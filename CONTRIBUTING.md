@@ -166,7 +166,11 @@ import { seedData, loginSeededUser } from './fixtures/seed';
 import * as routes from './routes';
 
 const scene = await seedData(page.request, {
-  seed: 42, users: 3, rooms: 2, messages: 20, threadReplies: 5,
+  seed: 42,
+  users: 3,
+  rooms: 2,
+  messages: 20,
+  threadReplies: 5
 });
 await loginSeededUser(page.request, { id: scene.rooms[0].memberIds[0] });
 await page.goto(routes.room(scene.rooms[0].id));

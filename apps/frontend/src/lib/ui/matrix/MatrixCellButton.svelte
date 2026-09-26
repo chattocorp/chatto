@@ -152,7 +152,7 @@ activation callback.
       ></span>
     {:else if inheritedMarker && !loading}
       <span
-        class="iconify icon-[uil--link] absolute end-0.5 top-0.5 h-3 w-3 rounded-full bg-background text-muted ring-1 ring-border"
+        class="iconify absolute end-0.5 top-0.5 icon-[uil--link] h-3 w-3 rounded-full bg-background text-muted ring-1 ring-border"
         aria-hidden="true"
       ></span>
     {/if}

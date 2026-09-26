@@ -31,7 +31,8 @@ export const load: PageLoad = async ({ url }): Promise<SSOConfirmLoadData> => {
     return {
       token,
       pending: null,
-      loadError: error instanceof ConnectError && error.code === Code.NotFound ? 'invalid' : 'failed'
+      loadError:
+        error instanceof ConnectError && error.code === Code.NotFound ? 'invalid' : 'failed'
     };
   }
 };

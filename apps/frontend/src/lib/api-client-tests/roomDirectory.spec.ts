@@ -67,8 +67,14 @@ describe('createRoomDirectoryAPI', () => {
   it('collects all directory pages with the same scope and abort signal', async () => {
     mocks.listRooms
       .mockResolvedValueOnce({ rooms: [{ room: { id: 'a', name: 'A' } }], page: { hasMore: true } })
-      .mockResolvedValueOnce({ rooms: [{ room: { id: 'b', name: 'B' } }], page: { hasMore: false } });
-    const api = createRoomDirectoryAPI({ baseUrl: 'https://remote.example.com/api/connect', bearerToken: null });
+      .mockResolvedValueOnce({
+        rooms: [{ room: { id: 'b', name: 'B' } }],
+        page: { hasMore: false }
+      });
+    const api = createRoomDirectoryAPI({
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: null
+    });
     const signal = new AbortController().signal;
     const rooms = await api.listRooms(RoomDirectoryScope.ALL, { signal });
     expect(rooms.map((room) => room.id)).toEqual(['a', 'b']);

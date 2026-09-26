@@ -38,30 +38,30 @@ Provide ordinary dynamic imports. Lingua does not depend on Vite; any loader
 that returns a JSON-like document works.
 
 ```ts
-import { createLingua } from "@chatto/lingua";
+import { createLingua } from '@chatto/lingua';
 
 const lingua = createLingua({
-  baseLocale: "en-GB",
-  initialLocale: "de-DE",
+  baseLocale: 'en-GB',
+  initialLocale: 'de-DE',
   fallbackLocales: {
-    "de-AT": "de-DE",
+    'de-AT': 'de-DE'
   },
   initialBaseCatalogs: {
-    room: { room: { title: "Room" } },
+    room: { room: { title: 'Room' } }
   },
   loaders: {
     room: {
-      "en-GB": () => import("./messages/en-GB/room.json"),
-      "de-DE": () => import("./messages/de-DE/room.json"),
-      "de-AT": () => import("./messages/de-AT/room.json"),
-    },
-  },
+      'en-GB': () => import('./messages/en-GB/room.json'),
+      'de-DE': () => import('./messages/de-DE/room.json'),
+      'de-AT': () => import('./messages/de-AT/room.json')
+    }
+  }
 });
 
-await lingua.setActiveSections(["room"]);
+await lingua.setActiveSections(['room']);
 
-lingua.t("room.title");
-lingua.t("room.member_count", { count: 12 });
+lingua.t('room.title');
+lingua.t('room.member_count', { count: 12 });
 ```
 
 Static translation keys are intentionally not generated or catalog-typed.
@@ -86,7 +86,7 @@ catalog.
 markup:
 
 ```ts
-const markup = lingua.html("room.rules_html");
+const markup = lingua.html('room.rules_html');
 ```
 
 Lingua HTML-escapes interpolated values, but it deliberately does not sanitize

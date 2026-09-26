@@ -11,11 +11,7 @@
  * shows a different recent list.
  */
 
-import {
-  PINNED_REACTIONS,
-  QUICK_REACTIONS_COUNT,
-  RECENT_REACTION_FALLBACKS
-} from '$lib/emoji';
+import { PINNED_REACTIONS, QUICK_REACTIONS_COUNT, RECENT_REACTION_FALLBACKS } from '$lib/emoji';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
 const STORAGE_SUFFIX = 'recentEmojis';

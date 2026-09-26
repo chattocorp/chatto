@@ -14,21 +14,18 @@ export interface ReplySender {
 
 /** Share one POST attempt, including failures whose delivery may be uncertain. */
 export function createReplySender(
-  post: (text: string, stepName: string) => Promise<string>,
+  post: (text: string, stepName: string) => Promise<string>
 ): ReplySender {
   let id: string | undefined;
   let attempt: Promise<string> | undefined;
 
   function send(text: string, finalAnswer: boolean): Promise<string> {
     const body = text.trim();
-    if (!body) return Promise.reject(new Error("The reply must not be empty"));
+    if (!body) return Promise.reject(new Error('The reply must not be empty'));
 
     // Store the attempt before starting I/O. Never retry an uncertain POST.
     return (attempt ??= Promise.resolve().then(async () => {
-      const messageId = await post(
-        body,
-        finalAnswer ? "Send final answer" : "Send error reply",
-      );
+      const messageId = await post(body, finalAnswer ? 'Send final answer' : 'Send error reply');
       if (finalAnswer) id = messageId;
       return messageId;
     }));
@@ -46,6 +43,6 @@ export function createReplySender(
       } catch {
         // Preserve the original failure. Notifications are best effort.
       }
-    },
+    }
   };
 }

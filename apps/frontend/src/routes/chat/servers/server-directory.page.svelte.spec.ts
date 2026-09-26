@@ -110,6 +110,22 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
   );
 }
 
+/** Wait for the directory to load, open the address lookup, and enter a value. */
+async function enterServerAddress(container: HTMLElement, value: string) {
+  await vi.waitFor(() =>
+    expect(
+      container.querySelector('#add-server-url') ?? button(container, 'Connect by address')
+    ).toBeTruthy()
+  );
+  button(container, 'Connect by address')?.click();
+  flushSync();
+  const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  flushSync();
+  container.querySelector('form')!.requestSubmit();
+}
+
 function link(container: HTMLElement, label: string): HTMLAnchorElement | undefined {
   return Array.from(container.querySelectorAll<HTMLAnchorElement>('a')).find(
     (candidate) => candidate.textContent?.trim() === label
@@ -178,6 +194,26 @@ describe('Server Directory page', () => {
     await vi.waitFor(() => expect(container.textContent).toContain('No recommended servers yet'));
   });
 
+  it('leads with recommendations and opens the address lookup from a button', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [entry('https://remote.example', cached('Remote'))],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(ServerDirectory, { inDialog: true });
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Remote description'));
+    expect(container.querySelector('#add-server-url')).toBeNull();
+
+    button(container, 'Connect by address')!.click();
+    flushSync();
+
+    expect(container.querySelector('#add-server-url')).not.toBeNull();
+    expect(button(container, 'Connect by address')).toBeUndefined();
+    expect(container.textContent).toContain('Remote description');
+  });
+
   it('retries after every registered server failed', async () => {
     mocks.loadServerDirectory.mockResolvedValueOnce({
       entries: [],
@@ -223,7 +259,7 @@ describe('Server Directory page', () => {
     expect(entries[0]?.textContent).toContain('Zulu description');
     expect(entries[1]?.textContent).toContain('Joined');
     expect(entries[1]?.querySelector('img')).toBeNull();
-    expect(container.textContent).toContain('Servers (2)');
+    expect(container.textContent).toContain('Recommended servers (2)');
   });
 
   it('reports partial source failures', async () => {
@@ -253,7 +289,7 @@ describe('Server Directory page', () => {
         entry(
           'https://remote.example',
           cached('Remote', {
-            iconUrl: 'https://source.example/assets/neighborhood/logo',
+            iconUrl: '/assets/neighborhood/logo',
             bannerUrl: 'https://remote.example/banner.webp'
           })
         )
@@ -513,11 +549,7 @@ describe('Server Directory page', () => {
     mocks.pageState = { modal: { type: 'addServer' } };
 
     const { container } = render(ServerDirectory, { inDialog: true });
-    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
-    input.value = 'custom.example';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    flushSync();
-    container.querySelector('form')!.requestSubmit();
+    await enterServerAddress(container, 'custom.example');
     await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
     mocks.getPublicServerInfo.mockClear();
 
@@ -542,11 +574,7 @@ describe('Server Directory page', () => {
     mocks.getPublicServerInfo.mockResolvedValue(profile('Custom'));
 
     const { container } = render(Page);
-    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
-    input.value = 'custom.example';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    flushSync();
-    container.querySelector('form')!.requestSubmit();
+    await enterServerAddress(container, 'custom.example');
 
     await vi.waitFor(() => {
       expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
@@ -568,11 +596,7 @@ describe('Server Directory page', () => {
     );
 
     const { container } = render(Page);
-    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
-    input.value = 'custom.example';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    flushSync();
-    container.querySelector('form')!.requestSubmit();
+    await enterServerAddress(container, 'custom.example');
 
     await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
     const externalAction = link(container, 'Open in new tab')!;

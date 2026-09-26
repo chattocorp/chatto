@@ -1,8 +1,8 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
-import { Type } from "typebox";
-import { Agent } from "undici";
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+import { Type } from 'typebox';
+import { Agent } from 'undici';
 
 const MAX_RESPONSE_BYTES = 100_000;
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -10,9 +10,9 @@ const MAX_REDIRECTS = 5;
 
 const parameters = Type.Object({
   url: Type.String({
-    description: "The absolute HTTP or HTTPS URL to fetch",
-    minLength: 1,
-  }),
+    description: 'The absolute HTTP or HTTPS URL to fetch',
+    minLength: 1
+  })
 });
 
 interface WebFetchDependencies {
@@ -24,17 +24,15 @@ const defaultDependencies: WebFetchDependencies = {
   fetch: fetchWithPinnedAddresses,
   async resolveAddresses(hostname) {
     if (isIP(hostname) !== 0) return [hostname];
-    return (await lookup(hostname, { all: true, verbatim: true })).map(
-      ({ address }) => address,
-    );
-  },
+    return (await lookup(hostname, { all: true, verbatim: true })).map(({ address }) => address);
+  }
 };
 
 /** Connect only to checked addresses while retaining the URL's Host and TLS name. */
 export async function fetchWithPinnedAddresses(
   input: URL,
   init: RequestInit,
-  addresses: readonly string[],
+  addresses: readonly string[]
 ): Promise<Response> {
   const resolved = addresses.map((address) => ({ address, family: isIP(address) }));
   const dispatcher = new Agent({
@@ -46,18 +44,18 @@ export async function fetchWithPinnedAddresses(
           : resolved;
         const first = matches[0];
         if (!first) {
-          callback(new Error("No checked address for the requested IP family"), "", 0);
+          callback(new Error('No checked address for the requested IP family'), '', 0);
         } else if (options.all) {
           callback(null, matches);
         } else {
           callback(null, first.address, first.family);
         }
-      },
-    },
+      }
+    }
   });
   try {
     // Redirects are checked separately, with a new dispatcher for each hop.
-    const options = { ...init, redirect: "manual" as const, dispatcher };
+    const options = { ...init, redirect: 'manual' as const, dispatcher };
     return await globalThis.fetch(input, options);
   } finally {
     // Close after the response body is consumed or cancelled, not before returning it.
@@ -65,75 +63,62 @@ export async function fetchWithPinnedAddresses(
   }
 }
 
-export function createWebFetchExtension(
-  dependencies: WebFetchDependencies = defaultDependencies,
-) {
+export function createWebFetchExtension(dependencies: WebFetchDependencies = defaultDependencies) {
   return function webFetchExtension(pi: ExtensionAPI) {
     pi.registerTool({
-      name: "web_fetch",
-      label: "Fetch URL",
+      name: 'web_fetch',
+      label: 'Fetch URL',
       description:
-        "Fetch textual content from an HTTP or HTTPS URL. Returns the final URL, HTTP status, content type, and a size-limited response body.",
-      promptSnippet: "Fetch textual content from an HTTP or HTTPS URL",
+        'Fetch textual content from an HTTP or HTTPS URL. Returns the final URL, HTTP status, content type, and a size-limited response body.',
+      promptSnippet: 'Fetch textual content from an HTTP or HTTPS URL',
       parameters,
 
       async execute(_toolCallId, { url }, signal) {
         const parsedUrl = new URL(url);
-        if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-          throw new Error("web_fetch only supports HTTP and HTTPS URLs");
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+          throw new Error('web_fetch only supports HTTP and HTTPS URLs');
         }
-        if (parsedUrl.username !== "" || parsedUrl.password !== "") {
-          throw new Error("web_fetch does not accept credentials in URLs");
+        if (parsedUrl.username !== '' || parsedUrl.password !== '') {
+          throw new Error('web_fetch does not accept credentials in URLs');
         }
 
         const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-        const requestSignal = signal
-          ? AbortSignal.any([signal, timeoutSignal])
-          : timeoutSignal;
-        const response = await fetchPublicUrl(
-          parsedUrl,
-          requestSignal,
-          dependencies,
-        );
+        const requestSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+        const response = await fetchPublicUrl(parsedUrl, requestSignal, dependencies);
 
-        const contentType = response.headers.get("content-type") ?? "unknown";
+        const contentType = response.headers.get('content-type') ?? 'unknown';
         if (!isTextualContentType(contentType)) {
           await response.body?.cancel();
           throw new Error(`web_fetch cannot return content type ${contentType}`);
         }
 
-        const { text, truncated } = await readLimitedText(
-          response.body,
-          MAX_RESPONSE_BYTES,
-        );
+        const { text, truncated } = await readLimitedText(response.body, MAX_RESPONSE_BYTES);
         const metadata = [
           `URL: ${response.url}`,
           `Status: ${response.status} ${response.statusText}`,
-          `Content-Type: ${contentType}`,
+          `Content-Type: ${contentType}`
         ];
 
         return {
           content: [
             {
-              type: "text" as const,
+              type: 'text' as const,
               text: [
                 ...metadata,
-                "",
+                '',
                 text,
-                ...(truncated
-                  ? [`\n[Response truncated after ${MAX_RESPONSE_BYTES} bytes]`]
-                  : []),
-              ].join("\n"),
-            },
+                ...(truncated ? [`\n[Response truncated after ${MAX_RESPONSE_BYTES} bytes]`] : [])
+              ].join('\n')
+            }
           ],
           details: {
             url: response.url,
             status: response.status,
             contentType,
-            truncated,
-          },
+            truncated
+          }
         };
-      },
+      }
     });
   };
 }
@@ -144,25 +129,29 @@ export default webFetchExtension;
 async function fetchPublicUrl(
   initialUrl: URL,
   signal: AbortSignal,
-  dependencies: WebFetchDependencies,
+  dependencies: WebFetchDependencies
 ): Promise<Response> {
   let url = initialUrl;
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
     const addresses = await assertPublicDestination(url, dependencies.resolveAddresses);
-    const response = await dependencies.fetch(url, {
-      headers: {
-        accept:
-          "text/plain, text/html, text/markdown, application/json, application/xml;q=0.9, text/xml;q=0.9",
-        "user-agent": "runling-web-fetch/1.0",
+    const response = await dependencies.fetch(
+      url,
+      {
+        headers: {
+          accept:
+            'text/plain, text/html, text/markdown, application/json, application/xml;q=0.9, text/xml;q=0.9',
+          'user-agent': 'runling-web-fetch/1.0'
+        },
+        redirect: 'manual',
+        signal
       },
-      redirect: "manual",
-      signal,
-    }, addresses);
+      addresses
+    );
 
     if (!isRedirect(response.status)) return response;
 
-    const location = response.headers.get("location");
+    const location = response.headers.get('location');
     if (location === null) return response;
     await response.body?.cancel();
     if (redirects === MAX_REDIRECTS) {
@@ -170,15 +159,15 @@ async function fetchPublicUrl(
     }
 
     url = new URL(location, url);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      throw new Error("web_fetch redirects must use HTTP or HTTPS");
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('web_fetch redirects must use HTTP or HTTPS');
     }
-    if (url.username !== "" || url.password !== "") {
-      throw new Error("web_fetch redirects cannot contain credentials");
+    if (url.username !== '' || url.password !== '') {
+      throw new Error('web_fetch redirects cannot contain credentials');
     }
   }
 
-  throw new Error("web_fetch redirect limit exceeded");
+  throw new Error('web_fetch redirect limit exceeded');
 }
 
 function isRedirect(status: number): boolean {
@@ -187,9 +176,9 @@ function isRedirect(status: number): boolean {
 
 async function assertPublicDestination(
   url: URL,
-  resolveAddresses: WebFetchDependencies["resolveAddresses"],
+  resolveAddresses: WebFetchDependencies['resolveAddresses']
 ): Promise<readonly string[]> {
-  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  const hostname = url.hostname.replace(/^\[|\]$/g, '');
   const addresses = await resolveAddresses(hostname);
   if (addresses.length === 0) {
     throw new Error(`web_fetch could not resolve ${url.hostname}`);
@@ -197,9 +186,7 @@ async function assertPublicDestination(
 
   const blockedAddress = addresses.find((address) => !isPublicIpAddress(address));
   if (blockedAddress !== undefined) {
-    throw new Error(
-      `web_fetch blocked non-public destination ${url.hostname} (${blockedAddress})`,
-    );
+    throw new Error(`web_fetch blocked non-public destination ${url.hostname} (${blockedAddress})`);
   }
   return addresses;
 }
@@ -215,11 +202,7 @@ function isPublicIpAddress(address: string): boolean {
   if (bytes.slice(0, 12).every((byte) => byte === 0)) {
     return isPublicIpv4(bytes.slice(12));
   }
-  if (
-    bytes.slice(0, 10).every((byte) => byte === 0) &&
-    bytes[10] === 0xff &&
-    bytes[11] === 0xff
-  ) {
+  if (bytes.slice(0, 10).every((byte) => byte === 0) && bytes[10] === 0xff && bytes[11] === 0xff) {
     return isPublicIpv4(bytes.slice(12));
   }
 
@@ -258,18 +241,18 @@ function isPublicIpv4(bytes: readonly number[]): boolean {
 }
 
 function parseIpv4(address: string): number[] {
-  return address.split(".").map(Number);
+  return address.split('.').map(Number);
 }
 
 function parseIpv6(address: string): number[] | undefined {
-  const sections = address.toLowerCase().split("::");
+  const sections = address.toLowerCase().split('::');
   if (sections.length > 2) return undefined;
 
   const parseSection = (section: string): number[] | undefined => {
-    if (section === "") return [];
+    if (section === '') return [];
     const groups: number[] = [];
-    for (const part of section.split(":")) {
-      if (part.includes(".")) {
+    for (const part of section.split(':')) {
+      if (part.includes('.')) {
         const ipv4 = parseIpv4(part);
         if (ipv4.length !== 4) return undefined;
         groups.push((ipv4[0]! << 8) | ipv4[1]!, (ipv4[2]! << 8) | ipv4[3]!);
@@ -285,7 +268,7 @@ function parseIpv6(address: string): number[] | undefined {
   };
 
   const left = parseSection(sections[0]!);
-  const right = parseSection(sections[1] ?? "");
+  const right = parseSection(sections[1] ?? '');
   if (left === undefined || right === undefined) return undefined;
 
   const missing = 8 - left.length - right.length;
@@ -296,28 +279,28 @@ function parseIpv6(address: string): number[] | undefined {
 }
 
 function isTextualContentType(contentType: string): boolean {
-  const mediaType = contentType.split(";", 1)[0]?.trim().toLowerCase();
+  const mediaType = contentType.split(';', 1)[0]?.trim().toLowerCase();
   return (
-    mediaType?.startsWith("text/") === true ||
-    mediaType?.endsWith("+json") === true ||
-    mediaType?.endsWith("+xml") === true ||
-    mediaType === "application/json" ||
-    mediaType === "application/xml" ||
-    mediaType === "application/javascript" ||
-    mediaType === "application/x-www-form-urlencoded"
+    mediaType?.startsWith('text/') === true ||
+    mediaType?.endsWith('+json') === true ||
+    mediaType?.endsWith('+xml') === true ||
+    mediaType === 'application/json' ||
+    mediaType === 'application/xml' ||
+    mediaType === 'application/javascript' ||
+    mediaType === 'application/x-www-form-urlencoded'
   );
 }
 
 async function readLimitedText(
   body: ReadableStream<Uint8Array> | null,
-  maxBytes: number,
+  maxBytes: number
 ): Promise<{ text: string; truncated: boolean }> {
-  if (body === null) return { text: "", truncated: false };
+  if (body === null) return { text: '', truncated: false };
 
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let bytesRead = 0;
-  let text = "";
+  let text = '';
 
   try {
     while (true) {

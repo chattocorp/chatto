@@ -24,7 +24,7 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter. It controls the position, mobile slide, size, and current-user footer of a server pane. App Preferences uses the same shell without the server footer. The sidebar contains the server banner and room list, the unified Settings navigation, or the App Preferences navigation. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
 
-**Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — *Room View* is the canonical name.
+**Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — _Room View_ is the canonical name.
 
 **Message Header** — Line above a non-compact message body that contains the author identity, time, and other message metadata.
 
@@ -60,7 +60,7 @@ See [FDR-047](fdr/FDR-047-first-run-setup.md).
 
 User-facing concepts. If a user might say the word, it goes here.
 
-**Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
+**Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called _Instance_ in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
 **Neighbor** — Chatto server that another server advertises in its public directory. A Neighbor has a canonical origin. It is a recommendation, not a trust or reciprocal relationship. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
@@ -87,7 +87,7 @@ another address does not change the selection. See
 
 **Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
 
-**Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
+**Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the _primary space_). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 

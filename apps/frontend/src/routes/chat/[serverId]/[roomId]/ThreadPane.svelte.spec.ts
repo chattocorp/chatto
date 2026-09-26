@@ -231,19 +231,31 @@ describe('ThreadPane', () => {
   it('updates the composer when interaction posting is granted and revoked', async () => {
     const { container } = render(ThreadPane, {
       props: {
-        roomId: 'room-1', roomName: 'General', threadRootEventId: 'thread-root',
-        onClose: mocks.onClose, canPostInThread: false
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose,
+        canPostInThread: false
       }
     });
     const send = q(container, '[data-testid="thread-composer-send"]') as HTMLButtonElement;
     await expect.element(send).toBeDisabled();
-    mocks.threadStore!.threadEvents = [{
-      id: 'thread-root', createdAt: '2026-09-20T12:00:00Z',
-      event: {
-        kind: TimelineEventKind.MessagePosted, roomId: 'room-1', body: 'Related thread',
-        attachments: [], reactions: [], replyCount: 0, threadParticipants: [], canReplyInThread: true
+    mocks.threadStore!.threadEvents = [
+      {
+        id: 'thread-root',
+        createdAt: '2026-09-20T12:00:00Z',
+        event: {
+          kind: TimelineEventKind.MessagePosted,
+          roomId: 'room-1',
+          body: 'Related thread',
+          attachments: [],
+          reactions: [],
+          replyCount: 0,
+          threadParticipants: [],
+          canReplyInThread: true
+        }
       }
-    }];
+    ];
     await expect.element(send).toBeEnabled();
     const root = mocks.threadStore!.threadEvents[0].event;
     if (root.kind !== TimelineEventKind.MessagePosted) throw new Error('Expected message');
@@ -318,31 +330,37 @@ describe('ThreadPane', () => {
     }
   });
 
-  it.each([null, '2026-07-04T13:00:00Z'])('reconciles a read with previous position %s', async (previousLastReadAt) => {
-    mocks.markThreadAsRead.mockResolvedValue({ previousLastReadAt, lastReadAt: '2026-07-04T13:00:00Z' });
-    render(ThreadPane, {
-      props: {
-        roomId: 'room-1',
-        roomName: 'General',
-        threadRootEventId: 'thread-root',
-        onClose: mocks.onClose
-      }
-    });
-
-    await vi.waitFor(() =>
-      expect(mocks.markThreadAsRead).toHaveBeenCalledWith(
-        {
+  it.each([null, '2026-07-04T13:00:00Z'])(
+    'reconciles a read with previous position %s',
+    async (previousLastReadAt) => {
+      mocks.markThreadAsRead.mockResolvedValue({
+        previousLastReadAt,
+        lastReadAt: '2026-07-04T13:00:00Z'
+      });
+      render(ThreadPane, {
+        props: {
           roomId: 'room-1',
+          roomName: 'General',
           threadRootEventId: 'thread-root',
-          upToEventId: undefined
-        },
-        { signal: expect.any(AbortSignal) }
-      )
-    );
+          onClose: mocks.onClose
+        }
+      });
 
-    expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
-    expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
-  });
+      await vi.waitFor(() =>
+        expect(mocks.markThreadAsRead).toHaveBeenCalledWith(
+          {
+            roomId: 'room-1',
+            threadRootEventId: 'thread-root',
+            upToEventId: undefined
+          },
+          { signal: expect.any(AbortSignal) }
+        )
+      );
+
+      expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
+      expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
+    }
+  );
 
   it('resets jump state when the pane switches to another thread', async () => {
     const props = {
@@ -364,14 +382,28 @@ describe('ThreadPane', () => {
     const release = vi.fn();
     mocks.registerReadView.mockReturnValue(release);
     const pane = render(ThreadPane, {
-      props: { roomId: 'room-1', roomName: 'General', threadRootEventId: 'thread-root', onClose: mocks.onClose }
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
     });
-    expect(mocks.registerReadView).toHaveBeenCalledWith({ roomId: 'room-1', threadRootId: 'thread-root' });
+    expect(mocks.registerReadView).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      threadRootId: 'thread-root'
+    });
     pane.unmount();
     expect(release).toHaveBeenCalledOnce();
     mocks.registerReadView.mockClear();
     render(ThreadPane, {
-      props: { roomId: 'room-1', roomName: 'General', threadRootEventId: 'thread-root', isVisible: false, onClose: mocks.onClose }
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        isVisible: false,
+        onClose: mocks.onClose
+      }
     });
     expect(mocks.registerReadView).not.toHaveBeenCalled();
   });

@@ -140,7 +140,11 @@ async function denyPermission(
 }
 
 test.describe('Server Roles Management', () => {
-  test('non-owner permission edits and access revocation update in place', async ({ page, browser, serverURL }) => {
+  test('non-owner permission edits and access revocation update in place', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
     await usePrimaryServerViaAPI(page);
     await grantServerPermission(page, 'everyone', 'role.manage');
     const context = await browser.newContext({ baseURL: serverURL });
@@ -160,8 +164,12 @@ test.describe('Server Roles Management', () => {
       const filter = member.getByTestId('permission-filter');
       await filter.fill('message.post');
       const originalFilter = await filter.elementHandle();
-      const shell = await member.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
-      const cell = member.locator('td[data-role="everyone"][data-permission="message.post"] button');
+      const shell = await member
+        .getByRole('button', { name: 'Toggle sidebar', exact: true })
+        .elementHandle();
+      const cell = member.locator(
+        'td[data-role="everyone"][data-permission="message.post"] button'
+      );
       await expect(cell).toBeEnabled();
       const before = { connections, reads, label: await cell.getAttribute('aria-label') };
       await cell.click();
@@ -191,18 +199,19 @@ test.describe('Server Roles Management', () => {
     const scroller = page.locator('.data-table-viewport [role="region"]');
     await scroller.hover();
     await page.mouse.wheel(0, 2000);
-    await expect
-      .poll(() => scroller.evaluate((element) => element.scrollTop))
-      .toBeGreaterThan(500);
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(500);
     const cell = page.locator('td[data-role="everyone"][data-permission="user.invite"] button');
     await cell.scrollIntoViewIfNeeded();
     await cell.hover();
     // Account for the browser scrolling a newly focused cell into view before
     // measuring the offset that the subsequent data refresh must retain.
     await cell.focus();
-    await page.evaluate(() => new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-    ));
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        )
+    );
     const before = await scroller.evaluate((element) => ({
       top: element.scrollTop,
       height: element.scrollHeight
@@ -238,12 +247,15 @@ test.describe('Server Roles Management', () => {
       await expect(cell).toBeVisible();
       // Wait for real layout: a same-tick assertion misses native scroll clamping.
       await page.evaluate(
-        () => new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        )
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          )
       );
       expect(await scroller.evaluate((element) => element.scrollTop)).toBeCloseTo(before.top, 0);
-      expect(await scroller.evaluate((element) => element.scrollHeight)).toBeGreaterThanOrEqual(before.height);
+      expect(await scroller.evaluate((element) => element.scrollHeight)).toBeGreaterThanOrEqual(
+        before.height
+      );
       await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
       const filter = page.getByTestId('permission-filter');
       await filter.evaluate((element) => element.focus({ preventScroll: true }));
@@ -738,7 +750,9 @@ test.describe('Server Roles Management', () => {
       await serverRolesPage.gotoEditRole(server.id, roleName);
       const before = snapshots;
       const readsBefore = viewerReads;
-      const shell = await page.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
+      const shell = await page
+        .getByRole('button', { name: 'Toggle sidebar', exact: true })
+        .elementHandle();
       let release!: () => void;
       const held = new Promise<void>((resolve) => {
         release = resolve;

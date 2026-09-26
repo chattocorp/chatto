@@ -22,8 +22,16 @@ describe('Dialog', () => {
   {
     type Props = ComponentProps<typeof Dialog>;
     expectTypeOf<{ children: Snippet; primaryAction: Snippet }>().toExtend<Props>();
-    expectTypeOf<{ children: Snippet; footer: Snippet; footerDetails: Snippet }>().toExtend<Props>();
-    expectTypeOf<{ children: Snippet; primaryAction: Snippet; footer: Snippet }>().not.toExtend<Props>();
+    expectTypeOf<{
+      children: Snippet;
+      footer: Snippet;
+      footerDetails: Snippet;
+    }>().toExtend<Props>();
+    expectTypeOf<{
+      children: Snippet;
+      primaryAction: Snippet;
+      footer: Snippet;
+    }>().not.toExtend<Props>();
     expectTypeOf<{ children: Snippet; footerDetails: Snippet }>().not.toExtend<Props>();
   }
   beforeEach(async () => {
@@ -81,9 +89,7 @@ describe('Dialog', () => {
         children: testSnippet('<span>Content</span>')
       });
 
-      expect(q(container, FRAME)?.style.getPropertyValue('--dialog-baseline-width')).toBe(
-        '600px'
-      );
+      expect(q(container, FRAME)?.style.getPropertyValue('--dialog-baseline-width')).toBe('600px');
     });
 
     it('uses the small size as its baseline when size is sm', async () => {

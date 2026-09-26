@@ -15,9 +15,7 @@ const legacyRawReferencePath = path.join(
   repoRoot,
   'apps/docs-website/src/generated/connectrpc-api/index.raw.mdx'
 );
-const staleRawReferencePaths = [
-  legacyRawReferencePath
-];
+const staleRawReferencePaths = [legacyRawReferencePath];
 const outputDir = path.join(
   repoRoot,
   'apps/docs-website/src/content/docs/reference/connectrpc-api'
@@ -28,7 +26,12 @@ const categories = [
   {
     title: 'chatto.auth.v1',
     services: [
-      { name: 'ServerSetupService', slug: 'server-setup', title: 'Server Setup', description: 'Public first-run server setup and initial owner creation.' },
+      {
+        name: 'ServerSetupService',
+        slug: 'server-setup',
+        title: 'Server Setup',
+        description: 'Public first-run server setup and initial owner creation.'
+      },
       {
         name: 'ExternalIdentityAuthService',
         slug: 'external-identity-auth',
@@ -85,7 +88,8 @@ const categories = [
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',
-        description: 'Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.'
+        description:
+          'Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.'
       },
       {
         name: 'MessageSearchService',
@@ -97,14 +101,14 @@ const categories = [
         name: 'MyAccountService',
         slug: 'account',
         title: 'My Account',
-        description: 'Self-service account, profile, presence, status, external identity, and settings RPCs for the authenticated user.'
+        description:
+          'Self-service account, profile, presence, status, external identity, and settings RPCs for the authenticated user.'
       },
       {
         name: 'NotificationService',
         slug: 'notifications',
         title: 'Notifications',
-        description:
-          'Exact notification occurrence listing, read, and deletion RPCs.'
+        description: 'Exact notification occurrence listing, read, and deletion RPCs.'
       },
       {
         name: 'NotificationPolicyService',
@@ -135,7 +139,8 @@ const categories = [
         name: 'RoomService',
         slug: 'rooms',
         title: 'Rooms',
-        description: 'Room lifecycle, timeline, read-state, membership, direct-message, typing indicator, and moderation RPCs.'
+        description:
+          'Room lifecycle, timeline, read-state, membership, direct-message, typing indicator, and moderation RPCs.'
       },
       {
         name: 'ServerService',
@@ -568,7 +573,10 @@ function renderLanding() {
     ...categories.flatMap((category) => [
       `### ${category.title}`,
       '',
-      ...category.services.map((service) => `- [${service.name}](/reference/connectrpc-api/${service.slug}/) - ${service.description}`),
+      ...category.services.map(
+        (service) =>
+          `- [${service.name}](/reference/connectrpc-api/${service.slug}/) - ${service.description}`
+      ),
       ''
     ]),
     '',
@@ -577,11 +585,7 @@ function renderLanding() {
     '- [Shared Types And Enums](/reference/connectrpc-api/types/) - common message and enum definitions used by service responses.',
     '- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames and public event variants exchanged at `/api/realtime`.'
   ];
-  return renderPage(
-    'API Overview',
-    "Overview of Chatto's public protobuf API.",
-    lines.join('\n')
-  );
+  return renderPage('API Overview', "Overview of Chatto's public protobuf API.", lines.join('\n'));
 }
 
 function renderServicePage(service, serviceSections) {
@@ -757,7 +761,9 @@ for (const rawReferencePath of rawReferencePaths) {
   const supportingStart = raw.indexOf('\n## Supporting Types\n');
   const enumsStart = raw.indexOf('\n## Enums\n');
   if (enumsStart !== -1 && supportingStart !== -1 && enumsStart < supportingStart) {
-    throw new Error(`Generated Enums section appears before Supporting Types in ${rawReferencePath}.`);
+    throw new Error(
+      `Generated Enums section appears before Supporting Types in ${rawReferencePath}.`
+    );
   }
 
   const serviceEnd =
