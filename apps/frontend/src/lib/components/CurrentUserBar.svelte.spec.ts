@@ -10,11 +10,17 @@ import { toast } from '$lib/ui/toast';
 
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import { setPresenceStatus } from '$lib/presenceTracking';
+import { deleteCustomStatus } from '$lib/api-client/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
 let presencePreference: ReturnType<typeof presencePreferences.get>;
+
+vi.mock('$lib/api-client/userStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/api-client/userStatus')>()),
+  deleteCustomStatus: vi.fn(async () => null)
+}));
 
 vi.mock('$lib/presenceTracking', () => ({
   refreshPresencePreference: vi.fn(),
@@ -136,32 +142,40 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {
-      currentUser: currentUserState,
-      get viewerUser() {
-        return currentUserState.user;
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { fromStore, writable } = await import('svelte/store');
+  const user = fromStore(writable(currentUserState.user));
+  Object.defineProperty(currentUserState, 'user', {
+    get: () => user.current,
+    set: (value: typeof currentUserState.user) => (user.current = value)
+  });
+  return {
+    useServerScope: () => ({
+      serverId: 'origin',
+      store: {
+        currentUser: currentUserState,
+        get viewerUser() {
+          return currentUserState.user;
+        },
+        voiceCall: voiceCallState,
+        navigation: roomsState,
+        projection: projectionState,
+        setPrivilegedMode: privilegedModeActions.set,
+        expirePrivilegedMode: privilegedModeActions.expire
       },
-      voiceCall: voiceCallState,
-      navigation: roomsState,
-      projection: projectionState,
-      setPrivilegedMode: privilegedModeActions.set,
-      expirePrivilegedMode: privilegedModeActions.expire
-    },
-    connection: {
-      connectBaseUrl: 'https://chat.example.test',
-      bearerToken: 'token',
-      apiConfig: {
-        serverId: 'origin',
-        baseUrl: 'https://chat.example.test',
-        bearerToken: 'token'
-      }
-    },
-    isCurrent: () => true
-  })
-}));
+      connection: {
+        connectBaseUrl: 'https://chat.example.test',
+        bearerToken: 'token',
+        apiConfig: {
+          serverId: 'origin',
+          baseUrl: 'https://chat.example.test',
+          bearerToken: 'token'
+        }
+      },
+      isCurrent: () => true
+    })
+  };
+});
 
 vi.mock('$app/navigation', () => ({
   goto: navigation.goto,
@@ -234,6 +248,8 @@ describe('CurrentUserBar', () => {
     inputCapabilities.prefersTouchActions = false;
     inputCapabilities.supportsHoverActions = true;
     customStatusEditorModuleLoaded.mockClear();
+    vi.mocked(deleteCustomStatus).mockReset().mockResolvedValue(null);
+    vi.mocked(setPresenceStatus).mockClear();
     projectionState.viewer = null;
     privilegedModeActions.set.mockReset();
     privilegedModeActions.set.mockResolvedValue(undefined);
@@ -444,6 +460,89 @@ describe('CurrentUserBar', () => {
       notify.mockRestore();
       toast.clear();
     }
+  });
+
+  it('omits the clear status action when no custom status is set', async () => {
+    const screen = render(CurrentUserBarTestHarness);
+    await screen.getByTestId('current-user-presence-menu').click();
+    await expect.element(screen.getByTestId('current-user-custom-status-action')).toBeVisible();
+    await expect
+      .element(screen.getByTestId('current-user-clear-status-action'))
+      .not.toBeInTheDocument();
+  });
+
+  it('clears the custom status directly and prevents duplicate requests', async () => {
+    currentUserState.user!.customStatus = { emoji: '🍜', text: 'Lunch', expiresAt: null };
+    const pending = Promise.withResolvers<null>();
+    vi.mocked(deleteCustomStatus).mockReturnValueOnce(pending.promise);
+    const notify = vi.spyOn(toast, 'success');
+    const screen = render(CurrentUserBarTestHarness);
+    try {
+      await screen.getByTestId('current-user-presence-menu').click();
+      const clear = screen.getByTestId('current-user-clear-status-action');
+      const edit = screen.getByTestId('current-user-custom-status-action');
+      await expect.element(clear).toHaveTextContent('Clear status');
+      expect(
+        clear.element().compareDocumentPosition(edit.element()) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      await clear.click();
+      await expect.element(clear).toBeDisabled();
+      await expect.element(edit).toBeDisabled();
+      (clear.element() as HTMLButtonElement).click();
+      expect(deleteCustomStatus).toHaveBeenCalledExactlyOnceWith({
+        serverId: 'origin',
+        baseUrl: 'https://chat.example.test',
+        bearerToken: 'token'
+      });
+      pending.resolve(null);
+      await vi.waitFor(() => expect(currentUserState.user!.customStatus).toBeNull());
+      await expect.element(clear).not.toBeInTheDocument();
+      expect(notify).toHaveBeenCalledWith('Status cleared');
+      expect(setPresenceStatus).not.toHaveBeenCalled();
+      expect(customStatusEditorModuleLoaded).not.toHaveBeenCalled();
+      await screen.getByTestId('current-user-presence-menu').click();
+      await expect.element(edit).toBeVisible();
+      await expect.element(clear).not.toBeInTheDocument();
+    } finally {
+      notify.mockRestore();
+      toast.clear();
+    }
+  });
+
+  it('preserves the custom status when clearing fails and allows retry', async () => {
+    const status = { emoji: '🍜', text: 'Lunch', expiresAt: null };
+    currentUserState.user!.customStatus = status;
+    vi.mocked(deleteCustomStatus).mockRejectedValueOnce(new Error('Server unavailable'));
+    const notify = vi.spyOn(toast, 'error');
+    const screen = render(CurrentUserBarTestHarness);
+    try {
+      await screen.getByTestId('current-user-presence-menu').click();
+      const clear = screen.getByTestId('current-user-clear-status-action');
+      await clear.click();
+      await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to clear status'));
+      expect(currentUserState.user!.customStatus).toEqual(status);
+      await expect.element(clear).toBeEnabled();
+      expect(customStatusEditorModuleLoaded).not.toHaveBeenCalled();
+      await clear.click();
+      await vi.waitFor(() => expect(currentUserState.user!.customStatus).toBeNull());
+    } finally {
+      notify.mockRestore();
+      toast.clear();
+    }
+  });
+
+  it('does not apply a pending clear to a different account', async () => {
+    const status = { emoji: '🍜', text: 'Lunch', expiresAt: null };
+    currentUserState.user!.customStatus = status;
+    const pending = Promise.withResolvers<null>();
+    vi.mocked(deleteCustomStatus).mockReturnValueOnce(pending.promise);
+    const screen = render(CurrentUserBarTestHarness);
+    await screen.getByTestId('current-user-presence-menu').click();
+    await screen.getByTestId('current-user-clear-status-action').click();
+    currentUserState.user = { ...currentUserState.user!, id: 'user-2' };
+    pending.resolve(null);
+    await expect.element(screen.getByTestId('current-user-clear-status-action')).toBeEnabled();
+    expect(currentUserState.user.customStatus).toEqual(status);
   });
 
   it('loads the custom status editor only after opening the touch bottom sheet', async () => {
