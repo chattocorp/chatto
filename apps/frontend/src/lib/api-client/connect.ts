@@ -151,9 +151,11 @@ export function createChattoClient<T extends ServiceType>(
 }
 
 /**
- * Set the request's bearer credential. A cookie session sends none. A renewable
- * session is refreshed for unary requests; a later API 401 is not treated as
- * revocation.
+ * Set the request's bearer credential. The transport owns the Authorization
+ * header: it replaces or removes any value that a caller sets. A cookie session
+ * sends none. A renewable session gets a current token before each request, and
+ * a unary request retries once after a forced renewal. A later API 401 is not
+ * treated as revocation.
  */
 export function bearerRenewalInterceptor(config: {
   serverId?: string;
