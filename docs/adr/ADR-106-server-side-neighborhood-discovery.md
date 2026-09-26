@@ -40,9 +40,12 @@ longer than 300 bytes. It truncates the stored name, version, and description.
 
 The server uses the link-preview HTTP client. That client checks each resolved
 address when it connects and rejects loopback, private, and link-local
-addresses. Discovery rejects redirects. It accepts a logo or banner only from
-the advertised origin, only with a declared GIF, JPEG, PNG, or WebP media type,
-and only up to 5 MiB. The server decodes the image with the normal bounded
+addresses. Discovery rejects redirects. It accepts a logo or banner from any
+public HTTP or HTTPS host, because a server builds its image URLs from its
+configured `webserver.url` and that host can differ from the advertised origin.
+It resolves a relative image URL against the advertised origin. It accepts an
+image only with a declared GIF, JPEG, PNG, or WebP media type, and only up to
+5 MiB. The server decodes the image with the normal bounded
 image decoder and stores a re-encoded WebP copy.
 
 The latest directory is one `cache_state.v1.NeighborhoodDirectory` value under
@@ -51,6 +54,9 @@ objects in the `NEIGHBORHOOD_IMAGES` object store. The object store has a
 seven-day TTL. A pass rewrites an image that it still uses when the image is
 older than three days. Unused images expire without a cleanup pass. The public
 `/assets/neighborhood/{sha256}` route serves only names from this store.
+`ListNeighborhoodServers` returns each copy as this server-relative path. The
+client resolves the path against the origin that it called, also when the
+server does not configure that origin.
 
 Every replica runs one worker that checks the directory every five seconds. A
 check reads the directory and compares a hash of its Neighbor set with the
@@ -86,6 +92,6 @@ shared job queue can replace this worker.
 - The bundled Server Directory merges the Neighborhoods of all registered
   servers and removes its browser crawl and consent prompt. It accepts cached
   images only from the registered server that supplied them.
-- This supersedes FDR-042 Design Decision 12 and partially supersedes Design
-  Decision 3. The Neighbor administration page still loads public profiles in
-  the browser.
+- This supersedes FDR-042 Design Decisions 3 and 12. The Neighbor
+  administration page also reads public profiles from the cached Neighborhood
+  (FDR-042 Design Decision 16).

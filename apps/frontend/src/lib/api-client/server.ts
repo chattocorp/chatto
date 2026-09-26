@@ -78,7 +78,10 @@ export type NeighborhoodServerProfile = Pick<
 /** One server in the Neighborhood that a Chatto server discovered. */
 export type NeighborhoodServer = {
   origin: string;
-  /** Logo and banner URLs identify copies on the called server. */
+  /**
+   * Logo and banner URLs are server-relative paths of copies on the called
+   * server. Resolve them against its origin.
+   */
   profile: NeighborhoodServerProfile;
   /** Whether the called server advertises this server as a Neighbor. */
   directNeighbor: boolean;

@@ -19,8 +19,10 @@ type BrowserSession struct {
 
 type BrowserSessionCreator func(ctx context.Context, userID, source string) (BrowserSession, error)
 
-// WithRequestBaseURL stores the incoming request's scheme and host for service
-// methods that need to return absolute URLs to cross-origin clients.
+// WithRequestBaseURL stores the public origin of the incoming request for
+// service methods that return absolute URLs. The HTTP edge must pass a trusted
+// origin: a configured server origin, or the direct request origin when no
+// public URL is configured. Service methods use it without further checks.
 func WithRequestBaseURL(ctx context.Context, baseURL string) context.Context {
 	if baseURL == "" {
 		return ctx

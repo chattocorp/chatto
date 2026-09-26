@@ -220,7 +220,8 @@ export class NeighborhoodServer extends Message<NeighborhoodServer> {
 
   /**
    * Public profile that the called server loaded. The welcome message is
-   * absent. The logo and banner URLs identify copies on the called server.
+   * absent. The logo and banner URLs are server-relative paths of copies on
+   * the called server. Resolve them against the origin of the called server.
    *
    * @generated from field: chatto.api.v1.ServerPublicProfile profile = 2;
    */

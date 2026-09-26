@@ -1,21 +1,11 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import {
-  getPublicServerInfo,
-  listNeighborhoodServers,
-  type NeighborhoodServerProfile,
-  type PublicServerInfo
-} from '$lib/api-client/server';
+import { listNeighborhoodServers, type NeighborhoodServerProfile } from '$lib/api-client/server';
 
 /** Request limits for public discovery requests from this client. */
 export const SERVER_DIRECTORY_LIMITS = {
   concurrency: 6,
   timeoutMs: 10_000
 } as const;
-
-export type ServerProfileEntry = {
-  origin: string;
-  profile: PublicServerInfo | null;
-};
 
 /** One merged Server Directory result. */
 export type ServerDirectoryEntry = {
@@ -44,11 +34,6 @@ type DirectoryLoadOptions = {
   listNeighborhood?: typeof listNeighborhoodServers;
 };
 
-type ProfileLoadOptions = {
-  signal?: AbortSignal;
-  getServerInfo?: typeof getPublicServerInfo;
-};
-
 /** Convert an advertised URL to a canonical HTTP(S) origin. */
 export function canonicalServerOrigin(value: string): string | null {
   try {
@@ -68,22 +53,6 @@ export function serverOriginFromInput(value: string): string | null {
   if (!trimmed) return null;
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) return null;
   return canonicalServerOrigin(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
-}
-
-/** Load public profiles without making one failed server hide the others. */
-export async function loadServerProfiles(
-  origins: readonly string[],
-  options: ProfileLoadOptions = {}
-): Promise<ServerProfileEntry[]> {
-  const getServerInfo = options.getServerInfo ?? getPublicServerInfo;
-  const profiles = await mapWithConcurrency(
-    origins,
-    SERVER_DIRECTORY_LIMITS.concurrency,
-    (origin) => getServerInfo(origin, { signal: discoverySignal(options.signal) }).catch(() => null)
-  );
-  throwIfAborted(options.signal);
-
-  return origins.map((origin, index) => ({ origin, profile: profiles[index] ?? null }));
 }
 
 /**

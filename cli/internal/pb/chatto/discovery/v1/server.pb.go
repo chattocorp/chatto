@@ -251,7 +251,8 @@ type NeighborhoodServer struct {
 	// Canonical origin of the server.
 	Origin string `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
 	// Public profile that the called server loaded. The welcome message is
-	// absent. The logo and banner URLs identify copies on the called server.
+	// absent. The logo and banner URLs are server-relative paths of copies on
+	// the called server. Resolve them against the origin of the called server.
 	Profile *v1.ServerPublicProfile `protobuf:"bytes,2,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Whether the called server advertises this server as a Neighbor.
 	DirectNeighbor bool `protobuf:"varint,3,opt,name=direct_neighbor,json=directNeighbor,proto3" json:"direct_neighbor,omitempty"`
