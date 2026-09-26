@@ -1124,6 +1124,78 @@ describe('ServerStateStore room search state', () => {
 });
 
 describe('ServerStateStore unified realtime resources', () => {
+  it.each(['full read', 'limited read', 'no read', 'not a member', 'removed'] as const)(
+    'reconciles a retained timeline against live room access after a warm snapshot: %s',
+    async (access) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const grants = (read: boolean, interactions: boolean) => [
+        { permission: 'message.read', granted: read },
+        { permission: 'message.read-interactions', granted: interactions },
+        { permission: 'message.post', granted: true }
+      ];
+      store.projection.rooms.set(
+        'R1',
+        new RoomWithViewerState({
+          room: { id: 'R1', name: 'general' },
+          viewerState: { isMember: true, permissions: grants(true, true) }
+        })
+      );
+      const messages = store.messagesForRoom('R1');
+      await flushPromises();
+      messages.ingestEvent({
+        id: 'M1',
+        createdAt: '2026-09-23T00:00:00Z',
+        actorId: 'U2',
+        event: {
+          kind: TimelineEventKind.MessagePosted,
+          roomId: 'R1',
+          body: 'Retained message',
+          attachments: [],
+          replyCount: 0,
+          threadParticipants: [],
+          reactions: []
+        }
+      });
+      const retained = messages.rootEvents;
+      expect(retained).toHaveLength(1);
+      store.realtimeSync.markCaughtUp('live');
+
+      store.realtimeSync.acceptProjectionEvent(undefined, true);
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({ reset: true, retainView: true })
+      );
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          resource: roomResource(
+            access === 'removed'
+              ? []
+              : [
+                  new RoomWithViewerState({
+                    room: { id: 'R1', name: 'general' },
+                    viewerState: {
+                      isMember: access !== 'not a member',
+                      permissions: grants(access === 'full read', access !== 'no read')
+                    }
+                  })
+                ]
+          )
+        })
+      );
+
+      if (access === 'full read') {
+        expect(messages.rootEvents).toEqual(retained);
+        expect(messages.isInitialLoading).toBe(false);
+      } else {
+        expect(messages.rootEvents).toEqual([]);
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({ reset: true, retainView: true })
+        );
+        expect(messages.rootEvents).toEqual([]);
+        if (access === 'removed') expect(store.navigation.rooms).toEqual([]);
+      }
+    }
+  );
+
   it('keeps the normal room projection and timeline during a warm snapshot', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
