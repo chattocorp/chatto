@@ -196,11 +196,6 @@ its work plane. See FDR-042.
   }
 
   /**
-   * Open a registered server or start joining a new one. A Server Directory
-   * result has only the cached profile, so joining first loads the server's
-   * current sign-in data. The user starts this request explicitly.
-   */
-  /**
    * Sign-in can finish after the dialog closes. Replace history only when the
    * Add Server dialog is still the current entry at that time.
    */
@@ -208,6 +203,11 @@ its work plane. See FDR-042.
     replaceHistory: () => inDialog && page.state.modal?.type === 'addServer'
   };
 
+  /**
+   * Open a registered server or start joining a new one. A Server Directory
+   * result has only the cached profile, so joining first loads the server's
+   * current sign-in data. The user starts this request explicitly.
+   */
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
     const joined = registeredServer(origin);
     if (!joined && !canJoin(profile)) return;
