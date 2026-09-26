@@ -2,17 +2,21 @@ import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import '../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
 import type { MessageLink } from '$lib/messageLinks';
 
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
-const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(() => ({
-  getRoomEventsAroundMock: vi.fn(),
-  timelineResults: [] as unknown[],
-  refreshAssetUrlsMock: vi.fn()
-}));
+const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock, registryState } =
+  vi.hoisted(() => ({
+    getRoomEventsAroundMock: vi.fn(),
+    timelineResults: [] as unknown[],
+    refreshAssetUrlsMock: vi.fn(),
+    // Reactive server records, so tests can change session state under a mounted card.
+    registryState: {} as { servers: Map<string, Record<string, unknown>> }
+  }));
 
 function testImageUrl(label: string): string {
   return `data:image/svg+xml,${encodeURIComponent(
@@ -41,27 +45,30 @@ vi.mock('$lib/api-client/attachments', async (importActual) => ({
   }))
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    tryGetStore: () => ({
-      currentUser: {
-        user: { login: 'viewer' }
+vi.mock('$lib/state/server/registry.svelte', async () => {
+  const { SvelteMap } = await import('svelte/reactivity');
+  registryState.servers = new SvelteMap([
+    ['server_1', { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
+  ]);
+  return {
+    serverRegistry: {
+      tryGetStore: () => ({
+        currentUser: {
+          user: { login: 'viewer' }
+        },
+        navigation: {
+          rooms: [{ id: 'room_1', name: 'general' }]
+        }
+      }),
+      getServer: (id: string) => registryState.servers.get(id),
+      isOriginServer: (id: string) => id === 'server_1',
+      get originServer() {
+        return { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null };
       },
-      navigation: {
-        rooms: [{ id: 'room_1', name: 'general' }]
-      }
-    }),
-    getServer: (id: string) =>
-      id === 'server_1'
-        ? { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }
-        : undefined,
-    isOriginServer: (id: string) => id === 'server_1',
-    get originServer() {
-      return { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null };
-    },
-    servers: [{ id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
-  }
-}));
+      servers: [{ id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
+    }
+  };
+});
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
@@ -206,6 +213,12 @@ function clearedRefreshResult(attachmentId: string) {
 }
 
 beforeEach(() => {
+  registryState.servers.set('server_1', {
+    id: 'server_1',
+    url: window.location.origin,
+    name: 'Test Server',
+    token: null
+  });
   getRoomEventsAroundMock.mockReset();
   refreshAssetUrlsMock.mockReset();
   timelineResults.length = 0;
@@ -230,6 +243,29 @@ describe('MessagePreviewCard', () => {
     expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
     expect(card.textContent).toContain('Stable preview');
+  });
+
+  it('keeps the rendered preview when server session state changes', async () => {
+    timelineResults.push(bodyPreviewResult('Resumed preview'));
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    const card = await vi.waitFor(() => {
+      const node = container.querySelector('[data-testid="message-preview-card"]');
+      expect(node).not.toBeNull();
+      return node!;
+    });
+
+    // A reconnect after the app resumes updates the server's session record.
+    registryState.servers.set('server_1', {
+      ...registryState.servers.get('server_1'),
+      token: 'renewed-token'
+    });
+    await tick();
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
+    expect(card.textContent).toContain('Resumed preview');
   });
 
   it('preserves an outstanding request when an equivalent link object arrives', async () => {
