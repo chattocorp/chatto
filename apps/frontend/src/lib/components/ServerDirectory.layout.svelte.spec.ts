@@ -98,6 +98,14 @@ describe('Server Directory layout', () => {
     // The lookup result comes first; the two directory tiles share one row.
     const [, first, second] = cards;
     expect(first!.getBoundingClientRect().top).toBe(second!.getBoundingClientRect().top);
+    // Tiles still show who recommends each server.
+    for (const tile of [first!, second!]) {
+      const sources = tile.querySelector<HTMLElement>(
+        '[data-testid="server-recommendation-sources"]'
+      )!;
+      expect(sources.offsetWidth).toBeGreaterThan(tile.offsetWidth / 2);
+      expect(sources.offsetHeight).toBeGreaterThan(1);
+    }
     const button = host.querySelector<HTMLButtonElement>('form button[type="submit"]')!;
     expect(button.getBoundingClientRect().top).toBe(input.getBoundingClientRect().top);
   });

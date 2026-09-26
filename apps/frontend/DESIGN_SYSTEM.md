@@ -368,14 +368,16 @@ The view has a `PaneHeader` with a close button and a scrolling `PaneContent`,
 so it uses the pane-page rules above. Escape, the close button, and Back close
 it, and focus goes back to the control that opened it. Declare the modal type
 with `isFrameViewModal` in `$lib/modal`; the root layout renders it in
-`FrameViewContainer` instead of `ModalContainer`. Open all global modals with
-`openGlobalModal` from `$lib/openGlobalModal`. A dialog that opens from the app header then shows above the
-view, and the view keeps its state.
+`FrameViewContainer` instead of `ModalContainer`. Open a global modal with `openGlobalModal`
+from `$lib/openGlobalModal` when its trigger can show above a frame view, such
+as in the app header or the Server Gutter. The dialog then shows above the view,
+and the view keeps its state.
 
 Cards that must adapt to the space they get, not to the device, use a named
 container query. `ServerProfileCard` is an icon tile when its nearest
 `@container/server-cards` ancestor is narrower than 40rem: a large centred
-logo, the name and host, and the actions, without a banner or description.
+logo, the name and host, the recommendation sources, and the actions, without
+a banner or description.
 Callers adapt their own card content with the `server-tile:` variant. The
 container belongs to the grid owner, so one grid can show full cards on a
 wide page and two tile columns on a phone.

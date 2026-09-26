@@ -46,6 +46,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Role Badge** — Compact label that identifies one of a user's assigned roles. A server operator selects which roles provide badges. See [FDR-001](fdr/FDR-001-roles-and-permissions.md) and [FDR-022](fdr/FDR-022-user-profile.md).
 
+**Frame View** — History-backed pane page that fills the inner area of the app frame, below the Application Header. It covers the Server Gutter, the Server Sidebar, the main area, and the Room Sidebar. The covered content stays loaded. Escape, the close button, and Back close it. The Server Directory opens in a Frame View. Implemented in `apps/frontend/src/lib/ui/FrameView.svelte`.
+
 **Slideover** — A pane that slides in over existing content (e.g. settings, thread view on mobile). Distinct from a modal: dismissable by navigation, not by an explicit close.
 
 **Hint** — Inline informational callout used in admin/settings panels to introduce or contextualise a control. Use instead of nesting an outer Panel around a self-contained matrix.
@@ -66,7 +68,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Neighborhood** — Servers that one Chatto server discovers through its Neighbors: each direct Neighbor, plus servers that a mutually advertising Neighbor mutually recommends, to at most two mutual hops. The server discovers its Neighborhood in the background and publishes a cached result. See [FDR-042](fdr/FDR-042-chatto-neighbors.md) and [ADR-106](adr/ADR-106-server-side-neighborhood-discovery.md).
 
-**Server Directory** — Client surface that merges the cached Neighborhoods of all registered servers. The Server Gutter opens it in a history-backed dialog; `/chat/servers` shows it as a page. It contacts only registered servers, accepts a direct server address, keeps registered results visible as joined, and shows recommendation-source attribution on server profile cards. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+**Server Directory** — Client surface that merges the cached Neighborhoods of all registered servers. The Server Gutter opens it in a Frame View; `/chat/servers` shows it as a page. It contacts only registered servers, accepts a direct server address, keeps registered results visible as joined, and shows recommendation-source attribution on server profile cards. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
 **Client application** — Browser, desktop, mobile app, or integration that a user authorizes to access a Chatto server; its stable identity comes from CIMD or a built-in registration. A client appears in server administration after completing at least one user-approved authorization. Administrators may label it trusted or block it, but trust never replaces user consent. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

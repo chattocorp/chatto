@@ -418,9 +418,9 @@ both on the `/chat/servers` page and in the Add Server view. See FDR-042.
           {@const joined = registeredServer(entry.origin)}
           {@const external = opensInServerClient(entry.origin, profile)}
           {#snippet cardActions()}
-            <!-- Tiles keep the recommendation sources for assistive technology only. -->
-            <div class="flex items-center gap-3">
-              {@render recommendationSources(entry, 'line-clamp-2 flex-1 server-tile:sr-only')}
+            <!-- Tiles stack the recommendation sources above a full-width action. -->
+            <div class="flex items-center gap-3 server-tile:flex-col server-tile:gap-2">
+              {@render recommendationSources(entry, 'line-clamp-2 flex-1 server-tile:text-xs')}
               <div class="shrink-0 server-tile:w-full server-tile:*:w-full">
                 {@render entryAction(entry.origin, profile, false)}
               </div>
