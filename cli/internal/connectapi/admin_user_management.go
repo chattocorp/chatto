@@ -145,36 +145,6 @@ func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connec
 	return connect.NewResponse(&adminv1.RevokeRoleResponse{Member: member}), nil
 }
 
-func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connect.Request[adminv1.UpdateUserRequest]) (*connect.Response[adminv1.UpdateUserResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	req.Msg, err = normalizeUpdateMask(req.Msg)
-	if err != nil {
-		return nil, err
-	}
-	if req.Msg.GetUserId() == "" {
-		return nil, invalidArgument("user_id is required")
-	}
-	updated, err := s.api.core.AdminUpdateUser(ctx, caller.UserID, req.Msg.GetUserId(), core.AdminUpdateUserInput{
-		Login:       req.Msg.Login,
-		DisplayName: req.Msg.DisplayName,
-	})
-	if err != nil {
-		return nil, err
-	}
-	updatedMember, err := s.adminMemberAfterMutationForUser(ctx, caller.UserID, updated)
-	if err != nil {
-		return nil, err
-	}
-	updatedUser, err := requiredUserSummary(ctx, s.api, updated)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&adminv1.UpdateUserResponse{User: updatedUser, Member: updatedMember}), nil
-}
-
 func (s *adminUserManagementService) ChangeUserPassword(ctx context.Context, req *connect.Request[adminv1.ChangeUserPasswordRequest]) (*connect.Response[adminv1.ChangeUserPasswordResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

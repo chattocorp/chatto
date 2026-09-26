@@ -94,10 +94,17 @@ effective `message.post` and normal room access. API clients can identify bot
 authors with `User.bot`. The bundled client shows a **BOT** label. This label
 does not mean that the account is verified.
 
-A bot can change its own profile with `MyAccountService.UpdateProfile`, and its
-own avatar with `UserService.UploadAvatar` and `UserService.DeleteAvatar`. It
-cannot change other accounts, manage bots or keys, or add a password, session,
-OAuth token, email, or external login.
+A bot can change its own profile with `UserService.UpdateUserProfile`, and its
+own avatar with `UserService.UploadAvatar` and `UserService.DeleteAvatar`. Send
+the user ID of the bot as `user_id`. The bot cannot change other accounts,
+manage bots or keys, or add a password, session, OAuth token, email, or
+external login.
+
+The owner of the bot can also change its display name, username, bio, and
+avatar. Open the bot in **Server Admin → Bots**, or call the same `UserService`
+methods with the user ID of the bot. Accounts with `bot.manage` or
+`user.manage-accounts` can do this for all bots. A change by a person does not
+start the 30-day username cooldown of the bot.
 
 `BotService` manages bots, owners, API keys, and incoming webhooks. To read
 the effective permissions of a bot, use

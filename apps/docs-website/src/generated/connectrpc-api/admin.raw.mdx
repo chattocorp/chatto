@@ -727,44 +727,6 @@ Result of revoking a role.
 | `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminUserService-UpdateUser"></a>
-
-### UpdateUser
-
-Updates a human user's login and/or display name without applying the
-username-change cooldown. Requires user.manage-accounts, including when
-the caller targets their own account. Preserves the cooldown timestamp.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminUserService/UpdateUser
-```
-
-<a id="chatto-admin-v1-UpdateUserRequest"></a>
-
-#### Input: UpdateUserRequest
-
-Request to update a user's identity as a server-admin action.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Target user ID. |
-| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
-| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
-
-
-<a id="chatto-admin-v1-UpdateUserResponse"></a>
-
-#### Result: UpdateUserResponse
-
-Result of an admin user update.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | `chatto.api.v1.User` | Updated user profile. |
-| `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
-
-
 <a id="chatto-admin-v1-AdminUserService-ChangeUserPassword"></a>
 
 ### ChangeUserPassword

@@ -117,6 +117,7 @@
       },
       "saved": "Profils ir veiksmīgi atjaunināts",
       "save_failed": "Neizdevās saglabāt profilu",
+      "conflict": "Šis profils tika mainīts, kamēr jūs to rediģējāt. Pārlādējiet lapu un pēc tam vēlreiz saglabājiet izmaiņas.",
       "save_button": "Saglabāt izmaiņas",
       "bio": {
         "label": "Apraksts",
@@ -517,6 +518,10 @@
       "created": "Bots izveidots",
       "username": "Lietotājvārds",
       "display_name": "Parādītais nosaukums",
+      "profile_title": "Profils",
+      "profile_description": "Mainiet, kā šis robots tiek rādīts citiem dalībniekiem.",
+      "profile_saved": "Robota profils atjaunināts",
+      "profile_save_failed": "Neizdevās atjaunināt robota profilu",
       "owner": "Īpašnieks",
       "reassign_owner": "Mainīt īpašnieku",
       "reassign_owner_warning": "Bota API atslēga un konfigurētās atļaujas nemainīsies. Efektīvās atļaujas nekavējoties tiks pielāgotas jaunajam īpašniekam.",

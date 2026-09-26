@@ -19,28 +19,6 @@ type accountService struct {
 	api *API
 }
 
-func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request[apiv1.UpdateProfileRequest]) (*connect.Response[apiv1.UpdateProfileResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	req.Msg, err = normalizeUpdateMask(req.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	updated, err := s.api.core.UpdateOwnUserProfile(ctx, caller.UserID, req.Msg.Login, req.Msg.DisplayName, req.Msg.Bio)
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := requiredUserSummary(ctx, s.api, updated)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.UpdateProfileResponse{User: user}), nil
-}
-
 func (s *accountService) ChangePassword(ctx context.Context, req *connect.Request[apiv1.ChangePasswordRequest]) (*connect.Response[apiv1.ChangePasswordResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

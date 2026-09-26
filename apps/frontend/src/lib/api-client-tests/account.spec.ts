@@ -5,7 +5,6 @@ import { createAccountAPI } from '$lib/api-client/account';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  updateProfile: vi.fn(),
   changePassword: vi.fn(),
   updateSettings: vi.fn(),
   requestAccountDeletion: vi.fn(),
@@ -28,54 +27,16 @@ describe('createAccountAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.updateProfile.mockReset();
     mocks.changePassword.mockReset();
     mocks.updateSettings.mockReset();
     mocks.requestAccountDeletion.mockReset();
     mocks.deleteMyAccount.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      updateProfile: mocks.updateProfile,
       changePassword: mocks.changePassword,
       updateSettings: mocks.updateSettings,
       requestAccountDeletion: mocks.requestAccountDeletion,
       deleteMyAccount: mocks.deleteMyAccount
-    });
-  });
-
-  it('updates a profile', async () => {
-    mocks.updateProfile.mockResolvedValue({
-      user: {
-        id: 'U1',
-        login: 'alice2',
-        displayName: 'Alice Two',
-        avatarUrl: 'https://cdn/avatar.webp'
-      }
-    });
-    const api = createAccountAPI({
-      baseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'token'
-    });
-
-    await expect(api.updateProfile({ displayName: 'Alice Two', login: 'alice2' })).resolves.toEqual(
-      {
-        id: 'U1',
-        login: 'alice2',
-        displayName: 'Alice Two',
-        avatarUrl: 'https://cdn/avatar.webp',
-        bio: null
-      }
-    );
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://origin.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.updateProfile).toHaveBeenCalledWith({
-      displayName: 'Alice Two',
-      login: 'alice2',
-      updateMask: { paths: ['display_name', 'login'] }
     });
   });
 

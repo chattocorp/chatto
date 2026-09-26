@@ -117,6 +117,7 @@
       },
       "saved": "Profiili värskendamine õnnestus",
       "save_failed": "Profiili salvestamine ebaõnnestus",
+      "conflict": "See profiil muutus sinu muutmise ajal. Laadi leht uuesti ja salvesta seejärel muudatused uuesti.",
       "save_button": "Salvesta muudatused",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bot loodud",
       "username": "Kasutajanimi",
       "display_name": "Kuvatav nimi",
+      "profile_title": "Profiil",
+      "profile_description": "Muuda, kuidas see bot teistele liikmetele paistab.",
+      "profile_saved": "Boti profiil on uuendatud",
+      "profile_save_failed": "Boti profiili uuendamine ebaõnnestus",
       "owner": "Omanik",
       "reassign_owner": "Määra omanik ümber",
       "reassign_owner_warning": "Boti API-võti ja seadistatud õigused jäävad samaks. Kehtivad õigused hakkavad kohe sõltuma uuest omanikust.",

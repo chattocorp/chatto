@@ -117,6 +117,7 @@
       },
       "saved": "Profilo sukcese ĝisdatigita",
       "save_failed": "Malsukcesis konservi profilon",
+      "conflict": "Ĉi tiu profilo ŝanĝiĝis dum vi redaktis ĝin. Reŝargu la paĝon, poste konservu viajn ŝanĝojn denove.",
       "save_button": "Konservu Ŝanĝojn",
       "bio": {
         "label": "Priskribo",
@@ -517,6 +518,10 @@
       "created": "Bot kreita",
       "username": "Uzantnomo",
       "display_name": "Montra nomo",
+      "profile_title": "Profilo",
+      "profile_description": "Ŝanĝu kiel ĉi tiu bot aperas al aliaj membroj.",
+      "profile_saved": "Profilo de bot ĝisdatigita",
+      "profile_save_failed": "Malsukcesis ĝisdatigi la profilon de bot",
       "owner": "Posedanto",
       "reassign_owner": "Reasigni posedanton",
       "reassign_owner_warning": "La API-ŝlosilo kaj agorditaj permesoj de la roboto restos samaj. Efikaj permesoj tuj sekvos la novan posedanton.",

@@ -1510,46 +1510,9 @@ Result of deactivating privileged mode for the current session.
 
 ## MyAccountService
 
-Self-service account, profile, display preference, presence,
-custom-status, external identity, and account lifecycle commands for the
-authenticated user.
-
-<a id="chatto-api-v1-MyAccountService-UpdateProfile"></a>
-
-### UpdateProfile
-
-Updates the authenticated user's login, display name, and/or bio.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
-```
-
-<a id="chatto-api-v1-UpdateProfileRequest"></a>
-
-#### Input: UpdateProfileRequest
-
-Request to update the authenticated user's profile. Human and bot accounts
-use this same self-service operation. update_mask selects fields to apply
-or reset. Fields outside the mask stay unchanged.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
-| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
-| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
-
-
-<a id="chatto-api-v1-UpdateProfileResponse"></a>
-
-#### Result: UpdateProfileResponse
-
-Result of a profile update.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
-
+Self-service account, display preference, presence, custom-status,
+external identity, and account lifecycle commands for the authenticated
+user. Public profile and avatar changes use UserService.
 
 <a id="chatto-api-v1-MyAccountService-ChangePassword"></a>
 
@@ -4331,7 +4294,7 @@ Result of marking a message thread as read.
 
 ## UserService
 
-Reads users and manages public user avatars.
+Reads users and manages public user profiles and avatars.
 
 <a id="chatto-api-v1-UserService-ListUsers"></a>
 
@@ -4437,13 +4400,60 @@ Batch user directory response.
 | `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
 
 
+<a id="chatto-api-v1-UserService-UpdateUserProfile"></a>
+
+### UpdateUserProfile
+
+Updates the target user's login, display name, and/or bio. Users can
+update themselves. Updating another human requires user.manage-accounts.
+A human who updates a bot needs ownership of the bot,
+user.manage-accounts, or bot.manage. A bot cannot target another account.
+A self login change starts the username-change cooldown and returns
+FAILED_PRECONDITION while the cooldown is active, unless the caller has
+user.manage-accounts. A case-only change and a change to another account
+do not check or start the cooldown. Unknown or deleted targets return
+NOT_FOUND. An invalid ID or a request without a selected field returns
+INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/UpdateUserProfile
+```
+
+<a id="chatto-api-v1-UpdateUserProfileRequest"></a>
+
+#### Input: UpdateUserProfileRequest
+
+Request to update one user's public profile. update_mask selects fields
+to apply or reset. Fields outside the mask stay unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
+| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
+| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
+| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+
+
+<a id="chatto-api-v1-UpdateUserProfileResponse"></a>
+
+#### Result: UpdateUserProfileResponse
+
+Result of a user profile update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+
+
 <a id="chatto-api-v1-UserService-UploadAvatar"></a>
 
 ### UploadAvatar
 
 Uploads and sets an avatar for the target user. Users can update
 themselves. Updating another human requires user.manage-accounts.
-Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+A human who updates a bot needs ownership of the bot,
+user.manage-accounts, or bot.manage.
 A bot cannot target another account. Unknown or deleted targets return
 NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 
@@ -4921,7 +4931,7 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
+| `bio` | `optional string` | Short Markdown biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 

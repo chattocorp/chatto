@@ -117,6 +117,7 @@
       },
       "saved": "Profilen ble oppdatert",
       "save_failed": "Kunne ikke lagre profilen",
+      "conflict": "Denne profilen ble endret mens du redigerte den. Last inn siden på nytt, og lagre endringene igjen.",
       "save_button": "Lagre endringer",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bote opprettet",
       "username": "Brukernavn",
       "display_name": "Visningsnavn",
+      "profile_title": "Profil",
+      "profile_description": "Endre hvordan denne boten vises for andre medlemmer.",
+      "profile_saved": "Bot-profilen er oppdatert",
+      "profile_save_failed": "Kunne ikke oppdatere bot-profilen",
       "owner": "Eier",
       "reassign_owner": "Tilordne eier på nytt",
       "reassign_owner_warning": "Botens API-nøkkel og konfigurerte tillatelser forblir uendret. Effektive tillatelser følger den nye eieren umiddelbart.",

@@ -12,7 +12,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 )
 
-func TestRequireCanManageUserAvatarAuthorizationMatrix(t *testing.T) {
+func TestRequireCanManageUserIdentityAuthorizationMatrix(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "avatarowner", "Avatar Owner", "")
@@ -66,9 +66,9 @@ func TestRequireCanManageUserAvatarAuthorizationMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := c.requireCanManageUserAvatar(ctx, test.actorID, test.targetID)
+			_, err := c.requireCanManageUserIdentity(ctx, test.actorID, test.targetID)
 			if !errors.Is(err, test.wantErr) {
-				t.Fatalf("requireCanManageUserAvatar() error = %v, want %v", err, test.wantErr)
+				t.Fatalf("requireCanManageUserIdentity() error = %v, want %v", err, test.wantErr)
 			}
 		})
 	}

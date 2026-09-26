@@ -47,7 +47,7 @@ field masks under [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md).
 The Connect interceptor removes unselected values before protobuf validation;
 direct handlers use the same normalization and validation. Selected absent
 values reset, subject to domain rules. The core receives sparse selected inputs
-and owns authorization and concurrency. Self-service profile fields and their
+and owns authorization and concurrency. Profile fields and any self-service
 login cooldown fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
@@ -151,8 +151,8 @@ refreshes this reference every 30 seconds and loads the owner's public identity
 through `UserService.BatchGetUsers`. No credentials or management rights are
 exposed by the reference.
 
-`UserService` provides user reads and the canonical target-aware avatar upload
-and delete operations. Self-targeting is available to human and bot callers. A
+`UserService` provides user reads and the canonical target-aware profile update
+and avatar upload and delete operations. Self-targeting is available to human and bot callers. A
 cross-human target requires `user.manage-accounts`. A cross-bot target permits
 the bot owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target
 another account. These operations validate stable request-time authorization
@@ -196,7 +196,7 @@ incoming webhooks for each bot. Bot permission configuration reads and writes
 use `AdminPermissionService`'s canonical user permission operations with the
 bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management. A human with
-`user.manage-accounts` can list and read all bots for avatar administration,
+`user.manage-accounts` can list and read all bots for profile and avatar administration,
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
 

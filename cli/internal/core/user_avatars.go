@@ -21,7 +21,7 @@ import (
 // UpdateUserAvatar uploads and sets an avatar for targetUserID after applying
 // the target-aware user and bot management authorization policy.
 func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID string, reader io.Reader) (*evtv1.User, error) {
-	if _, err := c.requireCanManageUserAvatar(ctx, actorID, targetUserID); err != nil {
+	if _, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
 
@@ -56,7 +56,7 @@ func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID
 // ClearUserAvatar removes the target user's avatar after applying the same
 // authorization policy as UpdateUserAvatar. The operation is idempotent.
 func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
-	if _, err := c.requireCanManageUserAvatar(ctx, actorID, targetUserID); err != nil {
+	if _, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserAvatarCleared{
@@ -77,7 +77,7 @@ func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID 
 	return c.GetUser(ctx, targetUserID)
 }
 
-func (c *ChattoCore) requireCanManageUserAvatar(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
+func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
 	}
@@ -143,7 +143,7 @@ func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targ
 			return nil, false, fmt.Errorf("wait for user auth projection: %w", err)
 		}
 		if err := c.authorizeAtStableInputs(ctx, func() error {
-			_, authorizeErr := c.requireCanManageUserAvatar(ctx, actorID, targetUserID)
+			_, authorizeErr := c.requireCanManageUserIdentity(ctx, actorID, targetUserID)
 			return authorizeErr
 		}); err != nil {
 			return nil, false, err

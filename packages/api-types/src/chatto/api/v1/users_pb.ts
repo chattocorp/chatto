@@ -106,7 +106,7 @@ export class User extends Message<User> {
   customStatus?: CustomUserStatus;
 
   /**
-   * Short self-authored biography shown on the user's profile, when set.
+   * Short Markdown biography shown on the user's profile, when set.
    *
    * @generated from field: optional string bio = 9;
    */

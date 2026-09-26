@@ -117,6 +117,7 @@
       },
       "saved": "Profil mis à jour avec succès",
       "save_failed": "Échec de l'enregistrement du profil",
+      "conflict": "Ce profil a changé pendant que vous le modifiiez. Rechargez la page, puis enregistrez à nouveau vos modifications.",
       "save_button": "Enregistrer les modifications",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bot créé",
       "username": "Nom d'utilisateur",
       "display_name": "Nom d'affichage",
+      "profile_title": "Profil",
+      "profile_description": "Modifiez l'apparence de ce bot pour les autres membres.",
+      "profile_saved": "Profil du bot mis à jour",
+      "profile_save_failed": "Échec de la mise à jour du profil du bot",
       "owner": "Propriétaire",
       "reassign_owner": "Réattribuer le propriétaire",
       "reassign_owner_warning": "La clé API et les permissions configurées du robot resteront inchangées. Les permissions effectives dépendront immédiatement du nouveau propriétaire.",

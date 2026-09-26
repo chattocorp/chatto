@@ -125,13 +125,13 @@ func TestResourceUpdatesThroughJSON(t *testing.T) {
 	call(account, "UpdateSettings", `{"timezone":"UTC"}`, 200) // inferred mask
 	call(account, "UpdateSettings", `{"timezone":"UTC","updateMask":""}`, 400)
 	call(account, "UpdateSettings", `{"timeFormat":999,"updateMask":"timeFormat"}`, 400)
-	call(account, "UpdateProfile", `{"bio":"A short bio","updateMask":"bio"}`, 200)
-	call(account, "UpdateProfile", `{"bio":null,"login":"!","updateMask":"bio"}`, 200)
+	call("api.v1.UserService", "UpdateUserProfile", `{"userId":"`+env.viewer.Id+`","bio":"A short bio","updateMask":"bio"}`, 200)
+	call("api.v1.UserService", "UpdateUserProfile", `{"userId":"`+env.viewer.Id+`","bio":null,"login":"!","updateMask":"bio"}`, 200)
 	user, err := env.core.GetUser(env.ctx, env.viewer.Id)
 	require.NoError(t, err)
 	require.Empty(t, user.GetBio())
 	require.Equal(t, env.viewer.GetLogin(), user.GetLogin())
-	call(account, "UpdateProfile", `{"updateMask":"login"}`, 400)
+	call("api.v1.UserService", "UpdateUserProfile", `{"userId":"`+env.viewer.Id+`","updateMask":"login"}`, 400)
 	require.NoError(t, env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermServerManage))
 	admin := "admin.v1.AdminServerService"
 	call(admin, "UpdateBlockedUsernames", `{"blockedUsernames":["blocked-name"],"updateMask":"blockedUsernames"}`, 200)
@@ -152,7 +152,8 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	require.NoError(t, err)
 	before, err := env.core.GetUser(ctx, env.viewer.Id)
 	require.NoError(t, err)
-	_, err = env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId:      env.viewer.Id,
 		DisplayName: stringPtr("Changed name"), Login: stringPtr("taken-login"), Bio: stringPtr("New bio"),
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "login", "bio"}},
 	}))
@@ -164,7 +165,8 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	lastChange, err := env.core.GetLastLoginChange(ctx, env.viewer.Id)
 	require.NoError(t, err)
 	require.True(t, lastChange.IsZero())
-	_, err = env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId:      env.viewer.Id,
 		DisplayName: stringPtr("Changed name"), Login: stringPtr("new-login"), Bio: stringPtr("New bio"),
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "login", "bio"}},
 	}))
@@ -172,7 +174,8 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	lastChange, err = env.core.GetLastLoginChange(ctx, env.viewer.Id)
 	require.NoError(t, err)
 	require.False(t, lastChange.IsZero())
-	_, err = env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId:      env.viewer.Id,
 		DisplayName: stringPtr("Should not change"), Login: stringPtr("another-login"),
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"display_name", "login"}},
 	}))
@@ -181,13 +184,15 @@ func TestMyAccountProfileMaskBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Changed name", after.GetDisplayName())
 	require.Equal(t, "new-login", after.GetLogin())
-	_, err = env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
-		Login: stringPtr("NEW-LOGIN"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
+	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: env.viewer.Id,
+		Login:  stringPtr("NEW-LOGIN"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
 	}))
 	require.NoError(t, err, "case-only changes bypass the cooldown")
 	require.NoError(t, env.core.GrantServerPermission(ctx, core.SystemActorID, core.RoleEveryone, core.PermUserManageAccounts))
-	_, err = env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
-		Login: stringPtr("admin-bypass"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
+	_, err = env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: env.viewer.Id,
+		Login:  stringPtr("admin-bypass"), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login"}},
 	}))
 	require.NoError(t, err, "account managers bypass the cooldown")
 	afterBypass, err := env.core.GetLastLoginChange(ctx, env.viewer.Id)
@@ -209,8 +214,9 @@ func TestMyAccountProfileConcurrentMasks(t *testing.T) {
 	for _, login := range []string{"first-rename", "second-rename"} {
 		go func() {
 			<-start
-			_, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
-				Login: stringPtr(login), DisplayName: stringPtr(login), Bio: stringPtr(login),
+			_, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+				UserId: env.viewer.Id,
+				Login:  stringPtr(login), DisplayName: stringPtr(login), Bio: stringPtr(login),
 				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"login", "display_name", "bio"}},
 			}))
 			results <- result{login, err}

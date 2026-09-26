@@ -3,7 +3,9 @@
 
 Formatting-only shelf for the message composer. The owning composer controls
 whether the shelf is visible and keeps message-level actions in its compact
-input row.
+input row. Set `animated` to false when the shelf is always visible; the
+animated shelf plays a global exit transition that keeps a destroyed parent
+block in the DOM until it finishes.
 -->
 <script lang="ts">
   import FadeScale from '$lib/ui/FadeScale.svelte';
@@ -21,13 +23,16 @@ input row.
     formattingState,
     indentState,
     editorApi,
-    inputDisabled
+    inputDisabled,
+    animated = true
   }: {
     id: string;
     formattingState: ComposerFormattingState;
     indentState: ComposerIndentState;
     editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
+    /** Fade and scale the shelf when its containing block opens or closes. */
+    animated?: boolean;
   } = $props();
 
   const formattingGroups: {
@@ -72,7 +77,7 @@ input row.
   }
 </script>
 
-<FadeScale {id} class="w-fit max-w-full self-start" testId="composer-formatting-shelf">
+{#snippet shelf()}
   <div
     class="flex min-w-0 [scrollbar-width:none] gap-1.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
     data-testid="composer-formatting-toolbar"
@@ -129,4 +134,14 @@ input row.
       </PillButtonGroup>
     {/each}
   </div>
-</FadeScale>
+{/snippet}
+
+{#if animated}
+  <FadeScale {id} class="w-fit max-w-full self-start" testId="composer-formatting-shelf">
+    {@render shelf()}
+  </FadeScale>
+{:else}
+  <div {id} class="w-fit max-w-full min-w-0 self-start" data-testid="composer-formatting-shelf">
+    {@render shelf()}
+  </div>
+{/if}

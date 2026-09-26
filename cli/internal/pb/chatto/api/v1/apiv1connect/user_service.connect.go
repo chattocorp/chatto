@@ -40,6 +40,9 @@ const (
 	// UserServiceBatchGetUsersProcedure is the fully-qualified name of the UserService's BatchGetUsers
 	// RPC.
 	UserServiceBatchGetUsersProcedure = "/chatto.api.v1.UserService/BatchGetUsers"
+	// UserServiceUpdateUserProfileProcedure is the fully-qualified name of the UserService's
+	// UpdateUserProfile RPC.
+	UserServiceUpdateUserProfileProcedure = "/chatto.api.v1.UserService/UpdateUserProfile"
 	// UserServiceUploadAvatarProcedure is the fully-qualified name of the UserService's UploadAvatar
 	// RPC.
 	UserServiceUploadAvatarProcedure = "/chatto.api.v1.UserService/UploadAvatar"
@@ -59,9 +62,21 @@ type UserServiceClient interface {
 	// Gets visible user rows for multiple stable user IDs. Unknown IDs are
 	// omitted from the response.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
+	// Updates the target user's login, display name, and/or bio. Users can
+	// update themselves. Updating another human requires user.manage-accounts.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage. A bot cannot target another account.
+	// A self login change starts the username-change cooldown and returns
+	// FAILED_PRECONDITION while the cooldown is active, unless the caller has
+	// user.manage-accounts. A case-only change and a change to another account
+	// do not check or start the cooldown. Unknown or deleted targets return
+	// NOT_FOUND. An invalid ID or a request without a selected field returns
+	// INVALID_ARGUMENT.
+	UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error)
 	// Uploads and sets an avatar for the target user. Users can update
 	// themselves. Updating another human requires user.manage-accounts.
-	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage.
 	// A bot cannot target another account. Unknown or deleted targets return
 	// NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
@@ -100,6 +115,12 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("BatchGetUsers")),
 			connect.WithClientOptions(opts...),
 		),
+		updateUserProfile: connect.NewClient[v1.UpdateUserProfileRequest, v1.UpdateUserProfileResponse](
+			httpClient,
+			baseURL+UserServiceUpdateUserProfileProcedure,
+			connect.WithSchema(userServiceMethods.ByName("UpdateUserProfile")),
+			connect.WithClientOptions(opts...),
+		),
 		uploadAvatar: connect.NewClient[v1.UploadAvatarRequest, v1.UploadAvatarResponse](
 			httpClient,
 			baseURL+UserServiceUploadAvatarProcedure,
@@ -118,11 +139,12 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
-	listUsers     *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
-	getUser       *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
-	batchGetUsers *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
-	uploadAvatar  *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
-	deleteAvatar  *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
+	listUsers         *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
+	getUser           *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
+	batchGetUsers     *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
+	updateUserProfile *connect.Client[v1.UpdateUserProfileRequest, v1.UpdateUserProfileResponse]
+	uploadAvatar      *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
+	deleteAvatar      *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
 }
 
 // ListUsers calls chatto.api.v1.UserService.ListUsers.
@@ -138,6 +160,11 @@ func (c *userServiceClient) GetUser(ctx context.Context, req *connect.Request[v1
 // BatchGetUsers calls chatto.api.v1.UserService.BatchGetUsers.
 func (c *userServiceClient) BatchGetUsers(ctx context.Context, req *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
 	return c.batchGetUsers.CallUnary(ctx, req)
+}
+
+// UpdateUserProfile calls chatto.api.v1.UserService.UpdateUserProfile.
+func (c *userServiceClient) UpdateUserProfile(ctx context.Context, req *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error) {
+	return c.updateUserProfile.CallUnary(ctx, req)
 }
 
 // UploadAvatar calls chatto.api.v1.UserService.UploadAvatar.
@@ -161,9 +188,21 @@ type UserServiceHandler interface {
 	// Gets visible user rows for multiple stable user IDs. Unknown IDs are
 	// omitted from the response.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
+	// Updates the target user's login, display name, and/or bio. Users can
+	// update themselves. Updating another human requires user.manage-accounts.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage. A bot cannot target another account.
+	// A self login change starts the username-change cooldown and returns
+	// FAILED_PRECONDITION while the cooldown is active, unless the caller has
+	// user.manage-accounts. A case-only change and a change to another account
+	// do not check or start the cooldown. Unknown or deleted targets return
+	// NOT_FOUND. An invalid ID or a request without a selected field returns
+	// INVALID_ARGUMENT.
+	UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error)
 	// Uploads and sets an avatar for the target user. Users can update
 	// themselves. Updating another human requires user.manage-accounts.
-	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage.
 	// A bot cannot target another account. Unknown or deleted targets return
 	// NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
@@ -198,6 +237,12 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("BatchGetUsers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceUpdateUserProfileHandler := connect.NewUnaryHandler(
+		UserServiceUpdateUserProfileProcedure,
+		svc.UpdateUserProfile,
+		connect.WithSchema(userServiceMethods.ByName("UpdateUserProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	userServiceUploadAvatarHandler := connect.NewUnaryHandler(
 		UserServiceUploadAvatarProcedure,
 		svc.UploadAvatar,
@@ -219,6 +264,8 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceGetUserHandler.ServeHTTP(w, r)
 		case UserServiceBatchGetUsersProcedure:
 			userServiceBatchGetUsersHandler.ServeHTTP(w, r)
+		case UserServiceUpdateUserProfileProcedure:
+			userServiceUpdateUserProfileHandler.ServeHTTP(w, r)
 		case UserServiceUploadAvatarProcedure:
 			userServiceUploadAvatarHandler.ServeHTTP(w, r)
 		case UserServiceDeleteAvatarProcedure:
@@ -242,6 +289,10 @@ func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request
 
 func (UnimplementedUserServiceHandler) BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.BatchGetUsers is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.UpdateUserProfile is not implemented"))
 }
 
 func (UnimplementedUserServiceHandler) UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {

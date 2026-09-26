@@ -117,6 +117,7 @@
       },
       "saved": "Profil başarıyla güncellendi",
       "save_failed": "Profil kaydedilemedi",
+      "conflict": "Bu profil siz düzenlerken değişti. Sayfayı yeniden yükleyin, ardından değişikliklerinizi tekrar kaydedin.",
       "save_button": "Değişiklikleri Kaydet",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bot oluşturuldu",
       "username": "Kullanıcı adı",
       "display_name": "Görünen Ad",
+      "profile_title": "Profil",
+      "profile_description": "Bu botun diğer üyelere nasıl görüneceğini değiştirin.",
+      "profile_saved": "Bot profili güncellendi",
+      "profile_save_failed": "Bot profili güncellenemedi",
       "owner": "Sahibi",
       "reassign_owner": "Sahibi yeniden ata",
       "reassign_owner_warning": "Botun API anahtarı ve yapılandırılmış izinleri aynı kalır. Etkin izinler yeni sahibin izinlerini hemen izler.",

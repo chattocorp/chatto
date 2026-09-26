@@ -133,15 +133,16 @@ async function setRolePermissionViaConnect(
 
 async function updateOwnProfileViaConnect(
   page: Page,
+  userId: string,
   input: { login?: string; displayName?: string }
 ): Promise<{ login?: string; displayName?: string }> {
   const data = await connectPost<{ user?: { login?: string; displayName?: string } }>(
     page,
-    'chatto.api.v1.MyAccountService/UpdateProfile',
-    input
+    'chatto.api.v1.UserService/UpdateUserProfile',
+    { userId, ...input }
   );
   if (!data.user) {
-    throw new Error(`UpdateProfile did not return a user: ${JSON.stringify(data)}`);
+    throw new Error(`UpdateUserProfile did not return a user: ${JSON.stringify(data)}`);
   }
   return data.user;
 }
@@ -840,7 +841,7 @@ test.describe('Identity Editing', () => {
         // The regular user changes their own login first to set a cooldown
         // timestamp. We need this to verify Reset cooldown actually clears it.
         const userChosenLogin = `userpicked${Date.now()}`;
-        const userRename = await updateOwnProfileViaConnect(regularPage, {
+        const userRename = await updateOwnProfileViaConnect(regularPage, regularUser.id!, {
           login: userChosenLogin
         });
         expect(userRename.login).toBe(userChosenLogin);
@@ -900,7 +901,7 @@ test.describe('Identity Editing', () => {
         // Sanity check: the user can now successfully rename themselves immediately,
         // proving the cooldown was actually cleared on the backend.
         const userSecondRename = `userrenamed${Date.now()}`;
-        const secondRename = await updateOwnProfileViaConnect(regularPage, {
+        const secondRename = await updateOwnProfileViaConnect(regularPage, regularUser.id!, {
           login: userSecondRename
         });
         expect(secondRename.login).toBe(userSecondRename);

@@ -117,6 +117,7 @@
       },
       "saved": "Profiel is succesvol bijgewerkt",
       "save_failed": "Kan profiel niet opslaan",
+      "conflict": "Dit profiel is gewijzigd terwijl je het bewerkte. Laad de pagina opnieuw en sla je wijzigingen daarna opnieuw op.",
       "save_button": "Wijzigingen opslaan",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bot gemaakt",
       "username": "Gebruikersnaam",
       "display_name": "Weergavenaam",
+      "profile_title": "Profiel",
+      "profile_description": "Wijzig hoe deze bot voor andere leden wordt weergegeven.",
+      "profile_saved": "Botprofiel bijgewerkt",
+      "profile_save_failed": "Kan botprofiel niet bijwerken",
       "owner": "Eigenaar",
       "reassign_owner": "Eigenaar opnieuw toewijzen",
       "reassign_owner_warning": "De API-sleutel en ingestelde rechten van de bot blijven ongewijzigd. Effectieve rechten volgen onmiddellijk de nieuwe eigenaar.",

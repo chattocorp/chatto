@@ -117,6 +117,7 @@
       },
       "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",
+      "conflict": "This profile changed while you were editing it. Reload the page, then save your changes again.",
       "save_button": "Save changes",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bot created",
       "username": "Username",
       "display_name": "Display Name",
+      "profile_title": "Profile",
+      "profile_description": "Change how this bot appears to other members.",
+      "profile_saved": "Bot profile updated",
+      "profile_save_failed": "Failed to update bot profile",
       "owner": "Owner",
       "reassign_owner": "Reassign owner",
       "reassign_owner_warning": "The bot's API key and configured permissions will stay the same. Effective permissions will immediately follow the new owner.",

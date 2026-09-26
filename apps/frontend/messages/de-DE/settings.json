@@ -117,6 +117,7 @@
       },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",
+      "conflict": "Dieses Profil wurde geändert, während du es bearbeitet hast. Lade die Seite neu und speichere deine Änderungen dann erneut.",
       "save_button": "Änderungen speichern",
       "bio": {
         "label": "Bio",
@@ -517,6 +518,10 @@
       "created": "Bot erstellt",
       "username": "Benutzername",
       "display_name": "Anzeigename",
+      "profile_title": "Profil",
+      "profile_description": "Ändere, wie dieser Bot für andere Mitglieder angezeigt wird.",
+      "profile_saved": "Bot-Profil aktualisiert",
+      "profile_save_failed": "Bot-Profil konnte nicht aktualisiert werden",
       "owner": "Owner",
       "reassign_owner": "Owner neu zuweisen",
       "reassign_owner_warning": "Der API-Schlüssel und die konfigurierten Berechtigungen des Bots bleiben unverändert. Die effektiven Berechtigungen richten sich sofort nach dem neuen Owner.",

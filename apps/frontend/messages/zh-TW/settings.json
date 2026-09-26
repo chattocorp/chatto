@@ -117,6 +117,7 @@
       },
       "saved": "個人檔案已更新",
       "save_failed": "無法儲存個人檔案",
+      "conflict": "你編輯時此個人檔案已被變更。請重新載入頁面，然後再次儲存變更。",
       "save_button": "儲存變更",
       "bio": {
         "label": "個人簡介",
@@ -517,6 +518,10 @@
       "created": "機器人已建立",
       "username": "使用者名稱",
       "display_name": "顯示名稱",
+      "profile_title": "個人檔案",
+      "profile_description": "變更此機器人在其他成員面前的顯示方式。",
+      "profile_saved": "機器人個人檔案已更新",
+      "profile_save_failed": "更新機器人個人檔案失敗",
       "owner": "擁有者",
       "reassign_owner": "重新指派擁有者",
       "reassign_owner_warning": "機器人的 API 金鑰和已設定權限將維持不變。有效權限將立即改為受新擁有者限制。",
