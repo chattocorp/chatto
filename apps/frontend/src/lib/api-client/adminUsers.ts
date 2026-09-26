@@ -92,7 +92,7 @@ export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
     userIds: string[],
     signal?: AbortSignal
   ): Promise<AdminMemberBatch> => {
-    const response = await client.batchGetMembers({ userIds }, { ...(signal ? { signal } : {}) });
+    const response = await client.batchGetMembers({ userIds }, { signal });
     return {
       users: response.members.map(adminMember),
       roles: response.roles.map(adminRoleSummary)
@@ -125,7 +125,7 @@ export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
             offset: input.offset
           }
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       options.signal?.throwIfAborted();
       const members = await loadMembers(response.userIds, options.signal);
@@ -144,7 +144,7 @@ export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
     ): Promise<AdminMemberDetails> {
       const response = await client.getMember(
         { target: adminMemberTarget(target) },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         member: response.member ? adminMember(response.member) : null,

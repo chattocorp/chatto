@@ -30,7 +30,7 @@ export function createPushNotificationAPI(config: ConnectAPIConfig) {
       input: SubscribePushInput,
       options: PushRequestOptions = {}
     ): Promise<SubscribePushResult> {
-      await client.subscribe(input, { ...(options.signal ? { signal: options.signal } : {}) });
+      await client.subscribe(input, { signal: options.signal });
       return {
         subscribed: true
       };

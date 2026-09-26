@@ -137,10 +137,6 @@ export type AdminProjectionMetric = {
   bytes: number;
 };
 
-function adminDiagnosticsClient(config: ConnectAPIConfig) {
-  return createChattoClient(AdminDiagnosticsService, config);
-}
-
 function assetCleanupHealth(
   health: AdminAssetCleanupHealth | undefined
 ): AdminAssetCleanupStatus['health'] {
@@ -185,7 +181,7 @@ export async function getAdminSystemInfo(
   config: ConnectAPIConfig,
   options: { signal?: AbortSignal } = {}
 ): Promise<AdminSystemInfo> {
-  const client = adminDiagnosticsClient(config);
+  const client = createChattoClient(AdminDiagnosticsService, config);
   const response = await client.getSystemInfo({}, { signal: options.signal });
   const systemInfo = response.systemInfo;
   const cleanup = response.assetCleanup;

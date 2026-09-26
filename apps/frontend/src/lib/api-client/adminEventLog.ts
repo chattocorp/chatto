@@ -59,7 +59,7 @@ export function createAdminEventLogAPI(config: ConnectAPIConfig) {
           before: input.before ?? undefined,
           filter: eventLogFilterInput(input.filter ?? EMPTY_ADMIN_EVENT_LOG_FILTER)
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         entries: response.entries.map(adminEventLogEntry),
@@ -73,10 +73,7 @@ export function createAdminEventLogAPI(config: ConnectAPIConfig) {
     },
 
     async listEventTypes(options: { signal?: AbortSignal } = {}): Promise<string[]> {
-      const response = await client.listEventTypes(
-        {},
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await client.listEventTypes({}, { signal: options.signal });
       return [...response.eventTypes];
     },
 
@@ -85,10 +82,7 @@ export function createAdminEventLogAPI(config: ConnectAPIConfig) {
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminEventLogEntry | null> {
       try {
-        const response = await client.getEvent(
-          { sequence },
-          { ...(options.signal ? { signal: options.signal } : {}) }
-        );
+        const response = await client.getEvent({ sequence }, { signal: options.signal });
         return response.entry ? adminEventLogEntry(response.entry) : null;
       } catch (error) {
         if (error instanceof ConnectError && error.code === Code.NotFound) return null;

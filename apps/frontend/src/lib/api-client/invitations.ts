@@ -24,7 +24,7 @@ export function createInviteLinkAPI(config: ConnectAPIConfig) {
     async list(offset = 0, limit = 100, options: { signal?: AbortSignal } = {}) {
       const response = await client.listInviteLinks(
         { page: { offset, limit } },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         inviteLinks: response.inviteLinks.map(mapInviteLink),

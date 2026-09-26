@@ -108,10 +108,7 @@ export function createExternalIdentityAPI(config: ConnectAPIConfig) {
 
   return {
     async list(options: { signal?: AbortSignal } = {}): Promise<ExternalIdentityList> {
-      const response = await client.listExternalIdentities(
-        {},
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await client.listExternalIdentities({}, { signal: options.signal });
       return {
         providers: response.providers.map((provider) =>
           externalIdentityProvider(provider, config.baseUrl)

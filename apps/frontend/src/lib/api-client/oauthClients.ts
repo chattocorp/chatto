@@ -30,7 +30,7 @@ export function createOAuthClientAPI(config: ConnectAPIConfig) {
     async list(offset = 0, limit = 100, options: { signal?: AbortSignal } = {}) {
       const response = await client.listOAuthClients(
         { page: { offset, limit } },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         oauthClients: response.oauthClients.map(mapOAuthClient),

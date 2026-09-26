@@ -28,7 +28,7 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
           roomId: input.roomId,
           upToEventId: input.upToEventId ?? ''
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         lastReadAt: response.lastReadAt?.toDate().toISOString() ?? null,
@@ -50,7 +50,7 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
           threadRootEventId: input.threadRootEventId,
           upToEventId: input.upToEventId ?? ''
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         lastReadAt: response.lastReadAt?.toDate().toISOString() ?? null,
