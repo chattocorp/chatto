@@ -1,5 +1,11 @@
 <script module lang="ts">
-  let nextStoryQueryScope = 0;
+  let storyQueryScopeCount = 0;
+
+  /** Returns a query scope that no other harness instance shares. */
+  function nextStoryQueryScope(): string {
+    storyQueryScopeCount += 1;
+    return `storybook-${storyQueryScopeCount}`;
+  }
 </script>
 
 <script lang="ts">
@@ -126,7 +132,7 @@
   provideServerScope({
     serverId: 'storybook',
     connection: {
-      queryScope: `storybook-${++nextStoryQueryScope}`,
+      queryScope: nextStoryQueryScope(),
       getAPI: () => api
     } as unknown as ServerConnection,
     store: {

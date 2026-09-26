@@ -11,6 +11,3 @@ allowBuilds:
   '@tailwindcss/oxide': false
   '@google/genai': false
   protobufjs: false
-
-minimumReleaseAgeExclude:
-  - virtua@0.52.1

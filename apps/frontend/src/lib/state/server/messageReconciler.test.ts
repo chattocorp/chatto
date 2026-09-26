@@ -22,9 +22,8 @@ describe('MessageReconciler', () => {
     const read = vi.fn(async (_room: string, ids: string[]) => ids.map(resource));
     const apply = vi.fn();
     const queue = new MessageReconciler(read, () => apply);
-    let completion: Promise<void>;
-    for (let id = 0; id < 205; id++) completion = queue.enqueue('room', `${id}`, true, 'z-first');
-    completion = queue.enqueue('room', '0', false, 'a-last');
+    for (let id = 0; id < 205; id++) void queue.enqueue('room', `${id}`, true, 'z-first');
+    const completion = queue.enqueue('room', '0', false, 'a-last');
     await vi.advanceTimersByTimeAsync(10);
     await completion;
     expect(read.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);

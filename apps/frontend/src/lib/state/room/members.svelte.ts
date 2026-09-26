@@ -535,10 +535,7 @@ export class RoomMembersStore {
         this.isBackgroundLoading = hasMore;
       }
 
-      if (consumed === 0) {
-        hasMore = false;
-        break;
-      }
+      if (consumed === 0) break;
     }
 
     if (loadId === this.#loadId) {
