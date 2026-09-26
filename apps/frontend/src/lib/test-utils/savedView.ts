@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import type { SavedView } from '$lib/storage/savedViews';
+import { SAVED_VIEW_VERSION, type SavedView } from '$lib/storage/savedViews';
 
 /** Build complete disk fixtures from readable room and message examples. */
 export function savedViewFixture(input: {
@@ -25,7 +25,7 @@ export function savedViewFixture(input: {
 }): SavedView {
   return {
     ...input,
-    version: 3,
+    version: SAVED_VIEW_VERSION,
     checkpoint: 'saved-checkpoint',
     checkpointAt: input.savedAt,
     presentation: { server: JSON.stringify({ name: input.serverName }), roomGroups: [], users: [] },

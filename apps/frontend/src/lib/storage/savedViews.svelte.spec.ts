@@ -10,6 +10,35 @@ import {
   type SavedView
 } from './savedViews';
 
+function openStorage(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('chatto-saved-views', 2);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/** Count the manifest and resource rows stored for one server and user. */
+async function storedRows(serverId: string, userId: string): Promise<number> {
+  const db = await openStorage();
+  try {
+    const scope = `${serverId}\u0000${userId}`;
+    const transaction = db.transaction(['manifests', 'resources'], 'readonly');
+    const count = (request: IDBRequest<number>) =>
+      new Promise<number>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    const [manifests, resources] = await Promise.all([
+      count(transaction.objectStore('manifests').count(scope)),
+      count(transaction.objectStore('resources').index('scope').count(scope))
+    ]);
+    return manifests + resources;
+  } finally {
+    db.close();
+  }
+}
+
 function view(serverId: string, userId: string, savedAt = Date.now()): SavedView {
   return savedViewFixture({
     serverId,
@@ -59,18 +88,62 @@ describe('device saved views', () => {
     await saveView(view('old', 'alice'));
     vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
     expect(await loadSavedView('old', 'alice')).toBeNull();
+    expect(await storedRows('old', 'alice')).toBe(0);
   });
 
-  it('rejects incomplete legacy and corrupt snapshots', async () => {
+  it('rejects and deletes incomplete legacy and corrupt snapshots', async () => {
     const invalid = view('one', 'alice');
+    await saveView(view('two', 'alice'));
     await saveView({ ...invalid, version: 1 } as unknown as SavedView);
     expect(await loadSavedView('one', 'alice')).toBeNull();
+    expect(await storedRows('one', 'alice')).toBe(0);
     invalid.rooms[0].resource = '{broken';
     await saveView(invalid);
     expect(await loadSavedView('one', 'alice')).toBeNull();
+    expect(await storedRows('one', 'alice')).toBe(0);
     invalid.rooms[0].resource = '{}';
     await saveView(invalid);
     expect(await loadSavedView('one', 'alice')).toBeNull();
+    expect(await storedRows('one', 'alice')).toBe(0);
+    const event = invalid.rooms[0].events[0] as unknown as { createdAt: unknown };
+    invalid.rooms[0].resource = view('one', 'alice').rooms[0].resource;
+    event.createdAt = 42;
+    await saveView(invalid);
+    expect(await loadSavedView('one', 'alice')).toBeNull();
+    expect(await storedRows('one', 'alice')).toBe(0);
+    expect(await loadSavedView('two', 'alice')).not.toBeNull();
+  });
+
+  it('keeps a snapshot that another tab replaced after a rejected read', async () => {
+    await saveView({ ...view('one', 'alice'), version: 1 } as unknown as SavedView);
+    const other = await openStorage();
+    const manifest = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const request = other.transaction('manifests').objectStore('manifests').get('one\u0000alice');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = IDBDatabase.prototype.transaction;
+    // Queue another tab's replacement before the cleanup transaction starts.
+    const spy = vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(function (
+      this: IDBDatabase,
+      ...args: Parameters<IDBDatabase['transaction']>
+    ) {
+      if (this !== other && args[1] === 'readwrite') {
+        spy.mockRestore();
+        transaction
+          .call(other, 'manifests', 'readwrite')
+          .objectStore('manifests')
+          .put({ ...manifest, savedAt: Number(manifest.savedAt) + 1 });
+      }
+      return transaction.apply(this, args);
+    });
+    try {
+      expect(await loadSavedView('one', 'alice')).toBeNull();
+    } finally {
+      spy.mockRestore();
+      other.close();
+    }
+    expect(await storedRows('one', 'alice')).toBeGreaterThan(1);
   });
 
   it('discards a disk read started before a private cache boundary', async () => {
@@ -163,6 +236,16 @@ describe('device saved views', () => {
     expect(await loadSavedView('clock-change', 'alice')).toBeNull();
   });
 
+  it('keeps earlier privacy cutoffs when a device-wide clear follows a clock change', async () => {
+    const before = view('clock-change', 'alice');
+    vi.setSystemTime(Date.now() + 100);
+    await clearSavedView('clock-change', 'alice');
+    vi.setSystemTime(Date.now() - 200);
+    await clearAllSavedViews({ allDatabases: true });
+    await saveView(before);
+    expect(await loadSavedView('clock-change', 'alice')).toBeNull();
+  });
+
   it('retains pagination boundaries, partial membership, and independent thread windows', async () => {
     const snapshot = view('one', 'alice');
     const room = snapshot.rooms[0];
@@ -193,13 +276,9 @@ describe('device saved views', () => {
     expect((await loadSavedView('one', 'alice'))?.checkpoint).toBe('checkpoint-11');
   });
 
-  it('rejects a checkpoint set with a missing resource row', async () => {
+  it('rejects and deletes a checkpoint set with a missing resource row', async () => {
     await saveView(view('one', 'alice'));
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('chatto-saved-views', 2);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+    const db = await openStorage();
     try {
       await new Promise<void>((resolve, reject) => {
         const transaction = db.transaction('resources', 'readwrite');
@@ -211,6 +290,40 @@ describe('device saved views', () => {
       db.close();
     }
     expect(await loadSavedView('one', 'alice')).toBeNull();
+    expect(await storedRows('one', 'alice')).toBe(0);
+  });
+
+  it('deletes a database that normal reads cannot open and every other origin database', async () => {
+    await saveView(view('one', 'alice'));
+    // A newer frontend version left a database version that this code cannot open.
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('chatto-saved-views', 3);
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('unrelated-cache');
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+    expect(await loadSavedView('one', 'alice')).toBeNull();
+
+    await clearAllSavedViews({ allDatabases: true });
+
+    const names = (await indexedDB.databases()).map((database) => database.name);
+    expect(names).not.toContain('unrelated-cache');
+    const stale = view('one', 'alice');
+    stale.checkpointAt = Date.now() - 1;
+    await saveView(stale);
+    expect(await loadSavedView('one', 'alice')).toBeNull();
+    await saveView(view('one', 'alice', Date.now() + 1));
+    expect(await loadSavedView('one', 'alice')).not.toBeNull();
   });
 
   it('keeps the previous complete checkpoint when a write fails after deleting old rows', async () => {

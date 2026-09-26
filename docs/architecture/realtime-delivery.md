@@ -571,7 +571,14 @@ IndexedDB stores versioned layout, shared resources, room and thread windows,
 and member-list records. A manifest and all records commit atomically with one
 server/viewer replay checkpoint. Timeline records include pagination boundaries;
 membership records include completeness. Missing or invalid records use live
-startup. The server store reads its saved view only while its projection is
+startup. The manifest and the resource records each carry a format version. A
+unit test fails when the resource schemas change without a new resource
+version. A read deletes an expired, incompatible, incomplete, or invalid set,
+unless another tab replaced it after the read. This deletion does not record a
+privacy cutoff. A device-wide clear deletes the database, so it also removes a
+database that this frontend cannot open. Sign-out of all servers also deletes
+every other IndexedDB database of the origin. A new database then records the
+device-wide cutoff. The server store reads its saved view only while its projection is
 empty. After a restore, or after realtime catch-up starts, route loads and the
 server sidebar do not read it again. The sidebar only keeps a saved copy. The
 store shows a saved view only before its network work starts, or after its

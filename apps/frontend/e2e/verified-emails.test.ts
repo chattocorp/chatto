@@ -128,14 +128,21 @@ test.describe('Verified email settings', () => {
     const secondUserId = page.getByText(secondUser.id ?? '', { exact: true });
     const secondUserEmail = page.getByText(`${secondUser.login}@example.com`, { exact: true });
     const accountChangedError = page.getByText(/authenticated account changed/);
+    const sessionExpired = page.getByText('Session expired', { exact: true });
 
-    // The root session can independently detect the new cookie. It must either
-    // keep Alice's view with the rejection, or switch the complete view to Bob.
-    // Bob's address must never appear while the page still identifies Alice.
+    // The root session can independently detect the new cookie. It must keep
+    // Alice's view with the rejection, keep it after it marks Alice's session
+    // expired, or switch the complete view to Bob. An expired session holds
+    // private reads, so the email list can stay loading instead of showing the
+    // rejection. Bob's address must never appear while the page still
+    // identifies Alice.
     await expect
       .poll(async () => {
         if (await firstUserId.isVisible()) {
-          return (await accountChangedError.isVisible()) && !(await secondUserEmail.isVisible());
+          return (
+            ((await accountChangedError.isVisible()) || (await sessionExpired.isVisible())) &&
+            !(await secondUserEmail.isVisible())
+          );
         }
         return (await secondUserId.isVisible()) && (await secondUserEmail.isVisible());
       })
