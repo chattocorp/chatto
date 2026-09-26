@@ -49,7 +49,7 @@ describe('public server discovery', () => {
             name: 'One',
             version: '0.5.0',
             description: 'First',
-            logoUrl: 'https://chat.example.test/assets/neighborhood/logo',
+            logoUrl: '/assets/neighborhood/logo',
             welcomeMessage: 'ignored'
           },
           directNeighbor: true,
@@ -68,7 +68,7 @@ describe('public server discovery', () => {
             name: 'One',
             version: '0.5.0',
             description: 'First',
-            iconUrl: 'https://chat.example.test/assets/neighborhood/logo',
+            iconUrl: '/assets/neighborhood/logo',
             bannerUrl: null
           },
           directNeighbor: true,

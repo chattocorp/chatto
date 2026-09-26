@@ -102,16 +102,19 @@ func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ 
 		Servers:     make([]*discoveryv1.NeighborhoodServer, 0, len(directory.GetServers())),
 		RefreshedAt: directory.GetRefreshedAt(),
 	}
+	// Image URLs are server-relative paths, so they always name the origin
+	// that the client called, also one that the server does not configure. A
+	// client accepts a cached image only from the server that it called.
 	for _, record := range directory.GetServers() {
 		profile := &apiv1.ServerPublicProfile{Name: record.GetName(), Version: record.GetVersion()}
 		if description := record.GetDescription(); description != "" {
 			profile.Description = stringPtr(description)
 		}
 		if logo := record.GetLogo(); logo != nil {
-			profile.LogoUrl = stringPtr(s.api.absolutizeServerURL(ctx, core.NeighborhoodImagePath(logo.GetObjectName())))
+			profile.LogoUrl = stringPtr(core.NeighborhoodImagePath(logo.GetObjectName()))
 		}
 		if banner := record.GetBanner(); banner != nil {
-			profile.BannerUrl = stringPtr(s.api.absolutizeServerURL(ctx, core.NeighborhoodImagePath(banner.GetObjectName())))
+			profile.BannerUrl = stringPtr(core.NeighborhoodImagePath(banner.GetObjectName()))
 		}
 		response.Servers = append(response.Servers, &discoveryv1.NeighborhoodServer{
 			Origin:               record.GetOrigin(),
@@ -236,18 +239,22 @@ func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
 	return a.absolutizeServerURL(ctx, assetURL)
 }
 
+// absolutizeServerURL converts a server-relative path to an absolute URL. It
+// prefers the request base URL, so a client that uses a configured hostname
+// alias receives URLs on that alias. Without a request base URL, it uses
+// webserver.url.
 func (a *API) absolutizeServerURL(ctx context.Context, value string) string {
 	if value == "" || strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
 		return value
+	}
+	if requestBaseURL := requestBaseURLFromContext(ctx); requestBaseURL != "" {
+		return requestBaseURL + value
 	}
 	if a.config.Webserver.URL != "" {
 		base, err := url.Parse(a.config.Webserver.URL)
 		if err == nil && base.Scheme != "" && base.Host != "" {
 			return base.Scheme + "://" + base.Host + value
 		}
-	}
-	if requestBaseURL := requestBaseURLFromContext(ctx); requestBaseURL != "" {
-		return requestBaseURL + value
 	}
 	return value
 }

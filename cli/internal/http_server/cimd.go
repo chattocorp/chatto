@@ -48,7 +48,7 @@ func (s *HTTPServer) setupCIMDRoutes() {
 	}
 
 	s.router.GET(frontendCIMDPath, func(c *gin.Context) {
-		origin, ok := s.frontendCIMDOrigin(c.Request.Host)
+		origin, ok := s.configuredOriginForHost(c.Request.Host)
 		if !ok {
 			c.Status(http.StatusNotFound)
 			return
@@ -77,10 +77,13 @@ func (s *HTTPServer) writeCIMD(c *gin.Context, document cimdDocument) {
 	c.JSON(http.StatusOK, document)
 }
 
-// frontendCIMDOrigin returns the configured public origin whose canonical host
-// matches the request target. Exact allowed origins can therefore publish a
-// self-consistent frontend identity without trusting arbitrary Host values.
-func (s *HTTPServer) frontendCIMDOrigin(requestHost string) (string, bool) {
+// configuredOriginForHost returns the configured public origin whose
+// canonical host matches the request target: webserver.url or an exact
+// webserver.allowed_origins entry. The configured scheme applies, so the
+// result stays correct behind a TLS-terminating proxy. It reports false for
+// an unknown host, so an arbitrary Host value never selects the origin. It
+// also reports false when the host matches more than one configured origin.
+func (s *HTTPServer) configuredOriginForHost(requestHost string) (string, bool) {
 	hostURL, err := url.Parse("//" + requestHost)
 	if err != nil || hostURL.Host == "" || hostURL.User != nil || hostURL.Path != "" || hostURL.RawQuery != "" || hostURL.Fragment != "" {
 		return "", false

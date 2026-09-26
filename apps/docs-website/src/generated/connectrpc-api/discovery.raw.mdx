@@ -130,6 +130,6 @@ One server in the Neighborhood of the called server.
 | Field | Type | Description |
 | --- | --- | --- |
 | `origin` | `string` | Canonical origin of the server. |
-| `profile` | `chatto.api.v1.ServerPublicProfile` | Public profile that the called server loaded. The welcome message is absent. The logo and banner URLs identify copies on the called server. |
+| `profile` | `chatto.api.v1.ServerPublicProfile` | Public profile that the called server loaded. The welcome message is absent. The logo and banner URLs are server-relative paths of copies on the called server. Resolve them against the origin of the called server. |
 | `direct_neighbor` | `bool` | Whether the called server advertises this server as a Neighbor. |
 | `recommended_by_origins` | `repeated string` | Canonical origins of other servers in the same response that mutually recommend this server. The list does not include the called server. |

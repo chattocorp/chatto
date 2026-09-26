@@ -13,10 +13,10 @@
     "directory": {
       "title": "Server Directory",
       "subtitle": "Discover other Chatto servers",
-      "custom_title": "Connect directly",
       "lookup_description": "Enter the address of any Chatto server to join it.",
       "find": "Find server",
-      "servers_title": "Servers",
+      "connect_by_address": "Connect by address",
+      "servers_title": "Recommended servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
       "recommended_by": "Önerenler: {servers}",
       "more_recommenders_count": {

@@ -86,17 +86,27 @@ func (f RemoteFetcher) GetProfile(ctx context.Context, origin string) (Profile, 
 	}, nil
 }
 
-// FetchImage loads one public profile image. The image URL must use the
-// canonical origin of the server that advertised it. The request sends no
-// credentials or referrer. The response must declare a supported raster
-// media type and contain at most MaxImageBytes.
+// FetchImage loads one public profile image. A relative image URL resolves
+// against origin. An absolute image URL can use another HTTP(S) origin: a
+// server often builds its image URLs from its canonical URL, which can differ
+// from the origin that a Neighbor advertises. f.Client rejects private
+// network addresses and redirects. The request sends no credentials
+// or referrer. The response must declare a supported raster media type and
+// contain at most MaxImageBytes.
 func (f RemoteFetcher) FetchImage(ctx context.Context, origin, rawURL string) ([]byte, error) {
-	parsed, err := url.Parse(rawURL)
-	if err != nil || !parsed.IsAbs() || parsed.User != nil {
+	base, err := url.Parse(origin)
+	if err != nil {
 		return nil, ErrRejectedImage
 	}
-	imageOrigin, ok := CanonicalOrigin(parsed.Scheme + "://" + parsed.Host)
-	if !ok || imageOrigin != origin {
+	reference, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, ErrRejectedImage
+	}
+	parsed := base.ResolveReference(reference)
+	if parsed.User != nil {
+		return nil, ErrRejectedImage
+	}
+	if _, ok := CanonicalOrigin(parsed.Scheme + "://" + parsed.Host); !ok {
 		return nil, ErrRejectedImage
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)

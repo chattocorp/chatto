@@ -1,14 +1,14 @@
 <!--
 @component
 
-The Server Directory: a direct server-address lookup and the merged cached
-Neighborhoods of all registered servers. The `/chat/servers` page shows each
-section in a titled panel; the Add Server dialog shows the sections directly on
-its work plane. See FDR-042.
+The Server Directory: the merged cached Neighborhoods of all registered
+servers, and a direct server-address lookup that opens from a button. The
+`/chat/servers` page frames the directory in a titled panel; the Add Server
+dialog shows it directly on its work plane. See FDR-042.
 -->
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
-  import { onMount, type Snippet } from 'svelte';
+  import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -59,6 +59,8 @@ its work plane. See FDR-042.
   /** The current profile cannot start a sign-in from this client. */
   class ServerJoinUnavailableError extends Error {}
 
+  /** The user asked for the direct address lookup. */
+  let lookupRequested = $state(false);
   let customInput = $state('');
   let customOrigin = $state('');
   let customProfile = $state<PublicServerInfo | null>(null);
@@ -87,6 +89,8 @@ its work plane. See FDR-042.
   const someSourcesFailed = $derived(
     !!directory && directory.failedSourceCount > 0 && !allSourcesFailed
   );
+  /** The lookup shows at once when the directory has nothing to recommend. */
+  const showLookup = $derived(lookupRequested || (!!directory && entries.length === 0));
 
   onMount(() => {
     void refreshDirectory();
@@ -317,89 +321,79 @@ its work plane. See FDR-042.
   </p>
 {/snippet}
 
-<!-- The page frames each section in a titled Panel. The dialog already owns
-     one work plane, so its sections sit directly on it. -->
-{#snippet directorySection(
-  id: string,
-  title: string,
-  description: string,
-  count: number | undefined,
-  body: Snippet
-)}
-  {#if inDialog}
-    <section class="flex flex-col gap-4" aria-labelledby={id}>
-      <div class="flex flex-col gap-1">
-        <h3 {id} class="text-base font-semibold text-balance text-text-top">
-          {title}
-          {#if count !== undefined}
-            <span class="font-normal text-muted tabular-nums">({count})</span>
-          {/if}
-        </h3>
-        <p class="text-sm text-pretty text-muted">{description}</p>
-      </div>
-      {@render body()}
-    </section>
-  {:else}
-    <Panel {title} subtitle={description} {count}>
-      <div class="flex flex-col gap-4">{@render body()}</div>
-    </Panel>
-  {/if}
+{#snippet lookupButton()}
+  <Button variant="secondary" size="sm" onclick={() => (lookupRequested = true)}>
+    <span class="iconify icon-[uil--globe]" aria-hidden="true"></span>
+    <span>{m('add_server.directory.connect_by_address')}</span>
+  </Button>
 {/snippet}
 
-{#snippet lookupBody()}
-  <Form onsubmit={probeCustomServer} error={customError}>
-    <div class="flex flex-col items-stretch gap-3 sm:flex-row">
-      <div class="min-w-0 flex-1">
-        <TextInput
-          id="add-server-url"
-          label={m('add_server.url_label')}
-          labelHidden
-          bind:value={customInput}
-          placeholder={m('add_server.url_placeholder')}
-          leadingIcon="icon-[uil--globe]"
-          disabled={probing}
-          required
+{#snippet lookupForm()}
+  <section
+    class="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+    aria-label={m('add_server.directory.connect_by_address')}
+    data-testid="server-directory-lookup"
+  >
+    <p class="text-sm text-pretty text-muted">{m('add_server.directory.lookup_description')}</p>
+    <Form onsubmit={probeCustomServer} error={customError}>
+      <div class="flex flex-col items-stretch gap-3 sm:flex-row">
+        <div class="min-w-0 flex-1">
+          <TextInput
+            id="add-server-url"
+            label={m('add_server.url_label')}
+            labelHidden
+            bind:value={customInput}
+            placeholder={m('add_server.url_placeholder')}
+            leadingIcon="icon-[uil--globe]"
+            disabled={probing}
+            autofocus={lookupRequested}
+            required
+          />
+        </div>
+        <Button
+          type="submit"
+          loading={probing}
+          loadingText={m('add_server.connecting')}
+          disabled={!customInput.trim()}
+        >
+          {m('add_server.directory.find')}
+        </Button>
+      </div>
+    </Form>
+
+    {#if customProfile && customOrigin}
+      {@const profile = customProfile}
+      {@const joined = registeredServer(customOrigin)}
+      {@const external = opensInServerClient(customOrigin, profile)}
+      <div class="max-w-md">
+        {#snippet customActions()}
+          {@render entryAction(customOrigin, profile, true)}
+        {/snippet}
+        <ServerProfileCard
+          origin={customOrigin}
+          {profile}
+          badge={joined ? m('add_server.directory.joined') : undefined}
+          iconHref={external ? customOrigin : undefined}
+          iconOpensInNewTab={external}
+          onIconClick={external || (!joined && !canJoin(profile))
+            ? undefined
+            : () => openOrJoin(customOrigin, profile)}
+          iconActionLabel={actionLabel(customOrigin, profile)}
+          iconActionDisabled={pendingOrigin === customOrigin}
+          actions={customActions}
+          testId="server-directory-entry"
+          headingTag={inDialog ? 'h4' : 'h3'}
         />
       </div>
-      <Button
-        type="submit"
-        loading={probing}
-        loadingText={m('add_server.connecting')}
-        disabled={!customInput.trim()}
-      >
-        {m('add_server.directory.find')}
-      </Button>
-    </div>
-  </Form>
-
-  {#if customProfile && customOrigin}
-    {@const profile = customProfile}
-    {@const joined = registeredServer(customOrigin)}
-    {@const external = opensInServerClient(customOrigin, profile)}
-    <div class="max-w-md">
-      {#snippet customActions()}
-        {@render entryAction(customOrigin, profile, true)}
-      {/snippet}
-      <ServerProfileCard
-        origin={customOrigin}
-        {profile}
-        badge={joined ? m('add_server.directory.joined') : undefined}
-        iconHref={external ? customOrigin : undefined}
-        iconOpensInNewTab={external}
-        onIconClick={external || (!joined && !canJoin(profile))
-          ? undefined
-          : () => openOrJoin(customOrigin, profile)}
-        iconActionLabel={actionLabel(customOrigin, profile)}
-        iconActionDisabled={pendingOrigin === customOrigin}
-        actions={customActions}
-        testId="server-directory-entry"
-        headingTag={inDialog ? 'h4' : 'h3'}
-      />
-    </div>
-  {/if}
+    {/if}
+  </section>
 {/snippet}
 
 {#snippet recommendationsBody()}
+  {#if showLookup}
+    {@render lookupForm()}
+  {/if}
+
   {#if someSourcesFailed}
     <Hint tone="warning">{m('add_server.directory.partial')}</Hint>
   {/if}
@@ -455,20 +449,40 @@ its work plane. See FDR-042.
   {/if}
 {/snippet}
 
-<div class={['flex flex-col', inDialog ? 'gap-8' : 'gap-6']}>
-  {@render directorySection(
-    'server-directory-lookup-title',
-    m('add_server.directory.custom_title'),
-    m('add_server.directory.lookup_description'),
-    undefined,
-    lookupBody
-  )}
-
-  {@render directorySection(
-    'server-directory-recommended-title',
-    m('add_server.directory.servers_title'),
-    m('add_server.directory.servers_description'),
-    entries.length || undefined,
-    recommendationsBody
-  )}
-</div>
+<!-- The recommendations lead. The direct address lookup opens from a button,
+     or shows at once when there is nothing to recommend. The page frames the
+     directory in a titled Panel; the dialog already owns one work plane, so
+     the directory sits directly on it. -->
+{#if inDialog}
+  <section class="flex flex-col gap-4" aria-labelledby="server-directory-recommended-title">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div class="flex min-w-0 flex-col gap-1">
+        <h3
+          id="server-directory-recommended-title"
+          class="text-base font-semibold text-balance text-text-top"
+        >
+          {m('add_server.directory.servers_title')}
+          {#if entries.length}
+            <span class="font-normal text-muted tabular-nums">({entries.length})</span>
+          {/if}
+        </h3>
+        <p class="text-sm text-pretty text-muted">
+          {m('add_server.directory.servers_description')}
+        </p>
+      </div>
+      {#if !showLookup}
+        {@render lookupButton()}
+      {/if}
+    </div>
+    {@render recommendationsBody()}
+  </section>
+{:else}
+  <Panel
+    title={m('add_server.directory.servers_title')}
+    subtitle={m('add_server.directory.servers_description')}
+    count={entries.length || undefined}
+    actions={showLookup ? undefined : lookupButton}
+  >
+    <div class="flex flex-col gap-4">{@render recommendationsBody()}</div>
+  </Panel>
+{/if}

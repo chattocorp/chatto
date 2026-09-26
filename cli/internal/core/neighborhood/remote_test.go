@@ -97,9 +97,19 @@ func TestRemoteFetcherFetchImage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, png, data)
 
+	// A relative URL resolves against the advertised origin.
+	data, err = fetcher.FetchImage(context.Background(), origin, "/logo.png")
+	require.NoError(t, err)
+	require.Equal(t, png, data)
+
+	// A server can build image URLs from a canonical URL that differs from
+	// the advertised origin.
+	data, err = fetcher.FetchImage(context.Background(), "https://advertised.example", server.URL+"/logo.png")
+	require.NoError(t, err)
+	require.Equal(t, png, data)
+
 	for name, rawURL := range map[string]string{
-		"other origin":        "https://elsewhere.example/logo.png",
-		"relative URL":        "/logo.png",
+		"unsupported scheme":  "ftp://elsewhere.example/logo.png",
 		"credentials":         strings.Replace(server.URL, "http://", "http://user@", 1) + "/logo.png",
 		"unsupported type":    server.URL + "/image.svg",
 		"redirect":            server.URL + "/redirect.png",

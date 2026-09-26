@@ -141,7 +141,8 @@ writes do not contact the advertised origins.
 `ServerDiscoveryService.ListNeighborhoodServers` returns the cached result of
 background Neighborhood discovery without a session. The call reads
 `neighborhood.directory` from `MEMORY_CACHE` and never contacts another server.
-Its logo and banner URLs use the public `/assets/neighborhood/{sha256}` route.
+Its logo and banner URLs are server-relative `/assets/neighborhood/{sha256}`
+paths.
 See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
 
 Public `User` resources expose `bot: BotInfo` for active bots in ordinary

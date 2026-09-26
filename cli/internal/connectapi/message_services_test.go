@@ -163,22 +163,25 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 }
 
 func TestAbsolutizeAssetURL(t *testing.T) {
-	t.Run("uses configured webserver URL first", func(t *testing.T) {
+	t.Run("uses the request base URL first", func(t *testing.T) {
+		// The HTTP edge sets the base URL to the configured origin that the
+		// client called, such as a hostname alias.
 		api := New(nil, config.ChattoConfig{
 			Webserver: config.WebserverConfig{URL: "https://configured.example.com/chatto"},
 		}, "test")
-		ctx := WithRequestBaseURL(context.Background(), "https://request.example.com")
+		ctx := WithRequestBaseURL(context.Background(), "https://alias.example.com")
 
-		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
+		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://alias.example.com/assets/logo.png"; got != want {
 			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
 		}
 	})
 
-	t.Run("falls back to request base URL", func(t *testing.T) {
-		api := New(nil, config.ChattoConfig{}, "test")
-		ctx := WithRequestBaseURL(context.Background(), "https://remote.example.com")
+	t.Run("falls back to the configured webserver URL", func(t *testing.T) {
+		api := New(nil, config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com/chatto"},
+		}, "test")
 
-		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://remote.example.com/assets/logo.png"; got != want {
+		if got, want := api.absolutizeAssetURL(context.Background(), "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
 			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
 		}
 	})
