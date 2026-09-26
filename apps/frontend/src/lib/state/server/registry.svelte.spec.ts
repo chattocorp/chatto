@@ -278,6 +278,71 @@ describe('ServerRegistry', () => {
     }
   });
 
+  /** Store a session as another tab does before it notifies this tab. */
+  function storeSessionFromOtherTab(serverId: string, token: string | null, userId: string | null) {
+    updatePersistedAuthentication(serverId, { token });
+    const servers = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as RegisteredServer[];
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(
+        servers.map((server) => (server.id === serverId ? { ...server, token, userId } : server))
+      )
+    );
+  }
+
+  function storedToken(serverId: string): unknown {
+    return JSON.parse(localStorage.getItem(authenticationStorageKey(serverId))!).token;
+  }
+
+  it.each([
+    {
+      type: 'clear-server',
+      message: { type: 'clear-server', serverId: 'other-tab', userId: 'U1' }
+    },
+    { type: 'sign-out', message: { type: 'sign-out', serverId: 'other-tab' } }
+  ])(
+    'adopts the session that another tab stored after $type instead of overwriting it',
+    async ({ message }) => {
+      const registry = await createRegistry();
+      registry.removeAll();
+      registry.init();
+      registry.addServer(makeServer({ id: 'other-tab', token: 'old-access', userId: 'U1' }));
+      storeSessionFromOtherTab('other-tab', 'new-access', 'U2');
+      const channel = new BroadcastChannel('chatto-private-cache');
+      try {
+        channel.postMessage(message);
+        await vi.waitFor(() => {
+          expect(registry.getServer('other-tab')?.token).toBe('new-access');
+          expect(registry.getServer('other-tab')?.userId).toBe('U2');
+        });
+        expect(storedToken('other-tab')).toBe('new-access');
+        const servers = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as RegisteredServer[];
+        expect(servers.find((server) => server.id === 'other-tab')?.userId).toBe('U2');
+      } finally {
+        channel.close();
+      }
+    }
+  );
+
+  it('adopts a sign-out that another tab stored', async () => {
+    const registry = await createRegistry();
+    registry.removeAll();
+    registry.init();
+    registry.addServer(makeServer({ id: 'other-tab', token: 'access', userId: 'U1' }));
+    storeSessionFromOtherTab('other-tab', null, null);
+    const channel = new BroadcastChannel('chatto-private-cache');
+    try {
+      channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
+      await vi.waitFor(() => {
+        expect(registry.getServer('other-tab')?.token).toBeNull();
+        expect(registry.getServer('other-tab')?.userId).toBeNull();
+      });
+      expect(storedToken('other-tab')).toBeNull();
+    } finally {
+      channel.close();
+    }
+  });
+
   describe('handleAuthenticationRequired', () => {
     it('marks remote instances as needing reauth without removing them', async () => {
       const registry = await createRegistry();

@@ -287,6 +287,33 @@ function persistAuthentication(serverId: string, authentication: ServerAuthentic
   );
 }
 
+/**
+ * Read the session that browser storage holds for a server: the credentials
+ * from its authentication record and the account summary from the combined
+ * record. Another tab can have written both since this tab loaded them.
+ */
+function readPersistedSession(serverId: string): ServerSession {
+  const stored = serversSlot.get().find((server) => server.id === serverId);
+  const session = stored
+    ? sessionFromServer(normalizeRegisteredServer(stored))
+    : emptyServerSession();
+  const authentication = readPersistedAuthentication(serverId);
+  if (authentication === undefined) return session;
+  return { ...session, ...(authentication ?? emptyServerAuthentication()) };
+}
+
+/** Whether two sessions hold the same credentials and account. */
+function sameStoredSession(a: ServerSession, b: ServerSession): boolean {
+  const first = authenticationFromSession(a);
+  const second = authenticationFromSession(b);
+  return (
+    a.userId === b.userId &&
+    (Object.keys(first) as (keyof ServerAuthentication)[]).every(
+      (key) => first[key] === second[key]
+    )
+  );
+}
+
 const RETIRED_ACCOUNT_DATA_KEYS = [
   'chatto:account-data:authorization',
   'chatto:account-data:device-id',
@@ -344,9 +371,11 @@ class ServerRegistry {
   #renewalPromises = new Map<string, Promise<string | null>>();
   #originProbe: Promise<void> | null = null;
   /**
-   * Tells other tabs to drop a server's in-memory private data after a sign-out,
-   * account change, or server removal. The name predates the removal of saved
-   * chat views; tabs that run older client versions still use it.
+   * Tells other tabs that a sign-out, account change, or server removal changed
+   * a server's authentication. A receiving tab adopts the session that the
+   * sender stored and drops its in-memory private data; see
+   * `#applyCrossTabSignOut`. The name predates the removal of saved chat views;
+   * tabs that run older client versions still use it.
    */
   #cacheChannel: BroadcastChannel | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
@@ -826,7 +855,7 @@ class ServerRegistry {
         const data: unknown = event.data;
         if (!data || typeof data !== 'object' || !('type' in data)) return;
         if (data.type === 'sign-out' && 'serverId' in data && typeof data.serverId === 'string') {
-          this.clearServerAuthentication(data.serverId, false);
+          this.#applyCrossTabSignOut(data.serverId);
         } else if (
           data.type === 'clear-server' &&
           'serverId' in data &&
@@ -835,7 +864,7 @@ class ServerRegistry {
           const oldUserId =
             'userId' in data && typeof data.userId === 'string' ? data.userId : null;
           if (oldUserId && this.getServer(data.serverId)?.userId === oldUserId) {
-            this.clearServerAuthentication(data.serverId, false);
+            this.#applyCrossTabSignOut(data.serverId);
           }
         }
       };
@@ -843,6 +872,24 @@ class ServerRegistry {
     for (const registration of this.registrations) {
       if (!this.#stores.has(registration.id)) this.#createStore(registration.id);
     }
+  }
+
+  /**
+   * Apply another tab's sign-out or account change. BroadcastChannel delivers
+   * the message after the sender stored its new session, so this tab must not
+   * write its own signed-out state over it. It adopts the stored session
+   * instead. Only when storage still holds this tab's session, because the
+   * sender could not write, does this tab sign out and store that.
+   */
+  #applyCrossTabSignOut(id: string): void {
+    const current = this.sessions.get(id);
+    if (!current || !this.catalog.get(id)) return;
+    const stored = readPersistedSession(id);
+    if (sameStoredSession(stored, current)) {
+      this.clearServerAuthentication(id, false);
+      return;
+    }
+    this.#replaceServerAuth(id, stored, { persist: false, notifyTabs: false });
   }
 
   /** Start discovery and remote viewer recovery for a store once. */
@@ -999,12 +1046,23 @@ class ServerRegistry {
       | 'userAvatarUrl'
       | 'reauthRequiredAt'
     >,
-    startNetwork = true
+    {
+      startNetwork = true,
+      persist = true,
+      notifyTabs = true
+    }: {
+      /** Start discovery and viewer checks for the new store. */
+      startNetwork?: boolean;
+      /** Store the new session. False when the session came from storage. */
+      persist?: boolean;
+      /** Tell other tabs when the account changes. */
+      notifyTabs?: boolean;
+    } = {}
   ): boolean {
     if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
     const previousUserId =
       this.sessions.get(id)?.userId ?? this.#stores.get(id)?.currentUser.user?.id;
-    if (previousUserId && previousUserId !== data.userId) {
+    if (notifyTabs && previousUserId && previousUserId !== data.userId) {
       this.#cacheChannel?.postMessage({
         type: 'clear-server',
         serverId: id,
@@ -1019,8 +1077,10 @@ class ServerRegistry {
     serverConnectionManager.destroyClient(id);
 
     this.sessions.replace(id, data);
-    this.#persistAuthentication(id);
-    this.#persist();
+    if (persist) {
+      this.#persistAuthentication(id);
+      this.#persist();
+    }
     this.#createStore(id, startNetwork);
     return true;
   }
@@ -1137,7 +1197,7 @@ class ServerRegistry {
             userDisplayName: user.displayName,
             userAvatarUrl: user.avatarUrl ?? null
           },
-          false
+          { startNetwork: false }
         );
       }
       const store = this.#stores.get(id);
