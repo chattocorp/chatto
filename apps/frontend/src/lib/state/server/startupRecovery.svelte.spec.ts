@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
@@ -218,6 +219,19 @@ describe('origin startup recovery', () => {
     expect(previous.currentUser.user).toBeUndefined();
     expect(current.currentUser.user?.id).toBe('U2');
     expect(current.projection.rooms.has('R1')).toBe(false);
+  });
+
+  it('signs out the origin when the server rejects its unverified viewer', async () => {
+    const store = retainedStore();
+    mocks.viewer.mockRejectedValueOnce(new ConnectError('unauthenticated', Code.Unauthenticated));
+
+    await serverRegistry.recoverServer('origin');
+
+    const current = serverRegistry.getStore('origin');
+    expect(current).not.toBe(store);
+    expect(current.projection.rooms.has('R1')).toBe(false);
+    expect(current.isAuthenticated).toBe(false);
+    expect(serverRegistry.getServer('origin')?.userId).toBeNull();
   });
 
   it('keeps the reauthentication notice while loaded data remains readable', () => {

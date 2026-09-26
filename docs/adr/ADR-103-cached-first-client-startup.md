@@ -16,9 +16,9 @@ server could therefore delay useful content that was already on the device.
 ADR-107 removes the saved chat view. Only the service worker shell decision
 below remains in effect. The rest of this record is historical.
 
-ADR-104 replaces the storage limits and cursor-free format described below with
-versioned resource snapshots and a shared, atomic replay checkpoint. The startup
-ordering, normal-store rendering, and authorization rules here remain in effect.
+Before ADR-107, ADR-104 replaced the storage limits and cursor-free format
+described below with versioned resource snapshots and a shared, atomic replay
+checkpoint.
 
 On an initial chat route with a saved view for the registered server and user,
 the client creates its stores without network work and restores that view into

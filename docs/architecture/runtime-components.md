@@ -37,8 +37,10 @@ one server. Browser visibility, network return, and Capacitor resume events
 trigger recovery. Hidden, paused, or offline clients do not start attempts.
 The registry fences viewer-summary writes against server removal and credential
 changes. Realtime connection ownership remains with the existing event buses.
-Registry start creates a store for each registered server and begins its
-discovery and viewer checks. Route loads wait for those checks. The
+Registry start creates a store for each registered server. It starts
+discovery for each server and the viewer check for each remote server. The
+root route load waits for origin discovery and the origin viewer. A remote
+server route load waits for that server's viewer check. The
 coordinator starts realtime only after the server confirms the viewer. The
 client keeps no chat data on the device, so each page load starts without a
 resume cursor and receives a fresh snapshot. See

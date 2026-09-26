@@ -1196,6 +1196,64 @@ describe('ServerStateStore unified realtime resources', () => {
     }
   );
 
+  it('keeps retained rows through a failed warm snapshot read and replaces them on retry', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = new RoomWithViewerState({
+      room: { id: 'R1', name: 'Live room' },
+      viewerState: {
+        isMember: true,
+        permissions: [
+          { permission: 'message.read', granted: true },
+          { permission: 'message.read-interactions', granted: true },
+          { permission: 'message.post', granted: true }
+        ]
+      }
+    });
+    store.projection.rooms.set('R1', room);
+    const messages = store.messagesForRoom('R1');
+    await flushPromises();
+    messages.ingestEvent({
+      id: 'retained',
+      createdAt: '2026-09-23T00:00:00Z',
+      actorId: 'U2',
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: 'R1',
+        body: 'Retained text',
+        attachments: [],
+        replyCount: 0,
+        threadParticipants: [],
+        reactions: []
+      }
+    });
+    store.realtimeSync.markCaughtUp('live');
+    const api = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)!.value;
+    const read = vi.mocked(api.getRoomEvents);
+    const freshPage = await api.getRoomEvents('R1');
+    read.mockClear();
+    read.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(freshPage);
+
+    store.realtimeSync.acceptProjectionEvent(undefined, true);
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, retainView: true })
+    );
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ resource: roomResource([room]) })
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(store.completeRealtimeCatchUp('first')).rejects.toThrow('offline');
+      expect(messages.rootEvents[0]?.event).toMatchObject({ body: 'Retained text' });
+      await store.completeRealtimeCatchUp('retry');
+      expect(store.messagesForRoom('R1')).toBe(messages);
+      // An authoritative empty page must replace the retained rows too.
+      expect(messages.rootEvents).toEqual([]);
+      expect(read).toHaveBeenCalledTimes(2);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('keeps the normal room projection and timeline during a warm snapshot', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);

@@ -39,9 +39,11 @@ Device storage keeps the server catalogue, authentication records, and UI
 preferences such as the last room and pane widths. It keeps no messages,
 member lists, profiles, or notification content.
 
-Route loads wait for discovery and viewer checks. Registry start begins
-discovery and viewer checks for each registered server. The client does not
-keep remote servers dormant until the user opens them.
+Registry start begins discovery for each registered server and the viewer
+check for each remote server. The root route load waits for origin discovery
+and the origin viewer. A remote server route load waits for that server's
+viewer check. The client does not keep remote servers dormant until the user
+opens them.
 
 A reconnect without a page load resumes from the in-memory cursor and keeps
 the mounted view. [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md)
@@ -51,7 +53,8 @@ The service worker keeps its complete, versioned application shell. ADR-103
 defines that shell. The shell contains no private data.
 
 Cross-tab messages for sign-out, account changes, and server removal remain.
-They clear in-memory private data in other tabs.
+They sign the affected server out in other tabs, which also clears its
+in-memory private data there.
 
 On each page load, the client deletes the `chatto-saved-views` IndexedDB
 database that 0.5 beta clients created. A tab that runs an older client can
