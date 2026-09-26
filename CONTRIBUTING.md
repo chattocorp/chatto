@@ -49,18 +49,18 @@ for the task and cache boundaries.
 Run Chatto, Authling, Mailpit, LiveKit, and the Runling bot:
 
 ```sh
-mise trust
-mise install
-mise setup
 mise dev
 ```
 
-`mise dev` builds the frontend and a Chatto binary that includes it. Then it
-runs the services in one supervised process group. Turbo restores unchanged
+`mise dev` first runs `mise setup`, which installs missing tools and
+dependencies. Then it builds the frontend and a Chatto binary that includes it,
+and runs the services in one supervised process group. Turbo restores unchanged
 frontend builds from a cache that all worktrees share. Restart `mise dev` to
 see a change in Chatto, its frontend, or Authling. `mise setup` installs
-the Chatto and Authling dependencies and the LiveKit server. It does not build
-anything.
+the tools, the Chatto and Authling dependencies, and the LiveKit server. It
+does not build anything. Run it alone to prepare a checkout without starting
+the stack. Both tasks trust the repository's `mise.toml` files automatically.
+They need mise 2026.8.9 or later.
 
 All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
 and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is
@@ -178,15 +178,9 @@ settings, and PR prompt are not part of the Codex environment configuration.
 
 ## Developing Outside of Conductor
 
-Use `mise` for local tool versions and tasks:
-
-```sh
-mise trust
-mise run setup
-```
-
-To run the regular development stack outside Conductor after the setup
-described in [Local Development Stack](#local-development-stack):
+Use `mise` for local tool versions and tasks. To run the regular development
+stack outside Conductor, as described in
+[Local Development Stack](#local-development-stack):
 
 ```sh
 mise dev
