@@ -47,7 +47,6 @@
   });
   let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
 
-
   function posterTrack(svg: string): Track {
     const poster = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     return {

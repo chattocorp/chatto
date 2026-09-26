@@ -888,7 +888,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
+        serverId: 'remote'
       }
     });
 
@@ -983,7 +983,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
+        serverId: 'remote'
       }
     });
 
@@ -1004,7 +1004,7 @@ describe('ServerSidebarEntry', () => {
   it('uses an already-hydrated projection without a loading state', async () => {
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
+        serverId: 'remote'
       }
     });
 
@@ -1035,7 +1035,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
+        serverId: 'remote'
       }
     });
 
@@ -1074,7 +1074,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
+        serverId: 'remote'
       }
     });
 
@@ -1094,7 +1094,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
+        serverId: 'remote'
       }
     });
 
