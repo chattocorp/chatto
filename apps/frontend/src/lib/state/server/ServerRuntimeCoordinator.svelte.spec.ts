@@ -1,7 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { CurrentUser } from '$lib/api-client/viewer';
 
 type StoreMock = {
@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   activeServerId: '' as string,
   servers: [{ id: 'origin' }, { id: 'remote' }],
   stores: null as unknown as SvelteMap<string, StoreMock>,
+  startedBuses: null as unknown as SvelteSet<string>,
   synchronizeAuthenticatedServers: vi.fn(),
   needsRecovery: vi.fn(() => false),
   onSessionTerminated: vi.fn<(id: string, handler: (reason: string) => void) => () => void>(() =>
@@ -57,12 +58,15 @@ vi.mock('./serverConnection.svelte', () => ({
 
 vi.mock('./eventBus.svelte', () => ({
   eventBusManager: {
-    synchronizeAuthenticatedServers: mocks.synchronizeAuthenticatedServers
+    synchronizeAuthenticatedServers: mocks.synchronizeAuthenticatedServers,
+    getBus: (serverId: string) =>
+      mocks.startedBuses.has(serverId)
+        ? {
+            onSessionTerminated: (handler: (reason: string) => void) =>
+              mocks.onSessionTerminated(serverId, handler)
+          }
+        : undefined
   }
-}));
-
-vi.mock('$lib/eventBus.svelte', () => ({
-  onSessionTerminated: mocks.onSessionTerminated
 }));
 
 import ServerRuntimeCoordinator from './ServerRuntimeCoordinator.svelte';
@@ -95,6 +99,7 @@ function store(serverId: string, overrides: Partial<StoreMock> = {}): StoreMock 
 describe('ServerRuntimeCoordinator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.startedBuses = new SvelteSet(['origin', 'remote']);
     mocks.originServerId = 'origin';
     mocks.activeServerId = '';
     mocks.servers = [{ id: 'origin' }, { id: 'remote' }];
@@ -162,6 +167,19 @@ describe('ServerRuntimeCoordinator', () => {
     const handler = mocks.onSessionTerminated.mock.calls.find(([id]) => id === 'remote')?.[1];
     handler?.('revoked');
     await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote'));
+  });
+
+  it('listens for remote session termination when the bus starts later', async () => {
+    mocks.startedBuses.delete('remote');
+    render(ServerRuntimeCoordinator);
+    await Promise.resolve();
+    expect(mocks.onSessionTerminated).not.toHaveBeenCalledWith('remote', expect.any(Function));
+
+    mocks.startedBuses.add('remote');
+
+    await vi.waitFor(() =>
+      expect(mocks.onSessionTerminated).toHaveBeenCalledWith('remote', expect.any(Function))
+    );
   });
 
   it('reconciles late session restoration and compatibility discovery', async () => {

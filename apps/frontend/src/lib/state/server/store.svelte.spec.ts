@@ -1020,10 +1020,12 @@ describe('ServerStateStore room search state', () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');
     store.membersForRoom('b');
-    store.realtimePresenceHandler(
-      new RealtimeEvent({
-        actorId: 'U2',
-        event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          actorId: 'U2',
+          event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
+        })
       })
     );
     expect(a.livePresence.get('U2')).toBe(2);
@@ -2139,7 +2141,7 @@ describe('ServerStateStore unified realtime resources', () => {
         store.realtimeProjectionHandler
       );
       const observer = vi.fn<(update: RealtimeProjectionUpdate) => void>();
-      eventBusManager.getBus(store.serverId)!.projectionHandlers.add(observer);
+      eventBusManager.getBus(store.serverId)!.subscribe(observer);
       const deleted = new DirectoryMember({
         user: new User({ id: 'U2', displayName: 'Old profile' })
       });
@@ -2654,7 +2656,7 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler
     );
     const observer = vi.fn();
-    eventBusManager.getBus(store.serverId)?.projectionHandlers.add(observer);
+    eventBusManager.getBus(store.serverId)!.subscribe(observer);
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
@@ -2672,6 +2674,91 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(observer).toHaveBeenCalledWith(
       expect.objectContaining({ resource: users.resource, replaceResource: true })
     );
+  });
+
+  it('applies a local message deletion to every loaded timeline of that room only', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    const thread = store.messagesForThread('R1', 'ROOT');
+    const otherRoom = store.messagesForRoom('R2');
+    await flushPromises(20);
+    const deleteInRoom = vi.spyOn(room, 'applyLocalMessageDeletion');
+    const deleteInThread = vi.spyOn(thread, 'applyLocalMessageDeletion');
+    const deleteInOtherRoom = vi.spyOn(otherRoom, 'applyLocalMessageDeletion');
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow');
+
+    store.applyLocalMessageMutation('R1', 'M1', 'message-deleted');
+
+    expect(deleteInRoom).toHaveBeenCalledExactlyOnceWith('M1');
+    expect(deleteInThread).toHaveBeenCalledExactlyOnceWith('M1');
+    expect(deleteInOtherRoom).not.toHaveBeenCalled();
+    expect(refreshRoom).not.toHaveBeenCalled();
+  });
+
+  function postedRow(id: string, echoOfEventId: string | null = null): TimelineEventView {
+    return {
+      id,
+      createdAt: new Date(Date.UTC(2026, 0, 1)).toISOString(),
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: 'R1',
+        threadRootEventId: null,
+        echoOfEventId,
+        body: id,
+        attachments: [],
+        replyCount: 0,
+        threadParticipants: [],
+        reactions: []
+      }
+    };
+  }
+
+  it('refreshes the window around a loaded message after another local message change', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    const thread = store.messagesForThread('R1', 'ROOT');
+    await flushPromises(20);
+    room.ingestEvent(postedRow('M1'));
+    room.ingestEvent(postedRow('ECHO', 'ORIGINAL'));
+    const settled = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow').mockResolvedValue(settled);
+    const refreshThread = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue(settled);
+    const deleteInRoom = vi.spyOn(room, 'applyLocalMessageDeletion');
+
+    for (const kind of [
+      'attachment-deleted',
+      'attachment-description-updated',
+      'link-preview-deleted'
+    ] as const) {
+      refreshRoom.mockClear();
+      store.applyLocalMessageMutation('R1', 'M1', kind);
+      expect(refreshRoom).toHaveBeenCalledExactlyOnceWith('M1');
+    }
+
+    // A channel echo refers to its original message; refresh around the loaded echo row.
+    refreshRoom.mockClear();
+    store.applyLocalMessageMutation('R1', 'ORIGINAL', 'attachment-deleted');
+    expect(refreshRoom).toHaveBeenCalledExactlyOnceWith('ECHO');
+
+    refreshRoom.mockClear();
+    store.applyLocalMessageMutation('R1', 'NOT-LOADED', 'attachment-deleted');
+    expect(refreshRoom).not.toHaveBeenCalled();
+    expect(refreshThread).not.toHaveBeenCalled();
+    expect(deleteInRoom).not.toHaveBeenCalled();
+  });
+
+  it('removes a locally deleted channel echo without refreshing around it', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    await flushPromises(20);
+    room.ingestEvent(postedRow('ECHO', 'ORIGINAL'));
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow');
+    expect(room.rootEvents.map((event) => event.id)).toEqual(['ECHO']);
+
+    store.applyLocalMessageMutation('R1', 'ECHO', 'message-deleted');
+
+    expect(room.rootEvents).toEqual([]);
+    expect(refreshRoom).not.toHaveBeenCalled();
   });
 
   it('does not revoke viewer room access when another user leaves', async () => {

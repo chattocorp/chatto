@@ -139,6 +139,13 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canManageInvites: false
 };
 
+/** A message change that this client made, from {@link ServerStateStore.applyLocalMessageMutation}. */
+export type LocalMessageMutation =
+  | 'message-deleted'
+  | 'attachment-deleted'
+  | 'attachment-description-updated'
+  | 'link-preview-deleted';
+
 export class ServerStateStore {
   readonly serverId: string;
   readonly currentUser: CurrentUserState;
@@ -170,8 +177,14 @@ export class ServerStateStore {
   }
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
-  readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
-    this.ingestProjectionEvent(event);
+  readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
+    this.ingestProjectionEvent(update);
+    // Keep presence current for retained rooms and rooms first opened later.
+    const event = update.event;
+    if (event?.event.case === 'presenceChanged' && event.actorId) {
+      this.updateMemberPresence(event.actorId, event.event.value.status);
+    }
+  };
 
   /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
   permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
@@ -191,12 +204,6 @@ export class ServerStateStore {
   #roomMemberRoots: Record<string, () => void> = Object.create(null);
   #memberPresence = new SvelteMap<string, PresenceStatus>();
 
-  /** Keep presence current for retained rooms and rooms first opened later. */
-  readonly realtimePresenceHandler = (event: RealtimeEvent): void => {
-    if (event.event.case !== 'presenceChanged' || !event.actorId) return;
-    this.updateMemberPresence(event.actorId, event.event.value.status);
-  };
-
   private updateMemberPresence(userId: string, status: PresenceStatus): void {
     this.#memberPresence.set(userId, status);
     for (const store of Object.values(this.#roomMembers)) store.setPresence(userId, status);
@@ -210,7 +217,6 @@ export class ServerStateStore {
   #adminRoomLayoutSubscriptions = 0;
 
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
-  readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
   readonly #privilegedModeAPI: PrivilegedModeAPI;
@@ -332,21 +338,6 @@ export class ServerStateStore {
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated);
     this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
-
-    // Apply the canonical projection delivered by this server's bus. Transient
-    // envelopes are consumed only by components that need one-shot signals.
-    this.#disposeEffects = $effect.root(() => {
-      $effect(() => {
-        const bus = eventBusManager.getBus(this.serverId);
-        if (!bus) return;
-        bus.projectionHandlers.add(this.realtimeProjectionHandler);
-        bus.handlers.add(this.realtimePresenceHandler);
-        return () => {
-          bus.projectionHandlers.delete(this.realtimeProjectionHandler);
-          bus.handlers.delete(this.realtimePresenceHandler);
-        };
-      });
-    });
   }
 
   /** Change privilege activation and reconcile effective viewer permissions in place. */
@@ -1279,11 +1270,7 @@ export class ServerStateStore {
       });
     }
     this.ingestProjectionEvent(update);
-    const bus = eventBusManager.getBus(this.serverId);
-    if (!bus) return;
-    for (const handler of bus.projectionHandlers) {
-      if (handler !== this.realtimeProjectionHandler) handler(update);
-    }
+    eventBusManager.getBus(this.serverId)?.notify(update);
   }
 
   private invalidateRealtimeEvent(event: RealtimeEvent, refreshQueries = true): void {
@@ -1606,6 +1593,23 @@ export class ServerStateStore {
         ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
         : null;
       this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward, minimumCursor);
+    }
+  }
+
+  /**
+   * Show a message change that this client made before its realtime event
+   * arrives. Every loaded timeline of the room gets it, including closed
+   * threads. A deletion applies at once; another change reloads the window
+   * around the message when a timeline contains it.
+   */
+  applyLocalMessageMutation(roomId: string, eventId: string, kind: LocalMessageMutation): void {
+    for (const store of this.loadedMessageStores(roomId)) {
+      if (kind === 'message-deleted') {
+        store.applyLocalMessageDeletion(eventId);
+        continue;
+      }
+      const anchorEventId = store.refreshAnchorForMessageMutation(eventId);
+      if (anchorEventId) void store.refreshCurrentWindow(anchorEventId);
     }
   }
 
@@ -1944,6 +1948,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    eventBusManager.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#messageReconciler.reset();
     this.projection.users.clear();
@@ -1959,7 +1964,6 @@ export class ServerStateStore {
     for (const dispose of Object.values(this.#roomMemberRoots)) dispose();
     this.#roomMemberRoots = Object.create(null);
     this.#memberPresence.clear();
-    this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;
     this.realtimeSync.reset();

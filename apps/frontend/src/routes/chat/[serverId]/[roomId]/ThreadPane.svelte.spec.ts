@@ -29,8 +29,6 @@ const { mocks } = vi.hoisted(() => {
       restoreLatestWindow: vi.fn(),
       setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
-      applyLocalMessageDeletion: vi.fn(),
-      refreshAnchorForMessageMutation: vi.fn(),
       removeTypingUser: vi.fn(),
       sendTypingIndicator: vi.fn(),
       resetTypingDebounce: vi.fn(),
@@ -158,9 +156,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
           jumpToMessage: mocks.storeJumpToMessage,
           restoreLatestWindow: mocks.restoreLatestWindow,
           setThreadRootFollowState: mocks.setThreadRootFollowState,
-          loadMore: mocks.loadMore,
-          applyLocalMessageDeletion: mocks.applyLocalMessageDeletion,
-          refreshAnchorForMessageMutation: mocks.refreshAnchorForMessageMutation
+          loadMore: mocks.loadMore
         })
     })
   }
@@ -222,13 +218,7 @@ vi.mock('$lib/state/room', () => ({
     refreshCurrentWindow = mocks.refreshCurrentWindow;
     setThreadRootFollowState = mocks.setThreadRootFollowState;
     loadMore = mocks.loadMore;
-    applyLocalMessageDeletion = mocks.applyLocalMessageDeletion;
-    refreshAnchorForMessageMutation = mocks.refreshAnchorForMessageMutation;
   }
-}));
-
-vi.mock('$lib/state/room/messageMutationEvents', () => ({
-  onRoomMessageMutated: vi.fn(() => vi.fn())
 }));
 
 vi.mock('./EventList.svelte', async () => {

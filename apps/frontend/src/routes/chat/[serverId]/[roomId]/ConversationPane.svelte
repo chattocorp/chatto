@@ -38,7 +38,6 @@ thread IDs can change while the pane stays mounted.
     useRoomUnread,
     useUnreadMarker
   } from '$lib/hooks';
-  import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import { m } from '$lib/i18n/messages';
   import { RoomThreadingMode } from '$lib/roomThreading';
   import { appState } from '$lib/state/globals.svelte';
@@ -110,12 +109,6 @@ thread IDs can change while the pane stays mounted.
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
   const targetKey = $derived(threadRootEventId ? `${roomId}:${threadRootEventId}` : roomId);
-
-  useTimelineMutations(() => ({
-    serverId: serverScope.serverId,
-    roomId,
-    timeline: messageStore
-  }));
 
   const typingIndicator = createTypingIndicator(() => ({
     roomId,

@@ -5,13 +5,8 @@
  * up through serialized, short-lived connections to the same event stream.
  */
 
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import {
-  RealtimeProjectionUpdate,
-  type EventHandler,
-  type ProjectionHandler,
-  type EventBus
-} from '$lib/eventBus.svelte';
+import { SvelteMap } from 'svelte/reactivity';
+import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 import {
   RealtimeInitialState,
   RealtimeCloseCode,
@@ -114,31 +109,6 @@ class EventBusManager {
   #pollCycleRunning = false;
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /**
-   * Compatibility entry point for direct consumers and focused tests. New app
-   * ownership should use synchronizeAuthenticatedServers().
-   */
-  startBus(
-    serverId: string,
-    serverConnection: ServerConnection,
-    realtimeProjectionSupported = true,
-    sync = new RealtimeProjectionSyncState(),
-    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
-    waitForProjectionReconciliation?: () => Promise<void>
-  ): () => void {
-    const controller = this.ensureBus(
-      serverId,
-      serverConnection,
-      realtimeProjectionSupported,
-      sync,
-      undefined,
-      completeProjectionCatchUp,
-      waitForProjectionReconciliation
-    );
-    if (realtimeProjectionSupported) controller.setMode('live');
-    return () => this.stopBus(serverId);
-  }
-
   /** Register the stable bus/reducer surface without necessarily opening a socket. */
   ensureBus(
     serverId: string,
@@ -151,16 +121,13 @@ class EventBusManager {
   ): TransportController {
     const existing = this.#controllers.get(serverId);
     if (existing) {
-      if (projectionHandler) this.#buses.get(serverId)?.projectionHandlers.add(projectionHandler);
+      if (projectionHandler) this.#buses.get(serverId)?.setReducer(projectionHandler);
       existing.update(realtimeProjectionSupported);
       return existing;
     }
 
-    const handlers = new SvelteSet<EventHandler>();
-    const projectionHandlers = new SvelteSet<ProjectionHandler>();
-    const sessionTerminatedHandlers = new SvelteSet<(reason: string) => void>();
-    if (projectionHandler) projectionHandlers.add(projectionHandler);
-    const bus: EventBus = { handlers, projectionHandlers, sessionTerminatedHandlers };
+    const bus = new EventBus(serverId);
+    if (projectionHandler) bus.setReducer(projectionHandler);
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
@@ -180,7 +147,7 @@ class EventBusManager {
     const debugState = () => ({
       mode,
       generation,
-      handlers: handlers.size,
+      handlers: bus.listenerCount,
       events: dispatchedEventCount,
       heartbeats: heartbeatCount,
       reconnects: reconnectCount,
@@ -298,45 +265,14 @@ class EventBusManager {
       resolvePoll(false);
     };
 
-    const dispatchEvent = (event: RealtimeEvent) => {
+    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
       dispatchedEventCount++;
       console.debug(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
         eventId: event.id,
         total: dispatchedEventCount,
         ...debugState()
       });
-      for (const handler of handlers) {
-        try {
-          handler(event);
-        } catch (error) {
-          console.error(`[eventBus:${serverId}] handler threw`, error);
-        }
-      }
-    };
-
-    const dispatchProjectionUpdate = (update: RealtimeProjectionUpdate) => {
-      if (projectionHandlers.size === 0) {
-        throw new Error('projection update received before reducer registration');
-      }
-      let canonicalFailure: unknown;
-      for (const handler of projectionHandlers) {
-        if (!update.reset) {
-          handler(update);
-          continue;
-        }
-        try {
-          handler(update);
-        } catch (error) {
-          if (handler === projectionHandler) canonicalFailure = error;
-          console.error(`[eventBus:${serverId}] reset handler failed`);
-        }
-      }
-      if (canonicalFailure) throw canonicalFailure;
-    };
-
-    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
-      dispatchEvent(event);
-      dispatchProjectionUpdate(
+      bus.publish(
         new RealtimeProjectionUpdate({
           event,
           cursor: event.cursor ?? null
@@ -441,7 +377,7 @@ class EventBusManager {
                 try {
                   const retainView = sync.hasDisplayableView;
                   sync.acceptProjectionEvent(undefined, true);
-                  dispatchProjectionUpdate(
+                  bus.publish(
                     new RealtimeProjectionUpdate({
                       reset: true,
                       privacyReset: !retainView,
@@ -465,7 +401,7 @@ class EventBusManager {
                     }
                   ];
                   for (const resource of resources) {
-                    dispatchProjectionUpdate(
+                    bus.publish(
                       new RealtimeProjectionUpdate({
                         resource: new RealtimeResourceUpdate({ resource, replace: true })
                       })
@@ -527,24 +463,13 @@ class EventBusManager {
               case 'close':
                 if (frame.frame.value.code === RealtimeCloseCode.RESYNC_REQUIRED) {
                   sync.reset();
-                  dispatchProjectionUpdate(
-                    new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
-                  );
+                  bus.publish(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
                 }
                 if (frame.frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED) {
                   sync.invalidateAuthorization();
                 }
                 if (frame.frame.value.code === RealtimeCloseCode.SESSION_TERMINATED) {
-                  for (const handler of sessionTerminatedHandlers) {
-                    try {
-                      handler(frame.frame.value.message);
-                    } catch (error) {
-                      console.error(
-                        `[eventBus:${serverId}] session termination handler threw`,
-                        error
-                      );
-                    }
-                  }
+                  bus.terminateSession(frame.frame.value.message);
                   becomeDormant(true, 'disconnected');
                   resolvePoll(false);
                   return;

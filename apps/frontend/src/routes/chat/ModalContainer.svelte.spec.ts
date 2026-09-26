@@ -16,6 +16,8 @@ const { mocks } = vi.hoisted(() => ({
     deleteMessage: vi.fn(),
     deleteAttachment: vi.fn(),
     deleteLinkPreview: vi.fn(),
+    applyLocalMessageMutation: vi.fn(),
+    tryGetStore: vi.fn(),
     mutation: vi.fn(() => ({
       toPromise: () => Promise.resolve({ data: {}, error: null })
     })),
@@ -103,6 +105,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       )?.id;
     }),
     clearServerAuthentication: mocks.clearServerAuthentication,
+    tryGetStore: mocks.tryGetStore,
     removeServer: mocks.removeServer,
     removeAll: mocks.removeAll,
     resetToOrigin: mocks.resetToOrigin,
@@ -250,6 +253,9 @@ beforeEach(() => {
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
+  mocks.tryGetStore.mockReturnValue({
+    applyLocalMessageMutation: mocks.applyLocalMessageMutation
+  });
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
@@ -681,38 +687,32 @@ describe('ModalContainer message mutation modals', () => {
     expect(mocks.modal).toBe(replacementModal);
   });
 
-  it('notifies the visible room after message deletion succeeds', async () => {
+  it('applies a message deletion to the server store after it succeeds', async () => {
     mocks.modal = {
       type: 'deleteMessage',
       serverId: 'remote',
       roomId: 'room-1',
       eventId: 'event-1'
     };
-    const listener = vi.fn();
-    window.addEventListener('chatto:room-message-mutated', listener);
 
-    try {
-      const { container } = render(ModalContainer);
-      clickButton(container, 'Delete');
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Delete');
 
-      await vi.waitFor(() => {
-        expect(mocks.deleteMessage).toHaveBeenCalledWith('room-1', 'event-1');
-        expect(mocks.getClient).toHaveBeenCalledWith('remote');
-        expect(listener).toHaveBeenCalledOnce();
-      });
-      expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({
-        serverId: 'remote',
-        roomId: 'room-1',
-        eventId: 'event-1',
-        reason: 'message-deleted'
-      });
-      expect(mocks.toastSuccess).toHaveBeenCalledOnce();
-    } finally {
-      window.removeEventListener('chatto:room-message-mutated', listener);
-    }
+    await vi.waitFor(() => {
+      expect(mocks.deleteMessage).toHaveBeenCalledWith('room-1', 'event-1');
+      expect(mocks.getClient).toHaveBeenCalledWith('remote');
+      expect(mocks.applyLocalMessageMutation).toHaveBeenCalledOnce();
+    });
+    expect(mocks.tryGetStore).toHaveBeenCalledWith('remote');
+    expect(mocks.applyLocalMessageMutation).toHaveBeenCalledWith(
+      'room-1',
+      'event-1',
+      'message-deleted'
+    );
+    expect(mocks.toastSuccess).toHaveBeenCalledOnce();
   });
 
-  it('notifies the visible room after attachment deletion succeeds', async () => {
+  it('applies an attachment deletion to the server store after it succeeds', async () => {
     mocks.modal = {
       type: 'deleteAttachment',
       serverId: 'remote',
@@ -720,30 +720,24 @@ describe('ModalContainer message mutation modals', () => {
       eventId: 'event-1',
       attachmentId: 'attachment-1'
     };
-    const listener = vi.fn();
-    window.addEventListener('chatto:room-message-mutated', listener);
 
-    try {
-      const { container } = render(ModalContainer);
-      clickButton(container, 'Delete');
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Delete');
 
-      await vi.waitFor(() => {
-        expect(mocks.deleteAttachment).toHaveBeenCalledWith('room-1', 'event-1', 'attachment-1');
-        expect(mocks.getClient).toHaveBeenCalledWith('remote');
-        expect(listener).toHaveBeenCalledOnce();
-      });
-      expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({
-        serverId: 'remote',
-        roomId: 'room-1',
-        eventId: 'event-1',
-        reason: 'attachment-deleted'
-      });
-    } finally {
-      window.removeEventListener('chatto:room-message-mutated', listener);
-    }
+    await vi.waitFor(() => {
+      expect(mocks.deleteAttachment).toHaveBeenCalledWith('room-1', 'event-1', 'attachment-1');
+      expect(mocks.getClient).toHaveBeenCalledWith('remote');
+      expect(mocks.applyLocalMessageMutation).toHaveBeenCalledOnce();
+    });
+    expect(mocks.tryGetStore).toHaveBeenCalledWith('remote');
+    expect(mocks.applyLocalMessageMutation).toHaveBeenCalledWith(
+      'room-1',
+      'event-1',
+      'attachment-deleted'
+    );
   });
 
-  it('notifies the visible room after link preview deletion succeeds', async () => {
+  it('applies a link preview deletion to the server store after it succeeds', async () => {
     mocks.modal = {
       type: 'deleteLinkPreview',
       serverId: 'remote',
@@ -751,30 +745,45 @@ describe('ModalContainer message mutation modals', () => {
       eventId: 'event-1',
       previewUrl: 'https://example.test/article'
     };
-    const listener = vi.fn();
-    window.addEventListener('chatto:room-message-mutated', listener);
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Delete');
+
+    await vi.waitFor(() => {
+      expect(mocks.deleteLinkPreview).toHaveBeenCalledWith(
+        'room-1',
+        'event-1',
+        'https://example.test/article'
+      );
+      expect(mocks.getClient).toHaveBeenCalledWith('remote');
+      expect(mocks.applyLocalMessageMutation).toHaveBeenCalledOnce();
+    });
+    expect(mocks.tryGetStore).toHaveBeenCalledWith('remote');
+    expect(mocks.applyLocalMessageMutation).toHaveBeenCalledWith(
+      'room-1',
+      'event-1',
+      'link-preview-deleted'
+    );
+  });
+
+  it('does not apply a local mutation when the deletion fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.deleteMessage.mockRejectedValue(new Error('delete failed'));
+    mocks.modal = {
+      type: 'deleteMessage',
+      serverId: 'remote',
+      roomId: 'room-1',
+      eventId: 'event-1'
+    };
 
     try {
       const { container } = render(ModalContainer);
       clickButton(container, 'Delete');
 
-      await vi.waitFor(() => {
-        expect(mocks.deleteLinkPreview).toHaveBeenCalledWith(
-          'room-1',
-          'event-1',
-          'https://example.test/article'
-        );
-        expect(mocks.getClient).toHaveBeenCalledWith('remote');
-        expect(listener).toHaveBeenCalledOnce();
-      });
-      expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({
-        serverId: 'remote',
-        roomId: 'room-1',
-        eventId: 'event-1',
-        reason: 'link-preview-deleted'
-      });
+      await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+      expect(mocks.applyLocalMessageMutation).not.toHaveBeenCalled();
     } finally {
-      window.removeEventListener('chatto:room-message-mutated', listener);
+      consoleError.mockRestore();
     }
   });
 });

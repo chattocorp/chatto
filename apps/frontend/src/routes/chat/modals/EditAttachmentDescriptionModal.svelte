@@ -8,7 +8,7 @@ Edits the description of one message attachment.
   import type { EditAttachmentDescriptionModalState } from '$lib/modal';
   import { createMessageAPI } from '$lib/api-client/messages';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { m } from '$lib/i18n/messages';
   import { FormDialog } from '$lib/ui';
   import { TextArea } from '$lib/ui/form';
@@ -39,12 +39,9 @@ Edits the description of one message attachment.
         modal.attachmentId,
         description
       );
-      notifyRoomMessageMutated({
-        serverId: modal.serverId,
-        roomId: modal.roomId,
-        eventId: modal.eventId,
-        reason: 'attachment-description-updated'
-      });
+      serverRegistry
+        .tryGetStore(modal.serverId)
+        ?.applyLocalMessageMutation(modal.roomId, modal.eventId, 'attachment-description-updated');
       onclose();
     } catch (cause) {
       error =

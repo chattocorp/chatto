@@ -9,9 +9,16 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationAttentionLevel } from '$lib/api-client/notifications';
 
 const { mocks } = vi.hoisted(() => {
-  const createBus = () => ({
-    projectionHandlers: new Set<ProjectionHandler>()
-  });
+  const createBus = () => {
+    const listeners = new Set<ProjectionHandler>();
+    return {
+      listeners,
+      subscribe: (listener: ProjectionHandler) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      }
+    };
+  };
   const buses = {
     origin: createBus(),
     remote: createBus()
@@ -145,7 +152,7 @@ function dispatch(
     })
   });
 
-  for (const handler of mocks.buses[serverId].projectionHandlers) {
+  for (const handler of mocks.buses[serverId].listeners) {
     handler(event);
   }
 }
@@ -156,9 +163,9 @@ async function renderAndWaitForSubscription() {
     ({ id }) => mocks.stores[id as keyof typeof mocks.stores].isAuthenticated
   ).length;
   await vi.waitFor(() =>
-    expect(
-      Object.values(mocks.buses).reduce((count, bus) => count + bus.projectionHandlers.size, 0)
-    ).toBe(authenticatedServerCount)
+    expect(Object.values(mocks.buses).reduce((count, bus) => count + bus.listeners.size, 0)).toBe(
+      authenticatedServerCount
+    )
   );
   await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
   return result;
@@ -166,7 +173,7 @@ async function renderAndWaitForSubscription() {
 
 describe('NotificationSync', () => {
   beforeEach(() => {
-    for (const bus of Object.values(mocks.buses)) bus.projectionHandlers.clear();
+    for (const bus of Object.values(mocks.buses)) bus.listeners.clear();
     mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
     mocks.presencePreference.status = PresenceStatus.ONLINE;

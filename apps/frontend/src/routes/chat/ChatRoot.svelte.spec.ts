@@ -107,15 +107,14 @@ vi.mock('$lib/state/server/eventBus.svelte', () => ({
     synchronizeAuthenticatedServers: (registrations: unknown[], activeServerId: string | null) => {
       mocks.lifecycle.push('synchronize');
       mocks.synchronizeAuthenticatedServers(registrations, activeServerId);
-    }
-  }
-}));
-
-vi.mock('$lib/eventBus.svelte', () => ({
-  onSessionTerminated: (...args: unknown[]) => {
-    mocks.lifecycle.push('session');
-    mocks.onSessionTerminated(...args);
-    return mocks.stopSessionTermination;
+    },
+    getBus: (serverId: string) => ({
+      onSessionTerminated: (handler: (reason: string) => void) => {
+        mocks.lifecycle.push('session');
+        mocks.onSessionTerminated(serverId, handler);
+        return mocks.stopSessionTermination;
+      }
+    })
   }
 }));
 

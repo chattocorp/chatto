@@ -386,6 +386,19 @@ The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
 
+Each server has one [`EventBus`](../../apps/frontend/src/lib/eventBus.svelte.ts).
+The bus sends every update to the `ServerStateStore` reducer first. Then it sends
+the same update to the listeners, in the order that they subscribed. A semantic
+event, such as a typing or presence change, is the update's `event` field.
+Components subscribe through `useProjectionEvent`, `usePresenceChange`, or
+`useTypingEvent`. An error in a listener is logged. It does not stop the other
+listeners or the transport. A reducer error stops the update, because the
+projection is then not current.
+
+When this client deletes or changes a message, `ServerStateStore` updates every
+loaded timeline of that room, including closed threads. It does this before the
+realtime event arrives.
+
 `ServerStateStore` owns retained `RoomMembersStore` instances for the session.
 Each instance has a reactive owner that lasts until the server store is
 disposed. Room navigation selects an existing store. Public join and leave
