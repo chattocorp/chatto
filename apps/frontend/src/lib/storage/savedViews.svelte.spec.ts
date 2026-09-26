@@ -236,6 +236,16 @@ describe('device saved views', () => {
     expect(await loadSavedView('clock-change', 'alice')).toBeNull();
   });
 
+  it('keeps earlier privacy cutoffs when a device-wide clear follows a clock change', async () => {
+    const before = view('clock-change', 'alice');
+    vi.setSystemTime(Date.now() + 100);
+    await clearSavedView('clock-change', 'alice');
+    vi.setSystemTime(Date.now() - 200);
+    await clearAllSavedViews({ allDatabases: true });
+    await saveView(before);
+    expect(await loadSavedView('clock-change', 'alice')).toBeNull();
+  });
+
   it('retains pagination boundaries, partial membership, and independent thread windows', async () => {
     const snapshot = view('one', 'alice');
     const room = snapshot.rooms[0];

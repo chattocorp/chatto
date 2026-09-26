@@ -502,7 +502,7 @@ async function writeView(view: SavedView, generation: number): Promise<void> {
 /** Clock adjustments must not weaken an earlier privacy boundary. */
 async function advanceInvalidation(
   store: IDBObjectStore,
-  key: string,
+  key: IDBValidKey,
   cutoff: number
 ): Promise<void> {
   const previous = await requestResult<number | undefined>(store.get(key));
@@ -549,12 +549,34 @@ export async function clearSavedView(
   }
 }
 
+/** Read every recorded privacy cutoff before a deletion of the database. */
+async function readInvalidations(): Promise<[IDBValidKey, number][]> {
+  const db = await openDatabase();
+  if (!db) return [];
+  try {
+    const store = db.transaction(INVALIDATIONS_STORE, 'readonly').objectStore(INVALIDATIONS_STORE);
+    const [keys, values] = await Promise.all([
+      requestResult(store.getAllKeys()),
+      requestResult<unknown[]>(store.getAll())
+    ]);
+    return keys.flatMap((key, index) => {
+      const value = values[index];
+      return typeof value === 'number' && Number.isFinite(value) ? [[key, value]] : [];
+    });
+  } catch {
+    return [];
+  } finally {
+    db.close();
+  }
+}
+
 /**
  * Remove every saved private view on this browser profile. This deletes the
  * database, so it also removes a database that this code cannot open, for
  * example one from a newer frontend version. With `allDatabases`, it deletes
  * every IndexedDB database of this origin. A new database then records the
- * device-wide cutoff, so a stale tab cannot write older data again.
+ * earlier cutoffs and the new device-wide cutoff, so a stale tab cannot write
+ * older data again, even after the device clock moved backwards.
  */
 export async function clearAllSavedViews(
   cutoff: number,
@@ -569,6 +591,7 @@ export async function clearAllSavedViews(
       // Without a database list, delete only the known database.
     }
   }
+  const cutoffs = await readInvalidations();
   await Promise.all([...names].map(deleteDatabase));
   const db = await openDatabase();
   if (!db) return;
@@ -579,7 +602,9 @@ export async function clearAllSavedViews(
     );
     transaction.objectStore(STORE_NAME).clear();
     transaction.objectStore(RESOURCE_STORE).clear();
-    await advanceInvalidation(transaction.objectStore(INVALIDATIONS_STORE), 'all', cutoff);
+    const invalidations = transaction.objectStore(INVALIDATIONS_STORE);
+    for (const [key, value] of cutoffs) await advanceInvalidation(invalidations, key, value);
+    await advanceInvalidation(invalidations, 'all', cutoff);
     await transactionDone(transaction);
   } catch {
     // See clearSavedView.
