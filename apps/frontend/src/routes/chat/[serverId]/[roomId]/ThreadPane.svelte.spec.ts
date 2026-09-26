@@ -41,7 +41,10 @@ const { mocks } = vi.hoisted(() => {
       cancelEdit: vi.fn(),
       editingEventId: null as string | null,
       markOccurrenceRead: vi.fn(),
-      jumpState: null as { scrollToEventId: string | null } | null,
+      jumpState: null as {
+        scrollToEventId: string | null;
+        jumpToMessage: (eventId: string) => Promise<boolean>;
+      } | null,
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
       unreadMarkerEventId: null as string | null,
@@ -689,6 +692,18 @@ describe('ThreadPane', () => {
         (q(container, 'button[aria-label="Follow thread"]') as HTMLButtonElement).disabled
       ).toBe(false);
     });
+  });
+
+  it('only scrolls for a thread jump outside the highlight flow', async () => {
+    render(ThreadPane, { props: threadProps });
+    await tick();
+
+    // Reply links jump without loading another window; merging an older window
+    // into the thread can mark its start as reached too early.
+    await expect(mocks.jumpState!.jumpToMessage('older-reply')).resolves.toBe(true);
+
+    expect(mocks.jumpState?.scrollToEventId).toBe('older-reply');
+    expect(mocks.refreshCurrentWindow).not.toHaveBeenCalled();
   });
 
   it('marks a highlighted notification read after the thread jump', async () => {
