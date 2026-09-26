@@ -781,15 +781,26 @@ export class MessagesStore {
     }
   }
 
+  /**
+   * Scroll to a message, and load it first when this window does not contain it.
+   * A room replaces its window with the page around the message. A thread merges
+   * that page into its window, so its latest replies stay loaded.
+   * Returns false when the message cannot be loaded or a newer jump supersedes this one.
+   */
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
     const source = this.source;
-    if (source.scope !== 'room') return false;
     const jumpId = ++this.#jumpId;
     if (this.events.some((e) => e.id === eventId)) {
       if (this.#pendingJumpId !== null) {
         this.#pendingJumpId = null;
         if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
       }
+      jumpState.scrollToEventId = eventId;
+      return true;
+    }
+    if (source.scope === 'thread') {
+      await this.refreshCurrentWindow(eventId);
+      if (this.#jumpId !== jumpId || !this.events.some((e) => e.id === eventId)) return false;
       jumpState.scrollToEventId = eventId;
       return true;
     }

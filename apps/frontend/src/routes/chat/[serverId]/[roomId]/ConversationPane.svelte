@@ -171,14 +171,11 @@ thread IDs can change while the pane stays mounted.
     jumpState.reset();
   });
 
-  // Register before any child can request a jump. The room store loads a
-  // window around the target. The store cannot do that for a thread, so a
-  // thread only scrolls; the highlight flow below loads a missing target first.
+  // Register before any child can request a jump. The store loads a target
+  // that the window does not contain.
   jumpState.setJumpHandler(async (eventId: string) => {
     if (!canReadMessages) return false;
-    if (!isThread) return messageStore.jumpToMessage(eventId, jumpState);
-    jumpState.scrollToEventId = eventId;
-    return true;
+    return messageStore.jumpToMessage(eventId, jumpState);
   });
 
   // Projection v2 folds retractions and crypto-erasure into the authoritative
@@ -190,8 +187,8 @@ thread IDs can change while the pane stays mounted.
     if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
   });
 
-  // Jump to each highlight request once. A thread waits for its first page and
-  // then loads a target outside it, because its jump handler only scrolls.
+  // Jump to each highlight request once. A thread waits for its first page, so
+  // the page that loads the target joins the latest replies.
   let handledHighlight: PendingHighlight | null = null;
   let highlightRequest = 0;
   $effect(() => {
@@ -208,15 +205,10 @@ thread IDs can change while the pane stays mounted.
     const current = () =>
       request === highlightRequest && highlight === target && serverScope.isCurrent();
 
-    const isLoaded = () => events.some((event) => event.id === target.eventId);
     void (async () => {
       await tick();
       if (!current()) return;
-      if (isThread && !isLoaded()) await messageStore.refreshCurrentWindow(target.eventId);
-      if (!current()) return;
-      // A thread can only scroll to a message that its window contains.
-      const jumped =
-        isThread && !isLoaded() ? false : await jumpState.jumpToMessage(target.eventId);
+      const jumped = await jumpState.jumpToMessage(target.eventId);
       if (!current()) return;
       if (!jumped) {
         toast.error(m('room.jump_failed'));
