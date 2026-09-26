@@ -2,7 +2,8 @@
 
 import { decodePresentation } from './decodeSavedView';
 import {
-  clearSavedView as requestSavedViewClear,
+  SAVED_RESOURCE_SCHEMA_VERSION,
+  SAVED_VIEW_VERSION,
   snapshotStorageGeneration,
   type SavedRoom,
   type SavedView
@@ -21,7 +22,7 @@ type SavedRecord = SavedView & { key: string };
 type ResourceRecord = {
   key: string;
   scope: string;
-  schemaVersion: 1;
+  schemaVersion: typeof SAVED_RESOURCE_SCHEMA_VERSION;
   checkpoint: string;
   data: unknown;
 };
@@ -46,9 +47,40 @@ function openDatabase(): Promise<IDBDatabase | null> {
         .createIndex('scope', 'scope');
       request.result.createObjectStore(INVALIDATIONS_STORE);
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-    request.onblocked = () => resolve(null);
+    let settled = false;
+    request.onsuccess = () => {
+      const db = request.result;
+      // A late open after a blocked result has no owner to close it.
+      if (settled) {
+        db.close();
+        return;
+      }
+      settled = true;
+      // Let another tab delete or upgrade the database without waiting for this read.
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
+    request.onerror = () => {
+      settled = true;
+      resolve(null);
+    };
+    request.onblocked = () => {
+      settled = true;
+      resolve(null);
+    };
+  });
+}
+
+/**
+ * Delete one database. Resolve when the deletion ends or another connection
+ * blocks it; a blocked deletion completes when that connection closes.
+ */
+function deleteDatabase(name: string): Promise<void> {
+  return new Promise((resolve) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve();
+    request.onerror = () => resolve();
+    request.onblocked = () => resolve();
   });
 }
 
@@ -72,7 +104,7 @@ function validRecord(value: unknown): value is SavedRecord {
     if (!value || typeof value !== 'object') return false;
     const record = value as Partial<SavedRecord>;
     const valid =
-      record.version === 3 &&
+      record.version === SAVED_VIEW_VERSION &&
       typeof record.checkpoint === 'string' &&
       record.checkpoint.length > 0 &&
       Number.isFinite(record.checkpointAt) &&
@@ -146,7 +178,7 @@ function resourceRecords(view: SavedView): ResourceRecord[] {
   const record = (id: string, data: unknown): ResourceRecord => ({
     key: `${scope}\u0000${id}`,
     scope,
-    schemaVersion: 1,
+    schemaVersion: SAVED_RESOURCE_SCHEMA_VERSION,
     checkpoint: view.checkpoint,
     data
   });
@@ -193,7 +225,7 @@ function assemble(manifest: Manifest, records: ResourceRecord[]): SavedRecord | 
       return (
         !row ||
         row.scope !== manifest.key ||
-        row.schemaVersion !== 1 ||
+        row.schemaVersion !== SAVED_RESOURCE_SCHEMA_VERSION ||
         row.checkpoint !== manifest.checkpoint
       );
     })
@@ -220,31 +252,21 @@ async function deleteResources(store: IDBObjectStore, scope: string): Promise<vo
   for (const key of keys) store.delete(key);
 }
 
-/** Read only a saved view for the exact local server and user. */
-export async function loadSavedView(
+/**
+ * Validate a stored set for the exact server and user. Returns null for any
+ * incompatible, incomplete, or corrupt set.
+ */
+function decodeSnapshot(
+  manifest: Manifest,
+  records: ResourceRecord[],
   serverId: string,
-  userId: string | null,
-  generation: number
-): Promise<SavedView | null> {
-  if (!userId) return null;
-  const db = await openDatabase();
-  if (!db) return null;
+  userId: string,
+  schemas: typeof import('./presentationSnapshot')
+): SavedView | null {
   try {
-    const transaction = db.transaction([STORE_NAME, RESOURCE_STORE], 'readonly');
-    const scope = keyFor(serverId, userId);
-    const [manifest, records] = await Promise.all([
-      requestResult<Manifest | undefined>(transaction.objectStore(STORE_NAME).get(scope)),
-      requestResult<ResourceRecord[]>(
-        transaction.objectStore(RESOURCE_STORE).index('scope').getAll(scope)
-      )
-    ]);
-    const value = manifest ? assemble(manifest, records) : null;
-    if (generation !== snapshotStorageGeneration.value) return null;
-    if (!validRecord(value) || value.serverId !== serverId || value.userId !== userId) return null;
-    // The validator is needed only when a disk record exists. Keep its schema
-    // library out of first-visit and login route bundles.
-    const { timelineSnapshotSchema, notificationSnapshotSchema } =
-      await import('./presentationSnapshot');
+    const value = assemble(manifest, records);
+    if (!value || value.serverId !== serverId || value.userId !== userId) return null;
+    const { timelineSnapshotSchema, notificationSnapshotSchema } = schemas;
     for (const room of value.rooms) room.events = timelineSnapshotSchema.parse(room.events);
     for (const room of value.rooms)
       for (const thread of room.threads ?? []) {
@@ -272,12 +294,77 @@ export async function loadSavedView(
         value.presentation.notifications
       );
     }
+    const { key: _key, ...view } = value;
+    return view;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete the set that a read rejected. This is not a privacy boundary, so it
+ * records no invalidation cutoff. The set stays if another tab replaced its
+ * manifest after the read.
+ */
+async function discardSnapshot(
+  db: IDBDatabase,
+  scope: string,
+  manifest: Manifest | undefined
+): Promise<void> {
+  const transaction = db.transaction([STORE_NAME, RESOURCE_STORE], 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+  const current = await requestResult<Manifest | undefined>(store.get(scope));
+  if (
+    !Object.is(current?.savedAt, manifest?.savedAt) ||
+    !Object.is(current?.checkpoint, manifest?.checkpoint)
+  )
+    return;
+  store.delete(scope);
+  await deleteResources(transaction.objectStore(RESOURCE_STORE), scope);
+  await transactionDone(transaction);
+}
+
+/**
+ * Read only a saved view for the exact local server and user. A read deletes
+ * an expired, incompatible, incomplete, or corrupt set, so the next startup
+ * does not read and reject it again.
+ */
+export async function loadSavedView(
+  serverId: string,
+  userId: string | null,
+  generation: number
+): Promise<SavedView | null> {
+  if (!userId) return null;
+  const db = await openDatabase();
+  if (!db) return null;
+  try {
+    const transaction = db.transaction([STORE_NAME, RESOURCE_STORE], 'readonly');
+    const scope = keyFor(serverId, userId);
+    const [manifest, records] = await Promise.all([
+      requestResult<Manifest | undefined>(transaction.objectStore(STORE_NAME).get(scope)),
+      requestResult<ResourceRecord[]>(
+        transaction.objectStore(RESOURCE_STORE).index('scope').getAll(scope)
+      )
+    ]);
     if (generation !== snapshotStorageGeneration.value) return null;
-    if (Date.now() - value.savedAt >= MAX_AGE_MS) {
-      await requestSavedViewClear(serverId, userId);
+    if (!manifest) {
+      // Resource rows without a manifest can never assemble.
+      if (records.length > 0) await discardSnapshot(db, scope, undefined);
       return null;
     }
-    const { key: _key, ...view } = value;
+    // Check the age first. An expired set, or one without a valid save time,
+    // does not need the costly validation.
+    if (!(Date.now() - manifest.savedAt < MAX_AGE_MS)) {
+      await discardSnapshot(db, scope, manifest);
+      return null;
+    }
+    // The validator is needed only when a disk record exists. Keep its schema
+    // library out of first-visit and login route bundles. A failed chunk load
+    // throws here and keeps the set, because the set itself was not rejected.
+    const schemas = await import('./presentationSnapshot');
+    const view = decodeSnapshot(manifest, records, serverId, userId, schemas);
+    if (generation !== snapshotStorageGeneration.value) return null;
+    if (!view) await discardSnapshot(db, scope, manifest);
     return view;
   } catch {
     return null;
@@ -462,8 +549,27 @@ export async function clearSavedView(
   }
 }
 
-/** Remove every saved private view on this browser profile. */
-export async function clearAllSavedViews(cutoff: number): Promise<void> {
+/**
+ * Remove every saved private view on this browser profile. This deletes the
+ * database, so it also removes a database that this code cannot open, for
+ * example one from a newer frontend version. With `allDatabases`, it deletes
+ * every IndexedDB database of this origin. A new database then records the
+ * device-wide cutoff, so a stale tab cannot write older data again.
+ */
+export async function clearAllSavedViews(
+  cutoff: number,
+  { allDatabases = false }: { allDatabases?: boolean } = {}
+): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  const names = new Set([DB_NAME]);
+  if (allDatabases) {
+    try {
+      for (const { name } of await indexedDB.databases()) if (name) names.add(name);
+    } catch {
+      // Without a database list, delete only the known database.
+    }
+  }
+  await Promise.all([...names].map(deleteDatabase));
   const db = await openDatabase();
   if (!db) return;
   try {

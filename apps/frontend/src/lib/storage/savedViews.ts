@@ -23,8 +23,23 @@ export type SavedRoom = {
   }[];
 };
 
+/**
+ * Version of the saved-view manifest and its hand-validated fields. Bump it
+ * when the stored shape or meaning changes. Storage deletes a snapshot with
+ * another version when it reads it.
+ */
+export const SAVED_VIEW_VERSION = 3;
+
+/**
+ * Version of the resource-record payloads, including the timeline and
+ * notification schemas in `presentationSnapshot.ts`. Bump it when those
+ * payloads change. `presentationSnapshot.spec.ts` fails when the schemas
+ * change without a new version.
+ */
+export const SAVED_RESOURCE_SCHEMA_VERSION = 1;
+
 export type SavedView = {
-  version: 3;
+  version: typeof SAVED_VIEW_VERSION;
   /** Opaque, viewer-bound server sequence token, committed with all resource records. */
   checkpoint: string;
   /** Time the reconciliation barrier accepted this checkpoint, not the time of a disk write. */
@@ -95,14 +110,25 @@ export async function clearSavedView(serverId: string, userId?: string): Promise
   }
 }
 
-/** Remove all device snapshots, including records from other server accounts. */
-export async function clearAllSavedViews(): Promise<void> {
+/**
+ * Remove all device snapshots, including records from other server accounts.
+ * With `allDatabases`, also delete every other IndexedDB database of this
+ * origin. Another tab can delay a deletion; this waits at most `timeoutMs`.
+ */
+export async function clearAllSavedViews({
+  allDatabases = false,
+  timeoutMs
+}: { allDatabases?: boolean; timeoutMs?: number } = {}): Promise<void> {
   const cutoff = snapshotBoundaryTime();
   invalidateSavedViewWrites();
-  try {
-    const storage = await import('./projectionSnapshotStorage');
-    await storage.clearAllSavedViews(cutoff);
-  } catch {
-    /* Storage can be unavailable; the synchronous write fence remains. */
-  }
+  const clear = (async () => {
+    try {
+      const storage = await import('./projectionSnapshotStorage');
+      await storage.clearAllSavedViews(cutoff, { allDatabases });
+    } catch {
+      /* Storage can be unavailable; the synchronous write fence remains. */
+    }
+  })();
+  if (timeoutMs === undefined) return clear;
+  await Promise.race([clear, new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
 }

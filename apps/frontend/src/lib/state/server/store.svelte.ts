@@ -68,7 +68,13 @@ import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import { clearSavedView, loadSavedView, saveView, type SavedView } from '$lib/storage/savedViews';
+import {
+  clearSavedView,
+  loadSavedView,
+  SAVED_VIEW_VERSION,
+  saveView,
+  type SavedView
+} from '$lib/storage/savedViews';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
@@ -989,7 +995,7 @@ export class ServerStateStore {
       ];
     });
     const view: SavedView = {
-      version: 3,
+      version: SAVED_VIEW_VERSION,
       checkpoint,
       checkpointAt,
       serverId: this.serverId,

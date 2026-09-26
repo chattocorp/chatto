@@ -8,6 +8,7 @@ import {
 import { notifyLogout } from '$lib/auth/sessionChannel';
 import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
+import { clearAllSavedViews } from '$lib/storage/savedViews';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export interface ClientAccountNavigation {
@@ -60,6 +61,9 @@ class ClientAccountCoordinator {
       serverRegistry.isOriginServer(serverId)
     );
     serverRegistry.resetToOrigin();
+    // Delete all device databases before the hard redirect unloads this page.
+    // This also removes a damaged or newer database that normal reads reject.
+    await clearAllSavedViews({ allDatabases: true, timeoutMs: 2_000 });
     notifyLogout();
     return { kind: 'hard' };
   }
