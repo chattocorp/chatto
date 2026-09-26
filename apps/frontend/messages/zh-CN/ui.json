@@ -85,11 +85,9 @@
       "clear": "清除"
     },
     "expiry": {
-      "label": "有效期至",
       "24h": "24 小时",
       "7d": "7 天",
       "30d": "30 天",
-      "indefinite": "永不过期",
       "custom": "自定义",
       "custom_label": "自定义有效期",
       "error_required": "请选择到期日期。",

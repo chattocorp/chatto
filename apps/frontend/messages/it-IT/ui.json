@@ -85,11 +85,9 @@
       "clear": "Chiaro"
     },
     "expiry": {
-      "label": "Scade",
       "24h": "24 ore",
       "7d": "7 giorni",
       "30d": "30 giorni",
-      "indefinite": "Nessuna scadenza",
       "custom": "Personalizzato",
       "custom_label": "Scadenza personalizzata",
       "error_required": "Scegli una data di scadenza.",

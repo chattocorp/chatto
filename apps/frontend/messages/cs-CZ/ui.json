@@ -85,11 +85,9 @@
       "clear": "Jasný"
     },
     "expiry": {
-      "label": "Platnost vyprší",
       "24h": "24 hodin",
       "7d": "7 dní",
       "30d": "30 dní",
-      "indefinite": "Žádné vypršení platnosti",
       "custom": "Vlastní",
       "custom_label": "Vlastní expirace",
       "error_required": "Vyberte datum vypršení platnosti.",

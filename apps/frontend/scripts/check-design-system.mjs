@@ -22,7 +22,6 @@ const styleBlockAllowlist = new Set([
 const nativeDialogAllowlist = new Set([
   'src/lib/components/QuickSwitcher.svelte',
   'src/lib/ui/ModalSurface.svelte',
-  'src/lib/ui/ImageModal.svelte',
   'src/routes/chat/ModalContainerConfirmDialogMock.svelte',
   'src/routes/chat/ModalContainerDialogMock.svelte',
   'src/routes/chat/[serverId]/manage/rooms/[roomId]/RoomMembersConfirmDialogMock.svelte'

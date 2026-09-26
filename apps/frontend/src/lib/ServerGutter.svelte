@@ -6,6 +6,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
+  import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -30,7 +31,30 @@ is connected to, plus the add-server button pinned to the bottom. See the
   void anyServerHasPermission;
 
   const directoryHref = resolve('/chat/servers');
-  const directoryActive = $derived(page.route.id === '/chat/servers');
+  const directoryActive = $derived(
+    page.route.id === '/chat/servers' || page.state.modal?.type === 'addServer'
+  );
+
+  /**
+   * Open the Server Directory as a history-backed dialog over the current view.
+   * Modified clicks keep the link behavior, and the full page stays in place
+   * when it is already open.
+   */
+  function openAddServerDialog(event: MouseEvent) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      directoryActive
+    ) {
+      return;
+    }
+    event.preventDefault();
+    pushState('', { modal: { type: 'addServer' } });
+  }
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border">
@@ -56,10 +80,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
       title={m('chat.server_gutter.add_server')}
       aria-label={m('chat.server_gutter.add_server')}
       aria-current={directoryActive ? 'page' : undefined}
-      class={[
-        'server-gutter-item cursor-pointer',
-        directoryActive && 'server-gutter-item-active'
-      ]}
+      onclick={openAddServerDialog}
+      class={['server-gutter-item cursor-pointer', directoryActive && 'server-gutter-item-active']}
     >
       <span class="iconify icon-[uil--plus]"></span>
     </a>

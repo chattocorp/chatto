@@ -145,7 +145,7 @@ Token HMAC keys are derived with `[core].secret_key` and the credential purpose 
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
-| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `neighborhood-discovery`, `projection-snapshot-threads`, `projection-snapshot-expiry`, and `push-subscription-deletion-reconcile`. Snapshot expiry retains a 24-hour cooldown after successful S3 cleanup; push cleanup uses a one-minute cooldown for its bounded late-write pass; the others identify active worker ownership. |
+| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `projection-snapshot-threads`, `projection-snapshot-expiry`, and `push-subscription-deletion-reconcile`. Snapshot expiry retains a 24-hour cooldown after successful S3 cleanup; push cleanup uses a one-minute cooldown for its bounded late-write pass; the others identify active worker ownership. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `neighborhood.directory`                   | Serialized `NeighborhoodDirectory` proto with the latest Neighborhood discovery result, its completion time, whether a remote request failed, and a hash of the Neighbor origins that started it. Each pass replaces the value. It has no TTL; its age controls the next pass |
 

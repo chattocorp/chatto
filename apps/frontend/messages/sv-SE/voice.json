@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Slå på ljudet lokalt",
     "locally_muted": "Lokalt avstängt",
     "unknown_device": "Okänd enhet",
-    "no_devices": "Inga enheter hittades",
     "participants": "Ring deltagare",
     "join_failed": "Det gick inte att gå med i röstsamtal",
     "encrypted_unsupported": "Den här webbläsaren stöder inte krypterade röstsamtal ännu. Prova den senaste Firefox, Chrome eller Edge.",
@@ -105,8 +104,7 @@
       "stream": "Strömvolym",
       "reset": "Återställ volym",
       "boost_unavailable": "Volymförstärkning är inte tillgänglig i den här webbläsaren.",
-      "enable_audio": "Aktivera samtalsljud",
-      "system_output": "Den här webbläsaren använder systemets ljudutgång för samtal."
+      "enable_audio": "Aktivera samtalsljud"
     }
   }
 }

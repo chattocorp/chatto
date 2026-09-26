@@ -15,16 +15,23 @@ type StoreMock = {
 const mocks = vi.hoisted(() => ({
   servers: [] as ServerMock[],
   stores: new Map<string, StoreMock>(),
-  routeId: '/chat/-/overview'
+  routeId: '/chat/-/overview',
+  pageState: {} as App.PageState,
+  pushState: vi.fn()
 }));
 
 vi.mock('$app/state', () => ({
   page: {
     get route() {
       return { id: mocks.routeId };
+    },
+    get state() {
+      return mocks.pageState;
     }
   }
 }));
+
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -49,6 +56,8 @@ beforeEach(() => {
   mocks.servers = [];
   mocks.stores = new SvelteMap();
   mocks.routeId = '/chat/-/overview';
+  mocks.pageState = {};
+  mocks.pushState.mockReset();
 });
 
 describe('ServerGutter', () => {
@@ -99,5 +108,54 @@ describe('ServerGutter', () => {
 
     expect(link?.getAttribute('aria-current')).toBe('page');
     expect(link?.className).toContain('server-gutter-item-active');
+  });
+
+  /**
+   * Click the add action and report whether the gutter cancelled the default
+   * link navigation. A window listener runs after Svelte's delegated handler,
+   * records its decision, and then stops the test frame from navigating.
+   */
+  function clickAddServer(container: HTMLElement, init: MouseEventInit = {}): boolean {
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+    let cancelledByGutter = false;
+    const observe = (event: Event) => {
+      cancelledByGutter = event.defaultPrevented;
+      event.preventDefault();
+    };
+    window.addEventListener('click', observe, { once: true });
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
+    window.removeEventListener('click', observe);
+    return cancelledByGutter;
+  }
+
+  it('opens the Server Directory as a dialog over the current view', () => {
+    const { container } = render(ServerGutter);
+
+    expect(clickAddServer(container)).toBe(true);
+    expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'addServer' } });
+  });
+
+  it.each([
+    ['a Meta click', { metaKey: true }],
+    ['a Control click', { ctrlKey: true }],
+    ['a Shift click', { shiftKey: true }],
+    ['an Alt click', { altKey: true }],
+    ['a middle-button click', { button: 1 }]
+  ])('keeps %s as an ordinary link', (_name, init) => {
+    const { container } = render(ServerGutter);
+
+    expect(clickAddServer(container, init)).toBe(false);
+    expect(mocks.pushState).not.toHaveBeenCalled();
+  });
+
+  it('marks the add action active while the dialog is open', () => {
+    mocks.pageState = { modal: { type: 'addServer' } };
+
+    const { container } = render(ServerGutter);
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+
+    expect(link.getAttribute('aria-current')).toBe('page');
+    expect(clickAddServer(container)).toBe(false);
+    expect(mocks.pushState).not.toHaveBeenCalled();
   });
 });

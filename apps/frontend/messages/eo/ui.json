@@ -85,11 +85,9 @@
       "clear": "Klara"
     },
     "expiry": {
-      "label": "Eksvalidiĝas",
       "24h": "24 horoj",
       "7d": "7 tagoj",
       "30d": "30 tagoj",
-      "indefinite": "Neniu eksvalidiĝo",
       "custom": "Propra",
       "custom_label": "Propra eksvalidiĝo",
       "error_required": "Elektu limdaton.",

@@ -85,11 +85,9 @@
       "clear": "Borrar"
     },
     "expiry": {
-      "label": "Vence",
       "24h": "24 horas",
       "7d": "7 días",
       "30d": "30 días",
-      "indefinite": "Sin vencimiento",
       "custom": "Personalizado",
       "custom_label": "Caducidad personalizada",
       "error_required": "Elige una fecha de vencimiento.",

@@ -41,16 +41,37 @@ const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
 
 class OAuthPopupError extends Error {}
 
+/** How a completed sign-in navigates to the server. */
+export type ServerOAuthFlowOptions = {
+  /**
+   * Called when sign-in completes, just before navigation. Return `true` to
+   * replace the current history entry instead of adding one. A history-backed
+   * dialog uses this so that Back does not reopen it, and checks at that time
+   * that the dialog is still open.
+   */
+  replaceHistory?: () => boolean;
+};
+
+/** Start sign-in with public server data that the caller already loaded. */
 export function startServerOAuthFlow(
   serverUrl: string,
   serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>,
-  beforeNavigate?: () => void,
-  providerId?: string | null
+  {
+    beforeNavigate,
+    providerId,
+    ...options
+  }: ServerOAuthFlowOptions & {
+    /** Called after sign-in completes and before navigation. */
+    beforeNavigate?: () => void;
+    /** Server-configured login provider that the authorization page starts. */
+    providerId?: string | null;
+  } = {}
 ): Promise<void> {
   return runServerOAuthFlow(
     serverUrl,
     Promise.resolve({ serverInfo, providerId: providerId ?? null }),
-    beforeNavigate
+    beforeNavigate,
+    options
   );
 }
 
@@ -63,11 +84,14 @@ export function startServerOAuthFlow(
  */
 export function startServerOAuthFlowWhenReady(
   serverUrl: string,
-  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>
+  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
+  options: ServerOAuthFlowOptions = {}
 ): Promise<void> {
   return runServerOAuthFlow(
     serverUrl,
-    serverInfo.then((info) => ({ serverInfo: info, providerId: null }))
+    serverInfo.then((info) => ({ serverInfo: info, providerId: null })),
+    undefined,
+    options
   );
 }
 
@@ -77,7 +101,8 @@ async function runServerOAuthFlow(
     serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>;
     providerId: string | null;
   }>,
-  beforeNavigate?: () => void
+  beforeNavigate?: () => void,
+  options: ServerOAuthFlowOptions = {}
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
@@ -117,7 +142,9 @@ async function runServerOAuthFlow(
       MOBILE_CALLBACK
     );
     beforeNavigate?.();
-    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
+      replaceState: options.replaceHistory?.() ?? false
+    });
     return;
   }
   const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
@@ -188,7 +215,9 @@ async function runServerOAuthFlow(
     const serverId = await completeServerOAuthFlow(flow, response.code, redirectUri);
     loadAndClearFlowState();
     beforeNavigate?.();
-    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
+      replaceState: options.replaceHistory?.() ?? false
+    });
   } catch (err) {
     responseWait.cancel();
     loadAndClearFlowState();
@@ -383,7 +412,10 @@ export function oauthClientIdForLocation(
   return `${location.origin}${FRONTEND_CIMD_PATH}`;
 }
 
-export function startRemoteReauthentication(server: RegisteredServer): Promise<void> {
+export function startRemoteReauthentication(
+  server: RegisteredServer,
+  options: ServerOAuthFlowOptions = {}
+): Promise<void> {
   const details = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
       serverInfo: {
@@ -394,7 +426,7 @@ export function startRemoteReauthentication(server: RegisteredServer): Promise<v
       providerId: null
     })
   );
-  return runServerOAuthFlow(server.url, details);
+  return runServerOAuthFlow(server.url, details, undefined, options);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {

@@ -85,11 +85,9 @@
       "clear": "Limpar"
     },
     "expiry": {
-      "label": "Expira",
       "24h": "24 horas",
       "7d": "7 dias",
       "30d": "Há 30 dias",
-      "indefinite": "Sem vencimento",
       "custom": "Personalizado",
       "custom_label": "Expiração personalizada",
       "error_required": "Escolha uma data de validade.",

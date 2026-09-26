@@ -302,20 +302,11 @@ function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: s
   }
 }
 
-function updateFollowedThreadQueries(serverId: string, summary: ThreadSummaryUpdate): void {
-  for (const query of followedThreadQueries(serverId)) {
-    queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) =>
-      updateFollowedThreadSummary(current, summary)
-    );
-  }
-}
-
 registerFollowedThreadQueryCache({
   reset: resetFollowedThreadQueries,
   refresh: refreshFollowedThreadQueries,
   reconcile: reconcileFollowedThreadQueries,
   scrubRoom: scrubFollowedThreadRoom,
   scrubMessage: scrubFollowedThreadMessage,
-  scrubUser: resetFollowedThreadQueries,
-  updateSummary: updateFollowedThreadQueries
+  scrubUser: resetFollowedThreadQueries
 });

@@ -19,7 +19,16 @@ const mocks = vi.hoisted(() => ({
   startServerOAuthFlowWhenReady: vi.fn(),
   startRemoteReauthentication: vi.fn(),
   toastError: vi.fn(),
-  goto: vi.fn()
+  goto: vi.fn(),
+  pageState: {} as App.PageState
+}));
+
+vi.mock('$app/state', () => ({
+  page: {
+    get state() {
+      return mocks.pageState;
+    }
+  }
 }));
 
 vi.mock('$lib/ui/toast', () => ({ toast: { error: mocks.toastError } }));
@@ -55,6 +64,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+import ServerDirectory from '$lib/components/ServerDirectory.svelte';
 import Page from './+page.svelte';
 
 function profile(name: string, overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
@@ -130,6 +140,7 @@ describe('Server Directory page', () => {
     mocks.toastError.mockReset();
     mocks.startServerOAuthFlow.mockReset();
     mocks.startServerOAuthFlow.mockResolvedValue(undefined);
+    mocks.pageState = {};
     mocks.startServerOAuthFlowWhenReady.mockReset();
     // Like the real flow, the window opens first and then waits for the profile.
     mocks.startServerOAuthFlowWhenReady.mockImplementation(
@@ -212,6 +223,7 @@ describe('Server Directory page', () => {
     expect(entries[0]?.textContent).toContain('Zulu description');
     expect(entries[1]?.textContent).toContain('Joined');
     expect(entries[1]?.querySelector('img')).toBeNull();
+    expect(container.textContent).toContain('Servers (2)');
   });
 
   it('reports partial source failures', async () => {
@@ -293,8 +305,11 @@ describe('Server Directory page', () => {
     // The flow starts synchronously, before the current profile loads.
     expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalledWith(
       'https://remote.example',
-      expect.any(Promise)
+      expect.any(Promise),
+      { replaceHistory: expect.any(Function) }
     );
+    // The full page never replaces its own history entry.
+    expect(mocks.startServerOAuthFlowWhenReady.mock.calls[0]?.[2].replaceHistory()).toBe(false);
     expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
       'https://remote.example',
       expect.objectContaining({ signal: expect.any(AbortSignal) })
@@ -320,7 +335,6 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
     await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
-    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
   });
 
   it('stops a join when the server no longer supports sign-in', async () => {
@@ -395,6 +409,7 @@ describe('Server Directory page', () => {
     expect(iconAction.target).toBe('_blank');
     expect(iconAction.rel).toBe('noopener noreferrer');
     expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab: Old server');
+    expect(mocks.startServerOAuthFlowWhenReady).not.toHaveBeenCalled();
     expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
   });
 
@@ -414,7 +429,23 @@ describe('Server Directory page', () => {
     button(container, 'Open')?.click();
 
     await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined', { replaceState: false });
+    });
+  });
+
+  it('replaces the dialog history entry when it opens a joined server', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [entry('https://a.example', cached('Alpha'))],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(ServerDirectory, { inDialog: true });
+    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
+    button(container, 'Open')?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined', { replaceState: true });
     });
   });
 
@@ -437,9 +468,69 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'joined' })
+        expect.objectContaining({ id: 'joined' }),
+        { replaceHistory: expect.any(Function) }
       );
     });
+  });
+
+  it('replaces the dialog history entry when it joins or signs in to a server', async () => {
+    mocks.authenticated.clear();
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        entry('https://remote.example', cached('Remote')),
+        entry('https://a.example', cached('Alpha'))
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    mocks.pageState = { modal: { type: 'addServer' } };
+
+    const { container } = render(ServerDirectory, { inDialog: true });
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    button(container, 'Join')?.click();
+    await vi.waitFor(() => expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalled());
+    button(container, 'Sign in')?.click();
+    await vi.waitFor(() => expect(mocks.startRemoteReauthentication).toHaveBeenCalled());
+
+    const joinOptions = mocks.startServerOAuthFlowWhenReady.mock.calls[0]?.[2];
+    const signInOptions = mocks.startRemoteReauthentication.mock.calls[0]?.[1];
+    expect(joinOptions.replaceHistory()).toBe(true);
+    expect(signInOptions.replaceHistory()).toBe(true);
+
+    // Sign-in can finish after the user closed the dialog. The chat entry
+    // that is current then must stay in history.
+    mocks.pageState = {};
+    expect(joinOptions.replaceHistory()).toBe(false);
+    expect(signInOptions.replaceHistory()).toBe(false);
+  });
+
+  it('starts sign-in for a server found by address from the click', async () => {
+    const customProfile = profile('Custom');
+    mocks.getPublicServerInfo.mockResolvedValue(customProfile);
+    mocks.pageState = { modal: { type: 'addServer' } };
+
+    const { container } = render(ServerDirectory, { inDialog: true });
+    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
+    input.value = 'custom.example';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    container.querySelector('form')!.requestSubmit();
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    mocks.getPublicServerInfo.mockClear();
+
+    button(container, 'Join')?.click();
+
+    // The loaded profile is current, so the window opens without another request.
+    expect(mocks.startServerOAuthFlow).toHaveBeenCalledWith(
+      'https://custom.example',
+      customProfile,
+      { replaceHistory: expect.any(Function) }
+    );
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+    expect(mocks.startServerOAuthFlow.mock.calls[0]?.[2].replaceHistory()).toBe(true);
   });
 
   it('probes a custom address and shows the same profile card', async () => {
@@ -488,6 +579,7 @@ describe('Server Directory page', () => {
     expect(externalAction.href).toBe('https://custom.example/');
     expect(externalAction.target).toBe('_blank');
     expect(externalAction.rel).toBe('noopener noreferrer');
+    expect(mocks.startServerOAuthFlowWhenReady).not.toHaveBeenCalled();
     expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
   });
 

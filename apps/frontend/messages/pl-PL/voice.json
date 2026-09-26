@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Wyłącz wyciszenie lokalnie",
     "locally_muted": "Lokalnie wyciszony",
     "unknown_device": "Nieznane urządzenie",
-    "no_devices": "Nie znaleziono żadnych urządzeń",
     "participants": "Uczestnicy rozmowy",
     "join_failed": "Nie udało się dołączyć do połączenia głosowego",
     "encrypted_unsupported": "Ta przeglądarka nie obsługuje jeszcze szyfrowanych połączeń głosowych. Wypróbuj najnowszą wersję Firefox, Chrome lub Edge.",
@@ -105,8 +104,7 @@
       "stream": "Głośność transmisji",
       "reset": "Przywróć głośność",
       "boost_unavailable": "Wzmocnienie głośności jest niedostępne w tej przeglądarce.",
-      "enable_audio": "Włącz dźwięk rozmowy",
-      "system_output": "Ta przeglądarka używa systemowego wyjścia dźwięku do rozmów."
+      "enable_audio": "Włącz dźwięk rozmowy"
     }
   }
 }

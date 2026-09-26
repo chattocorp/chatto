@@ -15,15 +15,31 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('Server Directory (sidebar entry point)', () => {
-	test('sidebar "+" opens the Server Directory', async ({ page, chatPage }) => {
+	test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
+		const chatURL = page.url();
 
 		await page.getByTitle('Add Server').click();
+		const dialog = page.getByRole('dialog', { name: 'Add Server' });
+		await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await expect(dialog.getByLabel('Server URL')).toBeVisible();
+		expect(page.url()).toBe(chatURL);
+
+		await page.goBack();
+		await expect(dialog).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
+		expect(page.url()).toBe(chatURL);
+	});
+
+	test('the Server Directory route shows the directory as a page', async ({ page }) => {
+		await createAndLoginTestUser(page);
+		await page.goto('/chat/servers');
+
 		await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
 		await expect(page.getByLabel('Server URL')).toBeVisible();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
 	});
 });
 

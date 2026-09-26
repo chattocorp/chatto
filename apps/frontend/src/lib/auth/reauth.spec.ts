@@ -164,7 +164,40 @@ describe('remote server OAuth popup', () => {
       redirect_uri: 'eu.chattocorp.chatto.mobile:/oauth/callback'
     });
     expect(addServerMock).toHaveBeenCalledOnce();
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example');
+    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: false });
+  });
+
+  it('replaces the current history entry when the caller asks for it', async () => {
+    native.available = true;
+    native.authorize.mockImplementation(async (_raw: string, state: string) => ({
+      state,
+      code: 'native-code'
+    }));
+    vi.stubGlobal('window', { open: vi.fn() });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              access_token: 'cht_ATtoken',
+              refresh_token: 'cht_RT_token',
+              expires_in: 900,
+              refresh_token_expires_in: 7_776_000
+            }),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+      )
+    );
+    const { startServerOAuthFlowWhenReady } = await import('./reauth');
+
+    await startServerOAuthFlowWhenReady(
+      'https://remote.example',
+      Promise.resolve({ name: 'Remote', authorizeUrl: '/oauth/authorize', iconUrl: null }),
+      { replaceHistory: () => true }
+    );
+
+    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: true });
   });
 
   it('does not exchange credentials or register a server after native cancellation', async () => {
@@ -232,8 +265,7 @@ describe('remote server OAuth popup', () => {
         authorizeUrl: '/oauth/authorize',
         iconUrl: null
       },
-      beforeNavigate,
-      'authling'
+      { beforeNavigate, providerId: 'authling' }
     );
 
     // window.open happens before the first asynchronous PKCE operation, so it
@@ -294,7 +326,7 @@ describe('remote server OAuth popup', () => {
     expect(beforeNavigate.mock.invocationCallOrder[0]).toBeLessThan(
       gotoMock.mock.invocationCallOrder[0]!
     );
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example');
+    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: false });
     expect(popup.close).toHaveBeenCalledOnce();
   });
 

@@ -1,12 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { chatModalKey, type ChatModal } from '$lib/modal';
+  import type { ChatModal } from '$lib/modal';
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
+  import AddServerModal from './modals/AddServerModal.svelte';
   import MotdModal from './modals/MotdModal.svelte';
   import DeleteMessageContentModal from './modals/DeleteMessageContentModal.svelte';
   import AttachmentViewerModal from './modals/AttachmentViewerModal.svelte';
   import EditAttachmentDescriptionModal from './modals/EditAttachmentDescriptionModal.svelte';
-  import ImageViewerModal from './modals/ImageViewerModal.svelte';
   import HtmlViewerModal from './modals/HtmlViewerModal.svelte';
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
   import RemoveServerModal from './modals/RemoveServerModal.svelte';
@@ -22,12 +22,14 @@
 </script>
 
 {#if modal}
-  {#key chatModalKey(modal)}
+  {#key modal}
     {@const closeModal = closeModalFor(modal)}
     {#if modal.type === 'logout'}
       <SignOutDialog onclose={closeModal} />
     {:else if modal.type === 'aboutChatto'}
       <AboutChattoModal onclose={closeModal} />
+    {:else if modal.type === 'addServer'}
+      <AddServerModal onclose={closeModal} />
     {:else if modal.type === 'motd'}
       <MotdModal motd={modal.motd} onclose={closeModal} />
     {:else if modal.type === 'leaveRoom'}
@@ -38,8 +40,6 @@
       <DeleteMessageContentModal {modal} onclose={closeModal} />
     {:else if modal.type === 'attachmentViewer'}
       <AttachmentViewerModal {modal} onclose={closeModal} />
-    {:else if modal.type === 'imageViewer'}
-      <ImageViewerModal {modal} onclose={closeModal} />
     {:else if modal.type === 'editAttachmentDescription'}
       <EditAttachmentDescriptionModal {modal} onclose={closeModal} />
     {:else if modal.type === 'htmlViewer'}

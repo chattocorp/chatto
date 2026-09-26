@@ -85,11 +85,9 @@
       "clear": "Clear"
     },
     "expiry": {
-      "label": "Expires",
       "24h": "24 hours",
       "7d": "7 days",
       "30d": "30 days",
-      "indefinite": "No expiry",
       "custom": "Custom",
       "custom_label": "Custom expiry",
       "error_required": "Choose an expiry date.",
