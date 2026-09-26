@@ -179,7 +179,7 @@ vi.mock('$lib/hooks', () => ({
   useRoomUnread: () => ({
     unreadMarkerEventId: null,
     unreadMarkerWindow: null,
-    markRoomAsRead: mocks.markRoomAsRead,
+    markAsRead: mocks.markRoomAsRead,
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
@@ -187,6 +187,8 @@ vi.mock('$lib/hooks', () => ({
     mocks.projectionEventHandler = handler;
   },
   usePresenceChange: vi.fn(),
+  // ConversationPane uses this only for thread timelines.
+  useUnreadMarker: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
     sendTypingIndicator: vi.fn(),
@@ -318,9 +320,9 @@ vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
   return { default: MessageComposerMock };
 });
 
-vi.mock('./RoomEventsPane.svelte', async () => {
-  const { default: RoomEventsPaneMock } = await import('./RoomLocalEchoRoomEventsPaneMock.svelte');
-  return { default: RoomEventsPaneMock };
+vi.mock('./EventList.svelte', async () => {
+  const { default: EventListContractMock } = await import('./EventListContractMock.svelte');
+  return { default: EventListContractMock };
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
