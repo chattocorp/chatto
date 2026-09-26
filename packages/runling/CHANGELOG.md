@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.0](https://github.com/chattocorp/chatto/compare/runling/v0.7.0...runling/v0.8.0) (2026-09-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runling:** inspect task state beside run logs ([#2582](https://github.com/chattocorp/chatto/issues/2582))
+
+### Features
+
+* **client:** extract shared Chatto integration helpers ([#2518](https://github.com/chattocorp/chatto/issues/2518)) ([4cd7063](https://github.com/chattocorp/chatto/commit/4cd70636c1405c4f65ac2ff72a51641dee23e9f3))
+* **runling:** add realtime sources and supervised ChattoBot tasks ([#2527](https://github.com/chattocorp/chatto/issues/2527)) ([7dc4405](https://github.com/chattocorp/chatto/commit/7dc4405447a4beea2a46b9d1c62b9a20fc2e826b))
+* **runling:** improve bot task handoffs and activity visibility ([#2537](https://github.com/chattocorp/chatto/issues/2537)) ([216236f](https://github.com/chattocorp/chatto/commit/216236fa6b873f91af623c13f896e16931b67812))
+* **runling:** inspect task state beside run logs ([#2582](https://github.com/chattocorp/chatto/issues/2582)) ([d58c53e](https://github.com/chattocorp/chatto/commit/d58c53e35a9d60bce6ecd1d6609eb03ffd944e74))
+* **runling:** integrate orchestrator into the monorepo ([#2502](https://github.com/chattocorp/chatto/issues/2502)) ([c72f588](https://github.com/chattocorp/chatto/commit/c72f58898958171fa6e7caf66d19c2c03cbe428e))
+* **runling:** make console logs the primary run view ([#2546](https://github.com/chattocorp/chatto/issues/2546)) ([c192407](https://github.com/chattocorp/chatto/commit/c192407455eb4bd7a62f1132c81a6cdde7ba4b47))
+
+
+### Bug Fixes
+
+* **chattobot:** improve implementation progress and log clarity ([#2560](https://github.com/chattocorp/chatto/issues/2560)) ([2e30710](https://github.com/chattocorp/chatto/commit/2e307101ac905a7b7ac420f9d80f04bf40d5de56))
+
 ## [0.7.0](https://github.com/chattocorp/runling/compare/v0.6.0...v0.7.0) (2026-09-16)
 
 
