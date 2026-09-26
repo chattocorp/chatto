@@ -77,7 +77,7 @@ const sampledMetricNames = [
   'realtimeDeliveryMs'
 ] as const;
 
-const performanceMeasurementVersion = 'large-e2e-median-v2';
+const performanceMeasurementVersion = 'large-e2e-median-v3';
 
 const syntheticUsers = integerEnvironment('CHATTO_E2E_PERF_USERS', 2048);
 const messages = integerEnvironment('CHATTO_E2E_PERF_MESSAGES', 50_000);
@@ -260,15 +260,15 @@ async function measureLargeServer(
 
     const membersPageStarted = performance.now();
     await page.goto(routes.serverAdminMembers);
-    await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
-    await expect(page.getByText(`@${fixture.firstUserLogin}`, { exact: true })).toBeVisible();
+    await waitForVisibleElement(page, 'h1, h2, h3, [role="heading"]', 'Members', { exact: true });
+    await waitForVisibleElement(page, 'body *', `@${fixture.firstUserLogin}`, { exact: true });
     const membersPageMs = performance.now() - membersPageStarted;
 
     const roomPageStarted = performance.now();
     await page.goto(routes.room(fixture.roomId));
-    const senderRoom = new RoomPage(page);
-    await senderRoom.expectMessageVisible(fixture.lastMessageBody);
+    await waitForVisibleElement(page, '[role="article"]', fixture.lastMessageBody);
     const roomPageMs = performance.now() - roomPageStarted;
+    const senderRoom = new RoomPage(page);
 
     const receiverPage = await receiverContext.newPage();
     await loginAsAdmin(receiverPage);
@@ -387,6 +387,37 @@ async function waitForRenderedMessage(page: Page, body: string): Promise<void> {
         article.textContent?.includes(messageBody)
       ),
     body,
+    { polling: 'raf' }
+  );
+}
+
+/**
+ * Waits until an element that matches `selector` shows `text` and is visible.
+ *
+ * Timed waits must use this helper, not `expect(...).toBeVisible()`. Playwright
+ * retries locator assertions after about 0, 300, and 800 ms, then every 500 ms.
+ * A timing that ends with such an assertion is therefore rounded up to the next
+ * retry. The samples then split into clusters about 500 ms apart, and a small
+ * change in load time can move the median from one cluster to the next. This
+ * helper checks on each animation frame instead.
+ */
+async function waitForVisibleElement(
+  page: Page,
+  selector: string,
+  text: string,
+  options: { exact?: boolean } = {}
+): Promise<void> {
+  await page.waitForFunction(
+    ({ selector, text, exact }) =>
+      [...document.querySelectorAll(selector)].some((element) => {
+        const content = element.textContent?.trim() ?? '';
+        const matches = exact ? content === text : content.includes(text);
+        if (!matches || !element.checkVisibility({ visibilityProperty: true })) return false;
+        // Match Playwright's definition of visible: a non-empty box, at any opacity.
+        const box = element.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      }),
+    { selector, text, exact: options.exact ?? false },
     { polling: 'raf' }
   );
 }
