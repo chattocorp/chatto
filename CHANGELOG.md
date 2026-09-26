@@ -3,6 +3,48 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.8](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.7...v0.5.0-beta.8) (2026-09-26)
+
+
+### Features
+
+* **authz:** gate the owner override with privileged mode ([#2607](https://github.com/chattocorp/chatto/issues/2607)) ([88e0c5b](https://github.com/chattocorp/chatto/commit/88e0c5b9d30b2414edf717438737f3df995f084c))
+* **frontend:** add theme customisation with surface tones and redesigned sliders ([#2621](https://github.com/chattocorp/chatto/issues/2621)) ([fe4df17](https://github.com/chattocorp/chatto/commit/fe4df17669d05714ac04fcdb5972823874235eb3))
+* **frontend:** frame Notifications and My Threads lists in Panels ([#2627](https://github.com/chattocorp/chatto/issues/2627)) ([346c9fa](https://github.com/chattocorp/chatto/commit/346c9fa7a2f3ce72b4288ce04c08b4ffccd494e0))
+* **frontend:** open unread rooms at the first new message ([#2604](https://github.com/chattocorp/chatto/issues/2604)) ([ab89609](https://github.com/chattocorp/chatto/commit/ab8960955d07983c64e9041cbafef6a04f1f0c23))
+* **frontend:** open unread threads at the first new reply ([#2609](https://github.com/chattocorp/chatto/issues/2609)) ([20f0a26](https://github.com/chattocorp/chatto/commit/20f0a260214e760a18c998af033f5b585216e085))
+* **frontend:** replace loading fog clouds with a two-band shimmer ([#2632](https://github.com/chattocorp/chatto/issues/2632)) ([04f5f86](https://github.com/chattocorp/chatto/commit/04f5f863e10bcf31382733a019545cde1aa370ae))
+* **frontend:** show the client version in the app header on wide displays ([#2622](https://github.com/chattocorp/chatto/issues/2622)) ([4ba32a3](https://github.com/chattocorp/chatto/commit/4ba32a3ebcf73be61b50b586d0020b0647330313))
+* **neighbors:** discover the Neighborhood on the server and drop the Server Directory consent step ([#2612](https://github.com/chattocorp/chatto/issues/2612)) ([dd82bdf](https://github.com/chattocorp/chatto/commit/dd82bdf04d60be1c023bec4fcebbb29ebf8b1850))
+* open Add Server as a dialog and refresh the Neighborhood soon after Neighbor changes ([#2615](https://github.com/chattocorp/chatto/issues/2615)) ([3a13b9b](https://github.com/chattocorp/chatto/commit/3a13b9bcafa1cb0c25db3cd840cef94fcc03e237))
+* **threads:** filter unread followed threads on the server ([#2610](https://github.com/chattocorp/chatto/issues/2610)) ([de3b538](https://github.com/chattocorp/chatto/commit/de3b53885039c9ad45b1f5ead0047f745b7cd98f))
+
+
+### Bug Fixes
+
+* **auth:** skip server-wide session scan on password reset ([#2596](https://github.com/chattocorp/chatto/issues/2596)) ([0c17425](https://github.com/chattocorp/chatto/commit/0c1742540cc8191b6a56582948066b7260a2706f))
+* **ci:** remove two sources of flaky main failures ([#2638](https://github.com/chattocorp/chatto/issues/2638)) ([c14dc4e](https://github.com/chattocorp/chatto/commit/c14dc4e122840ea809d5f3b560476ee5edda422d))
+* **frontend:** delete rejected saved views and wipe IndexedDB on global sign-out ([#2626](https://github.com/chattocorp/chatto/issues/2626)) ([612ed49](https://github.com/chattocorp/chatto/commit/612ed49b57323a582b8e624b71e4e03f4858bb32))
+* **frontend:** jump to older thread replies like the room timeline ([#2643](https://github.com/chattocorp/chatto/issues/2643)) ([90e5077](https://github.com/chattocorp/chatto/commit/90e5077a8a179a1a7ec5972ba8845e903c04b783))
+* **frontend:** keep dark theme neutral in Chrome before 138 ([#2601](https://github.com/chattocorp/chatto/issues/2601)) ([2aa386d](https://github.com/chattocorp/chatto/commit/2aa386db86738e5eba51475900cad844b0f3d154))
+* **frontend:** keep room switches from carrying stale room state ([#2608](https://github.com/chattocorp/chatto/issues/2608)) ([d5defe3](https://github.com/chattocorp/chatto/commit/d5defe3ef60d401043ee845d71549874d321eed9))
+* **frontend:** purge sidebar profile reads with the server query cache ([#2616](https://github.com/chattocorp/chatto/issues/2616)) ([d378b0d](https://github.com/chattocorp/chatto/commit/d378b0dd3b056e7d4bf8fe348ec4ac933e4226f8))
+* **frontend:** remove the chatto-private-cache cross-tab channel ([#2636](https://github.com/chattocorp/chatto/issues/2636)) ([d16e51f](https://github.com/chattocorp/chatto/commit/d16e51f552cb0cb5a192a0334ae7ad66483a1c33))
+* **frontend:** replace raised pane header active tile with selection tint ([#2595](https://github.com/chattocorp/chatto/issues/2595)) ([d1b9aaa](https://github.com/chattocorp/chatto/commit/d1b9aaa5012107405dd01fe6f8ca9d9d5f8ae049))
+* **frontend:** restore saved views on every server route ([#2598](https://github.com/chattocorp/chatto/issues/2598)) ([e823754](https://github.com/chattocorp/chatto/commit/e823754d7d6a323146e24733829bf0a596754673))
+* **frontend:** stop showing saved views of rejected sessions ([#2606](https://github.com/chattocorp/chatto/issues/2606)) ([09e0448](https://github.com/chattocorp/chatto/commit/09e04486af9ebb3eaa774988e5e7b70f5a18ca32))
+* **frontend:** stop the first thread open from flashing its loading pane ([#2618](https://github.com/chattocorp/chatto/issues/2618)) ([a7f312b](https://github.com/chattocorp/chatto/commit/a7f312b2e11a28326d2a42db1d76b35a6517844f))
+* **frontend:** sync custom status across clients and add clear action ([#2631](https://github.com/chattocorp/chatto/issues/2631)) ([762fa66](https://github.com/chattocorp/chatto/commit/762fa668323f7574c515734ec03e57ec611c8466))
+* **neighbors:** serve Neighborhood images through the recommending server and lead Add Server with recommendations ([#2629](https://github.com/chattocorp/chatto/issues/2629)) ([2129876](https://github.com/chattocorp/chatto/commit/2129876db015b0f49a0de0c20b65d7c5420c4673))
+* **realtime:** check typing privacy once per event ([#2603](https://github.com/chattocorp/chatto/issues/2603)) ([3889055](https://github.com/chattocorp/chatto/commit/3889055cc58b47515c993fceb563212983713c67))
+* **video:** honor video size limit in standalone worker ([#2594](https://github.com/chattocorp/chatto/issues/2594)) ([1ef844e](https://github.com/chattocorp/chatto/commit/1ef844e0de6e42408b3c0262fb7374fc76837ac4))
+* **video:** stream generated derivatives without upload limits ([#2602](https://github.com/chattocorp/chatto/issues/2602)) ([567d9ec](https://github.com/chattocorp/chatto/commit/567d9eca55f5d18e364aad648a09889d28289bb8))
+
+
+### Performance Improvements
+
+* **frontend:** read saved views only for servers without a projection ([#2613](https://github.com/chattocorp/chatto/issues/2613)) ([de5654a](https://github.com/chattocorp/chatto/commit/de5654afcd2544d2345656c37a1092632e6f998a))
+
 ## [0.5.0-beta.7](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.6...v0.5.0-beta.7) (2026-09-25)
 
 ### ⚠ BREAKING CHANGES
