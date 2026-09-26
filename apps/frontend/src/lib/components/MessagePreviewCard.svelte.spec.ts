@@ -15,7 +15,10 @@ const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock, registry
     timelineResults: [] as unknown[],
     refreshAssetUrlsMock: vi.fn(),
     // Reactive server records, so tests can change session state under a mounted card.
-    registryState: {} as { servers: Map<string, Record<string, unknown>> }
+    registryState: {} as {
+      servers: Map<string, Record<string, unknown>>;
+      stores: Map<string, Record<string, unknown>>;
+    }
   }));
 
 function testImageUrl(label: string): string {
@@ -50,16 +53,10 @@ vi.mock('$lib/state/server/registry.svelte', async () => {
   registryState.servers = new SvelteMap([
     ['server_1', { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
   ]);
+  registryState.stores = new SvelteMap();
   return {
     serverRegistry: {
-      tryGetStore: () => ({
-        currentUser: {
-          user: { login: 'viewer' }
-        },
-        navigation: {
-          rooms: [{ id: 'room_1', name: 'general' }]
-        }
-      }),
+      tryGetStore: (id: string) => registryState.stores.get(id),
       getServer: (id: string) => registryState.servers.get(id),
       isOriginServer: (id: string) => id === 'server_1',
       get originServer() {
@@ -212,7 +209,19 @@ function clearedRefreshResult(attachmentId: string) {
   ]);
 }
 
+function testStore() {
+  return {
+    currentUser: {
+      user: { login: 'viewer' }
+    },
+    navigation: {
+      rooms: [{ id: 'room_1', name: 'general' }]
+    }
+  };
+}
+
 beforeEach(() => {
+  registryState.stores.set('server_1', testStore());
   registryState.servers.set('server_1', {
     id: 'server_1',
     url: window.location.origin,
@@ -266,6 +275,27 @@ describe('MessagePreviewCard', () => {
     expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
     expect(card.textContent).toContain('Resumed preview');
+  });
+
+  it('reloads the preview when the server store is replaced', async () => {
+    timelineResults.push(bodyPreviewResult('First account preview'));
+    const second = deferred<ReturnType<typeof bodyPreviewResult>>();
+    getRoomEventsAroundMock
+      .mockImplementationOnce(() => Promise.resolve(timelineResults.shift()))
+      .mockReturnValueOnce(second.promise);
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('First account preview'));
+
+    // Sign-out and account changes replace the server's store.
+    registryState.stores.set('server_1', testStore());
+    await tick();
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
+    second.resolve(bodyPreviewResult('Second account preview'));
+    await vi.waitFor(() => expect(container.textContent).toContain('Second account preview'));
   });
 
   it('preserves an outstanding request when an equivalent link object arrives', async () => {
