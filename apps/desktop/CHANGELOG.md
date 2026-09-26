@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.3](https://github.com/chattocorp/chatto/compare/chatto-desktop/v0.1.0-alpha.2...chatto-desktop/v0.1.0-alpha.3) (2026-09-26)
+
+
+### Bug Fixes
+
+* **desktop:** combine macOS window controls with app header ([#2509](https://github.com/chattocorp/chatto/issues/2509)) ([c803f82](https://github.com/chattocorp/chatto/commit/c803f82aabe854c3a26ec9e94e024050ffc5a657))
+
 ## [0.1.0-alpha.2](https://github.com/chattocorp/chatto/compare/chatto-desktop/v0.1.0-alpha.1...chatto-desktop/v0.1.0-alpha.2) (2026-08-13)
 
 ### ⚠ BREAKING CHANGES
