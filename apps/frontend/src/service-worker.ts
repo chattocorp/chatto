@@ -76,7 +76,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/** Serve a complete versioned shell immediately; compiled assets are immutable. */
+/**
+ * Serve compiled assets from the versioned shell; they are immutable. App
+ * navigations use the network first, so a reload after a deploy loads the new
+ * frontend. The cached shell document is the fallback when the server is
+ * unreachable or fails.
+ */
 self.addEventListener('fetch', (event) => {
   if (!ownsAppShell) return;
   const request = event.request;
@@ -99,10 +104,18 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/chat' ||
     url.pathname.startsWith('/chat/');
   if (request.mode === 'navigate' && appNavigation) {
+    const cachedShell = async () => (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
     event.respondWith(
       (async () => {
-        const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
-        return cached ?? fetch(request);
+        try {
+          const response = await fetch(request);
+          if (response.status < 500) return response;
+          return (await cachedShell()) ?? response;
+        } catch (error) {
+          const cached = await cachedShell();
+          if (cached) return cached;
+          throw error;
+        }
       })()
     );
   }

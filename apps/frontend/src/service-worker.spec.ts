@@ -134,27 +134,79 @@ describe('service worker notifications', () => {
     expect(worker.handlers.has('fetch')).toBe(true);
   });
 
-  it('serves a cached chat document without waiting for navigation fetch', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    const worker = await importServiceWorker(cacheStorage);
-    await worker.dispatch('install');
-    const fetch = vi.fn();
-    vi.stubGlobal('fetch', fetch);
+  async function navigate(
+    worker: Awaited<ReturnType<typeof importServiceWorker>>,
+    url = 'https://chatto.example/chat/-/R1'
+  ): Promise<unknown> {
     let response: Promise<unknown> | undefined;
-
-    const handler = worker.handlers.get('fetch')?.[0];
-    handler?.({
-      request: { url: 'https://chatto.example/chat/-/R1', method: 'GET', mode: 'navigate' },
+    worker.handlers.get('fetch')?.[0]?.({
+      request: { url, method: 'GET', mode: 'navigate' },
       respondWith: (pending: Promise<unknown>) => {
         response = pending;
       }
     } as never);
-
     expect(response).toBeDefined();
-    expect(await response).toBe(
+    return response;
+  }
+
+  it('loads app navigations from the network so a reload gets a new deploy', async () => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('install');
+    const networkDocument = { status: 200 };
+    const fetch = vi.fn(async () => networkDocument);
+    vi.stubGlobal('fetch', fetch);
+
+    expect(await navigate(worker)).toBe(networkDocument);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('serves the cached shell when the network is unreachable', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const worker = await importServiceWorker(cacheStorage);
+    await worker.dispatch('install');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      })
+    );
+
+    expect(await navigate(worker)).toBe(
       await (await cacheStorage.open('chatto-shell-test-version')).match('/login')
     );
-    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('serves the cached shell when the server fails', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const worker = await importServiceWorker(cacheStorage);
+    await worker.dispatch('install');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ status: 502 }))
+    );
+
+    expect(await navigate(worker)).toBe(
+      await (await cacheStorage.open('chatto-shell-test-version')).match('/login')
+    );
+  });
+
+  it('reports the network result when no shell is cached', async () => {
+    const worker = await importServiceWorker();
+    const failedDocument = { status: 503 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => failedDocument)
+    );
+    expect(await navigate(worker)).toBe(failedDocument);
+
+    const networkError = new TypeError('Failed to fetch');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw networkError;
+      })
+    );
+    await expect(navigate(worker)).rejects.toBe(networkError);
   });
 
   it('deletes retired shell and foreground badge caches during activation', async () => {
