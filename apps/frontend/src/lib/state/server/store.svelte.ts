@@ -503,7 +503,7 @@ export class ServerStateStore {
       );
       this.requireCurrentRealtimeProjection(generation);
       // A snapshot skips the edits and retractions made during the gap.
-      refreshRegisteredMessagePreviews(this.serverId);
+      refreshRegisteredMessagePreviews(this.serverId, cursor);
       this.#realtimeSnapshotPending = false;
     }
     await this.waitForRealtimeReconciliation();

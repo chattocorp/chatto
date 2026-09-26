@@ -34,7 +34,7 @@
   import { toast } from '$lib/ui/toast';
   import { copyMessageLinkToClipboard } from '$lib/messageLinks';
   import { serverIdToSegment } from '$lib/navigation';
-  import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import LazyMessagePreviewCard from '$lib/components/LazyMessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
@@ -749,7 +749,7 @@
 
       {#each messageLinks as link, i (link.messageId + ':' + i)}
         <div class="mt-2">
-          <MessagePreviewCard {link} />
+          <LazyMessagePreviewCard {link} />
         </div>
       {/each}
 
