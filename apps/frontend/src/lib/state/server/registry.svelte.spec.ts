@@ -9,6 +9,7 @@ import {
 import { queryClient } from '$lib/query/client';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 
 const accountFields = {
   displayName: 'Account',
@@ -331,19 +332,31 @@ describe('ServerRegistry', () => {
     registry.removeAll();
     registry.init();
     registry.addServer(makeServer({ id: 'other-tab', token: 'old-access', userId: 'U1' }));
-    const previousStore = registry.getStore('other-tab');
     // The other tab signed out and back in to the same account. An older
     // client sends both messages for its sign-out.
     storeSessionFromOtherTab('other-tab', 'new-access', 'U1');
+    // Channels receive a message in creation order, so this observer runs
+    // directly after the registry's handler for each message.
+    const observer = new BroadcastChannel('chatto-private-cache');
+    const observed: unknown[][] = [];
+    observer.onmessage = (event) =>
+      observed.push([
+        event.data.type,
+        registry.getServer('other-tab')?.token,
+        registry.getServer('other-tab')?.userId,
+        storedToken('other-tab')
+      ]);
     const channel = new BroadcastChannel('chatto-private-cache');
     try {
       channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
       channel.postMessage({ type: 'clear-server', serverId: 'other-tab', userId: 'U1' });
-      await vi.waitFor(() => expect(registry.getStore('other-tab')).not.toBe(previousStore));
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(registry.getServer('other-tab')?.token).not.toBe('old-access');
-      expect(storedToken('other-tab')).toBe('new-access');
+      await vi.waitFor(() => expect(observed).toHaveLength(2));
+      expect(observed).toEqual([
+        ['sign-out', null, null, 'new-access'],
+        ['clear-server', null, null, 'new-access']
+      ]);
     } finally {
+      observer.close();
       channel.close();
     }
   });
@@ -375,7 +388,7 @@ describe('ServerRegistry', () => {
     }
   });
 
-  it('notifies other tabs only after it stores the signed-out session', async () => {
+  it('sends one sign-out message that other tabs receive with the signed-out session stored', async () => {
     const registry = await createRegistry();
     registry.removeAll();
     registry.init();
@@ -389,6 +402,25 @@ describe('ServerRegistry', () => {
       await vi.waitFor(() => expect(received).toHaveLength(1));
       expect(received).toEqual([{ type: 'sign-out', storedToken: null }]);
     } finally {
+      channel.close();
+    }
+  });
+
+  it('verifies an origin account that another tab stored', async () => {
+    const registry = await createRegistry();
+    registry.removeAll();
+    registry.init();
+    registry.addServer(makeServer({ id: 'origin', url: window.location.origin, userId: 'U1' }));
+    storeSessionFromOtherTab('origin', null, 'U2');
+    const load = vi.spyOn(CurrentUserState.prototype, 'load').mockResolvedValue(undefined);
+    const channel = new BroadcastChannel('chatto-private-cache');
+    try {
+      channel.postMessage({ type: 'clear-server', serverId: 'origin', userId: 'U1' });
+      await vi.waitFor(() => expect(registry.getServer('origin')?.userId).toBe('U2'));
+      expect(load).toHaveBeenCalledOnce();
+      expect(load.mock.contexts[0]).toBe(registry.getStore('origin').currentUser);
+    } finally {
+      load.mockRestore();
       channel.close();
     }
   });

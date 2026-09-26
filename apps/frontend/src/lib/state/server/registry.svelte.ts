@@ -853,9 +853,14 @@ class ServerRegistry {
    * sender has already stored its new state, so this tab never writes storage
    * here: a write could replace a newer session that the sender stored. When
    * storage holds a different account, this tab adopts it. Otherwise, it signs
-   * out in memory. It never keeps the previous account, even when storage
-   * still shows it, because that storage read can be older than the sender's
-   * write.
+   * out in memory until a reload or a new sign-in. It never keeps the previous
+   * account, even when storage still shows it, because that storage read can
+   * be older than the sender's write.
+   *
+   * A later `#persist()` in this tab writes its in-memory account fields into
+   * the combined record. They can be older than the sender's. Credentials stay
+   * correct, because `#persist()` reads them from the authentication record,
+   * and the next viewer check corrects the account fields.
    */
   #applyCrossTabSignOut(id: string): void {
     const current = this.sessions.get(id);
@@ -866,7 +871,11 @@ class ServerRegistry {
       persist: false,
       notifyTabs: false
     });
-    if (!otherAccount) this.tryGetStore(id)?.currentUser.reset();
+    const store = this.tryGetStore(id);
+    if (!otherAccount) store?.currentUser.reset();
+    // Network startup loads only remote viewers. Verify an adopted origin
+    // account against its cookie here.
+    else if (this.isOriginServer(id)) void store?.currentUser.load();
   }
 
   /** Start discovery and remote viewer recovery for a store once. */
@@ -1027,7 +1036,7 @@ class ServerRegistry {
     }: {
       /** Start discovery and viewer checks for the new store. */
       startNetwork?: boolean;
-      /** Store the new session. False when the session came from storage. */
+      /** Store the new session. False when another tab already stored it. */
       persist?: boolean;
       /** Tell other tabs when the account changes. */
       notifyTabs?: boolean;
