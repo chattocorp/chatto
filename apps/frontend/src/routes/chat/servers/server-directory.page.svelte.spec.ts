@@ -198,7 +198,7 @@ describe('Server Directory page', () => {
     expect(mocks.loadServerDirectory).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps directory response order and groups registered entries as joined', async () => {
+  it('keeps directory response order and marks registered entries as joined', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
         entry('https://z.example', cached('Zulu'), ['https://source.example']),
@@ -221,24 +221,9 @@ describe('Server Directory page', () => {
       'https://a.example'
     ]);
     expect(entries[0]?.textContent).toContain('Zulu description');
-    const joined = container.querySelector('[data-testid="server-directory-joined"]');
-    expect(joined?.textContent).toContain('Already joined');
-    expect(joined?.contains(entries[1]!)).toBe(true);
-    expect(joined?.contains(entries[0]!)).toBe(false);
-    expect(entries[1]?.textContent).toContain('Alpha');
+    expect(entries[1]?.textContent).toContain('Joined');
     expect(entries[1]?.querySelector('img')).toBeNull();
-    expect(container.textContent).toContain('Servers (1)');
-  });
-
-  it('shows only the address lookup before any server is registered', async () => {
-    mocks.servers = [];
-
-    const { container } = render(Page);
-
-    await vi.waitFor(() => expect(container.querySelector('#add-server-url')).toBeTruthy());
-    expect(mocks.loadServerDirectory).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain('No recommended servers yet');
-    expect(container.textContent).toContain('Enter the address of any Chatto server');
+    expect(container.textContent).toContain('Servers (2)');
   });
 
   it('reports partial source failures', async () => {

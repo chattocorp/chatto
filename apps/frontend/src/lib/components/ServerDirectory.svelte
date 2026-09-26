@@ -25,7 +25,6 @@ its work plane. See FDR-042.
     startServerOAuthFlowWhenReady,
     type ServerOAuthFlowOptions
   } from '$lib/auth/reauth';
-  import ServerLogo from '$lib/components/ServerLogo.svelte';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
@@ -80,8 +79,6 @@ its work plane. See FDR-042.
     )
   ]);
   const entries = $derived(directory?.entries ?? []);
-  const recommendedEntries = $derived(entries.filter((entry) => !registeredServer(entry.origin)));
-  const joinedEntries = $derived(entries.filter((entry) => registeredServer(entry.origin)));
   const allSourcesFailed = $derived(
     !!directory &&
       directory.sourceCount > 0 &&
@@ -92,7 +89,7 @@ its work plane. See FDR-042.
   );
 
   onMount(() => {
-    if (registeredOrigins.length > 0) void refreshDirectory();
+    void refreshDirectory();
     return () => directoryController?.abort();
   });
 
@@ -252,19 +249,16 @@ its work plane. See FDR-042.
     return error instanceof Error ? error.message : m('add_server.connect_failed');
   }
 
-  function hostOf(origin: string): string {
+  function sourceName(origin: string): string {
+    const registered = registeredServer(origin);
+    if (registered) return registered.name;
+    const discovered = entries.find((entry) => entry.origin === origin);
+    if (discovered?.profile?.name) return discovered.profile.name;
     try {
       return new URL(origin).host;
     } catch {
       return origin;
     }
-  }
-
-  function sourceName(origin: string): string {
-    const registered = registeredServer(origin);
-    if (registered) return registered.name;
-    const discovered = entries.find((entry) => entry.origin === origin);
-    return discovered?.profile?.name || hostOf(origin);
   }
 
   function sourceAttribution(entry: ServerDirectoryEntry): { visible: string; full: string } {
@@ -424,14 +418,15 @@ its work plane. See FDR-042.
         </Button>
       </div>
     </EmptyState>
-  {:else if recommendedEntries.length === 0}
+  {:else if entries.length === 0}
     <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.empty_title')}>
       {m('add_server.directory.empty_body')}
     </EmptyState>
   {:else}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {#each recommendedEntries as entry (entry.origin)}
+      {#each entries as entry (entry.origin)}
         {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
+        {@const joined = registeredServer(entry.origin)}
         {@const external = opensInServerClient(entry.origin, profile)}
         {#snippet cardActions()}
           <div class="flex items-center gap-3">
@@ -443,9 +438,10 @@ its work plane. See FDR-042.
           origin={entry.origin}
           imageOrigin={entry.imageOrigin}
           profile={entry.profile}
+          badge={joined ? m('add_server.directory.joined') : undefined}
           iconHref={external ? entry.origin : undefined}
           iconOpensInNewTab={external}
-          onIconClick={external || !canJoin(profile)
+          onIconClick={external || (!joined && !canJoin(profile))
             ? undefined
             : () => openOrJoin(entry.origin, profile)}
           iconActionLabel={actionLabel(entry.origin, profile)}
@@ -455,41 +451,6 @@ its work plane. See FDR-042.
           headingTag={inDialog ? 'h4' : 'h3'}
         />
       {/each}
-    </div>
-  {/if}
-
-  {#if joinedEntries.length > 0}
-    <div class="flex flex-col gap-2" data-testid="server-directory-joined">
-      <svelte:element this={inDialog ? 'h4' : 'h3'} class="text-sm font-semibold text-muted">
-        {m('add_server.directory.joined_title')}
-      </svelte:element>
-      <ul class="flex flex-col gap-1">
-        {#each joinedEntries as entry (entry.origin)}
-          <li
-            class="flex items-center gap-3 rounded-md px-2 py-1.5"
-            data-testid="server-directory-entry"
-            data-origin={entry.origin}
-          >
-            <div class="h-8 w-8 shrink-0 overflow-hidden rounded-md">
-              <ServerLogo
-                server={{ name: entry.profile.name, logoUrl: entry.profile.iconUrl }}
-                publicImageOrigin={entry.imageOrigin}
-                fill
-              />
-            </div>
-            <div class="flex min-w-0 flex-1 flex-col text-sm">
-              <div class="flex min-w-0 items-baseline gap-2">
-                <span class="truncate font-medium text-text-top">
-                  <bdi dir="auto">{entry.profile.name}</bdi>
-                </span>
-                <span class="truncate text-muted" dir="ltr">{hostOf(entry.origin)}</span>
-              </div>
-              {@render recommendationSources(entry, 'truncate')}
-            </div>
-            {@render entryAction(entry.origin, entry.profile, false)}
-          </li>
-        {/each}
-      </ul>
     </div>
   {/if}
 {/snippet}
@@ -503,13 +464,11 @@ its work plane. See FDR-042.
     lookupBody
   )}
 
-  {#if registeredOrigins.length > 0}
-    {@render directorySection(
-      'server-directory-recommended-title',
-      m('add_server.directory.servers_title'),
-      m('add_server.directory.servers_description'),
-      recommendedEntries.length || undefined,
-      recommendationsBody
-    )}
-  {/if}
+  {@render directorySection(
+    'server-directory-recommended-title',
+    m('add_server.directory.servers_title'),
+    m('add_server.directory.servers_description'),
+    entries.length || undefined,
+    recommendationsBody
+  )}
 </div>

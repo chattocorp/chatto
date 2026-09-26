@@ -43,8 +43,8 @@ recommendation, not a trust or reciprocal relationship.
   history-backed dialog. The browser Back action closes it. The
   `/chat/servers` route shows the same directory as a page. The standalone
   client uses this page before it registers a server.
-- The Server Directory starts with a direct server-address lookup. It shows
-  recommendations only when the client has a registered server.
+- The Server Directory starts with a direct server-address lookup, followed
+  by the recommendations.
 - The Server Directory loads the cached Neighborhood of each server that is
   registered in the client. It contacts no other server to show results and
   does not ask for consent. A registered server already knows the user's
@@ -53,8 +53,7 @@ recommendation, not a trust or reciprocal relationship.
   results. Each result identifies all sources whose recommendations are shown.
   A direct Neighbor of a registered server names that registered server as a
   source.
-- The Server Directory shows unregistered recommendations as server profile
-  cards in a grid. A card without a banner shows a gradient that the server
+- The Server Directory shows its results as server profile cards in a grid. A card without a banner shows a gradient that the server
   name selects.
 - The Neighbor administration page loads each advertised server's public name,
   description, logo, and banner directly. It keeps an advertised server visible
@@ -75,10 +74,9 @@ recommendation, not a trust or reciprocal relationship.
   window opens from that action. If the current version is not compatible or
   sign-in is not available, the client closes the window, stops the join, and
   shows the current action for that server.
-- An advertised server that is already registered remains visible in a
-  separate **Already joined** list below the recommendations. Opening it from
-  the dialog replaces the dialog's history entry, so Back does not reopen the
-  dialog.
+- An advertised server that is already registered remains visible and is
+  marked as joined. Opening, joining, or signing in to a server from the dialog
+  replaces the dialog's history entry, so Back does not reopen the dialog.
 - An unregistered server has a join action only when its discovered version is
   compatible with the client. When the version is incompatible or unknown,
   the client opens the server origin in a new tab. The server can then provide
@@ -173,15 +171,14 @@ missing method explicitly.
 ### 6. Joined servers remain visible
 
 **Decision:** The Server Directory does not remove an advertised origin when
-that server is already in the device-local server catalogue. It lists the
-server in a separate **Already joined** list and offers the applicable open or
-sign-in action.
+that server is already in the device-local server catalogue. It marks the
+server as joined and offers the applicable open or sign-in action.
 
 **Why:** The complete directory shows the recommendation network without
 making entries disappear after a user joins them.
 
 **Tradeoff:** The directory includes entries that do not offer a new server to
-join. The separate list keeps them below the servers that the user can join.
+join.
 
 ### 7. Deduplication preserves recommendation sources
 
