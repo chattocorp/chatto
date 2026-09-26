@@ -2,31 +2,23 @@
 
 [[preview_urls]]
 name = "Chatto"
-url = "https://chatto.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+url = "http://chatto.$CONDUCTOR_WORKSPACE_NAME.localhost:$CONDUCTOR_PORT"
+
+[[preview_urls]]
+name = "Chatto (Vite)"
+url = "http://chatto.$CONDUCTOR_WORKSPACE_NAME.localhost:$((CONDUCTOR_PORT + 1))"
 
 [[preview_urls]]
 name = "Authling"
-url = "https://authling.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
-
-[[preview_urls]]
-name = "Mailpit"
-url = "https://mailpit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
-
-[[preview_urls]]
-name = "LiveKit"
-url = "https://livekit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+url = "http://authling.$CONDUCTOR_WORKSPACE_NAME.localhost:$((CONDUCTOR_PORT + 2))"
 
 [[preview_urls]]
 name = "Runling"
-url = "https://runling.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+url = "http://localhost:$((CONDUCTOR_PORT + 3))"
 
 [[preview_urls]]
-name = "Storybook"
-url = "https://storybook.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
-
-[[preview_urls]]
-name = "Docs website"
-url = "https://docs.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+name = "Mailpit"
+url = "http://localhost:$((CONDUCTOR_PORT + 9))"
 
 [scripts]
 setup = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
@@ -38,6 +30,11 @@ command = "exec mise dev"
 available_in = [ "local" ]
 default = true
 icon = "network"
+
+[scripts.run.frontend]
+command = "exec mise dev-frontend"
+available_in = [ "local" ]
+icon = "zap"
 
 [scripts.run.storybook]
 command = "exec mise storybook"

@@ -13,6 +13,11 @@ icon = "run"
 command = "exec mise dev"
 
 [[actions]]
+name = "Vite frontend"
+icon = "run"
+command = "exec mise dev-frontend"
+
+[[actions]]
 name = "Storybook"
 icon = "tool"
 command = "exec mise storybook"

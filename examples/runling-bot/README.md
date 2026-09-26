@@ -39,9 +39,8 @@ Run the commands below from that root unless a command changes the directory.
    Open the resulting thread to see its reply. Open `http://localhost:55003`
    (with your workspace's Runling port) to inspect the workflow run.
 
-Conductor also provides a **Runling** preview at
-`https://runling.<workspace>.localhost:42444`. Outside Conductor, use `local`
-as the workspace name. The direct HTTP port remains available for webhooks.
+Conductor also lists the Runling console in its **Open** menu. The same port
+receives webhooks.
 
 Stop `mise dev` to stop Runling and the other development services. Do not run
 another Runling process on the same port. The bootstrap account remains named

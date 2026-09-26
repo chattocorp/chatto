@@ -83,7 +83,7 @@ async function listen(port) {
 async function freeBasePort() {
   for (let attempt = 0; attempt < 20; attempt++) {
     const http = await listen(0);
-    const base = http.address().port - 1;
+    const base = http.address().port;
     let nats;
     try {
       if (base + 4 > 65535) continue;
@@ -113,8 +113,7 @@ try {
   const env = {
     CONDUCTOR_PORT: String(base),
     CHATTO_DEV_DATA_ROOT: data,
-    CHATTO_DEV_ROUTE_SUFFIX: `seed-smoke-${process.pid}`,
-    PORTLESS_PORT: '42444'
+    CONDUCTOR_WORKSPACE_NAME: `seed-smoke-${process.pid}`
   };
   const backend = start(['run', 'dev-stack-backend'], env);
   const deadline = Date.now() + 180_000;
@@ -131,7 +130,7 @@ try {
     try {
       ready =
         (
-          await fetch(`http://127.0.0.1:${base + 1}/readyz`, {
+          await fetch(`http://127.0.0.1:${base}/readyz`, {
             signal: AbortSignal.timeout(1000)
           })
         ).ok && (await stat(socket)).isSocket();

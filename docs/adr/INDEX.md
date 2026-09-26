@@ -93,7 +93,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-075](ADR-075-native-pitchfork-development-stack.md)                 | Run the Regular Development Stack Natively with Pitchfork        | Superseded           | 2026-08-17 |
 | [ADR-076](ADR-076-deterministic-notification-occurrences.md)             | Store Notification Lifecycle Facts in a Bounded Event Stream     | Accepted             | 2026-08-10 |
 | [ADR-077](ADR-077-persistent-notification-list.md)                       | Present Notifications as One Persistent Occurrence List          | Accepted             | 2026-08-10 |
-| [ADR-078](ADR-078-portless-native-development-stack.md)                  | Route the Native Development Stack with Portless                 | Accepted             | 2026-08-21 |
+| [ADR-078](ADR-078-portless-native-development-stack.md)                  | Route the Native Development Stack with Portless                 | Superseded           | 2026-08-21 |
 | [ADR-079](ADR-079-renewable-bearer-sessions.md)                          | Renewable Bearer Sessions with Rotating Refresh Credentials      | Partially superseded | 2026-08-22 |
 | [ADR-080](ADR-080-explicit-message-read-permissions.md)                  | Gate Message Content with `message.read`                         | Partially superseded | 2026-08-23 |
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)    | Explicit Expiry for Mutable Runtime Credentials                  | Accepted             | 2026-08-24 |
@@ -121,3 +121,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md)           | Persist Checkpointed Client Projections                          | Accepted             | 2026-09-25 |
 | [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)               | Gate the Effective-Owner Override with Privileged Mode           | Accepted             | 2026-09-25 |
 | [ADR-106](ADR-106-server-side-neighborhood-discovery.md)                 | Discover the Neighborhood on the Server                          | Accepted             | 2026-09-25 |
+| [ADR-107](ADR-107-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |

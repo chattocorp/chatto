@@ -127,7 +127,8 @@ report_listeners() {
 	done <<<"$listener_pids"
 }
 
-for port_offset in 0 1 2 3 4 5 6 8 9; do
+# Offset 1 belongs to `mise dev-frontend`, which may run beside `mise dev`.
+for port_offset in 0 2 3 4 5 6 8 9; do
 	report_listeners TCP "$((port_base + port_offset))"
 done
 report_listeners UDP "$((port_base + 7))"
