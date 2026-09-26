@@ -70,14 +70,8 @@
       "remove_account_suffix": " van deze server."
     },
     "timeline": {
-      "post_interactions_only_channel": "Je kunt in deze kamer geen nieuwe gesprekken beginnen. Je kunt antwoorden in threads die je hebt gestart of waarin iemand je heeft vermeld.",
-      "post_threads_only": "Je kunt in deze kamer geen nieuwe gesprekken beginnen, maar je kunt wel in threads antwoorden.",
-      "post_interactions_only": "Je kunt hier geen nieuwe gesprekken beginnen. Je kunt antwoorden op berichten aan jou en in threads die je hebt gestart of waarin iemand je heeft vermeld.",
-      "post_denied": "Je kunt in deze kamer geen berichten plaatsen.",
       "beginning": "Dit is het begin van dit gesprek.",
       "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen.",
-      "limited_access": "Je kunt alleen gesprekken zien die je hebt gestart of waarin iemand je heeft vermeld.",
-      "limited_access_dm": "Je kunt alleen gesprekken zien die je hebt gestart, ontvangen of waarin iemand je heeft vermeld.",
       "limited_empty": "Er zijn nog geen gesprekken die je kunt lezen."
     },
     "message": {

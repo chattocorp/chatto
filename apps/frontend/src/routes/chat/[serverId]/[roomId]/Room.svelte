@@ -27,7 +27,6 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
-  import { Hint } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -180,24 +179,6 @@
   });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
-  const postingNotice = $derived.by(() => {
-    if (room.roomData?.canPostMessage !== false) return null;
-    if (
-      canReadMessages &&
-      !room.roomData.room.archived &&
-      threadingMode !== RoomThreadingMode.DISABLED
-    ) {
-      if (room.roomData.canPostInThread) return m('room.timeline.post_threads_only');
-      if (room.roomData.canPostInteractions) {
-        return m(
-          room.isDM
-            ? 'room.timeline.post_interactions_only'
-            : 'room.timeline.post_interactions_only_channel'
-        );
-      }
-    }
-    return m('room.timeline.post_denied');
-  });
   let composerCanCreateThread = $derived(
     permissions.canPostMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
@@ -775,25 +756,6 @@
               {/if}
             {/snippet}
           </PaneHeader>
-
-          {#if postingNotice || room.roomData?.hasLimitedMessageAccess}
-            <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
-              {#if postingNotice}
-                <div data-testid="room-post-denied">
-                  <Hint>{postingNotice}</Hint>
-                </div>
-              {/if}
-              {#if room.roomData?.hasLimitedMessageAccess}
-                <div data-testid="limited-message-access">
-                  <Hint>
-                    {m(
-                      room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access'
-                    )}
-                  </Hint>
-                </div>
-              {/if}
-            </div>
-          {/if}
         {/snippet}
       </ConversationPane>
 

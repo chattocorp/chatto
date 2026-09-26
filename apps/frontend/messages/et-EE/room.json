@@ -70,14 +70,8 @@
       "remove_account_suffix": " selle serveri jaoks enne selle eemaldamist."
     },
     "timeline": {
-      "post_interactions_only_channel": "Selles toas ei saa sa uusi vestlusi alustada. Saad vastata lõimedes, mille alustasid või kus keegi sind mainis.",
-      "post_threads_only": "Selles toas ei saa sa uusi vestlusi alustada, kuid saad lõimedes vastata.",
-      "post_interactions_only": "Siin ei saa sa uusi vestlusi alustada. Saad vastata sulle saadetud sõnumitele ning lõimedes, mille alustasid või kus keegi sind mainis.",
-      "post_denied": "Selles toas ei saa sa sõnumeid saata.",
       "beginning": "See on selle vestluse algus.",
       "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
-      "limited_access": "Näed ainult vestlusi, mille oled alustanud või kus keegi on sind maininud.",
-      "limited_access_dm": "Näed ainult vestlusi, mille oled alustanud, vastu võtnud või kus keegi on sind maininud.",
       "limited_empty": "Veel pole vestlusi, mida saad lugeda."
     },
     "message": {

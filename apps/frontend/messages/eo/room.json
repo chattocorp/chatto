@@ -70,14 +70,8 @@
       "remove_account_suffix": " de ĉi tiu servilo antaŭ ol forigi ĝin."
     },
     "timeline": {
-      "post_interactions_only_channel": "Vi ne povas komenci novajn konversaciojn en ĉi tiu ĉambro. Vi povas respondi en fadenoj, kiujn vi komencis aŭ kie iu menciis vin.",
-      "post_threads_only": "Vi ne povas komenci novajn konversaciojn en ĉi tiu ĉambro, sed vi povas respondi en fadenoj.",
-      "post_interactions_only": "Vi ne povas komenci novajn konversaciojn ĉi tie. Vi povas respondi al mesaĝoj senditaj al vi kaj en fadenoj, kiujn vi komencis aŭ kie iu menciis vin.",
-      "post_denied": "Vi ne povas sendi mesaĝojn en ĉi tiu ĉambro.",
       "beginning": "Jen la komenco de ĉi tiu konversacio.",
       "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro.",
-      "limited_access": "Vi povas vidi nur konversaciojn, kiujn vi komencis aŭ en kiuj iu menciis vin.",
-      "limited_access_dm": "Vi povas vidi nur konversaciojn, kiujn vi komencis, ricevis aŭ en kiuj iu menciis vin.",
       "limited_empty": "Ankoraŭ neniuj konversacioj, kiujn vi povas legi."
     },
     "message": {

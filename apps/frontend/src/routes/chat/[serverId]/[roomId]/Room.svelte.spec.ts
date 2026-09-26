@@ -589,86 +589,6 @@ describe('Room interaction bundles', () => {
     expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
   });
 
-  it.each([true, false])('explains posting denial with read access %s', async (canRead) => {
-    mocks.canPostMessage = false;
-    mocks.canPostInThread = false;
-    mocks.canReadMessages = canRead;
-    const { container } = render(Room, { props: { roomId: 'room-1' } });
-    await expect
-      .element(q(container, '[data-testid="room-post-denied"]'))
-      .toHaveTextContent("You can't post messages in this room.");
-  });
-
-  it.each([true, false])(
-    'groups the limited-read notice with posting allowed %s',
-    async (canPost) => {
-      mocks.canPostMessage = canPost;
-      mocks.hasLimitedMessageAccess = true;
-      const { container } = render(Room, { props: { roomId: 'room-1' } });
-      const notices = q(container, '[data-testid="room-permission-notices"]');
-      await expect
-        .element(notices)
-        .toHaveTextContent(
-          'You can only see conversations you started or where someone mentioned you.'
-        );
-      expect(notices?.children.length).toBe(canPost ? 1 : 2);
-    }
-  );
-
-  it('omits the posting notice when posting is allowed', async () => {
-    const { container } = render(Room, { props: { roomId: 'room-1' } });
-    await tick();
-    expect(container.querySelector('[data-testid="room-post-denied"]')).toBeNull();
-  });
-
-  it.each([
-    [true, true, "You can't start new conversations in this room, but you can reply in threads."],
-    [
-      false,
-      true,
-      "You can't start new conversations in this room. You can reply in threads you started or where someone mentioned you."
-    ]
-  ] as const)(
-    'explains reply-only posting with thread grant %s and interaction grant %s',
-    async (threads, interactions, notice) => {
-      mocks.canPostMessage = false;
-      mocks.canPostInThread = threads;
-      mocks.canPostInteractions = interactions;
-      const { container } = render(Room, { props: { roomId: 'room-1' } });
-      await expect
-        .element(q(container, '[data-testid="room-post-denied"]'))
-        .toHaveTextContent(notice);
-    }
-  );
-
-  it('explains received messages as an interaction in DMs', async () => {
-    mocks.roomKind = RoomKind.DM;
-    mocks.canPostMessage = false;
-    mocks.canPostInThread = false;
-    mocks.canPostInteractions = true;
-    const { container } = render(Room, { props: { roomId: 'room-1' } });
-    await expect
-      .element(q(container, '[data-testid="room-post-denied"]'))
-      .toHaveTextContent(
-        "You can't start new conversations here. You can reply to messages sent to you, in threads you started, and in threads where someone mentioned you."
-      );
-  });
-
-  it.each([RoomThreadingMode.DISABLED, RoomThreadingMode.ENABLED])(
-    'does not promise interaction replies without room access in threading mode %s',
-    async (mode) => {
-      mocks.canPostMessage = false;
-      mocks.canPostInThread = false;
-      mocks.canPostInteractions = true;
-      mocks.threadingMode = mode;
-      mocks.canReadMessages = mode === RoomThreadingMode.DISABLED;
-      const { container } = render(Room, { props: { roomId: 'room-1' } });
-      await expect
-        .element(q(container, '[data-testid="room-post-denied"]'))
-        .toHaveTextContent("You can't post messages in this room.");
-    }
-  );
-
   it('explains when the viewer cannot read messages and keeps the composer available', async () => {
     mocks.canReadMessages = false;
 
@@ -1739,18 +1659,5 @@ describe('Room local message echo', () => {
 
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
     expect(mocks.timeline.getRoomEventsAround).not.toHaveBeenCalled();
-  });
-});
-
-describe('Room DM permission notice', () => {
-  it('includes received conversations', async () => {
-    mocks.roomKind = RoomKind.DM;
-    mocks.hasLimitedMessageAccess = true;
-    const { container } = render(Room, { props: { roomId: 'room-1' } });
-    await expect
-      .element(q(container, '[data-testid="limited-message-access"]'))
-      .toHaveTextContent(
-        'You can only see conversations you started, received, or where someone mentioned you.'
-      );
   });
 });

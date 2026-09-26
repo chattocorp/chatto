@@ -70,14 +70,8 @@
       "remove_account_suffix": " deste servidor antes de o remover."
     },
     "timeline": {
-      "post_interactions_only_channel": "Não podes iniciar novas conversas nesta sala. Podes responder em tópicos que iniciaste ou onde alguém te mencionou.",
-      "post_threads_only": "Não podes iniciar novas conversas nesta sala, mas podes responder em tópicos.",
-      "post_interactions_only": "Não podes iniciar novas conversas aqui. Podes responder a mensagens enviadas para ti e em tópicos que iniciaste ou onde alguém te mencionou.",
-      "post_denied": "Não podes enviar mensagens nesta sala.",
       "beginning": "Este é o início desta conversa.",
       "read_denied": "Não tens permissão para ler mensagens nesta sala.",
-      "limited_access": "Só podes ver conversas que iniciaste ou em que alguém te mencionou.",
-      "limited_access_dm": "Só podes ver conversas que iniciaste, recebeste ou em que alguém te mencionou.",
       "limited_empty": "Ainda não há conversas que possas ler."
     },
     "message": {

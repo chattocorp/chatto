@@ -70,14 +70,8 @@
       "remove_account_suffix": " for this server before removing it."
     },
     "timeline": {
-      "post_interactions_only_channel": "You can't start new conversations in this room. You can reply in threads you started or where someone mentioned you.",
-      "post_threads_only": "You can't start new conversations in this room, but you can reply in threads.",
-      "post_interactions_only": "You can't start new conversations here. You can reply to messages sent to you, in threads you started, and in threads where someone mentioned you.",
-      "post_denied": "You can't post messages in this room.",
       "beginning": "This is the beginning of this conversation.",
       "read_denied": "You do not have permission to read messages in this room.",
-      "limited_access": "You can only see conversations you started or where someone mentioned you.",
-      "limited_access_dm": "You can only see conversations you started, received, or where someone mentioned you.",
       "limited_empty": "No conversations you can read yet."
     },
     "message": {

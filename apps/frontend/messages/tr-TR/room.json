@@ -70,14 +70,8 @@
       "remove_account_suffix": " kaldırmadan önce bu sunucu için."
     },
     "timeline": {
-      "post_interactions_only_channel": "Bu odada yeni konuşma başlatamazsın. Başlattığın veya birinin senden bahsettiği ileti dizilerinde yanıt verebilirsin.",
-      "post_threads_only": "Bu odada yeni konuşma başlatamazsın ama ileti dizilerinde yanıt verebilirsin.",
-      "post_interactions_only": "Burada yeni konuşma başlatamazsın. Sana gönderilen mesajlara ve başlattığın veya birinin senden bahsettiği ileti dizilerinde yanıt verebilirsin.",
-      "post_denied": "Bu odada mesaj gönderemezsin.",
       "beginning": "Bu, bu konuşmanın başlangıcıdır.",
       "read_denied": "Bu odadaki mesajları okuma izniniz yok.",
-      "limited_access": "Yalnızca başlattığınız veya birinin sizden bahsettiği konuşmaları görebilirsiniz.",
-      "limited_access_dm": "Yalnızca başlattığınız, aldığınız veya birinin sizden bahsettiği konuşmaları görebilirsiniz.",
       "limited_empty": "Henüz okuyabileceğiniz konuşma yok."
     },
     "message": {

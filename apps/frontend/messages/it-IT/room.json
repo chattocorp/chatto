@@ -70,14 +70,8 @@
       "remove_account_suffix": " per questo server prima di rimuoverlo."
     },
     "timeline": {
-      "post_interactions_only_channel": "Non puoi avviare nuove conversazioni in questa stanza. Puoi rispondere nei thread che hai creato o in cui qualcuno ti ha menzionato.",
-      "post_threads_only": "Non puoi avviare nuove conversazioni in questa stanza, ma puoi rispondere nei thread.",
-      "post_interactions_only": "Non puoi avviare nuove conversazioni qui. Puoi rispondere ai messaggi che ti sono stati inviati e nei thread che hai creato o in cui qualcuno ti ha menzionato.",
-      "post_denied": "Non puoi inviare messaggi in questa stanza.",
       "beginning": "Questo è l'inizio di questa conversazione.",
       "read_denied": "Non hai l'autorizzazione per leggere i messaggi in questa stanza.",
-      "limited_access": "Puoi vedere solo le conversazioni che hai iniziato o in cui qualcuno ti ha menzionato.",
-      "limited_access_dm": "Puoi vedere solo le conversazioni che hai iniziato, ricevuto o in cui qualcuno ti ha menzionato.",
       "limited_empty": "Non ci sono ancora conversazioni che puoi leggere."
     },
     "message": {
