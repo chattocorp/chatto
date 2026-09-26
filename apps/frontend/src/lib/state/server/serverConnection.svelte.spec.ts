@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
+  mockConfirmAuthenticationRequired,
   mockCsrfFetch,
   mockHandleAuthenticationRequired,
   mockRenewServerAuthentication,
   mockServers
 } = vi.hoisted(() => ({
+  mockConfirmAuthenticationRequired: vi.fn(),
   mockCsrfFetch: vi.fn(),
   mockHandleAuthenticationRequired: vi.fn(),
   mockRenewServerAuthentication: vi.fn(),
@@ -31,6 +33,7 @@ vi.mock('./registry.svelte', () => ({
       return [...mockServers.values()].find((s) => s.url === window.location.origin);
     },
     handleAuthenticationRequired: mockHandleAuthenticationRequired,
+    confirmAuthenticationRequired: mockConfirmAuthenticationRequired,
     renewServerAuthentication: mockRenewServerAuthentication
   }
 }));
@@ -321,6 +324,27 @@ describe('ServerConnection', () => {
 
     expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     expect(mockHandleAuthenticationRequired).toHaveBeenCalledWith('remote-1');
+    client.dispose();
+  });
+
+  it('ends an origin cookie session only after the registry confirms the rejection', async () => {
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+    mockConfirmAuthenticationRequired.mockResolvedValueOnce(true);
+
+    await expect(client.handleAuthenticationRequired()).resolves.toBe(false);
+    expect(mockConfirmAuthenticationRequired).toHaveBeenCalledWith(
+      'origin',
+      'realtime close frame'
+    );
+    expect(mockHandleAuthenticationRequired).not.toHaveBeenCalled();
+    client.dispose();
+  });
+
+  it('retries later when the registry keeps a rejected origin cookie session', async () => {
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+    mockConfirmAuthenticationRequired.mockResolvedValueOnce(false);
+
+    await expect(client.handleAuthenticationRequired()).rejects.toThrow();
     client.dispose();
   });
 

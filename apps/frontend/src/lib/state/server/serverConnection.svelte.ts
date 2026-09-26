@@ -218,6 +218,13 @@ export class ServerConnection {
     this.#failedAttempts = failedAttempts;
   }
 
+  /**
+   * Recover from a realtime authentication-required close. Resolves to true
+   * when a renewed bearer session can reconnect at once, and to false when the
+   * session needs a new sign-in. Rejects when recovery failed temporarily,
+   * including when the viewer check accepts a rejected cookie session; the
+   * caller then reconnects after a delay.
+   */
   async handleAuthenticationRequired(): Promise<boolean> {
     if (this.#serverId) {
       if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(this.#serverId)) {
@@ -226,7 +233,11 @@ export class ServerConnection {
       if (this.#token) {
         return (await serverRegistry.renewServerAuthentication(this.#serverId, true)) !== null;
       }
-      serverRegistry.handleAuthenticationRequired(this.#serverId);
+      const required = await serverRegistry.confirmAuthenticationRequired(
+        this.#serverId,
+        'realtime close frame'
+      );
+      if (!required) throw new Error('The viewer check accepted the rejected session.');
     }
     return false;
   }

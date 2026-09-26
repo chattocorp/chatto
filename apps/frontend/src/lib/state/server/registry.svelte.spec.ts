@@ -9,6 +9,18 @@ import {
 import { queryClient } from '$lib/query/client';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { ViewerState } from '$lib/api-client/viewer';
+
+const viewerMocks = vi.hoisted(() => ({
+  getViewerStateViaConnect: vi.fn()
+}));
+
+vi.mock('$lib/api-client/viewer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api-client/viewer')>();
+  viewerMocks.getViewerStateViaConnect.mockImplementation(actual.getViewerStateViaConnect);
+  return { ...actual, getViewerStateViaConnect: viewerMocks.getViewerStateViaConnect };
+});
 
 const accountFields = {
   displayName: 'Account',
@@ -258,6 +270,101 @@ describe('ServerRegistry', () => {
 
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
       expect(stored).toHaveLength(0);
+    });
+  });
+
+  describe('confirmAuthenticationRequired', () => {
+    function addOriginCookieSession() {
+      const registry = createRegistry();
+      registry.removeAll();
+      registry.addServer(
+        makeServer({ id: 'origin', url: window.location.origin, token: null, userId: 'U1' })
+      );
+      viewerMocks.getViewerStateViaConnect.mockClear();
+      return registry;
+    }
+
+    it('keeps an origin cookie session that the viewer check accepts', async () => {
+      const registry = addOriginCookieSession();
+      viewerMocks.getViewerStateViaConnect.mockResolvedValueOnce({} as ViewerState);
+
+      await expect(
+        registry.confirmAuthenticationRequired('origin', 'chatto.api.v1.RoomService/ListMembers')
+      ).resolves.toBe(false);
+
+      expect(viewerMocks.getViewerStateViaConnect).toHaveBeenCalledOnce();
+      expect(registry.getServer('origin')?.reauthRequiredAt).toBeNull();
+    });
+
+    it('marks an origin cookie session that the viewer check also rejects', async () => {
+      const registry = addOriginCookieSession();
+      viewerMocks.getViewerStateViaConnect.mockRejectedValueOnce(
+        new ConnectError('authentication required', Code.Unauthenticated)
+      );
+
+      await expect(
+        registry.confirmAuthenticationRequired('origin', 'realtime close frame')
+      ).resolves.toBe(true);
+
+      expect(registry.getServer('origin')?.reauthRequiredAt).toEqual(expect.any(Number));
+    });
+
+    it('does not mark an origin cookie session when the viewer check fails temporarily', async () => {
+      const registry = addOriginCookieSession();
+      const unavailable = new ConnectError('unavailable', Code.Unavailable);
+      viewerMocks.getViewerStateViaConnect.mockRejectedValueOnce(unavailable);
+
+      await expect(
+        registry.confirmAuthenticationRequired('origin', 'realtime close frame')
+      ).rejects.toBe(unavailable);
+
+      expect(registry.getServer('origin')?.reauthRequiredAt).toBeNull();
+    });
+
+    it('shares one viewer check between concurrent reports', async () => {
+      const registry = addOriginCookieSession();
+      viewerMocks.getViewerStateViaConnect.mockResolvedValueOnce({} as ViewerState);
+
+      const results = await Promise.all([
+        registry.confirmAuthenticationRequired('origin', 'first'),
+        registry.confirmAuthenticationRequired('origin', 'second')
+      ]);
+
+      expect(results).toEqual([false, false]);
+      expect(viewerMocks.getViewerStateViaConnect).toHaveBeenCalledOnce();
+    });
+
+    it('does not mark a session that was replaced during the viewer check', async () => {
+      const registry = addOriginCookieSession();
+      let rejectViewer: (error: unknown) => void = () => {};
+      viewerMocks.getViewerStateViaConnect.mockReturnValueOnce(
+        new Promise((_, reject) => {
+          rejectViewer = reject;
+        })
+      );
+
+      const result = registry.confirmAuthenticationRequired('origin', 'realtime close frame');
+      registry.clearServerAuthentication('origin');
+      rejectViewer(new ConnectError('authentication required', Code.Unauthenticated));
+
+      await expect(result).resolves.toBe(false);
+      expect(registry.getServer('origin')?.reauthRequiredAt).toBeNull();
+    });
+
+    it('marks a session with a token without a viewer check', async () => {
+      const registry = createRegistry();
+      registry.removeAll();
+      registry.addServer(
+        makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'fixed-token' })
+      );
+      viewerMocks.getViewerStateViaConnect.mockClear();
+
+      await expect(
+        registry.confirmAuthenticationRequired('remote', 'chatto.api.v1.RoomService/ListMembers')
+      ).resolves.toBe(true);
+
+      expect(viewerMocks.getViewerStateViaConnect).not.toHaveBeenCalled();
+      expect(registry.getServer('remote')?.reauthRequiredAt).toEqual(expect.any(Number));
     });
   });
 

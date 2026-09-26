@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type authenticationValidationErrorKey struct{}
@@ -146,10 +148,10 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 		}
 		return presentedRuntimeCredential{}, false, err
 	}
-	user, err := s.core.GetUser(ctx, credential.UserID)
+	user, err := s.credentialUser(ctx, credential.UserID)
 	if err != nil {
-		log.Warn("Bearer runtime credential valid but user not found", "userId", credential.UserID, "error", err)
-		return presentedRuntimeCredential{}, false, nil
+		log.Warn("Bearer runtime credential valid but user could not be loaded", "userId", credential.UserID, "error", err)
+		return presentedRuntimeCredential{}, false, err
 	}
 	return presentedRuntimeCredential{
 		user: user,
@@ -162,6 +164,26 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 			PrivilegedModeExpiresAt: credential.PrivilegedModeExpiresAt,
 		},
 	}, true, nil
+}
+
+// credentialUser loads the user of a runtime credential that already passed
+// validation. Validation rejects deleted and revoked users through the
+// auth-generation gate, so a failed lookup here is a projection or key-store
+// fault, not proof that the credential is invalid. The returned error wraps
+// errAuthenticationServiceUnavailable so that callers report the request as
+// temporarily unavailable instead of unauthenticated. A client that cannot
+// renew its credential, such as a cookie session, would otherwise ask the
+// user to sign in again.
+func (s *HTTPServer) credentialUser(ctx context.Context, userID string) (*evtv1.User, error) {
+	lookup := s.core.GetUser
+	if s.credentialUserLookup != nil {
+		lookup = s.credentialUserLookup
+	}
+	user, err := lookup(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: load credential user: %w", errAuthenticationServiceUnavailable, err)
+	}
+	return user, nil
 }
 
 func oauthClientIDForRuntimeCredential(credential core.ValidatedRuntimeCredential) string {

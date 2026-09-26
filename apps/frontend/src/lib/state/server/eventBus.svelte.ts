@@ -249,10 +249,10 @@ class EventBusManager {
         if (mode === 'live') scheduleReconnect('access token renewed', 0);
         else if (mode === 'polling') connect('access token renewed');
       } catch (error) {
-        console.warn(`[eventBus:${serverId}] bearer renewal temporarily failed`, error);
+        console.warn(`[eventBus:${serverId}] authentication recovery temporarily failed`, error);
         if (stopped) return;
         if (mode === 'live')
-          scheduleReconnect('bearer renewal temporarily failed', RECONNECT_WAIT_MS);
+          scheduleReconnect('authentication recovery temporarily failed', RECONNECT_WAIT_MS);
         else {
           mode = 'dormant';
           resolvePoll(false);

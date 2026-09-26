@@ -1174,3 +1174,37 @@ func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 		}
 	})
 }
+
+// A valid credential whose user cannot be loaded must not look revoked: the
+// client would otherwise discard a working session.
+func TestConnectAPIReportsCredentialUserLookupFailureAsUnavailable(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-user-lookup", "Connect User Lookup", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := s.core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	client := apiv1connect.NewViewerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	getViewer := func() error {
+		req := connect.NewRequest(&apiv1.GetViewerRequest{})
+		req.Header().Set("Authorization", "Bearer "+token)
+		_, err := client.GetViewer(ctx, req)
+		return err
+	}
+
+	s.credentialUserLookup = func(context.Context, string) (*evtv1.User, error) {
+		return nil, errors.New("key store unavailable")
+	}
+	if err := getViewer(); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("GetViewer with failed user lookup err = %v, want unavailable", err)
+	}
+
+	s.credentialUserLookup = nil
+	if err := getViewer(); err != nil {
+		t.Fatalf("GetViewer after recovery: %v", err)
+	}
+}
