@@ -41,7 +41,7 @@ rendering to `SubjectPermissionsMatrix`.
 
   let {
     userId,
-    subjectKind = 'user',
+    subjectKind = m('rbac.permissions.cell.user_subject'),
     ownerCapped = false,
     decisionMode = 'tri-state'
   }: {

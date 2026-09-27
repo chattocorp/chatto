@@ -55,6 +55,7 @@
       "level_server": "Serveur",
       "level_group": "Groupe",
       "level_room": "Chambre",
+      "level_dm": "DM",
       "empty_category": "Aucune autorisation dans cette catégorie",
       "filter_label": "Filtrer les autorisations",
       "filter_placeholder": "Filtrer les autorisations...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "sujet",
         "role_subject": "rôle",
+        "user_subject": "utilisateur",
         "allow": "Autoriser",
         "deny": "Refuser",
         "owner_always_granted": "Le propriétaire dispose toujours de {permission}",

@@ -1,4 +1,5 @@
 import { m } from '$lib/i18n/messages';
+import type { MatrixScopeKind } from './SubjectPermissionsMatrix.svelte';
 
 /** A permission decision as the matrices display it. */
 export type MatrixDecision = 'allow' | 'deny' | 'neutral';
@@ -22,9 +23,15 @@ export function decisionTitle(decision: MatrixDecision): string {
 }
 
 /** Returns the translated name of a permission scope level. */
-export function scopeKindLabel(kind: string): string {
-  if (kind === 'SERVER') return m('rbac.permissions.level_server');
-  if (kind === 'GROUP') return m('rbac.permissions.level_group');
-  if (kind === 'ROOM') return m('rbac.permissions.level_room');
-  return kind.toLowerCase();
+export function scopeKindLabel(kind: MatrixScopeKind): string {
+  switch (kind) {
+    case 'SERVER':
+      return m('rbac.permissions.level_server');
+    case 'GROUP':
+      return m('rbac.permissions.level_group');
+    case 'ROOM':
+      return m('rbac.permissions.level_room');
+    case 'DM':
+      return m('rbac.permissions.level_dm');
+  }
 }

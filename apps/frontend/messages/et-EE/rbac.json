@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Grupp",
       "level_room": "Tuba",
+      "level_dm": "DM",
       "empty_category": "Selles kategoorias pole õigusi",
       "filter_label": "Filtri õigused",
       "filter_placeholder": "Filtreeri õigused...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "subjekt",
         "role_subject": "roll",
+        "user_subject": "kasutaja",
         "allow": "Luba",
         "deny": "Keela",
         "owner_always_granted": "Omanikul on alati õigus {permission}",

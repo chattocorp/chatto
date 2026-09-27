@@ -55,6 +55,7 @@
       "level_server": "Serwer",
       "level_group": "Grupa",
       "level_room": "Pokój",
+      "level_dm": "DM",
       "empty_category": "Brak uprawnień w tej kategorii",
       "filter_label": "Filtruj uprawnienia",
       "filter_placeholder": "Filtruj uprawnienia...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "podmiot",
         "role_subject": "rola",
+        "user_subject": "użytkownik",
         "allow": "Zezwól",
         "deny": "Odmów",
         "owner_always_granted": "Właściciel zawsze ma uprawnienie {permission}",

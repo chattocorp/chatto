@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Gruppo",
       "level_room": "Stanza",
+      "level_dm": "DM",
       "empty_category": "Nessuna autorizzazione in questa categoria",
       "filter_label": "Filtra i permessi",
       "filter_placeholder": "Filtra autorizzazioni...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "soggetto",
         "role_subject": "ruolo",
+        "user_subject": "utente",
         "allow": "Consenti",
         "deny": "Nega",
         "owner_always_granted": "Al proprietario viene sempre concesso {permission}",

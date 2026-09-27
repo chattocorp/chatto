@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Group",
       "level_room": "Room",
+      "level_dm": "DM",
       "empty_category": "No permissions in this category",
       "filter_label": "Filter permissions",
       "filter_placeholder": "Filter permissions...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "subject",
         "role_subject": "role",
+        "user_subject": "user",
         "allow": "Allow",
         "deny": "Deny",
         "owner_always_granted": "Owner is always granted {permission}",

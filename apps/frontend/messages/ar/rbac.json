@@ -55,6 +55,7 @@
       "level_server": "الخادم",
       "level_group": "المجموعة",
       "level_room": "الغرفة",
+      "level_dm": "الرسائل المباشرة",
       "empty_category": "لا توجد أذونات في هذه الفئة",
       "filter_label": "أذونات التصفية",
       "filter_placeholder": "تصفية الأذونات...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "الجهة",
         "role_subject": "الدور",
+        "user_subject": "المستخدم",
         "allow": "سماح",
         "deny": "رفض",
         "owner_always_granted": "يُمنح المالك {permission} دائمًا",

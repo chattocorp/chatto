@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Groep",
       "level_room": "Kamer",
+      "level_dm": "DM",
       "empty_category": "Geen rechten in deze categorie",
       "filter_label": "Machtigingen filteren",
       "filter_placeholder": "Machtigingen filteren...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "subject",
         "role_subject": "rol",
+        "user_subject": "gebruiker",
         "allow": "Toestaan",
         "deny": "Weigeren",
         "owner_always_granted": "Eigenaar heeft altijd {permission}",

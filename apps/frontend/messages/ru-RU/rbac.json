@@ -55,6 +55,7 @@
       "level_server": "Сервер",
       "level_group": "Группа",
       "level_room": "Комната",
+      "level_dm": "DM",
       "empty_category": "Нет разрешений в этой категории",
       "filter_label": "Фильтровать разрешения",
       "filter_placeholder": "Фильтровать разрешения...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "субъект",
         "role_subject": "роль",
+        "user_subject": "пользователь",
         "allow": "Разрешить",
         "deny": "Запретить",
         "owner_always_granted": "Владельцу всегда предоставлено разрешение {permission}",

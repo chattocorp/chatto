@@ -55,6 +55,7 @@
       "level_server": "Servidor",
       "level_group": "Grupo",
       "level_room": "Habitación",
+      "level_dm": "DM",
       "empty_category": "No hay permisos en esta categoría",
       "filter_label": "Filtrar permisos",
       "filter_placeholder": "Filtrar permisos...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "sujeto",
         "role_subject": "rol",
+        "user_subject": "usuario",
         "allow": "Permitir",
         "deny": "Denegar",
         "owner_always_granted": "El propietario siempre tiene {permission}",

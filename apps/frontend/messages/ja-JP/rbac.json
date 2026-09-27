@@ -55,6 +55,7 @@
       "level_server": "サーバー",
       "level_group": "グループ",
       "level_room": "部屋",
+      "level_dm": "DM",
       "empty_category": "このカテゴリには権限がありません",
       "filter_label": "権限を絞り込む",
       "filter_placeholder": "権限を絞り込む...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "対象",
         "role_subject": "ロール",
+        "user_subject": "ユーザー",
         "allow": "許可",
         "deny": "拒否",
         "owner_always_granted": "所有者には常に {permission} が付与されます",

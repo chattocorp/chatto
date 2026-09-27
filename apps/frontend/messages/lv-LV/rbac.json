@@ -55,6 +55,7 @@
       "level_server": "Serveris",
       "level_group": "Grupa",
       "level_room": "Istaba",
+      "level_dm": "DM",
       "empty_category": "Šajā kategorijā nav atļauju",
       "filter_label": "Filtra atļaujas",
       "filter_placeholder": "Filtrēt atļaujas...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "subjekts",
         "role_subject": "loma",
+        "user_subject": "lietotājs",
         "allow": "Atļaut",
         "deny": "Aizliegt",
         "owner_always_granted": "Īpašniekam vienmēr ir piešķirta atļauja {permission}",

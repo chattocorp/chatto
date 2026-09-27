@@ -55,6 +55,7 @@
       "level_server": "Сервер",
       "level_group": "Група",
       "level_room": "Кімната",
+      "level_dm": "DM",
       "empty_category": "У цій категорії немає дозволів",
       "filter_label": "Фільтрувати дозволи",
       "filter_placeholder": "Фільтрувати дозволи...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "суб’єкт",
         "role_subject": "роль",
+        "user_subject": "користувач",
         "allow": "Дозволити",
         "deny": "Заборонити",
         "owner_always_granted": "Власнику завжди надано дозвіл {permission}",

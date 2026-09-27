@@ -433,7 +433,18 @@ it('localizes tri-state cell labels, titles, and scope headings', async () => {
   await loadLocaleMessages('de-DE');
   setReactiveLocale('de-DE');
   const { container } = render(SubjectPermissionsMatrix, {
-    props: { data, onCycle: vi.fn(), subjectKind: 'Rolle' }
+    props: {
+      data: {
+        ...data,
+        scopes: [...data.scopes, { id: 'dm', label: 'DMs', kind: 'DM', parentGroupId: '' }],
+        cells: [
+          ...data.cells,
+          { permission: 'message.post', scopeId: 'dm', override: 'NONE', effective: 'ALLOW' }
+        ]
+      },
+      onCycle: vi.fn(),
+      subjectKind: 'Rolle'
+    }
   });
   const cellButton = (permission: string, scopeId: string) =>
     container.querySelector(
@@ -452,5 +463,6 @@ it('localizes tri-state cell labels, titles, and scope headings', async () => {
 
   expect(cellButton('message.delete', 'server').title).toBe('Keine Entscheidung');
   expect(container.querySelector('span[title="General (Gruppe)"]')).not.toBeNull();
+  expect(container.querySelector('span[title="DMs (DM)"]')).not.toBeNull();
   expect(container.textContent).toContain('Berechtigung');
 });

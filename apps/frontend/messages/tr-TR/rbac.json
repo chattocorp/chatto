@@ -55,6 +55,7 @@
       "level_server": "Sunucu",
       "level_group": "Grup",
       "level_room": "Oda",
+      "level_dm": "DM",
       "empty_category": "Bu kategoride izin yok",
       "filter_label": "İzinleri filtrele",
       "filter_placeholder": "İzinleri filtrele...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "özne",
         "role_subject": "rol",
+        "user_subject": "kullanıcı",
         "allow": "İzin ver",
         "deny": "Reddet",
         "owner_always_granted": "Sahibe her zaman {permission} verilir",

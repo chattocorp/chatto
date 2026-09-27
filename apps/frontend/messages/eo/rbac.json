@@ -55,6 +55,7 @@
       "level_server": "Servilo",
       "level_group": "Grupo",
       "level_room": "Ĉambro",
+      "level_dm": "DM",
       "empty_category": "Neniuj permesoj en ĉi tiu kategorio",
       "filter_label": "Filtri permesojn",
       "filter_placeholder": "Filtri permesojn...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "subjekto",
         "role_subject": "rolo",
+        "user_subject": "uzanto",
         "allow": "Permesi",
         "deny": "Rifuzi",
         "owner_always_granted": "Posedanto ĉiam ricevas {permission}",

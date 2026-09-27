@@ -55,6 +55,7 @@
       "level_server": "伺服器",
       "level_group": "群組",
       "level_room": "聊天室",
+      "level_dm": "私訊",
       "empty_category": "此類別沒有權限",
       "filter_label": "篩選權限",
       "filter_placeholder": "篩選權限...",
@@ -104,6 +105,7 @@
       "cell": {
         "subject": "主體",
         "role_subject": "角色",
+        "user_subject": "使用者",
         "allow": "允許",
         "deny": "拒絕",
         "owner_always_granted": "擁有者一律具有 {permission}",
