@@ -733,21 +733,24 @@ func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room uint32, u
 	return max(b.accountSince[user], b.universalSince[room])
 }
 
-// badgeAudience returns the users whose Badge attention a message can affect,
-// with the message's scope: room members for a root message; for a thread
-// reply, the thread's followers and root author. Users addressed by a targeted
-// source of the message, including reaction recipients, are included too.
-func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, userIDs []string) {
+// badgeAudience returns the users whose Badge attention a message could have
+// given, with the message's scope and sequence: room members for a root
+// message; for a thread reply, the thread's followers and root author; and the
+// users addressed by a targeted source of the message, including reaction
+// recipients. Only users who can currently see the room are returned, so the
+// result never names a room to a user outside it. The message's actor is
+// excluded, because their own message never gives them attention.
+func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, sequence uint64, userIDs []string) {
 	b := s.badges
 	message, ok := b.ids.lookup(messageEventID)
 	if !ok {
-		return "", "", nil
+		return "", "", 0, nil
 	}
 	record, exists := b.messages[message]
 	if !exists {
-		return "", "", nil
+		return "", "", 0, nil
 	}
-	roomID, threadRootEventID = b.ids.id(record.room), b.ids.id(record.thread)
+	roomID, threadRootEventID, sequence = b.ids.id(record.room), b.ids.id(record.thread), record.seq
 	users := make(map[string]struct{})
 	if record.thread == 0 {
 		for _, userID := range s.roomMemberIDs(roomID) {
@@ -768,7 +771,36 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 			}
 		}
 	}
-	return roomID, threadRootEventID, sortedMapKeys(users)
+	delete(users, b.ids.id(record.actor))
+	visible := make([]string, 0, len(users))
+	for _, userID := range sortedMapKeys(users) {
+		if s.badgeRoomVisible(userID, roomID) {
+			visible = append(visible, userID)
+		}
+	}
+	return roomID, threadRootEventID, sequence, visible
+}
+
+// badgeRoomVisible reports whether the user can currently see messages in the
+// room, with broad or interaction-scoped read access.
+func (s *notificationDecisionSnapshot) badgeRoomVisible(userID, roomID string) bool {
+	return s.notificationVisibilityExists(userID, roomID) || s.notificationInteractionVisibilityExists(userID, roomID)
+}
+
+// badgeSourceUnread reports whether a source at sequence could still give the
+// user attention: it is after the start of the user's membership and after
+// the read boundary of the query's scope.
+func (s *notificationDecisionSnapshot) badgeSourceUnread(q badgeQuery, sequence uint64) bool {
+	b := s.badges
+	user, _ := b.ids.lookup(q.userID)
+	room, _ := b.ids.lookup(q.roomID)
+	floor := s.badgeMembershipStart(user, room, q.userID, q.roomID)
+	if q.readBoundary != nil {
+		if boundary, ok := q.readBoundary(q.threadRootEventID); ok {
+			floor = max(floor, boundary.targetSequence)
+		}
+	}
+	return sequence > floor
 }
 
 // badgeRoomsForUser lists the rooms where the user is an explicit member, plus

@@ -503,8 +503,8 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 // visibility change can affect. A user-scoped change hints the user's rooms; a
 // room-scoped change hints the room's current members. Hints go only to rooms
 // that the user belongs to or can currently join, so they reveal no other
-// rooms. Server-wide changes send no hints; clients converge when they next
-// read their rooms.
+// rooms. Server-wide and room-group-wide changes send no hints; clients
+// converge when they next read their rooms.
 func (m *NotificationMaterializer) publishVisibilityBadgeHints(ctx context.Context, userID, roomID string, at time.Time) {
 	var invalidations []notificationUnreadInvalidation
 	_ = m.decisions.Projection().withCurrent(at, func(snapshot *notificationDecisionSnapshot) error {
@@ -559,22 +559,30 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *ev
 		streamSequence,
 	)
 	if err == nil {
-		threadRootEventID := target.GetMessagePosted().GetInThread()
-		m.core.NotifyNotificationUnreadStateChanged(ctx, messageAuthorID(target), event.GetActorId(), reaction.GetRoomId(), threadRootEventID)
+		authorID := messageAuthorID(target)
+		visible := false
+		_ = m.decisions.Projection().withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
+			visible = snapshot.badgeRoomVisible(authorID, reaction.GetRoomId())
+			return nil
+		})
+		if visible {
+			m.core.NotifyNotificationUnreadStateChanged(ctx, authorID, event.GetActorId(), reaction.GetRoomId(), target.GetMessagePosted().GetInThread())
+		}
 	}
 	return err
 }
 
 // publishBadgeAudienceInvalidations hints the users whose Badge attention a
-// message could have given, after the message stopped being a source. Users
-// who still have attention in the scope keep the same public state, so they
-// get no hint.
+// retracted message could have given. A user is hinted only when the message
+// was still unread for them and they now have no attention in its scope, so
+// their public state changed.
 func (m *NotificationMaterializer) publishBadgeAudienceInvalidations(ctx context.Context, messageEventID, actorID string) {
 	decisions := m.decisions.Projection()
 	var roomID, threadRootEventID string
+	var sequence uint64
 	var userIDs []string
 	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
-		roomID, threadRootEventID, userIDs = snapshot.badgeAudience(messageEventID)
+		roomID, threadRootEventID, sequence, userIDs = snapshot.badgeAudience(messageEventID)
 		return nil
 	})
 	queries := make([]badgeQuery, 0, len(userIDs))
@@ -588,7 +596,7 @@ func (m *NotificationMaterializer) publishBadgeAudienceInvalidations(ctx context
 	var invalidations []notificationUnreadInvalidation
 	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
 		for _, query := range queries {
-			if !snapshot.hasBadgeAttention(query) {
+			if snapshot.badgeSourceUnread(query, sequence) && !snapshot.hasBadgeAttention(query) {
 				invalidations = append(invalidations, notificationUnreadInvalidation{
 					userID: query.userID, actorID: actorID, roomID: roomID, threadRootEventID: threadRootEventID,
 				})

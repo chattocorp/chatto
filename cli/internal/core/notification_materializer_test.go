@@ -823,3 +823,40 @@ func TestUserScopedVisibilityHintsOnlyTheUsersRooms(t *testing.T) {
 		}
 	}
 }
+
+func TestRetractionHintsSkipFormerMembers(t *testing.T) {
+	chattoCore, nc := setupTestCore(t)
+	ctx := testContext(t)
+	author, room, members := badgeTestRoom(t, chattoCore, "badge-retract-former", 1)
+	former := members[0]
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.FollowThread(ctx, KindChannel, former.Id, room.Id, root.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.LeaveRoom(ctx, former.Id, KindChannel, former.Id, room.Id); err != nil {
+		t.Fatal(err)
+	}
+	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitForNotificationMaterializer(t, chattoCore)
+	hints, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(former.Id, "notification_unread"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hints.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.DeleteMessage(ctx, author.Id, KindChannel, room.Id, reply.Id); err != nil {
+		t.Fatal(err)
+	}
+	waitForNotificationMaterializer(t, chattoCore)
+	if message, err := hints.NextMsg(300 * time.Millisecond); err == nil {
+		t.Fatalf("a former member received a Badge hint for the room: %s", message.Subject)
+	}
+}
