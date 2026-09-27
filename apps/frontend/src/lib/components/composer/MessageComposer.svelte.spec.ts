@@ -1021,6 +1021,27 @@ describe('MessageComposer', () => {
       expect(mutationMock).not.toHaveBeenCalled();
     });
 
+    it('ranks prioritized users first in the mention popup and Tab completion', async () => {
+      roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
+      const { container } = renderMessageComposer({
+        roomId: 'markdown-priority-mention',
+        mentionPriorityUserIds: new Set([roomMember('alicia').id])
+      });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '@ali');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+
+      const handles = [
+        ...container.querySelectorAll('[data-testid="mention-autocomplete"] bdi[dir="ltr"]')
+      ].map((element) => element.textContent);
+      expect(handles).toEqual(['@alicia', '@alice']);
+
+      await userEvent.keyboard('{Tab}');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia '));
+    });
+
     it('completes mentions before Enter can submit Markdown', async () => {
       roomStateMock.members = [roomMember('alice')];
       const { container, roomId } = renderMessageComposer({ roomId: 'markdown-mention' });

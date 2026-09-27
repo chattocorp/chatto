@@ -46,7 +46,6 @@ thread IDs can change while the pane stays mounted.
     useUnreadMarker
   } from '$lib/hooks';
   import { m } from '$lib/i18n/messages';
-  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import { RoomThreadingMode } from '$lib/roomThreading';
   import { appState } from '$lib/state/globals.svelte';
   import { createComposerContext, getRoomMembers, type MessagesStore } from '$lib/state/room';
@@ -56,6 +55,7 @@ thread IDs can change while the pane stays mounted.
   import EventList from './EventList.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import { threadParticipantIds } from './threadParticipants';
 
   let {
     roomId,
@@ -116,22 +116,12 @@ thread IDs can change while the pane stays mounted.
   const { editState, replyState, jumpState, quoteInsertionState } = composerContext;
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
-  /**
-   * Other users in this thread, ranked first in @mention autocomplete. The
-   * root's participant list covers replies outside the loaded window.
-   */
-  const threadParticipantIds = $derived.by((): ReadonlySet<string> | undefined => {
-    if (!isThread) return undefined;
-    const ids = events.flatMap((event) => {
-      if (!isMessagePostedEvent(event.event)) return [];
-      const rootParticipantIds =
-        event.id === threadRootEventId
-          ? event.event.threadParticipants.map((participant) => participant.id)
-          : [];
-      return event.actorId ? [event.actorId, ...rootParticipantIds] : rootParticipantIds;
-    });
-    return new Set(ids.filter((id) => id !== stores.viewerId));
-  });
+  /** Other users in this thread, ranked first in @mention autocomplete. */
+  const mentionPriorityUserIds = $derived(
+    isThread && threadRootEventId
+      ? threadParticipantIds(events, threadRootEventId, stores.viewerId)
+      : undefined
+  );
   const targetKey = $derived(threadRootEventId ? `${roomId}:${threadRootEventId}` : roomId);
 
   const typingIndicator = createTypingIndicator(() => ({
@@ -334,7 +324,7 @@ thread IDs can change while the pane stays mounted.
     {...composer}
     {roomId}
     inThread={threadRootEventId ?? undefined}
-    mentionPriorityUserIds={threadParticipantIds}
+    {mentionPriorityUserIds}
     {canPost}
     {canAttach}
     onReady={(api) => (composerApi = api)}
