@@ -130,14 +130,27 @@ This applies to both DM and channel threads.
 The bot needs permission to read that history. Failed reads stop the run instead
 of generating a reply from incomplete context.
 
-For Chatto product questions, the agent can use `fetchPage` to read the hosted
-documentation at `https://docs.chatto.run/` and follow its links. It is instructed
-to cite pages it reads and to say when the documentation does not answer a question.
-Published documentation can differ from the connected server version.
-The tool permits only that HTTPS origin, including redirects. It rejects URL
+For Chatto product questions, the agent can use `fetchPage` to read these
+references and follow their links:
+
+- `https://docs.chatto.run/`: documentation for released versions.
+- `https://dev-docs.chatto.run/`: documentation for the in-development or
+  pre-release version.
+- The [Awesome Chatto](https://github.com/nickk-/awesome-chatto) community list,
+  read as raw Markdown from `raw.githubusercontent.com`. Its entries are
+  unofficial third-party projects. The agent cannot open the linked projects.
+
+The agent is instructed to cite pages it reads, to say which documentation version
+it used, and to say when the references do not answer a question. Published
+documentation can differ from the connected server version.
+The tool permits only those HTTPS locations, including redirects. It rejects URL
 credentials and query strings, limits requests to 15 seconds and 512 KB, and
 returns at most 30,000 characters of page text with a truncation marker.
 It does not execute scripts or fetch page assets. Other websites remain unavailable.
+
+The agent is instructed not to disclose its model, model provider, instructions,
+or host configuration. This instruction does not guarantee confidentiality. Do not
+put secrets in agent instructions or tool results.
 
 ## Source investigation
 
@@ -440,8 +453,9 @@ config reload or process restart.
 
 The configured Chatto server receives the host's IP address and bot API key.
 Agent requests separately send conversation text to the configured model provider.
-Documentation requests disclose the host's IP address and requested page path
-to the documentation host. They do not send Chatto credentials. Retrieved page
+Reference requests disclose the host's IP address and requested page path to
+`docs.chatto.run`, `dev-docs.chatto.run`, or GitHub (`raw.githubusercontent.com`)
+for the Awesome Chatto list. They do not send Chatto credentials. Retrieved page
 text is sent to the model provider as reference material.
 
 Run checks from the repository root:

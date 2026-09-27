@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { fetchDocsPage } from './docs.ts';
+import { AWESOME_CHATTO_HOME, DEV_DOCS_HOME, fetchDocsPage } from './docs.ts';
 
 const html = (body: string) =>
   new Response(`<html><head><title>Chatto guide</title></head><body>${body}</body></html>`, {
@@ -34,7 +34,13 @@ test.each([
   'https://secret@docs.chatto.run/',
   'https://docs.chatto.run/?secret=value',
   'https://docs.chatto.run:444/',
-  'file:///etc/passwd'
+  'file:///etc/passwd',
+  'https://dev-docs.chatto.run.evil.example/',
+  'https://github.com/nickk-/awesome-chatto',
+  'https://raw.githubusercontent.com/nickk-/awesome-chatto-evil/README.md',
+  'https://raw.githubusercontent.com/nickk-/awesome-chatto/../other/HEAD/README.md',
+  'https://raw.githubusercontent.com/nickk-/awesome-chatto/%2e%2e/other/HEAD/README.md',
+  'https://raw.githubusercontent.com/nickk-/awesome-chatto/HEAD/README.md?token=secret'
 ])('rejects %s before fetching', async (url) => {
   const request = vi.fn<typeof fetch>();
   await expect(fetchDocsPage(url, undefined, request)).rejects.toThrow();
@@ -76,7 +82,9 @@ test('rejects failed or non-HTML responses', async () => {
   const request = vi.fn<typeof fetch>().mockResolvedValue(new Response('no', { status: 404 }));
   await expect(fetchDocsPage('/', undefined, request)).rejects.toThrow('unavailable');
   request.mockResolvedValue(new Response('binary', { headers: { 'content-type': 'image/png' } }));
-  await expect(fetchDocsPage('/', undefined, request)).rejects.toThrow('not HTML');
+  await expect(fetchDocsPage('/', undefined, request)).rejects.toThrow('unexpected format');
+  request.mockResolvedValue(new Response('# Text', { headers: { 'content-type': 'text/plain' } }));
+  await expect(fetchDocsPage('/', undefined, request)).rejects.toThrow('unexpected format');
 });
 
 test.each(['cancel', 'timeout'])('stops an in-flight request on %s', async (mode) => {
@@ -104,4 +112,57 @@ test.each(['cancel', 'timeout'])('stops an in-flight request on %s', async (mode
     vi.restoreAllMocks();
     vi.useRealTimers();
   }
+});
+
+test('reads development docs and lists links to both documentation sites', async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      html(
+        '<main><a href="/beta/">Beta</a><a href="https://docs.chatto.run/guide/">Stable</a><a href="https://other.example/">Other</a></main>'
+      )
+    );
+  const page = await fetchDocsPage(DEV_DOCS_HOME, undefined, request);
+  expect(page.url).toBe('https://dev-docs.chatto.run/');
+  expect(page.links).toEqual([
+    { title: 'Beta', url: 'https://dev-docs.chatto.run/beta/' },
+    { title: 'Stable', url: 'https://docs.chatto.run/guide/' }
+  ]);
+  expect(request.mock.calls[0]![1]!.headers).toMatchObject({ accept: 'text/html' });
+});
+
+test('reads the Awesome Chatto list as Markdown and lists only allowed links', async () => {
+  const markdown = [
+    '# Awesome Chatto',
+    '',
+    '- [Bot](https://github.com/example/bot), MIT <script>kept as text</script>',
+    '- [Early discovery](Early%20Server%20Discovery.md)',
+    '- [Docs](https://docs.chatto.run/)'
+  ].join('\n');
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      new Response(markdown, { headers: { 'content-type': 'text/plain; charset=utf-8' } })
+    );
+  const page = await fetchDocsPage(AWESOME_CHATTO_HOME, undefined, request);
+  expect(page).toMatchObject({
+    url: AWESOME_CHATTO_HOME,
+    title: 'Awesome Chatto',
+    truncated: false,
+    links: [
+      {
+        title: 'Early discovery',
+        url: 'https://raw.githubusercontent.com/nickk-/awesome-chatto/HEAD/Early%20Server%20Discovery.md'
+      },
+      { title: 'Docs', url: 'https://docs.chatto.run/' }
+    ]
+  });
+  expect(page.text).toContain('[Bot](https://github.com/example/bot)');
+  expect(request.mock.calls[0]![1]!.headers).toMatchObject({
+    accept: 'text/plain, text/markdown'
+  });
+  request.mockResolvedValue(html('<main>GitHub page</main>'));
+  await expect(fetchDocsPage(AWESOME_CHATTO_HOME, undefined, request)).rejects.toThrow(
+    'unexpected format'
+  );
 });
