@@ -123,7 +123,8 @@ slow to open and to expand the Offline group. One list for all groups also
 covers a large Online group.
 The virtualizer turns off browser scroll anchoring. The list keeps the visible
 rows in place itself when rows above them are added, removed, or move to
-another group. At the top of the list, new rows stay visible.
+another group. At the top of the list, new rows stay visible. The list does not
+correct its position while the reader scrolls, so it does not stop the scroll.
 **Tradeoff:** Member rows and collapsing groups do not animate. Browser search
 in the page and tests find only mounted rows. When a focused row scrolls far
 out of view, the client removes it and focus goes back to the page.

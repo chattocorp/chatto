@@ -22,7 +22,6 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
     type VirtualListGroup
   } from './groupedListItems';
   import {
-    ANCHOR_KEY_ATTRIBUTE,
     alignScrollAnchor,
     captureScrollAnchors,
     selectScrollAnchor,
@@ -34,7 +33,10 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
     groups: readonly VirtualListGroup<T>[];
     /** Renders one row. */
     item: Snippet<[T]>;
-    /** The scrolling ancestor. The list may share it with content that follows. */
+    /**
+     * The scrolling ancestor. The list must start at the top of its scroll content;
+     * other content may follow the list.
+     */
     scrollRef: HTMLElement | undefined;
     /** Draw a divider above the first group too. */
     separateFirst?: boolean;
@@ -56,22 +58,38 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
 
   let virtualizer = $state<VirtualizerHandle>();
   let listElement = $state<HTMLDivElement>();
-  // Entries as last rendered, and the entries visible in that layout. Anchors are recorded
-  // after scrolling and after each layout settles, because by the time `entries` changes
-  // the virtualizer has already rendered the new entries.
-  let renderedEntries: GroupedListItem<T>[] = [];
+  // The entries visible in the current layout. Anchors are recorded after scrolling and
+  // after each layout settles, because by the time `entries` changes the virtualizer has
+  // already rendered the new entries.
   let anchors: ScrollAnchor[] = [];
 
+  // Time of the reader's last scroll input. Alignment does not run while the reader
+  // scrolls, so it cannot undo their scrolling or stop a scroll that is still moving.
+  let lastScrollInputAt = -Infinity;
+  const SCROLL_INPUT_GRACE_MS = 500;
+
   function recordAnchors(): void {
-    anchors =
-      listElement && scrollRef ? captureScrollAnchors(listElement, scrollRef, renderedEntries) : [];
+    anchors = listElement && scrollRef ? captureScrollAnchors(listElement, scrollRef) : [];
   }
 
-  // The virtualizer renders the entries for a new scroll position after the scroll event.
   $effect(() => {
     const scroller = scrollRef;
     if (!scroller) return;
-    return on(scroller, 'scroll', () => void tick().then(recordAnchors), { passive: true });
+    const markScrollInput = (event: Event) => {
+      // A pointer press on the scroll element itself drags its scrollbar; presses on
+      // entries are clicks.
+      if (event.type === 'pointerdown' && event.target !== scroller) return;
+      lastScrollInputAt = performance.now();
+    };
+    const listeners = [
+      // The virtualizer renders the entries for a new scroll position after the scroll event.
+      on(scroller, 'scroll', () => void tick().then(recordAnchors), { passive: true }),
+      on(scroller, 'wheel', markScrollInput, { passive: true }),
+      on(scroller, 'touchstart', markScrollInput, { passive: true }),
+      on(scroller, 'pointerdown', markScrollInput, { passive: true }),
+      on(scroller, 'keydown', markScrollInput)
+    ];
+    return () => listeners.forEach((remove) => remove());
   });
 
   // Keep the visible entries in place when entries above them are inserted, removed, or
@@ -79,8 +97,9 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
   $effect(() => {
     const next = entries;
     return untrack(() => {
-      renderedEntries = next;
-      const selected = selectScrollAnchor(next, anchors);
+      const startedAt = performance.now();
+      const readerScrolling = startedAt - lastScrollInputAt < SCROLL_INPUT_GRACE_MS;
+      const selected = readerScrolling ? null : selectScrollAnchor(next, anchors);
       const handle = virtualizer;
       const list = listElement;
       const scroller = scrollRef;
@@ -96,9 +115,10 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
       let frame = 0;
       let remaining = 3;
       const settle = () => {
-        align();
+        const readerScrolled = lastScrollInputAt >= startedAt;
+        if (!readerScrolled) align();
         remaining -= 1;
-        if (remaining > 0) {
+        if (remaining > 0 && !readerScrolled) {
           frame = requestAnimationFrame(settle);
         } else {
           frame = 0;
@@ -135,7 +155,7 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
             group.collapsed && 'pb-1.5'
           ]}
           data-room-group-id={group.id}
-          {...{ [ANCHOR_KEY_ATTRIBUTE]: entry?.key }}
+          data-virtual-key={entry?.key}
         >
           <RoomGroupSectionHeader
             label={group.label}
@@ -148,7 +168,7 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
         <div
           class={['px-2', entry?.last ? 'pb-1.5' : 'pb-0.5']}
           data-room-group-id={entry?.groupId}
-          {...{ [ANCHOR_KEY_ATTRIBUTE]: entry?.key }}
+          data-virtual-key={entry?.key}
         >
           {@render item(row)}
         </div>

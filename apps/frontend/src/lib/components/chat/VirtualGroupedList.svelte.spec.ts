@@ -130,6 +130,49 @@ describe('VirtualGroupedList', () => {
     expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(1);
   });
 
+  it('does not undo scrolling that the reader starts right after a change', async () => {
+    const online = rows('online', 10);
+    const offline = rows('offline', 100);
+    const { container, rerender } = render(VirtualGroupedListTestHarness, {
+      props: { groups: [group('online', online), group('offline', offline)] }
+    });
+    await vi.waitFor(() => expect(firstVisibleRow(container).id).toBe('online-0'));
+    await scrollTo(container, 2000);
+
+    await rerender({
+      groups: [group('online', [...rows('new', 3), ...online]), group('offline', offline)]
+    });
+    const scroller = viewport(container);
+    scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: 300, bubbles: true }));
+    scroller.scrollTop += 300;
+    const scrolledTo = scroller.scrollTop;
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(Math.abs(scroller.scrollTop - scrolledTo)).toBeLessThanOrEqual(1);
+  });
+
+  it('leaves the scroll position alone when the reader scrolled just before a change', async () => {
+    const online = rows('online', 10);
+    const offline = rows('offline', 100);
+    const { container, rerender } = render(VirtualGroupedListTestHarness, {
+      props: { groups: [group('online', online), group('offline', offline)] }
+    });
+    await vi.waitFor(() => expect(firstVisibleRow(container).id).toBe('online-0'));
+    await scrollTo(container, 2000);
+
+    const scroller = viewport(container);
+    scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true }));
+    const scrolledTo = scroller.scrollTop;
+    await rerender({
+      groups: [group('online', [...rows('new', 3), ...online]), group('offline', offline)]
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // The virtualizer may still correct a measured size change, but the list does not
+    // scroll by the inserted rows.
+    expect(Math.abs(scroller.scrollTop - scrolledTo)).toBeLessThan(48);
+  });
+
   it('stays at the top when rows are inserted while the list is scrolled to the top', async () => {
     const online = rows('online', 10);
     const { container, rerender } = render(VirtualGroupedListTestHarness, {

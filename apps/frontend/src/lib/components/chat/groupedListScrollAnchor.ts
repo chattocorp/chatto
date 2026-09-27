@@ -15,6 +15,9 @@ export interface ScrollAnchor {
 /** Attribute that carries each mounted entry's key, so anchors can be found in the DOM. */
 export const ANCHOR_KEY_ATTRIBUTE = 'data-virtual-key';
 
+/** Attribute that carries each mounted entry's group ID. */
+export const ANCHOR_GROUP_ATTRIBUTE = 'data-room-group-id';
+
 const MAX_ANCHORS = 8;
 
 type AnchorHandle = Pick<VirtualizerHandle, 'getItemOffset'>;
@@ -33,34 +36,33 @@ function mountedEntry(listElement: HTMLElement, key: string): HTMLElement | null
 
 /**
  * Records the mounted entries whose top edge is inside the viewport, from the
- * top down. The virtualizer opts out of browser scroll anchoring, so without
- * this an entry inserted above the viewport moves everything the reader sees.
+ * top down. The virtualizer mounts entries in list order, so the first matches
+ * in the DOM are the topmost. The virtualizer opts out of browser scroll
+ * anchoring, so without this an entry inserted above the viewport moves
+ * everything the reader sees.
  *
  * Returns no anchors at the top of the list, so new entries at the top stay
  * visible, as with browser scroll anchoring.
  */
-export function captureScrollAnchors<T extends { id: string }>(
+export function captureScrollAnchors(
   listElement: HTMLElement,
-  scrollElement: HTMLElement,
-  entries: readonly GroupedListItem<T>[]
+  scrollElement: HTMLElement
 ): ScrollAnchor[] {
-  if (entries.length === 0 || scrollElement.scrollTop <= 0) return [];
+  if (scrollElement.scrollTop <= 0) return [];
 
   const top = viewportTop(scrollElement);
-  const bottom = top + scrollElement.clientHeight;
-  const groupByKey = new Map(entries.map((entry) => [entry.key, groupIdOf(entry)]));
-  return Array.from(listElement.querySelectorAll<HTMLElement>(`[${ANCHOR_KEY_ATTRIBUTE}]`))
-    .map((element) => ({
-      key: element.getAttribute(ANCHOR_KEY_ATTRIBUTE) ?? '',
-      top: element.getBoundingClientRect().top - top
-    }))
-    .filter((anchor) => anchor.top >= 0 && anchor.top < bottom - top)
-    .sort((left, right) => left.top - right.top)
-    .slice(0, MAX_ANCHORS)
-    .flatMap((anchor) => {
-      const groupId = groupByKey.get(anchor.key);
-      return groupId === undefined ? [] : [{ ...anchor, groupId }];
-    });
+  const height = scrollElement.clientHeight;
+  const anchors: ScrollAnchor[] = [];
+  for (const element of listElement.querySelectorAll<HTMLElement>(`[${ANCHOR_KEY_ATTRIBUTE}]`)) {
+    const offset = element.getBoundingClientRect().top - top;
+    if (offset >= height) break;
+    const key = element.getAttribute(ANCHOR_KEY_ATTRIBUTE);
+    const groupId = element.getAttribute(ANCHOR_GROUP_ATTRIBUTE);
+    if (offset < 0 || !key || groupId === null) continue;
+    anchors.push({ key, groupId, top: offset });
+    if (anchors.length === MAX_ANCHORS) break;
+  }
+  return anchors;
 }
 
 /**
