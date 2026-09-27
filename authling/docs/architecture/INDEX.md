@@ -58,7 +58,10 @@ equivalent environment override; the 1,024-byte maximum remains fixed.
 The `smtp` section configures transactional email. When enabled, `host`,
 `port`, and `from` are required. TLS defaults to mandatory STARTTLS (or
 implicit TLS on port 465); `opportunistic` is an explicit local-development
-fallback. Fields have corresponding `AUTHLING_SMTP_*` environment overrides.
+fallback. The runtime logs a startup warning when SMTP is enabled with
+`opportunistic` TLS or `tls_skip_verify`. Mailer errors do not contain email
+addresses or SMTP server replies. Fields have corresponding `AUTHLING_SMTP_*`
+environment overrides.
 
 Each `[[oidc.clients]]` table declares a conventional OIDC client with `id`,
 `name`, and one or more exact `redirect_uris`. An omitted `secret` creates a

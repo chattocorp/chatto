@@ -78,7 +78,9 @@ reservation.
 - Cross-origin form submissions are rejected. Opaque flow tokens additionally
   bind the verification and completion forms to server-side state.
 - SMTP transport encryption is mandatory by default. Opportunistic TLS is an
-  explicit development-only choice used by the checked-in Mailpit config.
+  explicit development-only choice used by the checked-in Mailpit config. The
+  runtime logs a startup warning when SMTP uses opportunistic TLS or skips
+  certificate verification.
 
 ## Design decisions
 

@@ -213,6 +213,9 @@ func TestMailer_Integration_InvalidToAddress(t *testing.T) {
 	if !strings.Contains(err.Error(), "invalid to address") {
 		t.Errorf("expected 'invalid to address' error, got %q", err.Error())
 	}
+	if strings.Contains(err.Error(), "not-an-email") {
+		t.Errorf("error repeats the submitted address: %q", err.Error())
+	}
 }
 
 func TestMailer_Integration_MultipleMessages(t *testing.T) {
@@ -270,5 +273,12 @@ func TestMailer_Integration_BlacklistedRecipient(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error for blacklisted recipient, got nil")
+	}
+	// Callers log delivery errors, so the error must not name the recipient.
+	if strings.Contains(err.Error(), "blocked@example.com") {
+		t.Errorf("error contains the recipient address: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "RCPT TO") {
+		t.Errorf("expected the failed SMTP command in the error, got %q", err.Error())
 	}
 }

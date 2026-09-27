@@ -68,11 +68,12 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 
 	// Create the message
 	message := mail.NewMsg()
+	// Address parse errors repeat the address, so do not wrap them.
 	if err := message.From(m.config.From); err != nil {
-		return fmt.Errorf("invalid from address: %w", err)
+		return errors.New("invalid from address")
 	}
 	if err := message.To(msg.To); err != nil {
-		return fmt.Errorf("invalid to address: %w", err)
+		return errors.New("invalid to address")
 	}
 	message.Subject(msg.Subject)
 	message.SetBodyString(mail.TypeTextPlain, msg.Body)
@@ -99,10 +100,23 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	}
 
 	if err := client.DialAndSendWithContext(ctx, message); err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+		return fmt.Errorf("failed to send email: %w", redactSendError(err))
 	}
 
 	return nil
+}
+
+// redactSendError removes the recipient addresses, message ID, and SMTP server
+// replies that go-mail includes in a SendError. Callers log delivery errors,
+// and server replies often repeat the rejected address. Dial, TLS, and
+// authentication errors do not contain message data and are returned unchanged.
+func redactSendError(err error) error {
+	var sendErr *mail.SendError
+	if !errors.As(err, &sendErr) {
+		return err
+	}
+	return fmt.Errorf("%s failed (code %d, enhanced status %q, temporary %t)",
+		sendErr.Reason, sendErr.ErrorCode(), sendErr.EnhancedStatusCode(), sendErr.IsTemp())
 }
 
 // messageRequiresSMTPUTF8 reports whether the SMTP envelope or a stored message
