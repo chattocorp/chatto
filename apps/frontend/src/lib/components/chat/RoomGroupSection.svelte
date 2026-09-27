@@ -7,24 +7,6 @@ navigation, member presence groups, and attachment date groups. Collection
 transitions belong to the outer conditional block so an empty collapsed group
 can slide out before its rows are removed.
 -->
-<script module lang="ts">
-  import { SvelteMap } from 'svelte/reactivity';
-  import { Codecs, StorageSlot } from '$lib/storage/slot';
-
-  const collapsedByKey = new SvelteMap<string, boolean>();
-
-  function loadCollapsed(key: string, fallback: boolean): boolean {
-    const cached = collapsedByKey.get(key);
-    if (cached !== undefined) return cached;
-    return new StorageSlot(key, fallback, Codecs.boolean).get();
-  }
-
-  function saveCollapsed(key: string, value: boolean): void {
-    collapsedByKey.set(key, value);
-    new StorageSlot(key, value, Codecs.boolean).set(value);
-  }
-</script>
-
 <script lang="ts" generics="T extends { id: string }">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -32,6 +14,8 @@ can slide out before its rows are removed.
   import { SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
   import { slide } from 'svelte/transition';
   import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from '$lib/ui/motion';
+  import RoomGroupSectionHeader from './RoomGroupSectionHeader.svelte';
+  import { loadCollapsed, saveCollapsed } from './roomGroupCollapse';
 
   interface Props {
     label: string;
@@ -123,43 +107,15 @@ can slide out before its rows are removed.
   {@attach containNestedDragAttachment}
 >
   <div class="px-2 py-1.5">
-    <div
-      class="group/section-header relative flex min-h-8 w-full min-w-0 items-center rounded-md text-muted transition-colors feedback-quick hover:text-text"
-      {@attach contextMenuTrigger}
-    >
-      <button
-        type="button"
-        onclick={toggle}
-        aria-expanded={!collapsed}
-        data-testid={testid}
-        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start text-xs font-semibold tracking-wider uppercase focus-visible:text-text focus-visible:outline-2 focus-visible:outline-action"
-      >
-        <span class="relative sidebar-icon">
-          <span
-            class={[
-              'iconify icon-[uil--angle-right-b] transition-transform',
-              leadingOverlay
-                ? 'group-focus-within/section-header:opacity-0 group-hover/section-header:opacity-0'
-                : '',
-              collapsed ? 'rtl:-scale-x-100' : 'rotate-90'
-            ]}
-            aria-hidden="true"
-            data-testid="room-group-disclosure-icon"
-          ></span>
-        </span>
-        <span class="min-w-0 flex-1 truncate">{label}</span>
-      </button>
-      {#if leadingOverlay}
-        <span class="pointer-events-none absolute start-0.5 top-1 h-6 w-6">
-          {@render leadingOverlay()}
-        </span>
-      {/if}
-      {#if headerActions}
-        <div class="flex shrink-0 items-center gap-0.5">
-          {@render headerActions()}
-        </div>
-      {/if}
-    </div>
+    <RoomGroupSectionHeader
+      {label}
+      {collapsed}
+      ontoggle={toggle}
+      {headerActions}
+      {leadingOverlay}
+      {contextMenuTrigger}
+      {testid}
+    />
 
     {#if content}
       <div
