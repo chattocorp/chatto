@@ -7,6 +7,11 @@ authorization, live events, backup and restore, and backend tests.
 
 - Chatto can run in more than one replica. Never use process-local
   serialization for correctness.
+- Replicas can run different versions during a rolling upgrade. When you add or
+  tighten a rule for credentials or sessions, such as a lifetime, a renewal
+  limit, or client acceptance, enforce it where Chatto validates the record, not
+  only where it issues or renews the record. An older replica can still write a
+  record that does not obey the new rule.
 - NATS JetStream/KV is the primary data store. Use JetStream OCC or KV
   `Create`/revision `Update` for uniqueness and cross-replica invariants.
 - Durable domain state belongs in `EVT`; latest-value runtime state belongs in
