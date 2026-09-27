@@ -5,6 +5,9 @@ import RegisterPage from './+page.svelte';
 
 const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   goto: navigation.goto

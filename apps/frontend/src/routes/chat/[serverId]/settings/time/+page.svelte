@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -144,6 +145,8 @@
     description: string;
   }>);
 </script>
+
+<PageTitle title={m('settings.preferences.title')} />
 
 <PaneHeader
   title={m('settings.preferences.title')}

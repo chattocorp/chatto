@@ -4,6 +4,9 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import SetupPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({ complete: vi.fn(), discovery: vi.fn(), goto: vi.fn() }));
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$lib/api-client/setup', () => ({ completeServerSetup: mocks.complete }));
 vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: mocks.discovery }));
 vi.mock('$app/navigation', async (importOriginal) => ({

@@ -111,29 +111,6 @@ class AppState {
 export const appState = new AppState();
 
 // ---------------------------------------------------------------------------
-// TitleState — centralized page title
-// ---------------------------------------------------------------------------
-
-/**
- * Only the root layout renders <title> via <svelte:head>. Pages and components
- * set their desired title segment through this store; when they unmount they
- * clear it so the root layout falls back to just the instance name.
- */
-class TitleState {
-  pageTitle = $state<string | null>(null);
-
-  setPageTitle(title: string) {
-    this.pageTitle = title;
-  }
-
-  clearPageTitle() {
-    this.pageTitle = null;
-  }
-}
-
-export const titleState = new TitleState();
-
-// ---------------------------------------------------------------------------
 // SidebarNav — sidebar visibility state
 // ---------------------------------------------------------------------------
 

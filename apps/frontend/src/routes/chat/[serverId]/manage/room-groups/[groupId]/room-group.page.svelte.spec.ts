@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn()
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/state', () => ({
   page: {
     get params() {

@@ -25,6 +25,9 @@ const api = {
 };
 let server: TestServerScope;
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   beforeNavigate: mocks.beforeNavigate,

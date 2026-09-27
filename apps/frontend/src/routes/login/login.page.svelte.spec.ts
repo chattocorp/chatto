@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   servers: [] as Array<Record<string, unknown>>
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: mocks.getPublicServerInfo }));
 
 vi.mock('$lib/auth/reauth', () => ({

@@ -40,6 +40,9 @@ const api = {
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   uploadAvatar: vi.fn(),
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
   deleteAvatar: vi.fn()
 };
 let server: TestServerScope;

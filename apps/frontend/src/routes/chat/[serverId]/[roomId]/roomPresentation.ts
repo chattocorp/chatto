@@ -29,7 +29,7 @@ export function buildRoomPresentation({
   if (!isDM) {
     const title = `# ${roomData.room.name}`;
     const description = roomData.room.description?.trim() || undefined;
-    const pageTitle = roomData.spaceName ? `#${roomData.room.name} - ${roomData.spaceName}` : title;
+    const pageTitle = `#${roomData.room.name}`;
     return { title, description, pageTitle };
   }
 

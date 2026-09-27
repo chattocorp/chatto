@@ -35,7 +35,7 @@
   ] satisfies Array<{ value: ComposerSendMode; label: string; description: string }>);
 </script>
 
-<PageTitle title={m('settings.app_preferences.composer.title')} />
+<PageTitle title={m('settings.app_preferences.composer.title')} scope="app" />
 <PaneHeader
   title={m('settings.app_preferences.composer.title')}
   subtitle={m('settings.app_preferences.subtitle')}

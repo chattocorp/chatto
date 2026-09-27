@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import ComposerPage from './+page.svelte';
+
+// Composer preferences do not depend on the application's server registry.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Composer · Chatto' }));
 
 async function settle() {
   await Promise.resolve();

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -105,9 +106,11 @@
 
 {#if !permissions.loaded}
   <!-- blank shell while permissions load; avoids an Access Denied flash -->
+  <PageTitle />
 {:else if hasPermission}
   {@render children?.()}
 {:else}
+  <PageTitle title={m('ui.access_denied.title')} />
   <AccessDenied
     message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', {

@@ -1,4 +1,7 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+
+// Title composition has separate coverage; these fixtures model route access only.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

@@ -4,6 +4,7 @@
   import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
 
   let { children } = $props();
 
@@ -29,8 +30,12 @@
           <div class="contents" aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}>
             {@render children?.()}
           </div>
+        {:else}
+          <PageTitle />
         {/if}
       </Chrome>
     </ServerScopeProvider>
+  {:else}
+    <PageTitle />
   {/if}
 {/key}

@@ -12,7 +12,6 @@
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
-  import { usePageTitle } from '$lib/hooks/usePageTitle.svelte';
   import { usePinchZoomPrevention } from '$lib/hooks/usePinchZoomPrevention.svelte';
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
@@ -95,8 +94,6 @@
   afterNavigate(() => {
     if (sidebarNav.isMobile) sidebarNav.close();
   });
-  const getFullTitle = usePageTitle();
-  const fullTitle = $derived(getFullTitle());
 </script>
 
 {#if !standaloneOAuth}
@@ -105,10 +102,6 @@
 <ServerRuntimeCoordinator />
 <NotificationSync />
 <UpdateNotifier />
-
-<svelte:head>
-  <title>{fullTitle}</title>
-</svelte:head>
 
 {#if standaloneOAuth}
   <div

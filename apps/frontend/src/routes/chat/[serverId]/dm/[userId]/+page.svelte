@@ -11,6 +11,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import LoadingPage from '$lib/ui/LoadingPage.svelte';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import Button from '$lib/ui/form/Button.svelte';
 
   const scope = useServerScope();
@@ -61,6 +62,8 @@
     };
   });
 </script>
+
+<PageTitle />
 
 {#if failed}
   <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>

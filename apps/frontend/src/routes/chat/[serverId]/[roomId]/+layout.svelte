@@ -4,6 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import Room from './Room.svelte';
   import RoomJoinScreen from './RoomJoinScreen.svelte';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
 
   let { data, children } = $props();
 
@@ -44,6 +45,7 @@
   {/key}
 {:else if canRenderRoom && roomId}
   {#if isMessageLinkMode}
+    <PageTitle />
     <!-- Message link resolver: renders +page.svelte which fetches + redirects -->
     {@render children?.()}
   {:else}
@@ -55,4 +57,6 @@
       <Room {roomId} {threadId} routeMessageId={page.params.messageId} />
     {/key}
   {/if}
+{:else}
+  <PageTitle />
 {/if}

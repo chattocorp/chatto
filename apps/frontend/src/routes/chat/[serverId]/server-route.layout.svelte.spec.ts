@@ -1,4 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
+
+// Title composition has separate coverage; these fixtures model route access only.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';

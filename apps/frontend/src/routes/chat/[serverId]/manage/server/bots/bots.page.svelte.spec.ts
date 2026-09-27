@@ -9,6 +9,9 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 const api = { listBots: vi.fn(), batchGetUsers: vi.fn() };
 let server: TestServerScope;
 

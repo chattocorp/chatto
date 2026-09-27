@@ -3,7 +3,7 @@
   import MicrophoneProcessing from './MicrophoneProcessing.svelte';
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { Hint, PaneContent, PaneHeader } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
   import { Button, Checkbox, Select } from '$lib/ui/form';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
@@ -123,7 +123,6 @@
   }
 </script>
 
-<PageTitle title={m('voice.preferences.title')} />
 <PaneHeader title={m('voice.preferences.title')} subtitle={m('voice.preferences.scope')} />
 <PaneContent>
   <div class="flex flex-col gap-6">
