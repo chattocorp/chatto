@@ -2910,6 +2910,39 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
   });
 
+  it('waits for a queued window read and reports its failure', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.rooms.messages('R1');
+    await flushPromises(20);
+    const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const first = deferred<typeof result>();
+    const second = deferred<typeof result>();
+    const refresh = vi
+      .spyOn(messages, 'refreshCurrentWindow')
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'FIRST'));
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U3', 'SECOND'));
+    await Promise.all(
+      ['rooms', 'roomGroups'].map((family) =>
+        store.waitForRealtimeResourceRefresh(family as 'rooms' | 'roomGroups')
+      )
+    );
+    const settled = vi.fn();
+    const completion = store.waitForRealtimeReconciliation().then(settled, settled);
+
+    first.resolve(result);
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+    await flushPromises(20);
+    expect(settled).not.toHaveBeenCalled();
+    const error = new Error('window read failed');
+    second.reject(error);
+    await completion;
+
+    expect(refresh.mock.calls.map(([anchor]) => anchor)).toEqual(['FIRST', 'SECOND']);
+    expect(settled).toHaveBeenCalledExactlyOnceWith(error);
+  });
+
   it('discards queued message reads when a snapshot replaces the projection', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.rooms.messages('R1');
