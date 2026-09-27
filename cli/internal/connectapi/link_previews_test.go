@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 	publishedAt := timestamppb.New(time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC))
-	preview := apiLinkPreview(&API{}, &evtv1.LinkPreview{
+	preview := apiLinkPreview(context.Background(), &API{}, &evtv1.LinkPreview{
 		Url:         "https://bsky.app/profile/bsky.app/post/example",
 		Title:       "Bluesky (@bsky.app)",
 		Description: "A post rendered by Chatto.",

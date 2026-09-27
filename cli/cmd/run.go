@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -182,13 +181,6 @@ func runServer(configPath string) {
 		exitCode = 1
 		return
 	}
-	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
-	if cfg.Webserver.URL != "" {
-		if parsed, err := url.Parse(cfg.Webserver.URL); err == nil {
-			chattoCore.AssetBaseURL = parsed.Scheme + "://" + parsed.Host
-		}
-	}
-
 	// Set video upload limit if video processing is enabled
 	if cfg.Video.Enabled {
 		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())

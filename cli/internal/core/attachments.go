@@ -298,6 +298,10 @@ type AttachmentInfo struct {
 	RoomID      string
 }
 
+// StableAssetURL is an asset URL together with the expiry of its access ticket.
+// Core asset URL methods return server-relative paths. The API layer makes
+// them absolute on the public origin of each request, so a client on a
+// configured hostname alias gets URLs on that alias.
 type StableAssetURL struct {
 	URL       string
 	ExpiresAt time.Time
@@ -762,7 +766,7 @@ func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableA
 	}
 	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
-		URL:       c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt)),
+		URL:       c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt),
 		ExpiresAt: expiresAt,
 	}
 }
@@ -786,7 +790,7 @@ func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) 
 	values := url.Values{}
 	values.Set("access", ticket)
 	path := fmt.Sprintf("/assets/hls/%s/master.m3u8?%s", url.PathEscape(assetID), values.Encode())
-	return StableAssetURL{URL: c.assetURL(path), ExpiresAt: expiresAt}
+	return StableAssetURL{URL: path, ExpiresAt: expiresAt}
 }
 
 // GetStableTransformedAttachmentURL returns the canonical URL for a derived
@@ -812,11 +816,11 @@ func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 	)
 	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
-		URL: c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
+		URL: c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
 			Width:  width,
 			Height: height,
 			Fit:    fit,
-		}, expiresAt)),
+		}, expiresAt),
 		ExpiresAt: expiresAt,
 	}
 }
@@ -863,7 +867,7 @@ func (c *MediaModel) GetTransformedServerAssetURL(key string, width, height int,
 	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, ServerAssetSignResource, key, width, height, fit)
 
 	// Return signed transform URL
-	return c.assetURL(fmt.Sprintf("/assets/server/%s/t/%s", key, signedPath))
+	return fmt.Sprintf("/assets/server/%s/t/%s", key, signedPath)
 }
 
 // ============================================================================

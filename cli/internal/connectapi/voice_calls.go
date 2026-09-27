@@ -167,6 +167,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 	}
 	avatarSize := 96
 	avatarURL, _ := s.api.core.GetUserAvatarURL(ctx, caller.UserID, &avatarSize, &avatarSize, "cover")
+	avatarURL = s.api.absolutizeAssetURL(ctx, avatarURL)
 	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
 	token, err := core.GenerateVoiceCallToken(
 		s.api.config.LiveKit.APIKey,

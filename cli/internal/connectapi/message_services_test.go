@@ -1861,7 +1861,8 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 		t.Fatalf("CreateMessage empty: %v", err)
 	}
 
-	ctx := withCaller(env.ctx, env.viewer)
+	// Asset URLs use the public origin of the request, such as a hostname alias.
+	ctx := WithRequestBaseURL(withCaller(env.ctx, env.viewer), "https://alias.example")
 	setResponse, err := env.messages.SetAttachmentDescription(ctx, connect.NewRequest(&apiv1.SetAttachmentDescriptionRequest{
 		RoomId:       room.Id,
 		EventId:      reply.Id,
@@ -1906,8 +1907,10 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if got := first.GetDescription(); got != "A thread diagram" {
 		t.Fatalf("room attachment description = %q, want %q", got, "A thread diagram")
 	}
-	if first.GetAttachment().GetAssetUrl().GetUrl() == "" || first.GetAttachment().GetThumbnailAssetUrl().GetUrl() == "" {
-		t.Fatalf("attachment asset URLs missing: %+v", first.GetAttachment())
+	for _, got := range []string{first.GetAttachment().GetAssetUrl().GetUrl(), first.GetAttachment().GetThumbnailAssetUrl().GetUrl()} {
+		if !strings.HasPrefix(got, "https://alias.example/assets/files/") {
+			t.Fatalf("attachment asset URL = %q, want URL on the request origin", got)
+		}
 	}
 	if first.GetCreatedAt() == nil {
 		t.Fatal("created_at missing")
@@ -1931,7 +1934,7 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if got := fresh.GetDescription(); got != "A thread diagram" {
 		t.Fatalf("GetMessage attachment description = %q, want %q", got, "A thread diagram")
 	}
-	if fresh.GetAssetUrl().GetUrl() == "" || fresh.GetAssetUrl().GetExpiresAt() == nil {
+	if !strings.HasPrefix(fresh.GetAssetUrl().GetUrl(), "https://alias.example/assets/files/") || fresh.GetAssetUrl().GetExpiresAt() == nil {
 		t.Fatalf("fresh asset URL missing: %+v", fresh.GetAssetUrl())
 	}
 	if fresh.GetThumbnailAssetUrl().GetUrl() == "" || fresh.GetThumbnailAssetUrl().GetExpiresAt() == nil {
@@ -1950,7 +1953,7 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if err != nil {
 		t.Fatalf("GetAsset: %v", err)
 	}
-	if got := asset.Msg.GetAsset().GetThumbnailAssetUrl().GetUrl(); !strings.Contains(got, "/64x64/contain") {
+	if got := asset.Msg.GetAsset().GetThumbnailAssetUrl().GetUrl(); !strings.HasPrefix(got, "https://alias.example/") || !strings.Contains(got, "/64x64/contain") {
 		t.Fatalf("GetAsset thumbnail URL = %q, want 64x64 contain transform", got)
 	}
 

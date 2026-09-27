@@ -92,11 +92,6 @@ type ChattoCore struct {
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
 
-	// AssetBaseURL is prepended to all asset URLs to make them absolute.
-	// When empty, URLs are returned as relative paths (backward compatible).
-	// Set from webserver.url config: scheme + host only (no trailing slash).
-	AssetBaseURL string
-
 	// PresenceHub is the compatibility handle for PresenceModel's per-process
 	// fanout hub. Started by (*ChattoCore).Run through PresenceModel.
 	PresenceHub *PresenceHub

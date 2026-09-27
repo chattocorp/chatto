@@ -304,7 +304,6 @@ func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T
 
 func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	core, _ := setupTestCore(t)
-	core.AssetBaseURL = "https://assets.example"
 	service := core.mediaModel
 
 	before := time.Now()
@@ -312,8 +311,8 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	if stable.URL == "" {
 		t.Fatal("GetStableAttachmentAssetURL returned empty URL")
 	}
-	if !strings.HasPrefix(stable.URL, "https://assets.example/assets/files/A-url?access=") {
-		t.Fatalf("stable URL = %q, want asset base URL and stable path", stable.URL)
+	if !strings.HasPrefix(stable.URL, "/assets/files/A-url?access=") {
+		t.Fatalf("stable URL = %q, want stable path", stable.URL)
 	}
 	if stable.ExpiresAt.IsZero() {
 		t.Fatal("stable URL expiry was zero")
@@ -331,7 +330,7 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	if transformed.URL == "" {
 		t.Fatal("GetStableTransformedAttachmentAssetURL returned empty URL")
 	}
-	if !strings.HasPrefix(transformed.URL, "https://assets.example/assets/files/A-url/image/128x96/contain?access=") {
+	if !strings.HasPrefix(transformed.URL, "/assets/files/A-url/image/128x96/contain?access=") {
 		t.Fatalf("stable transformed URL = %q, want transformed asset path", transformed.URL)
 	}
 	if transformed.ExpiresAt.IsZero() {
@@ -347,7 +346,7 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	}
 
 	hls := service.GetStableHLSMasterPlaylistAssetURL("A-url", "U-url")
-	if !strings.HasPrefix(hls.URL, "https://assets.example/assets/hls/A-url/master.m3u8?access=") {
+	if !strings.HasPrefix(hls.URL, "/assets/hls/A-url/master.m3u8?access=") {
 		t.Fatalf("stable HLS URL = %q, want HLS master path", hls.URL)
 	}
 	parsedHLSURL, err := url.Parse(hls.URL)
@@ -443,20 +442,19 @@ func assertStableAssetURLTicket(t *testing.T, core *ChattoCore, stable StableAss
 
 func TestMediaModelAssetURLs(t *testing.T) {
 	core, _ := setupTestCore(t)
-	core.AssetBaseURL = "https://assets.example"
 	service := core.mediaModel
 
 	rawURL := service.GetStableAttachmentURL("A-url", "U-url")
-	if !strings.HasPrefix(rawURL, "https://assets.example/assets/files/A-url?access=") {
+	if !strings.HasPrefix(rawURL, "/assets/files/A-url?access=") {
 		t.Fatalf("GetStableAttachmentURL = %q, want stable asset URL", rawURL)
 	}
 
 	transformed := service.GetStableTransformedAttachmentURL("A-url", "U-url", 64, 48, "cover")
-	if !strings.HasPrefix(transformed, "https://assets.example/assets/files/A-url/image/64x48/cover?access=") {
+	if !strings.HasPrefix(transformed, "/assets/files/A-url/image/64x48/cover?access=") {
 		t.Fatalf("GetStableTransformedAttachmentURL = %q, want stable transform URL", transformed)
 	}
 	serverAsset := service.GetTransformedServerAssetURL("server.logo", 80, 80, "cover")
-	if !strings.HasPrefix(serverAsset, "https://assets.example/assets/server/server.logo/t/") {
+	if !strings.HasPrefix(serverAsset, "/assets/server/server.logo/t/") {
 		t.Fatalf("GetTransformedServerAssetURL = %q, want signed server asset URL", serverAsset)
 	}
 	if got := service.GetStableAttachmentURL("", "U-url"); got != "" {
