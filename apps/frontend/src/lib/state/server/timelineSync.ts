@@ -116,8 +116,9 @@ export class TimelineSync {
 
   /**
    * Reload the window of each loaded timeline of a room, or of all rooms when
-   * `roomId` is empty, around `anchorEventId`. With `roomForward`, room
-   * timelines read forward from the anchor; thread timelines always read back.
+   * `roomId` is empty. Thread timelines read the window around `anchorEventId`.
+   * Room timelines do the same, or with `roomForward` read the events after
+   * their newest loaded event.
    */
   refreshWindows(roomId: string, anchorEventId: string | null, roomForward = false): void {
     const minimumCursor = this.#options.eventCursor();
