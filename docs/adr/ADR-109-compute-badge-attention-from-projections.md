@@ -89,7 +89,9 @@ Realtime hints remain content-free:
   production copy.
 - The notification decision projection uses more memory. It keeps one compact
   record for every message, because a later reply or reaction needs the
-  message's author, plus the sources of the last 90 days. On a production copy
+  message's author. Its source lists keep the sources of the last 90 days. A
+  periodic sweep removes expired sources from threads that get no new
+  activity. On a production copy
   the projection grew from about 3 MB to about 12 MB. Its snapshot contract
   changes, so the first start cold-replays it.
 - Existing `notification_unread_marker.*` keys are no longer read or written.
