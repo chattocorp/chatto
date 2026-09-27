@@ -514,7 +514,7 @@ describe('RoomMembersStore', () => {
     expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.totalCount).toBe(3);
-    expect(store.hasLoaded).toBe(true);
+    expect(store.hasLoadedAll).toBe(true);
     expect(store.hasLoadedAll).toBe(true);
     expect(store.isBackgroundLoading).toBe(false);
   });
@@ -683,7 +683,7 @@ describe('RoomMembersStore', () => {
     refresh.resolve(pageResult([user('u2', 'refresh')]));
     await refreshLoad;
 
-    expect(store.hasLoaded).toBe(true);
+    expect(store.hasLoadedAll).toBe(true);
     expect(store.isInitialLoading).toBe(false);
     expect(store.members.map((member) => member.id)).toEqual(['u2']);
 

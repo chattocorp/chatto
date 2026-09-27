@@ -53,7 +53,7 @@ import { RoomStores, type RoomStoreAccess } from './roomStores.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
+import { RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import {
   createPrivilegedModeAPI,
@@ -364,7 +364,7 @@ export class ServerStateStore {
       projectedMemberIds: (roomId) => {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
-        return room && mapDirectoryRoom(room)?.kind === RoomKind.DM ? room.memberUserIds : null;
+        return room?.room?.kind === RoomKind.DM ? room.memberUserIds : null;
       },
       isAuthenticated: () => this.isAuthenticated
     });

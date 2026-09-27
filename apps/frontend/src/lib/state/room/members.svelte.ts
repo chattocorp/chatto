@@ -88,7 +88,7 @@ export class RoomMembersStore {
   get members(): RoomMember[] {
     return this.#resolvedMembers;
   }
-  /** Accept projection or standalone fixture rows while retaining only membership IDs. */
+  /** Set the members of a standalone fixture store. A projected membership still wins. */
   set members(members: RoomMember[]) {
     this.#memberIds = members.map((member) => member.id);
     if (!this.#users) {
@@ -119,12 +119,16 @@ export class RoomMembersStore {
   get hasLoadedAll(): boolean {
     return this.#projected !== null || this.#hasLoadedAll;
   }
+  // While the projection has the membership, nothing loads and no load error shows.
+  /** Whether the first read is in progress and no member is known yet. */
   get isInitialLoading(): boolean {
     return this.#projected === null && this.#isInitialLoading;
   }
+  /** Whether more pages load after the first one. */
   get isBackgroundLoading(): boolean {
     return this.#projected === null && this.#isBackgroundLoading;
   }
+  /** The message of the last failed read, or null. */
   get loadError(): string | null {
     return this.#projected === null ? this.#loadError : null;
   }
@@ -200,11 +204,6 @@ export class RoomMembersStore {
         fromRealtime: false
       });
     }
-  }
-
-  /** Compatibility alias for consumers that only care whether hydration is complete. */
-  get hasLoaded(): boolean {
-    return this.hasLoadedAll;
   }
 
   ensureLoaded(): void {
@@ -343,12 +342,7 @@ export class RoomMembersStore {
         console.error('Failed to search room members:', error);
         return;
       }
-      if (
-        loadId !== this.#loadId ||
-        query !== this.activeSearch.trim().toLowerCase() ||
-        !this.roomId
-      )
-        return;
+      if (loadId !== this.#loadId || query !== this.activeSearch.trim().toLowerCase()) return;
 
       this.recordPageProfiles(page.members);
       const pageMemberIds = pageIds(page);
