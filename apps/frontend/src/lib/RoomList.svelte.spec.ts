@@ -15,7 +15,7 @@ import '../app.css';
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
-import { HOVER_POINTER_QUERY } from '$lib/utils/inputMediaQueries';
+import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -1997,9 +1997,9 @@ describe('RoomList', () => {
   it('omits drag handles on touch-only devices so swipes scroll and the leading icons stay visible', async () => {
     const matchMedia = window.matchMedia.bind(window);
     const spy = vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
-      query === HOVER_POINTER_QUERY
+      query === TOUCH_ONLY_QUERY
         ? ({
-            matches: false,
+            matches: true,
             media: query,
             onchange: null,
             addEventListener: () => {},

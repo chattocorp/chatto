@@ -54,7 +54,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
-  import { HOVER_POINTER_QUERY } from '$lib/utils/inputMediaQueries';
+  import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
   import {
     dragHandle,
     dragHandleZone,
@@ -86,15 +86,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const supportsRelativeSidebarMoves = $derived(
     stores.serverInfo.supportsFeature('relativeSidebarMoves')
   );
-  const hoverPointer = new MediaQuery(HOVER_POINTER_QUERY, false);
+  const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
   /**
-   * Whether sidebar entries and groups can be reordered by drag and drop. Drag
-   * handles need a hovering fine pointer: svelte-dnd-action cancels the default
-   * action of every touchstart on a handle, so on touch-only devices a handle
-   * blocks scrolling and covers the leading icon and group disclosure. Touch
-   * users reorder the layout in Manage → Rooms instead.
+   * Whether sidebar entries and groups can be reordered by drag and drop.
+   * Touch-only devices get no drag handles: svelte-dnd-action cancels the
+   * default action of every touchstart on a handle, so a handle over each
+   * managed row's leading icon and group disclosure blocks scrolling and taps.
+   * Touch users reorder the layout in Server Admin → Rooms instead.
    */
-  const sidebarDragEnabled = $derived(supportsRelativeSidebarMoves && hoverPointer.current);
+  const sidebarDragEnabled = $derived(supportsRelativeSidebarMoves && !touchOnly.current);
 
   const navigation = $derived(stores.navigation);
   const roomUnreadStore = $derived(stores.roomUnread);
