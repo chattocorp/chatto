@@ -12,10 +12,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     historyKeymap,
     indentLess,
     indentMore,
-    indentWithTab,
-    insertNewlineAndIndent,
-    simplifySelection,
-    temporarilySetTabFocusMode
+    insertNewlineAndIndent
   } from '@codemirror/commands';
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
   import {
@@ -54,11 +51,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
   const sourceIndentState: ComposerIndentState = {
     canIndent: true,
     canOutdent: true
-  };
-
-  const escapeWithTabFocus = (editorView: EditorView): boolean => {
-    simplifySelection(editorView);
-    return temporarilySetTabFocusMode(editorView);
   };
 
   const toggleSourceFormatting = (
@@ -214,8 +206,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
               run: (view) =>
                 view.state.selection.main.empty ? false : toggleSourceFormatting(view, 'inlineCode')
             },
-            { key: 'Escape', run: escapeWithTabFocus },
-            indentWithTab,
             ...historyKeymap,
             ...defaultKeymap
           ]),

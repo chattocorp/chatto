@@ -954,7 +954,7 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body: '- first' });
     });
 
-    it('uses CodeMirror line indentation with the toolbar and Tab', async () => {
+    it('uses CodeMirror line indentation with the toolbar', async () => {
       const { container } = renderMessageComposer({ roomId: 'markdown-list-indent' });
       const editor = await findEditor(container);
       await openFormattingShelf(container);
@@ -967,7 +967,7 @@ describe('MessageComposer', () => {
       await pressEditorKey(editor, 'Enter');
       await userEvent.type(editor, 'second');
 
-      await pressEditorKey(editor, 'Tab');
+      await userEvent.click(indent);
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
           'first',
@@ -983,14 +983,14 @@ describe('MessageComposer', () => {
         ])
       );
       await userEvent.click(indent);
-      await pressEditorKey(editor, 'Tab', { shiftKey: true });
+      await userEvent.click(outdent);
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
           'first',
           'second'
         ])
       );
-      await pressEditorKey(editor, 'Tab', { shiftKey: true });
+      await userEvent.click(outdent);
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
           'first',
@@ -999,14 +999,35 @@ describe('MessageComposer', () => {
       );
     });
 
-    it('lets Escape followed by Tab leave the Markdown composer', async () => {
+    it('lets Tab leave the Markdown composer and Shift+Tab return', async () => {
       const { container } = renderMessageComposer({ roomId: 'markdown-tab-focus' });
       const editor = await findEditor(container);
 
-      await userEvent.click(editor);
-      await userEvent.keyboard('{Escape}{Tab}');
+      await typeEditorKeys(editor, 'Unchanged draft');
+      await userEvent.keyboard('{Tab}');
 
       expect(document.activeElement).toBe(q(container, 'button[aria-label="Attach file"]'));
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+      expect(document.activeElement).toBe(editor);
+      expect(editor.textContent).toBe('Unchanged draft');
+    });
+
+    it('keeps Tab mention selection and repeated completion ahead of focus navigation', async () => {
+      roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
+      const { container } = renderMessageComposer({ roomId: 'markdown-tab-mention' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '@ali');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+
+      await userEvent.keyboard('{Tab}');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
+      expect(document.activeElement).toBe(editor);
+      await userEvent.keyboard('{Tab}');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia '));
+      expect(document.activeElement).toBe(editor);
+      expect(mutationMock).not.toHaveBeenCalled();
     });
 
     it('completes mentions before Enter can submit Markdown', async () => {
