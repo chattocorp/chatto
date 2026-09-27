@@ -83,7 +83,18 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
     };
     const listeners = [
       // The virtualizer renders the entries for a new scroll position after the scroll event.
-      on(scroller, 'scroll', () => void tick().then(recordAnchors), { passive: true }),
+      on(
+        scroller,
+        'scroll',
+        () => {
+          // A gesture keeps scrolling after its input, as in a touch fling. Its scroll
+          // events keep the grace period open. Alignment only runs outside it.
+          const now = performance.now();
+          if (now - lastScrollInputAt < SCROLL_INPUT_GRACE_MS) lastScrollInputAt = now;
+          void tick().then(recordAnchors);
+        },
+        { passive: true }
+      ),
       on(scroller, 'wheel', markScrollInput, { passive: true }),
       on(scroller, 'touchstart', markScrollInput, { passive: true }),
       on(scroller, 'pointerdown', markScrollInput, { passive: true }),

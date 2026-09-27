@@ -173,6 +173,32 @@ describe('VirtualGroupedList', () => {
     expect(Math.abs(scroller.scrollTop - scrolledTo)).toBeLessThan(48);
   });
 
+  it('leaves the scroll position alone during a long touch fling', async () => {
+    const online = rows('online', 10);
+    const offline = rows('offline', 100);
+    const { container, rerender } = render(VirtualGroupedListTestHarness, {
+      props: { groups: [group('online', online), group('offline', offline)] }
+    });
+    await vi.waitFor(() => expect(firstVisibleRow(container).id).toBe('online-0'));
+    await scrollTo(container, 2000);
+
+    // A fling keeps scrolling after the finger lifts; only scroll events follow touchstart.
+    const scroller = viewport(container);
+    scroller.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }));
+    for (let step = 0; step < 8; step++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      scroller.scrollTop += 20;
+    }
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const scrolledTo = scroller.scrollTop;
+    await rerender({
+      groups: [group('online', [...rows('new', 3), ...online]), group('offline', offline)]
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(Math.abs(scroller.scrollTop - scrolledTo)).toBeLessThan(48);
+  });
+
   it('stays at the top when rows are inserted while the list is scrolled to the top', async () => {
     const online = rows('online', 10);
     const { container, rerender } = render(VirtualGroupedListTestHarness, {
