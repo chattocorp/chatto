@@ -47,8 +47,12 @@ source and console. Without `--watch`, restart to load code or configuration cha
 4. From the repository root, run:
 
    ```sh
-   mise dev-chattobot
+   mise chattobot
    ```
+
+   This command installs packages, builds Runling and the Chatto client
+   packages, and starts the bot. Use `mise dev-chattobot` to also reload
+   code and configuration when files change.
 
 5. Disable any old webhook for this bot. ChattoBot opens an outbound WebSocket
    to the configured server. No public URL, tunnel, or webhook is needed.

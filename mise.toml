@@ -241,7 +241,7 @@ run = "pnpm turbo run test --filter=@chatto/runling-bot"
 [tasks.build-runling]
 description = "Build the Runling runtime and web console"
 depends = ["setup-frontend"]
-run = "pnpm run build:runling"
+run = "pnpm turbo run build --filter=runling"
 
 [tasks.build-chatto-client]
 description = "Build the framework-neutral Chatto integration client"
@@ -266,27 +266,32 @@ run = "pnpm turbo run check test --filter=@chatto/bot-client"
 [tasks.check-runling]
 description = "Check Runling types and Svelte components"
 depends = ["setup-frontend"]
-run = "pnpm run check:runling"
+run = "pnpm turbo run check --filter=runling"
+
+[tasks.chattobot]
+description = "Build ChattoBot's dependencies and start it with its Runling console"
+depends = ["setup-frontend"]
+run = "pnpm -F @chattocorp/chattobot start"
 
 [tasks.dev-chattobot]
 description = "Run ChattoBot with its Runling console"
 depends = ["setup-frontend"]
-run = "pnpm run dev:chattobot"
+run = "pnpm -F @chattocorp/chattobot dev"
 
 [tasks.check-chattobot]
 description = "Check the ChattoBot package types"
 depends = ["setup-frontend"]
-run = "pnpm run check:chattobot"
+run = "pnpm turbo run check --filter=@chattocorp/chattobot"
 
 [tasks.test-chattobot]
 description = "Test the ChattoBot package"
 depends = ["setup-frontend"]
-run = "pnpm run test:chattobot"
+run = "pnpm turbo run test --filter=@chattocorp/chattobot"
 
 [tasks.test-runling]
 description = "Run Runling unit and integration tests"
 depends = ["setup-frontend"]
-run = "pnpm run test:runling"
+run = "pnpm turbo run test --filter=runling"
 
 [tasks.test-runling-package]
 description = "Build Runling and test its installed npm package"
