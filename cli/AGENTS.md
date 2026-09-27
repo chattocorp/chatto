@@ -86,6 +86,14 @@ authorization, live events, backup and restore, and backend tests.
   reach the local watcher before returning when read-your-writes matters.
   Watchers belong to the process lifecycle, never to a request, user, or
   WebSocket goroutine.
+- Give each KV watcher on `RUNTIME_STATE` exactly one key filter. JetStream
+  serves a multi-filter watcher by scanning every message block, and the
+  bucket's heavy write churn leaves thousands of sparse blocks, so a
+  multi-filter watcher can delay startup by seconds. Use one wildcard that
+  covers all wanted families, or `watchKeyFilters` to merge one single-filter
+  watcher per family.
+- Do not rewrite a `RUNTIME_STATE` key when its value would not change. Every
+  write adds a stream sequence and leaves the previous one as a deleted slot.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
