@@ -75,7 +75,7 @@
 </script>
 
 {#snippet actorName(actor: Actor)}
-  <AccountName name={actor.name} identity={actor.user} badgeSize="md" />
+  <AccountName name={actor.name} identity={actor.user} />
 {/snippet}
 
 {#snippet actorNames(items: Actor[])}

@@ -34,6 +34,11 @@
 
 <Story name="Bot" args={{ name: 'ChattoBot', identity: bot }} />
 <Story name="Message badge" args={{ name: 'ChattoBot', identity: bot, badgeSize: 'md' }} />
+<Story name="System message" asChild>
+  <div class="text-sm text-muted">
+    <AccountName name={bot.displayName} identity={bot} /> joined the room
+  </div>
+</Story>
 <Story name="Profile heading" asChild>
   <div class="text-lg font-semibold"><AccountName name="TestBot" identity={bot} /></div>
 </Story>
