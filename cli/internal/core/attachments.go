@@ -299,9 +299,9 @@ type AttachmentInfo struct {
 }
 
 // StableAssetURL is an asset URL together with the expiry of its access ticket.
-// Core asset URL methods return server-relative paths. The API layer makes
-// them absolute on the public origin of each request, so a client on a
-// configured hostname alias gets URLs on that alias.
+// Core asset URL methods return server-relative paths. With webserver.url, the
+// API layer makes them absolute on the public origin of each request, so a
+// client on a configured hostname alias gets URLs on that alias.
 type StableAssetURL struct {
 	URL       string
 	ExpiresAt time.Time
