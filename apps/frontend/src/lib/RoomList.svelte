@@ -92,9 +92,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
    * Touch-only devices get no drag handles: svelte-dnd-action cancels the
    * default action of every touchstart on a handle, so a handle over each
    * managed row's leading icon and group disclosure blocks scrolling and taps.
-   * Touch users reorder the layout in Server Admin → Rooms instead.
+   * Server-wide room managers can reorder in Server Admin → Rooms instead;
+   * FDR-017 records the gap for group-scoped managers.
    */
   const sidebarDragEnabled = $derived(supportsRelativeSidebarMoves && !touchOnly.current);
+  /** Whether the viewer can reorder whole room groups by drag and drop. */
+  const groupDragEnabled = $derived(sidebarDragEnabled && canReorderGroups);
 
   const navigation = $derived(stores.navigation);
   const roomUnreadStore = $derived(stores.roomUnread);
@@ -1127,9 +1130,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {:else}
   <nav class="room-list md:w-full">
     <div
-      class={sidebarDragEnabled && canReorderGroups ? 'sidebar-drop-target' : undefined}
-      data-testid={sidebarDragEnabled && canReorderGroups ? 'room-groups-dropzone' : undefined}
-      {@attach sidebarDragEnabled && canReorderGroups ? groupDragAttachment : undefined}
+      class={groupDragEnabled ? 'sidebar-drop-target' : undefined}
+      data-testid={groupDragEnabled ? 'room-groups-dropzone' : undefined}
+      {@attach groupDragEnabled ? groupDragAttachment : undefined}
     >
       {#each renderManagedSections as section, i (section.id)}
         {#snippet footer()}
@@ -1148,11 +1151,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           keepVisibleWhenCollapsed={section.keepVisibleWhenCollapsed}
           contextMenuTrigger={section.contextMenuTrigger}
           itemsAttachment={isDndShadow(section) ? undefined : section.itemsAttachment}
-          containItemDrag
+          containItemDrag={groupDragEnabled}
           isDndShadow={isDndShadow(section)}
           {headerActions}
           {footer}
-          leadingOverlay={!isDndShadow(section) && sidebarDragEnabled && canReorderGroups
+          leadingOverlay={!isDndShadow(section) && groupDragEnabled
             ? groupLeadingOverlay
             : undefined}
           separated={i > 0}

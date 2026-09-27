@@ -1994,7 +1994,7 @@ describe('RoomList', () => {
     expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
   });
 
-  it('omits drag handles on touch-only devices so swipes scroll and the leading icons stay visible', async () => {
+  it('omits drag handles and zones on touch-only devices so touches reach the rows', async () => {
     const matchMedia = window.matchMedia.bind(window);
     const spy = vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
       query === TOUCH_ONLY_QUERY
@@ -2038,12 +2038,16 @@ describe('RoomList', () => {
       expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
       expect(container.querySelector('[data-testid="sidebar-link-drag-handle"]')).toBeNull();
       expect(container.querySelector('[data-testid="room-group-items-dropzone"]')).toBeNull();
-      expect(q(container, '[data-testid="room-group-disclosure-icon"]')?.className).not.toContain(
-        'opacity-0'
+      expect(container.querySelector('[data-testid="room-groups-dropzone"]')).toBeNull();
+
+      // Without drag zones, touches on rows must still reach app-shell gestures
+      // such as the mobile sidebar swipe.
+      const reachedContainer = vi.fn();
+      container.addEventListener('touchstart', reachedContainer);
+      q(container, '[data-testid="sidebar-link-leading-icon"]')?.dispatchEvent(
+        new Event('touchstart', { bubbles: true })
       );
-      expect(
-        q(container, '[data-testid="sidebar-link-leading-icon"]')?.firstElementChild?.className
-      ).not.toContain('opacity-0');
+      expect(reachedContainer).toHaveBeenCalledOnce();
     } finally {
       spy.mockRestore();
     }
