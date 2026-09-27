@@ -11,6 +11,9 @@ A user's profile carries the public identity they present to the rest of the ser
 
 - Right-click the current-user card to open your Profile Card. On touch devices,
   press and hold the card. Clicking or tapping the avatar opens presence settings.
+- Member cards also open their Profile Card on right-click or touch long-press.
+  A menu that is still loading can be dismissed. If loading fails, the menu offers
+  **Try Again**.
 
 An explicit browser-default time zone is stored as an empty optional value.
 An absent value means no choice has been recorded. Automatic device reporting

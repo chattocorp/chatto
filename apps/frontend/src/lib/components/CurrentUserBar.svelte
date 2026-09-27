@@ -41,16 +41,13 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import ScreenShareControlButton from './voice/ScreenShareControlButton.svelte';
   import VoiceCallControlButton from './voice/VoiceCallControlButton.svelte';
-  import {
-    contextMenuTrigger,
-    type ContextMenuTriggerDetails
-  } from '$lib/ui/contextMenuTrigger.svelte';
+  import UserMenu from './users/UserMenu.svelte';
+  import { UserMenuState } from './users/UserMenuState.svelte';
 
-  let profileMenu = $state<ContextMenuTriggerDetails | null>(null);
-  const profileMenuTrigger = contextMenuTrigger((details) => {
+  const profileMenu = new UserMenuState<string>(() => {
     statusMenuAnchor = null;
-    profileMenu = details;
   });
+  const profileMenuTrigger = profileMenu.trigger(() => activeServerUser?.id ?? null);
 
   let customStatusEditorModule: Promise<typeof import('./UserCustomStatusEditor.svelte')> | null =
     null;
@@ -152,7 +149,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   }
 
   function openStatusMenu(event: MouseEvent) {
-    profileMenu = null;
+    profileMenu.close();
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     statusMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
   }
@@ -438,17 +435,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   {m('chat.privileged_mode.confirmation')}
 </ConfirmDialog>
 
-{#if profileMenu && activeServerUser}
-  {#await import('./menus/UserContextMenu.svelte') then { default: UserContextMenu }}
-    <UserContextMenu
-      user={activeServerUser}
-      position={profileMenu.position}
-      presentation={profileMenu.presentation}
-      viewerSettings={activeServerUser.settings}
-      onClose={() => (profileMenu = null)}
-    />
-  {/await}
-{/if}
+<UserMenu state={profileMenu} user={activeServerUser} viewerSettings={activeServerUser?.settings} />
 
 {#if statusMenuAnchor && activeServerUser}
   <ContextMenu

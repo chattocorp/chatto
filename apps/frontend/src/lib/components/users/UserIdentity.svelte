@@ -5,17 +5,6 @@ Renders a compact user identity with the shared avatar and display name. Native
 right-click and stationary touch long-press open the shared user profile menu.
 With openOnClick, a keyboard-accessible button also opens it on click or tap.
 -->
-<script module lang="ts">
-  type UserContextMenuModule = typeof import('$lib/components/menus/UserContextMenu.svelte');
-
-  let userContextMenuModule: Promise<UserContextMenuModule> | null = null;
-
-  function loadUserContextMenu() {
-    userContextMenuModule ??= import('$lib/components/menus/UserContextMenu.svelte');
-    return userContextMenuModule;
-  }
-</script>
-
 <script lang="ts">
   import AccountName from './AccountName.svelte';
   import { formatAccountName } from '$lib/render/accountName';
@@ -24,10 +13,8 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { ViewerTimeSettings } from '$lib/utils/formatTime';
-  import {
-    contextMenuTrigger,
-    type ContextMenuTriggerDetails
-  } from '$lib/ui/contextMenuTrigger.svelte';
+  import UserMenu, { type UserContextMenuLoader } from './UserMenu.svelte';
+  import { UserMenuState } from './UserMenuState.svelte';
 
   type IdentityUser = Omit<UserAvatarUserView, 'deleted' | 'presenceStatus'> & {
     deleted?: boolean;
@@ -44,7 +31,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     viewerSettings,
     onSendMessage,
     onOpenProfile,
-    userContextMenuLoader = loadUserContextMenu
+    userContextMenuLoader
   }: {
     user: IdentityUser;
     size?: 'xs' | 'sm' | 'md';
@@ -55,7 +42,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     /** Host-provided room actions; absent when unavailable in this surface. */
     onSendMessage?: (userId: string) => void;
     onOpenProfile?: (userId: string) => void;
-    userContextMenuLoader?: () => Promise<UserContextMenuModule>;
+    userContextMenuLoader?: UserContextMenuLoader;
   } = $props();
 
   const profileUser = $derived<IdentityUser & { deleted: boolean; presenceStatus: PresenceStatus }>(
@@ -67,14 +54,8 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
       presenceStatus: user.presenceStatus ?? PresenceStatus.OFFLINE
     }
   );
-  let profileMenu = $state<ContextMenuTriggerDetails | null>(null);
-  const profileMenuTrigger = contextMenuTrigger((details) => {
-    profileMenu = details;
-  });
-  function openProfile(event: MouseEvent): void {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    profileMenu = { position: { x: rect.left, y: rect.bottom }, presentation: 'auto' };
-  }
+  const profileMenu = new UserMenuState<string>();
+  const profileMenuTrigger = profileMenu.trigger(() => user.id);
 </script>
 
 {#snippet identity()}
@@ -98,7 +79,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     aria-label={m('room.sidebar.view_profile', {
       name: formatAccountName(profileUser.displayName || profileUser.login, profileUser)
     })}
-    onclick={openProfile}
+    onclick={(event) => profileMenu.open(user.id, event)}
     {@attach profileMenuTrigger}
   >
     {@render identity()}
@@ -113,17 +94,12 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
   </span>
 {/if}
 
-{#if profileMenu}
-  {#await userContextMenuLoader() then { default: UserContextMenu }}
-    <UserContextMenu
-      user={profileUser}
-      position={profileMenu.position}
-      presentation={profileMenu.presentation}
-      {viewerSettings}
-      canSendMessage={!!onSendMessage}
-      onSendMessage={() => onSendMessage?.(user.id)}
-      {onOpenProfile}
-      onClose={() => (profileMenu = null)}
-    />
-  {/await}
-{/if}
+<UserMenu
+  state={profileMenu}
+  user={profileUser}
+  loader={userContextMenuLoader}
+  {viewerSettings}
+  canSendMessage={!!onSendMessage}
+  onSendMessage={() => onSendMessage?.(user.id)}
+  {onOpenProfile}
+/>

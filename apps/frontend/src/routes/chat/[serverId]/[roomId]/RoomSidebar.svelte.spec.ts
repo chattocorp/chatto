@@ -835,7 +835,9 @@ describe('RoomSidebar', () => {
       expect(memberButton).toBeTruthy();
     });
     memberButton!.click();
-    await tick();
+    await vi.waitFor(() => {
+      expect(q(document.body, '[data-testid="copy-user-id"]')).toBeTruthy();
+    });
 
     expect(buttonByText(document.body, 'Send Message')).toBeUndefined();
   });
@@ -2557,9 +2559,9 @@ describe('RoomSidebar', () => {
       expect(q(container, '[aria-label="View profile of Other Member"]')).toBeTruthy();
     });
     (q(container, '[aria-label="View profile of Other Member"]') as HTMLButtonElement).click();
-    await tick();
-
-    expect(container.textContent).toContain('Remove from room');
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Remove from room');
+    });
   });
 
   it('hides the room removal action when member moderation is disabled', async () => {
@@ -2580,7 +2582,9 @@ describe('RoomSidebar', () => {
       expect(q(container, '[aria-label="View profile of Other Member"]')).toBeTruthy();
     });
     (q(container, '[aria-label="View profile of Other Member"]') as HTMLButtonElement).click();
-    await tick();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="copy-user-id"]')).toBeTruthy();
+    });
 
     expect(container.textContent).not.toContain('Remove from room');
   });
