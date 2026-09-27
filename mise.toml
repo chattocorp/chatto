@@ -156,11 +156,15 @@ run = "buf lint"
 description = "Generate Go and frontend code from protobuf schemas"
 depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
+# `clean` also removes the built package. Rebuild it at the end so tools that
+# read `packages/api-types/dist` directly, such as svelte-check and Vitest run
+# from `apps/frontend`, never see a missing package after codegen.
 run = [
     "pnpm --dir ../packages/api-types run clean",
     "buf generate",
     "node ../tools/split-connectrpc-docs.mjs",
     "node ../tools/trim-proto-codegen-output.mjs",
+    "pnpm --dir .. run build:api-types",
 ]
 
 [tasks.codegen-emoji]
