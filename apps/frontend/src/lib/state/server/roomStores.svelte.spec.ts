@@ -46,6 +46,7 @@ function makeRooms(viewerId: string | null = 'viewer'): RoomStores {
     messageSearchAPI: {} as MessageSearchAPI,
     realtimeViewerId: () => viewerId,
     viewerId: () => viewerId,
+    projectedMemberIds: () => null,
     isAuthenticated: () => true
   });
 }

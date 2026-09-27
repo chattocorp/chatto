@@ -425,21 +425,10 @@
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
 
-  const syncRoomMembers: Attachment = () => {
-    const selectedRoomId = roomId;
-    const hasFirstPage = roomMembersStore.hasFirstPage;
-    const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
-    const projectedMemberIds = hasCompleteMembership
-      ? stores.projectedMemberIdsForRoom(selectedRoomId)
-      : [];
-    untrack(() => {
-      roomMembersStore.setRoom(selectedRoomId);
-      if (hasCompleteMembership) {
-        roomMembersStore.replaceProjection(selectedRoomId, projectedMemberIds);
-      } else {
-        if (!hasFirstPage) roomMembersStore.ensureLoaded();
-      }
-    });
+  // A DM's projection has every member, so its store has a first page at once.
+  const loadRoomMembers: Attachment = () => {
+    const store = roomMembersStore;
+    if (!store.hasFirstPage) untrack(() => store.ensureLoaded());
   };
 
   const syncRoomFiles: Attachment = () => {
@@ -631,7 +620,7 @@
 {#if room.roomData !== null}
   <div
     class="flex min-h-0 min-w-0 flex-1"
-    {@attach syncRoomMembers}
+    {@attach loadRoomMembers}
     {@attach syncRoomFiles}
     {@attach syncRoomPins}
     {@attach syncRoomCallWide}

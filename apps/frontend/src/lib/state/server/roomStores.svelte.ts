@@ -47,6 +47,8 @@ export type RoomStoresOptions = {
   realtimeViewerId: () => string | null;
   /** The viewer ID for device-local pin markers. */
   viewerId: () => string | null;
+  /** The complete member IDs of a room from the realtime projection, or null. */
+  projectedMemberIds: (roomId: string) => readonly string[] | null;
   isAuthenticated: () => boolean;
 };
 
@@ -208,8 +210,10 @@ export class RoomStores {
     // derived fields an owner that lasts until the registry is disposed.
     let created!: RoomMembersStore;
     entry.disposeMembers = $effect.root(() => {
-      created = new RoomMembersStore(this.#options.connection, this.#options.presence);
-      created.setRoom(roomId);
+      created = new RoomMembersStore(roomId, this.#options.connection, {
+        presence: this.#options.presence,
+        projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
+      });
     });
     return (entry.members = created);
   }

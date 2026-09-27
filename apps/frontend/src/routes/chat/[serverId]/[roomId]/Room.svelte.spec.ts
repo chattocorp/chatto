@@ -58,8 +58,6 @@ const mocks = vi.hoisted(() => ({
   roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
   nextServerRestoreProjectedRoomWindow: vi.fn(),
-  projectedMemberIdsForRoom: vi.fn(() => []),
-  hasCompleteProjectedRoomMembership: vi.fn(() => true),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -432,19 +430,15 @@ beforeEach(() => {
       restoreProjectedRoomWindow:
         serverId === 'server-2'
           ? mocks.nextServerRestoreProjectedRoomWindow
-          : mocks.restoreProjectedRoomWindow,
-      projectedMemberIdsForRoom: mocks.projectedMemberIdsForRoom,
-      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
+          : mocks.restoreProjectedRoomWindow
     })
   });
   mocks.roomKind = RoomKind.CHANNEL;
-  mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
   mocks.roomMembers.mockImplementation((roomId: string) => {
     let store = membersByRoom[roomId];
     if (!store) {
-      store = new RoomMembersStore();
-      store.setRoom(roomId);
+      store = new RoomMembersStore(roomId);
       membersByRoom[roomId] = store;
     }
     return store;
@@ -479,7 +473,6 @@ afterEach(async () => {
 
 describe('Room interaction bundles', () => {
   it('loads channel membership through the canonical member directory', async () => {
-    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
       .mockImplementation(() => {});
@@ -490,7 +483,6 @@ describe('Room interaction bundles', () => {
   });
 
   it('leaves membership event handling to the session store without a component reload', async () => {
-    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
     const refresh = vi.spyOn(RoomMembersStore.prototype, 'refresh').mockResolvedValue();
     render(Room, { props: { roomId: 'room-1' } });

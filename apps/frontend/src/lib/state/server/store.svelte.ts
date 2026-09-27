@@ -361,6 +361,11 @@ export class ServerStateStore {
       messageSearchAPI,
       realtimeViewerId: () => this.realtimeViewerId(),
       viewerId: () => this.viewerId,
+      projectedMemberIds: (roomId) => {
+        // Only a DM projection lists every member of its room.
+        const room = this.projection.rooms.get(roomId);
+        return room && mapDirectoryRoom(room)?.kind === RoomKind.DM ? room.memberUserIds : null;
+      },
       isAuthenticated: () => this.isAuthenticated
     });
   }
@@ -1656,23 +1661,13 @@ export class ServerStateStore {
     return complete;
   }
 
-  /** Complete current room membership from the projection, including pending profiles. */
-  projectedMemberIdsForRoom(roomId: string): string[] {
-    return this.projection.rooms.get(roomId)?.memberUserIds ?? [];
-  }
-
   /** Resolved member rows for DM presentation outside the room member store. */
   projectedMembersForRoom(roomId: string): RoomMember[] {
-    return this.projectedMemberIdsForRoom(roomId).flatMap((userId) => {
+    const memberIds = this.projection.rooms.get(roomId)?.memberUserIds ?? [];
+    return memberIds.flatMap((userId) => {
       const user = this.projection.users.get(userId);
       return user ? [avatarUserFromDirectoryMember(mapDirectoryMember(user))] : [];
     });
-  }
-
-  /** Whether membership references are authoritative for this projected room. */
-  hasCompleteProjectedRoomMembership(roomId: string): boolean {
-    const room = this.projection.rooms.get(roomId);
-    return room ? mapDirectoryRoom(room)?.kind === RoomKind.DM : false;
   }
 
   /**

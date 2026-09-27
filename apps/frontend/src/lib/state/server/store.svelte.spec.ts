@@ -6,6 +6,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import type { RoomFileItem } from '$lib/api-client/attachments';
+import type { MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import type { MessageResource } from '$lib/api-client/messageResources';
 import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
@@ -103,7 +104,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     >(() => Promise.resolve([])),
     listRooms: vi.fn(() => Promise.resolve([])),
     listRoomGroups: vi.fn(() => Promise.resolve([])),
-    listRoomMembers: vi.fn(() =>
+    listRoomMembers: vi.fn((): Promise<MemberDirectoryPage> =>
       Promise.resolve({
         members: [],
         totalCount: 0,
@@ -1149,12 +1150,13 @@ describe('ServerStateStore room search state', () => {
       })
     );
 
-    const memberIds = store.projectedMemberIdsForRoom('dm');
-    expect(memberIds).toEqual(['U2', 'U3']);
+    const requests = apiMocks.listRoomMembers.mock.calls.length;
     const members = store.rooms.members('dm');
-    members.replaceProjection('dm', memberIds);
     expect(members.totalCount).toBe(2);
+    expect(members.hasLoadedAll).toBe(true);
     expect(members.members).toEqual([]);
+    members.ensureLoaded();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(requests);
 
     store.projection.users.set(
       'U2',
@@ -1188,7 +1190,13 @@ describe('ServerStateStore room search state', () => {
         user: { id: 'U2', login: 'two', displayName: 'Two' }
       })
     );
-    members.replaceProjection('a', ['U2']);
+    store.projection.rooms.set(
+      'a',
+      new RoomWithViewerState({
+        room: new Room({ id: 'a', kind: RoomKind.DM }),
+        memberUserIds: ['U2']
+      })
+    );
 
     expect(members.members.map((member) => member.id)).toEqual(['U2']);
     store.dispose();
@@ -1278,7 +1286,14 @@ describe('ServerStateStore room search state', () => {
   it('applies a leave to an inactive retained room without relisting', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.rooms.members('a');
-    a.replaceProjection('a', ['U2']);
+    apiMocks.listRoomMembers.mockResolvedValueOnce({
+      members: [],
+      memberIds: ['U2'],
+      totalCount: 1,
+      hasMore: false
+    });
+    await a.loadInitial();
+    expect(a.totalCount).toBe(1);
     await store.rooms.members('b').loadInitial();
     const requests = apiMocks.listRoomMembers.mock.calls.length;
     store.realtimeProjectionHandler(
