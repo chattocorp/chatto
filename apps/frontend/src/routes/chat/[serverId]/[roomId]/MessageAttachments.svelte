@@ -475,6 +475,7 @@
         type="button"
         onclick={() => openAttachmentModal(attachment)}
         data-message-image-attachment
+        title={attachment.description || undefined}
         aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
@@ -538,7 +539,11 @@
     <div class="flex max-w-full min-w-0 flex-col items-start">
       {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
         {@const autoLoop = attachment.contentType === 'image/gif'}
-        <div class="group/attachment attachment-video-frame" data-attachment-media>
+        <div
+          class="group/attachment attachment-video-frame"
+          data-attachment-media
+          title={attachment.description || undefined}
+        >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
             <LoadingFog class="embed-frame min-h-32 min-w-48" />
           {:then { default: VideoPlayer }}
@@ -589,7 +594,11 @@
           or processing has never been requested for this asset. Render the raw
           original so the user can at least play it.
         -->
-        <div class="group/attachment attachment-video-frame embed-frame" data-attachment-media>
+        <div
+          class="group/attachment attachment-video-frame embed-frame"
+          data-attachment-media
+          title={attachment.description || undefined}
+        >
           <video
             controls
             preload="metadata"
@@ -606,6 +615,7 @@
         <div
           class="group/attachment embed-frame attachment-card w-[30rem] min-w-0 flex-wrap"
           data-attachment-media
+          title={attachment.description || undefined}
         >
           <audio
             controls
@@ -628,6 +638,7 @@
             aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
             class="block min-w-0 flex-1 cursor-pointer text-start"
+            title={attachment.description || undefined}
           >
             <div class="flex min-h-10 items-center gap-3">
               <svg
