@@ -28,8 +28,10 @@ forks, because the content remains in the model history. User messages do not
 remove it. To use a blocked tool, the application starts a new agent, for example
 for a new conversation.
 
-Runling enforces the policy through a Pi tool hook inside the agent. The policy
-names tools; it does not inspect content.
+Runling enforces the policy with a standalone Pi extension, `extensions/trust.ts`,
+which uses Pi's `tool_result` and `tool_call` hooks. Runling agents install it
+through the `trust` option. Plain Pi users can install the same extension. The
+policy names tools; it does not inspect content.
 
 ## Consequences
 

@@ -114,7 +114,9 @@ tool does not run; the model receives an error result with a fixed reason. Set
 user. User messages do not
 remove the block, because the content remains in the history. Start a new agent to
 use the blocked tools again. Prefer separate agents for untrusted input and
-powerful actions; use `trust` as a backstop. See
+powerful actions; use `trust` as a backstop. The option installs the Pi
+extension from `runling/extensions/trust`, which plain Pi projects can also use
+through `createTrustExtension(policy).extension`. See
 [ADR-005](adr/ADR-005-untrusted-context.md) and
 [FDR-006](fdr/FDR-006-untrusted-tool-blocking.md).
 

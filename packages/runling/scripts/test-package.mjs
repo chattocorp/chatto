@@ -128,6 +128,7 @@ export default task({ name: "Consumer echo", input: z.object({ topic: z.string()
     `import { task, Type, exec, step, log, createWorkflowContext } from "runling";
 import * as git from "runling/git";
 import { connectAgent, agent, runAgent, defineAgentExtension } from "runling/agents";
+import { createTrustExtension } from "runling/extensions/trust";
 async function checkAgents() {
 const connection = connectAgent(createWorkflowContext(), {
   async runOutcome() { return { outcome: "completed", summary: "ok", usage: createWorkflowContext().usage }; },
@@ -135,7 +136,7 @@ const connection = connectAgent(createWorkflowContext(), {
 if ((await connection.runOutcome("test")).summary !== "ok") throw new Error("Agent connection failed");
 await connection.dispose();
 }
-if ([agent, runAgent, defineAgentExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
+if ([agent, runAgent, defineAgentExtension, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
 export default task({ name: "CLI echo", input: Type.String(), output: Type.String() }, async (ctx, input) => {
   await checkAgents();
   if (typeof git.getPwd !== "function" || typeof git.workingTreeHash !== "function" || typeof git.WorkingDirectory.create !== "function") throw new Error("Git helpers were not exported");

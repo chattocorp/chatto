@@ -16,6 +16,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { Type, type Static } from 'typebox';
 import webFetchExtension from '../../extensions/web-fetch.ts';
+import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
 import { log, withLogSource } from './log.ts';
@@ -159,18 +160,9 @@ function providerFailureSummary(error: string): string {
   return 'Agent provider could not finish the response';
 }
 
-/** Refuse selected tools once untrusted content has entered an agent's context. */
-export interface AgentTrustPolicy {
-  /** Tools whose results can contain untrusted content, such as web pages. Any result
-   * from these tools, including an error, marks the context untrusted. */
-  untrusted: readonly string[];
-  /** Tools that the agent cannot call after its context is untrusted. The mark lasts for
-   * the agent's lifetime, including forks, because the content remains in its history. */
-  blockAfterUntrusted: readonly string[];
-  /** Runs before the model receives the refusal, for example to show a host-written message.
-   * A failure is logged with the tool name only; the block still applies. */
-  onBlocked?: (toolName: string) => void | Promise<void>;
-}
+/** Refuse selected tools once untrusted content has entered an agent's context.
+ * See `extensions/trust.ts`. */
+export type AgentTrustPolicy = TrustPolicy;
 
 export interface RunAgentOptions {
   model: string;
@@ -368,31 +360,13 @@ async function createRunlingAgent(
 
   const additionalInstructions = formatAgentInstructions(options.instructions ?? []);
 
-  // Untrusted content stays in the model history, so the mark is never cleared.
-  let untrusted = inheritedUntrusted;
-  const trustExtension = (policy: AgentTrustPolicy) => {
-    const sources = new Set(policy.untrusted);
-    const blocked = new Set(policy.blockAfterUntrusted);
-    return (pi: ExtensionAPI) => {
-      pi.on('tool_result', (event) => {
-        if (sources.has(event.toolName)) untrusted = true;
-      });
-      pi.on('tool_call', async (event) => {
-        if (!untrusted || !blocked.has(event.toolName)) return;
-        writeAgentLog('info', `Blocked ${event.toolName}: untrusted content in context`);
-        await Promise.resolve()
-          .then(() => policy.onBlocked?.(event.toolName))
-          .catch(() => {
-            // Log a fixed category only; host errors can contain user data.
-            writeAgentLog('error', `Blocked-tool callback failed for ${event.toolName}`);
-          });
-        return {
-          block: true,
-          reason: `${event.toolName} is blocked because this agent's context contains untrusted content.`
-        };
-      });
-    };
-  };
+  // Untrusted content stays in the model history, so forks inherit the mark.
+  const trust = options.trust
+    ? createTrustExtension(options.trust, {
+        untrusted: inheritedUntrusted,
+        log: (level, message) => writeAgentLog(level, message)
+      })
+    : undefined;
 
   const resources = options.resources;
   const extensionsEnabled = resources?.extensions !== false;
@@ -409,7 +383,7 @@ async function createRunlingAgent(
     agentDir,
     settingsManager,
     extensionFactories: [
-      ...(options.trust ? [{ name: 'runling-trust', factory: trustExtension(options.trust) }] : []),
+      ...(trust ? [{ name: 'runling-trust', factory: trust.extension }] : []),
       ...(extensionsEnabled ? [{ name: 'runling-web-fetch', factory: webFetchExtension }] : []),
       ...(options.extensions ?? [])
     ],
@@ -863,7 +837,7 @@ async function createRunlingAgent(
         throw new Error(`Agent ${agentId} is already running`);
       }
 
-      return createRunlingAgent(options, session.agent.state.messages, untrusted);
+      return createRunlingAgent(options, session.agent.state.messages, trust?.untrusted ?? false);
     },
 
     dispose,

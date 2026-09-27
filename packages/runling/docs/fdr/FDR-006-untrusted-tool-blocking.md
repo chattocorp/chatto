@@ -25,6 +25,8 @@ lifetime.
 - Each block writes an agent log line with the tool name. The line contains no
   arguments or content.
 - Without a policy, Runling installs no hook and tool behavior is unchanged.
+- The same behavior is available to plain Pi projects through
+  `createTrustExtension` from `runling/extensions/trust`.
 - Calls made in the same model step as the untrusted tool, before its result, are
   not blocked. The model has not seen the content at that point.
 
