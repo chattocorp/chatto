@@ -295,7 +295,7 @@ func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) 
 	}
 }
 
-func TestMarkRoomAsReadDoesNotRewriteStateForUnchangedRoom(t *testing.T) {
+func TestReadStateModel_MarkRoomAsReadDoesNotRewriteUnchangedRoomState(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	reader, err := c.CreateUser(ctx, SystemActorID, "unchanged-reader", "Unchanged Reader", "password123")
@@ -342,9 +342,22 @@ func TestMarkRoomAsReadDoesNotRewriteStateForUnchangedRoom(t *testing.T) {
 		}
 		return status.(interface{ StreamInfo() *jetstream.StreamInfo }).StreamInfo().State.LastSeq
 	}
+	boundaryKey := notificationReadBoundaryKey(reader.GetId(), quiet.GetId(), "")
+	boundaryRevision := func() uint64 {
+		t.Helper()
+		entry, err := c.storage.runtimeStateKV.Get(ctx, boundaryKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return entry.Revision()
+	}
+	beforeRevision := boundaryRevision()
 	before := lastSeq()
 	if _, err := c.ReadState().MarkRoomAsRead(ctx, reader.GetId(), quiet.GetId(), ""); err != nil {
 		t.Fatal(err)
+	}
+	if after := boundaryRevision(); after != beforeRevision {
+		t.Fatalf("re-reading an unchanged room rewrote its read boundary (revision %d -> %d)", beforeRevision, after)
 	}
 	if after := lastSeq(); after != before {
 		t.Fatalf("re-reading an unchanged room wrote %d RUNTIME_STATE entries, want 0", after-before)

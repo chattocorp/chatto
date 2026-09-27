@@ -60,8 +60,9 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 	// Reactions are coverable only through the local reaction projection's
 	// applied horizon, not merely because a newer fact exists in EVT but has not
 	// yet become observable to this read operation. The boundary only covers
-	// reactions in this room, so the room's own applied horizon covers the same
-	// reactions as the stream-wide one. Unlike the stream-wide horizon, it does
+	// reactions in this room (a reaction and its target message, including an
+	// echo, always share a room), so the room's own applied horizon covers the
+	// same reactions as the stream-wide one. Unlike the stream-wide horizon, it does
 	// not change when only other rooms change, so an unchanged boundary is not
 	// rewritten.
 	next := notificationReadBoundary{
