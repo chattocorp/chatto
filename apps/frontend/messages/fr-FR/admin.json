@@ -136,7 +136,9 @@
       "open_delete_account": "Supprimer le compte",
       "delete_account_entry_description": "Supprime définitivement le compte de ce membre. Ses messages deviennent illisibles. Cette action est irréversible.",
       "bio_placeholder": "Présentez un peu ce membre aux autres",
-      "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du membre."
+      "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du membre.",
+      "update_failed": "Échec de la mise à jour de l'utilisateur",
+      "cooldown_clear_failed": "Échec de la réinitialisation du délai de changement de nom d'utilisateur"
     },
     "member_delete": {
       "title": "Supprimer un membre",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Aucun utilisateur n'a ce rôle",
       "server_tier_intro": "Cette page concerne les autorisations de rôle au niveau du serveur : valeurs par défaut générales qui s'appliquent avant les remplacements spécifiques à la salle.",
       "server_tier_rooms_hint": "Utilisez les salles pour les remplacements par groupe et par salle.",
-      "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis."
+      "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis.",
+      "update_role_failed": "Échec de la mise à jour du rôle",
+      "update_ping_failed": "Échec de la mise à jour du paramètre de mention du rôle",
+      "delete_role_failed": "Échec de la suppression du rôle"
     },
     "rooms_admin": {
       "title": "Chambres",
@@ -288,7 +293,10 @@
       "member_added": "{name} a été ajouté au salon",
       "add_member_failed": "Échec de l’ajout du membre : {error}",
       "member_removed": "{name} a été retiré du salon",
-      "remove_member_failed": "Échec du retrait du membre : {error}"
+      "remove_member_failed": "Échec du retrait du membre : {error}",
+      "move_room_failed": "Échec du déplacement du salon : {error}",
+      "move_link_failed": "Échec du déplacement du lien : {error}",
+      "reorder_rooms_failed": "Échec de la réorganisation des salons : {error}"
     },
     "security": {
       "title": "Sécurité",

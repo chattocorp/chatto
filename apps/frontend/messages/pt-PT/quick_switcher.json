@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Escreva depois de ? para pesquisar mensagens em todos os seus servidores",
       "no_results": "Nenhuma mensagem encontrada"
-    }
+    },
+    "start_dm_failed": "Falha ao iniciar DM"
   }
 }

@@ -136,7 +136,9 @@
       "open_delete_account": "Usuń konto",
       "delete_account_entry_description": "Trwale usuwa konto tego członka. Jego wiadomości stają się nieczytelne. Tej operacji nie można cofnąć.",
       "bio_placeholder": "Opowiedz innym trochę o tym członku",
-      "bio_description": "Do {max} znaków, wyświetlane w profilu członka."
+      "bio_description": "Do {max} znaków, wyświetlane w profilu członka.",
+      "update_failed": "Nie udało się zaktualizować użytkownika",
+      "cooldown_clear_failed": "Nie udało się wyczyścić czasu odnowienia zmiany nazwy użytkownika"
     },
     "member_delete": {
       "title": "Usuń członka",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Żaden użytkownik nie ma tej roli",
       "server_tier_intro": "Ta strona dotyczy uprawnień roli na poziomie serwera: ogólne ustawienia domyślne, które mają zastosowanie przed zastąpieniami specyficznymi dla pokoju.",
       "server_tier_rooms_hint": "Użyj Pokoi, aby zastąpić ustawienia na grupę i na pokój.",
-      "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie."
+      "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie.",
+      "update_role_failed": "Nie udało się zaktualizować roli",
+      "update_ping_failed": "Nie udało się zaktualizować ustawienia wzmianek roli",
+      "delete_role_failed": "Nie udało się usunąć roli"
     },
     "rooms_admin": {
       "title": "Pokoje",
@@ -288,7 +293,10 @@
       "member_added": "Dodano użytkownika {name} do pokoju",
       "add_member_failed": "Nie udało się dodać członka: {error}",
       "member_removed": "Usunięto użytkownika {name} z pokoju",
-      "remove_member_failed": "Nie udało się usunąć członka: {error}"
+      "remove_member_failed": "Nie udało się usunąć członka: {error}",
+      "move_room_failed": "Nie udało się przenieść pokoju: {error}",
+      "move_link_failed": "Nie udało się przenieść linku: {error}",
+      "reorder_rooms_failed": "Nie udało się zmienić kolejności pokoi: {error}"
     },
     "security": {
       "title": "Bezpieczeństwo",

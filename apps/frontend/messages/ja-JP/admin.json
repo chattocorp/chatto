@@ -136,7 +136,9 @@
       "open_delete_account": "アカウントを削除",
       "delete_account_entry_description": "このメンバーのアカウントを完全に削除します。メッセージは読めなくなります。この操作は取り消せません。",
       "bio_placeholder": "このメンバーについて簡単に紹介してください",
-      "bio_description": "最大 {max} 文字。メンバーのプロフィールに表示されます。"
+      "bio_description": "最大 {max} 文字。メンバーのプロフィールに表示されます。",
+      "update_failed": "ユーザーの更新に失敗しました",
+      "cooldown_clear_failed": "ユーザー名変更のクールダウンの解除に失敗しました"
     },
     "member_delete": {
       "title": "メンバーを削除",
@@ -190,7 +192,10 @@
       "no_users_with_role": "このロールを持つユーザーはいません",
       "server_tier_intro": "このページはサーバー層ロールの権限に関するものです。ルーム固有の上書きの前に適用される広範なデフォルトです。",
       "server_tier_rooms_hint": "グループごとおよびルームごとの上書きにはルームを使用します。",
-      "resolution_hint": "各ユーザーまたは名前付きロールには、最も近いルーム、グループ、サーバーの値が適用されます。それらの間では拒否が優先されます。許可が everyone の拒否を上書きできるのは、同じか、より限定的なスコープの場合だけです。"
+      "resolution_hint": "各ユーザーまたは名前付きロールには、最も近いルーム、グループ、サーバーの値が適用されます。それらの間では拒否が優先されます。許可が everyone の拒否を上書きできるのは、同じか、より限定的なスコープの場合だけです。",
+      "update_role_failed": "ロールの更新に失敗しました",
+      "update_ping_failed": "ロールのメンション設定の更新に失敗しました",
+      "delete_role_failed": "ロールの削除に失敗しました"
     },
     "rooms_admin": {
       "title": "部屋",
@@ -288,7 +293,10 @@
       "member_added": "{name}をルームに追加しました",
       "add_member_failed": "メンバーの追加に失敗しました: {error}",
       "member_removed": "{name}をルームから削除しました",
-      "remove_member_failed": "メンバーの削除に失敗しました: {error}"
+      "remove_member_failed": "メンバーの削除に失敗しました: {error}",
+      "move_room_failed": "ルームの移動に失敗しました: {error}",
+      "move_link_failed": "リンクの移動に失敗しました: {error}",
+      "reorder_rooms_failed": "ルームの並べ替えに失敗しました: {error}"
     },
     "security": {
       "title": "セキュリティ",

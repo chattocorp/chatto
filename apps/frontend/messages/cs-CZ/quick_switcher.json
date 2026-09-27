@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Zadejte po ? pro vyhledávání zpráv na vašich serverech",
       "no_results": "Nebyly nalezeny žádné zprávy"
-    }
+    },
+    "start_dm_failed": "Nepodařilo se zahájit DM"
   }
 }

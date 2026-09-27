@@ -136,7 +136,9 @@
       "open_delete_account": "Slett konto",
       "delete_account_entry_description": "Sletter dette medlemmets konto permanent. Meldingene blir uleselige. Dette kan ikke angres.",
       "bio_placeholder": "Fortell andre litt om dette medlemmet",
-      "bio_description": "Opptil {max} tegn, vises på profilen til medlemmet."
+      "bio_description": "Opptil {max} tegn, vises på profilen til medlemmet.",
+      "update_failed": "Kunne ikke oppdatere brukeren",
+      "cooldown_clear_failed": "Kunne ikke fjerne ventetiden for endring av brukernavn"
     },
     "member_delete": {
       "title": "Slett medlem",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Ingen brukere har denne rollen",
       "server_tier_intro": "Denne siden er for rolletillatelser på servernivå: brede standarder som gjelder før romspesifikke overstyringer.",
       "server_tier_rooms_hint": "Bruk rom for overstyringer per gruppe og per rom.",
-      "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå."
+      "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå.",
+      "update_role_failed": "Kunne ikke oppdatere rollen",
+      "update_ping_failed": "Kunne ikke oppdatere ping-innstillingen for rollen",
+      "delete_role_failed": "Kunne ikke slette rollen"
     },
     "rooms_admin": {
       "title": "Rom",
@@ -288,7 +293,10 @@
       "member_added": "{name} ble lagt til i rommet",
       "add_member_failed": "Kunne ikke legge til medlemmet: {error}",
       "member_removed": "{name} ble fjernet fra rommet",
-      "remove_member_failed": "Kunne ikke fjerne medlemmet: {error}"
+      "remove_member_failed": "Kunne ikke fjerne medlemmet: {error}",
+      "move_room_failed": "Kunne ikke flytte rommet: {error}",
+      "move_link_failed": "Kunne ikke flytte lenken: {error}",
+      "reorder_rooms_failed": "Kunne ikke omorganisere rommene: {error}"
     },
     "security": {
       "title": "Sikkerhet",

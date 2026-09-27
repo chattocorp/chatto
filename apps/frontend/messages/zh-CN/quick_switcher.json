@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "在 ? 后输入内容，搜索所有服务器中的消息",
       "no_results": "未找到消息"
-    }
+    },
+    "start_dm_failed": "发起私信失败"
   }
 }

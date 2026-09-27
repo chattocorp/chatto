@@ -27,7 +27,9 @@
         "followed_thread": "{actor} ha risposto in una discussione che segui.",
         "new_message": "{actor} ha pubblicato un nuovo messaggio.",
         "activity": "{actor} ti ha inviato una notifica."
-      }
+      },
+      "load_failed": "Impossibile caricare le notifiche",
+      "room_load_failed": "Impossibile caricare le notifiche della stanza"
     },
     "sign_out": {
       "title": "Esci",
@@ -87,7 +89,8 @@
       "no_unread": "Nessun thread non letto in questo momento.",
       "message_missing": "Messaggio non più disponibile",
       "in_room": "dentro",
-      "in_room_capitalized": "Dentro"
+      "in_room_capitalized": "Dentro",
+      "load_failed": "Impossibile caricare i thread"
     },
     "profile": {
       "title": "Profilo",

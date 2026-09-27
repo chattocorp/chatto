@@ -35,6 +35,7 @@ import {
   MOBILE_CALLBACK,
   MOBILE_CLIENT_ID
 } from '$lib/desktop/nativeAuthorization';
+import { m } from '$lib/i18n/messages';
 
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
@@ -344,7 +345,7 @@ export async function completeServerOAuthFlow(
   const result = await response.json();
   if (!response.ok) {
     throw new OAuthPopupError(
-      result.error_description || result.error || 'Failed to exchange the authorization code.'
+      result.error_description || result.error || m('auth.callback.token_exchange_failed')
     );
   }
   const credentials = oauthBearerSession(result, flow.clientId);

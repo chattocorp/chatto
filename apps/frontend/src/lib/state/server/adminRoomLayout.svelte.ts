@@ -9,6 +9,7 @@ import type {
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { Code, isConnectCode } from '$lib/api-client/connect';
+import { m } from '$lib/i18n/messages';
 
 export type {
   AdminRoomGroup,
@@ -615,7 +616,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.moveRoomToGroup(move);
       } catch (error) {
-        errors.push(`Failed to move room: ${errorMessage(error)}`);
+        errors.push(m('admin.rooms_admin.move_room_failed', { error: errorMessage(error) }));
       }
     }
 
@@ -623,7 +624,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.moveSidebarLinkToGroup({ linkId: move.roomId, groupId: move.groupId });
       } catch (error) {
-        errors.push(`Failed to move link: ${errorMessage(error)}`);
+        errors.push(m('admin.rooms_admin.move_link_failed', { error: errorMessage(error) }));
       }
     }
 
@@ -631,7 +632,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.reorderSidebarItemsInGroup(reorder);
       } catch (error) {
-        errors.push(`Failed to reorder rooms: ${errorMessage(error)}`);
+        errors.push(m('admin.rooms_admin.reorder_rooms_failed', { error: errorMessage(error) }));
       }
     }
 

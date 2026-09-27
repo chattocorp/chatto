@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "? の後に入力して、すべてのサーバーのメッセージを検索",
       "no_results": "メッセージが見つかりません"
-    }
+    },
+    "start_dm_failed": "DM の開始に失敗しました"
   }
 }

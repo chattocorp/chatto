@@ -27,7 +27,9 @@
         "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat.",
         "new_message": "{actor} publicēja jaunu ziņu.",
         "activity": "{actor} nosūtīja jums paziņojumu."
-      }
+      },
+      "load_failed": "Neizdevās ielādēt paziņojumus",
+      "room_load_failed": "Neizdevās ielādēt telpas paziņojumus"
     },
     "sign_out": {
       "title": "Izrakstīties",
@@ -89,7 +91,8 @@
       "no_unread": "Pašlaik nav nelasītu pavedienu.",
       "message_missing": "Ziņa vairs nav pieejama",
       "in_room": "iekšā",
-      "in_room_capitalized": "In"
+      "in_room_capitalized": "In",
+      "load_failed": "Neizdevās ielādēt pavedienus"
     },
     "profile": {
       "title": "Profils",

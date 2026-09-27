@@ -136,7 +136,9 @@
       "open_delete_account": "Konto löschen",
       "delete_account_entry_description": "Löscht das Konto dieses Mitglieds endgültig. Seine Nachrichten werden unlesbar. Dies kann nicht rückgängig gemacht werden.",
       "bio_placeholder": "Erzähl anderen ein wenig über dieses Mitglied",
-      "bio_description": "Bis zu {max} Zeichen, wird im Profil des Mitglieds angezeigt."
+      "bio_description": "Bis zu {max} Zeichen, wird im Profil des Mitglieds angezeigt.",
+      "update_failed": "Benutzer konnte nicht aktualisiert werden",
+      "cooldown_clear_failed": "Sperre für Benutzernamensänderung konnte nicht aufgehoben werden"
     },
     "member_delete": {
       "title": "Mitglied löschen",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Keine Benutzer haben diese Rolle",
       "server_tier_intro": "Diese Seite ist für serverweite Rollenberechtigungen: breite Vorgaben, die vor raumspezifischen Überschreibungen gelten.",
       "server_tier_rooms_hint": "Nutze Räume für Überschreibungen pro Gruppe und Raum.",
-      "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene."
+      "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene.",
+      "update_role_failed": "Rolle konnte nicht aktualisiert werden",
+      "update_ping_failed": "Ping-Einstellung der Rolle konnte nicht aktualisiert werden",
+      "delete_role_failed": "Rolle konnte nicht gelöscht werden"
     },
     "rooms_admin": {
       "title": "Räume",
@@ -288,7 +293,10 @@
       "member_added": "{name} wurde dem Raum hinzugefügt",
       "add_member_failed": "Mitglied konnte nicht hinzugefügt werden: {error}",
       "member_removed": "{name} wurde aus dem Raum entfernt",
-      "remove_member_failed": "Mitglied konnte nicht entfernt werden: {error}"
+      "remove_member_failed": "Mitglied konnte nicht entfernt werden: {error}",
+      "move_room_failed": "Raum konnte nicht verschoben werden: {error}",
+      "move_link_failed": "Link konnte nicht verschoben werden: {error}",
+      "reorder_rooms_failed": "Räume konnten nicht neu angeordnet werden: {error}"
     },
     "security": {
       "title": "Sicherheit",

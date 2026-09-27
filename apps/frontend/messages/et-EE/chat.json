@@ -27,7 +27,9 @@
         "followed_thread": "{actor} vastas lõimes, mida jälgid.",
         "new_message": "{actor} postitas uue sõnumi.",
         "activity": "{actor} saatis sulle teavituse."
-      }
+      },
+      "load_failed": "Märguannete laadimine ebaõnnestus",
+      "room_load_failed": "Toa märguannete laadimine ebaõnnestus"
     },
     "sign_out": {
       "title": "Logi välja",
@@ -87,7 +89,8 @@
       "no_unread": "Praegu pole lugemata lõime.",
       "message_missing": "Sõnum pole enam saadaval",
       "in_room": "sisse",
-      "in_room_capitalized": "sisse"
+      "in_room_capitalized": "sisse",
+      "load_failed": "Lõimede laadimine ebaõnnestus"
     },
     "profile": {
       "title": "Profiil",

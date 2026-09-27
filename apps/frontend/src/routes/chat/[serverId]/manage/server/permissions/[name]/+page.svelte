@@ -244,17 +244,17 @@
     if (metadataMutation.isError && isCurrentRole(metadataMutation.variables)) {
       return metadataMutation.error instanceof Error
         ? metadataMutation.error.message
-        : 'Failed to update role';
+        : m('admin.permissions.update_role_failed');
     }
     if (pingableMutation.isError && isCurrentRole(pingableMutation.variables)) {
       return pingableMutation.error instanceof Error
         ? pingableMutation.error.message
-        : 'Failed to update role ping setting';
+        : m('admin.permissions.update_ping_failed');
     }
     if (deleteMutation.isError && isCurrentRole(deleteMutation.variables)) {
       return deleteMutation.error instanceof Error
         ? deleteMutation.error.message
-        : 'Failed to delete role';
+        : m('admin.permissions.delete_role_failed');
     }
     return null;
   });

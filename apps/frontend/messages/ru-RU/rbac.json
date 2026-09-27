@@ -100,6 +100,28 @@
           "title": "Разрешения пользователя",
           "description": "Управление учетной записью пользователя и операциями с разрешениями для каждого пользователя"
         }
+      },
+      "cell": {
+        "subject": "субъект",
+        "role_subject": "роль",
+        "allow": "Разрешить",
+        "deny": "Запретить",
+        "owner_always_granted": "Владельцу всегда предоставлено разрешение {permission}",
+        "subject_always_granted": "{subject}: разрешение {permission} в области {scope} предоставлено всегда",
+        "override_for_role": "Переопределение для роли {role} в разрешении {permission}: {state}",
+        "no_override_for_role": "Нет переопределения для роли {role} в разрешении {permission}",
+        "override_at_scope": "Переопределение разрешения {permission} в области {scope}: {state}",
+        "no_override_at_scope": "Нет переопределения разрешения {permission} в области {scope}, действует: {state}",
+        "inheriting_from": "унаследовано от {source}: {state}",
+        "owner_allow": "Разрешить (владельцам всегда предоставляются все разрешения)",
+        "owner_not_editable": "Разрешения владельца нельзя изменить",
+        "override_here": "{state} (переопределение на этом уровне)",
+        "subject_override_at_scope": "{state} (переопределение: {subject}, область {scope})",
+        "inherits_from": "{state}, унаследовано от {source}",
+        "effective_included_by": "Действует: Разрешить (входит в {permission})",
+        "effective_inherited": "Действует: {state} (унаследовано)",
+        "manage_role": "Управлять ролью {role}",
+        "no_scopes": "Для этого типа ({subject}) нет доступных областей."
       }
     },
     "permission_categories": {

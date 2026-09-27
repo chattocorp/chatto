@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Digitare dopo? per cercare messaggi sui tuoi server",
       "no_results": "Nessun messaggio trovato"
-    }
+    },
+    "start_dm_failed": "Impossibile avviare il DM"
   }
 }

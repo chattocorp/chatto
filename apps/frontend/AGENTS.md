@@ -196,6 +196,10 @@ Do not generate playground links for code written into this repository.
   popovers avoid clipping/stacking issues.
 - Use established `.menu`, `menu-section`, `btn`, dialog, toast, and chat overlay
   patterns before inventing new floating styles.
+- Render a popover or picker that belongs to an open modal inside that modal.
+  Content outside an open modal dialog is inert, so a popover rendered there
+  does not accept pointer or keyboard input. In a `FormDialog`, use the
+  `overlays` snippet.
 - When an element supports both right-click actions and touch long-press
   actions, suppress touch-synthesized `contextmenu` events while the long-press
   gesture is active so only one action surface opens.

@@ -241,7 +241,9 @@
       "in_voice_call": "في مكالمة صوتية",
       "in_video_call": "في مكالمة فيديو",
       "remove_failed": "تعذرت إزالة المستخدم من الغرفة",
-      "remove_success": "تمت إزالة {name} من الغرفة"
+      "remove_success": "تمت إزالة {name} من الغرفة",
+      "members_load_failed": "فشل في تحميل أعضاء الغرفة",
+      "members_refresh_failed": "فشل في تحديث أعضاء الغرفة"
     },
     "pins": {
       "show": "عرض الرسائل المثبّتة",

@@ -27,7 +27,9 @@
         "followed_thread": "{actor} takip ettiğin bir konuya yanıt verdi.",
         "new_message": "{actor} yeni bir mesaj yayınladı.",
         "activity": "{actor} sana bir bildirim gönderdi."
-      }
+      },
+      "load_failed": "Bildirimler yüklenemedi",
+      "room_load_failed": "Oda bildirimleri yüklenemedi"
     },
     "sign_out": {
       "title": "Oturumu Kapat",
@@ -87,7 +89,8 @@
       "no_unread": "Şu anda okunmamış konu yok.",
       "message_missing": "Mesaj artık kullanılamıyor",
       "in_room": "içinde",
-      "in_room_capitalized": "içinde"
+      "in_room_capitalized": "içinde",
+      "load_failed": "Konular yüklenemedi"
     },
     "profile": {
       "title": "Profil",

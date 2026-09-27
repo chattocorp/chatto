@@ -136,7 +136,9 @@
       "open_delete_account": "Dzēst kontu",
       "delete_account_entry_description": "Pastāvīgi dzēš šī dalībnieka kontu. Viņa ziņojumi kļūst nelasāmi. To nevar atsaukt.",
       "bio_placeholder": "Pastāstiet citiem nedaudz par šo dalībnieku",
-      "bio_description": "Līdz {max} rakstzīmēm, tiek rādīts dalībnieka profilā."
+      "bio_description": "Līdz {max} rakstzīmēm, tiek rādīts dalībnieka profilā.",
+      "update_failed": "Neizdevās atjaunināt lietotāju",
+      "cooldown_clear_failed": "Neizdevās atiestatīt lietotājvārda maiņas gaidīšanas laiku"
     },
     "member_delete": {
       "title": "Dzēst dalībnieku",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Nevienam lietotājam nav šīs lomas",
       "server_tier_intro": "Šī lapa ir paredzēta servera līmeņa lomu atļaujām: plašiem noklusējuma iestatījumiem, kas tiek piemēroti pirms telpai specifiskām ignorēšanas.",
       "server_tier_rooms_hint": "Izmantojiet telpas, lai ignorētu katru grupu un telpu.",
-      "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā."
+      "resolution_hint": "Katram lietotājam vai nosauktajai lomai tiek piemērota tuvākā telpas, grupas vai servera vērtība. Noliedz uzvaru starp viņiem. Atļauts ignorē visus aizliegts tikai tajā pašā vai konkrētākā tvērumā.",
+      "update_role_failed": "Neizdevās atjaunināt lomu",
+      "update_ping_failed": "Neizdevās atjaunināt lomas pieminēšanas iestatījumu",
+      "delete_role_failed": "Neizdevās izdzēst lomu"
     },
     "rooms_admin": {
       "title": "Istabas",
@@ -288,7 +293,10 @@
       "member_added": "Pievienots telpai {name}",
       "add_member_failed": "Neizdevās pievienot dalībnieku: {error}",
       "member_removed": "{name} tika noņemts no telpas",
-      "remove_member_failed": "Neizdevās noņemt dalībnieku: {error}"
+      "remove_member_failed": "Neizdevās noņemt dalībnieku: {error}",
+      "move_room_failed": "Neizdevās pārvietot telpu: {error}",
+      "move_link_failed": "Neizdevās pārvietot saiti: {error}",
+      "reorder_rooms_failed": "Neizdevās pārkārtot telpas: {error}"
     },
     "security": {
       "title": "Drošība",

@@ -136,7 +136,9 @@
       "open_delete_account": "Hesabı sil",
       "delete_account_entry_description": "Bu üyenin hesabını kalıcı olarak siler. Mesajları okunamaz hâle gelir. Bu işlem geri alınamaz.",
       "bio_placeholder": "Diğerlerine bu üye hakkında biraz bilgi verin",
-      "bio_description": "En fazla {max} karakter, üyenin profilinde gösterilir."
+      "bio_description": "En fazla {max} karakter, üyenin profilinde gösterilir.",
+      "update_failed": "Kullanıcı güncellenemedi",
+      "cooldown_clear_failed": "Kullanıcı adı değiştirme bekleme süresi temizlenemedi"
     },
     "member_delete": {
       "title": "Üyeyi sil",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Hiçbir kullanıcı bu role sahip değil",
       "server_tier_intro": "Bu sayfa, sunucu katmanı rol izinleri içindir: odaya özel geçersiz kılmalardan önce geçerli olan geniş varsayılanlar.",
       "server_tier_rooms_hint": "Grup başına ve oda başına geçersiz kılmalar için Odalar'ı kullanın.",
-      "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar."
+      "resolution_hint": "Her kullanıcı veya adlandırılmış rol için en yakın oda, grup veya sunucu değeri geçerlidir. Aralarındaki galibiyeti reddediyor. İzin ver, yalnızca aynı veya daha spesifik bir kapsamda herkesin reddettiğini geçersiz kılar.",
+      "update_role_failed": "Rol güncellenemedi",
+      "update_ping_failed": "Rol bahsetme ayarı güncellenemedi",
+      "delete_role_failed": "Rol silinemedi"
     },
     "rooms_admin": {
       "title": "Odalar",
@@ -288,7 +293,10 @@
       "member_added": "{name} odaya eklendi",
       "add_member_failed": "Üye eklenemedi: {error}",
       "member_removed": "{name} odadan kaldırıldı",
-      "remove_member_failed": "Üye kaldırılamadı: {error}"
+      "remove_member_failed": "Üye kaldırılamadı: {error}",
+      "move_room_failed": "Oda taşınamadı: {error}",
+      "move_link_failed": "Bağlantı taşınamadı: {error}",
+      "reorder_rooms_failed": "Odalar yeniden sıralanamadı: {error}"
     },
     "security": {
       "title": "Güvenlik",

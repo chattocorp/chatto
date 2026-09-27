@@ -27,7 +27,9 @@
         "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך.",
         "new_message": "נוספה הודעה חדשה מאת {actor}.",
         "activity": "קיבלת התראה מאת {actor}."
-      }
+      },
+      "load_failed": "טעינת ההתראות נכשלה",
+      "room_load_failed": "טעינת התראות החדר נכשלה"
     },
     "sign_out": {
       "title": "צא",
@@ -89,7 +91,8 @@
       "no_unread": "אין כרגע שרשורים שלא נקראו.",
       "message_missing": "ההודעה אינה זמינה עוד",
       "in_room": "in",
-      "in_room_capitalized": "In"
+      "in_room_capitalized": "In",
+      "load_failed": "טעינת השרשורים נכשלה"
     },
     "profile": {
       "title": "פרופיל",

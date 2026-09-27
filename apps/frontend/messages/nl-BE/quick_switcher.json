@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Typ na ? om berichten op al je servers te zoeken",
       "no_results": "Geen berichten gevonden"
-    }
+    },
+    "start_dm_failed": "Kan DM niet starten"
   }
 }

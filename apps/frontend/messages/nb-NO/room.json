@@ -225,7 +225,9 @@
       "in_voice_call": "I et taleanrop",
       "in_video_call": "I en videosamtale",
       "remove_failed": "Kunne ikke fjerne brukeren fra rommet",
-      "remove_success": "{name} ble fjernet fra rommet"
+      "remove_success": "{name} ble fjernet fra rommet",
+      "members_load_failed": "Kunne ikke laste inn rommedlemmer",
+      "members_refresh_failed": "Kunne ikke oppdatere rommedlemmer"
     },
     "pins": {
       "show": "Vis festede meldinger",

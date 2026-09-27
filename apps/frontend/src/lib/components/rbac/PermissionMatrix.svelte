@@ -41,6 +41,7 @@ focusing a cell highlights its permission row and role column.
   } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
+  import { decisionTitle, decisionWord } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
@@ -419,7 +420,7 @@ focusing a cell highlights its permission row and role column.
             type="button"
             class={['cursor-pointer hover:underline', highlighted ? 'text-action' : '']}
             onclick={() => handle(role)}
-            title={`${role.displayName} — click to manage`}
+            title={m('rbac.permissions.cell.manage_role', { role: role.displayName })}
           >
             @{role.roleName}
           </button>
@@ -459,30 +460,42 @@ focusing a cell highlights its permission row and role column.
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
         {@const ariaParts = virtualOwner
-          ? [`Owner is always granted ${permissionId}`]
+          ? [m('rbac.permissions.cell.owner_always_granted', { permission: permissionId })]
           : [
               ov !== 'neutral'
-                ? `Override ${ov} for ${role.displayName} on ${permissionId}`
-                : `No override for ${role.displayName} on ${permissionId}`,
+                ? m('rbac.permissions.cell.override_for_role', {
+                    state: decisionWord(ov),
+                    role: role.displayName,
+                    permission: permissionId
+                  })
+                : m('rbac.permissions.cell.no_override_for_role', {
+                    role: role.displayName,
+                    permission: permissionId
+                  }),
               inh !== 'neutral' && inheritedFromLabel
-                ? `inheriting ${inh} from ${inheritedFromLabel}`
+                ? m('rbac.permissions.cell.inheriting_from', {
+                    state: decisionWord(inh),
+                    source: inheritedFromLabel
+                  })
                 : null
             ].filter(Boolean)}
         {@const ariaLabel = ariaParts.join(', ')}
         {@const titleParts = virtualOwner
-          ? [
-              'Allow (owners are always granted all permissions)',
-              'Owner permissions are not editable'
-            ]
+          ? [m('rbac.permissions.cell.owner_allow'), m('rbac.permissions.cell.owner_not_editable')]
           : [
               ov !== 'neutral'
-                ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`
+                ? m('rbac.permissions.cell.override_here', { state: decisionTitle(ov) })
                 : null,
               inh !== 'neutral' && inheritedFromLabel
-                ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
+                ? m('rbac.permissions.cell.inherits_from', {
+                    state: decisionTitle(inh),
+                    source: inheritedFromLabel
+                  })
                 : null,
-              includedBy ? `Effective Allow (included by ${includedBy})` : null,
-              ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
+              includedBy
+                ? m('rbac.permissions.cell.effective_included_by', { permission: includedBy })
+                : null,
+              ov === 'neutral' && inh === 'neutral' ? m('rbac.permissions.no_decision') : null
             ].filter(Boolean)}
         <MatrixCell
           override={displayOverride}

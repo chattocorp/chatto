@@ -136,7 +136,9 @@
       "open_delete_account": "刪除帳號",
       "delete_account_entry_description": "永久刪除此成員的帳號。其訊息將變為無法讀取。此操作無法復原。",
       "bio_placeholder": "向其他人簡單介紹一下此成員",
-      "bio_description": "最多 {max} 個字元，顯示在成員的個人檔案中。"
+      "bio_description": "最多 {max} 個字元，顯示在成員的個人檔案中。",
+      "update_failed": "無法更新使用者",
+      "cooldown_clear_failed": "無法清除使用者名稱變更冷卻期"
     },
     "member_delete": {
       "title": "刪除成員",
@@ -190,7 +192,10 @@
       "no_users_with_role": "沒有使用者擁有此角色",
       "server_tier_intro": "此頁面用於設定伺服器層級的角色權限，也就是套用在聊天室特定覆寫之前的廣泛預設值。",
       "server_tier_rooms_hint": "請前往「聊天室」設定各群組及聊天室的覆寫。",
-      "resolution_hint": "對每位使用者或具名角色，會套用最接近的聊天室、群組或伺服器值。若設定衝突，以拒絕為準。只有在相同或更具體的範圍內，允許設定才能覆寫 everyone 的拒絕設定。"
+      "resolution_hint": "對每位使用者或具名角色，會套用最接近的聊天室、群組或伺服器值。若設定衝突，以拒絕為準。只有在相同或更具體的範圍內，允許設定才能覆寫 everyone 的拒絕設定。",
+      "update_role_failed": "無法更新角色",
+      "update_ping_failed": "無法更新角色提及設定",
+      "delete_role_failed": "無法刪除角色"
     },
     "rooms_admin": {
       "title": "聊天室",
@@ -288,7 +293,10 @@
       "member_added": "已將 {name} 新增至聊天室",
       "add_member_failed": "無法新增成員：{error}",
       "member_removed": "已將 {name} 從聊天室移除",
-      "remove_member_failed": "無法移除成員：{error}"
+      "remove_member_failed": "無法移除成員：{error}",
+      "move_room_failed": "無法移動聊天室：{error}",
+      "move_link_failed": "無法移動連結：{error}",
+      "reorder_rooms_failed": "無法調整聊天室順序：{error}"
     },
     "security": {
       "title": "安全性",

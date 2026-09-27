@@ -225,7 +225,9 @@
       "in_voice_call": "En una llamada de voz",
       "in_video_call": "En una videollamada",
       "remove_failed": "No se pudo eliminar al usuario de la sala",
-      "remove_success": "Se eliminó a {name} de la sala"
+      "remove_success": "Se eliminó a {name} de la sala",
+      "members_load_failed": "No se pudieron cargar los miembros de la sala",
+      "members_refresh_failed": "No se pudieron actualizar los miembros de la sala"
     },
     "pins": {
       "show": "Mostrar mensajes fijados",

@@ -36,6 +36,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     getPermissionDescription
   } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
+  import { decisionTitle, decisionWord, scopeKindLabel } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
 
   export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
@@ -68,7 +69,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     data,
     updatingKey = null,
     onCycle,
-    subjectKind = 'subject',
+    subjectKind = m('rbac.permissions.cell.subject'),
     forceAllow = false,
     readOnly = false,
     loading = false,
@@ -86,7 +87,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
     updatingKey?: string | null;
     onCycle: (scope: MatrixScope, permission: string, next: CellState) => void;
-    /** Used in aria/title text — "user", "role", etc. */
+    /** Translated noun for the subject, such as "role" or "bot", used in labels and titles. */
     subjectKind?: string;
     /** Display every existing cell as allowed regardless of stored decisions. */
     forceAllow?: boolean;
@@ -247,7 +248,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
 >
   <div {@attach measureContent}>
     {#if !loading && orderedScopes.length === 0}
-      <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
+      <Hint tone="info">{m('rbac.permissions.cell.no_scopes', { subject: subjectKind })}</Hint>
     {:else}
       <Panel title={m('admin.permissions.title')} noPadding>
         {#snippet actions()}
@@ -292,7 +293,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
           spacerTestId="permission-matrix-spacer"
         >
           {#snippet leadingHeader()}
-            Permission
+            {m('rbac.permissions.permission')}
           {/snippet}
           {#snippet group(permission)}
             <h3 data-testid="permission-section-divider" class="text-sm font-medium text-muted">
@@ -310,7 +311,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   : '',
                 !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
               ]}
-              title={`${scope.label} (${scope.kind.toLowerCase()})`}
+              title={`${scope.label} (${scopeKindLabel(scope.kind)})`}
             >
               {#if scope.kind === 'ROOM'}#{/if}{scope.label}
             </span>
@@ -375,7 +376,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                     : 'neutral'
                   : eff}
               {@const ariaLabel = forceAllow
-                ? `${subjectKind} is always granted ${permissionId} at ${scope.label}`
+                ? m('rbac.permissions.cell.subject_always_granted', {
+                    subject: subjectKind,
+                    permission: permissionId,
+                    scope: scope.label
+                  })
                 : decisionMode === 'binary'
                   ? m('rbac.permissions.binary.aria', {
                       permission: permissionId,
@@ -386,8 +391,16 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                       scope: scope.label
                     })
                   : ov !== 'neutral'
-                    ? `Override ${ov} for ${permissionId} at ${scope.label}`
-                    : `No override for ${permissionId} at ${scope.label}, effective ${eff}`}
+                    ? m('rbac.permissions.cell.override_at_scope', {
+                        state: decisionWord(ov),
+                        permission: permissionId,
+                        scope: scope.label
+                      })
+                    : m('rbac.permissions.cell.no_override_at_scope', {
+                        permission: permissionId,
+                        scope: scope.label,
+                        state: decisionWord(eff)
+                      })}
               {@const allowConstraint =
                 cell.allowPermitted === false
                   ? m('rbac.permissions.binary.owner_ceiling', {
@@ -397,8 +410,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   : null}
               {@const titleParts = forceAllow
                 ? [
-                    'Allow (owners are always granted all permissions)',
-                    'Owner permissions are not editable'
+                    m('rbac.permissions.cell.owner_allow'),
+                    m('rbac.permissions.cell.owner_not_editable')
                   ]
                 : decisionMode === 'binary'
                   ? [
@@ -424,13 +437,25 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                     ].filter(Boolean)
                   : [
                       ov !== 'neutral'
-                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                        ? m('rbac.permissions.cell.subject_override_at_scope', {
+                            state: decisionTitle(ov),
+                            subject: subjectKind,
+                            scope: scope.label
+                          })
                         : null,
-                      includedBy ? `Effective Allow (included by ${includedBy})` : null,
+                      includedBy
+                        ? m('rbac.permissions.cell.effective_included_by', {
+                            permission: includedBy
+                          })
+                        : null,
                       ov === 'neutral' && eff !== 'neutral'
-                        ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                        ? m('rbac.permissions.cell.effective_inherited', {
+                            state: decisionTitle(eff)
+                          })
                         : null,
-                      ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                      ov === 'neutral' && eff === 'neutral'
+                        ? m('rbac.permissions.no_decision')
+                        : null,
                       allowConstraint
                     ].filter(Boolean)}
               <MatrixCell

@@ -136,7 +136,9 @@
       "open_delete_account": "Odstranit účet",
       "delete_account_entry_description": "Trvale odstraní účet tohoto člena. Jeho zprávy se stanou nečitelnými. Tuto akci nelze vrátit.",
       "bio_placeholder": "Řekněte ostatním něco o tomto členovi",
-      "bio_description": "Až {max} znaků, zobrazí se v profilu člena."
+      "bio_description": "Až {max} znaků, zobrazí se v profilu člena.",
+      "update_failed": "Nepodařilo se aktualizovat uživatele",
+      "cooldown_clear_failed": "Nepodařilo se zrušit omezení změny uživatelského jména"
     },
     "member_delete": {
       "title": "Odstranit člena",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Žádní uživatelé nemají tuto roli",
       "server_tier_intro": "Tato stránka je určena pro oprávnění role na úrovni serveru: obecné výchozí hodnoty, které platí před přepsáním pro konkrétní místnost.",
       "server_tier_rooms_hint": "Použít Místnosti pro přepsání pro skupinu a místnost.",
-      "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu."
+      "resolution_hint": "Pro každého uživatele nebo pojmenovanou roli platí nejbližší hodnota místnosti, skupiny nebo serveru. Mezi nimi vítězí popírání. Povolení přepíše a odmítne všichni pouze ve stejném nebo konkrétnějším rozsahu.",
+      "update_role_failed": "Nepodařilo se aktualizovat roli",
+      "update_ping_failed": "Nepodařilo se aktualizovat nastavení zmínek role",
+      "delete_role_failed": "Nepodařilo se smazat roli"
     },
     "rooms_admin": {
       "title": "Pokoje",
@@ -288,7 +293,10 @@
       "member_added": "Přidáno {name} do místnosti",
       "add_member_failed": "Nepodařilo se přidat člena: {error}",
       "member_removed": "Odebráno {name} z místnosti",
-      "remove_member_failed": "Nepodařilo se odebrat člena: {error}"
+      "remove_member_failed": "Nepodařilo se odebrat člena: {error}",
+      "move_room_failed": "Nepodařilo se přesunout místnost: {error}",
+      "move_link_failed": "Nepodařilo se přesunout odkaz: {error}",
+      "reorder_rooms_failed": "Nepodařilo se změnit pořadí místností: {error}"
     },
     "security": {
       "title": "Bezpečnost",

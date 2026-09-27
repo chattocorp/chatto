@@ -136,7 +136,9 @@
       "open_delete_account": "Delete account",
       "delete_account_entry_description": "Permanently deletes this member's account. Their messages become unreadable. This cannot be undone.",
       "bio_placeholder": "Tell others a little about this member",
-      "bio_description": "Up to {max} characters, shown on the profile of the member."
+      "bio_description": "Up to {max} characters, shown on the profile of the member.",
+      "update_failed": "Failed to update user",
+      "cooldown_clear_failed": "Failed to clear username cooldown"
     },
     "member_delete": {
       "title": "Delete Member",
@@ -190,7 +192,10 @@
       "no_users_with_role": "No users have this role",
       "server_tier_intro": "This page is for server-tier role permissions: broad defaults that apply before room-specific overrides.",
       "server_tier_rooms_hint": "Use Rooms for per-group and per-room overrides.",
-      "resolution_hint": "For each user or named role, the nearest room, group, or server value applies. Denies win between them. An allow overrides an everyone deny only at the same or a more specific scope."
+      "resolution_hint": "For each user or named role, the nearest room, group, or server value applies. Denies win between them. An allow overrides an everyone deny only at the same or a more specific scope.",
+      "update_role_failed": "Failed to update role",
+      "update_ping_failed": "Failed to update role ping setting",
+      "delete_role_failed": "Failed to delete role"
     },
     "rooms_admin": {
       "title": "Rooms",
@@ -288,7 +293,10 @@
       "member_added": "Added {name} to the room",
       "add_member_failed": "Failed to add member: {error}",
       "member_removed": "Removed {name} from the room",
-      "remove_member_failed": "Failed to remove member: {error}"
+      "remove_member_failed": "Failed to remove member: {error}",
+      "move_room_failed": "Failed to move room: {error}",
+      "move_link_failed": "Failed to move link: {error}",
+      "reorder_rooms_failed": "Failed to reorder rooms: {error}"
     },
     "security": {
       "title": "Security",

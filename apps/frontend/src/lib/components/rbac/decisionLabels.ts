@@ -1,0 +1,30 @@
+import { m } from '$lib/i18n/messages';
+
+/** A permission decision as the matrices display it. */
+export type MatrixDecision = 'allow' | 'deny' | 'neutral';
+
+/**
+ * Returns the decision as a word inside a sentence, such as the "allow" in
+ * "Override allow for Moderator on room.join". Neutral decisions read as
+ * "No decision".
+ */
+export function decisionWord(decision: MatrixDecision): string {
+  if (decision === 'allow') return m('rbac.permissions.allow');
+  if (decision === 'deny') return m('rbac.permissions.deny');
+  return m('rbac.permissions.no_decision');
+}
+
+/** Returns the decision as a standalone label, such as "Allow" in a tooltip. */
+export function decisionTitle(decision: MatrixDecision): string {
+  if (decision === 'allow') return m('rbac.permissions.cell.allow');
+  if (decision === 'deny') return m('rbac.permissions.cell.deny');
+  return m('rbac.permissions.no_decision');
+}
+
+/** Returns the translated name of a permission scope level. */
+export function scopeKindLabel(kind: string): string {
+  if (kind === 'SERVER') return m('rbac.permissions.level_server');
+  if (kind === 'GROUP') return m('rbac.permissions.level_group');
+  if (kind === 'ROOM') return m('rbac.permissions.level_room');
+  return kind.toLowerCase();
+}

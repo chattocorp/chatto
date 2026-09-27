@@ -237,7 +237,7 @@ export class QuickSwitcherModel {
       try {
         await startDMWith(item.serverId, user.id);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to start DM');
+        toast.error(error instanceof Error ? error.message : m('quick_switcher.start_dm_failed'));
       }
       return;
     }

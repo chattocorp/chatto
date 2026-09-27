@@ -165,7 +165,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     onLoadMore={() => matrixQuery.fetchNextPage()}
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
-    subjectKind="role"
+    subjectKind={m('rbac.permissions.cell.role_subject')}
     forceAllow={isOwnerRole}
     readOnly={isOwnerRole || visibleUpdatingKey !== null}
   />
