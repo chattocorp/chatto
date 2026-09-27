@@ -41,7 +41,9 @@ export function createConversationState() {
 }
 export type ConversationState = ReturnType<typeof createConversationState>;
 
-/** Scope a conversation to the bot, room, thread, and sender, using the bot client's key. */
+/** Scope a conversation to the bot, room, thread, and sender, using the bot client's key.
+ * Retained implementation metadata stores a hash of this key to authorize resumption,
+ * so its value must stay stable for existing conversations. */
 export function deliveryConversationKey(delivery: Delivery): string {
   return botConversationKey(delivery.bot_id, {
     id: delivery.message.id,

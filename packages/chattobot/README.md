@@ -420,7 +420,13 @@ network address and requested package names.
 `runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`
 owns the agent instructions and conversation task.
 The `chatto/` directory owns delivery routing, conversation queues, posting,
-and typing indicators. It does not import example code.
+and typing indicators.
+
+Retained implementation metadata stores an owner key: the SHA-256 hash of the
+conversation key from `deliveryConversationKey`. A resume request succeeds only
+when the hash matches the current conversation. If you change how the conversation
+key is built, keep its value unchanged for existing conversations. Otherwise,
+retained implementations cannot be resumed.
 
 Short disconnects resume from the last accepted event. Unavailable replay
 reports a recovery gap and continues live. A process restart starts live.
