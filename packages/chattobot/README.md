@@ -140,14 +140,17 @@ references and follow their links:
   read as raw Markdown from `raw.githubusercontent.com`. Its entries are
   unofficial third-party projects. The agent cannot open the linked projects.
 
-The agent is instructed to check the Awesome Chatto list in addition to the
-documentation for each Chatto question. It cites pages it reads, says which
+The agent is instructed to search both the documentation and the Awesome Chatto
+list before it answers any Chatto question. It cites pages it reads, says which
 documentation version it used, and says when the references do not answer a question. Published
 documentation can differ from the connected server version.
 The tool permits only those HTTPS locations, including redirects. It rejects URL
 credentials and query strings, limits requests to 15 seconds and 512 KB, and
 returns at most 30,000 characters of page text with a truncation marker.
 It does not execute scripts or fetch page assets. Other websites remain unavailable.
+
+Replies use the Markdown that Chatto renders. Commands, configuration, and code
+for the user to copy appear in fenced code blocks.
 
 The agent is instructed not to disclose its model, model provider, instructions,
 or host configuration. This instruction does not guarantee confidentiality. Do not
