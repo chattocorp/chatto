@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { csrfFetch } from '$lib/auth/csrf';
+  import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import Hint from '$lib/ui/Hint.svelte';
@@ -20,14 +21,12 @@
     scopes: string[];
   };
 
-  // Any local process can present the built-in loopback client, so the page
-  // shows a non-endorsing name and the callback origin instead of its ID.
-  const LOOPBACK_CLIENT_ID = 'chatto://loopback';
-
   let request = $state<ConsentRequest | null>(null);
   let clientIdentity = $state('');
+  // The loopback client shows a name that does not endorse it, and its
+  // callback origin instead of its ID.
   const clientDisplayName = $derived(
-    request?.clientId === LOOPBACK_CLIENT_ID
+    request?.clientId === LOOPBACK_OAUTH_CLIENT_ID
       ? m('auth.oauth.loopback_client_name')
       : (request?.clientName ?? '')
   );
@@ -103,7 +102,7 @@
       if (!pendingRequest.clientId) {
         return redirectUri.host;
       }
-      if (pendingRequest.clientId === LOOPBACK_CLIENT_ID) {
+      if (pendingRequest.clientId === LOOPBACK_OAUTH_CLIENT_ID) {
         return pendingRequest.redirectOrigin;
       }
       if (typeof pendingRequest.clientId !== 'string') return '';

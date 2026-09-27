@@ -25,6 +25,7 @@ import {
 } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment } from '$lib/navigation';
 import { isLoopbackHostname } from '$lib/runtimeOrigin';
+import { LOOPBACK_OAUTH_CLIENT_ID } from './loopbackClient';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { saveReturnUrl } from './returnNavigation';
 import { oauthBearerSession, persistedBearerSession } from './bearerSession';
@@ -38,10 +39,6 @@ import {
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const DESKTOP_CLIENT_ID = 'chatto://desktop';
-// A server that is not local cannot fetch a CIMD document from this device, so
-// loopback origins such as local development stacks use the built-in loopback
-// client for those servers. The server must enable it explicitly.
-const LOOPBACK_CLIENT_ID = 'chatto://loopback';
 const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
 
 class OAuthPopupError extends Error {}
@@ -434,7 +431,7 @@ export function oauthClientIdForLocation(
     isLoopbackHostname(location.hostname) &&
     !isLoopbackServerUrl(serverUrl)
   ) {
-    return LOOPBACK_CLIENT_ID;
+    return LOOPBACK_OAUTH_CLIENT_ID;
   }
   return `${location.origin}${FRONTEND_CIMD_PATH}`;
 }
