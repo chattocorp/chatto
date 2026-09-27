@@ -167,6 +167,9 @@ export interface AgentTrustPolicy {
   /** Tools that the agent cannot call after its context is untrusted. The mark lasts for
    * the agent's lifetime, including forks, because the content remains in its history. */
   blockAfterUntrusted: readonly string[];
+  /** Runs before the model receives the refusal, for example to show a host-written message.
+   * Errors are ignored. */
+  onBlocked?: (toolName: string) => void | Promise<void>;
 }
 
 export interface RunAgentOptions {
@@ -374,12 +377,15 @@ async function createRunlingAgent(
       pi.on('tool_result', (event) => {
         if (sources.has(event.toolName)) untrusted = true;
       });
-      pi.on('tool_call', (event) => {
+      pi.on('tool_call', async (event) => {
         if (!untrusted || !blocked.has(event.toolName)) return;
         writeAgentLog('info', `Blocked ${event.toolName}: untrusted content in context`);
+        await Promise.resolve()
+          .then(() => policy.onBlocked?.(event.toolName))
+          .catch(() => {});
         return {
           block: true,
-          reason: `${event.toolName} is unavailable in this conversation because it contains untrusted content. Tell the user to start a new conversation for this action.`
+          reason: `${event.toolName} is blocked because this agent's context contains untrusted content.`
         };
       });
     };

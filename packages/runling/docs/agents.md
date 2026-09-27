@@ -109,7 +109,9 @@ await using owner = await agent({
 
 After any result from an `untrusted` tool, Runling blocks the tools in
 `blockAfterUntrusted` for the rest of the agent's lifetime, including forks. The
-model receives a fixed reason instead of a tool result. User messages do not
+tool does not run; the model receives an error result with a fixed reason. Set
+`onBlocked` to run host code first, for example to post a fixed message to the
+user. User messages do not
 remove the block, because the content remains in the history. Start a new agent to
 use the blocked tools again. Prefer separate agents for untrusted input and
 powerful actions; use `trust` as a backstop. See

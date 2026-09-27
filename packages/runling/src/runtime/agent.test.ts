@@ -1040,6 +1040,7 @@ describe('agent', () => {
   });
 
   test('blocks selected tools after untrusted content, including in forks', async () => {
+    const onBlocked = vi.fn();
     const installTrust = () => {
       const handlers = new Map<string, (event: any) => any>();
       const trust = resourceOptions.extensionFactories.find(
@@ -1049,8 +1050,8 @@ describe('agent', () => {
         on: (name: string, handler: (event: any) => any) => handlers.set(name, handler)
       });
       return {
-        call: (toolName: string) =>
-          handlers.get('tool_call')!({ type: 'tool_call', toolName, input: {} }),
+        call: async (toolName: string) =>
+          await handlers.get('tool_call')!({ type: 'tool_call', toolName, input: {} }),
         result: (toolName: string, isError = false) =>
           handlers.get('tool_result')!({ type: 'tool_result', toolName, isError, content: [] })
       };
@@ -1059,23 +1060,32 @@ describe('agent', () => {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       tools: ['search', 'implement', 'read'],
-      trust: { untrusted: ['search'], blockAfterUntrusted: ['implement'] }
+      trust: {
+        untrusted: ['search'],
+        blockAfterUntrusted: ['implement'],
+        onBlocked: async (toolName) => {
+          onBlocked(toolName);
+          throw new Error('Host notice failed');
+        }
+      }
     });
     const tools = installTrust();
     try {
-      expect(tools.call('implement')).toBeUndefined();
+      expect(await tools.call('implement')).toBeUndefined();
       tools.result('read');
-      expect(tools.call('implement')).toBeUndefined();
+      expect(await tools.call('implement')).toBeUndefined();
       tools.result('search', true);
-      expect(tools.call('implement')).toMatchObject({
+      expect(await tools.call('implement')).toMatchObject({
         block: true,
         reason: expect.stringContaining('untrusted content')
       });
-      expect(tools.call('read')).toBeUndefined();
+      expect(onBlocked).toHaveBeenCalledWith('implement');
+      expect(await tools.call('read')).toBeUndefined();
+      expect(onBlocked).toHaveBeenCalledOnce();
 
       const fork = await instance.fork();
       try {
-        expect(installTrust().call('implement')).toMatchObject({ block: true });
+        expect(await installTrust().call('implement')).toMatchObject({ block: true });
       } finally {
         fork.dispose();
       }
