@@ -1327,6 +1327,8 @@ export function implementationExtension(
   dependencies: Parameters<typeof createImplementation>[1] & {
     /** Changes only on human input. Notifications cannot authorize replacement tasks. */
     requestVersion?: () => number | undefined;
+    /** True after open-web content entered the current turn; implementation then needs a new request. */
+    webContentInTurn?: () => boolean;
     /** Original typed plans from this conversation; tool callers select an ID, not replacement content. */
     plans?: InvestigationPlans;
     /** Report a refusal directly so the supervisor cannot describe it as started work. */
@@ -1398,11 +1400,13 @@ export function implementationExtension(
             .find((task) => task.name === 'Chatto implementation' && task.status === 'running');
           const refusal = active
             ? 'An implementation is already running. No second task was started.'
-            : version === undefined
-              ? 'Implementation was not started. Please explicitly ask me to implement the plan; an investigation completion notification cannot authorize it.'
-              : attemptedVersion === version
-                ? 'An implementation was already attempted for this request. No new task was started. Please review its result before asking for another attempt.'
-                : undefined;
+            : dependencies.webContentInTurn?.()
+              ? 'Implementation was not started because I read web content in this turn. If you still want it, please confirm the request in a new message.'
+              : version === undefined
+                ? 'Implementation was not started. Please explicitly ask me to implement the plan; an investigation completion notification cannot authorize it.'
+                : attemptedVersion === version
+                  ? 'An implementation was already attempted for this request. No new task was started. Please review its result before asking for another attempt.'
+                  : undefined;
           if (refusal) {
             await dependencies.onBlocked?.(refusal);
             return JSON.stringify({ outcome: 'blocked', summary: refusal });

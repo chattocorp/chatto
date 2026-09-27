@@ -280,6 +280,10 @@ test.each([
   ],
   [{ CHATTO_URL: 'not a url' }, 'CHATTO_URL must be an HTTP or HTTPS URL without credentials'],
   [
+    { CHATTO_CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef' },
+    'Set both CHATTO_CLOUDFLARE_ACCOUNT_ID and CHATTO_CLOUDFLARE_API_TOKEN, or neither'
+  ],
+  [
     { CHATTO_URL: 'https://user:secret@chat.example' },
     'CHATTO_URL must be an HTTP or HTTPS URL without credentials'
   ]

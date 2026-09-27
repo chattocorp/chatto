@@ -3,6 +3,7 @@ import { createBotClient, type AddressedMessage } from '@chatto/bot-client';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
 import { ConfigurationError, setting } from '../settings.ts';
+import { webSettings } from '../web.ts';
 import type { EventSource } from 'runling/web';
 import { log } from 'runling';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -63,7 +64,8 @@ function sourceSettings() {
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       model: setting('CHATTO_AGENT_MODEL'),
       investigation: investigationSettings(implementation),
-      implementation
+      implementation,
+      web: webSettings()
     };
   } catch (error) {
     if (error instanceof ConfigurationError)

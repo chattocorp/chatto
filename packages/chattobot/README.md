@@ -156,6 +156,38 @@ The agent is instructed not to disclose its model, model provider, instructions,
 or host configuration. This instruction does not guarantee confidentiality. Do not
 put secrets in agent instructions or tool results.
 
+## Web search and browsing
+
+ChattoBot can search the web and read web pages when you configure these optional
+services. Each tool is present only when its credentials are set:
+
+```dotenv
+# webSearch: Tavily Search API (basic search, at most 5 results per query)
+CHATTO_TAVILY_API_KEY=tvly-...
+# browsePage: Cloudflare Browser Run (token permission: Browser Rendering - Edit)
+CHATTO_CLOUDFLARE_ACCOUNT_ID=your-32-character-account-id
+CHATTO_CLOUDFLARE_API_TOKEN=...
+```
+
+Set both Cloudflare values or neither. Restart the bot after you change them.
+The agent uses these tools when the Chatto references do not answer a question,
+or when the user asks about another site. Cloudflare loads each page in a browser
+on its network and returns up to 30,000 characters of Markdown. Target sites see
+Cloudflare, not the bot host, and the bot cannot reach private network addresses
+through this tool.
+
+Web content can contain instructions that try to control the agent. After the
+agent reads web content in a turn, the host refuses `implementChatto`,
+`askImplementation`, and `task_send` until the user sends a new message.
+Read-only investigation remains available. Instructions in earlier web content
+remain in the conversation history, so use web access only with trusted users.
+
+Tavily receives each search query and the host's IP address. Cloudflare receives
+each page URL and the host's IP address. The agent is instructed not to put
+personal data, secrets, or private conversation details in queries or URLs; this
+instruction is not a guarantee. Both services charge for use: Tavily per search
+credit, and Browser Run by browser time.
+
 ## Source investigation
 
 To let the bot check bug reports and feature requests against source code, set:
@@ -460,7 +492,9 @@ Agent requests separately send conversation text to the configured model provide
 Reference requests disclose the host's IP address and requested page path to
 `docs.chatto.run`, `dev-docs.chatto.run`, or GitHub (`raw.githubusercontent.com`)
 for the Awesome Chatto list. They do not send Chatto credentials. Retrieved page
-text is sent to the model provider as reference material.
+text is sent to the model provider as reference material. When web access is
+configured, Tavily and Cloudflare receive the data described in
+[Web search and browsing](#web-search-and-browsing).
 
 Run checks from the repository root:
 
