@@ -17,8 +17,9 @@ lifetime.
   set. The tool does not run. The model receives an error result with a fixed
   reason.
 - `trust.onBlocked` runs before the model receives the refusal. Hosts can use it to
-  show their own message, so the model does not describe the refusal. Errors in
-  this callback are ignored.
+  show their own message, so the model does not describe the refusal. A failure in
+  this callback writes an agent log line with the tool name only, and the block
+  still applies.
 - The mark lasts for the agent's lifetime and is copied to forks. User messages and
   notifications do not remove it.
 - Each block writes an agent log line with the tool name. The line contains no

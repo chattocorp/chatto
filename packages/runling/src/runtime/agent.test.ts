@@ -1075,10 +1075,22 @@ describe('agent', () => {
       tools.result('read');
       expect(await tools.call('implement')).toBeUndefined();
       tools.result('search', true);
-      expect(await tools.call('implement')).toMatchObject({
+      const events: RunlingEvent[] = [];
+      const blockedCall = await observeRunlingEvents(
+        (event) => events.push(event),
+        () => tools.call('implement')
+      );
+      expect(blockedCall).toMatchObject({
         block: true,
         reason: expect.stringContaining('untrusted content')
       });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'agent.action',
+          action: expect.stringContaining('Blocked-tool callback failed for implement')
+        })
+      );
+      expect(JSON.stringify(events)).not.toContain('Host notice failed');
       expect(onBlocked).toHaveBeenCalledWith('implement');
       expect(await tools.call('read')).toBeUndefined();
       expect(onBlocked).toHaveBeenCalledOnce();

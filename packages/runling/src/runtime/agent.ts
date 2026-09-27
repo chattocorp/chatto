@@ -168,7 +168,7 @@ export interface AgentTrustPolicy {
    * the agent's lifetime, including forks, because the content remains in its history. */
   blockAfterUntrusted: readonly string[];
   /** Runs before the model receives the refusal, for example to show a host-written message.
-   * Errors are ignored. */
+   * A failure is logged with the tool name only; the block still applies. */
   onBlocked?: (toolName: string) => void | Promise<void>;
 }
 
@@ -382,7 +382,10 @@ async function createRunlingAgent(
         writeAgentLog('info', `Blocked ${event.toolName}: untrusted content in context`);
         await Promise.resolve()
           .then(() => policy.onBlocked?.(event.toolName))
-          .catch(() => {});
+          .catch(() => {
+            // Log a fixed category only; host errors can contain user data.
+            writeAgentLog('error', `Blocked-tool callback failed for ${event.toolName}`);
+          });
         return {
           block: true,
           reason: `${event.toolName} is blocked because this agent's context contains untrusted content.`
