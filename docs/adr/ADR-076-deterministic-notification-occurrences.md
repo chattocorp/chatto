@@ -2,6 +2,11 @@
 
 **Date:** 2026-08-10
 
+> **Amended 2026-09-27:** [ADR-109](ADR-109-compute-badge-attention-from-projections.md)
+> replaces the stored Badge marker. Badge attention is computed from the
+> notification decision projection, the read boundary, and the visibility
+> boundary when it is read. The materializer no longer writes Badge state.
+
 **Updated:** 2026-09-05
 
 ## Context

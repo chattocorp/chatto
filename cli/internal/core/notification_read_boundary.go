@@ -158,3 +158,21 @@ func (m *NotificationOccurrenceModel) purgeNotificationReadBoundaries(ctx contex
 	}
 	return nil
 }
+
+// notificationSignalCoveredByBoundary reports whether a read boundary covers a
+// source. A reaction is covered only when both its target message and the
+// reaction itself were observable to the read.
+func (m *NotificationOccurrenceModel) notificationSignalCoveredByBoundary(signal *notificationv1.NotificationSignal, sourceSequence uint64, boundary notificationReadBoundary) bool {
+	if signal == nil || sourceSequence == 0 {
+		return false
+	}
+	message := notificationSignalMessage(signal)
+	if message == nil {
+		return false
+	}
+	if signal.GetReactionReceived() != nil {
+		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
+		return ok && targetEntry.StreamSeq <= boundary.targetSequence && sourceSequence <= boundary.observedSequence
+	}
+	return sourceSequence <= boundary.targetSequence
+}

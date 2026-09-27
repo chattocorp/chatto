@@ -123,3 +123,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-106](ADR-106-server-side-neighborhood-discovery.md)                 | Discover the Neighborhood on the Server                          | Accepted             | 2026-09-25 |
 | [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)               | Keep Chat Data Out of Device Storage                             | Accepted             | 2026-09-26 |
 | [ADR-108](ADR-108-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |
+| [ADR-109](ADR-109-compute-badge-attention-from-projections.md)           | Compute Badge Attention from Projections                         | Accepted             | 2026-09-27 |
