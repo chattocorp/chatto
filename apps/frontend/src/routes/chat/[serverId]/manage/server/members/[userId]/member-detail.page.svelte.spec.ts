@@ -33,6 +33,9 @@ const mocks = vi.hoisted(() => ({
   canAdminManageAccounts: true
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/state', () => ({ page: memberDetailTestPage }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({

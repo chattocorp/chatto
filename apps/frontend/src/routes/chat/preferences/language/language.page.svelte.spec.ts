@@ -4,6 +4,9 @@ import { flushSync } from 'svelte';
 import { setLocale } from '$lib/i18n/runtime';
 import LanguagePage from './+page.svelte';
 
+// Language preferences do not depend on the application's server registry.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Language · Chatto' }));
+
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();

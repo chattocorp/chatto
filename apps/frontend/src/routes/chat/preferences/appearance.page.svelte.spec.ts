@@ -1,9 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { userEvent } from 'vitest/browser';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import AppearancePage from './+page.svelte';
+
+// Appearance controls do not depend on the application's server registry.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Appearance · Chatto' }));
 
 async function settle() {
   await Promise.resolve();

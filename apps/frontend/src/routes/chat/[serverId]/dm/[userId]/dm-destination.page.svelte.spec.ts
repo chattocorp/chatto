@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   currentUser: { user: { id: 'self' } as { id: string } | undefined }
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/state', () => ({
   page: {
     get params() {

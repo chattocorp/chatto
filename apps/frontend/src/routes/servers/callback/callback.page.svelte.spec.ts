@@ -10,6 +10,9 @@ const { completeServerOAuthFlowMock, gotoMock, pageState } = vi.hoisted(() => ({
   }
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/state', () => ({
   page: {
     get url() {

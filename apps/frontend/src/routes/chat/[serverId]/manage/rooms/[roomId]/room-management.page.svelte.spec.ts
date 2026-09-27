@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   serverVersion: '0.5.0'
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/state', () => ({ page: roomManagementTestPage }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({

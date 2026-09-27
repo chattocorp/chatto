@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
   csrfFetch: vi.fn()
 }));
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$lib/auth/csrf', () => ({ csrfFetch: mocks.csrfFetch }));
 
 function consentResponse(overrides: Record<string, unknown> = {}) {
