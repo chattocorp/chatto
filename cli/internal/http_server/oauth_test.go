@@ -1976,3 +1976,22 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 		t.Errorf("user.login = %q, want 'testuser'", userInfo["login"])
 	}
 }
+
+func TestOAuthCodeExchangeErrorExplainsRejectedLoopbackClient(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for clientID, want := range map[string]string{
+		config.ChattoLoopbackClientID: "This server does not accept sign-in from clients on a local address",
+		testOAuthClientID:             "The OAuth client is blocked by this server",
+	} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		writeOAuthCodeExchangeError(c, core.ErrOAuthClientBlocked, clientID)
+		var response map[string]string
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != http.StatusBadRequest || response["error"] != "invalid_client" || response["error_description"] != want {
+			t.Fatalf("exchange error for %q = %d %#v, want invalid_client %q", clientID, w.Code, response, want)
+		}
+	}
+}
