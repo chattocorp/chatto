@@ -91,6 +91,7 @@ export const conversation = task(
     const research = webTools(options.web).length ? options.web : undefined;
     const recentUserMessages: string[] = [];
     let researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
+    let refusalPosted = false;
     const bot = await createAgent({
       // Resolve resources from this package, independent of the host's working directory.
       cwd: fileURLToPath(new URL('..', import.meta.url)),
@@ -147,13 +148,15 @@ export const conversation = task(
             trust: {
               untrusted: ['researchWeb'],
               blockAfterUntrusted: BLOCKED_AFTER_RESEARCH,
-              // Post a host-written refusal so the model cannot describe blocked work as started.
+              // Tell the user directly, once per turn, so a blocked request is never described
+              // as started. The rest of the reply, such as a research answer, still posts.
+              // Notification turns stay silent; the model receives the block reason.
               onBlocked: async () => {
-                if (delegationReported) return;
-                delegationReported = true;
+                if (latestOrigin !== 'user' || refusalPosted) return;
                 await ctx.emit(
                   'I can’t do that in this conversation because it contains web research results. Please start a new thread for this request.'
                 );
+                refusalPosted = true;
               }
             }
           }
@@ -242,7 +245,10 @@ export const conversation = task(
           },
           timeout: options.timeout ?? 900,
           onBusy: (busy) => {
-            if (busy) delegationReported = false;
+            if (busy) {
+              delegationReported = false;
+              refusalPosted = false;
+            }
             options.onBusy(busy);
           },
           notifications: userFacingTaskNotifications(tasks.notifications),

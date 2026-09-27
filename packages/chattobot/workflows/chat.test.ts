@@ -385,17 +385,18 @@ test('web research runs in a separate agent and blocks delegation in the supervi
   const createAgent = vi.fn(async (options: import('runling/agents').AgentOptions) => {
     created.push(options);
     return {
-      runOutcome: async () => {
-        // Simulate two blocked calls in one turn after a research result.
+      runOutcome: async (_ctx: unknown, _prompt: string, runOptions?: AgentRunOptions) => {
+        // Simulate two blocked calls in one turn after a research result, then an answer.
         await options.trust?.onBlocked?.('implementChatto');
         await options.trust?.onBlocked?.('task_send');
+        runOptions?.onText?.('Here is what the research found.');
         return { outcome: 'completed' as const, summary: 'Done', usage: emptyTokenUsage() };
       },
       steer: async () => false,
       dispose: () => {}
     };
   });
-  const post = vi.fn(async () => {});
+  const post = vi.fn(async (_destination: unknown, _text: string, _signal?: AbortSignal) => {});
   const bot = createChattoBot({
     acknowledge: async () => {},
     post,
@@ -415,13 +416,11 @@ test('web research runs in a separate agent and blocks delegation in the supervi
     untrusted: ['researchWeb'],
     blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send']
   });
-  // The host posts the refusal once per turn, so the model cannot describe blocked work as started.
-  expect(post).toHaveBeenCalledOnce();
-  expect(post).toHaveBeenCalledWith(
-    expect.anything(),
+  // The host posts the refusal once per turn, and the rest of the reply still posts.
+  expect(post.mock.calls.map(([, text]) => text)).toEqual([
     expect.stringContaining('start a new thread'),
-    expect.any(AbortSignal)
-  );
+    'Here is what the research found.'
+  ]);
 
   created.length = 0;
   await createChattoBot({
