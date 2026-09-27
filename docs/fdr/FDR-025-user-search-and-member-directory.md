@@ -121,8 +121,12 @@ panel (FDR-008).
 avatar, name, status, and menu trigger for each member. This makes the sidebar
 slow to open and to expand the Offline group. One list for all groups also
 covers a large Online group.
+The virtualizer turns off browser scroll anchoring. The list keeps the visible
+rows in place itself when rows above them are added, removed, or move to
+another group. At the top of the list, new rows stay visible.
 **Tradeoff:** Member rows and collapsing groups do not animate. Browser search
-in the page and tests find only mounted rows.
+in the page and tests find only mounted rows. When a focused row scrolls far
+out of view, the client removes it and focus goes back to the page.
 
 ## Permissions
 
