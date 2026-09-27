@@ -30,6 +30,9 @@ const (
 type projectionBenchmarkWireEvent struct {
 	subject string
 	data    []byte
+	// seq is the stream sequence of a record read from a store; synthetic
+	// fixtures leave it zero.
+	seq uint64
 }
 
 type projectionBenchmarkTarget struct {

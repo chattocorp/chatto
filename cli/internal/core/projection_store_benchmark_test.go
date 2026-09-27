@@ -16,6 +16,8 @@ import (
 // projectionBenchmarkStoreEnv names a copy of an embedded NATS data directory
 // whose EVT stream supplies a real-world replay fixture. Never point it at a
 // live server's directory: the benchmark opens the store with its own server.
+// The copy holds real user data; keep it under .context/ and delete it after
+// use.
 const projectionBenchmarkStoreEnv = "CHATTO_BENCH_EVT_STORE_DIR"
 
 // BenchmarkProjectionRetainedHeapFromStore reports live Go heap per
@@ -125,19 +127,34 @@ func loadProjectionBenchmarkStoreFixture(b *testing.B, storeDir string) []projec
 	}
 
 	fixture := make([]projectionBenchmarkWireEvent, 0, info.State.Msgs)
-	for uint64(len(fixture)) < info.State.Msgs {
+	// Stop at the stream's last sequence. An empty batch also ends the read,
+	// so records that expire while the benchmark runs cannot stall it.
+	for len(fixture) == 0 || fixture[len(fixture)-1].seq < info.State.LastSeq {
+		if err := ctx.Err(); err != nil {
+			b.Fatalf("read EVT records: %v", err)
+		}
 		batch, err := consumer.Fetch(1_000, jetstream.FetchMaxWait(5*time.Second))
 		if err != nil {
 			b.Fatalf("fetch EVT records: %v", err)
 		}
+		received := 0
 		for msg := range batch.Messages() {
+			metadata, err := msg.Metadata()
+			if err != nil {
+				b.Fatalf("read EVT record metadata: %v", err)
+			}
 			fixture = append(fixture, projectionBenchmarkWireEvent{
 				subject: msg.Subject(),
 				data:    append([]byte(nil), msg.Data()...),
+				seq:     metadata.Sequence.Stream,
 			})
+			received++
 		}
 		if err := batch.Error(); err != nil && !errors.Is(err, nats.ErrTimeout) {
 			b.Fatalf("fetch EVT records: %v", err)
+		}
+		if received == 0 {
+			break
 		}
 	}
 	b.Logf("loaded %d EVT records (%d bytes)", len(fixture), projectionBenchmarkWireBytes(fixture))

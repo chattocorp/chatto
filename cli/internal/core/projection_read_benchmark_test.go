@@ -128,7 +128,7 @@ func BenchmarkProjectionReadsFromStore(b *testing.B) {
 	})
 	b.Run("reactions/ReactionsBatch50", func(b *testing.B) {
 		// A timeline page asks for reactions on a window of messages.
-		const page = 50
+		page := min(50, len(queries.messages))
 		b.ReportAllocs()
 		for i := range b.N {
 			start := (i * page) % max(1, len(queries.messages)-page)
