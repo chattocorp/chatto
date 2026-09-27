@@ -1,7 +1,7 @@
 # FDR-025: User Search & Member Directory
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -33,6 +33,9 @@ Any authenticated user can browse the server's member directory — a paginated 
   mention completion. A failed preview does not stop that full load.
 - Recovery resets and access loss clear retained membership. Changes to
   universal-room eligibility require an authoritative membership read.
+- The room sidebar member list shows the Online, Bots, and Offline groups in
+  one virtualized list. The client mounts only the group headings and member
+  rows near the visible part of the list.
 
 ## Design Decisions
 
@@ -107,6 +110,19 @@ preview that was already in flight. The full directory determines final membersh
 status reads also supply current presence when a cached name is reused.
 **Tradeoff:** Opening an uncached room starts three additional small list reads.
 Presence can change between pages, so the preview is not a fixed snapshot.
+
+### 10. Virtualize the room member list
+
+**Decision:** The room sidebar puts group headings and member rows into one flat
+list. One virtualizer renders this list. A collapsed group supplies only its
+heading. The shared `VirtualGroupedList` component also renders the room Files
+panel (FDR-008).
+**Why:** Large rooms have hundreds of members. A full member list mounts one
+avatar, name, status, and menu trigger for each member. This makes the sidebar
+slow to open and to expand the Offline group. One list for all groups also
+covers a large Online group.
+**Tradeoff:** Member rows and collapsing groups do not animate. Browser search
+in the page and tests find only mounted rows.
 
 ## Permissions
 

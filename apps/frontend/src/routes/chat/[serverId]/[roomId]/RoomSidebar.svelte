@@ -35,7 +35,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   } from '$lib/state/room';
   import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
+  import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
   import { EmptyState, LoadingFog, ScrollFader } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -263,48 +264,34 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const botMembers = $derived(groupedMembers.bots);
   const offlineMembers = $derived(groupedMembers.offline);
   const memberGroups = $derived.by(() => {
-    const groups: Array<{
-      id: string;
-      label: string;
-      items: RoomMember[];
-      persistKey: string;
-      defaultCollapsed?: boolean;
-      testid: string;
-    }> = [];
+    const groups: VirtualListGroup<RoomMember>[] = [];
+    const addGroup = (id: string, label: string, items: RoomMember[], defaultCollapsed = false) => {
+      if (items.length === 0) return;
+      groups.push({
+        id,
+        label,
+        items,
+        persistKey: serverStorageKey(activeServerId, `collapsible:room-members:${id}`),
+        defaultCollapsed,
+        testid: 'room-member-group-heading'
+      });
+    };
 
-    if (onlineMembers.length > 0) {
-      groups.push({
-        id: 'online',
-        label: m('room.sidebar.online', { count: onlineMembers.length }),
-        items: onlineMembers,
-        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:online'),
-        testid: 'room-member-group-heading'
-      });
-    }
-    if (botMembers.length > 0) {
-      groups.push({
-        id: 'bots',
-        label: m('room.sidebar.bots', { count: botMembers.length }),
-        items: botMembers,
-        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:bots'),
-        testid: 'room-member-group-heading'
-      });
-    }
-    if (offlineMembers.length > 0) {
-      groups.push({
-        id: 'offline',
-        label: m('room.sidebar.offline', { count: offlineMembers.length }),
-        items: offlineMembers,
-        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:offline'),
-        defaultCollapsed: true,
-        testid: 'room-member-group-heading'
-      });
-    }
+    addGroup('online', m('room.sidebar.online', { count: onlineMembers.length }), onlineMembers);
+    addGroup('bots', m('room.sidebar.bots', { count: botMembers.length }), botMembers);
+    addGroup(
+      'offline',
+      m('room.sidebar.offline', { count: offlineMembers.length }),
+      offlineMembers,
+      true
+    );
 
     return groups;
   });
 
-  // Look up the selected member for the popover (rendered outside the {#each} loop
+  let memberScrollEl = $state<HTMLDivElement>();
+
+  // Look up the selected member for the popover (rendered outside the virtualized list
   // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
   const popoverMember = $derived(
     userMenu.target ? (allMembers.find((m) => m.id === userMenu.target) ?? null) : null
@@ -457,6 +444,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <ScrollFader
         top
         bottom
+        bind:scrollEl={memberScrollEl}
         class="min-h-0 flex-1"
         data-testid="room-member-list"
         aria-label={m('room.sidebar.members')}
@@ -471,17 +459,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
           {:else if members.length === 0}
             <EmptyState icon="icon-[uil--users-alt]" title={m('room.sidebar.no_members')} />
           {:else}
-            {#each memberGroups as group (group.id)}
-              <RoomGroupSection
-                label={group.label}
-                items={group.items}
-                item={memberRow}
-                persistKey={group.persistKey}
-                defaultCollapsed={group.defaultCollapsed}
-                testid={group.testid}
-                separated
-              />
-            {/each}
+            <VirtualGroupedList
+              groups={memberGroups}
+              item={memberRow}
+              scrollRef={memberScrollEl}
+              separateFirst
+              itemSize={50}
+            />
           {/if}
         </nav>
       </ScrollFader>
