@@ -4,6 +4,7 @@ export {
   type AgentExtensionAPI,
   AgentOutcomeError,
   type AgentOptions,
+  type AgentTrustPolicy,
   type AgentStatus,
   type AgentActivity,
   type AgentReport,

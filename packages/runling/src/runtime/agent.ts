@@ -159,6 +159,16 @@ function providerFailureSummary(error: string): string {
   return 'Agent provider could not finish the response';
 }
 
+/** Refuse selected tools once untrusted content has entered an agent's context. */
+export interface AgentTrustPolicy {
+  /** Tools whose results can contain untrusted content, such as web pages. Any result
+   * from these tools, including an error, marks the context untrusted. */
+  untrusted: readonly string[];
+  /** Tools that the agent cannot call after its context is untrusted. The mark lasts for
+   * the agent's lifetime, including forks, because the content remains in its history. */
+  blockAfterUntrusted: readonly string[];
+}
+
 export interface RunAgentOptions {
   model: string;
   /** Static operational role shown in server logs. Never use user data or model output. */
@@ -189,6 +199,8 @@ export interface RunAgentOptions {
   onActivity?: (activity: AgentActivity) => void;
   /** Abort an active model turn. */
   signal?: AbortSignal;
+  /** Block selected tools after untrusted content enters this agent's context. */
+  trust?: AgentTrustPolicy;
 }
 
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
@@ -278,7 +290,8 @@ export async function agent(options: AgentOptions): Promise<RunlingAgent> {
 
 async function createRunlingAgent(
   options: AgentOptions,
-  history: Parameters<typeof convertToLlm>[0] = []
+  history: Parameters<typeof convertToLlm>[0] = [],
+  inheritedUntrusted = false
 ): Promise<RunlingAgent> {
   const inheritedMessages = convertToLlm(structuredClone(history));
   const agentId = randomId();
@@ -352,6 +365,26 @@ async function createRunlingAgent(
 
   const additionalInstructions = formatAgentInstructions(options.instructions ?? []);
 
+  // Untrusted content stays in the model history, so the mark is never cleared.
+  let untrusted = inheritedUntrusted;
+  const trustExtension = (policy: AgentTrustPolicy) => {
+    const sources = new Set(policy.untrusted);
+    const blocked = new Set(policy.blockAfterUntrusted);
+    return (pi: ExtensionAPI) => {
+      pi.on('tool_result', (event) => {
+        if (sources.has(event.toolName)) untrusted = true;
+      });
+      pi.on('tool_call', (event) => {
+        if (!untrusted || !blocked.has(event.toolName)) return;
+        writeAgentLog('info', `Blocked ${event.toolName}: untrusted content in context`);
+        return {
+          block: true,
+          reason: `${event.toolName} is unavailable in this conversation because it contains untrusted content. Tell the user to start a new conversation for this action.`
+        };
+      });
+    };
+  };
+
   const resources = options.resources;
   const extensionsEnabled = resources?.extensions !== false;
   const settingsManager = SettingsManager.create(cwd, agentDir);
@@ -367,6 +400,7 @@ async function createRunlingAgent(
     agentDir,
     settingsManager,
     extensionFactories: [
+      ...(options.trust ? [{ name: 'runling-trust', factory: trustExtension(options.trust) }] : []),
       ...(extensionsEnabled ? [{ name: 'runling-web-fetch', factory: webFetchExtension }] : []),
       ...(options.extensions ?? [])
     ],
@@ -820,7 +854,7 @@ async function createRunlingAgent(
         throw new Error(`Agent ${agentId} is already running`);
       }
 
-      return createRunlingAgent(options, session.agent.state.messages);
+      return createRunlingAgent(options, session.agent.state.messages, untrusted);
     },
 
     dispose,
