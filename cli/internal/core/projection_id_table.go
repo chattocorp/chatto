@@ -1,6 +1,9 @@
 package core
 
-import "sort"
+import (
+	"cmp"
+	"slices"
+)
 
 // projectionIDTable interns opaque IDs as dense, one-based uint32 handles.
 // Handle zero means "no ID". A projection stores handles in its indexes instead
@@ -75,6 +78,33 @@ func sortedHandleKeys[V any](ids *projectionIDTable, values map[uint32]V) []uint
 	for handle := range values {
 		handles = append(handles, handle)
 	}
-	sort.Slice(handles, func(i, j int) bool { return ids.id(handles[i]) < ids.id(handles[j]) })
+	slices.SortFunc(handles, func(a, b uint32) int { return cmp.Compare(ids.id(a), ids.id(b)) })
 	return handles
+}
+
+// handleSlice stores one value per ID-table handle in a dense slice indexed by
+// handle minus one. The zero value of T means "no value", so handles of IDs
+// without a value cost only one zero element.
+type handleSlice[T comparable] []T
+
+// get returns the value for handle and whether it is set.
+func (s handleSlice[T]) get(handle uint32) (T, bool) {
+	var zero T
+	if handle == 0 || int(handle) > len(s) {
+		return zero, false
+	}
+	value := s[handle-1]
+	return value, value != zero
+}
+
+// set stores value for handle and grows the slice when necessary. Handle zero
+// is ignored.
+func (s *handleSlice[T]) set(handle uint32, value T) {
+	if handle == 0 {
+		return
+	}
+	if missing := int(handle) - len(*s); missing > 0 {
+		*s = append(*s, make([]T, missing)...)
+	}
+	(*s)[handle-1] = value
 }

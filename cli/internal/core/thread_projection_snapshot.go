@@ -137,7 +137,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		dmRooms         map[string]map[string]struct{}
 		principalIDs    projectionIDTable
 		eventIDs        projectionIDTable
-		messageRefs     []threadMessageRef
+		messageRefs     handleSlice[threadMessageRef]
 		interactions    map[threadInteractionKey]uint32
 		summaryByThread map[uint32]*threadSummary
 		followState     map[threadFollowStateKey]compactThreadFollowState
@@ -217,10 +217,10 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 			return fmt.Errorf("Thread projection snapshot message %q has unknown room", eventID)
 		}
 		handle := p.eventIDs.intern(eventID)
-		if _, duplicate := p.messageRefLocked(handle); duplicate {
+		if _, duplicate := p.messageRefs.get(handle); duplicate {
 			return fmt.Errorf("Thread projection snapshot repeats message mapping %q", eventID)
 		}
-		p.setMessageRefLocked(handle, threadMessageRef{room: p.principalIDs.intern(roomID), root: p.eventIDs.intern(rootID)})
+		p.messageRefs.set(handle, threadMessageRef{room: p.principalIDs.intern(roomID), root: p.eventIDs.intern(rootID)})
 	}
 
 	for _, thread := range snapshot.GetThreads() {
@@ -320,7 +320,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		}
 		room := p.principalIDs.intern(roomID)
 		root := p.eventIDs.intern(rootID)
-		rootRef, rootExists := p.messageRefLocked(root)
+		rootRef, rootExists := p.messageRefs.get(root)
 		if !rootExists || rootRef.room != room || rootRef.root != root {
 			return fmt.Errorf("Thread projection snapshot interaction has invalid root %q", rootID)
 		}

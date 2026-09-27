@@ -290,6 +290,13 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 	return idx
 }
 
+func eventCreatedAt(event *evtv1.Event) time.Time {
+	if event == nil || event.GetCreatedAt() == nil {
+		return time.Time{}
+	}
+	return event.GetCreatedAt().AsTime()
+}
+
 func (p *RoomTimelineProjection) internRoomLocked(id string) uint32 {
 	if id == "" {
 		return 0

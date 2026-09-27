@@ -11,7 +11,8 @@ import (
 // threadReply is the retained state of one thread reply. root is an eventIDs
 // handle and actor is a principalIDs handle.
 type threadReply struct {
-	// createdAt is the reply's Unix time in nanoseconds when hasCreatedAt is set.
+	// createdAt is the reply's Unix time in nanoseconds when hasCreatedAt is
+	// set. Server-assigned post times fall well inside the int64 range.
 	createdAt    int64
 	root         uint32
 	actor        uint32
@@ -161,7 +162,7 @@ type ThreadProjection struct {
 	// eventIDs interns message and thread-root event IDs.
 	eventIDs projectionIDTable
 	// messageRefs is indexed by eventIDs handle minus one.
-	messageRefs []threadMessageRef
+	messageRefs handleSlice[threadMessageRef]
 	// interactions maps each relationship to its room handle.
 	interactions    map[threadInteractionKey]uint32
 	summaryByThread map[uint32]*threadSummary
@@ -422,7 +423,7 @@ func (p *ThreadProjection) applyMessageInteractionStateLocked(event *evtv1.Event
 	}
 	room := p.principalIDs.intern(message.GetRoomId())
 	root := p.eventIDs.intern(rootID)
-	p.setMessageRefLocked(p.eventIDs.intern(event.GetId()), threadMessageRef{room: room, root: root})
+	p.messageRefs.set(p.eventIDs.intern(event.GetId()), threadMessageRef{room: room, root: root})
 	if message.GetHistoricalImport() {
 		return
 	}
@@ -464,24 +465,6 @@ func (p *ThreadProjection) addInteractionLocked(userID string, room, root uint32
 	if _, exists := p.interactions[key]; !exists {
 		p.interactions[key] = room
 	}
-}
-
-func (p *ThreadProjection) messageRefLocked(handle uint32) (threadMessageRef, bool) {
-	if handle == 0 || int(handle) > len(p.messageRefs) {
-		return threadMessageRef{}, false
-	}
-	ref := p.messageRefs[handle-1]
-	return ref, ref.room != 0
-}
-
-func (p *ThreadProjection) setMessageRefLocked(handle uint32, ref threadMessageRef) {
-	if handle == 0 {
-		return
-	}
-	if missing := int(handle) - len(p.messageRefs); missing > 0 {
-		p.messageRefs = append(p.messageRefs, make([]threadMessageRef, missing)...)
-	}
-	p.messageRefs[handle-1] = ref
 }
 
 // removeRoomInteractionStateLocked drops the message refs and relationships of
@@ -575,13 +558,6 @@ func newThreadSummary() *threadSummary {
 	return &threadSummary{
 		participantCounts: make(map[uint32]int),
 	}
-}
-
-func eventCreatedAt(event *evtv1.Event) time.Time {
-	if event == nil || event.GetCreatedAt() == nil {
-		return time.Time{}
-	}
-	return event.GetCreatedAt().AsTime()
 }
 
 func (p *ThreadProjection) recomputeSummaryLocked(threadRoot uint32) {
@@ -742,7 +718,7 @@ func (p *ThreadProjection) ThreadRootForMessage(roomID, eventID string) (string,
 	if !ok {
 		return "", false
 	}
-	ref, ok := p.messageRefLocked(handle)
+	ref, ok := p.messageRefs.get(handle)
 	if !ok || ref.root == 0 || p.principalIDs.id(ref.room) != roomID {
 		return "", false
 	}
