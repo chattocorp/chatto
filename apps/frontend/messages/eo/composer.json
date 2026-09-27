@@ -34,12 +34,16 @@
     "post_as_new_message": "Afiŝi kiel novan mesaĝon",
     "continue_in_thread": "Daŭrigi en la fadeno",
     "edit_failed": "Malsukcesis redakti mesaĝon",
+    "edit_empty": "Mesaĝo ne povas esti malplena",
     "upload": {
       "preparing": "Preparante…",
       "uploading": "{percentage}% alŝutita",
       "uploaded": "Alŝutita",
       "failed": "Alŝuto malsukcesis",
-      "remove": "Forigi {filename}"
+      "remove": "Forigi {filename}",
+      "video_disabled": "Alŝutoj de videoj estas malŝaltitaj en ĉi tiu servilo.",
+      "prepare_failed": "Malsukcesis prepari kunsendaĵon",
+      "too_large": "{filename} estas tro granda ({size}). La maksimumo estas {limit}."
     },
     "format": {
       "bold": "Grasa",

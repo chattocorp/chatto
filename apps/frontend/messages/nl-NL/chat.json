@@ -60,7 +60,17 @@
       "unreachable": "Server onbereikbaar",
       "connection_unavailable": "Verbinding niet beschikbaar",
       "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
-      "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie."
+      "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie.",
+      "go_to_notifications_count": {
+        "one": "Ga naar {count} melding",
+        "other": "Ga naar {count} meldingen"
+      },
+      "go_to_notification": "Ga naar melding",
+      "go_to_first_unread": "Ga naar de eerste ongelezen kamer",
+      "notifications_count": {
+        "one": "{count} melding",
+        "other": "{count} meldingen"
+      }
     },
     "threads": {
       "title": "Mijn discussies",

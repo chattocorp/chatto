@@ -59,6 +59,7 @@
         aria-hidden="true"
       ></span>
     {/if}
+    <!-- Autofocus is opt-in through the autofocus prop; it defaults to false. -->
     <!-- svelte-ignore a11y_autofocus -->
     <input
       {id}

@@ -60,7 +60,17 @@
       "unreachable": "Sunucuya ulaşılamıyor",
       "connection_unavailable": "Bağlantı kullanılamıyor",
       "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto 0,5 veya daha yeni bir sürüme yükseltilmesi gerekir.",
-      "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez."
+      "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez.",
+      "go_to_notifications_count": {
+        "one": "{count} bildirime git",
+        "other": "{count} bildirime git"
+      },
+      "go_to_notification": "Bildirime git",
+      "go_to_first_unread": "İlk okunmamış odaya git",
+      "notifications_count": {
+        "one": "{count} bildirim",
+        "other": "{count} bildirim"
+      }
     },
     "threads": {
       "title": "Konularım",

@@ -103,6 +103,7 @@
         "copy_message_link": "Kopeeri sõnumi link",
         "copy_image": "Kopeeri pilt",
         "link_copied": "Link kopeeritud",
+        "message_link_copied": "Sõnumi link kopeeritud",
         "copy_link_failed": "Lingi kopeerimine nurjus",
         "image_copied": "Pilt kopeeritud",
         "copy_image_failed": "Pildi kopeerimine nurjus"
@@ -218,6 +219,7 @@
       "call": "Helista",
       "jump_to_file": "Hüppa {filename}",
       "loading_files": "Failide laadimine...",
+      "loading_members": "Liikmete laadimine...",
       "calls_unavailable": "Kõned pole selles serveris saadaval.",
       "view_profile": "Vaata profiili {name}",
       "in_voice_call": "Häälkõnes",

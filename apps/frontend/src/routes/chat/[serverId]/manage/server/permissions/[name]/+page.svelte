@@ -281,7 +281,6 @@
     subtitleContent={roleSubtitle}
     backHref={permissionsHref}
     backLabel={m('admin.permissions.back_to_permissions')}
-    showMobileNav
   />
 
   <PaneContent bind:scrollContainer>
@@ -289,11 +288,9 @@
       {#if loading}
         <LoadingFog class="h-40 w-full" label={m('admin.permissions.loading_role')} />
       {:else if !role}
-        <div class="text-danger">{m('admin.permissions.role_not_found')}</div>
+        <Hint tone="danger">{m('admin.permissions.role_not_found')}</Hint>
       {:else if !canManageRoles}
-        <div class="text-danger">
-          {m('admin.permissions.need_manage_edit')}
-        </div>
+        <Hint tone="danger">{m('admin.permissions.need_manage_edit')}</Hint>
       {:else}
         {#if error}
           <FormError {error} />

@@ -103,6 +103,7 @@
         "copy_message_link": "Copia link al messaggio",
         "copy_image": "Copia immagine",
         "link_copied": "Link copiato",
+        "message_link_copied": "Link del messaggio copiato",
         "copy_link_failed": "Impossibile copiare il link",
         "image_copied": "Immagine copiata",
         "copy_image_failed": "Impossibile copiare l’immagine"
@@ -218,6 +219,7 @@
       "call": "Chiama",
       "jump_to_file": "Vai a {filename}",
       "loading_files": "Caricamento file...",
+      "loading_members": "Caricamento membri...",
       "calls_unavailable": "Le chiamate non sono disponibili su questo server.",
       "view_profile": "Visualizza il profilo di {name}",
       "in_voice_call": "In una chiamata vocale",

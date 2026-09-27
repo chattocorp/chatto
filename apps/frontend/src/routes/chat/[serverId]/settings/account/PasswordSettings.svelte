@@ -139,7 +139,7 @@
         loadingText={m('settings.account.password.saving')}
         disabled={!canChangePassword}
       >
-        <span class="iconify icon-[mdi--key-plus]"></span>
+        <span aria-hidden="true" class="iconify icon-[mdi--key-plus]"></span>
         {hasPassword
           ? m('settings.account.password.change_button')
           : m('settings.account.password.add_button')}

@@ -56,9 +56,10 @@ Consumes both flags and preserves other URL and page state values.
           type="button"
           class="-m-1 icon-action"
           onclick={() => (showWelcome = false)}
+          aria-label={m('common.dismiss')}
           title={m('common.dismiss')}
         >
-          <span class="iconify icon-[uil--times]"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--times]"></span>
         </button>
       </div>
     </Hint>

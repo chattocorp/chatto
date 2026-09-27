@@ -179,7 +179,7 @@ local to the footer.
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
-      <span class="iconify icon-[uil--corner-up-right] rtl:-scale-x-100"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--corner-up-right] rtl:-scale-x-100"></span>
       <span>{m('room.message.meta.thread')}</span>
     </a>
   {/if}
@@ -196,7 +196,7 @@ local to the footer.
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
-      <span class="iconify icon-[uil--comment-alt-lines]"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--comment-alt-lines]"></span>
       {#if replyCount > 0 && threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
@@ -226,6 +226,8 @@ local to the footer.
         ]}
         onclick={onToggleThreadFollow}
         disabled={isThreadFollowPending}
+        aria-label={m('room.message.meta.follow_thread')}
+        aria-pressed={isFollowingThread}
         title={isFollowingThread
           ? m('room.message.meta.unfollow_thread')
           : m('room.message.meta.follow_thread')}
@@ -235,6 +237,7 @@ local to the footer.
             'iconify text-base',
             isFollowingThread ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'
           ]}
+          aria-hidden="true"
         ></span>
       </button>
     {/if}
@@ -297,8 +300,7 @@ local to the footer.
       <button
         class={[
           baseButtonClass,
-          'gap-1 px-2 text-sm',
-          action?.canReact ? '' : '!cursor-default opacity-60',
+          'gap-1 px-2 text-sm disabled:cursor-default disabled:opacity-60',
           reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
         onclick={() => action?.canReact && toggleReaction(reaction)}
@@ -330,7 +332,7 @@ local to the footer.
       onclick={(e) => onOpenEmojiPicker(e)}
       aria-label={m('room.message.actions.add_reaction')}
     >
-      <span class="iconify icon-[uil--smile] text-base"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--smile] text-base"></span>
     </button>
   {/if}
 </div>

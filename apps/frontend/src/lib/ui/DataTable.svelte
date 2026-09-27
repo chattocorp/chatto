@@ -21,6 +21,7 @@ and optional incremental loading.
     emptyMessage = m('ui.data_table.empty'),
     empty,
     loading = false,
+    loadingMessage = m('common.loading'),
     onRowClick,
     getKey,
     getGroupKey,
@@ -48,6 +49,12 @@ and optional incremental loading.
     empty?: Snippet;
     /** Show a pending content block when the first page has no rows yet. */
     loading?: boolean;
+    /**
+     * Accessible status label for the initial `loading` block. Name what is
+     * loading, for example "Loading members...". Defaults to the generic
+     * loading message.
+     */
+    loadingMessage?: string;
     onRowClick?: (item: T) => void;
     getKey?: (item: T, index: number) => unknown;
     getGroupKey?: (item: T, index: number) => string | null | undefined;
@@ -148,7 +155,7 @@ and optional incremental loading.
 {#snippet tableContent()}
   <table class={[fitContent ? 'w-max' : 'w-full', '[&_thead_th]:whitespace-nowrap']}>
     <thead class={stickyHeader ? 'sticky top-0 z-20' : ''}>
-      <tr class="panel-header text-left text-sm text-muted">
+      <tr class="panel-header text-start text-sm text-muted">
         {@render header()}
       </tr>
     </thead>
@@ -179,7 +186,7 @@ and optional incremental loading.
             class={empty || loading ? 'p-0' : 'px-4 py-8 text-center text-muted'}
           >
             {#if loading}
-              <LoadingFog class="m-4 h-32" />
+              <LoadingFog class="m-4 h-32" label={loadingMessage} />
             {:else if empty}
               {@render empty()}
             {:else}

@@ -1,0 +1,7 @@
+{
+  "composer": {
+    "upload": {
+      "too_large": "{filename} ist zu gross ({size}). Maximal erlaubt: {limit}."
+    }
+  }
+}

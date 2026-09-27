@@ -60,7 +60,17 @@
       "unreachable": "Servern kan inte nås",
       "connection_unavailable": "Anslutningen är inte tillgänglig",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
-      "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen."
+      "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen.",
+      "go_to_notifications_count": {
+        "one": "Gå till {count} avisering",
+        "other": "Gå till {count} aviseringar"
+      },
+      "go_to_notification": "Gå till aviseringen",
+      "go_to_first_unread": "Gå till första olästa rummet",
+      "notifications_count": {
+        "one": "{count} avisering",
+        "other": "{count} aviseringar"
+      }
     },
     "threads": {
       "title": "Mina trådar",

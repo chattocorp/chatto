@@ -61,7 +61,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
         disabled={inputDisabled}
         title={m('composer.attach_file')}
       >
-        <span class="iconify icon-[uil--image-upload] text-[15px]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--image-upload] text-[15px]"></span>
       </CompactActionButton>
     {/if}
 
@@ -87,7 +87,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
           createThread ? 'bg-action/10 text-action' : 'text-muted'
         ]}
       >
-        <span class="iconify icon-[uil--comment-alt-lines] text-[15px]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--comment-alt-lines] text-[15px]"></span>
         <span class="hidden @min-[560px]/composer:inline">{m('composer.thread_label')}</span>
       </CompactActionButton>
     {/if}
@@ -115,7 +115,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
           alsoSendToChannel ? 'bg-action/10 text-action' : 'text-muted'
         ]}
       >
-        <span class="iconify icon-[uil--megaphone] text-[15px]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--megaphone] text-[15px]"></span>
         <span class="hidden @min-[560px]/composer:inline">{m('composer.echo_label')}</span>
       </CompactActionButton>
     {/if}
@@ -129,7 +129,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
       class="@min-[560px]/composer:gap-1"
       title={m('composer.send')}
     >
-      <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
       <span class="hidden @min-[560px]/composer:inline">{m('composer.send_label')}</span>
     </CompactActionButton>
   </div>

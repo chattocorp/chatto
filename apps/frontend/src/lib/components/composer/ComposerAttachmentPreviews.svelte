@@ -54,14 +54,14 @@
           {:else if file.type.startsWith('audio/')}
             <div
               data-testid="audio-attachment-preview"
-              class="flex h-full w-full items-center justify-center bg-surface-strong"
+              class="flex h-full w-full items-center justify-center bg-surface-emphasized"
             >
-              <span class="iconify icon-[uil--music] text-lg text-muted"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--music] text-lg text-muted"></span>
             </div>
           {:else}
             <div
               data-testid="file-attachment-preview"
-              class="flex h-full w-full items-center justify-center bg-surface-strong"
+              class="flex h-full w-full items-center justify-center bg-surface-emphasized"
             >
               <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
             </div>
@@ -111,7 +111,7 @@
           <div
             data-testid="attachment-upload-progress"
             class={[
-              'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-strong',
+              'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-emphasized',
               !submissionStatus && 'invisible'
             ]}
             role={submissionStatus ? 'progressbar' : undefined}

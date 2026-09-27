@@ -4,6 +4,8 @@
     "delete": "Voorbeeld verwijderen",
     "open_link": "Link openen",
     "copy_url": "Kopieer URL",
+    "url_copied": "URL gekopieerd naar klembord",
+    "copy_url_failed": "Kan URL niet kopiëren",
     "show_content": "Inhoud tonen",
     "hide_content": "Inhoud verbergen",
     "youtube_title": "YouTube-video",

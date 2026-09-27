@@ -34,12 +34,16 @@
     "post_as_new_message": "Publiser som ny melding",
     "continue_in_thread": "Fortsett i tråden",
     "edit_failed": "Kunne ikke redigere meldingen",
+    "edit_empty": "Meldingen kan ikke være tom",
     "upload": {
       "preparing": "Klargjør…",
       "uploading": "{percentage} % lastet opp",
       "uploaded": "Lastet opp",
       "failed": "Opplasting mislyktes",
-      "remove": "Fjern {filename}"
+      "remove": "Fjern {filename}",
+      "video_disabled": "Videoopplasting er deaktivert på denne serveren.",
+      "prepare_failed": "Kunne ikke klargjøre vedlegget",
+      "too_large": "{filename} er for stor ({size}). Maksimum er {limit}."
     },
     "format": {
       "bold": "Fet",

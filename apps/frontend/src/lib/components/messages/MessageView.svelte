@@ -105,6 +105,7 @@ identity, body rendering, and row geometry consistent.
 </script>
 
 <div class={['group relative hover:z-10', className]} role="article" data-event-id={eventId}>
+  <!-- Touch and context-menu gestures mirror the hover-bar actions, which are keyboard-reachable buttons. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class={[

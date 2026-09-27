@@ -103,6 +103,7 @@
         "copy_message_link": "Kopiu mesaĝan ligilon",
         "copy_image": "Kopiu bildon",
         "link_copied": "Ligilo kopiita",
+        "message_link_copied": "Mesaĝligilo kopiita",
         "copy_link_failed": "Ne eblis kopii ligilon",
         "image_copied": "Bildo kopiita",
         "copy_image_failed": "Ne eblis kopii bildon"
@@ -218,6 +219,7 @@
       "call": "Voku",
       "jump_to_file": "Saltu al {filename}",
       "loading_files": "Ŝarĝante dosierojn...",
+      "loading_members": "Ŝarĝante membrojn...",
       "calls_unavailable": "Vokoj ne disponeblas en ĉi tiu servilo.",
       "view_profile": "Rigardu profilon de {name}",
       "in_voice_call": "En voĉvoko",

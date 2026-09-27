@@ -1,7 +1,8 @@
 <!-- @component
 Renders search states and loads more results at the scroll edge. The owner
-supplies each result and keeps navigation and the scroll container. Compact
-mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
+supplies each result and keeps navigation and the scroll container. Both
+variants show `LoadingFog` while the first page of a search loads. Compact mode
+keeps the sidebar's spacing and shorter prompt.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -38,7 +39,7 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
     <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('search.error.title')}>
       {m('search.error.description')}
     </EmptyState>
-  {:else if compact && store.loading && store.results.length === 0}
+  {:else if store.loading && store.results.length === 0}
     <LoadingFog class="m-3 min-h-32 flex-1" label={m('search.searching')} />
   {:else if store.hasSearched && !store.loading && store.results.length === 0 && !store.nextCursor}
     <EmptyState icon="icon-[uil--search-minus]" title={m('search.no_results.title')}>

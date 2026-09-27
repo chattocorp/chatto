@@ -60,7 +60,17 @@
       "unreachable": "无法访问服务器",
       "connection_unavailable": "连接不可用",
       "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
-      "compatibility_unknown": "此应用无法根据服务器版本确定兼容性。"
+      "compatibility_unknown": "此应用无法根据服务器版本确定兼容性。",
+      "go_to_notifications_count": {
+        "one": "前往查看 {count} 条通知",
+        "other": "前往查看 {count} 条通知"
+      },
+      "go_to_notification": "前往通知",
+      "go_to_first_unread": "前往第一个未读聊天室",
+      "notifications_count": {
+        "one": "{count} 条通知",
+        "other": "{count} 条通知"
+      }
     },
     "threads": {
       "title": "我的话题串",

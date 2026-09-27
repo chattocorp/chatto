@@ -34,12 +34,16 @@
     "post_as_new_message": "Opublikuj jako nową wiadomość",
     "continue_in_thread": "Kontynuuj w wątku",
     "edit_failed": "Nie udało się edytować wiadomości",
+    "edit_empty": "Wiadomość nie może być pusta",
     "upload": {
       "preparing": "Przygotowywanie…",
       "uploading": "Przesłano {percentage}%",
       "uploaded": "Przesłano",
       "failed": "Przesyłanie nie powiodło się",
-      "remove": "Usuń {filename}"
+      "remove": "Usuń {filename}",
+      "video_disabled": "Przesyłanie filmów jest wyłączone na tym serwerze.",
+      "prepare_failed": "Nie udało się przygotować załącznika",
+      "too_large": "Plik {filename} jest za duży ({size}). Maksymalny rozmiar to {limit}."
     },
     "format": {
       "bold": "Pogrubienie",

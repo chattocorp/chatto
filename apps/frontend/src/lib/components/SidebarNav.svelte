@@ -20,8 +20,7 @@
     groups = [],
     backHref,
     backLabel = m('ui.sidebar_nav.back_to_chat'),
-    isActive = defaultIsActive,
-    showMobileNav = false
+    isActive = defaultIsActive
   }: {
     title: string;
     subtitle?: string;
@@ -30,7 +29,6 @@
     backHref?: string;
     backLabel?: string;
     isActive?: (href: string, items: NavItem[]) => boolean;
-    showMobileNav?: boolean;
   } = $props();
 
   const allItems = $derived([...items, ...groups.flatMap((group) => group.items)]);
@@ -63,12 +61,12 @@
     aria-current={active ? 'page' : undefined}
     class="sidebar-item"
   >
-    <span class="sidebar-icon {item.icon}"></span>
+    <span aria-hidden="true" class="sidebar-icon {item.icon}"></span>
     {item.label}
   </a>
 {/snippet}
 
-<PaneHeader {title} {subtitle} {backHref} {backLabel} {showMobileNav} />
+<PaneHeader {title} {subtitle} {backHref} {backLabel} />
 
 <ScrollFader top bottom>
   {#if items.length > 0}
@@ -80,7 +78,7 @@
           aria-current={active ? 'page' : undefined}
           class="sidebar-item"
         >
-          <span class="sidebar-icon {item.icon}"></span>
+          <span aria-hidden="true" class="sidebar-icon {item.icon}"></span>
           {item.label}
         </a>
       {/each}

@@ -288,119 +288,119 @@
   title={m('admin.common.server_admin_page_title', { title: m('admin.security.title') })}
 />
 
-<PaneHeader
-  title={m('admin.security.title')}
-  subtitle={m('admin.security.subtitle')}
-  showMobileNav
-/>
+<div class="pane-page">
+  <PaneHeader title={m('admin.security.title')} subtitle={m('admin.security.subtitle')} />
 
-<PaneContent bind:scrollContainer>
-  <div class="flex flex-col gap-6">
-    <Panel
-      title={m('admin.security.blocked_usernames')}
-      icon="iconify icon-[uil--shield-exclamation]"
-    >
-      {#if loading}
-        <LoadingFog class="h-32 w-full" />
-      {:else}
-        <form onsubmit={save} class="flex flex-col gap-4">
-          {#if error}
-            <Hint tone="danger">{error}</Hint>
-          {/if}
+  <PaneContent bind:scrollContainer>
+    <div class="flex flex-col gap-6">
+      <Panel
+        title={m('admin.security.blocked_usernames')}
+        icon="iconify icon-[uil--shield-exclamation]"
+      >
+        {#if loading}
+          <LoadingFog class="h-32 w-full" />
+        {:else}
+          <form onsubmit={save} class="flex flex-col gap-4">
+            {#if error}
+              <Hint tone="danger">{error}</Hint>
+            {/if}
 
-          <TextArea
-            label={m('admin.security.blocked_usernames')}
-            id="blocked-usernames"
-            bind:value={blockedUsernames}
-            rows={6}
-            disabled={saving}
-            description={m('admin.security.blocked_usernames_description')}
-          />
+            <TextArea
+              label={m('admin.security.blocked_usernames')}
+              id="blocked-usernames"
+              bind:value={blockedUsernames}
+              rows={6}
+              disabled={saving}
+              description={m('admin.security.blocked_usernames_description')}
+            />
 
-          <div class="flex items-center gap-3">
-            <Button type="submit" disabled={!changed || saving} loading={saving}>
-              <span class="iconify icon-[uil--check]"></span>
-              {m('rbac.role_form.save')}
-            </Button>
-          </div>
-        </form>
-      {/if}
-    </Panel>
+            <div class="flex items-center gap-3">
+              <Button type="submit" disabled={!changed || saving} loading={saving}>
+                <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
+                {m('rbac.role_form.save')}
+              </Button>
+            </div>
+          </form>
+        {/if}
+      </Panel>
 
-    <Panel
-      title={m('admin.security.oauth_clients.title')}
-      icon="iconify icon-[uil--apps]"
-      noPadding
-    >
-      <div class="border-b border-border px-5 py-4 text-sm text-muted">
-        {m('admin.security.oauth_clients.description')}
-      </div>
-      {#if oauthClientsQuery.error}
-        <div class="p-5"><Hint tone="danger">{String(oauthClientsQuery.error)}</Hint></div>
-      {/if}
-      {#if oauthClientsQuery.data !== undefined}
-        <DataTable
-          items={oauthClients}
-          columns={5}
-          getKey={(client) => client.clientId}
-          emptyMessage={m('admin.security.oauth_clients.empty')}
-          hasMore={oauthClientsHasMore}
-          loadingMore={oauthClientsLoadingMore}
-          onLoadMore={loadMoreOAuthClients}
-          loadMoreRoot={scrollContainer}
-          loadingMoreMessage={m('admin.common.loading')}
-        >
-          {#snippet header()}
-            <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
-            <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
-            <th class="table-header-cell">{m('admin.security.oauth_clients.users')}</th>
-            <th class="table-header-cell">{m('admin.security.oauth_clients.last_authorization')}</th
-            >
-            <th class="table-header-cell">{m('admin.security.oauth_clients.policy')}</th>
-          {/snippet}
-          {#snippet row(client)}
-            <td class="max-w-72 px-4 py-3 align-top">
-              <div class="font-medium">{client.clientName || m('admin.common.unknown')}</div>
-              <div class="mt-1 truncate font-mono text-xs text-muted" title={client.clientId}>
-                <bdi dir="ltr">{client.clientId}</bdi>
-              </div>
-            </td>
-            <td class="max-w-64 px-4 py-3 align-top text-sm text-muted">
-              {#each client.redirectOrigins as origin, index (origin)}
-                {#if index > 0},
-                {/if}<bdi dir="ltr">{origin}</bdi>
-              {/each}
-            </td>
-            <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
-            <td class="px-4 py-3 align-top text-sm whitespace-nowrap text-muted">
-              {formatTimestamp(client.lastAuthorizationAt)}
-            </td>
-            <td class="min-w-44 px-4 py-3 align-top">
-              <select
-                class="input"
-                name="oauth-client-policy"
-                value={client.policy}
-                aria-label={m('admin.security.oauth_clients.policy_for', {
-                  client: client.clientName || client.clientId
-                })}
-                disabled={client.policy === 'unknown' || policySaving(client)}
-                onchange={(event) => updateOAuthClientPolicy(client, event)}
+      <Panel
+        title={m('admin.security.oauth_clients.title')}
+        subtitle={m('admin.security.oauth_clients.description')}
+        icon="iconify icon-[uil--apps]"
+        noPadding
+      >
+        {#if oauthClientsQuery.error}
+          <div class="p-5"><Hint tone="danger">{String(oauthClientsQuery.error)}</Hint></div>
+        {/if}
+        {#if oauthClientsQuery.data !== undefined}
+          <DataTable
+            items={oauthClients}
+            columns={5}
+            getKey={(client) => client.clientId}
+            emptyMessage={m('admin.security.oauth_clients.empty')}
+            hasMore={oauthClientsHasMore}
+            loadingMore={oauthClientsLoadingMore}
+            onLoadMore={loadMoreOAuthClients}
+            loadMoreRoot={scrollContainer}
+            loadingMoreMessage={m('admin.common.loading')}
+          >
+            {#snippet header()}
+              <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
+              <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
+              <th class="table-header-cell">{m('admin.security.oauth_clients.users')}</th>
+              <th class="table-header-cell"
+                >{m('admin.security.oauth_clients.last_authorization')}</th
               >
-                {#if client.policy === 'unknown'}
-                  <option value="unknown">
-                    {m('admin.common.unknown')} ({client.policyCode})
-                  </option>
-                {/if}
-                <option value="default">{m('admin.security.oauth_clients.policy_default')}</option>
-                <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option>
-                <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option>
-              </select>
-            </td>
-          {/snippet}
-        </DataTable>
-      {:else if oauthClientsLoading}
-        <LoadingFog class="m-5 h-32" />
-      {/if}
-    </Panel>
-  </div>
-</PaneContent>
+              <th class="table-header-cell">{m('admin.security.oauth_clients.policy')}</th>
+            {/snippet}
+            {#snippet row(client)}
+              <td class="max-w-72 px-4 py-3 align-top">
+                <div class="font-medium">{client.clientName || m('admin.common.unknown')}</div>
+                <div class="mt-1 truncate font-mono text-xs text-muted" title={client.clientId}>
+                  <bdi dir="ltr">{client.clientId}</bdi>
+                </div>
+              </td>
+              <td class="max-w-64 px-4 py-3 align-top text-sm text-muted">
+                {#each client.redirectOrigins as origin, index (origin)}
+                  {#if index > 0},
+                  {/if}<bdi dir="ltr">{origin}</bdi>
+                {/each}
+              </td>
+              <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
+              <td class="px-4 py-3 align-top text-sm whitespace-nowrap text-muted">
+                {formatTimestamp(client.lastAuthorizationAt)}
+              </td>
+              <td class="min-w-44 px-4 py-3 align-top">
+                <select
+                  class="input"
+                  name="oauth-client-policy"
+                  value={client.policy}
+                  aria-label={m('admin.security.oauth_clients.policy_for', {
+                    client: client.clientName || client.clientId
+                  })}
+                  disabled={client.policy === 'unknown' || policySaving(client)}
+                  onchange={(event) => updateOAuthClientPolicy(client, event)}
+                >
+                  {#if client.policy === 'unknown'}
+                    <option value="unknown">
+                      {m('admin.common.unknown')} ({client.policyCode})
+                    </option>
+                  {/if}
+                  <option value="default">{m('admin.security.oauth_clients.policy_default')}</option
+                  >
+                  <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option
+                  >
+                  <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option
+                  >
+                </select>
+              </td>
+            {/snippet}
+          </DataTable>
+        {:else if oauthClientsLoading}
+          <LoadingFog class="m-5 h-32" />
+        {/if}
+      </Panel>
+    </div>
+  </PaneContent>
+</div>

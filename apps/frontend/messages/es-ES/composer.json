@@ -34,12 +34,16 @@
     "post_as_new_message": "Publicar como mensaje nuevo",
     "continue_in_thread": "Continuar en el hilo",
     "edit_failed": "No se pudo editar el mensaje",
+    "edit_empty": "El mensaje no puede estar vacío",
     "upload": {
       "preparing": "Preparando…",
       "uploading": "{percentage}% subido",
       "uploaded": "Subido",
       "failed": "Error al subir",
-      "remove": "Eliminar {filename}"
+      "remove": "Eliminar {filename}",
+      "video_disabled": "La subida de vídeos está desactivada en este servidor.",
+      "prepare_failed": "No se pudo preparar el archivo adjunto",
+      "too_large": "{filename} es demasiado grande ({size}). El máximo es {limit}."
     },
     "format": {
       "bold": "Negrita",

@@ -55,6 +55,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
   }
 </script>
 
+<!-- Container keydown only adds grid navigation; the search input and emoji buttons stay keyboard-operable. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="flex w-88 max-w-full flex-col gap-2 compact-input:w-72 compact-input:gap-1"
@@ -67,6 +68,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
       bind:value={query}
       type="text"
       placeholder={m('emoji.search_placeholder')}
+      aria-label={m('emoji.search_placeholder')}
       class="w-full rounded bg-surface px-3 py-2.5 text-base outline-none placeholder:text-muted compact-input:px-2.5 compact-input:py-1.5 compact-input:text-sm"
     />
   </div>
@@ -96,7 +98,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
           <div
             class="mt-1 mb-1 px-1 text-sm font-medium text-muted compact-input:mt-0 compact-input:mb-0.5 compact-input:px-0 compact-input:text-xs"
           >
-            Recently Used
+            {m('emoji.recently_used')}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each recent as emoji (emoji)}

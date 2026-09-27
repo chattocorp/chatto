@@ -177,14 +177,14 @@
         status={customStatus}
         class="{customStatusTextSizeClasses[
           size
-        ]} pointer-events-none absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 [text-shadow:0_1px_2px_rgb(0_0_0_/_0.9),0_0_1px_rgb(0_0_0_/_0.95)]"
+        ]} pointer-events-none absolute end-0 top-0 translate-x-1/4 -translate-y-1/4 [text-shadow:0_1px_2px_rgb(0_0_0_/_0.9),0_0_1px_rgb(0_0_0_/_0.95)] rtl:-translate-x-1/4"
       />
     {/if}
     {#if showPresenceDot && presence}
       <span
         class={[
           presenceDotShellSizeClasses[size],
-          'pointer-events-none absolute right-0 bottom-0 grid translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-surface'
+          'pointer-events-none absolute end-0 bottom-0 grid translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-surface rtl:-translate-x-0.5'
         ]}
         role="img"
         aria-label={presenceLabel}

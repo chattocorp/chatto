@@ -314,7 +314,7 @@ export class AdminPage {
    * instance-admin → manage/server merge.)
    */
   async expectUsersPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Members' })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible();
   }
 
   /**

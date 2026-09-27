@@ -45,7 +45,7 @@
       <div
         aria-hidden="true"
         class="absolute inset-y-0 w-0.5 bg-text"
-        style:left={`${((preferences.microphoneThreshold + 60) / 60) * 100}%`}
+        style:inset-inline-start={`${((preferences.microphoneThreshold + 60) / 60) * 100}%`}
       ></div>
     {/if}
   </div>

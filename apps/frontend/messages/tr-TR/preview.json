@@ -4,6 +4,8 @@
     "delete": "Önizlemeyi sil",
     "open_link": "Bağlantıyı aç",
     "copy_url": "URL'yi kopyala",
+    "url_copied": "URL panoya kopyalandı",
+    "copy_url_failed": "URL kopyalanamadı",
     "show_content": "İçeriği göster",
     "hide_content": "İçeriği gizle",
     "youtube_title": "YouTube videosu",

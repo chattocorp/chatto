@@ -60,7 +60,17 @@
       "unreachable": "Server je nedostupný",
       "connection_unavailable": "Připojení není dostupné",
       "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto 0.5 nebo novější.",
-      "compatibility_unknown": "Tato aplikace nemůže určit kompatibilitu z verze serveru."
+      "compatibility_unknown": "Tato aplikace nemůže určit kompatibilitu z verze serveru.",
+      "go_to_notifications_count": {
+        "one": "Přejít na {count} oznámení",
+        "other": "Přejít na {count} oznámení"
+      },
+      "go_to_notification": "Přejít na oznámení",
+      "go_to_first_unread": "Přejít na první nepřečtenou místnost",
+      "notifications_count": {
+        "one": "{count} oznámení",
+        "other": "{count} oznámení"
+      }
     },
     "threads": {
       "title": "Moje vlákna",

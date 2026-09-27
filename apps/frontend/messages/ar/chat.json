@@ -60,7 +60,25 @@
       "unreachable": "تعذر الوصول إلى الخادم",
       "connection_unavailable": "الاتصال غير متاح",
       "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto 0.5 أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
-      "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم."
+      "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم.",
+      "go_to_notifications_count": {
+        "zero": "انتقل إلى {count} إشعارات",
+        "one": "انتقل إلى {count} إشعار",
+        "two": "انتقل إلى {count} إشعارين",
+        "few": "انتقل إلى {count} إشعارات",
+        "many": "انتقل إلى {count} إشعارًا",
+        "other": "انتقل إلى {count} إشعار"
+      },
+      "go_to_notification": "انتقل إلى الإشعار",
+      "go_to_first_unread": "انتقل إلى أول غرفة غير مقروءة",
+      "notifications_count": {
+        "zero": "{count} إشعارات",
+        "one": "{count} إشعار",
+        "two": "{count} إشعاران",
+        "few": "{count} إشعارات",
+        "many": "{count} إشعارًا",
+        "other": "{count} إشعار"
+      }
     },
     "threads": {
       "title": "مواضيعي",

@@ -65,6 +65,7 @@ preview-card styling. Its parent owns shared link-preview actions.
   }
 </script>
 
+<!-- Context menu only. The same actions stay available from the message action menu. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="group/preview relative embed-frame flex w-full max-w-md flex-col gap-3 p-3"
@@ -84,7 +85,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       />
     {:else}
       <div
-        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-strong"
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized"
       >
         {#if post.provider === 'bluesky'}
           <span class="iconify icon-[logos--bluesky] text-xl" aria-hidden="true"></span>
@@ -155,7 +156,7 @@ preview-card styling. Its parent owns shared link-preview actions.
         href={post.externalLink.url}
         target="_blank"
         rel="noopener noreferrer"
-        class="flex min-w-0 gap-3 overflow-hidden surface-box p-2 transition-[background-color] hover:bg-surface-emphasized"
+        class="flex min-w-0 gap-3 overflow-hidden surface-box p-2 transition-[background-color] feedback-quick hover:bg-surface-emphasized"
         onclick={(event) => event.stopPropagation()}
       >
         {#if post.externalLink.imageUrl}
@@ -303,7 +304,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       class="embed-control-button"
       aria-label={m('preview.dismiss')}
     >
-      <span class="iconify icon-[uil--times] text-sm"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {:else if onDelete}
     <button
@@ -316,7 +317,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       class="embed-control-button"
       aria-label={m('preview.delete')}
     >
-      <span class="iconify icon-[uil--times] text-sm"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {/if}
 </div>

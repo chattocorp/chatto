@@ -33,7 +33,7 @@ the category or health of the metric; it is not decorative.
 <div class="panel-shell p-6">
   <div class="flex items-center gap-4">
     <div class="rounded-lg p-3 {colorClasses[color].bg}">
-      <span class="{icon} text-2xl {colorClasses[color].text}"></span>
+      <span aria-hidden="true" class="{icon} text-2xl {colorClasses[color].text}"></span>
     </div>
     <div class="min-w-0">
       <div class="text-3xl font-bold tabular-nums">{value}</div>

@@ -197,7 +197,7 @@
 
     {#snippet footer()}
       <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
-        <span class="iconify icon-[uil--check]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
         {m('settings.profile.save_button')}
       </Button>
     {/snippet}

@@ -34,12 +34,16 @@
     "post_as_new_message": "Publier comme nouveau message",
     "continue_in_thread": "Continuer dans le fil",
     "edit_failed": "Échec de la modification du message",
+    "edit_empty": "Le message ne peut pas être vide",
     "upload": {
       "preparing": "Préparation…",
       "uploading": "{percentage} % téléversé",
       "uploaded": "Téléversé",
       "failed": "Échec du téléversement",
-      "remove": "Supprimer {filename}"
+      "remove": "Supprimer {filename}",
+      "video_disabled": "Le téléversement de vidéos est désactivé sur ce serveur.",
+      "prepare_failed": "Échec de la préparation de la pièce jointe",
+      "too_large": "{filename} est trop volumineux ({size}). La taille maximale est de {limit}."
     },
     "format": {
       "bold": "Gras",

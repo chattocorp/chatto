@@ -4,6 +4,8 @@
     "delete": "מחק תצוגה מקדימה",
     "open_link": "פתח קישור",
     "copy_url": "העתק כתובת URL",
+    "url_copied": "כתובת ה-URL הועתקה ללוח",
+    "copy_url_failed": "העתקת כתובת ה-URL נכשלה",
     "show_content": "הצג תוכן",
     "hide_content": "הסתרת תוכן",
     "youtube_title": "סרטון YouTube",

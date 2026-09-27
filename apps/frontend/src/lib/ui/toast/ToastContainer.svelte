@@ -12,7 +12,7 @@
   announced, just at the next natural break.
 -->
 <div
-  class="pointer-events-none fixed right-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] left-3 z-50 flex flex-col items-stretch gap-2 sm:right-4 sm:bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:left-auto sm:items-end"
+  class="pointer-events-none fixed start-3 end-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] z-50 flex flex-col items-stretch gap-2 sm:start-auto sm:end-4 sm:bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:items-end"
   role="status"
   aria-live="polite"
   aria-atomic="false"
@@ -31,15 +31,24 @@
 </div>
 
 <style>
+  /* Toast entrance keyframes, including the reduced-motion fallback. Tailwind
+     has no utility for a custom keyframe pair with a media-query variant. */
   .toast-enter {
+    /* Toasts sit at the inline end, so they enter from that side. */
+    --toast-enter-x: 0.5rem;
     animation: toast-in 160ms cubic-bezier(0.2, 0, 0, 1);
     transform-origin: right bottom;
+  }
+
+  .toast-enter:dir(rtl) {
+    --toast-enter-x: -0.5rem;
+    transform-origin: left bottom;
   }
 
   @keyframes toast-in {
     from {
       opacity: 0;
-      transform: translate3d(0.5rem, 0.25rem, 0) scale(0.98);
+      transform: translate3d(var(--toast-enter-x), 0.25rem, 0) scale(0.98);
     }
     to {
       opacity: 1;

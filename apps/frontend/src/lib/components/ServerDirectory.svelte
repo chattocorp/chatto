@@ -330,7 +330,7 @@ dialog shows it directly on its work plane. See FDR-042.
 
 {#snippet lookupForm()}
   <section
-    class="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+    class="flex flex-col gap-3 surface-box p-4"
     aria-label={m('add_server.directory.connect_by_address')}
     data-testid="server-directory-lookup"
   >

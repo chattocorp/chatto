@@ -102,7 +102,7 @@
       if (updated) {
         editLogin = updated.login;
         editDisplayName = updated.displayName;
-        toast.success('User updated');
+        toast.success(m('admin.members.identity_updated'));
       }
     } catch (error) {
       identityError = error instanceof Error ? error.message : 'Failed to update user';
@@ -125,7 +125,7 @@
     identityError = null;
     try {
       if (await clearUsernameCooldown()) {
-        toast.success('Username change cooldown cleared');
+        toast.success(m('admin.members.cooldown_cleared'));
       }
     } catch (error) {
       identityError = error instanceof Error ? error.message : 'Failed to clear username cooldown';
@@ -265,7 +265,7 @@
             loadingText={m('admin.members.setting_password')}
             disabled={!canSetMemberPassword}
           >
-            <span class="iconify icon-[mdi--key-change]"></span>
+            <span class="iconify icon-[mdi--key-change]" aria-hidden="true"></span>
             {m('admin.members.set_password')}
           </Button>
         </div>

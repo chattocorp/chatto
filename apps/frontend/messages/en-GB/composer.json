@@ -34,12 +34,16 @@
     "post_as_new_message": "Post as new message",
     "continue_in_thread": "Continue in thread",
     "edit_failed": "Failed to edit message",
+    "edit_empty": "Message cannot be empty",
     "upload": {
       "preparing": "Preparing…",
       "uploading": "{percentage}% uploaded",
       "uploaded": "Uploaded",
       "failed": "Upload failed",
-      "remove": "Remove {filename}"
+      "remove": "Remove {filename}",
+      "video_disabled": "Video uploads are disabled on this server.",
+      "prepare_failed": "Failed to prepare attachment",
+      "too_large": "{filename} is too large ({size}). Maximum is {limit}."
     },
     "format": {
       "bold": "Bold",

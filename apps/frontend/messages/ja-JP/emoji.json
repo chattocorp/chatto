@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "絵文字を検索...",
-    "no_results": "絵文字が見つかりませんでした"
+    "no_results": "絵文字が見つかりませんでした",
+    "recently_used": "最近使用したもの"
   }
 }

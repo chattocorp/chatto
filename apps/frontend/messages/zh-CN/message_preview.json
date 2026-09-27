@@ -4,6 +4,8 @@
     "attachment_image": "图片",
     "attachment_video": "视频",
     "attachment_audio": "音频",
-    "attachment_file": "文件"
+    "attachment_file": "文件",
+    "open_linked_message": "打开链接的消息",
+    "open_linked_message_from": "打开来自 {name} 的链接消息"
   }
 }

@@ -7,6 +7,7 @@
   import {
     ActivityListRow,
     EmptyState,
+    LoadingFog,
     PageTitle,
     PaneContent,
     PaneHeader,
@@ -508,11 +509,7 @@
 <PageTitle title={m('chat.notifications.title')} />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('chat.notifications.title')}
-    subtitle={m('chat.notifications.subtitle')}
-    showMobileNav
-  />
+  <PaneHeader title={m('chat.notifications.title')} subtitle={m('chat.notifications.subtitle')} />
 
   <PaneContent fillHeight>
     <Panel title={m('chat.notifications.list_title')} noPadding fillHeight>
@@ -646,7 +643,9 @@
                 <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
               {/if}
             </div>
-          {:else if !loading}
+          {:else if loading}
+            <LoadingFog class="m-3 min-h-32 flex-1" />
+          {:else}
             <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
               {m('chat.notifications.empty_body')}
             </EmptyState>

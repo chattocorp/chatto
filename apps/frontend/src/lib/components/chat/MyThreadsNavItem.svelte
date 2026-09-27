@@ -42,7 +42,7 @@
   aria-current={active ? 'page' : undefined}
   class="sidebar-item"
 >
-  <span class="iconify sidebar-icon icon-[uil--comment-alt-lines]"></span>
+  <span aria-hidden="true" class="iconify sidebar-icon icon-[uil--comment-alt-lines]"></span>
   {m('chat.threads.title')}
   {#if hasUnread}
     <UnreadDot

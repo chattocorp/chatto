@@ -4,6 +4,8 @@
     "delete": "Forigi antaŭrigardon",
     "open_link": "Malfermu ligilon",
     "copy_url": "Kopiu URL",
+    "url_copied": "URL kopiita al la tondujo",
+    "copy_url_failed": "Malsukcesis kopii URL",
     "show_content": "Montri enhavon",
     "hide_content": "Kaŝi enhavon",
     "youtube_title": "YouTube video",

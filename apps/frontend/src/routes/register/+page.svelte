@@ -10,6 +10,7 @@
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError, TextInput, VerificationCodeInput, validate, z } from '$lib/ui/form';
 
@@ -233,17 +234,15 @@
 
 <PageTitle title={m('auth.register.title')} />
 
-<AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">
-    {step === 'code'
-      ? m('auth.register.code.title')
-      : step === 'details'
-        ? m('auth.register.complete_title')
-        : m('auth.register.title')}
-  </h1>
-
+<AuthLayout
+  title={step === 'code'
+    ? m('auth.register.code.title')
+    : step === 'details'
+      ? m('auth.register.complete_title')
+      : m('auth.register.title')}
+>
   {#if !selfServiceAvailable}
-    <p class="text-center text-muted">{m('auth.register.unavailable')}</p>
+    <Hint>{m('auth.register.unavailable')}</Hint>
   {:else if invitationRequired && !inviteAccepted}
     <div class="flex flex-col gap-4 text-center">
       <p class="text-muted">{m('auth.register.invitation.required')}</p>
@@ -277,7 +276,7 @@
           loadingText={m('auth.forgot_password.sending')}
         >
           {m('common.continue')}
-          <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
         </Button>
       </form>
     {/if}
@@ -299,7 +298,7 @@
             loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
             onclick={(event) => handleProviderClick(event, provider)}
           >
-            <span class={['iconify', providerIcon(provider.type)]}></span>
+            <span aria-hidden="true" class={['iconify', providerIcon(provider.type)]}></span>
             {m('auth.login.continue_with_provider', { provider: provider.label })}
           </Button>
         {/each}
@@ -392,7 +391,7 @@
         loading={isLoading}
         loadingText={m('auth.register.creating')}
       >
-        <span class="iconify icon-[uil--user-plus]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--user-plus]"></span>
         {m('common.create_account')}
       </Button>
     </form>

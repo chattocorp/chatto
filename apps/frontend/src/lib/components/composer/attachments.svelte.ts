@@ -1,4 +1,5 @@
 import { toast } from '$lib/ui/toast';
+import { m } from '$lib/i18n/messages';
 import { prepareFiles } from '$lib/attachments/prepareFiles';
 
 export type FileWithUrl = { file: File; url: string; description: string };
@@ -41,14 +42,18 @@ export class AttachmentsState {
     for (const file of files) {
       const isVideo = file.type.startsWith('video/');
       if (isVideo && !limits.videoProcessingEnabled) {
-        toast.error('Video uploads are disabled on this server.');
+        toast.error(m('composer.upload.video_disabled'));
         continue;
       }
 
       const limit = isVideo ? limits.maxVideoUploadSize : limits.maxUploadSize;
       if (file.size > limit) {
         toast.error(
-          `${file.name} is too large (${formatFileSize(file.size)}). Maximum is ${formatFileSize(limit)}.`
+          m('composer.upload.too_large', {
+            filename: file.name,
+            size: formatFileSize(file.size),
+            limit: formatFileSize(limit)
+          })
         );
       } else {
         accepted.push(file);
@@ -77,7 +82,7 @@ export class AttachmentsState {
       }
     } catch (err) {
       console.error('Error preparing attachment files:', err);
-      toast.error('Failed to prepare attachment');
+      toast.error(m('composer.upload.prepare_failed'));
     } finally {
       this.pendingCount -= validFiles.length;
     }

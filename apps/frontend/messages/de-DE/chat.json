@@ -60,7 +60,17 @@
       "unreachable": "Server nicht erreichbar",
       "connection_unavailable": "Verbindung nicht verfügbar",
       "compatibility_server_too_old": "Dieser Server muss auf Chatto 0.5 oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
-      "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen."
+      "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen.",
+      "go_to_notifications_count": {
+        "one": "Zu {count} Benachrichtigung",
+        "other": "Zu {count} Benachrichtigungen"
+      },
+      "go_to_notification": "Zur Benachrichtigung",
+      "go_to_first_unread": "Zum ersten ungelesenen Raum",
+      "notifications_count": {
+        "one": "{count} Benachrichtigung",
+        "other": "{count} Benachrichtigungen"
+      }
     },
     "threads": {
       "title": "Meine Threads",

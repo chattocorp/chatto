@@ -108,7 +108,7 @@ appears and disappears.
                 class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
               ></span>
             {:else if primaryAction.icon}
-              <span class={['iconify text-base', primaryAction.icon]}></span>
+              <span aria-hidden="true" class={['iconify text-base', primaryAction.icon]}></span>
             {/if}
             <span>{primaryAction.label}</span>
           </button>

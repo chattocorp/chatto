@@ -4,6 +4,8 @@
     "delete": "Ta bort förhandsvisning",
     "open_link": "Öppna länken",
     "copy_url": "Kopiera URL",
+    "url_copied": "URL:en har kopierats till urklipp",
+    "copy_url_failed": "Det gick inte att kopiera URL:en",
     "show_content": "Visa innehåll",
     "hide_content": "Dölj innehåll",
     "youtube_title": "YouTube video",

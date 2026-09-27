@@ -4,6 +4,8 @@
     "delete": "Apagar visualização",
     "open_link": "Abrir link",
     "copy_url": "Copiar URL",
+    "url_copied": "URL copiado para a área de transferência",
+    "copy_url_failed": "Falha ao copiar o URL",
     "show_content": "Mostrar conteúdo",
     "hide_content": "Ocultar conteúdo",
     "youtube_title": "Vídeo YouTube",

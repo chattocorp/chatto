@@ -515,7 +515,10 @@
           {#each providers as provider (provider.id)}
             <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
               <div class="flex min-w-0 items-center gap-3">
-                <span class={['iconify text-lg text-muted', providerIcon(provider.type)]}></span>
+                <span
+                  aria-hidden="true"
+                  class={['iconify text-lg text-muted', providerIcon(provider.type)]}
+                ></span>
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium">{provider.label}</div>
                   <div class="text-xs text-muted">
@@ -536,7 +539,7 @@
                     disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                     onclick={() => openDisconnectProvider(provider)}
                   >
-                    <span class="iconify icon-[uil--link-broken]"></span>
+                    <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
                     {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
                   </Button>
                 {:else}
@@ -552,7 +555,7 @@
                     providerLinkWindow !== null}
                   onclick={() => openProviderLink(provider)}
                 >
-                  <span class="iconify icon-[uil--link]"></span>
+                  <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
                   {m('settings.account.sso.link_button')}
                 </Button>
               {/if}
@@ -562,7 +565,9 @@
           {#each unconfiguredLinkedIdentities as identity (identity.subjectHash)}
             <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
               <div class="flex min-w-0 items-center gap-3">
-                <span class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
+                <span
+                  aria-hidden="true"
+                  class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
                 ></span>
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
@@ -578,7 +583,7 @@
                 disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                 onclick={() => openDisconnectIdentity(identity)}
               >
-                <span class="iconify icon-[uil--link-broken]"></span>
+                <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
                 {disconnectButtonLabel(identity.subjectHash)}
               </Button>
             </div>

@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Пошук емодзі...",
-    "no_results": "Емодзі не знайдено"
+    "no_results": "Емодзі не знайдено",
+    "recently_used": "Нещодавно використані"
   }
 }

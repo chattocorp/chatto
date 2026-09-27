@@ -4,6 +4,8 @@
     "delete": "プレビューを削除",
     "open_link": "リンクを開く",
     "copy_url": "URL をコピー",
+    "url_copied": "URL をクリップボードにコピーしました",
+    "copy_url_failed": "URL のコピーに失敗しました",
     "show_content": "コンテンツを表示",
     "hide_content": "コンテンツを非表示",
     "youtube_title": "YouTube ビデオ",

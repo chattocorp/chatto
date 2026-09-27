@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Søk etter emojier...",
-    "no_results": "Ingen emojier funnet"
+    "no_results": "Ingen emojier funnet",
+    "recently_used": "Nylig brukt"
   }
 }

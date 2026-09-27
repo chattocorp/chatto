@@ -4,6 +4,8 @@
     "attachment_image": "Obrázek",
     "attachment_video": "Video",
     "attachment_audio": "Zvuk",
-    "attachment_file": "Soubor"
+    "attachment_file": "Soubor",
+    "open_linked_message": "Otevřít odkazovanou zprávu",
+    "open_linked_message_from": "Otevřít odkazovanou zprávu od {name}"
   }
 }

@@ -882,6 +882,41 @@ editing, viewport/safe-area chrome, and content whose geometry comes from
 external media. Keep those exceptions local and document why the semantic
 system does not apply.
 
+### Reviewed Exceptions
+
+The design-system audit (#1647) confirmed these exceptions. Do not convert them
+to the standard primitives unless their purpose changes.
+
+| Area                                | Exception                                                                                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Media overlays and viewers          | Literal black and white in `ZoomableImage`, `AttachmentModal`, `FullscreenVideoOverlay`, `VideoThumbnail`, `NativeScreenShareDialog`, and badges over real thumbnails.    |
+| Untrusted HTML previews             | `HtmlAttachmentModal` and `AttachmentPreview` keep a white canvas because untrusted HTML expects a white default page.                                                    |
+| Modal and drawer backdrops          | `backdrop:bg-black/50` and the mobile drawer scrim work in both themes.                                                                                                   |
+| Server identity and theme samples   | Generated server-logo gradients, accent swatches, and surface-tone samples show fixed colours on purpose.                                                                 |
+| Wordmark easter egg                 | `SimulatedChattoWordmark` is a canvas game with its own palette and physical coordinates.                                                                                 |
+| Specialized text entry              | `QuickSwitcher`, `EmojiPicker`, and `ChatSearchInput` keep raw search inputs. Accent and tone pickers keep visually hidden radios behind their swatches.                  |
+| Rich-text editor chrome             | `TipTapEditor` keeps its invisible code-language `<select>`, measured corner positioning, and scoped ProseMirror styles.                                                  |
+| Chat hover bars and quick reactions | `MessageHoverBar` and `MessageActionMenu` keep compact native buttons at 28 px for dense desktop hover actions.                                                           |
+| Attachment actions                  | `attachment-action-button` pairs with a `btn-*` tone by design.                                                                                                           |
+| Physical coordinates                | `FloatingPopover`, `SegmentedControl`, `ZoomableImage`, `TopOverlayNotice`, centred overlays, media controls, and the app-header title-bar insets use physical positions. |
+| Custom native dialogs               | `QuickSwitcher` owns a native `<dialog>` for the command palette.                                                                                                         |
+| Draggable room groups               | `AdminRoomLayoutEditor` assembles `panel-shell` directly, as described in the panel rules above.                                                                          |
+| First-run setup                     | `setup/+page.svelte` uses a pane page instead of `AuthLayout` because it runs inside the client shell.                                                                    |
+
+## Automated Guardrails
+
+`pnpm check` runs `scripts/check-design-system.mjs`. It rejects retired and
+unknown colour tokens, raw palette colours, non-existent logical corner
+utilities, hand-built button recipes and inline links, raw selects and text
+areas in feature code, redundant or non-standard right-to-left utilities,
+accessibility icons for descriptions, unreviewed `<style>` blocks, and public
+design-system components without a story.
+
+Each reviewed exception is listed next to the check that it bypasses, with a
+reason. `knownDrift` lists drift that an open issue tracks. Remove an entry when
+its issue lands. Do not add an entry only to make the check pass: fix the cause,
+or record a reviewed exception with its reason.
+
 ## Initial Page Reveal
 
 The app layout reveals the first page with a short, staggered fade and scale.

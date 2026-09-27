@@ -194,7 +194,7 @@ keep the compact menu without a navigation action.
       {/if}
       {#if timezone && localTime}
         <p class="flex items-center gap-1.5 text-sm text-muted">
-          <span class="iconify icon-[uil--clock-three] shrink-0"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--clock-three] shrink-0"></span>
           <span>{localTime}</span>
           <span class="truncate" dir="ltr">({timezone})</span>
         </p>

@@ -4,6 +4,8 @@
     "attachment_image": "Зображення",
     "attachment_video": "Відео",
     "attachment_audio": "Аудіо",
-    "attachment_file": "Файл"
+    "attachment_file": "Файл",
+    "open_linked_message": "Відкрити повідомлення за посиланням",
+    "open_linked_message_from": "Відкрити повідомлення за посиланням від {name}"
   }
 }

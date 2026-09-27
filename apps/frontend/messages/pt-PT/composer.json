@@ -34,12 +34,16 @@
     "post_as_new_message": "Publicar como nova mensagem",
     "continue_in_thread": "Continuar no tópico",
     "edit_failed": "Falha ao editar mensagem",
+    "edit_empty": "A mensagem não pode estar vazia",
     "upload": {
       "preparing": "A preparar…",
       "uploading": "{percentage}% carregado",
       "uploaded": "Carregado",
       "failed": "Falha no carregamento",
-      "remove": "Remover {filename}"
+      "remove": "Remover {filename}",
+      "video_disabled": "O carregamento de vídeos está desativado neste servidor.",
+      "prepare_failed": "Falha ao preparar o anexo",
+      "too_large": "{filename} é demasiado grande ({size}). O máximo é {limit}."
     },
     "format": {
       "bold": "Negrito",

@@ -38,7 +38,7 @@
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
-    return { id: event?.actorId ?? 'unknown', name: 'Deleted User', user: null };
+    return { id: event?.actorId ?? 'unknown', name: m('common.deleted_user'), user: null };
   });
 
   const eventKind = $derived(timelineEventKind(event.event));
@@ -97,7 +97,7 @@
 {#if eventKind === TimelineEventKind.CallEnded}
   <div class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4" data-event-id={event.id}>
     <div class="flex w-11 shrink-0 items-center justify-center text-muted">
-      <span class="iconify icon-[uil--phone-slash] text-base"></span>
+      <span class="iconify icon-[uil--phone-slash] text-base" aria-hidden="true"></span>
     </div>
     <span class="text-sm text-muted">{m('room.system_events.call_ended')}</span>
   </div>
@@ -112,7 +112,7 @@
         <div
           class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-muted"
         >
-          <span class="iconify icon-[uil--user-times] text-xs"></span>
+          <span class="iconify icon-[uil--user-times] text-xs" aria-hidden="true"></span>
         </div>
       {/if}
     </div>

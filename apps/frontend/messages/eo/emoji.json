@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Serĉu emojis...",
-    "no_results": "Neniuj emojis trovitaj"
+    "no_results": "Neniuj emojis trovitaj",
+    "recently_used": "Lastatempe uzitaj"
   }
 }

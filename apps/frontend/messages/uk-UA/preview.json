@@ -4,6 +4,8 @@
     "delete": "Видалити попередній перегляд",
     "open_link": "Відкрити посилання",
     "copy_url": "Копіювати URL",
+    "url_copied": "URL скопійовано в буфер обміну",
+    "copy_url_failed": "Не вдалося скопіювати URL",
     "show_content": "Показати вміст",
     "hide_content": "Приховати вміст",
     "youtube_title": "Відео YouTube",

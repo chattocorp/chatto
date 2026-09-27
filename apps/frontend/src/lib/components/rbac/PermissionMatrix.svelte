@@ -435,11 +435,7 @@ focusing a cell highlights its permission row and role column.
           >
             <MatrixColumnHeading>
               <!-- eslint-disable svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
-              <a
-                href={newRoleHref}
-                class="cursor-pointer font-medium text-action hover:underline"
-                data-testid="new-role-column"
-              >
+              <a href={newRoleHref} class="font-medium link" data-testid="new-role-column">
                 {m('admin.permissions.new_role_action')}
               </a>
               <!-- eslint-enable svelte/no-navigation-without-resolve -->

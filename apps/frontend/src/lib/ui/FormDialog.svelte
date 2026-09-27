@@ -127,7 +127,7 @@ The submit button's color follows `submitTone` (`action` by default; use
 
   {#snippet dismissAction()}
     <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
-      {#if cancelIcon}<span class={cancelIcon}></span>{/if}
+      {#if cancelIcon}<span aria-hidden="true" class={cancelIcon}></span>{/if}
       {cancelLabel}
     </Button>
   {/snippet}
@@ -140,7 +140,7 @@ The submit button's color follows `submitTone` (`action` by default; use
       loadingText={submitLoadingText}
       {disabled}
     >
-      {#if submitIcon}<span class={submitIcon}></span>{/if}
+      {#if submitIcon}<span aria-hidden="true" class={submitIcon}></span>{/if}
       {submitLabel}
     </Button>
   {/snippet}

@@ -9,6 +9,7 @@
     "join_call": "加入通話",
     "start_call": "開始通話",
     "leave": "離開通話",
+    "open_call_room": "開啟 {room}",
     "share_screen": "分享螢幕",
     "stop_share_screen": "停止分享螢幕",
     "applications": "應用程式",

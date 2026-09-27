@@ -8,6 +8,8 @@
     "attachment_image": "תמונה",
     "attachment_video": "וידאו",
     "attachment_audio": "שמע",
-    "attachment_file": "קובץ"
+    "attachment_file": "קובץ",
+    "open_linked_message": "פתח הודעה מקושרת",
+    "open_linked_message_from": "פתח הודעה מקושרת מאת {name}"
   }
 }

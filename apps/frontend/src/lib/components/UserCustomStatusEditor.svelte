@@ -358,7 +358,7 @@
         onclick={chooseNoStatus}
       >
         <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-          <span class="iconify icon-[uil--minus-circle] text-muted"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--minus-circle] text-muted"></span>
         </span>
         <span class={['min-w-0 truncate', noStatusSelected && 'font-medium']}>
           {m('settings.profile.status.template.none')}
@@ -400,7 +400,7 @@
           </span>
         {:else}
           <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-            <span class="iconify icon-[uil--pen]"></span>
+            <span aria-hidden="true" class="iconify icon-[uil--pen]"></span>
           </span>
         {/if}
         <bdi class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
@@ -418,7 +418,7 @@
       <div class="flex min-w-0 items-center gap-1">
         <button
           type="button"
-          class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md transition-[background-color,scale] hover:bg-surface active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+          class="icon-action shrink-0"
           title={m('settings.profile.status.emoji.choose')}
           aria-label={m('settings.profile.status.emoji.choose')}
           disabled={isSaving || isClearing}
@@ -470,7 +470,7 @@
     >
       <button
         type="button"
-        class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-lg transition-[background-color,scale] hover:bg-surface active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+        class="icon-action shrink-0 text-lg"
         title={m('settings.profile.status.emoji.choose')}
         aria-label={m('settings.profile.status.emoji.choose')}
         disabled={isSaving || isClearing}
@@ -493,7 +493,7 @@
       {#if statusText || hasActiveStatus}
         <button
           type="button"
-          class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+          class="icon-action shrink-0"
           title={m('settings.profile.status.clear_button')}
           aria-label={m('settings.profile.status.clear_button')}
           disabled={isSaving || isClearing}
@@ -578,7 +578,7 @@
           disabled={isSaving}
           onclick={clearCustomStatus}
         >
-          <span class="iconify icon-[uil--times]"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--times]"></span>
           {m('settings.profile.status.clear_button')}
         </Button>
       {/if}
@@ -591,7 +591,7 @@
         disabled={!canSave || isSaving}
         loading={isSaving || isClearing}
       >
-        <span class="iconify icon-[uil--check]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
         {m('settings.profile.status.save_button')}
       </Button>
     </div>

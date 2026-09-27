@@ -4,6 +4,8 @@
     "delete": "Supprimer l'aperçu",
     "open_link": "Ouvrir le lien",
     "copy_url": "Copier URL",
+    "url_copied": "URL copiée dans le presse-papiers",
+    "copy_url_failed": "Échec de la copie de l'URL",
     "show_content": "Afficher le contenu",
     "hide_content": "Masquer le contenu",
     "youtube_title": "Vidéo YouTube",

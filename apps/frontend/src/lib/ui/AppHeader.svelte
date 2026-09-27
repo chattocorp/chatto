@@ -68,7 +68,7 @@
       aria-expanded={sidebarNav.isOpen}
       title={m('ui.toggle_sidebar')}
     >
-      <span class="iconify icon-[uil--bars] text-xl"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--bars] text-xl"></span>
     </button>
 
     {#if hasInstances}
@@ -79,7 +79,7 @@
         title={m('ui.notifications')}
         class="app-header-icon relative"
       >
-        <span class="iconify icon-[uil--bell] text-lg"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--bell] text-lg"></span>
         {#if totalNotificationCount > 0}
           <UnreadDot
             color={totalImportantNotificationCount > 0 ? 'warning' : 'ambient'}
@@ -99,7 +99,7 @@
         aria-label={m('ui.open_quick_switcher')}
         title={m('ui.quick_switcher_shortcut')}
       >
-        <span class="iconify icon-[uil--apps] text-lg"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--apps] text-lg"></span>
       </button>
     {/if}
 
@@ -126,6 +126,8 @@
             ? 'text-warning'
             : 'animate-pulse'
         ]}
+        role="img"
+        aria-label={m('ui.realtime_paused')}
         title={m('ui.realtime_paused')}
       ></span>
     {/if}

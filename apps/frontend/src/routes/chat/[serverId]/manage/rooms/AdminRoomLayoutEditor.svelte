@@ -332,7 +332,7 @@
       opts.onclick();
     }}
   >
-    <span class={['iconify text-base', opts.icon]} aria-label={opts.title}></span>
+    <span class={['iconify text-base', opts.icon]} role="img" aria-label={opts.title}></span>
   </ToggleChip>
 {/snippet}
 
@@ -376,11 +376,7 @@
 {/snippet}
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('admin.rooms_admin.title')}
-    subtitle={m('admin.rooms_admin.subtitle')}
-    showMobileNav
-  />
+  <PaneHeader title={m('admin.rooms_admin.title')} subtitle={m('admin.rooms_admin.subtitle')} />
 
   <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if layout.loading}
@@ -432,12 +428,12 @@
               <div class="flex items-center gap-2">
                 {#if group.canCreateRoom}
                   <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
-                    <span class="iconify icon-[uil--plus]"></span>
+                    <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
                     {m('admin.rooms_admin.new_room')}
                   </Button>
                 {/if}
                 <Button variant="secondary" size="sm" onclick={() => openCreateLink(group)}>
-                  <span class="iconify icon-[uil--external-link-alt]"></span>
+                  <span aria-hidden="true" class="iconify icon-[uil--external-link-alt]"></span>
                   {m('admin.rooms_admin.new_link')}
                 </Button>
                 <div class="flex items-center gap-1.5">
@@ -488,6 +484,7 @@
                     <span
                       use:dragHandle
                       class="iconify icon-[uil--draggabledots] shrink-0 cursor-grab text-lg text-muted hover:text-text"
+                      role="button"
                       aria-label={m('admin.rooms_admin.drag_room')}
                     ></span>
                     <div class="min-w-0 flex-1">
@@ -501,7 +498,8 @@
                                 <Pill
                                   tone="action"
                                   title={m('admin.rooms_admin.universal_room')}
-                                  class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
+                                  paddingClass="px-1.5 py-0.5"
+                                  class="inline-flex shrink-0 items-center gap-1"
                                 >
                                   <span class="iconify icon-[uil--globe] text-xs" aria-hidden="true"
                                   ></span>
@@ -509,7 +507,7 @@
                                 </Pill>
                               {/if}
                               {#if room.room.archived}
-                                <Pill tone="muted" class="shrink-0 rounded-md px-1.5"
+                                <Pill tone="muted" paddingClass="px-1.5 py-0.5" class="shrink-0"
                                   >{m('admin.rooms_admin.archived')}</Pill
                                 >
                               {/if}
@@ -521,7 +519,10 @@
                         </div>
                       {:else}
                         <div class="flex min-w-0 items-baseline gap-1.5">
-                          <span class="iconify icon-[uil--external-link-alt] text-muted"></span>
+                          <span
+                            aria-hidden="true"
+                            class="iconify icon-[uil--external-link-alt] text-muted"
+                          ></span>
                           <span class="truncate font-medium">{room.link.label}</span>
                         </div>
                         <p class="truncate text-sm text-muted">{room.link.url}</p>
@@ -544,7 +545,7 @@
 
       <div class="flex justify-center">
         <Button variant="secondary" onclick={openCreateGroup}>
-          <span class="iconify icon-[uil--plus]"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
           {m('admin.rooms_admin.new_group')}
         </Button>
       </div>

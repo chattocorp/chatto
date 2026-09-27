@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Emoji ara...",
-    "no_results": "Hiçbir emoji bulunamadı"
+    "no_results": "Hiçbir emoji bulunamadı",
+    "recently_used": "Son kullanılanlar"
   }
 }

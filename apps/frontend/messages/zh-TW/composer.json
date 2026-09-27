@@ -34,12 +34,16 @@
     "post_as_new_message": "發佈為新訊息",
     "continue_in_thread": "在討論串中繼續",
     "edit_failed": "訊息編輯失敗",
+    "edit_empty": "訊息不能為空",
     "upload": {
       "preparing": "準備中…",
       "uploading": "已上傳 {percentage}%",
       "uploaded": "已上傳",
       "failed": "上傳失敗",
-      "remove": "移除 {filename}"
+      "remove": "移除 {filename}",
+      "video_disabled": "此伺服器已停用影片上傳。",
+      "prepare_failed": "無法準備附件",
+      "too_large": "{filename} 太大（{size}）。上限為 {limit}。"
     },
     "format": {
       "bold": "粗體",

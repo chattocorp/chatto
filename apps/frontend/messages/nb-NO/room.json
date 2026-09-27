@@ -103,6 +103,7 @@
         "copy_message_link": "Kopier meldingslenken",
         "copy_image": "Kopier bilde",
         "link_copied": "Lenken er kopiert",
+        "message_link_copied": "Meldingslenken er kopiert",
         "copy_link_failed": "Kunne ikke kopiere lenken",
         "image_copied": "Bildet er kopiert",
         "copy_image_failed": "Kunne ikke kopiere bildet"
@@ -218,6 +219,7 @@
       "call": "Ring",
       "jump_to_file": "Hopp til {filename}",
       "loading_files": "Laster inn filer...",
+      "loading_members": "Laster inn medlemmer...",
       "calls_unavailable": "Anrop er ikke tilgjengelig på denne serveren.",
       "view_profile": "Se profilen til {name}",
       "in_voice_call": "I et taleanrop",

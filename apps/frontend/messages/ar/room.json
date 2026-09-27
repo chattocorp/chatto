@@ -107,6 +107,7 @@
         "copy_message_link": "نسخ رابط الرسالة",
         "copy_image": "نسخ الصورة",
         "link_copied": "تم نسخ الرابط",
+        "message_link_copied": "تم نسخ رابط الرسالة",
         "copy_link_failed": "تعذر نسخ الرابط",
         "image_copied": "تم نسخ الصورة",
         "copy_image_failed": "تعذر نسخ الصورة"
@@ -234,6 +235,7 @@
       "call": "اتصل",
       "jump_to_file": "انتقل إلى {filename}",
       "loading_files": "جارٍ تحميل الملفات...",
+      "loading_members": "جارٍ تحميل الأعضاء...",
       "calls_unavailable": "المكالمات غير متاحة على هذا الخادم.",
       "view_profile": "عرض الملف الشخصي لـ {name}",
       "in_voice_call": "في مكالمة صوتية",

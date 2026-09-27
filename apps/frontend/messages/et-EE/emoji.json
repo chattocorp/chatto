@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Otsi emotikone...",
-    "no_results": "Emotikone ei leitud"
+    "no_results": "Emotikone ei leitud",
+    "recently_used": "Hiljuti kasutatud"
   }
 }

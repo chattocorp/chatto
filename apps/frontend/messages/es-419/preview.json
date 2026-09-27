@@ -4,6 +4,8 @@
     "delete": "Eliminar vista previa",
     "open_link": "Abrir enlace",
     "copy_url": "Copiar URL",
+    "url_copied": "URL copiada al portapapeles",
+    "copy_url_failed": "No se pudo copiar la URL",
     "show_content": "Mostrar contenido",
     "hide_content": "Ocultar contenido",
     "youtube_title": "Vídeo YouTube",

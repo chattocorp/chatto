@@ -9,6 +9,7 @@
     "join_call": "Присоединиться к звонку",
     "start_call": "Начать звонок",
     "leave": "Оставить вызов",
+    "open_call_room": "Открыть {room}",
     "share_screen": "Поделиться экраном",
     "stop_share_screen": "Прекратить демонстрацию экрана",
     "applications": "Приложения",

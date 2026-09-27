@@ -9,6 +9,7 @@
     "join_call": "Participar da chamada",
     "start_call": "Iniciar chamada",
     "leave": "Sair da ligação",
+    "open_call_room": "Abrir {room}",
     "share_screen": "Compartilhar tela",
     "stop_share_screen": "Parar de compartilhar tela",
     "applications": "Aplicativos",

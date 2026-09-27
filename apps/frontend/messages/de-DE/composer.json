@@ -34,12 +34,16 @@
     "post_as_new_message": "Als neue Nachricht senden",
     "continue_in_thread": "Im Thread fortfahren",
     "edit_failed": "Nachricht konnte nicht bearbeitet werden",
+    "edit_empty": "Nachricht darf nicht leer sein",
     "upload": {
       "preparing": "Wird vorbereitet…",
       "uploading": "{percentage} % hochgeladen",
       "uploaded": "Hochgeladen",
       "failed": "Upload fehlgeschlagen",
-      "remove": "{filename} entfernen"
+      "remove": "{filename} entfernen",
+      "video_disabled": "Video-Uploads sind auf diesem Server deaktiviert.",
+      "prepare_failed": "Anhang konnte nicht vorbereitet werden",
+      "too_large": "{filename} ist zu groß ({size}). Maximal erlaubt: {limit}."
     },
     "format": {
       "bold": "Fett",

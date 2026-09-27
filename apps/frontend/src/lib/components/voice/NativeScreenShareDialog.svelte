@@ -122,7 +122,7 @@ URL when its source changes or leaves the DOM.
         <li class="min-w-0">
           <button
             type="button"
-            class="group w-full cursor-pointer overflow-hidden rounded-md border border-input bg-surface text-start transition-[background-color,border-color] hover:border-action hover:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+            class="group w-full cursor-pointer overflow-hidden rounded-md border border-input bg-surface text-start transition-[background-color,border-color] feedback-quick hover:border-action hover:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
             onclick={() => select(source)}
           >
             <span

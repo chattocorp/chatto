@@ -39,7 +39,8 @@ describe('FormDialog', () => {
 
     const footer = q(container, 'footer');
     await expect.element(footer).toBeInTheDocument();
-    expect(footer?.querySelector('[aria-hidden="true"]')).toBeNull();
+    // Decorative icons are hidden too, so look for hidden non-icon elements.
+    expect(footer?.querySelector('[aria-hidden="true"]:not(.iconify)')).toBeNull();
 
     const cancel = Array.from(footer?.querySelectorAll('button') ?? []).find(
       (button) => button.textContent?.trim() === 'Cancel'

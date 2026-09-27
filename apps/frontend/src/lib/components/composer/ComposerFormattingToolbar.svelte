@@ -97,7 +97,7 @@ input row.
             title={label}
             class="pill-button"
           >
-            <span class={['iconify', control.icon]}></span>
+            <span aria-hidden="true" class={['iconify', control.icon]}></span>
           </button>
           {#if control.command === 'orderedList'}
             <button
@@ -109,7 +109,10 @@ input row.
               title={m('composer.format.outdent')}
               class="pill-button"
             >
-              <span class="iconify icon-[mdi--format-indent-decrease] rtl:scale-x-[-1]"></span>
+              <span
+                aria-hidden="true"
+                class="iconify icon-[mdi--format-indent-decrease] rtl:-scale-x-100"
+              ></span>
             </button>
             <button
               type="button"
@@ -120,7 +123,10 @@ input row.
               title={m('composer.format.indent')}
               class="pill-button"
             >
-              <span class="iconify icon-[mdi--format-indent-increase] rtl:scale-x-[-1]"></span>
+              <span
+                aria-hidden="true"
+                class="iconify icon-[mdi--format-indent-increase] rtl:-scale-x-100"
+              ></span>
             </button>
           {/if}
         {/each}

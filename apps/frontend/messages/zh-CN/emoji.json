@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "搜索表情符号...",
-    "no_results": "未找到表情符号"
+    "no_results": "未找到表情符号",
+    "recently_used": "最近使用"
   }
 }

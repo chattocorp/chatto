@@ -39,7 +39,7 @@ for a simple "select something to continue" placeholder.
 
 <div class="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
   {#if icon}
-    <span class={['iconify text-5xl text-muted', icon]}></span>
+    <span aria-hidden="true" class={['iconify text-5xl text-muted', icon]}></span>
   {/if}
   {#if title || children}
     <div class="flex flex-col gap-1">

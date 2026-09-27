@@ -16,6 +16,7 @@ Room-scoped file list for the room sidebar.
   import { m } from '$lib/i18n/messages';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import { EmptyState, LoadingFog } from '$lib/ui';
 
   type RoomFileListItem = {
     id: string;
@@ -199,14 +200,14 @@ Room-scoped file list for the room sidebar.
         {#if onOpenFileMessage}
           <button
             type="button"
-            class="inline-flex shrink-0 cursor-pointer text-muted/40 hover:text-muted"
+            class="mini-icon-action"
             onclick={() => onOpenFileMessage?.(item.messageEventId, item.threadRootEventId ?? null)}
             aria-label={m('room.sidebar.go_to_message')}
             title={m('room.sidebar.go_to_message')}
             data-testid="room-file-message"
           >
             <span
-              class="iconify icon-[mdi--arrow-right-circle] text-sm rtl:rotate-180"
+              class="iconify icon-[mdi--arrow-right-circle] text-sm rtl:-scale-x-100"
               aria-hidden="true"
             ></span>
           </button>
@@ -227,34 +228,32 @@ Room-scoped file list for the room sidebar.
   aria-label={m('room.sidebar.files')}
   aria-busy={loading}
 >
-  {#if !loading}
-    {#if files.length === 0}
-      <div
-        class="flex min-h-32 flex-1 items-center justify-center px-4 text-center text-sm text-muted"
-      >
-        {m('room.sidebar.no_files')}
-      </div>
-    {:else}
-      {#each fileSections as section, i (section.id)}
-        <RoomGroupSection
-          label={section.label}
-          items={section.items}
-          item={fileRow}
-          persistKey={section.persistKey}
-          testid={section.testid}
-          separated={i > 0}
-        />
-      {/each}
+  {#if loading}
+    <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.sidebar.loading_files')} />
+  {:else if files.length === 0}
+    <EmptyState icon="icon-[mdi--file-outline]" title={m('room.sidebar.no_files')} />
+  {:else}
+    {#each fileSections as section, i (section.id)}
+      <RoomGroupSection
+        label={section.label}
+        items={section.items}
+        item={fileRow}
+        persistKey={section.persistKey}
+        testid={section.testid}
+        separated={i > 0}
+      />
+    {/each}
 
-      {#if store.hasMore}
-        <div
-          class="flex justify-center px-3 py-4 text-sm text-muted"
-          data-testid="room-files-load-more-sentinel"
-          {@attach loadMoreWhenVisible}
-        >
-          {store.isLoadingMore ? m('room.sidebar.loading_files') : ''}
-        </div>
-      {/if}
+    {#if store.hasMore}
+      <div
+        class="flex justify-center px-3 py-4"
+        data-testid="room-files-load-more-sentinel"
+        {@attach loadMoreWhenVisible}
+      >
+        {#if store.isLoadingMore}
+          <LoadingFog class="h-10 w-full" label={m('room.sidebar.loading_files')} />
+        {/if}
+      </div>
     {/if}
   {/if}
 </nav>

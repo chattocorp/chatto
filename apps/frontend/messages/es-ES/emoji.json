@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Buscar emojis...",
-    "no_results": "No se encontraron emojis"
+    "no_results": "No se encontraron emojis",
+    "recently_used": "Usados recientemente"
   }
 }

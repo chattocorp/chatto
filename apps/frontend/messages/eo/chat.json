@@ -60,7 +60,17 @@
       "unreachable": "Servilo neatingebla",
       "connection_unavailable": "Konekto ne disponeblas",
       "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto 0.5 aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi.",
-      "compatibility_unknown": "Ĉi tiu aplikaĵo ne povas determini kongruecon laŭ la servila versio."
+      "compatibility_unknown": "Ĉi tiu aplikaĵo ne povas determini kongruecon laŭ la servila versio.",
+      "go_to_notifications_count": {
+        "one": "Iri al {count} sciigo",
+        "other": "Iri al {count} sciigoj"
+      },
+      "go_to_notification": "Iri al sciigo",
+      "go_to_first_unread": "Iri al la unua nelegita ĉambro",
+      "notifications_count": {
+        "one": "{count} sciigo",
+        "other": "{count} sciigoj"
+      }
     },
     "threads": {
       "title": "Miaj Fadenoj",

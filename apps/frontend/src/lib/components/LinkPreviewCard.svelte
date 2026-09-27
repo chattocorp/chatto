@@ -71,9 +71,9 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   async function handleCopyUrl() {
     try {
       await navigator.clipboard.writeText(preview.url);
-      toast.success('URL copied to clipboard');
+      toast.success(m('preview.url_copied'));
     } catch {
-      toast.error('Failed to copy URL');
+      toast.error(m('preview.copy_url_failed'));
     }
     contextMenuPos = null;
   }
@@ -159,7 +159,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         class="embed-control-button"
         aria-label={m('preview.dismiss')}
       >
-        <span class="iconify icon-[uil--times] text-sm"></span>
+        <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
       </button>
     {:else if canDelete}
       <button
@@ -172,7 +172,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         class="embed-control-button"
         aria-label={m('preview.delete')}
       >
-        <span class="iconify icon-[uil--times] text-sm"></span>
+        <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
       </button>
     {/if}
   </a>

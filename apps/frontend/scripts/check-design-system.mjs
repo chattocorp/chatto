@@ -6,8 +6,9 @@ const frontendRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const sourceRoot = resolve(frontendRoot, 'src');
 const appCssPath = resolve(sourceRoot, 'app.css');
 
+// Each allowlisted <style> block must open with a comment that explains why
+// Tailwind or a semantic utility from src/app.css is insufficient.
 const styleBlockAllowlist = new Set([
-  'src/lib/components/MobileSidebarChrome.svelte',
   'src/lib/components/chat/FullscreenVideoOverlay.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
   'src/lib/components/composer/TipTapEditor.svelte',
@@ -27,6 +28,32 @@ const nativeDialogAllowlist = new Set([
   'src/routes/chat/[serverId]/manage/rooms/[roomId]/RoomMembersConfirmDialogMock.svelte'
 ]);
 
+// Known drift that a focused issue tracks. Remove each entry when its issue
+// lands; do not add new files here to silence a check.
+const knownDrift = {
+  // Join/Leave status buttons and scope labels: #2667
+  roomDirectoryActions: new Set(['src/lib/RoomDirectory.svelte']),
+  // Lazy-bundle retry buttons avoid the form barrel in room chunks: #2664
+  // Status editor controls: #2666
+  buttonRecipes: new Set([
+    'src/lib/RoomDirectory.svelte',
+    'src/lib/components/CurrentUserBar.svelte',
+    'src/lib/components/UserCustomStatusEditor.svelte',
+    'src/lib/components/users/UserMenu.svelte',
+    'src/lib/components/voice/VoiceCallPanel.svelte',
+    'src/routes/chat/[serverId]/[roomId]/MessageAttachments.svelte',
+    'src/routes/chat/[serverId]/[roomId]/MessageEventActionOverlays.svelte',
+    'src/routes/chat/[serverId]/[roomId]/MessageUserOverlays.svelte',
+    'src/routes/chat/[serverId]/[roomId]/Room.svelte',
+    'src/routes/chat/[serverId]/[roomId]/RoomSidebarPane.svelte'
+  ]),
+  // Select needs hidden labels and pending-row semantics: #2665
+  rawSelects: new Set([
+    'src/lib/components/UserCustomStatusEditor.svelte',
+    'src/routes/chat/[serverId]/manage/server/security/+page.svelte'
+  ])
+};
+
 const checks = [
   {
     description: 'bare transition utilities; name the transitioned properties',
@@ -42,8 +69,59 @@ const checks = [
   },
   {
     description: 'raw palette colors; use Chatto semantic color tokens',
+    // The wordmark easter egg is a canvas game with its own fixed art palette.
+    allow: new Set(['src/lib/components/SimulatedChattoWordmark.svelte']),
     pattern:
-      /(?:text|bg|border|ring|outline|from|to)-(?:gray|slate|zinc|neutral|stone|red|green|blue|sky|amber|yellow|indigo)-\d+/g
+      /(?:text|bg|border|ring|outline|from|via|to|fill|stroke|shadow|divide|placeholder|decoration|caret|accent)-(?:gray|slate|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+/g
+  },
+  {
+    description:
+      'physical corner utility does not exist; use rounded-ss, rounded-se, rounded-es, or rounded-ee',
+    pattern: /(?<![\w-])rounded-(?:ts|te|bs|be)(?:-[\w.[\]]+)?(?![\w-])/g
+  },
+  {
+    description: 'important cursor override; use a disabled: or state variant',
+    allow: knownDrift.roomDirectoryActions,
+    pattern: /(?:^|[\s"'`])!cursor-[a-z-]+/g
+  },
+  {
+    description: 'hand-built inline link; use the link utility',
+    pattern:
+      /\btext-action\b[^"'`\n]*\bhover:underline\b|\bhover:underline\b[^"'`\n]*\btext-action\b/g
+  },
+  {
+    description:
+      'Tailwind 4 spacing and divide utilities are already logical; remove the RTL reverse',
+    pattern: /\brtl:(?:space|divide)-x-reverse\b/g
+  },
+  {
+    description: 'mirror directional icons with rtl:-scale-x-100',
+    pattern: /\brtl:(?:scale-x-\[-1\]|rotate-180)(?![\w-])/g
+  },
+  {
+    description:
+      'wheelchair or accessibility icons do not describe content; use icon-[uil--file-edit-alt]',
+    pattern: /icon-\[[a-z0-9]+--[\w-]*(?:wheelchair|accessib|universal-access)[\w-]*\]/g
+  },
+  {
+    description: 'hand-built button recipe; use Button from $lib/ui/form',
+    featureOnly: true,
+    allow: knownDrift.buttonRecipes,
+    // Attachment actions pair their square geometry with a btn tone by design.
+    skipLine: /attachment-action-button/,
+    pattern:
+      /(?<![\w-])btn(?:-(?:action|neutral|secondary|ghost|warning|danger|danger-secondary|danger-ghost|icon-action|sm|lg|xs))?(?![\w-])/g
+  },
+  {
+    description: 'raw select or textarea; use Select or TextArea from $lib/ui/form',
+    featureOnly: true,
+    allow: new Set([
+      // The code-block language picker is an invisible native select over
+      // editor chrome; the Select field treatment does not apply.
+      'src/lib/components/composer/TipTapEditor.svelte',
+      ...knownDrift.rawSelects
+    ]),
+    pattern: /<(?:select|textarea)\b/g
   },
   {
     description: 'retired color token; use action or neutral-action',
@@ -88,6 +166,72 @@ async function sourceFiles(directory) {
 
 const failures = [];
 const appCss = await readFile(appCssPath, 'utf8');
+const unusedStyleAllowlistEntries = new Set(styleBlockAllowlist);
+
+// Tailwind silently ignores color utilities whose token does not exist, so a
+// typo or a token from another design system renders nothing. Accept only the
+// --color-* tokens that src/app.css defines, plus CSS keywords.
+const colorTokens = new Set([
+  ...[...appCss.matchAll(/--color-([a-z0-9-]+)\s*:/g)].map((match) => match[1]),
+  'white',
+  'black',
+  'transparent',
+  'current',
+  'inherit'
+]);
+const paletteName =
+  /^(?:gray|slate|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)$/;
+const colorUtility =
+  /(?<![\w-])(?:[a-z0-9-]+:|\[[^\]]+\]:)*(text|bg|border|ring|outline|fill|stroke|divide|decoration|from|via|to|caret|placeholder|accent)-([a-z]+(?:-[a-z]+)*)(?=[\s"'`/}:]|$)/g;
+// Utilities that share a color prefix but set something other than a color.
+const nonColorSuffixes = {
+  text: /^(?:xs|sm|base|lg|[2-9]?xl|left|center|right|start|end|justify|wrap|nowrap|balance|pretty|ellipsis|clip|shadow)$/,
+  bg: /^(?:clip|origin|cover|contain|center|top|bottom|left|right|no-repeat|repeat|fixed|local|scroll|auto|none|blend|gradient-to|linear-to|radial|conic|size|position)(?:-[a-z-]+)?$/,
+  border:
+    /^(?:x|y|t|b|s|e|l|r|solid|dashed|dotted|double|none|hidden|collapse|separate|spacing|box|radius)(?:-[a-z]+)?$/,
+  ring: /^(?:inset|offset)(?:-[a-z]+)?$/,
+  outline: /^(?:none|hidden|dashed|dotted|double|solid|offset)(?:-[a-z]+)?$/,
+  fill: /^none$/,
+  stroke: /^none$/,
+  divide: /^(?:x|y|reverse|solid|dashed|dotted|double|none)(?:-[a-z]+)?$/,
+  decoration: /^(?:solid|double|dotted|dashed|wavy|auto|from-font|clone|slice)$/,
+  from: /^$/,
+  via: /^$/,
+  to: /^$/,
+  caret: /^$/,
+  placeholder: /^shown$/,
+  accent: /^(?:auto|swatch)$/
+};
+
+/** Opening tag of an icon-capable element; attribute values may nest braces. */
+const iconElement = /<(?:span|i|div)\b(?:[^>{}]|\{(?:[^{}]|\{[^{}]*\})*\})*>/g;
+
+// Right-to-left locales ship, so edges that follow reading direction must use
+// logical utilities. Centring with left-1/2 stays physical.
+const physicalDirection = new RegExp(
+  [
+    String.raw`(?<![\w-])(?:[a-z0-9-]+:)*-?(?:m[lr]|p[lr]|scroll-[mp][lr])-(?:[\d.]+|px|auto|\[[^\]]+\])(?![\w-])`,
+    String.raw`(?<![\w-])(?:[a-z0-9-]+:)*text-(?:left|right)(?![\w-])`,
+    String.raw`(?<![\w-])(?:[a-z0-9-]+:)*(?:border-[lr]|rounded-(?:[lr]|tl|tr|bl|br))(?:-[\w.[\]]+)?(?![\w-])`,
+    String.raw`(?<![\w/-])(?:[a-z0-9-]+:)*-?(?:left|right)-(?!1\/2\b)(?:[\d.]+|px|auto|full|\[[^\]]+\])(?![\w-])`
+  ].join('|'),
+  'g'
+);
+// Physical by design: measured coordinates, centring, media controls, and
+// overlays positioned against a physical anchor.
+const physicalDirectionAllowlist = new Set([
+  'src/lib/components/SimulatedChattoWordmark.svelte',
+  'src/lib/components/chat/FullscreenVideoOverlay.svelte',
+  'src/lib/components/composer/AutocompletePopup.svelte',
+  'src/lib/components/composer/TipTapEditor.svelte',
+  'src/lib/ui/SegmentedControl.svelte',
+  'src/lib/ui/TopOverlayNotice.svelte'
+]);
+
+/** Test harnesses, mocks, and stubs render fixture markup, not product UI. */
+function isTestSupportFile(path) {
+  return /(?:Harness|Mock|Stub|TestSurface)\.svelte$/.test(path);
+}
 
 if (!/@import\s+['"]tailwindcss['"]\s+source\(['"]\.\/['"]\)/.test(appCss)) {
   failures.push(
@@ -117,15 +261,38 @@ for (const file of await sourceFiles(sourceRoot)) {
 for (const file of await svelteFiles(sourceRoot)) {
   const path = relative(frontendRoot, file);
   const source = await readFile(file, 'utf8');
+  // Blank out ignored regions but keep their line breaks so reported line
+  // numbers match the source file.
+  const blank = (text) => text.replace(/[^\n]/g, ' ');
   const utilitySource = source
-    .replace(/<style[\s\S]*?<\/style>/g, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\/\/.*$/gm, '');
+    .replace(/<style[\s\S]*?<\/style>/g, blank)
+    .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/\/\/.*$/gm, blank);
 
-  if (source.includes('<style') && !styleBlockAllowlist.has(path)) {
-    failures.push(
-      `${path}: unreviewed <style> block; use Tailwind or update the documented allowlist`
-    );
+  if (source.includes('<style')) {
+    unusedStyleAllowlistEntries.delete(path);
+    if (!styleBlockAllowlist.has(path)) {
+      failures.push(
+        `${path}: unreviewed <style> block; use Tailwind or update the documented allowlist`
+      );
+    } else if (!/<style[^>]*>\s*\/\*/.test(source)) {
+      failures.push(
+        `${path}: allowlisted <style> block must open with a comment explaining why Tailwind or a semantic utility is insufficient`
+      );
+    }
+  }
+
+  if (!isTestSupportFile(path)) {
+    for (const match of utilitySource.matchAll(colorUtility)) {
+      const [, prefix, name] = match;
+      if (colorTokens.has(name) || nonColorSuffixes[prefix].test(name) || paletteName.test(name)) {
+        continue;
+      }
+      const line = utilitySource.slice(0, match.index).split('\n').length;
+      failures.push(
+        `${path}:${line}: unknown color token; use a --color-* token from src/app.css (${match[0].trim()})`
+      );
+    }
   }
 
   if (/<dialog\b/.test(utilitySource) && !nativeDialogAllowlist.has(path)) {
@@ -149,10 +316,14 @@ for (const file of await svelteFiles(sourceRoot)) {
     failures.push(`${path}: modal forms must use FormDialog instead of nesting a form in Dialog`);
   }
 
-  for (const { description, pattern } of checks) {
+  const sourceLines = utilitySource.split('\n');
+  for (const { description, pattern, featureOnly, allow, skipLine } of checks) {
+    if (allow?.has(path)) continue;
+    if (featureOnly && (path.startsWith('src/lib/ui/') || isTestSupportFile(path))) continue;
     pattern.lastIndex = 0;
     for (const match of utilitySource.matchAll(pattern)) {
       const line = utilitySource.slice(0, match.index).split('\n').length;
+      if (skipLine?.test(sourceLines[line - 1])) continue;
       failures.push(`${path}:${line}: ${description} (${match[0].trim()})`);
     }
   }
@@ -165,6 +336,29 @@ for (const file of await svelteFiles(sourceRoot)) {
       failures.push(
         `${path}: task dialogs must use primaryAction, secondaryActions, and dismissAction; custom footers are for viewer controls`
       );
+    }
+  }
+
+  if (!isTestSupportFile(path)) {
+    // Icon elements are empty spans, so assistive technology needs an explicit
+    // decision: hide decorative icons, or name meaningful ones with role="img".
+    for (const match of utilitySource.matchAll(iconElement)) {
+      const tag = match[0];
+      if (!tag.includes('icon-[') && !/\biconify\b/.test(tag)) continue;
+      if (/\baria-hidden\b|\brole=/.test(tag)) continue;
+      const line = utilitySource.slice(0, match.index).split('\n').length;
+      failures.push(
+        `${path}:${line}: icon without aria-hidden="true" or role="img" and an aria-label`
+      );
+    }
+
+    if (!physicalDirectionAllowlist.has(path)) {
+      for (const match of utilitySource.matchAll(physicalDirection)) {
+        const line = utilitySource.slice(0, match.index).split('\n').length;
+        failures.push(
+          `${path}:${line}: physical direction utility; use start/end, ms/me, ps/pe, text-start/text-end, border-s/e, or rounded-s/e (${match[0].trim()})`
+        );
+      }
     }
   }
 
@@ -181,6 +375,59 @@ for (const file of await svelteFiles(sourceRoot)) {
       `${path}:${line}: context-menu action groups must use sibling menu-section surfaces, not inline separators`
     );
   }
+}
+
+// Every public component exported from a design-system index needs a story.
+// A component that only makes sense inside another primitive may rely on that
+// primitive's story, which must import it so this entry cannot go stale.
+const storyIndexes = [
+  'src/lib/ui/index.ts',
+  'src/lib/ui/form/index.ts',
+  'src/lib/ui/toast/index.ts',
+  'src/lib/ui/matrix/index.ts',
+  'src/lib/components/admin/index.ts'
+];
+const parentStories = new Map([
+  ['src/lib/ui/MenuSection.svelte', 'src/lib/ui/ContextMenu.stories.svelte'],
+  ['src/lib/ui/matrix/MatrixColumnHeading.svelte', 'src/lib/ui/matrix/MatrixTable.stories.svelte']
+]);
+
+for (const index of storyIndexes) {
+  const indexSource = await readFile(resolve(frontendRoot, index), 'utf8');
+  for (const match of indexSource.matchAll(
+    /default as \w+\s*\}\s*from\s+['"](\.\/[^'"]+\.svelte)['"]/g
+  )) {
+    const component = relative(frontendRoot, resolve(frontendRoot, index, '..', match[1]));
+    const ownStory = component.replace(/\.svelte$/, '.stories.svelte');
+    if (await readFile(resolve(frontendRoot, ownStory), 'utf8').catch(() => null)) continue;
+
+    // The parent story covers the component when it renders it directly or
+    // through the parent component that the story documents.
+    const parentStory = parentStories.get(component);
+    const componentName = component
+      .split('/')
+      .pop()
+      .replace(/\.svelte$/, '');
+    const mentionsComponent = async (file) =>
+      new RegExp(`\\b${componentName}\\b`).test(
+        await readFile(resolve(frontendRoot, file), 'utf8').catch(() => '')
+      );
+    if (
+      parentStory &&
+      ((await mentionsComponent(parentStory)) ||
+        (await mentionsComponent(parentStory.replace(/\.stories\.svelte$/, '.svelte'))))
+    ) {
+      continue;
+    }
+
+    failures.push(
+      `${component}: public component exported from ${index} has no story; add ${ownStory}`
+    );
+  }
+}
+
+for (const path of unusedStyleAllowlistEntries) {
+  failures.push(`${path}: stale <style> allowlist entry; remove it from styleBlockAllowlist`);
 }
 
 if (failures.length > 0) {

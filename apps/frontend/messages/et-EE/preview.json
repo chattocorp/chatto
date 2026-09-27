@@ -4,6 +4,8 @@
     "delete": "Kustuta eelvaade",
     "open_link": "Ava link",
     "copy_url": "Kopeeri URL",
+    "url_copied": "URL kopeeriti lõikelauale",
+    "copy_url_failed": "URL-i kopeerimine ebaõnnestus",
     "show_content": "Näita sisu",
     "hide_content": "Peida sisu",
     "youtube_title": "YouTube'i video",

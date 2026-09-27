@@ -103,6 +103,7 @@
         "copy_message_link": "Kopiera meddelandelänk",
         "copy_image": "Kopiera bild",
         "link_copied": "Länk kopierad",
+        "message_link_copied": "Meddelandelänken har kopierats",
         "copy_link_failed": "Det gick inte att kopiera länken",
         "image_copied": "Bilden har kopierats",
         "copy_image_failed": "Det gick inte att kopiera bilden"
@@ -218,6 +219,7 @@
       "call": "Ring",
       "jump_to_file": "Hoppa till {filename}",
       "loading_files": "Laddar filer...",
+      "loading_members": "Laddar medlemmar...",
       "calls_unavailable": "Samtal är inte tillgängliga på den här servern.",
       "view_profile": "Visa profil för {name}",
       "in_voice_call": "I ett röstsamtal",

@@ -6,6 +6,7 @@
   import UnreadDot from './ui/UnreadDot.svelte';
   import type { ServerIndicator } from './state/server/store.svelte';
   import type { Attachment } from 'svelte/attachments';
+  import { m } from '$lib/i18n/messages';
 
   let {
     server,
@@ -67,25 +68,25 @@
     {#if server}
       <ServerLogo {server} />
     {:else if icon}
-      <span class={icon}></span>
+      <span class={icon} aria-hidden="true"></span>
     {/if}
   </a>
 
   {#if signInRequired}
     <span
-      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
+      class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
       data-testid="server-sign-in-required"
       aria-hidden="true"
     >
-      <span class="iconify icon-[uil--exclamation-circle] text-xs"></span>
+      <span class="iconify icon-[uil--exclamation-circle] text-xs" aria-hidden="true"></span>
     </span>
   {:else if compatibilityWarning}
     <span
-      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
+      class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
       data-testid="server-compatibility-warning"
       aria-hidden="true"
     >
-      <span class="iconify icon-[uil--exclamation-circle] text-xs"></span>
+      <span class="iconify icon-[uil--exclamation-circle] text-xs" aria-hidden="true"></span>
     </span>
   {/if}
 
@@ -97,12 +98,12 @@
           e.stopPropagation();
           onIndicatorClick(indicator, e);
         }}
-        class="absolute -top-1.5 -right-1.5 z-10 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        class="absolute -end-1.5 -top-1.5 z-10 flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
         aria-label={indicator === 'notification' && notificationCount > 0
-          ? `Go to ${notificationCount} notifications`
+          ? m('chat.server_gutter.go_to_notifications_count', { count: notificationCount })
           : indicator === 'notification'
-            ? 'Go to notification'
-            : 'Go to first unread room'}
+            ? m('chat.server_gutter.go_to_notification')
+            : m('chat.server_gutter.go_to_first_unread')}
       >
         {#if indicator === 'notification' && notificationCount > 0}
           <NotificationBadge
@@ -111,7 +112,9 @@
             overlay
             testid="server-notification-badge"
           />
-          <span class="sr-only">{notificationCount} notifications</span>
+          <span class="sr-only"
+            >{m('chat.server_gutter.notifications_count', { count: notificationCount })}</span
+          >
         {:else}
           <UnreadDot
             color={indicator === 'notification'
@@ -129,10 +132,12 @@
         count={notificationCount}
         color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
         overlay
-        class="absolute top-0 right-0 z-10"
+        class="absolute end-0 top-0 z-10"
         testid="server-notification-badge"
       />
-      <span class="sr-only">{notificationCount} notifications</span>
+      <span class="sr-only"
+        >{m('chat.server_gutter.notifications_count', { count: notificationCount })}</span
+      >
     {:else}
       <UnreadDot
         color={indicator === 'notification'
@@ -141,7 +146,7 @@
             : 'ambient'
           : 'muted'}
         overlay
-        class="absolute top-0 right-0 z-10"
+        class="absolute end-0 top-0 z-10"
         testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
       />
     {/if}

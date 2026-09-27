@@ -882,7 +882,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {#if room.isUniversal}
             <span
               class={[
-                'iconify sidebar-icon icon-[uil--globe] transition-opacity',
+                'iconify sidebar-icon icon-[uil--globe] transition-opacity feedback-quick',
                 showUnread ? 'text-text-top' : 'text-muted',
                 showDragHandle
                   ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
@@ -895,7 +895,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {:else}
             <span
               class={[
-                'sidebar-icon transition-opacity',
+                'sidebar-icon transition-opacity feedback-quick',
                 showUnread ? 'text-text-top' : 'text-muted',
                 showDragHandle
                   ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
@@ -906,7 +906,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {:else if room.viewerCanJoinRoom}
           <span
             class={[
-              'sidebar-icon text-muted transition-opacity',
+              'sidebar-icon text-muted transition-opacity feedback-quick',
               showDragHandle
                 ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
                 : ''
@@ -915,11 +915,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {:else}
           <span
             class={[
-              'iconify sidebar-icon icon-[uil--lock] text-muted transition-opacity',
+              'iconify sidebar-icon icon-[uil--lock] text-muted transition-opacity feedback-quick',
               showDragHandle
                 ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
                 : ''
             ]}
+            role="img"
+            aria-label={m('room.directory.restricted')}
+            title={m('room.directory.restricted_title')}
           ></span>
         {/if}
         {#if showDragHandle}
@@ -942,7 +945,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </span>
       <span class="flex-1 truncate">{room.name}</span>
     {/if}
-    <div class="relative ml-auto flex shrink-0 items-center">
+    <div class="relative ms-auto flex shrink-0 items-center">
       <div class="flex shrink-0 items-center gap-2">
         {#if showActiveCall}
           {@render activeCallParticipants(room.id)}
@@ -992,7 +995,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {...sidebarLinkAnchorAttributes(target)}
       aria-disabled={!target.valid}
       class={[
-        'group/link sidebar-item w-full text-left',
+        'group/link sidebar-item w-full text-start',
         !target.valid && 'cursor-not-allowed opacity-60'
       ]}
       {@attach owningGroup ? linkMenuTrigger(owningGroup, item) : undefined}
@@ -1002,8 +1005,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     >
       <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">
         <span
+          aria-hidden="true"
           class={[
-            'iconify sidebar-icon icon-[uil--external-link-alt] text-muted transition-opacity',
+            'iconify sidebar-icon icon-[uil--external-link-alt] text-muted transition-opacity feedback-quick',
             showDragHandle
               ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0 touch-input:opacity-0'
               : ''

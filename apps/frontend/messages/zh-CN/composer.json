@@ -34,12 +34,16 @@
     "post_as_new_message": "作为新消息发布",
     "continue_in_thread": "在话题中继续",
     "edit_failed": "消息编辑失败",
+    "edit_empty": "消息不能为空",
     "upload": {
       "preparing": "正在准备…",
       "uploading": "已上传 {percentage}%",
       "uploaded": "已上传",
       "failed": "上传失败",
-      "remove": "移除 {filename}"
+      "remove": "移除 {filename}",
+      "video_disabled": "此服务器已禁用视频上传。",
+      "prepare_failed": "准备附件失败",
+      "too_large": "{filename} 太大（{size}）。上限为 {limit}。"
     },
     "format": {
       "bold": "粗体",

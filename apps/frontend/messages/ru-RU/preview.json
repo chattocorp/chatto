@@ -4,6 +4,8 @@
     "delete": "Удалить предварительный просмотр",
     "open_link": "Открыть ссылку",
     "copy_url": "Копировать URL",
+    "url_copied": "URL скопирован в буфер обмена",
+    "copy_url_failed": "Не удалось скопировать URL",
     "show_content": "Показать контент",
     "hide_content": "Скрыть контент",
     "youtube_title": "видео на YouTube",

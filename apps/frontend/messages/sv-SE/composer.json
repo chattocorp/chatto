@@ -34,12 +34,16 @@
     "post_as_new_message": "Publicera som nytt meddelande",
     "continue_in_thread": "Fortsätt i tråden",
     "edit_failed": "Det gick inte att redigera meddelandet",
+    "edit_empty": "Meddelandet får inte vara tomt",
     "upload": {
       "preparing": "Förbereder…",
       "uploading": "{percentage} % uppladdat",
       "uploaded": "Uppladdad",
       "failed": "Uppladdningen misslyckades",
-      "remove": "Ta bort {filename}"
+      "remove": "Ta bort {filename}",
+      "video_disabled": "Videouppladdningar är inaktiverade på den här servern.",
+      "prepare_failed": "Det gick inte att förbereda bilagan",
+      "too_large": "{filename} är för stor ({size}). Maxstorleken är {limit}."
     },
     "format": {
       "bold": "Fet",

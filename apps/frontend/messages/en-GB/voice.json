@@ -9,6 +9,7 @@
     "join_call": "Join call",
     "start_call": "Start call",
     "leave": "Leave call",
+    "open_call_room": "Open {room}",
     "share_screen": "Share screen",
     "stop_share_screen": "Stop sharing screen",
     "applications": "Applications",

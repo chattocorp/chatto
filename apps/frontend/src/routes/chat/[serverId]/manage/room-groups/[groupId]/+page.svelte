@@ -12,7 +12,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
@@ -211,24 +211,25 @@
       subtitle={m('admin.rooms_admin.rename_group')}
       {backHref}
       backLabel={m('admin.rooms_admin.back_to_rooms')}
-      showMobileNav
     />
 
-    <div class="flex flex-col gap-6 overflow-y-auto p-6">
-      {#if group && canManageGroup}
-        {#key `${activeServerId}:${serverScope.connection.queryScope}:${group.id}:${formRevision}`}
-          <RoomGroupGeneralSettingsPanel {group} {saving} onSave={saveGeneralSettings} />
-        {/key}
-      {/if}
+    <PaneContent>
+      <div class="flex flex-col gap-6">
+        {#if group && canManageGroup}
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${group.id}:${formRevision}`}
+            <RoomGroupGeneralSettingsPanel {group} {saving} onSave={saveGeneralSettings} />
+          {/key}
+        {/if}
 
-      <div class="flex flex-col gap-4">
-        <h2 class="text-lg font-semibold text-text-top">
-          {m('admin.rooms_admin.group_permissions_title_fallback')}
-        </h2>
-        <Hint>{m('admin.rooms_admin.group_permissions_hint')}</Hint>
-        <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-        <PermissionMatrix {groupId} />
+        <div class="flex flex-col gap-4">
+          <Hint>{m('admin.rooms_admin.group_permissions_hint')}</Hint>
+          <Hint>{m('admin.permissions.resolution_hint')}</Hint>
+          <PermissionMatrix
+            {groupId}
+            subtitle={m('admin.rooms_admin.group_permissions_subtitle')}
+          />
+        </div>
       </div>
-    </div>
+    </PaneContent>
   </div>
 {/if}

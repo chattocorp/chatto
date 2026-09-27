@@ -60,7 +60,17 @@
       "unreachable": "Servidor inacessível",
       "connection_unavailable": "Conexão indisponível",
       "compatibility_server_too_old": "Este servidor precisa ser atualizado para o Chatto 0.5 ou mais recente antes que este aplicativo possa se conectar.",
-      "compatibility_unknown": "Este aplicativo não consegue determinar a compatibilidade pela versão do servidor."
+      "compatibility_unknown": "Este aplicativo não consegue determinar a compatibilidade pela versão do servidor.",
+      "go_to_notifications_count": {
+        "one": "Ir para {count} notificação",
+        "other": "Ir para {count} notificações"
+      },
+      "go_to_notification": "Ir para a notificação",
+      "go_to_first_unread": "Ir para a primeira sala não lida",
+      "notifications_count": {
+        "one": "{count} notificação",
+        "other": "{count} notificações"
+      }
     },
     "threads": {
       "title": "Meus tópicos",

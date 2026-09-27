@@ -220,7 +220,7 @@
           aria-current={isHomeActive ? 'page' : undefined}
           class="sidebar-item"
         >
-          <span class="iconify sidebar-icon icon-[uil--estate]"></span>
+          <span aria-hidden="true" class="iconify sidebar-icon icon-[uil--estate]"></span>
           {m('chat.overview.title')}
         </a>
         {#if messageSearchAvailable}

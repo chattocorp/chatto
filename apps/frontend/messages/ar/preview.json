@@ -4,6 +4,8 @@
     "delete": "حذف المعاينة",
     "open_link": "افتح الرابط",
     "copy_url": "انسخ عنوان URL",
+    "url_copied": "تم نسخ عنوان URL إلى الحافظة",
+    "copy_url_failed": "فشل نسخ عنوان URL",
     "show_content": "عرض المحتوى",
     "hide_content": "إخفاء المحتوى",
     "youtube_title": "فيديو YouTube",

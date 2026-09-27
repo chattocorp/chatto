@@ -4,6 +4,8 @@
     "delete": "Usuń podgląd",
     "open_link": "Otwórz link",
     "copy_url": "Skopiuj URL",
+    "url_copied": "Skopiowano URL do schowka",
+    "copy_url_failed": "Nie udało się skopiować URL",
     "show_content": "Pokaż treść",
     "hide_content": "Ukryj treść",
     "youtube_title": "Film YouTube",

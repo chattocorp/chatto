@@ -60,7 +60,17 @@
       "unreachable": "サーバーに接続できません",
       "connection_unavailable": "接続できません",
       "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
-      "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。"
+      "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。",
+      "go_to_notifications_count": {
+        "one": "{count} 件の通知に移動",
+        "other": "{count} 件の通知に移動"
+      },
+      "go_to_notification": "通知に移動",
+      "go_to_first_unread": "最初の未読ルームに移動",
+      "notifications_count": {
+        "one": "{count} 件の通知",
+        "other": "{count} 件の通知"
+      }
     },
     "threads": {
       "title": "私のスレッド",

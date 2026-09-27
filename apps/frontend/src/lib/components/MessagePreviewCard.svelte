@@ -247,7 +247,11 @@ preview on screen.
   <div
     role="link"
     tabindex="0"
-    aria-label={`Open linked message${displayName ? ` from ${formatAccountName(displayName, preview.actor)}` : ''}`}
+    aria-label={displayName
+      ? m('message_preview.open_linked_message_from', {
+          name: formatAccountName(displayName, preview.actor)
+        })
+      : m('message_preview.open_linked_message')}
     data-testid="message-preview-card"
     class="group/preview relative embed-frame flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col"
     onclick={openPreview}
@@ -257,7 +261,6 @@ preview on screen.
       <div
         class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-emphasized/60 px-3 py-2"
       >
-        <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-action/70"></div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           {#if spaceName || roomName}
             <span class="truncate text-xs tracking-wide text-muted">
@@ -320,6 +323,7 @@ preview on screen.
                   >
                     <span
                       class="iconify icon-[uil--play] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm"
+                      aria-hidden="true"
                     ></span>
                   </span>
                 {/if}
@@ -329,10 +333,7 @@ preview on screen.
                 class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-emphasized text-xs text-muted"
               >
                 {#if attachment.contentType.startsWith('video/')}
-                  <span
-                    class="iconify icon-[uil--play] flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm"
-                    aria-hidden="true"
-                  ></span>
+                  <span class="iconify icon-[uil--play] text-lg" aria-hidden="true"></span>
                 {:else}
                   {attachmentLabel(attachment.contentType)}
                 {/if}
@@ -365,7 +366,7 @@ preview on screen.
         class="embed-control-button"
         aria-label={m('preview.dismiss')}
       >
-        <span class="iconify icon-[uil--times] text-sm"></span>
+        <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
       </button>
     {/if}
   </div>

@@ -204,6 +204,14 @@ polls the cache briefly after a change. See FDR-042.
     editOrigin = '';
   }
 
+  /** Saves the inline origin edit for a Neighbor; Enter in the field submits it. */
+  function submitOriginEdit(event: SubmitEvent, neighbor: Neighbor) {
+    event.preventDefault();
+    if (updateMutationState.isPending) return;
+    if (!editTarget || !normalizedEditOrigin || normalizedEditOrigin === neighbor.origin) return;
+    updateMutationState.mutate({ ...editTarget, origin: normalizedEditOrigin });
+  }
+
   function showError(error: unknown) {
     toast.error(error instanceof Error ? error.message : String(error));
   }
@@ -214,11 +222,7 @@ polls the cache briefly after a change. See FDR-042.
 />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('admin.neighbors.title')}
-    subtitle={m('admin.neighbors.subtitle')}
-    showMobileNav
-  />
+  <PaneHeader title={m('admin.neighbors.title')} subtitle={m('admin.neighbors.subtitle')} />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
@@ -250,7 +254,7 @@ polls the cache briefly after a change. See FDR-042.
               loading={createMutationState.isPending}
               disabled={!normalizedNewOrigin}
             >
-              <span class="iconify icon-[uil--plus]"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
               {m('admin.neighbors.add')}
             </Button>
           </div>
@@ -270,8 +274,11 @@ polls the cache briefly after a change. See FDR-042.
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each neighbors as neighbor (neighbor.id)}
               {#snippet actions()}
-                <div class="flex flex-col gap-3">
-                  {#if editTarget?.neighbor.id === neighbor.id}
+                {#if editTarget?.neighbor.id === neighbor.id}
+                  <form
+                    class="flex flex-col gap-3"
+                    onsubmit={(event) => submitOriginEdit(event, neighbor)}
+                  >
                     <TextInput
                       id={`neighbor-origin-${neighbor.id}`}
                       label={m('admin.neighbors.origin')}
@@ -279,43 +286,37 @@ polls the cache briefly after a change. See FDR-042.
                       bind:value={editOrigin}
                       disabled={updateMutationState.isPending}
                     />
-                  {/if}
 
-                  <div class="flex justify-end gap-2">
-                    {#if editTarget?.neighbor.id === neighbor.id}
+                    <div class="flex justify-end gap-2">
                       <Button size="sm" variant="secondary" onclick={cancelEdit}>
                         {m('admin.neighbors.cancel')}
                       </Button>
                       <Button
+                        type="submit"
                         size="sm"
                         loading={updateMutationState.isPending}
                         disabled={!normalizedEditOrigin || normalizedEditOrigin === neighbor.origin}
-                        onclick={() =>
-                          editTarget &&
-                          normalizedEditOrigin &&
-                          updateMutationState.mutate({
-                            ...editTarget,
-                            origin: normalizedEditOrigin
-                          })}
                       >
                         {m('admin.neighbors.save')}
                       </Button>
-                    {:else}
-                      <Button size="sm" variant="secondary" onclick={() => startEdit(neighbor)}>
-                        <span class="iconify icon-[uil--edit]"></span>
-                        {m('admin.neighbors.edit')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onclick={() => (deleteTarget = { ...mutationVariables(), neighbor })}
-                      >
-                        <span class="iconify icon-[uil--trash-alt]"></span>
-                        {m('admin.neighbors.delete')}
-                      </Button>
-                    {/if}
+                    </div>
+                  </form>
+                {:else}
+                  <div class="flex justify-end gap-2">
+                    <Button size="sm" variant="secondary" onclick={() => startEdit(neighbor)}>
+                      <span aria-hidden="true" class="iconify icon-[uil--edit]"></span>
+                      {m('admin.neighbors.edit')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onclick={() => (deleteTarget = { ...mutationVariables(), neighbor })}
+                    >
+                      <span aria-hidden="true" class="iconify icon-[uil--trash-alt]"></span>
+                      {m('admin.neighbors.delete')}
+                    </Button>
                   </div>
-                </div>
+                {/if}
               {/snippet}
               <ServerProfileCard
                 origin={neighbor.origin}

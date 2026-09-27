@@ -103,6 +103,7 @@
         "copy_message_link": "Copy message link",
         "copy_image": "Copy image",
         "link_copied": "Link copied",
+        "message_link_copied": "Message link copied",
         "copy_link_failed": "Failed to copy link",
         "image_copied": "Image copied",
         "copy_image_failed": "Failed to copy image"
@@ -218,6 +219,7 @@
       "call": "Call",
       "jump_to_file": "Jump to {filename}",
       "loading_files": "Loading files...",
+      "loading_members": "Loading members...",
       "calls_unavailable": "Calls are not available on this server.",
       "view_profile": "View profile of {name}",
       "in_voice_call": "In a voice call",

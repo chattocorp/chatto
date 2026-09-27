@@ -58,7 +58,6 @@
     title={m('admin.event_log.event_title', { sequence })}
     subtitle={m('admin.event_log.event_subtitle')}
     {backHref}
-    showMobileNav
   />
 
   <PaneContent>

@@ -12,6 +12,8 @@
   import { completeServerOAuthFlow } from '$lib/auth/reauth';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import LoadingPage from '$lib/ui/LoadingPage.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -111,18 +113,15 @@
 
 <PageTitle title={m('auth.callback.connecting_title')} />
 
-<div class="flex min-h-0 flex-1 items-center justify-center p-8">
+<div class="flex min-h-0 flex-1 flex-col p-8">
   {#if status === 'loading'}
-    <div class="flex flex-col items-center gap-4">
-      <span class="iconify icon-[mdi--loading] animate-spin text-3xl text-muted"></span>
-      <p class="text-muted">{m('auth.callback.completing')}</p>
-    </div>
+    <LoadingPage message={m('auth.callback.completing')} />
   {:else}
-    <div class="flex max-w-md flex-col items-center gap-4 text-center">
-      <span class="iconify icon-[uil--exclamation-triangle] text-4xl text-danger"></span>
-      <p class="font-medium">{m('auth.callback.failed_title')}</p>
-      <p class="text-sm text-muted">{errorMessage}</p>
-      <Button href={resolve('/')} variant="secondary">{m('common.retry')}</Button>
-    </div>
+    <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('auth.callback.failed_title')}>
+      <div class="flex max-w-md flex-col items-center gap-4">
+        <p>{errorMessage}</p>
+        <Button href={resolve('/')} variant="secondary">{m('common.retry')}</Button>
+      </div>
+    </EmptyState>
   {/if}
 </div>

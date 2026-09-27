@@ -23,6 +23,7 @@
   import { m } from '$lib/i18n/messages';
 
   import Panel from '$lib/ui/Panel.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
   import FormError from '$lib/ui/form/FormError.svelte';
@@ -443,7 +444,7 @@
             disabled={!changed || !name.trim() || !!nameError}
             loadingText={m('server_settings.saving')}
           >
-            <span class="iconify icon-[uil--check]"></span>
+            <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
             {m('server_settings.save_button')}
           </Button>
         </div>
@@ -464,7 +465,7 @@
         />
         <!-- Logo Preview -->
         <div
-          class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface text-5xl font-black text-muted shadow-md"
+          class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface text-5xl font-black text-muted"
         >
           {#if logoUrl}
             <img
@@ -497,7 +498,7 @@
               loadingText={m('server_settings.uploading')}
             >
               <span class="inline-flex items-center gap-2">
-                <span class="iconify icon-[uil--image-upload]"></span>
+                <span aria-hidden="true" class="iconify icon-[uil--image-upload]"></span>
                 {logoUrl ? m('server_settings.logo_change') : m('server_settings.logo_upload')}
               </span>
             </Button>
@@ -510,7 +511,7 @@
                 loadingText={m('server_settings.removing')}
               >
                 <span class="inline-flex items-center gap-2">
-                  <span class="iconify icon-[uil--trash-alt]"></span>
+                  <span aria-hidden="true" class="iconify icon-[uil--trash-alt]"></span>
                   {m('server_settings.remove')}
                 </span>
               </Button>
@@ -535,7 +536,7 @@
         <!-- Banner Preview — capped width so the OG-aspect 1200×630 doesn't
              swallow the panel on wide layouts. -->
         {#if bannerUrl}
-          <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-emphasized shadow-md">
+          <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface">
             <img
               src={bannerUrl}
               alt={m('server_settings.banner_alt')}
@@ -570,7 +571,7 @@
               loadingText={m('server_settings.uploading')}
             >
               <span class="inline-flex items-center gap-2">
-                <span class="iconify icon-[uil--image-upload]"></span>
+                <span aria-hidden="true" class="iconify icon-[uil--image-upload]"></span>
                 {bannerUrl
                   ? m('server_settings.banner_change')
                   : m('server_settings.banner_upload')}
@@ -585,7 +586,7 @@
                 loadingText={m('server_settings.removing')}
               >
                 <span class="inline-flex items-center gap-2">
-                  <span class="iconify icon-[uil--trash-alt]"></span>
+                  <span aria-hidden="true" class="iconify icon-[uil--trash-alt]"></span>
                   {m('server_settings.remove')}
                 </span>
               </Button>
@@ -596,5 +597,5 @@
     </Panel>
   </div>
 {:else if error}
-  <div class="text-danger">{error}</div>
+  <Hint tone="danger">{error}</Hint>
 {/if}

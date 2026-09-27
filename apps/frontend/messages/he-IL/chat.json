@@ -60,7 +60,19 @@
       "unreachable": "לא ניתן להגיע לשרת",
       "connection_unavailable": "החיבור אינו זמין",
       "compatibility_server_too_old": "יש לשדרג את השרת הזה ל-Chatto 0.5 או חדש לפני שהאפליקציה הזו תוכל להתחבר.",
-      "compatibility_unknown": "אפליקציה זו אינה יכולה לקבוע תאימות מגרסת השרת."
+      "compatibility_unknown": "אפליקציה זו אינה יכולה לקבוע תאימות מגרסת השרת.",
+      "go_to_notifications_count": {
+        "one": "עבור אל {count} התראה",
+        "two": "עבור אל {count} התראות",
+        "other": "עבור אל {count} התראות"
+      },
+      "go_to_notification": "עבור אל ההתראה",
+      "go_to_first_unread": "עבור אל החדר הראשון שלא נקרא",
+      "notifications_count": {
+        "one": "{count} התראה",
+        "two": "{count} התראות",
+        "other": "{count} התראות"
+      }
     },
     "threads": {
       "title": "השרשורים שלי",

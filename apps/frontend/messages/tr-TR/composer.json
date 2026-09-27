@@ -34,12 +34,16 @@
     "post_as_new_message": "Yeni mesaj olarak gönder",
     "continue_in_thread": "İleti dizisinde devam et",
     "edit_failed": "Mesaj düzenlenemedi",
+    "edit_empty": "Mesaj boş olamaz",
     "upload": {
       "preparing": "Hazırlanıyor…",
       "uploading": "%{percentage} yüklendi",
       "uploaded": "Yüklendi",
       "failed": "Yükleme başarısız oldu",
-      "remove": "{filename} öğesini kaldır"
+      "remove": "{filename} öğesini kaldır",
+      "video_disabled": "Bu sunucuda video yüklemeleri devre dışı.",
+      "prepare_failed": "Ek hazırlanamadı",
+      "too_large": "{filename} çok büyük ({size}). En fazla {limit} olabilir."
     },
     "format": {
       "bold": "Kalın",

@@ -60,7 +60,21 @@
       "unreachable": "Сервер недоступний",
       "connection_unavailable": "З’єднання недоступне",
       "compatibility_server_too_old": "Цей сервер потрібно оновити до Chatto 0.5 або новішої версії, перш ніж цей застосунок зможе підключитися.",
-      "compatibility_unknown": "Цей застосунок не може визначити сумісність за версією сервера."
+      "compatibility_unknown": "Цей застосунок не може визначити сумісність за версією сервера.",
+      "go_to_notifications_count": {
+        "one": "Перейти до {count} сповіщення",
+        "few": "Перейти до {count} сповіщень",
+        "many": "Перейти до {count} сповіщень",
+        "other": "Перейти до {count} сповіщення"
+      },
+      "go_to_notification": "Перейти до сповіщення",
+      "go_to_first_unread": "Перейти до першої непрочитаної кімнати",
+      "notifications_count": {
+        "one": "{count} сповіщення",
+        "few": "{count} сповіщення",
+        "many": "{count} сповіщень",
+        "other": "{count} сповіщення"
+      }
     },
     "threads": {
       "title": "Мої теми",

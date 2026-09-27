@@ -9,7 +9,7 @@
   import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import Panel from '$lib/ui/Panel.svelte';
-  import { PaneContent } from '$lib/ui';
+  import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -139,7 +139,6 @@
       serverId: serverIdToSegment(serverScope.serverId)
     })}
     backLabel={m('admin.permissions.back_to_permissions')}
-    showMobileNav
   />
 
   <PaneContent>
@@ -147,9 +146,7 @@
       {#if loading}
         <LoadingFog class="h-32 w-full" />
       {:else if !canManageRoles}
-        <div class="text-danger">
-          {m('admin.permissions.need_manage_create')}
-        </div>
+        <Hint tone="danger">{m('admin.permissions.need_manage_create')}</Hint>
       {:else}
         {#if error}
           <FormError {error} />

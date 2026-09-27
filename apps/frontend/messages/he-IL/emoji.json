@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "אימוג'י חיפוש...",
-    "no_results": "לא נמצאו אמוג'י"
+    "no_results": "לא נמצאו אמוג'י",
+    "recently_used": "בשימוש לאחרונה"
   }
 }

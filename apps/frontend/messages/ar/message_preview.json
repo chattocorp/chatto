@@ -11,6 +11,8 @@
     "attachment_image": "صورة",
     "attachment_video": "فيديو",
     "attachment_audio": "صوت",
-    "attachment_file": "ملف"
+    "attachment_file": "ملف",
+    "open_linked_message": "فتح الرسالة المرتبطة",
+    "open_linked_message_from": "فتح الرسالة المرتبطة من {name}"
   }
 }

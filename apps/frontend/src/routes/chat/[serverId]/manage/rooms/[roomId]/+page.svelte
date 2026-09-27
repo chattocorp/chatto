@@ -257,7 +257,6 @@
       title={room ? `#${room.name}` : m('room_list.room_settings')}
       subtitle={m('room_list.room_settings')}
       {backHref}
-      showMobileNav
     />
 
     <PaneContent bind:scrollContainer>
@@ -283,12 +282,13 @@
         {/if}
 
         <div class="flex flex-col gap-4">
-          <h2 class="text-lg font-semibold text-text-top">
-            {m('admin.rooms_admin.room_permissions_title_fallback')}
-          </h2>
           <Hint>{m('admin.rooms_admin.room_permissions_hint')}</Hint>
           <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-          <PermissionMatrix {roomId} scrollContents={false} />
+          <PermissionMatrix
+            {roomId}
+            subtitle={m('admin.rooms_admin.room_permissions_subtitle')}
+            scrollContents={false}
+          />
         </div>
       </div>
     </PaneContent>

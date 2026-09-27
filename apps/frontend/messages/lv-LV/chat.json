@@ -60,7 +60,19 @@
       "unreachable": "Serveris nav sasniedzams",
       "connection_unavailable": "Savienojums nav pieejams",
       "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto 0.5 vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",
-      "compatibility_unknown": "Šī lietotne nevar noteikt saderību no servera versijas."
+      "compatibility_unknown": "Šī lietotne nevar noteikt saderību no servera versijas.",
+      "go_to_notifications_count": {
+        "zero": "Pāriet uz {count} paziņojumiem",
+        "one": "Pāriet uz {count} paziņojumu",
+        "other": "Pāriet uz {count} paziņojumiem"
+      },
+      "go_to_notification": "Pāriet uz paziņojumu",
+      "go_to_first_unread": "Pāriet uz pirmo nelasīto telpu",
+      "notifications_count": {
+        "zero": "{count} paziņojumu",
+        "one": "{count} paziņojums",
+        "other": "{count} paziņojumi"
+      }
     },
     "threads": {
       "title": "Mani pavedieni",

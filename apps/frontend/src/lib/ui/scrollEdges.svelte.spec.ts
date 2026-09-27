@@ -6,8 +6,9 @@ afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
 });
 
-function viewport() {
+function viewport(dir: 'ltr' | 'rtl' = 'ltr') {
   const element = document.createElement('div');
+  element.dir = dir;
   element.style.cssText = 'width: 100px; height: 100px; overflow: auto; position: fixed;';
   const content = document.createElement('div');
   content.style.cssText = 'display: flow-root; width: max-content; min-width: 100%;';
@@ -31,6 +32,20 @@ describe('scroll edge attachment', () => {
     element.scrollTo(50, 50);
     await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith({ start: true, end: true }));
     element.scrollTo(1000, 1000);
+    await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith({ start: true, end: false }));
+  });
+
+  it('reports logical inline edges in a right-to-left viewport', async () => {
+    const { element, content } = viewport('rtl');
+    const changed = vi.fn();
+    const cleanup = trackScrollEdges('x', changed)(content);
+    if (cleanup) cleanups.push(cleanup);
+    expect(changed).toHaveBeenLastCalledWith({ start: false, end: true });
+
+    // Right-to-left scrollLeft starts at 0 and decreases towards the inline end.
+    element.scrollTo(-50, 0);
+    await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith({ start: true, end: true }));
+    element.scrollTo(-1000, 0);
     await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith({ start: true, end: false }));
   });
 
@@ -75,5 +90,17 @@ describe('scroll edge attachment', () => {
     expect(readScrollEdges(element, 'y')).toEqual({ start: true, end: false });
     Object.defineProperty(element, 'scrollHeight', { value: 101 });
     expect(readScrollEdges(element, 'y')).toEqual({ start: false, end: false });
+  });
+
+  it('handles right-to-left overscroll past the inline start', () => {
+    const { element } = viewport('rtl');
+    Object.defineProperties(element, {
+      scrollLeft: { value: 20, configurable: true },
+      scrollWidth: { value: 300, configurable: true },
+      clientWidth: { value: 100 }
+    });
+    expect(readScrollEdges(element, 'x')).toEqual({ start: false, end: true });
+    Object.defineProperty(element, 'scrollLeft', { value: -220 });
+    expect(readScrollEdges(element, 'x')).toEqual({ start: true, end: false });
   });
 });

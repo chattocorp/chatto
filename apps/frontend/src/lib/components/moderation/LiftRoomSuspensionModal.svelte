@@ -84,7 +84,7 @@
       <div
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
       >
-        <span class="iconify icon-[uil--user] text-lg"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--user] text-lg"></span>
       </div>
     {/if}
     <div class="min-w-0 flex-1">

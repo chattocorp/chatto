@@ -107,7 +107,7 @@ Shows matching room members when typing @username in chat input.
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
-        <span class="iconify icon-[uil--megaphone] h-4 w-4"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--megaphone] h-4 w-4"></span>
       </div>
       <bdi class="min-w-0 truncate text-sm text-text">{result.label}</bdi>
       <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.handle}</bdi>
@@ -115,7 +115,7 @@ Shows matching room members when typing @username in chat input.
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
-        <span class="iconify icon-[uil--users-alt] h-4 w-4"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--users-alt] h-4 w-4"></span>
       </div>
       <span class="min-w-0 truncate text-sm text-text">{m('composer.mention.role')}</span>
       <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.role.name}</bdi>

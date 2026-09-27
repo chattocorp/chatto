@@ -365,158 +365,162 @@
     title: bot ? formatAccountName(bot.displayName, { isBot: true }) : m('settings.bots.title')
   })}
 />
-<PaneHeader
-  title={botQuery.isPending ? '' : (bot?.displayName ?? m('settings.bots.title'))}
-  titleContent={bot ? botName : undefined}
-  subtitle={bot ? `@${bot.login}` : undefined}
-  {backHref}
-/>
 
-<PaneContent>
-  {#if !supportsBots}
-    <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
-  {:else if botQuery.error}
-    <Hint tone="danger">{botQuery.error.message}</Hint>
-  {:else if bot}
-    <div class="flex flex-col gap-6">
-      <Panel title={bot.displayName} titleContent={botName} subtitle={`@${bot.login}`}>
-        {#snippet actions()}
-          {#if canReassignOwner && supportsOwnerReassignment}
-            <Button size="sm" variant="secondary" onclick={openReassignOwner}>
-              <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
-              {m('settings.bots.reassign_owner')}
-            </Button>
-          {/if}
-          {#if canOperateBot}
-            <Button size="sm" variant="danger-secondary" onclick={() => (deleteVisible = true)}>
-              <span class="iconify icon-[uil--trash]" aria-hidden="true"></span>
-              {m('common.delete')}
-            </Button>
-          {/if}
-        {/snippet}
-        <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <dt class="text-muted">{m('admin.members.user_id')}</dt>
-            <dd class="mt-1"><CopyId value={bot.id} /></dd>
-          </div>
-          <div>
-            <dt class="text-muted">{m('settings.bots.owner')}</dt>
-            <dd class="mt-1">
-              {#if owner}
-                <UserIdentity
-                  user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
-                  viewerSettings={serverScope.store.currentUser.user?.settings}
-                />
-              {:else if ownerQuery.isPending}
-                <LoadingFog class="h-5 w-28" />
-              {:else}
-                <span class="text-muted">{m('common.unknown')}</span>
+<div class="pane-page">
+  <PaneHeader
+    title={botQuery.isPending ? '' : (bot?.displayName ?? m('settings.bots.title'))}
+    titleContent={bot ? botName : undefined}
+    subtitle={bot ? `@${bot.login}` : undefined}
+    {backHref}
+  />
+
+  <PaneContent>
+    {#if !supportsBots}
+      <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
+    {:else if botQuery.error}
+      <Hint tone="danger">{botQuery.error.message}</Hint>
+    {:else}
+      <div class="flex flex-col gap-6">
+        {#if bot}
+          <Panel title={bot.displayName} titleContent={botName} subtitle={`@${bot.login}`}>
+            {#snippet actions()}
+              {#if canReassignOwner && supportsOwnerReassignment}
+                <Button size="sm" variant="secondary" onclick={openReassignOwner}>
+                  <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
+                  {m('settings.bots.reassign_owner')}
+                </Button>
               {/if}
-            </dd>
-          </div>
-          {#if !supportsMultipleAPIKeys}
-            <div>
-              <dt class="text-muted">{m('settings.bots.key_created')}</dt>
-              <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
-            </div>
-          {/if}
-        </dl>
-      </Panel>
+              {#if canOperateBot}
+                <Button size="sm" variant="danger-secondary" onclick={() => (deleteVisible = true)}>
+                  <span class="iconify icon-[uil--trash]" aria-hidden="true"></span>
+                  {m('common.delete')}
+                </Button>
+              {/if}
+            {/snippet}
+            <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <dt class="text-muted">{m('admin.members.user_id')}</dt>
+                <dd class="mt-1"><CopyId value={bot.id} /></dd>
+              </div>
+              <div>
+                <dt class="text-muted">{m('settings.bots.owner')}</dt>
+                <dd class="mt-1">
+                  {#if owner}
+                    <UserIdentity
+                      user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                      viewerSettings={serverScope.store.currentUser.user?.settings}
+                    />
+                  {:else if ownerQuery.isPending}
+                    <LoadingFog class="h-5 w-28" />
+                  {:else}
+                    <span class="text-muted">{m('common.unknown')}</span>
+                  {/if}
+                </dd>
+              </div>
+              {#if !supportsMultipleAPIKeys}
+                <div>
+                  <dt class="text-muted">{m('settings.bots.key_created')}</dt>
+                  <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
+                </div>
+              {/if}
+            </dl>
+          </Panel>
 
-      {#if supportsUserAvatars && canEditAvatar}
-        {#key targetKey}
-          <AvatarEditor
-            user={{ ...bot, isBot: true }}
-            onupload={uploadAvatar}
-            ondelete={deleteAvatar}
-          />
-        {/key}
-      {/if}
-
-      {#if canOperateBot}
-        {#key targetKey}
-          {#if !deleteLoading && serverScope.store.serverInfo.supportsFeature('botOutboundWebhooks')}
-            <BotOutboundWebhookSection {botId} />
+          {#if supportsUserAvatars && canEditAvatar}
+            {#key targetKey}
+              <AvatarEditor
+                user={{ ...bot, isBot: true }}
+                onupload={uploadAvatar}
+                ondelete={deleteAvatar}
+              />
+            {/key}
           {/if}
-          {#if supportsIncomingWebhooks}
-            <BotCredentialSection
-              idPrefix="bot-webhook"
-              testId="bot-incoming-webhooks"
-              items={webhookItems}
-              createIcon="iconify icon-[uil--link-add]"
-              labels={{
-                title: m('settings.bots.webhook_title'),
-                description: m('settings.bots.webhook_description'),
-                create: m('settings.bots.webhook_create'),
-                name: m('settings.bots.webhook_name'),
-                createdAt: m('settings.bots.webhook_created_at'),
-                lastUsed: m('settings.bots.webhook_last_used'),
-                empty: m('settings.bots.webhook_empty_description'),
-                limitReached: m('settings.bots.webhook_limit_reached'),
-                revoke: m('settings.bots.webhook_revoke'),
-                revokeWarning: m('settings.bots.webhook_revoke_warning'),
-                issuedTitle: m('settings.bots.webhook_url_title'),
-                issuedWarning: m('settings.bots.webhook_url_warning'),
-                copied: m('settings.bots.webhook_url_copied')
-              }}
-              oncreate={createWebhook}
-              oncreateopen={() => (webhookRoomId = '')}
-              onrevoke={revokeWebhook}
-            >
-              {#snippet createFields(pending)}
-                <Select
-                  id="create-bot-webhook-room"
-                  label={m('settings.bots.webhook_room')}
-                  description={m('settings.bots.webhook_room_description')}
-                  options={webhookRoomOptions}
-                  bind:value={webhookRoomId}
-                  disabled={pending}
+
+          {#if canOperateBot}
+            {#key targetKey}
+              {#if !deleteLoading && serverScope.store.serverInfo.supportsFeature('botOutboundWebhooks')}
+                <BotOutboundWebhookSection {botId} />
+              {/if}
+              {#if supportsIncomingWebhooks}
+                <BotCredentialSection
+                  idPrefix="bot-webhook"
+                  testId="bot-incoming-webhooks"
+                  items={webhookItems}
+                  createIcon="iconify icon-[uil--link-add]"
+                  labels={{
+                    title: m('settings.bots.webhook_title'),
+                    description: m('settings.bots.webhook_description'),
+                    create: m('settings.bots.webhook_create'),
+                    name: m('settings.bots.webhook_name'),
+                    createdAt: m('settings.bots.webhook_created_at'),
+                    lastUsed: m('settings.bots.webhook_last_used'),
+                    empty: m('settings.bots.webhook_empty_description'),
+                    limitReached: m('settings.bots.webhook_limit_reached'),
+                    revoke: m('settings.bots.webhook_revoke'),
+                    revokeWarning: m('settings.bots.webhook_revoke_warning'),
+                    issuedTitle: m('settings.bots.webhook_url_title'),
+                    issuedWarning: m('settings.bots.webhook_url_warning'),
+                    copied: m('settings.bots.webhook_url_copied')
+                  }}
+                  oncreate={createWebhook}
+                  oncreateopen={() => (webhookRoomId = '')}
+                  onrevoke={revokeWebhook}
+                >
+                  {#snippet createFields(pending)}
+                    <Select
+                      id="create-bot-webhook-room"
+                      label={m('settings.bots.webhook_room')}
+                      description={m('settings.bots.webhook_room_description')}
+                      options={webhookRoomOptions}
+                      bind:value={webhookRoomId}
+                      disabled={pending}
+                    />
+                  {/snippet}
+                </BotCredentialSection>
+              {/if}
+
+              {#if supportsMultipleAPIKeys}
+                <BotCredentialSection
+                  idPrefix="bot-api-key"
+                  testId="bot-api-keys"
+                  items={apiKeyItems}
+                  createIcon="iconify icon-[uil--key-skeleton]"
+                  labels={{
+                    title: m('settings.bots.key_title'),
+                    description: m('settings.bots.key_description'),
+                    create: m('settings.bots.key_create'),
+                    name: m('settings.bots.key_name'),
+                    createdAt: m('settings.bots.key_created_at'),
+                    lastUsed: m('settings.bots.key_last_used'),
+                    empty: m('settings.bots.key_empty_description'),
+                    limitReached: m('settings.bots.key_limit_reached'),
+                    revoke: m('settings.bots.key_revoke'),
+                    revokeWarning: m('settings.bots.key_revoke_warning'),
+                    issuedTitle: m('settings.bots.api_key_title'),
+                    issuedWarning: m('settings.bots.api_key_warning'),
+                    copied: m('settings.bots.key_copied')
+                  }}
+                  oncreate={createAPIKey}
+                  onrevoke={revokeAPIKey}
                 />
-              {/snippet}
-            </BotCredentialSection>
+              {/if}
+            {/key}
           {/if}
+        {/if}
 
-          {#if supportsMultipleAPIKeys}
-            <BotCredentialSection
-              idPrefix="bot-api-key"
-              testId="bot-api-keys"
-              items={apiKeyItems}
-              createIcon="iconify icon-[uil--key-skeleton]"
-              labels={{
-                title: m('settings.bots.key_title'),
-                description: m('settings.bots.key_description'),
-                create: m('settings.bots.key_create'),
-                name: m('settings.bots.key_name'),
-                createdAt: m('settings.bots.key_created_at'),
-                lastUsed: m('settings.bots.key_last_used'),
-                empty: m('settings.bots.key_empty_description'),
-                limitReached: m('settings.bots.key_limit_reached'),
-                revoke: m('settings.bots.key_revoke'),
-                revokeWarning: m('settings.bots.key_revoke_warning'),
-                issuedTitle: m('settings.bots.api_key_title'),
-                issuedWarning: m('settings.bots.api_key_warning'),
-                copied: m('settings.bots.key_copied')
-              }}
-              oncreate={createAPIKey}
-              onrevoke={revokeAPIKey}
-            />
-          {/if}
-        {/key}
-      {/if}
-    </div>
-  {/if}
-  <!-- Keep the matrix owner while the bot read is pending. -->
-  {#if supportsBots && !botQuery.error && (botQuery.isPending || canOperateBot)}
-    <div class="mt-6">
-      <UserPermissionsMatrix
-        userId={botId}
-        subjectKind={m('settings.bots.singular')}
-        ownerCapped
-        decisionMode="binary"
-      />
-    </div>
-  {/if}
-</PaneContent>
+        <!-- Keep the matrix owner while the bot read is pending. -->
+        {#if botQuery.isPending || canOperateBot}
+          <UserPermissionsMatrix
+            userId={botId}
+            subjectKind={m('settings.bots.singular')}
+            ownerCapped
+            decisionMode="binary"
+          />
+        {/if}
+      </div>
+    {/if}
+  </PaneContent>
+</div>
 
 <FormDialog
   bind:visible={reassignVisible}

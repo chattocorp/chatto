@@ -60,7 +60,17 @@
       "unreachable": "Server pole kättesaadav",
       "connection_unavailable": "Ühendus pole saadaval",
       "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto 0.5 või uuemale, enne kui see rakendus saab ühenduse luua.",
-      "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha."
+      "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha.",
+      "go_to_notifications_count": {
+        "one": "Ava {count} teatis",
+        "other": "Ava {count} teatist"
+      },
+      "go_to_notification": "Ava teatis",
+      "go_to_first_unread": "Ava esimene lugemata ruum",
+      "notifications_count": {
+        "one": "{count} teatis",
+        "other": "{count} teatist"
+      }
     },
     "threads": {
       "title": "Minu lõimed",

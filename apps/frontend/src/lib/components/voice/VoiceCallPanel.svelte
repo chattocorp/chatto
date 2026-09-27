@@ -189,7 +189,7 @@ Room sidebar panel for voice/video calls.
   const callTileCardClass =
     'participant-card group/media relative flex w-full min-w-0 flex-col overflow-hidden shell-surface text-start text-text';
   const callTileMediaButtonClass =
-    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
+    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-start text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -271,7 +271,7 @@ Room sidebar panel for voice/video calls.
     : participant.isLocallyMuted}
   {#if canShowMuteButton(participant)}
     <CompactActionButton
-      class={isMutedForViewer ? 'bg-surface-emphasized text-text' : undefined}
+      aria-pressed={isMutedForViewer}
       label={participant.isLocal
         ? isMutedForViewer
           ? m('voice.unmute')
@@ -315,6 +315,7 @@ Room sidebar panel for voice/video calls.
     <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
       <span
         class="iconify icon-[uil--microphone-slash] text-danger"
+        role="img"
         aria-label={m('voice.muted')}
         data-testid="call-muted-indicator"
       ></span>

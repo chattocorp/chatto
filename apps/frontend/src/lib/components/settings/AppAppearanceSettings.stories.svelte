@@ -37,7 +37,7 @@
 </script>
 
 <Story name="Appearance" asChild>
-  <div class="pane-page h-[1000px] w-full">
+  <div class="flex h-[1000px] w-full flex-col">
     <AppAppearanceSettings />
   </div>
 </Story>

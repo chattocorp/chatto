@@ -1,15 +1,29 @@
 import type { Attachment } from 'svelte/attachments';
 
-/** Whether content extends past each edge of a physical scroll axis. */
+/**
+ * Whether content extends past each edge of a scroll axis. On the `x` axis,
+ * `start` and `end` follow the element's inline direction, so `start` is the
+ * right edge in a right-to-left context. On the `y` axis, `start` is the top.
+ */
 export type ScrollEdges = { start: boolean; end: boolean };
 
-/** Read edge visibility with a one-pixel tolerance, including browser overscroll. */
+/**
+ * Read edge visibility with a one-pixel tolerance, including browser overscroll.
+ * Horizontal positions are normalized to logical inline offsets: browsers report
+ * `scrollLeft` from 0 towards negative values when the element's computed
+ * `direction` is `rtl`.
+ */
 export function readScrollEdges(element: HTMLElement, axis: 'x' | 'y'): ScrollEdges {
   const maximum =
     axis === 'x'
       ? element.scrollWidth - element.clientWidth
       : element.scrollHeight - element.clientHeight;
-  const position = axis === 'x' ? element.scrollLeft : element.scrollTop;
+  const position =
+    axis === 'x'
+      ? getComputedStyle(element).direction === 'rtl'
+        ? -element.scrollLeft
+        : element.scrollLeft
+      : element.scrollTop;
   return {
     start: maximum > 1 && position > 1,
     end: maximum > 1 && maximum - position > 1
