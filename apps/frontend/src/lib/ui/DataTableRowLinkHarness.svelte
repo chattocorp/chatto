@@ -49,6 +49,8 @@ callbacks instead of navigating.
     </td>
     <td class="px-4 py-3 select-text" data-testid={`note-${item.id}`}>Note for {item.name}</td>
     <td class="px-4 py-3">
+      <!-- Stands in for a passive element with its own Svelte click handler. The
+           empty keydown handler only satisfies the click-events lint rule. -->
       <span
         data-testid={`handled-${item.id}`}
         onclick={(event) => event.preventDefault()}

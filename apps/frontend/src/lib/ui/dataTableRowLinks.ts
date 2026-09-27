@@ -55,8 +55,10 @@ export const forwardRowClicks: Attachment<HTMLElement> = (body) => {
     const link = rowLinkFor(body, event);
     if (!link) return;
 
-    // Ending a drag selection inside a row fires a click; keep the selection.
-    if (window.getSelection()?.toString()) return;
+    // Ending a drag selection inside the row fires a click; keep the selection.
+    const selection = window.getSelection();
+    const row = link.closest('tr');
+    if (selection && !selection.isCollapsed && row && selection.containsNode(row, true)) return;
 
     if (event.type === 'auxclick' || event.metaKey || event.ctrlKey || event.shiftKey) {
       window.open(link.href, '_blank', 'noopener');

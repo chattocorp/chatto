@@ -99,6 +99,17 @@ describe('DataTable row links', () => {
     expect(onnavigate).not.toHaveBeenCalled();
   });
 
+  it('ignores a selection outside the clicked row', async () => {
+    const { q, onnavigate } = renderTable();
+    const range = document.createRange();
+    range.selectNodeContents(q('note-1'));
+    window.getSelection()!.addRange(range);
+
+    click(q('note-2'));
+
+    expect(onnavigate).toHaveBeenCalledWith('2');
+  });
+
   it('reaches the row link with the keyboard and highlights its row', async () => {
     const { container } = renderTable();
     const link = container.querySelector<HTMLAnchorElement>('.data-table-row-link')!;
