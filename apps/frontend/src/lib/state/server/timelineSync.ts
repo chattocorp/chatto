@@ -193,7 +193,10 @@ export class TimelineSync {
     this.#reconciler.reset();
   }
 
-  /** Run one window read per timeline. Keep every distinct request that arrives meanwhile. */
+  /**
+   * Run one window read at a time for each timeline. Keep every distinct
+   * request of the current generation that arrives while a read runs.
+   */
   #refreshWindow(
     store: MessagesStore,
     anchorEventId: string | null,
