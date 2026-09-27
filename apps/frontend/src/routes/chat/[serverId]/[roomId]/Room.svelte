@@ -426,10 +426,12 @@
   });
 
   // A DM's projection has every member, so its store has a first page at once.
-  // A reset can discard a load in progress; the load then starts again.
+  // A reset discards a load in progress or a failed load; the load then starts again.
   const loadRoomMembers: Attachment = () => {
     const store = roomMembersStore;
-    if (!store.hasFirstPage && !store.isInitialLoading) untrack(() => store.ensureLoaded());
+    if (!store.hasFirstPage && !store.isInitialLoading && !store.loadError) {
+      untrack(() => store.ensureLoaded());
+    }
   };
 
   const syncRoomFiles: Attachment = () => {

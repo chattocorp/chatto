@@ -515,7 +515,6 @@ describe('RoomMembersStore', () => {
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.totalCount).toBe(3);
     expect(store.hasLoadedAll).toBe(true);
-    expect(store.hasLoadedAll).toBe(true);
     expect(store.isBackgroundLoading).toBe(false);
   });
 

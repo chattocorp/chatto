@@ -483,20 +483,30 @@ describe('Room interaction bundles', () => {
     await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
   });
 
-  it('restarts a channel member load that a reset discarded', async () => {
-    const api = {
-      listRoomMembers: vi.fn(() => new Promise<never>(() => {})),
-      listOnlineRoomMembers: vi.fn(() => new Promise<never>(() => {}))
-    };
-    const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
-    mocks.roomMembers.mockReturnValue(store);
+  it.each(['pending', 'failed'])(
+    'restarts a %s channel member load after a reset',
+    async (state) => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      let reads = 0;
+      const api = {
+        listRoomMembers: vi.fn(() =>
+          state === 'failed' && ++reads === 1
+            ? Promise.reject(new Error('offline'))
+            : new Promise<never>(() => {})
+        ),
+        listOnlineRoomMembers: vi.fn(() => new Promise<never>(() => {}))
+      };
+      const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
+      mocks.roomMembers.mockReturnValue(store);
 
-    render(Room, { props: { roomId: 'room-1' } });
-    await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
+      render(Room, { props: { roomId: 'room-1' } });
+      await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
+      if (state === 'failed') await vi.waitFor(() => expect(store.loadError).toBe('offline'));
 
-    store.resetProjectionState();
-    await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
-  });
+      store.resetProjectionState();
+      await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
+    }
+  );
 
   it('leaves membership event handling to the session store without a component reload', async () => {
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
