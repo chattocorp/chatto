@@ -160,6 +160,7 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
         voiceCall: voiceCallState,
         navigation: roomsState,
         projection: projectionState,
+        permissions: { loaded: false },
         setPrivilegedMode: privilegedModeActions.set,
         expirePrivilegedMode: privilegedModeActions.expire
       },
@@ -185,6 +186,7 @@ vi.mock('$app/navigation', () => ({
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBio: () => null,
   getLiveTimezone: () => null,
+  getLiveLogin: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
@@ -320,6 +322,31 @@ describe('CurrentUserBar', () => {
     render(CurrentUserBarTestHarness);
 
     await expect.poll(() => privilegedModeActions.expire.mock.calls.length).toBe(1);
+  });
+
+  it('opens the user context menu from the card and keeps avatar clicks for presence', async () => {
+    const screen = render(CurrentUserBarTestHarness);
+    const card = q(screen.container, '[data-testid="current-user-identity-card"]')!;
+    const event = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 120,
+      clientY: 80
+    });
+    card.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    await expect
+      .element(screen.getByRole('dialog', { name: 'User profile', exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByTestId('copy-user-id')).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(screen.getByTestId('copy-user-id')).not.toBeInTheDocument();
+
+    await screen.getByTestId('current-user-presence-menu').click();
+    await expect
+      .element(screen.getByRole('menuitemradio', { name: 'Away', exact: true }))
+      .toBeVisible();
   });
 
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
