@@ -766,3 +766,46 @@ func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
 		t.Fatal("participant count did not follow removals")
 	}
 }
+
+func TestThreadProjection_InteractionRequiresMatchingRoom(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*evtv1.Event{
+		roomCreatedTimelineEvent("ROOM-1", "R1", "one", 1),
+		roomCreatedTimelineEvent("ROOM-2", "R2", "two", 2),
+		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 3}),
+	})
+
+	require.True(t, p.HasInteraction("AUTHOR", "R1", "ROOT"))
+	require.False(t, p.HasInteraction("AUTHOR", "R2", "ROOT"))
+	require.False(t, p.HasInteraction("AUTHOR", "UNKNOWN-ROOM", "ROOT"))
+	_, ok := p.ThreadRootForMessage("R2", "ROOT")
+	require.False(t, ok)
+}
+
+func TestThreadProjection_RoomDeletionClearsInteractionState(t *testing.T) {
+	p := NewThreadProjection()
+	deleted := roomDeletedEvent("R1")
+	deleted.Id = "DELETE"
+	applyAll(t, p, []*evtv1.Event{
+		roomCreatedTimelineEvent("ROOM-1", "R1", "one", 1),
+		roomCreatedTimelineEvent("ROOM-2", "R2", "two", 2),
+		postedEvent(postedOpts{envelopeID: "ROOT-1", roomID: "R1", actorID: "AUTHOR", at: 3}),
+		postedEvent(postedOpts{envelopeID: "ROOT-2", roomID: "R2", actorID: "AUTHOR", at: 4}),
+		deleted,
+	})
+
+	require.False(t, p.HasInteraction("AUTHOR", "R1", "ROOT-1"))
+	_, ok := p.ThreadRootForMessage("R1", "ROOT-1")
+	require.False(t, ok)
+	require.True(t, p.HasInteraction("AUTHOR", "R2", "ROOT-2"))
+	root, ok := p.ThreadRootForMessage("R2", "ROOT-2")
+	require.True(t, ok)
+	require.Equal(t, "ROOT-2", root)
+
+	snapshot, err := p.Snapshot()
+	require.NoError(t, err)
+	restored := NewThreadProjection()
+	require.NoError(t, restored.Restore(snapshot))
+	require.False(t, restored.HasInteraction("AUTHOR", "R1", "ROOT-1"))
+	require.True(t, restored.HasInteraction("AUTHOR", "R2", "ROOT-2"))
+}
