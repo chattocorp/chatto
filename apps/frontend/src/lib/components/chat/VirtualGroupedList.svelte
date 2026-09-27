@@ -11,7 +11,8 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
 `data-room-group-id`, so tests and callers can find the rows of one group.
 -->
 <script lang="ts" generics="T extends { id: string }">
-  import { untrack, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
+  import { on } from 'svelte/events';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import RoomGroupSectionHeader from './RoomGroupSectionHeader.svelte';
   import { loadCollapsed, saveCollapsed } from './roomGroupCollapse';
@@ -21,8 +22,10 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
     type VirtualListGroup
   } from './groupedListItems';
   import {
+    ANCHOR_KEY_ATTRIBUTE,
+    alignScrollAnchor,
     captureScrollAnchors,
-    restoreScrollAnchor,
+    selectScrollAnchor,
     type ScrollAnchor
   } from './groupedListScrollAnchor';
 
@@ -52,31 +55,64 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
   );
 
   let virtualizer = $state<VirtualizerHandle>();
-  // Entries as last rendered, and the anchors visible just before `entries` changed.
+  let listElement = $state<HTMLDivElement>();
+  // Entries as last rendered, and the entries visible in that layout. Anchors are recorded
+  // after scrolling and after each layout settles, because by the time `entries` changes
+  // the virtualizer has already rendered the new entries.
   let renderedEntries: GroupedListItem<T>[] = [];
   let anchors: ScrollAnchor[] = [];
 
-  // Keep the visible entries in place when entries above them are inserted, removed, or
-  // moved to another group, as browser scroll anchoring did for the stacked sections.
-  $effect.pre(() => {
-    void entries;
-    untrack(() => {
-      anchors = virtualizer ? captureScrollAnchors(virtualizer, renderedEntries) : [];
-    });
+  function recordAnchors(): void {
+    anchors =
+      listElement && scrollRef ? captureScrollAnchors(listElement, scrollRef, renderedEntries) : [];
+  }
+
+  // The virtualizer renders the entries for a new scroll position after the scroll event.
+  $effect(() => {
+    const scroller = scrollRef;
+    if (!scroller) return;
+    return on(scroller, 'scroll', () => void tick().then(recordAnchors), { passive: true });
   });
 
+  // Keep the visible entries in place when entries above them are inserted, removed, or
+  // moved to another group, as browser scroll anchoring did for the stacked sections.
   $effect(() => {
     const next = entries;
-    untrack(() => {
-      if (virtualizer) restoreScrollAnchor(virtualizer, next, anchors);
+    return untrack(() => {
       renderedEntries = next;
-      anchors = [];
+      const selected = selectScrollAnchor(next, anchors);
+      const handle = virtualizer;
+      const list = listElement;
+      const scroller = scrollRef;
+      const align =
+        selected && handle && list && scroller
+          ? () => alignScrollAnchor(handle, list, scroller, selected.anchor, selected.index)
+          : () => {};
+      align();
+
+      // The virtualizer measures moved entries after this update and corrects the scroll
+      // position for size changes above the viewport. Align again once that has settled,
+      // then record the anchors of the settled layout.
+      let frame = 0;
+      let remaining = 3;
+      const settle = () => {
+        align();
+        remaining -= 1;
+        if (remaining > 0) {
+          frame = requestAnimationFrame(settle);
+        } else {
+          frame = 0;
+          recordAnchors();
+        }
+      };
+      frame = requestAnimationFrame(settle);
+      return () => cancelAnimationFrame(frame);
     });
   });
 </script>
 
 <!-- A flex parent must not shrink the virtualizer below its full scroll height. -->
-<div class="shrink-0">
+<div class="shrink-0" bind:this={listElement}>
   <Virtualizer
     bind:this={virtualizer}
     data={entries}
@@ -99,6 +135,7 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
             group.collapsed && 'pb-1.5'
           ]}
           data-room-group-id={group.id}
+          {...{ [ANCHOR_KEY_ATTRIBUTE]: entry?.key }}
         >
           <RoomGroupSectionHeader
             label={group.label}
@@ -111,6 +148,7 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
         <div
           class={['px-2', entry?.last ? 'pb-1.5' : 'pb-0.5']}
           data-room-group-id={entry?.groupId}
+          {...{ [ANCHOR_KEY_ATTRIBUTE]: entry?.key }}
         >
           {@render item(row)}
         </div>

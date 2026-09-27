@@ -33,8 +33,15 @@ function firstVisibleRow(container: HTMLElement): { id: string; top: number } {
   return row;
 }
 
+/** Scrolls like a reader: the browser delivers the scroll event before the next data change. */
 async function scrollTo(container: HTMLElement, offset: number): Promise<void> {
+  const scrolled = new Promise((resolve) =>
+    viewport(container).addEventListener('scroll', resolve, { once: true })
+  );
   viewport(container).scrollTop = offset;
+  await scrolled;
+  // Data changes arrive as later tasks, after the list has rendered the new position.
+  await new Promise((resolve) => requestAnimationFrame(resolve));
   await vi.waitFor(() => {
     expect(firstVisibleRow(container).id).not.toBe('online-0');
   });
@@ -99,6 +106,28 @@ describe('VirtualGroupedList', () => {
       expect(after.id).toBe(before.id);
       expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(1);
     });
+  });
+
+  it('keeps the visible rows in place when a heading of a different height shifts', async () => {
+    const online = rows('online', 10);
+    const offline = rows('offline', 100);
+    const { container, rerender } = render(VirtualGroupedListTestHarness, {
+      props: { groups: [group('online', online), group('offline', offline)] }
+    });
+    await vi.waitFor(() => expect(firstVisibleRow(container).id).toBe('online-0'));
+
+    // Keep the Offline heading in view, so its new index is measured again after the insert.
+    await scrollTo(container, 400);
+    const before = firstVisibleRow(container);
+
+    await rerender({
+      groups: [group('online', [...rows('new', 3), ...online]), group('offline', offline)]
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const after = firstVisibleRow(container);
+    expect(after.id).toBe(before.id);
+    expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(1);
   });
 
   it('stays at the top when rows are inserted while the list is scrolled to the top', async () => {
