@@ -32,7 +32,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { CompactActionButton, ConfirmDialog, Dialog } from '$lib/ui';
+  import { ConfirmDialog, Dialog } from '$lib/ui';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import { toast } from '$lib/ui/toast';
   import MenuItem from '$lib/ui/MenuItem.svelte';
@@ -380,8 +380,13 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             />
           {/if}
           {#if privilegedMode?.available}
-            <CompactActionButton
-              label={privilegedMode.active
+            <button
+              type="button"
+              class={['user-card-toggle', privilegedMode.active && 'user-card-toggle-active']}
+              title={privilegedMode.active
+                ? m('chat.privileged_mode.disable')
+                : m('chat.privileged_mode.enable')}
+              aria-label={privilegedMode.active
                 ? m('chat.privileged_mode.disable')
                 : m('chat.privileged_mode.enable')}
               data-testid="privileged-mode-toggle"
@@ -393,14 +398,12 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             >
               <span
                 class={[
-                  'iconify',
-                  privilegedMode.active
-                    ? 'icon-[uil--shield-check] text-warning'
-                    : 'icon-[uil--shield]'
+                  'iconify text-lg',
+                  privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
                 ]}
                 aria-hidden="true"
               ></span>
-            </CompactActionButton>
+            </button>
           {/if}
         {/snippet}
       </UserCard>

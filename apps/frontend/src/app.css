@@ -1886,6 +1886,19 @@
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+/* Persistent mode toggle in a user card, such as privileged mode. A 36 px
+ * square with a large icon. At rest it is muted and unfilled. The active
+ * state has a warning-tinted raised fill so that the mode stays visible while
+ * it is on. Pair with user-card-toggle-active.
+ */
+@utility user-card-toggle {
+  @apply grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted transition-colors feedback-quick hover:text-text;
+}
+
+@utility user-card-toggle-active {
+  @apply bg-warning/15 control-raised text-warning hover:bg-warning/25 hover:text-warning;
+}
+
 /* Icon action inside a form field, such as an emoji trigger or a clear button
  * in TextInput's leading or trailing slot. It shares icon-action feedback at
  * a 32 px size so it fits within the 40 px field.

@@ -62,10 +62,13 @@ callback, and expanded state for the standard three-dot button. Member entries
 use this button and leave identity text passive. Use `menu.revealOnHover` to
 hide the button until hover or keyboard focus; touch devices keep it visible.
 Use `menu.oncontextmenu` for right-click access from the whole card.
-Every icon control in the `actions` snippet uses `CompactActionButton`, the same
-format as the three-dot button, so all user-card actions share one size and
-hover treatment. Show an active state, such as privileged mode, through the icon
-and its colour. Do not use `icon-action` or a local fill in a user card.
+Icon actions in the `actions` snippet use `CompactActionButton`, the same format
+as the three-dot button. A persistent mode toggle, such as privileged mode, uses
+`user-card-toggle` instead: a 36 px square with a large, muted icon and no fill
+at rest. Add `user-card-toggle-active` while the mode is on. It gives the toggle
+a warning-tinted raised fill and a warning icon, so the elevated mode stays
+visible at a glance. Change the icon with the state, for example from a shield
+to a shield with a check mark.
 The identity row cannot shrink below the shared control height. For the current-user card, omit
 the identity button and supply the presence button in `avatar`. Callers own
 profile menus, presence lookup, permissions, audio-level sources, and media
@@ -437,7 +440,7 @@ Coloured fills retain a matched tonal border. Secondary buttons use a quiet
 share the `control-raised` finish. Header icons stay flat. Do not add
 local gloss, blur, transparency, or extra shadows.
 
-Compact standalone composer actions and user-card and participant-card actions use
+Compact standalone composer actions and user-card and participant-card actions, except mode toggles, use
 `CompactActionButton`. Their backgrounds are transparent at rest and show
 the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
