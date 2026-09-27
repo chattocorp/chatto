@@ -183,7 +183,6 @@ func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool
 	}
 }
 
-// login authenticates a user
 // url returns the test server URL for an asset path or an API-issued asset
 // URL. API responses carry absolute URLs on the configured public origin, which
 // differs from the httptest listener address.
@@ -195,6 +194,7 @@ func (env *assetTestEnv) url(raw string) string {
 	return env.server.URL + parsed.RequestURI()
 }
 
+// login authenticates a user
 func (env *assetTestEnv) login(t *testing.T, login, password string) {
 	t.Helper()
 

@@ -776,6 +776,27 @@ func setupFrontendTestCoreWithLogo(t *testing.T) *core.ChattoCore {
 	return chattoCore
 }
 
+func TestOpenGraphImageUsesCanonicalOrigin(t *testing.T) {
+	chattoCore := setupFrontendTestCoreWithLogo(t)
+	banner := &evtv1.AssetRecord{
+		Id:          "banner-asset",
+		Filename:    "banner.webp",
+		ContentType: "image/webp",
+		Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "banner-asset"}},
+	}
+	if err := chattoCore.SetServerBanner(context.Background(), core.SystemActorID, banner); err != nil {
+		t.Fatalf("SetServerBanner: %v", err)
+	}
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com/"}},
+		core:   chattoCore,
+	}
+
+	// Crawlers require an absolute og:image URL.
+	meta := server.getOpenGraphMeta(context.Background(), "/")
+	assert.True(t, strings.HasPrefix(meta.Image, "https://example.com/assets/server/banner-asset/t/"), "og:image = %q", meta.Image)
+}
+
 func TestFrontendFallbackAllowsRoutesWithReservedPrefixNames(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
