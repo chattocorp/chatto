@@ -1227,8 +1227,34 @@ func TestOAuthBuiltInLoopbackClientRequiresConsentAndRecordsBuiltInSource(t *tes
 	if err := json.Unmarshal(approveW.Body.Bytes(), &approval); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(approval["redirectUrl"], "http://chatto.canberra.localhost:4001/servers/callback?") || !strings.Contains(approval["redirectUrl"], "code=") {
+	callback, err := url.Parse(approval["redirectUrl"])
+	if err != nil || callback.Scheme+"://"+callback.Host != redirectOrigin || callback.Path != "/servers/callback" || callback.Query().Get("code") == "" {
 		t.Fatalf("loopback approval redirect = %q", approval["redirectUrl"])
+	}
+
+	tokenBody, err := json.Marshal(map[string]string{
+		"grant_type": "authorization_code", "code": callback.Query().Get("code"),
+		"code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+		"redirect_uri":  redirectURI, "client_id": config.ChattoLoopbackClientID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenReq := httptest.NewRequest(http.MethodPost, "/oauth/token", bytes.NewReader(tokenBody))
+	tokenReq.Header.Set("Content-Type", "application/json")
+	tokenW := httptest.NewRecorder()
+	s.router.ServeHTTP(tokenW, tokenReq)
+	if tokenW.Code != http.StatusOK {
+		t.Fatalf("token status = %d: %s", tokenW.Code, tokenW.Body.String())
+	}
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(tokenW.Body.Bytes(), &tokenResponse); err != nil {
+		t.Fatalf("decode token response: %v", err)
+	}
+	if _, err := s.core.ValidateAuthToken(ctx, tokenResponse.AccessToken); err != nil {
+		t.Fatalf("validate loopback access token: %v", err)
 	}
 
 	client, err := s.core.GetOAuthClient(ctx, user.Id, config.ChattoLoopbackClientID)
@@ -1237,6 +1263,9 @@ func TestOAuthBuiltInLoopbackClientRequiresConsentAndRecordsBuiltInSource(t *tes
 	}
 	if client.Source != evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN {
 		t.Fatalf("loopback client source = %v, want built-in", client.Source)
+	}
+	if len(client.RedirectOrigins) != 0 {
+		t.Fatalf("loopback inventory recorded local origins %v", client.RedirectOrigins)
 	}
 }
 

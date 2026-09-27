@@ -130,18 +130,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			})
 			return
 		}
-		if client.ClientID == config.ChattoLoopbackClientID && !s.config.Auth.LoopbackClientEnabled {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":             "invalid_client",
-				"error_description": "This server does not accept sign-in from clients on a local address",
-			})
-			return
-		}
 		if err := s.core.RequireOAuthClientAllowed(c.Request.Context(), client.ClientID); err != nil {
 			if errors.Is(err, core.ErrOAuthClientBlocked) {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error":             "invalid_client",
-					"error_description": "The OAuth client is blocked by this server",
+					"error_description": oauthClientBlockedDescription(client.ClientID),
 				})
 				return
 			}
@@ -650,7 +643,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		if errors.Is(err, core.ErrOAuthClientBlocked) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_client",
-				"error_description": "The OAuth client is blocked by this server",
+				"error_description": oauthClientBlockedDescription(params.ClientID),
 			})
 			return "", false
 		}
@@ -685,19 +678,25 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		})
 		return "", false
 	}
+	// The loopback client's callback origins are members' local development
+	// addresses. Keep them out of the administrator inventory.
+	inventoryRedirectOrigin := redirectOrigin
+	if params.ClientID == config.ChattoLoopbackClientID {
+		inventoryRedirectOrigin = ""
+	}
 	code, err := s.core.CreateOAuthClientAuthorizationCodeForGrant(ctx, core.OAuthClientAuthorization{
 		UserID:         userID,
 		ClientID:       params.ClientID,
 		ClientName:     params.ClientName,
 		ClientOrigin:   params.ClientURI,
-		RedirectOrigin: redirectOrigin,
+		RedirectOrigin: inventoryRedirectOrigin,
 		Source:         source,
 	}, params.Resource, params.Scopes, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
 	if err != nil {
 		if errors.Is(err, core.ErrOAuthClientBlocked) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_client",
-				"error_description": "The OAuth client is blocked by this server",
+				"error_description": oauthClientBlockedDescription(params.ClientID),
 			})
 			return "", false
 		}
@@ -779,6 +778,15 @@ func canonicalOrigin(u *url.URL) string {
 		host = "[" + hostname + "]"
 	}
 	return scheme + "://" + host
+}
+
+// oauthClientBlockedDescription explains a rejected authorization. The
+// loopback client is also rejected when the server does not enable it.
+func oauthClientBlockedDescription(clientID string) string {
+	if clientID == config.ChattoLoopbackClientID {
+		return "This server does not accept sign-in from clients on a local address"
+	}
+	return "The OAuth client is blocked by this server"
 }
 
 func isLoopbackOAuthRedirectHost(host string) bool {

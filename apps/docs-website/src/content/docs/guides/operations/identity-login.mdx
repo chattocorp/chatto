@@ -285,8 +285,8 @@ The bundled client can also run on a local address of the member's computer,
 for example a development server on `localhost`. Your server cannot get a
 metadata document from that address. To let such a client sign in, set
 `auth.loopback_client_enabled = true`. The client then uses the built-in
-`chatto://loopback` identity, and the list of OAuth clients shows it as
-"Unverified local app".
+`chatto://loopback` identity. The list of OAuth clients shows it as
+"Unverified local app" and does not show the local addresses of members.
 
 <Aside type="caution">
   Any program on the member's computer can use this identity. Enable it only
