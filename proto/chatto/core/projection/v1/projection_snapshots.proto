@@ -194,6 +194,9 @@ message NotificationBadgeSourcesSnapshot {
   // Universal-room start sequences; user_id is empty.
   repeated NotificationBadgeSinceSnapshot universal_rooms = 5;
   repeated NotificationBadgeFollowSnapshot follows = 6;
+  // Creation time of the newest indexed source. Sources that are older than
+  // the notification lifetime relative to it are left out.
+  int64 latest_created_at_unix_nanos = 7;
 }
 
 message NotificationBadgeMessageSnapshot {

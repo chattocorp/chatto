@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -337,5 +338,30 @@ func TestBadgeListsDropExpiredSources(t *testing.T) {
 	})
 	if roots != 1 || targeted != 1 || reactions != 1 {
 		t.Fatalf("roots=%d targeted=%d reactions=%d, want expired sources dropped (1, 1, 1)", roots, targeted, reactions)
+	}
+}
+
+func TestBadgeSweepDropsExpiredSourcesOfQuietThreads(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	old := timestamppb.New(time.Now().Add(-notificationTTL - time.Hour))
+	f.apply(&evtv1.Event{Id: "ROOT", ActorId: "U1", CreatedAt: old, Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", AuthorId: "U1"}}})
+	f.apply(&evtv1.Event{Id: "REPLY", ActorId: "U2", CreatedAt: old, Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+		RoomId: "R1", AuthorId: "U2", InThread: "ROOT",
+		Mentions: []*evtv1.MessageMention{{UserId: "U1", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}}},
+	}}})
+	for i := range badgeSweepInterval {
+		f.post(fmt.Sprintf("NEW-%d", i), "U2", "")
+	}
+	var replies, scopes int
+	_ = f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		b := snapshot.badges
+		room, _ := b.ids.lookup("R1")
+		user, _ := b.ids.lookup("U1")
+		replies = len(b.rooms[room].replies)
+		scopes = len(b.rooms[room].targeted[user])
+		return nil
+	})
+	if replies != 0 || scopes != 0 {
+		t.Fatalf("after a sweep: %d reply lists and %d targeted scopes, want the expired thread dropped", replies, scopes)
 	}
 }

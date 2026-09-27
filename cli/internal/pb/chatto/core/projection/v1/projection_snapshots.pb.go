@@ -1419,8 +1419,11 @@ type NotificationBadgeSourcesSnapshot struct {
 	// Universal-room start sequences; user_id is empty.
 	UniversalRooms []*NotificationBadgeSinceSnapshot  `protobuf:"bytes,5,rep,name=universal_rooms,json=universalRooms,proto3" json:"universal_rooms,omitempty"`
 	Follows        []*NotificationBadgeFollowSnapshot `protobuf:"bytes,6,rep,name=follows,proto3" json:"follows,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Creation time of the newest indexed source. Sources that are older than
+	// the notification lifetime relative to it are left out.
+	LatestCreatedAtUnixNanos int64 `protobuf:"varint,7,opt,name=latest_created_at_unix_nanos,json=latestCreatedAtUnixNanos,proto3" json:"latest_created_at_unix_nanos,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *NotificationBadgeSourcesSnapshot) Reset() {
@@ -1493,6 +1496,13 @@ func (x *NotificationBadgeSourcesSnapshot) GetFollows() []*NotificationBadgeFoll
 		return x.Follows
 	}
 	return nil
+}
+
+func (x *NotificationBadgeSourcesSnapshot) GetLatestCreatedAtUnixNanos() int64 {
+	if x != nil {
+		return x.LatestCreatedAtUnixNanos
+	}
+	return 0
 }
 
 type NotificationBadgeMessageSnapshot struct {
@@ -4624,14 +4634,15 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x0factive_user_ids\x18\x05 \x03(\tR\ractiveUserIds\x12V\n" +
 	"\x0ethread_follows\x18\x06 \x03(\v2/.chatto.core.projection.v1.ThreadFollowSnapshotR\rthreadFollows\x12T\n" +
 	"\athreads\x18\a \x03(\v2:.chatto.core.projection.v1.NotificationThreadStateSnapshotR\athreads\x12`\n" +
-	"\rbadge_sources\x18\b \x01(\v2;.chatto.core.projection.v1.NotificationBadgeSourcesSnapshotR\fbadgeSources\"\xbf\x04\n" +
+	"\rbadge_sources\x18\b \x01(\v2;.chatto.core.projection.v1.NotificationBadgeSourcesSnapshotR\fbadgeSources\"\xff\x04\n" +
 	" NotificationBadgeSourcesSnapshot\x12W\n" +
 	"\bmessages\x18\x01 \x03(\v2;.chatto.core.projection.v1.NotificationBadgeMessageSnapshotR\bmessages\x12T\n" +
 	"\atargets\x18\x02 \x03(\v2:.chatto.core.projection.v1.NotificationBadgeTargetSnapshotR\atargets\x12[\n" +
 	"\vmemberships\x18\x03 \x03(\v29.chatto.core.projection.v1.NotificationBadgeSinceSnapshotR\vmemberships\x12U\n" +
 	"\baccounts\x18\x04 \x03(\v29.chatto.core.projection.v1.NotificationBadgeSinceSnapshotR\baccounts\x12b\n" +
 	"\x0funiversal_rooms\x18\x05 \x03(\v29.chatto.core.projection.v1.NotificationBadgeSinceSnapshotR\x0euniversalRooms\x12T\n" +
-	"\afollows\x18\x06 \x03(\v2:.chatto.core.projection.v1.NotificationBadgeFollowSnapshotR\afollows\"\xc4\x02\n" +
+	"\afollows\x18\x06 \x03(\v2:.chatto.core.projection.v1.NotificationBadgeFollowSnapshotR\afollows\x12>\n" +
+	"\x1clatest_created_at_unix_nanos\x18\a \x01(\x03R\x18latestCreatedAtUnixNanos\"\xc4\x02\n" +
 	" NotificationBadgeMessageSnapshot\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12/\n" +

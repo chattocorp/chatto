@@ -139,7 +139,14 @@ type badgeRoomSources struct {
 	// targeted maps a user to their sources per scope: zero for the room, or
 	// a thread root handle.
 	targeted map[uint32]map[uint32][]badgeTargetedSource
+	// appends counts appends since the room's last sweep of quiet lists.
+	appends int
 }
+
+// badgeSweepInterval is the number of appends to a room after which its
+// reply and targeted lists are swept for expired sources. Appending only trims
+// the list that grows, so quiet threads need the sweep.
+const badgeSweepInterval = 512
 
 type badgeMembershipKey struct {
 	user uint32
@@ -173,6 +180,9 @@ type notificationBadgeSources struct {
 	// follows maps a (user, room) pair to the threads that the user currently
 	// follows there, with the sequence of the follow.
 	follows map[badgeMembershipKey]map[uint32]uint64
+	// latestCreatedAt is the creation time of the newest indexed source. The
+	// sweep and the snapshot drop sources that are expired relative to it.
+	latestCreatedAt int64
 }
 
 func newNotificationBadgeSources() *notificationBadgeSources {
@@ -195,6 +205,48 @@ func (b *notificationBadgeSources) room(room uint32) *badgeRoomSources {
 		b.rooms[room] = sources
 	}
 	return sources
+}
+
+// noteSource records a new source's creation time and sweeps the room's quiet
+// lists every badgeSweepInterval appends.
+func (b *notificationBadgeSources) noteSource(sources *badgeRoomSources, createdAt int64) {
+	b.latestCreatedAt = max(b.latestCreatedAt, createdAt)
+	sources.appends++
+	if sources.appends < badgeSweepInterval {
+		return
+	}
+	sources.appends = 0
+	cutoff := expiredBefore(b.latestCreatedAt)
+	for thread, replies := range sources.replies {
+		drop := 0
+		for drop < len(replies) && b.messages[replies[drop]].createdAt <= cutoff {
+			drop++
+		}
+		if drop == len(replies) {
+			delete(sources.replies, thread)
+		} else if drop > 0 {
+			sources.replies[thread] = slices.Clone(replies[drop:])
+		}
+	}
+	for user, scopes := range sources.targeted {
+		for scope, targeted := range scopes {
+			drop := 0
+			for drop < len(targeted) && targeted[drop].createdAt <= cutoff {
+				if expired := targeted[drop]; expired.kind == badgeSourceReaction {
+					delete(b.reactions, badgeReactionKey{message: expired.message, reactor: expired.reactor, emoji: expired.emoji})
+				}
+				drop++
+			}
+			if drop == len(targeted) {
+				delete(scopes, scope)
+			} else if drop > 0 {
+				scopes[scope] = slices.Clone(targeted[drop:])
+			}
+		}
+		if len(scopes) == 0 {
+			delete(sources.targeted, user)
+		}
+	}
 }
 
 func eventCreatedNanosOrZero(event *evtv1.Event) int64 {
@@ -367,6 +419,13 @@ func (b *notificationBadgeSources) deleteRoom(room uint32) {
 func (b *notificationBadgeSources) deleteUser(user uint32) {
 	delete(b.accountSince, user)
 	for _, sources := range b.rooms {
+		for _, targeted := range sources.targeted[user] {
+			for _, source := range targeted {
+				if source.kind == badgeSourceReaction {
+					delete(b.reactions, badgeReactionKey{message: source.message, reactor: source.reactor, emoji: source.emoji})
+				}
+			}
+		}
 		delete(sources.targeted, user)
 	}
 	for key := range b.memberSince {
@@ -403,6 +462,7 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 		return
 	}
 	sources := b.room(record.room)
+	b.noteSource(sources, record.createdAt)
 	if record.thread == 0 {
 		sources.roots = b.appendMessage(sources.roots, message, record.createdAt)
 	} else {
@@ -448,7 +508,9 @@ func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reacti
 		return
 	}
 	b.reactions[key] = struct{}{}
-	b.addTargeted(b.room(record.room), record.author, record.thread, badgeTargetedSource{
+	sources := b.room(record.room)
+	b.noteSource(sources, createdAt)
+	b.addTargeted(sources, record.author, record.thread, badgeTargetedSource{
 		seq: seq, createdAt: createdAt, message: target, reactor: reactor, emoji: key.emoji, kind: badgeSourceReaction,
 	})
 }
@@ -587,6 +649,9 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 		if !includes(thread) || len(targeted) == 0 {
 			continue
 		}
+		if newest := targeted[len(targeted)-1]; newest.seq <= lower || newest.createdAt <= expired {
+			continue
+		}
 		boundary, hasBoundary := readBoundary(thread)
 		// A reaction is covered when its target and the reaction are within
 		// the read boundary. A reaction at or below the boundary's target
@@ -627,7 +692,10 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	if broad && user != 0 && badge(badgeCauseFollowedThread) {
 		for thread, since := range b.follows[badgeMembershipKey{user: user, room: room}] {
 			replies := sources.replies[thread]
-			if !includes(thread) || len(replies) == 0 || b.messages[replies[len(replies)-1]].seq <= max(lower, since) {
+			if !includes(thread) || len(replies) == 0 {
+				continue
+			}
+			if newest := b.messages[replies[len(replies)-1]]; newest.seq <= max(lower, since) || newest.createdAt <= expired {
 				continue
 			}
 			if newestMessage(replies, floor(thread, since)) {
@@ -745,7 +813,8 @@ func (b *notificationBadgeSources) estimatedBytes() int64 {
 // sources are in stream order within each user, room, and scope, so restore
 // rebuilds the same ordered lists.
 func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSourcesSnapshot {
-	snapshot := &projectionv1.NotificationBadgeSourcesSnapshot{}
+	snapshot := &projectionv1.NotificationBadgeSourcesSnapshot{LatestCreatedAtUnixNanos: b.latestCreatedAt}
+	cutoff := expiredBefore(b.latestCreatedAt)
 	messages := make([]uint32, 0, len(b.messages))
 	for message := range b.messages {
 		messages = append(messages, message)
@@ -764,6 +833,9 @@ func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSou
 		for _, user := range sortedHandleKeys(&b.ids, sources.targeted) {
 			for _, thread := range sortedHandleKeys(&b.ids, sources.targeted[user]) {
 				for _, source := range sources.targeted[user][thread] {
+					if source.createdAt <= cutoff {
+						continue
+					}
 					snapshot.Targets = append(snapshot.Targets, &projectionv1.NotificationBadgeTargetSnapshot{
 						UserId: b.ids.id(user), RoomId: b.ids.id(room), MessageEventId: b.ids.id(source.message),
 						Kind: uint32(source.kind), Sequence: source.seq, CreatedAtUnixNanos: source.createdAt,
@@ -814,6 +886,7 @@ func (b *notificationBadgeSources) compareMembershipKeys(a, c badgeMembershipKey
 // restoreNotificationBadgeSources rebuilds the index from a snapshot.
 func restoreNotificationBadgeSources(snapshot *projectionv1.NotificationBadgeSourcesSnapshot) (*notificationBadgeSources, error) {
 	b := newNotificationBadgeSources()
+	b.latestCreatedAt = snapshot.GetLatestCreatedAtUnixNanos()
 	var previous uint64
 	for _, row := range snapshot.GetMessages() {
 		if row.GetEventId() == "" || row.GetRoomId() == "" || row.GetSequence() == 0 || row.GetSequence() <= previous {
