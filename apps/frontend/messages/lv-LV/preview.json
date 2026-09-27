@@ -4,6 +4,8 @@
     "delete": "Dzēst priekšskatījumu",
     "open_link": "Atvērt saiti",
     "copy_url": "Kopēt URL",
+    "url_copied": "URL nokopēts starpliktuvē",
+    "copy_url_failed": "Neizdevās nokopēt URL",
     "show_content": "Rādīt saturu",
     "hide_content": "Slēpt saturu",
     "youtube_title": "YouTube videoklips",

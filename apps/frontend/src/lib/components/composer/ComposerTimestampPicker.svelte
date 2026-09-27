@@ -2,6 +2,7 @@
   import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import { tick } from 'svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import { Button } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import {
     createMessageTimestampToken,
@@ -109,7 +110,7 @@
   {disabled}
   title={m('composer.timestamp.insert_label')}
 >
-  <span class="iconify icon-[uil--clock] text-[15px]"></span>
+  <span aria-hidden="true" class="iconify icon-[uil--clock] text-[15px]"></span>
 </CompactActionButton>
 
 {#if pickerOpen}
@@ -122,7 +123,7 @@
   >
     <form class="flex flex-col gap-1" onsubmit={insertTimestamp}>
       <header class="flex items-center gap-2 menu-section px-3 py-2 text-sm font-medium">
-        <span class="iconify icon-[uil--clock] text-muted"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--clock] text-muted"></span>
         <span>{m('composer.timestamp.title')}</span>
       </header>
 
@@ -158,17 +159,17 @@
         </label>
 
         {#if pickerError}
-          <p class="form-error text-xs">{pickerError}</p>
+          <p class="form-error">{pickerError}</p>
         {/if}
       </section>
 
       <footer class="flex justify-end gap-2 menu-section px-3 py-2">
-        <button type="button" class="btn-secondary btn-sm" onclick={() => closePicker()}>
+        <Button size="sm" variant="secondary" onclick={() => closePicker()}>
           {m('common.cancel')}
-        </button>
-        <button type="submit" class="btn-action btn-sm" disabled={pickerError !== null}>
+        </Button>
+        <Button type="submit" size="sm" disabled={pickerError !== null}>
           {m('composer.timestamp.insert')}
-        </button>
+        </Button>
       </footer>
     </form>
   </ContextMenu>

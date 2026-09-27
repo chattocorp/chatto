@@ -4,6 +4,8 @@
     "attachment_image": "Imagen",
     "attachment_video": "Vídeo",
     "attachment_audio": "Audio",
-    "attachment_file": "Archivo"
+    "attachment_file": "Archivo",
+    "open_linked_message": "Abrir mensaje enlazado",
+    "open_linked_message_from": "Abrir mensaje enlazado de {name}"
   }
 }

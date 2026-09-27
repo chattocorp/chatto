@@ -34,12 +34,16 @@
     "post_as_new_message": "Postita uue sõnumina",
     "continue_in_thread": "Jätka lõimes",
     "edit_failed": "Sõnumi muutmine ebaõnnestus",
+    "edit_empty": "Sõnum ei tohi olla tühi",
     "upload": {
       "preparing": "Ettevalmistus…",
       "uploading": "{percentage}% üles laaditud",
       "uploaded": "Üles laaditud",
       "failed": "Üleslaadimine ebaõnnestus",
-      "remove": "Eemalda {filename}"
+      "remove": "Eemalda {filename}",
+      "video_disabled": "Videote üleslaadimine on selles serveris keelatud.",
+      "prepare_failed": "Manuse ettevalmistamine ebaõnnestus",
+      "too_large": "{filename} on liiga suur ({size}). Maksimum on {limit}."
     },
     "format": {
       "bold": "Paks",

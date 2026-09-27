@@ -9,6 +9,7 @@
     "join_call": "通話に参加",
     "start_call": "通話を開始します",
     "leave": "通話を終了します",
+    "open_call_room": "{room} を開く",
     "share_screen": "画面共有",
     "stop_share_screen": "画面共有を停止します",
     "applications": "アプリケーション",

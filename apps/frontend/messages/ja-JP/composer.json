@@ -34,12 +34,16 @@
     "post_as_new_message": "新しいメッセージとして投稿",
     "continue_in_thread": "スレッドで続ける",
     "edit_failed": "メッセージの編集に失敗しました",
+    "edit_empty": "メッセージを空にすることはできません",
     "upload": {
       "preparing": "準備中…",
       "uploading": "アップロード済み {percentage}%",
       "uploaded": "アップロード済み",
       "failed": "アップロードに失敗しました",
-      "remove": "{filename}を削除"
+      "remove": "{filename}を削除",
+      "video_disabled": "このサーバーでは動画のアップロードが無効になっています。",
+      "prepare_failed": "添付ファイルの準備に失敗しました",
+      "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。"
     },
     "format": {
       "bold": "太字",

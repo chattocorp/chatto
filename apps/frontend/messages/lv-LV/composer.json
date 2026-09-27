@@ -34,12 +34,16 @@
     "post_as_new_message": "Publicēt kā jaunu ziņojumu",
     "continue_in_thread": "Turpināt pavedienā",
     "edit_failed": "Neizdevās rediģēt ziņojumu",
+    "edit_empty": "Ziņojums nevar būt tukšs",
     "upload": {
       "preparing": "Notiek sagatavošana…",
       "uploading": "{percentage}% augšupielādēti",
       "uploaded": "Augšupielādēts",
       "failed": "Augšupielāde neizdevās",
-      "remove": "Noņemt {filename}"
+      "remove": "Noņemt {filename}",
+      "video_disabled": "Video augšupielāde šajā serverī ir atspējota.",
+      "prepare_failed": "Neizdevās sagatavot pielikumu",
+      "too_large": "{filename} ir pārāk liels ({size}). Maksimālais izmērs ir {limit}."
     },
     "format": {
       "bold": "Treknrakstā",

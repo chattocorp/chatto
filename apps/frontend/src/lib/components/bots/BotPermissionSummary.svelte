@@ -97,7 +97,7 @@ while mounted and discards cached data when the profile closes. -->
   {#each groups as group (group.id)}
     <div class="flex items-start gap-2">
       <span class="mt-0.5 sidebar-icon text-muted" aria-hidden="true">
-        <span class={['iconify', group.icon]}></span>
+        <span aria-hidden="true" class={['iconify', group.icon]}></span>
       </span>
       <div class="min-w-0 flex-1 space-y-1">
         <h4 class="font-medium break-words"><bdi>{group.label}</bdi></h4>

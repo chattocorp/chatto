@@ -9,6 +9,7 @@
     "join_call": "Liitu kõnega",
     "start_call": "Alustage kõnet",
     "leave": "Jäta kõne",
+    "open_call_room": "Ava {room}",
     "share_screen": "Ekraani jagamine",
     "stop_share_screen": "Lõpetage ekraani jagamine",
     "applications": "Rakendused",

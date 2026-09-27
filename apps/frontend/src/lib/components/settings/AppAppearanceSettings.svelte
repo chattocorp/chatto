@@ -80,114 +80,120 @@
 </script>
 
 <PageTitle title={m('settings.app_preferences.appearance.title')} scope="app" />
-<PaneHeader
-  title={m('settings.app_preferences.appearance.title')}
-  subtitle={m('settings.app_preferences.subtitle')}
-/>
 
-<PaneContent>
-  <div class="flex flex-col gap-6">
-    <Panel title={m('settings.preferences.theme.title')} icon="iconify icon-[uil--palette]">
-      <div class="max-w-md">
-        <div
-          class="flex flex-col gap-2"
-          role="radiogroup"
-          aria-label={m('settings.preferences.theme.title')}
-        >
-          {#each themeOptions as option (option.value)}
-            <ChoiceRow
-              label={option.label}
-              description={option.description}
-              selected={userPreferences.displayTheme === option.value}
-              onclick={() => (userPreferences.displayTheme = option.value)}
-            />
-          {/each}
-        </div>
-      </div>
-    </Panel>
+<div class="pane-page">
+  <PaneHeader
+    title={m('settings.app_preferences.appearance.title')}
+    subtitle={m('settings.app_preferences.subtitle')}
+  />
 
-    <Panel title={m('settings.preferences.customization.title')} icon="iconify icon-[uil--palette]">
-      <div class="flex flex-col gap-6">
-        <FormSection title={m('settings.preferences.accent.title')}>
-          <AccentColorPicker
-            value={userPreferences.accentColor}
-            onchange={(value) => (userPreferences.accentColor = value)}
-          />
-        </FormSection>
-        <FormSection title={m('settings.preferences.theme.title')}>
-          {#if userPreferences.effectiveDisplayTheme === 'dark'}
-            <SurfaceTonePicker
-              theme="dark"
-              value={userPreferences.darkSurfaceTone}
-              onchange={(value) => (userPreferences.darkSurfaceTone = value)}
-            />
-          {:else}
-            <SurfaceTonePicker
-              theme="light"
-              value={userPreferences.lightSurfaceTone}
-              onchange={(value) => (userPreferences.lightSurfaceTone = value)}
-            />
-          {/if}
-        </FormSection>
-        <FormSection title={m('settings.preferences.depth.title')}>
-          <div class="@container">
-            <div class="grid gap-3 @min-[36rem]:grid-cols-2">
-              <RangeField
-                id="ui-depth"
-                label={m('settings.preferences.depth.label')}
-                min={0}
-                max={100}
-                step={surfaceDepthStep}
-                ticks={depthTicks}
-                value={userPreferences.surfaceDepth}
-                displayValue={depthDisplayValue}
-                ariaValueText={depthValueText}
-                oninput={(event) =>
-                  (userPreferences.surfaceDepth = (
-                    event.currentTarget as HTMLInputElement
-                  ).valueAsNumber)}
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={m('settings.preferences.theme.title')} icon="iconify icon-[uil--palette]">
+        <div class="max-w-md">
+          <div
+            class="flex flex-col gap-2"
+            role="radiogroup"
+            aria-label={m('settings.preferences.theme.title')}
+          >
+            {#each themeOptions as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                description={option.description}
+                selected={userPreferences.displayTheme === option.value}
+                onclick={() => (userPreferences.displayTheme = option.value)}
               />
-              <RangeField
-                id="ui-contrast"
-                label={m('settings.preferences.contrast.label')}
-                min={20}
-                max={40}
-                step={contrastAgeStep}
-                ticks={contrastTicks}
-                value={userPreferences.contrastAge}
-                displayValue={contrastDisplayValue}
-                ariaValueText={contrastValueText}
-                oninput={(event) =>
-                  (userPreferences.contrastAge = (
-                    event.currentTarget as HTMLInputElement
-                  ).valueAsNumber)}
-              />
-            </div>
+            {/each}
           </div>
-        </FormSection>
-      </div>
-    </Panel>
-
-    <Panel
-      title={m('settings.preferences.thread_pane.title')}
-      icon="iconify icon-[uil--window-section]"
-    >
-      <div class="max-w-md">
-        <div
-          class="flex flex-col gap-2"
-          role="radiogroup"
-          aria-label={m('settings.preferences.thread_pane.title')}
-        >
-          {#each threadPaneOptions as option (option.value)}
-            <ChoiceRow
-              label={option.label}
-              description={option.description}
-              selected={userPreferences.threadPanePresentation === option.value}
-              onclick={() => (userPreferences.threadPanePresentation = option.value)}
-            />
-          {/each}
         </div>
-      </div>
-    </Panel>
-  </div>
-</PaneContent>
+      </Panel>
+
+      <Panel
+        title={m('settings.preferences.customization.title')}
+        icon="iconify icon-[uil--palette]"
+      >
+        <div class="flex flex-col gap-6">
+          <FormSection title={m('settings.preferences.accent.title')}>
+            <AccentColorPicker
+              value={userPreferences.accentColor}
+              onchange={(value) => (userPreferences.accentColor = value)}
+            />
+          </FormSection>
+          <FormSection title={m('settings.preferences.theme.title')}>
+            {#if userPreferences.effectiveDisplayTheme === 'dark'}
+              <SurfaceTonePicker
+                theme="dark"
+                value={userPreferences.darkSurfaceTone}
+                onchange={(value) => (userPreferences.darkSurfaceTone = value)}
+              />
+            {:else}
+              <SurfaceTonePicker
+                theme="light"
+                value={userPreferences.lightSurfaceTone}
+                onchange={(value) => (userPreferences.lightSurfaceTone = value)}
+              />
+            {/if}
+          </FormSection>
+          <FormSection title={m('settings.preferences.depth.title')}>
+            <div class="@container">
+              <div class="grid gap-3 @min-[36rem]:grid-cols-2">
+                <RangeField
+                  id="ui-depth"
+                  label={m('settings.preferences.depth.label')}
+                  min={0}
+                  max={100}
+                  step={surfaceDepthStep}
+                  ticks={depthTicks}
+                  value={userPreferences.surfaceDepth}
+                  displayValue={depthDisplayValue}
+                  ariaValueText={depthValueText}
+                  oninput={(event) =>
+                    (userPreferences.surfaceDepth = (
+                      event.currentTarget as HTMLInputElement
+                    ).valueAsNumber)}
+                />
+                <RangeField
+                  id="ui-contrast"
+                  label={m('settings.preferences.contrast.label')}
+                  min={20}
+                  max={40}
+                  step={contrastAgeStep}
+                  ticks={contrastTicks}
+                  value={userPreferences.contrastAge}
+                  displayValue={contrastDisplayValue}
+                  ariaValueText={contrastValueText}
+                  oninput={(event) =>
+                    (userPreferences.contrastAge = (
+                      event.currentTarget as HTMLInputElement
+                    ).valueAsNumber)}
+                />
+              </div>
+            </div>
+          </FormSection>
+        </div>
+      </Panel>
+
+      <Panel
+        title={m('settings.preferences.thread_pane.title')}
+        icon="iconify icon-[uil--window-section]"
+      >
+        <div class="max-w-md">
+          <div
+            class="flex flex-col gap-2"
+            role="radiogroup"
+            aria-label={m('settings.preferences.thread_pane.title')}
+          >
+            {#each threadPaneOptions as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                description={option.description}
+                selected={userPreferences.threadPanePresentation === option.value}
+                onclick={() => (userPreferences.threadPanePresentation = option.value)}
+              />
+            {/each}
+          </div>
+        </div>
+      </Panel>
+    </div>
+  </PaneContent>
+</div>

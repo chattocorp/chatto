@@ -20,25 +20,28 @@
 </script>
 
 <PageTitle title={m('settings.preferences.language.title')} scope="app" />
-<PaneHeader
-  title={m('settings.preferences.language.title')}
-  subtitle={m('settings.preferences.language.description')}
-/>
 
-<PaneContent>
-  <Panel title={m('settings.preferences.language.title')} icon="iconify icon-[uil--language]">
-    <div
-      class="flex max-w-md flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.language.title')}
-    >
-      {#each languageOptions as option (option.value)}
-        <ChoiceRow
-          label={option.label}
-          selected={activeLocale === option.value}
-          onclick={() => handleLocaleSelect(option.value)}
-        />
-      {/each}
-    </div>
-  </Panel>
-</PaneContent>
+<div class="pane-page">
+  <PaneHeader
+    title={m('settings.preferences.language.title')}
+    subtitle={m('settings.preferences.language.description')}
+  />
+
+  <PaneContent>
+    <Panel title={m('settings.preferences.language.title')} icon="iconify icon-[uil--language]">
+      <div
+        class="flex max-w-md flex-col gap-2"
+        role="radiogroup"
+        aria-label={m('settings.preferences.language.title')}
+      >
+        {#each languageOptions as option (option.value)}
+          <ChoiceRow
+            label={option.label}
+            selected={activeLocale === option.value}
+            onclick={() => handleLocaleSelect(option.value)}
+          />
+        {/each}
+      </div>
+    </Panel>
+  </PaneContent>
+</div>

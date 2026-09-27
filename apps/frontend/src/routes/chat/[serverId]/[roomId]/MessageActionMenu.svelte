@@ -146,7 +146,7 @@ surface-specific sizing and menu semantics.
       aria-label={m('room.message.actions.more_reactions')}
       role={isSheet ? undefined : 'menuitem'}
     >
-      <span class={['iconify icon-[uil--smile]', !isSheet && 'text-lg']}></span>
+      <span aria-hidden="true" class={['iconify icon-[uil--smile]', !isSheet && 'text-lg']}></span>
     </button>
   {/if}
 {/snippet}

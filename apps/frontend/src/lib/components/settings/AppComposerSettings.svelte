@@ -36,49 +36,52 @@
 </script>
 
 <PageTitle title={m('settings.app_preferences.composer.title')} scope="app" />
-<PaneHeader
-  title={m('settings.app_preferences.composer.title')}
-  subtitle={m('settings.app_preferences.subtitle')}
-/>
 
-<PaneContent>
-  <div class="flex flex-col gap-6">
-    <Panel title={m('settings.preferences.editor.title')} icon="iconify icon-[uil--edit]">
-      <div class="max-w-md">
-        <div
-          class="flex flex-col gap-2"
-          role="radiogroup"
-          aria-label={m('settings.preferences.editor.title')}
-        >
-          {#each editorOptions as option (option.value)}
-            <ChoiceRow
-              label={option.label}
-              description={option.description}
-              selected={userPreferences.composerEditor === option.value}
-              onclick={() => (userPreferences.composerEditor = option.value)}
-            />
-          {/each}
-        </div>
-      </div>
-    </Panel>
+<div class="pane-page">
+  <PaneHeader
+    title={m('settings.app_preferences.composer.title')}
+    subtitle={m('settings.app_preferences.subtitle')}
+  />
 
-    <Panel title={m('settings.preferences.send_mode.title')} icon="iconify icon-[uil--message]">
-      <div class="max-w-md">
-        <div
-          class="flex flex-col gap-2"
-          role="radiogroup"
-          aria-label={m('settings.preferences.send_mode.title')}
-        >
-          {#each sendModeOptions as option (option.value)}
-            <ChoiceRow
-              label={option.label}
-              description={option.description}
-              selected={userPreferences.composerSendMode === option.value}
-              onclick={() => (userPreferences.composerSendMode = option.value)}
-            />
-          {/each}
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={m('settings.preferences.editor.title')} icon="iconify icon-[uil--edit]">
+        <div class="max-w-md">
+          <div
+            class="flex flex-col gap-2"
+            role="radiogroup"
+            aria-label={m('settings.preferences.editor.title')}
+          >
+            {#each editorOptions as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                description={option.description}
+                selected={userPreferences.composerEditor === option.value}
+                onclick={() => (userPreferences.composerEditor = option.value)}
+              />
+            {/each}
+          </div>
         </div>
-      </div>
-    </Panel>
-  </div>
-</PaneContent>
+      </Panel>
+
+      <Panel title={m('settings.preferences.send_mode.title')} icon="iconify icon-[uil--message]">
+        <div class="max-w-md">
+          <div
+            class="flex flex-col gap-2"
+            role="radiogroup"
+            aria-label={m('settings.preferences.send_mode.title')}
+          >
+            {#each sendModeOptions as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                description={option.description}
+                selected={userPreferences.composerSendMode === option.value}
+                onclick={() => (userPreferences.composerSendMode = option.value)}
+              />
+            {/each}
+          </div>
+        </div>
+      </Panel>
+    </div>
+  </PaneContent>
+</div>

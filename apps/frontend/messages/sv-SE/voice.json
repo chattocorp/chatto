@@ -9,6 +9,7 @@
     "join_call": "Gå med i samtalet",
     "start_call": "Starta samtalet",
     "leave": "Lämna samtalet",
+    "open_call_room": "Öppna {room}",
     "share_screen": "Dela skärm",
     "stop_share_screen": "Sluta dela skärmen",
     "applications": "Program",

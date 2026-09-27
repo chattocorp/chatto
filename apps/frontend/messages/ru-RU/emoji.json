@@ -1,6 +1,7 @@
 {
   "emoji": {
     "search_placeholder": "Поиск смайлов...",
-    "no_results": "Смайлики не найдены"
+    "no_results": "Смайлики не найдены",
+    "recently_used": "Недавно использованные"
   }
 }

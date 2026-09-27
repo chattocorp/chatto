@@ -51,9 +51,7 @@
 
 <PageTitle title={m('auth.forgot_password.title')} />
 
-<AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.forgot_password.title')}</h1>
-
+<AuthLayout title={m('auth.forgot_password.title')}>
   {#if submitted}
     <Hint tone="success">
       <p class="mb-2 font-medium">{m('auth.forgot_password.submitted_title')}</p>
@@ -93,7 +91,7 @@
         loading={isLoading}
         loadingText={m('auth.forgot_password.sending')}
       >
-        <span class="iconify icon-[uil--envelope-send]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--envelope-send]"></span>
         {m('auth.forgot_password.send_button')}
       </Button>
     </Form>

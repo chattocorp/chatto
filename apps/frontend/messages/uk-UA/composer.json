@@ -34,12 +34,16 @@
     "post_as_new_message": "Опублікувати як нове повідомлення",
     "continue_in_thread": "Продовжити в гілці",
     "edit_failed": "Не вдалося редагувати повідомлення",
+    "edit_empty": "Повідомлення не може бути порожнім",
     "upload": {
       "preparing": "Підготовка…",
       "uploading": "Завантажено: {percentage}%",
       "uploaded": "Завантажено",
       "failed": "Не вдалося завантажити",
-      "remove": "Вилучити {filename}"
+      "remove": "Вилучити {filename}",
+      "video_disabled": "Завантаження відео на цьому сервері вимкнено.",
+      "prepare_failed": "Не вдалося підготувати вкладення",
+      "too_large": "Файл {filename} завеликий ({size}). Максимум — {limit}."
     },
     "format": {
       "bold": "Жирний",

@@ -34,12 +34,16 @@
     "post_as_new_message": "פרסום כהודעה חדשה",
     "continue_in_thread": "המשך בשרשור",
     "edit_failed": "נכשל בעריכת ההודעה",
+    "edit_empty": "ההודעה לא יכולה להיות ריקה",
     "upload": {
       "preparing": "מכין...",
       "uploading": "{percentage}% הועלה",
       "uploaded": "הועלה",
       "failed": "נכשלה",
-      "remove": "הסר את {filename}"
+      "remove": "הסר את {filename}",
+      "video_disabled": "העלאת סרטונים מושבתת בשרת זה.",
+      "prepare_failed": "הכנת הקובץ המצורף נכשלה",
+      "too_large": "{filename} גדול מדי ({size}). הגודל המרבי הוא {limit}."
     },
     "format": {
       "bold": "מודגש",

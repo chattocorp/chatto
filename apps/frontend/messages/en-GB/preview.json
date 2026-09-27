@@ -4,6 +4,8 @@
     "delete": "Delete preview",
     "open_link": "Open link",
     "copy_url": "Copy URL",
+    "url_copied": "URL copied to clipboard",
+    "copy_url_failed": "Failed to copy URL",
     "show_content": "Show content",
     "hide_content": "Hide content",
     "youtube_title": "YouTube video",

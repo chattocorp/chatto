@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ConfirmDialog } from '$lib/ui';
+  import { ConfirmDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -39,5 +39,5 @@
     <li>{m('rbac.delete_role.remove_from_users')}</li>
     <li>{m('rbac.delete_role.delete_grants')}</li>
   </ul>
-  <p class="text-sm font-medium text-error">{m('rbac.delete_role.irreversible')}</p>
+  <Hint tone="danger">{m('rbac.delete_role.irreversible')}</Hint>
 </ConfirmDialog>

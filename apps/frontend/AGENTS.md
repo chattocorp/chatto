@@ -147,6 +147,19 @@ Do not generate playground links for code written into this repository.
   smoothing such as Tailwind `antialiased`, `-webkit-font-smoothing`, or
   `-moz-osx-font-smoothing`.
 - Clickable controls need `cursor-pointer`.
+- Use only colour tokens that `src/app.css` defines. Tailwind silently drops
+  unknown utilities such as `bg-elevated` or `text-foreground`. Logical corner
+  utilities are `rounded-ss`, `rounded-se`, `rounded-es`, and `rounded-ee`.
+- Hide decorative Iconify spans with `aria-hidden="true"`. An icon that alone
+  carries meaning needs `role="img"` and an `aria-label`; a `title` alone is not
+  an accessible name.
+- Give toggle buttons a stable accessible name and express their state with
+  `aria-pressed`, rather than switching the label between two actions.
+- Every `svelte-ignore a11y_*` comment needs a separate comment directly above
+  it that states why the element stays accessible.
+- Render loading, empty, and error states inside the panel or list area that
+  they replace, with `LoadingFog`, `EmptyState`, and `Hint`. Do not leave a
+  blank area while the first page loads.
 - Do not use `{@html}` directly in feature components. Render trusted markdown
   HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.
 - Use `<SkeletonImg>` instead of `<img class="skeleton">`.

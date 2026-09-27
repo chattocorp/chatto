@@ -38,3 +38,15 @@
     <UserList {users} clickable={false} />
   </Panel>
 </Story>
+
+<Story name="Loading" asChild>
+  <Panel title="Role members" noPadding>
+    <UserList users={[]} loading clickable={false} />
+  </Panel>
+</Story>
+
+<Story name="Empty" asChild>
+  <Panel title="Role members" noPadding>
+    <UserList users={[]} emptyMessage="No members have this role yet." clickable={false} />
+  </Panel>
+</Story>

@@ -4,6 +4,8 @@
     "delete": "Slett forhåndsvisning",
     "open_link": "Åpne lenken",
     "copy_url": "Kopier URL",
+    "url_copied": "URL-en er kopiert til utklippstavlen",
+    "copy_url_failed": "Kunne ikke kopiere URL-en",
     "show_content": "Vis innhold",
     "hide_content": "Skjul innhold",
     "youtube_title": "YouTube video",

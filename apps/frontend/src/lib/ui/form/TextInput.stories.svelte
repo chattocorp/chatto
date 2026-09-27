@@ -28,6 +28,7 @@
   let withDescription = $state('');
   let search = $state('');
   let port = $state('8080');
+  let status = $state('In focus mode');
 </script>
 
 <Story
@@ -105,6 +106,42 @@
       type="email"
       error="Please enter a valid email address."
     />
+  </div>
+</Story>
+
+<Story
+  name="Field actions"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Use the leading and trailing snippets for one field-action button each, such as an emoji trigger and a clear button.'
+      }
+    }
+  }}
+>
+  <div class="max-w-md">
+    <TextInput id="status" label="Status" labelHidden bind:value={status} maxlength={100}>
+      {#snippet leading()}
+        <button type="button" class="field-action" aria-label="Choose emoji" title="Choose emoji">
+          <span aria-hidden="true">🌿</span>
+        </button>
+      {/snippet}
+      {#snippet trailing()}
+        {#if status}
+          <button
+            type="button"
+            class="field-action"
+            aria-label="Clear"
+            title="Clear"
+            onclick={() => (status = '')}
+          >
+            <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
+          </button>
+        {/if}
+      {/snippet}
+    </TextInput>
   </div>
 </Story>
 

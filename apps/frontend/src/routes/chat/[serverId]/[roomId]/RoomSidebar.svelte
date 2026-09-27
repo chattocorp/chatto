@@ -38,7 +38,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
-  import { ScrollFader } from '$lib/ui';
+  import { EmptyState, LoadingFog, ScrollFader } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
@@ -463,25 +463,27 @@ calls, and similar room-specific panels can plug into the same shell. See the
         data-testid="room-member-list"
         aria-label={m('room.sidebar.members')}
       >
-        <nav aria-label={m('room.sidebar.members')} aria-busy={membersPending}>
-          {#if !membersPending}
-            {#if members.length === 0}
-              <div class="px-2 py-8 text-center text-sm text-muted">
-                {m('room.sidebar.no_members')}
-              </div>
-            {:else}
-              {#each memberGroups as group (group.id)}
-                <RoomGroupSection
-                  label={group.label}
-                  items={group.items}
-                  item={memberRow}
-                  persistKey={group.persistKey}
-                  defaultCollapsed={group.defaultCollapsed}
-                  testid={group.testid}
-                  separated
-                />
-              {/each}
-            {/if}
+        <nav
+          class="flex min-h-full flex-col"
+          aria-label={m('room.sidebar.members')}
+          aria-busy={membersPending}
+        >
+          {#if membersPending}
+            <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.sidebar.loading_members')} />
+          {:else if members.length === 0}
+            <EmptyState icon="icon-[uil--users-alt]" title={m('room.sidebar.no_members')} />
+          {:else}
+            {#each memberGroups as group (group.id)}
+              <RoomGroupSection
+                label={group.label}
+                items={group.items}
+                item={memberRow}
+                persistKey={group.persistKey}
+                defaultCollapsed={group.defaultCollapsed}
+                testid={group.testid}
+                separated
+              />
+            {/each}
           {/if}
         </nav>
       </ScrollFader>
@@ -532,9 +534,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         {onOpenFileMessage}
       />
     {:else}
-      <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-        {m('room.sidebar.no_files')}
-      </div>
+      <EmptyState icon="icon-[mdi--file-outline]" title={m('room.sidebar.no_files')} />
     {/if}
   {:else if activePanel === 'pins'}
     {#if pinsStore}
@@ -574,6 +574,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         'iconify shrink-0 text-xs leading-none text-action',
         kind === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
       ]}
+      role="img"
       title={kind === 'video' ? m('room.sidebar.in_video_call') : m('room.sidebar.in_voice_call')}
       aria-label={kind === 'video'
         ? m('room.sidebar.in_video_call')

@@ -4,6 +4,8 @@
     "attachment_image": "Pilt",
     "attachment_video": "Video",
     "attachment_audio": "Heli",
-    "attachment_file": "Fail"
+    "attachment_file": "Fail",
+    "open_linked_message": "Ava lingitud sõnum",
+    "open_linked_message_from": "Ava kasutaja {name} lingitud sõnum"
   }
 }

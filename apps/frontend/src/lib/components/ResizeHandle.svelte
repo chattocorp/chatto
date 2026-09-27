@@ -164,7 +164,7 @@
   <span
     data-testid="resize-handle-line"
     class={[
-      'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
+      'pointer-events-none absolute top-0 bottom-0 w-px transition-colors feedback-quick',
       edge === 'end' ? 'end-0' : 'start-0',
       dragging
         ? 'bg-neutral-action'

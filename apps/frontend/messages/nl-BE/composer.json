@@ -34,12 +34,16 @@
     "post_as_new_message": "Als nieuw bericht plaatsen",
     "continue_in_thread": "Doorgaan in de thread",
     "edit_failed": "Kan bericht niet bewerken",
+    "edit_empty": "Bericht mag niet leeg zijn",
     "upload": {
       "preparing": "Voorbereiden…",
       "uploading": "{percentage}% geüpload",
       "uploaded": "Geüpload",
       "failed": "Upload mislukt",
-      "remove": "{filename} verwijderen"
+      "remove": "{filename} verwijderen",
+      "video_disabled": "Video-uploads zijn uitgeschakeld op deze server.",
+      "prepare_failed": "Kan bijlage niet voorbereiden",
+      "too_large": "{filename} is te groot ({size}). Het maximum is {limit}."
     },
     "format": {
       "bold": "Vet",

@@ -26,7 +26,7 @@ iconify icon in the slot:
 
 ```svelte
 <ToggleChip tone="danger" title="Delete" onclick={onDelete}>
-  <span class="iconify icon-[uil--trash-alt]"></span>
+  <span class="iconify icon-[uil--trash-alt]" role="img" aria-label="Delete"></span>
 </ToggleChip>
 ```
 -->

@@ -4,6 +4,8 @@
     "attachment_image": "圖片",
     "attachment_video": "影片",
     "attachment_audio": "音訊",
-    "attachment_file": "檔案"
+    "attachment_file": "檔案",
+    "open_linked_message": "開啟連結的訊息",
+    "open_linked_message_from": "開啟來自 {name} 的連結訊息"
   }
 }

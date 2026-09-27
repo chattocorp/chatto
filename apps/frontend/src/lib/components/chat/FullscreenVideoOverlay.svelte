@@ -85,7 +85,7 @@
       onclick={close}
       aria-label={m('media.close_fullscreen_video')}
     >
-      <span class="iconify icon-[uil--times] text-2xl"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--times] text-2xl"></span>
     </button>
 
     <media-player
@@ -108,6 +108,8 @@
 {/if}
 
 <style>
+  /* Vidstack renders these menus inside its own custom elements, so Tailwind
+     classes cannot reach them. The fullscreen overlay supplies its own controls. */
   :global(.fullscreen-overlay media-player .vds-settings-menu),
   :global(.fullscreen-overlay media-player .vds-chapters-menu),
   :global(.fullscreen-overlay media-player .vds-fullscreen-button) {

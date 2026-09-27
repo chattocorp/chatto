@@ -41,7 +41,7 @@ show it without highlighting while the language loads or if highlighting fails.
 <ScrollArea scrollX fill={false} aria-label="JSON">
   <pre
     dir="ltr"
-    class="composer-code-palette w-max min-w-full rounded-md bg-surface-emphasized p-4 font-mono text-xs leading-relaxed text-(--composer-code-text) [&_.hljs-attr]:text-(--composer-code-attribute) [&_.hljs-literal]:text-(--composer-code-literal) [&_.hljs-number]:text-(--composer-code-literal) [&_.hljs-string]:text-(--composer-code-string)"><code
+    class="composer-code-palette w-max min-w-full rounded-md bg-surface p-4 font-mono text-xs leading-relaxed text-(--composer-code-text) [&_.hljs-attr]:text-(--composer-code-attribute) [&_.hljs-literal]:text-(--composer-code-literal) [&_.hljs-number]:text-(--composer-code-literal) [&_.hljs-string]:text-(--composer-code-string)"><code
       >{#await tokens}{text}{:then nodes}{#if nodes}{@render renderTokens(
             nodes
           )}{:else}{text}{/if}{/await}</code

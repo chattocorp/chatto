@@ -15,7 +15,8 @@
     <div
       class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-neutral-action bg-surface/90 px-8 py-6 shadow-lg"
     >
-      <span class="iconify icon-[uil--image-upload] text-5xl text-neutral-action"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--image-upload] text-5xl text-neutral-action"
+      ></span>
       <p class="text-lg font-medium text-text">{title}</p>
       <p class="text-sm text-muted">{subtitle}</p>
     </div>

@@ -4,6 +4,8 @@
     "delete": "刪除預覽",
     "open_link": "開啟連結",
     "copy_url": "複製 URL",
+    "url_copied": "URL 已複製到剪貼簿",
+    "copy_url_failed": "無法複製 URL",
     "show_content": "顯示內容",
     "hide_content": "隱藏內容",
     "youtube_title": "YouTube 影片",

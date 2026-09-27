@@ -4,6 +4,8 @@
     "attachment_image": "Attēls",
     "attachment_video": "Video",
     "attachment_audio": "Audio",
-    "attachment_file": "Fails"
+    "attachment_file": "Fails",
+    "open_linked_message": "Atvērt saistīto ziņojumu",
+    "open_linked_message_from": "Atvērt saistīto ziņojumu no {name}"
   }
 }

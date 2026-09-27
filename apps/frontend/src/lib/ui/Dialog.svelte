@@ -227,7 +227,7 @@ and cannot be combined with semantic actions.
             class="-m-2 icon-action shrink-0"
             aria-label={m('ui.close')}
           >
-            <span class="iconify icon-[uil--times] text-xl"></span>
+            <span aria-hidden="true" class="iconify icon-[uil--times] text-xl"></span>
           </button>
         </header>
         <div
@@ -263,6 +263,8 @@ and cannot be combined with semantic actions.
 </ModalSurface>
 
 <style>
+  /* Sheet sizing depends on custom properties that ModalSurface measures at
+     runtime (visual viewport height and measured chrome height). */
   .dialog-frame {
     min-width: min(var(--dialog-baseline-width), calc(100vw - 2rem));
   }

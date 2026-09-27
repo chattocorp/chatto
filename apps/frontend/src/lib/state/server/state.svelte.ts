@@ -12,6 +12,9 @@ import {
   type ServerCompatibilityResult
 } from './compatibility';
 
+const DEFAULT_MAX_UPLOAD_SIZE = 25 * 1024 * 1024;
+const DEFAULT_MESSAGE_EDIT_WINDOW_SECONDS = 3 * 60 * 60;
+
 export class ServerInfoState {
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
@@ -20,20 +23,13 @@ export class ServerInfoState {
   name = $state('Chatto');
   version = $state('');
   lastDiscoveredAt = $state<number | null>(null);
-  motd = $state<string | null>(null);
   welcomeMessage = $state<string | null>(null);
   description = $state<string | null>(null);
   bannerUrl = $state<string | null>(null);
   iconUrl = $state<string | null>(null);
   directRegistrationEnabled = $state(true);
   directLoginEnabled = $state(true);
-  pushNotificationsEnabled = $state(false);
-  vapidPublicKey = $state<string | null>(null);
-  livekitUrl = $state<string | null>(null);
-  videoProcessingEnabled = $state(false);
-  maxUploadSize = $state(25 * 1024 * 1024); // default 25 MB
-  maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
-  messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten after auth
+  #getProjectedState: () => ProjectedServerState | null;
 
   loading = $state(true);
 
@@ -43,6 +39,55 @@ export class ServerInfoState {
    * for that server without taking down the rest of the app.
    */
   error = $state<string | null>(null);
+
+  // Authenticated runtime settings read the realtime projection directly, so a
+  // projection reset also resets them. Defaults apply until the projection has them.
+
+  /** Message of the day. */
+  get motd(): string | null {
+    return this.#getProjectedState()?.motd ?? null;
+  }
+
+  /** Whether the server sends Web Push notifications. */
+  get pushNotificationsEnabled(): boolean {
+    return this.#runtime?.pushNotificationsEnabled ?? false;
+  }
+
+  /** Public VAPID key for Web Push subscriptions. */
+  get vapidPublicKey(): string | null {
+    return this.#runtime?.vapidPublicKey ?? null;
+  }
+
+  /** LiveKit URL for voice and video calls, or null when calls are not set up. */
+  get livekitUrl(): string | null {
+    return this.#runtime?.livekitUrl ?? null;
+  }
+
+  /** Whether the server accepts video uploads for processing. */
+  get videoProcessingEnabled(): boolean {
+    return this.#runtime?.videoProcessingEnabled ?? false;
+  }
+
+  /** Largest upload in bytes. Default: 25 MB. */
+  get maxUploadSize(): number {
+    const runtime = this.#runtime;
+    return runtime ? Number(runtime.maxUploadSize) : DEFAULT_MAX_UPLOAD_SIZE;
+  }
+
+  /** Largest video upload in bytes. Default: 25 MB. */
+  get maxVideoUploadSize(): number {
+    const runtime = this.#runtime;
+    return runtime ? Number(runtime.maxVideoUploadSize) : DEFAULT_MAX_UPLOAD_SIZE;
+  }
+
+  /** How long after posting a message can be edited. Default: 3 hours. */
+  get messageEditWindowSeconds(): number {
+    return this.#runtime?.messageEditWindowSeconds ?? DEFAULT_MESSAGE_EDIT_WINDOW_SECONDS;
+  }
+
+  get #runtime() {
+    return this.#getProjectedState()?.runtime;
+  }
 
   get compatibility(): ServerCompatibilityResult {
     return evaluateServerCompatibility({
@@ -65,9 +110,14 @@ export class ServerInfoState {
    * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
    */
-  constructor(label = 'unknown', publicServerInfoLoader = getPublicServerInfo) {
+  constructor(
+    label = 'unknown',
+    publicServerInfoLoader = getPublicServerInfo,
+    getProjectedState: () => ProjectedServerState | null = () => null
+  ) {
     this.#label = label;
     this.#getPublicServerInfo = publicServerInfoLoader;
+    this.#getProjectedState = getProjectedState;
   }
 
   /**
@@ -132,34 +182,5 @@ export class ServerInfoState {
     this.bannerUrl = profile.bannerUrl ?? null;
     this.error = null;
     this.loading = false;
-  }
-
-  /** Apply authenticated runtime state carried by the realtime projection. */
-  applyProjectionState(state: ProjectedServerState): void {
-    this.motd = state.motd ?? null;
-    const runtime = state.runtime;
-    if (!runtime) return;
-    this.pushNotificationsEnabled = runtime.pushNotificationsEnabled;
-    this.vapidPublicKey = runtime.vapidPublicKey ?? null;
-    this.livekitUrl = runtime.livekitUrl ?? null;
-    this.videoProcessingEnabled = runtime.videoProcessingEnabled;
-    this.maxUploadSize = Number(runtime.maxUploadSize);
-    this.maxVideoUploadSize = Number(runtime.maxVideoUploadSize);
-    this.messageEditWindowSeconds = runtime.messageEditWindowSeconds;
-  }
-
-  /**
-   * Clear authenticated projection state while preserving independently
-   * discovered public profile and server-version information.
-   */
-  resetProjectionState(): void {
-    this.motd = null;
-    this.pushNotificationsEnabled = false;
-    this.vapidPublicKey = null;
-    this.livekitUrl = null;
-    this.videoProcessingEnabled = false;
-    this.maxUploadSize = 25 * 1024 * 1024;
-    this.maxVideoUploadSize = 25 * 1024 * 1024;
-    this.messageEditWindowSeconds = 3 * 60 * 60;
   }
 }

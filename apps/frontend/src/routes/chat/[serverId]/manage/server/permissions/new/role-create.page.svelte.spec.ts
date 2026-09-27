@@ -28,6 +28,7 @@ vi.mock('$lib/ui/Panel.svelte', async () => ({
   default: (await import('../[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui', async () => ({
+  Hint: (await import('$lib/ui/Hint.svelte')).default,
   PaneContent: (await import('../[name]/RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/components/rbac', async () => ({

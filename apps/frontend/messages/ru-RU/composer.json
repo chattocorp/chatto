@@ -34,12 +34,16 @@
     "post_as_new_message": "Опубликовать как новое сообщение",
     "continue_in_thread": "Продолжить в ветке",
     "edit_failed": "Не удалось отредактировать сообщение",
+    "edit_empty": "Сообщение не может быть пустым",
     "upload": {
       "preparing": "Подготовка…",
       "uploading": "{percentage}% загружено",
       "uploaded": "Загружено",
       "failed": "Загрузка не удалась",
-      "remove": "Удалить {filename}"
+      "remove": "Удалить {filename}",
+      "video_disabled": "Загрузка видео на этом сервере отключена.",
+      "prepare_failed": "Не удалось подготовить вложение",
+      "too_large": "Файл {filename} слишком большой ({size}). Максимум — {limit}."
     },
     "format": {
       "bold": "Жирный",

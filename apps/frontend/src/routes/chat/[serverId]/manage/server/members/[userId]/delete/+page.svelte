@@ -163,11 +163,10 @@
     subtitleContent={memberName}
     {backHref}
     backLabel={m('admin.members.back_to_members')}
-    showMobileNav
   />
 
   <PaneContent>
-    <div class="flex max-w-xl flex-col gap-6">
+    <div class="flex flex-col gap-6">
       {#if loading}
         <LoadingFog class="h-40 w-full" label={m('admin.members.loading_member')} />
       {:else if !details || !member}

@@ -351,7 +351,6 @@
     subtitleContent={memberName}
     {backHref}
     backLabel={m('admin.members.back_to_members')}
-    showMobileNav
   />
 
   <PaneContent>

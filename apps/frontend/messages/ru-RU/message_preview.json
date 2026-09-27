@@ -4,6 +4,8 @@
     "attachment_image": "Изображение",
     "attachment_video": "Видео",
     "attachment_audio": "Аудио",
-    "attachment_file": "Файл"
+    "attachment_file": "Файл",
+    "open_linked_message": "Открыть сообщение по ссылке",
+    "open_linked_message_from": "Открыть сообщение по ссылке от {name}"
   }
 }

@@ -4,6 +4,8 @@
     "attachment_image": "Bilde",
     "attachment_video": "Video",
     "attachment_audio": "Lyd",
-    "attachment_file": "Fil"
+    "attachment_file": "Fil",
+    "open_linked_message": "Åpne lenket melding",
+    "open_linked_message_from": "Åpne lenket melding fra {name}"
   }
 }

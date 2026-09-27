@@ -9,6 +9,7 @@
     "join_call": "Pievienojieties zvanam",
     "start_call": "Sāciet zvanu",
     "leave": "Atstāt zvanu",
+    "open_call_room": "Atvērt {room}",
     "share_screen": "Kopīgot ekrānu",
     "stop_share_screen": "Pārtraukt ekrāna kopīgošanu",
     "applications": "Lietotnes",

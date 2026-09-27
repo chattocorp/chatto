@@ -4,6 +4,8 @@
     "attachment_image": "Afbeelding",
     "attachment_video": "Video",
     "attachment_audio": "Audio",
-    "attachment_file": "Bestand"
+    "attachment_file": "Bestand",
+    "open_linked_message": "Gelinkt bericht openen",
+    "open_linked_message_from": "Gelinkt bericht van {name} openen"
   }
 }

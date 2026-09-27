@@ -89,10 +89,13 @@
             onkeydown={handleKeydown}
             type="text"
             placeholder={m('quick_switcher.placeholder')}
+            aria-label={m('quick_switcher.placeholder')}
             class="min-w-0 flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
           {#if model.loading}
-            <span class="iconify sidebar-icon icon-[uil--spinner-alt] animate-spin text-muted"
+            <span
+              class="iconify sidebar-icon icon-[uil--spinner-alt] animate-spin text-muted"
+              aria-hidden="true"
             ></span>
           {/if}
           <kbd class="keycap">Esc</kbd>

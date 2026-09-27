@@ -4,6 +4,8 @@
     "attachment_image": "Bildo",
     "attachment_video": "Video",
     "attachment_audio": "Aŭdio",
-    "attachment_file": "Dosiero"
+    "attachment_file": "Dosiero",
+    "open_linked_message": "Malfermi ligitan mesaĝon",
+    "open_linked_message_from": "Malfermi ligitan mesaĝon de {name}"
   }
 }

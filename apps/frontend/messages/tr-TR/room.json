@@ -103,6 +103,7 @@
         "copy_message_link": "Mesaj bağlantısını kopyala",
         "copy_image": "Görseli kopyala",
         "link_copied": "Bağlantı kopyalandı",
+        "message_link_copied": "Mesaj bağlantısı kopyalandı",
         "copy_link_failed": "Bağlantı kopyalanamadı",
         "image_copied": "Görsel kopyalandı",
         "copy_image_failed": "Görsel kopyalanamadı"
@@ -218,6 +219,7 @@
       "call": "Ara",
       "jump_to_file": "{filename}'ye atla",
       "loading_files": "Dosyalar yükleniyor...",
+      "loading_members": "Üyeler yükleniyor...",
       "calls_unavailable": "Bu sunucuda arama yapılamıyor.",
       "view_profile": "{name} profilini görüntüle",
       "in_voice_call": "Sesli aramada",

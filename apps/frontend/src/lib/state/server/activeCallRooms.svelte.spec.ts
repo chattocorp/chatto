@@ -31,75 +31,57 @@ function voiceCall(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
-describe('ActiveCallRoomsState', () => {
-  it('authoritatively replaces calls and participants from the projection', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
+let calls = $state.raw<ActiveCall[]>([]);
 
-    state.replaceProjection([call('R1', 'call-1', ['U1', 'U2'])]);
+function activeCallRooms(voice = voiceCall()): ActiveCallRoomsState {
+  calls = [];
+  return new ActiveCallRoomsState(voice, () => calls);
+}
+
+describe('ActiveCallRoomsState', () => {
+  it('follows the projected calls and participants', () => {
+    const state = activeCallRooms();
+
+    calls = [call('R1', 'call-1', ['U1', 'U2'])];
 
     expect(state.has('R1')).toBe(true);
     expect(state.getCallId('R1')).toBe('call-1');
     expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U1', 'U2']);
-    expect(state.findParticipantCall('U2')).toEqual({ roomId: 'R1', callId: 'call-1' });
 
-    state.replaceProjection([call('R2', 'call-2', ['U3'])]);
+    calls = [call('R2', 'call-2', ['U3'])];
 
     expect(state.has('R1')).toBe(false);
     expect(state.getParticipants('R1')).toEqual([]);
-    expect(state.findParticipantCall('U2')).toBeNull();
-    expect(state.findParticipantCall('U3')).toEqual({ roomId: 'R2', callId: 'call-2' });
+    expect(state.getParticipants('R2').map(({ userId }) => userId)).toEqual(['U3']);
+
+    calls = [];
+
+    expect(state.has('R2')).toBe(false);
   });
 
   it('preserves bot identity from projected call participants', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
+    const state = activeCallRooms();
 
-    state.replaceProjection([call('R1', 'call-1', ['BOT1'], true)]);
+    calls = [call('R1', 'call-1', ['BOT1'], true)];
 
     expect(state.getParticipants('R1')[0]?.isBot).toBe(true);
   });
 
-  it('optimistically removes only the failed local participant', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
-    state.replaceProjection([call('R1', 'call-1', ['U1', 'U2'])]);
+  it('does not match room IDs against object prototype keys', () => {
+    const state = activeCallRooms();
 
-    state.handleLeave('R1', null, 'U1');
+    expect(state.has('toString')).toBe(false);
+    expect(state.getParticipants('constructor')).toEqual([]);
+  });
+
+  it('reports the viewer own call before the projection has it', () => {
+    const state = activeCallRooms(voiceCall({ connected: true, roomId: 'R1' }));
 
     expect(state.has('R1')).toBe(true);
-    expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U2']);
-  });
-
-  it('scrubs deleted participants from projected calls', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
-    state.replaceProjection([call('R1', 'call-1', ['U1', 'U2'])]);
-
-    state.scrubUser('U1');
-
-    expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U2']);
-    expect(state.findParticipantCall('U1')).toBeNull();
-  });
-
-  it('clears only the room whose access was revoked', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
-    state.replaceProjection([call('R1', 'call-1', ['U1']), call('R2', 'call-2', ['U2'])]);
-
-    state.clearRoom('R1');
-
-    expect(state.has('R1')).toBe(false);
-    expect(state.has('R2')).toBe(true);
-  });
-
-  it('does not infer that a call ended when its last deleted participant is scrubbed', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
-    state.replaceProjection([call('R1', 'call-1', ['U1'])]);
-
-    state.scrubUser('U1');
-
-    expect(state.has('R1')).toBe(true);
-    expect(state.getParticipants('R1')).toEqual([]);
   });
 
   it('reports projected participants as voice and LiveKit camera participants as video', () => {
-    const state = new ActiveCallRoomsState(
+    const state = activeCallRooms(
       voiceCall({
         connected: true,
         roomId: 'R1',
@@ -109,21 +91,11 @@ describe('ActiveCallRoomsState', () => {
         ]
       })
     );
-    state.replaceProjection([call('R1', 'call-1', ['U1', 'U2', 'U3'])]);
+    calls = [call('R1', 'call-1', ['U1', 'U2', 'U3'])];
 
     expect(state.getParticipantCallPresence('R1', 'U1')).toBe('video');
     expect(state.getParticipantCallPresence('R1', 'U2')).toBe('voice');
     expect(state.getParticipantCallPresence('R1', 'U3')).toBe('voice');
     expect(state.getParticipantCallPresenceInAnyRoom('U1')).toBe('video');
-  });
-
-  it('clears all projected state', () => {
-    const state = new ActiveCallRoomsState(voiceCall());
-    state.replaceProjection([call('R1', 'call-1', ['U1'])]);
-
-    state.clear();
-
-    expect(state.has('R1')).toBe(false);
-    expect(state.findParticipantCall('U1')).toBeNull();
   });
 });

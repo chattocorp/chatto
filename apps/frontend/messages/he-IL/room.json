@@ -104,6 +104,7 @@
         "copy_message_link": "העתק קישור להודעה",
         "copy_image": "העתק תמונה",
         "link_copied": "הקישור הועתק",
+        "message_link_copied": "קישור ההודעה הועתק",
         "copy_link_failed": "העתקת הקישור נכשלה",
         "image_copied": "התמונה הועתקה",
         "copy_image_failed": "העתקת התמונה נכשלה"
@@ -222,6 +223,7 @@
       "call": "התקשר",
       "jump_to_file": "קפוץ אל {filename}",
       "loading_files": "טוען קבצים...",
+      "loading_members": "טוען חברים...",
       "calls_unavailable": "שיחות אינן זמינות בשרת זה.",
       "view_profile": "הצג את הפרופיל של {name}",
       "in_voice_call": "בשיחה קולית",

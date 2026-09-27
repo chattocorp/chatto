@@ -16,7 +16,6 @@ is registered; the Server Gutter opens the same directory in a dialog instead.
   <PaneHeader
     title={m('add_server.directory.title')}
     subtitle={m('add_server.directory.subtitle')}
-    showMobileNav
   />
 
   <PaneContent>

@@ -1,12 +1,11 @@
 <script lang="ts">
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
   import Panel from '$lib/ui/Panel.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { PaneContent, PaneHeader } from '$lib/ui';
+  import { PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import DeleteAccountSection from './DeleteAccountSection.svelte';
   import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
@@ -28,41 +27,39 @@
 
 <PageTitle title={m('settings.account.title')} />
 
-<PaneHeader
-  title={m('settings.account.title')}
-  subtitle={m('settings.account.subtitle')}
-  showMobileNav
-/>
+<div class="pane-page">
+  <PaneHeader title={m('settings.account.title')} subtitle={m('settings.account.subtitle')} />
 
-<PaneContent>
-  <div class="flex flex-col gap-6">
-    <Panel title={m('settings.account.info_title')} icon="iconify icon-[uil--info-circle]">
-      <dl class="flex max-w-md flex-col gap-3 text-sm">
-        <div class="flex items-center justify-between">
-          <dt class="text-muted">{m('admin.members.user_id')}</dt>
-          <dd class="font-mono">{serverScope.store.accountId}</dd>
-        </div>
-        <div class="flex items-center justify-between">
-          <dt class="text-muted">{m('settings.account.username')}</dt>
-          <dd class="font-mono">{currentUser.user?.login}</dd>
-        </div>
-        <div class="flex items-center justify-between">
-          <dt class="text-muted">{m('settings.account.display_name')}</dt>
-          <dd>
-            <AccountName name={currentUser.user?.displayName ?? ''} identity={currentUser.user} />
-          </dd>
-        </div>
-      </dl>
-    </Panel>
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={m('settings.account.info_title')} icon="iconify icon-[uil--info-circle]">
+        <dl class="flex max-w-md flex-col gap-3 text-sm">
+          <div class="flex items-center justify-between">
+            <dt class="text-muted">{m('admin.members.user_id')}</dt>
+            <dd class="font-mono">{serverScope.store.accountId}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-muted">{m('settings.account.username')}</dt>
+            <dd class="font-mono">{currentUser.user?.login}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-muted">{m('settings.account.display_name')}</dt>
+            <dd>
+              <AccountName name={currentUser.user?.displayName ?? ''} identity={currentUser.user} />
+            </dd>
+          </div>
+        </dl>
+      </Panel>
 
-    <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
-    {#key `${serverScope.connection.queryScope}:${serverScope.store.accountId ?? ''}`}
-      <VerifiedEmailSettings />
-    {/key}
-    <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
-    <DeleteAccountSection
-      canDeleteAccount={currentUser.user?.viewerCanDeleteAccount ?? false}
-      getAccountAPI={accountAPI}
-    />
-  </div>
-</PaneContent>
+      <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
+      {#key `${serverScope.connection.queryScope}:${serverScope.store.accountId ?? ''}`}
+        <VerifiedEmailSettings />
+      {/key}
+      <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
+      <DeleteAccountSection
+        canDeleteAccount={currentUser.user?.viewerCanDeleteAccount ?? false}
+        getAccountAPI={accountAPI}
+      />
+    </div>
+  </PaneContent>
+</div>

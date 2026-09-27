@@ -34,12 +34,16 @@
     "post_as_new_message": "Pubblica come nuovo messaggio",
     "continue_in_thread": "Continua nel thread",
     "edit_failed": "Impossibile modificare il messaggio",
+    "edit_empty": "Il messaggio non può essere vuoto",
     "upload": {
       "preparing": "Preparazione…",
       "uploading": "{percentage}% caricato",
       "uploaded": "Caricato",
       "failed": "Caricamento non riuscito",
-      "remove": "Rimuovi {filename}"
+      "remove": "Rimuovi {filename}",
+      "video_disabled": "Il caricamento di video è disattivato su questo server.",
+      "prepare_failed": "Impossibile preparare l'allegato",
+      "too_large": "{filename} è troppo grande ({size}). Il massimo è {limit}."
     },
     "format": {
       "bold": "Grassetto",

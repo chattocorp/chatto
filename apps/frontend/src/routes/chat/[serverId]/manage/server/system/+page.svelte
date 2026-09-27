@@ -123,7 +123,7 @@
 <PageTitle title={m('admin.common.page_title', { title: m('admin.system.title') })} />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.system.title')} subtitle={m('admin.system.subtitle')} showMobileNav />
+  <PaneHeader title={m('admin.system.title')} subtitle={m('admin.system.subtitle')} />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
@@ -426,9 +426,15 @@
                 </td>
                 <td class="px-4 py-3 font-mono text-sm">{formatNumber(consumer.redelivered)}</td>
                 <td class="px-4 py-3 whitespace-nowrap">
-                  <div class="font-mono text-sm">stream {consumer.ackFloorStreamSequence}</div>
+                  <div class="font-mono text-sm">
+                    {m('admin.system.ack_floor_stream', {
+                      sequence: consumer.ackFloorStreamSequence
+                    })}
+                  </div>
                   <div class="font-mono text-xs text-muted">
-                    consumer {consumer.ackFloorConsumerSequence}
+                    {m('admin.system.ack_floor_consumer', {
+                      sequence: consumer.ackFloorConsumerSequence
+                    })}
                   </div>
                 </td>
               {/snippet}
@@ -538,7 +544,9 @@
                     {formatBytes(projection.estimatedBytes)}
                   </div>
                   <div class="text-xs whitespace-nowrap text-muted">
-                    {formatBytes(projection.averageEntryBytes)} avg
+                    {m('admin.system.average_entry_value', {
+                      size: formatBytes(projection.averageEntryBytes)
+                    })}
                   </div>
                 </td>
               {/snippet}

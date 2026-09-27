@@ -17,8 +17,9 @@
     type="button"
     onclick={copy}
     class="mini-icon-action"
+    aria-label={m('common.copy_to_clipboard')}
     title={m('common.copy_to_clipboard')}
   >
-    <span class="iconify icon-[uil--copy] text-base leading-none"></span>
+    <span aria-hidden="true" class="iconify icon-[uil--copy] text-base leading-none"></span>
   </button>
 </span>

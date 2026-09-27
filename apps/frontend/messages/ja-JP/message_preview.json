@@ -4,6 +4,8 @@
     "attachment_image": "画像",
     "attachment_video": "動画",
     "attachment_audio": "オーディオ",
-    "attachment_file": "ファイル"
+    "attachment_file": "ファイル",
+    "open_linked_message": "リンクされたメッセージを開く",
+    "open_linked_message_from": "{name} のリンクされたメッセージを開く"
   }
 }

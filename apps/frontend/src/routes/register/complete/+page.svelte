@@ -92,9 +92,7 @@
 
 <PageTitle title={m('auth.register.complete_title')} />
 
-<AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.register.complete_title')}</h1>
-
+<AuthLayout title={m('auth.register.complete_title')}>
   {#if !token}
     <Hint tone="danger">
       <p class="mb-2 font-medium">{m('auth.register.complete.invalid_title')}</p>
@@ -153,7 +151,7 @@
         loading={isLoading}
         loadingText={m('auth.register.creating')}
       >
-        <span class="iconify icon-[uil--user-plus]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--user-plus]"></span>
         {m('common.create_account')}
       </Button>
     </form>

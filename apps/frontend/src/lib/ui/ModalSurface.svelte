@@ -241,6 +241,9 @@ the handle claims drag gestures; content retains native scrolling.
 </dialog>
 
 <style>
+  /* Native <dialog> needs rules that utilities cannot express clearly: the
+     ::backdrop pseudo-element, open/closing keyframes, and sheet drag offsets
+     applied to slotted children through custom properties. */
   .modal-surface {
     border: 0;
   }

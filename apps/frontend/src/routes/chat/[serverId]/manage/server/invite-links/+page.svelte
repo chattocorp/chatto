@@ -8,7 +8,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { ConfirmDialog, Hint, LoadingFog, PaneContent, Pill } from '$lib/ui';
+  import { ConfirmDialog, Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
@@ -122,11 +122,7 @@
 />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('admin.invitations.title')}
-    subtitle={m('admin.invitations.subtitle')}
-    showMobileNav
-  />
+  <PaneHeader title={m('admin.invitations.title')} subtitle={m('admin.invitations.subtitle')} />
 
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
@@ -171,7 +167,7 @@
               loading={createInvitationMutation.isPending}
               disabled={maxUsesInvalid}
             >
-              <span class="iconify icon-[uil--plus]"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
               {m('admin.invitations.create')}
             </Button>
           </div>
@@ -185,6 +181,7 @@
         <DataTable
           items={invitations}
           columns={5}
+          loading={loading && invitations.length === 0}
           emptyMessage={m('admin.invitations.empty')}
           {hasMore}
           {loadingMore}
@@ -217,20 +214,21 @@
             <td class="px-4 py-3">
               <div class="flex justify-end gap-2">
                 <Button size="sm" variant="secondary" onclick={() => copyInvitation(invitation)}>
-                  <span class="iconify icon-[uil--copy]"></span>{m('admin.invitations.copy')}
+                  <span aria-hidden="true" class="iconify icon-[uil--copy]"></span>{m(
+                    'admin.invitations.copy'
+                  )}
                 </Button>
                 {#if invitation.status === 'active'}
                   <Button size="sm" variant="danger" onclick={() => (revokeTarget = invitation)}>
-                    <span class="iconify icon-[uil--ban]"></span>{m('admin.invitations.revoke')}
+                    <span aria-hidden="true" class="iconify icon-[uil--ban]"></span>{m(
+                      'admin.invitations.revoke'
+                    )}
                   </Button>
                 {/if}
               </div>
             </td>
           {/snippet}
         </DataTable>
-        {#if loading && invitations.length === 0}
-          <LoadingFog class="m-5 h-32" />
-        {/if}
       </Panel>
     </div>
   </PaneContent>

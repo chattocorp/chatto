@@ -18,10 +18,7 @@
   } = $props();
 </script>
 
-<span
-  class={['flex shrink-0', users.length > 1 && '-space-x-2 rtl:space-x-reverse', className]}
-  data-testid={testId}
->
+<span class={['flex shrink-0', users.length > 1 && '-space-x-2', className]} data-testid={testId}>
   {#each users as user (user.id)}
     <UserAvatar
       {user}

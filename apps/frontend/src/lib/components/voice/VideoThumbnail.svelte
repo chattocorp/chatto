@@ -104,9 +104,7 @@ resolution to request for sidebar-width tiles.
     muted
   ></video>
   {#if showIdentityOverlay}
-    <div
-      class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface)]"
-    >
+    <div class="absolute start-2 top-2 h-6 w-6 rounded-full ring-[1.5px] ring-surface">
       <UserAvatar {user} size="xs" />
     </div>
   {/if}

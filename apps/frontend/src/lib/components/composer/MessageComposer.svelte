@@ -211,6 +211,7 @@
   }
 </script>
 
+<!-- Pointer convenience that focuses the editor from the padding. The editor itself is keyboard-focusable. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   {@attach composer.observeResize}
@@ -270,6 +271,16 @@
       class="hidden"
     />
   {/if}
+
+  <ComposerModeIndicators
+    inReplyTo={replyState.messageEventId ?? undefined}
+    replyDisplayName={replyState.actorDisplayName || undefined}
+    replyIdentity={replyState.actorIdentity}
+    replyExcerpt={replyState.excerpt || undefined}
+    isEditing={composer.isEditing}
+    oncancelreply={() => replyState.cancelReply()}
+    oncanceledit={() => composer.cancelEdit()}
+  />
 
   {#if userPreferences.composerFormattingToolbarVisible}
     <ComposerFormattingToolbar
@@ -382,16 +393,6 @@
       onsubmit={() => composer.submit()}
     />
   </div>
-
-  <ComposerModeIndicators
-    inReplyTo={replyState.messageEventId ?? undefined}
-    replyDisplayName={replyState.actorDisplayName || undefined}
-    replyIdentity={replyState.actorIdentity}
-    replyExcerpt={replyState.excerpt || undefined}
-    isEditing={composer.isEditing}
-    oncancelreply={() => replyState.cancelReply()}
-    oncanceledit={() => composer.cancelEdit()}
-  />
 </div>
 
 {#if composer.submission.pendingRoleMentionConfirmation}
@@ -450,7 +451,7 @@
     {/snippet}
     {#snippet primaryAction()}
       <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
-        <span class="iconify icon-[uil--comment-alt-lines]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--comment-alt-lines]"></span>
         {m('composer.continue_in_thread')}
       </Button>
     {/snippet}

@@ -15,7 +15,8 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog } from '$lib/ui';
+  import { ConfirmDialog, EmptyState } from '$lib/ui';
+  import { TextInput } from '$lib/ui/form';
   import Panel from '$lib/ui/Panel.svelte';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
@@ -27,6 +28,7 @@ store owns only optimistic join/leave state.
     serverSegment: string;
   } = $props();
 
+  const searchInputId = $props.id();
   let searchQuery = $state('');
   let leaveConfirmVisible = $state(false);
   let leaveConfirmRoom = $state<DirectoryRoom | null>(null);
@@ -228,7 +230,7 @@ store owns only optimistic join/leave state.
 
     {#if joined && room.isUniversal}
       <span class={universalSoft} title={m('room.directory.universal_title')}>
-        <span class="iconify icon-[uil--globe]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--globe]"></span>
         {m('room.directory.universal')}
       </span>
     {:else if joined}
@@ -240,28 +242,31 @@ store owns only optimistic join/leave state.
         title={m('room.directory.joined_title', { room: room.name })}
       >
         {#if leaving}
-          <span class="iconify icon-[uil--spinner] animate-spin"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--spinner] animate-spin"></span>
           {m('room.directory.leaving')}
         {:else}
-          <span class="iconify icon-[uil--check] group-hover:hidden"></span>
-          <span class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--check] group-hover:hidden"></span>
+          <span
+            aria-hidden="true"
+            class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline"
+          ></span>
           <span class="group-hover:hidden">{m('room.directory.joined')}</span>
           <span class="hidden group-hover:inline">{m('room.directory.leave')}</span>
         {/if}
       </button>
     {:else if joining}
       <button type="button" class={primarySolid} disabled>
-        <span class="iconify icon-[uil--spinner] animate-spin"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--spinner] animate-spin"></span>
         {m('room.directory.joining')}
       </button>
     {:else if room.viewerCanJoinRoom}
       <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
-        <span class="iconify icon-[uil--plus]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
         {m('room.directory.join')}
       </button>
     {:else}
       <span class={restrictedSoft} title={m('room.directory.restricted_title')}>
-        <span class="iconify icon-[uil--lock]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--lock]"></span>
         {m('room.directory.restricted')}
       </span>
     {/if}
@@ -284,10 +289,10 @@ store owns only optimistic join/leave state.
             disabled={joining}
           >
             {#if joining}
-              <span class="iconify icon-[uil--spinner] animate-spin"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--spinner] animate-spin"></span>
               {m('room.directory.joining')}
             {:else}
-              <span class="iconify icon-[uil--plus-circle]"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--plus-circle]"></span>
               {m('room.directory.join_all')}
             {/if}
           </button>
@@ -304,18 +309,20 @@ store owns only optimistic join/leave state.
 {/snippet}
 
 <div class="mb-6">
-  <input
-    type="text"
+  <TextInput
+    id={searchInputId}
+    label={m('room.directory.search_placeholder')}
+    labelHidden
+    leadingIcon="iconify icon-[uil--search]"
     placeholder={m('room.directory.search_placeholder')}
     bind:value={searchQuery}
-    class="input w-full"
   />
 </div>
 
 {#if visibleRooms.length === 0}
-  <p class="text-muted">{m('room.directory.empty')}</p>
+  <EmptyState icon="icon-[uil--comments]" title={m('room.directory.empty')} />
 {:else if !hasVisibleResults}
-  <p class="text-muted">{m('room.directory.no_results')}</p>
+  <EmptyState icon="icon-[uil--search-minus]" title={m('room.directory.no_results')} />
 {:else if hasLayout}
   <!-- Row-major masonry via JS row-spans. Each card is measured by the
        `masonryItem` attachment, which sets `grid-row: span N` to fit

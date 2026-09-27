@@ -103,6 +103,7 @@
         "copy_message_link": "复制消息链接",
         "copy_image": "复制图片",
         "link_copied": "链接已复制",
+        "message_link_copied": "消息链接已复制",
         "copy_link_failed": "无法复制链接",
         "image_copied": "图片已复制",
         "copy_image_failed": "无法复制图片"
@@ -218,6 +219,7 @@
       "call": "通话",
       "jump_to_file": "跳转到 {filename}",
       "loading_files": "正在加载文件...",
+      "loading_members": "正在加载成员...",
       "calls_unavailable": "此服务器不支持通话。",
       "view_profile": "查看 {name} 的个人资料",
       "in_voice_call": "正在语音通话",

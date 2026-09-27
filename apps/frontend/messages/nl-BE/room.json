@@ -103,6 +103,7 @@
         "copy_message_link": "Kopieer berichtlink",
         "copy_image": "Kopieer afbeelding",
         "link_copied": "Link gekopieerd",
+        "message_link_copied": "Berichtlink gekopieerd",
         "copy_link_failed": "Kan link niet kopiëren",
         "image_copied": "Afbeelding gekopieerd",
         "copy_image_failed": "Kan afbeelding niet kopiëren"
@@ -218,6 +219,7 @@
       "call": "Bel",
       "jump_to_file": "Ga naar {filename}",
       "loading_files": "Bestanden laden...",
+      "loading_members": "Leden laden...",
       "calls_unavailable": "Oproepen zijn niet beschikbaar op deze server.",
       "view_profile": "Bekijk profiel van {name}",
       "in_voice_call": "In een spraakoproep",

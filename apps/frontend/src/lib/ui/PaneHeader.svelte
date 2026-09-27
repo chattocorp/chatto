@@ -49,9 +49,7 @@ shared viewport detector reports an open software keyboard.
     actionsLabel = m('ui.pane_header.actions'),
     backHref,
     onBack,
-    backLabel = m('ui.pane_header.back'),
-    // Deprecated: showMobileNav is no longer used since hamburger menu is always visible
-    showMobileNav: _showMobileNav = false
+    backLabel = m('ui.pane_header.back')
   }: {
     title: string;
     /** Rich visual title; keep title as its plain-text equivalent. */
@@ -83,7 +81,6 @@ shared viewport detector reports an open software keyboard.
     onBack?: (event: MouseEvent) => void;
     /** Title attribute / aria-label for the back affordance. */
     backLabel?: string;
-    showMobileNav?: boolean;
   } = $props();
 
   const hasBack = $derived(onBack !== undefined || backHref !== undefined);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
+  import type { Snippet } from 'svelte';
   import type { HTMLInputAttributes } from 'svelte/elements';
 
   let {
@@ -20,6 +21,8 @@
     autofocus = false,
     leadingIcon,
     trailingText,
+    leading,
+    trailing,
     onkeydown,
     oninput
   }: {
@@ -43,6 +46,17 @@
     leadingIcon?: string;
     /** Short trailing label rendered inside the input (e.g. a unit like `"px"`). */
     trailingText?: string;
+    /**
+     * Interactive content inside the field at the inline start, such as an
+     * emoji picker trigger. Use one `field-action` button; the input reserves
+     * its width.
+     */
+    leading?: Snippet;
+    /**
+     * Interactive content inside the field at the inline end, such as a clear
+     * button. Use one `field-action` button; the input reserves its width.
+     */
+    trailing?: Snippet;
     onkeydown?: (e: KeyboardEvent) => void;
     oninput?: (e: Event) => void;
   } = $props();
@@ -59,6 +73,7 @@
         aria-hidden="true"
       ></span>
     {/if}
+    <!-- Autofocus is opt-in through the autofocus prop; it defaults to false. -->
     <!-- svelte-ignore a11y_autofocus -->
     <input
       {id}
@@ -74,10 +89,21 @@
       {autofocus}
       {onkeydown}
       {oninput}
-      class={['input', leadingIcon && 'ps-8', trailingText && 'pe-10']}
+      class={[
+        'input',
+        leadingIcon && 'ps-8',
+        leading && 'ps-10',
+        (trailingText || trailing) && 'pe-10'
+      ]}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
     />
+    {#if leading}
+      <div class="absolute inset-y-0 start-1 flex items-center">{@render leading()}</div>
+    {/if}
+    {#if trailing}
+      <div class="absolute inset-y-0 end-1 flex items-center">{@render trailing()}</div>
+    {/if}
     {#if trailingText}
       <span
         class="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-sm text-muted"

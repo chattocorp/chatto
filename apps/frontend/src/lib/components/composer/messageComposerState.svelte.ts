@@ -633,7 +633,7 @@ export class MessageComposerState {
       this.showEditEchoToggle &&
       this.alsoSendToChannel !== (this.editState.channelEchoEventId !== null);
     if (!body && !(this.editState.originalBody === '' && echoStateChanged)) {
-      toast.error('Message cannot be empty');
+      toast.error(m('composer.edit_empty'));
       return;
     }
     const eventId = this.editState.eventId;

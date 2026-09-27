@@ -300,7 +300,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
         <PillButtonGroup compact label={m('room.sidebar.call')} testId="current-user-call-card">
           <VoiceCallControlButton
             class={compactCallButtonClass}
-            label={`Open ${activeCallRoomName}`}
+            label={m('voice.open_call_room', { room: activeCallRoomName })}
             testId="current-user-call-link"
             icon="icon-[uil--phone]"
             iconClass="text-action"
@@ -382,12 +382,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           {#if privilegedMode?.available}
             <button
               type="button"
-              class={[
-                'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors feedback-quick',
-                privilegedMode.active
-                  ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
-                  : 'hover:bg-elevated text-muted hover:text-text'
-              ]}
+              class={['user-card-toggle', privilegedMode.active && 'user-card-toggle-active']}
               title={privilegedMode.active
                 ? m('chat.privileged_mode.disable')
                 : m('chat.privileged_mode.enable')}
@@ -440,7 +435,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     onclose={() => (statusMenuAnchor = null)}
   >
     <MenuSection ariaLabel={m('settings.profile.presence.title_server')}>
-      <div class="px-2 py-1 text-xs font-semibold text-muted">
+      <div class="px-2 py-1 font-semibold text-muted">
         {m('settings.profile.presence.title_server')}
       </div>
       {#each presenceModes as mode (mode)}
@@ -458,7 +453,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           {/snippet}
           {#snippet trailing()}
             {#if presencePreference?.status === mode}
-              <span class="iconify icon-[uil--check]"></span>
+              <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
             {/if}
           {/snippet}
           <span class="block truncate">{presenceModeLabel(mode)}</span>
@@ -486,7 +481,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             {#if customStatus}
               {customStatus.emoji}
             {:else}
-              <span class="iconify icon-[uil--comment-alt-edit] text-muted"></span>
+              <span class="iconify icon-[uil--comment-alt-edit] text-muted" aria-hidden="true"
+              ></span>
             {/if}
           </span>
         {/snippet}
@@ -510,10 +506,10 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
-            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
+            class="icon-action shrink-0"
             aria-label={m('ui.close')}
           >
-            <span class="iconify icon-[uil--times] text-xl"></span>
+            <span class="iconify icon-[uil--times] text-xl" aria-hidden="true"></span>
           </button>
         </header>
         {@render customStatusEditor(true)}

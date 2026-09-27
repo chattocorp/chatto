@@ -889,8 +889,11 @@
 /* Standard record-table header cell. Matrix headers remain deliberately
  * bespoke because their vertical labels encode a different interaction.
  */
+/* Header cells set their own alignment: browsers centre th unless the
+ * inherited alignment differs from start, so a logical text-start on the row
+ * would not reach them. Callers may still override with text-end. */
 @utility table-header-cell {
-  @apply px-4 py-2.5 font-medium;
+  @apply px-4 py-2.5 text-start font-medium;
 }
 
 /* Selectable non-table collections use the same inset and rounded-row treatment.
@@ -1642,7 +1645,7 @@
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
   @apply option-depth;
-  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors feedback-quick;
+  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-start transition-colors feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -1698,7 +1701,7 @@
 }
 
 @utility embed-control-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 focus-visible:opacity-100 active:scale-[0.96] compact-input:hover-actions:opacity-0;
+  @apply absolute end-1 top-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 focus-visible:opacity-100 active:scale-[0.96] compact-input:hover-actions:opacity-0;
   @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100;
 }
 
@@ -1880,6 +1883,28 @@
  */
 @utility icon-action {
   @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center icon-action-feedback;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Persistent mode toggle in a user card, such as privileged mode. A 36 px
+ * square with a large icon. At rest it is muted and unfilled. The active
+ * state has a warning-tinted raised fill so that the mode stays visible while
+ * it is on. Pair with user-card-toggle-active.
+ */
+@utility user-card-toggle {
+  @apply grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted transition-colors feedback-quick hover:text-text;
+}
+
+@utility user-card-toggle-active {
+  @apply bg-warning/15 control-raised text-warning hover:bg-warning/25 hover:text-warning;
+}
+
+/* Icon action inside a form field, such as an emoji trigger or a clear button
+ * in TextInput's leading or trailing slot. It shares icon-action feedback at
+ * a 32 px size so it fits within the 40 px field.
+ */
+@utility field-action {
+  @apply inline-flex size-8 shrink-0 cursor-pointer items-center justify-center icon-action-feedback rounded-md;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -2251,7 +2276,7 @@
 }
 
 @utility menu-item {
-  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96];
+  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-start transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96];
 }
 
 @utility menu-item-active {

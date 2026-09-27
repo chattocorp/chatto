@@ -221,11 +221,11 @@
     onclose={() => (activeTimestamp = null)}
   >
     <section class="menu-section px-3 py-2" data-testid="message-timestamp-details">
-      <header class="mb-2 flex items-center gap-2 text-sm font-medium">
-        <span class="iconify icon-[uil--clock] text-muted"></span>
+      <header class="mb-2 flex items-center gap-2 font-medium">
+        <span aria-hidden="true" class="iconify icon-[uil--clock] text-muted"></span>
         <span>{m('room.message.timestamp.details_title')}</span>
       </header>
-      <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+      <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
         <dt class="text-muted">{m('room.message.timestamp.local_time')}</dt>
         <dd class="min-w-0 text-end break-words text-text">{activeTimestampLocalText}</dd>
 

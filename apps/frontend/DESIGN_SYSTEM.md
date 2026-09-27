@@ -62,6 +62,13 @@ callback, and expanded state for the standard three-dot button. Member entries
 use this button and leave identity text passive. Use `menu.revealOnHover` to
 hide the button until hover or keyboard focus; touch devices keep it visible.
 Use `menu.oncontextmenu` for right-click access from the whole card.
+Icon actions in the `actions` snippet use `CompactActionButton`, the same format
+as the three-dot button. A persistent mode toggle, such as privileged mode, uses
+`user-card-toggle` instead: a 36 px square with a large, muted icon and no fill
+at rest. Add `user-card-toggle-active` while the mode is on. It gives the toggle
+a warning-tinted raised fill and a warning icon, so the elevated mode stays
+visible at a glance. Change the icon with the state, for example from a shield
+to a shield with a check mark.
 The identity row cannot shrink below the shared control height. For the current-user card, omit
 the identity button and supply the presence button in `avatar`. Callers own
 profile menus, presence lookup, permissions, audio-level sources, and media
@@ -129,6 +136,7 @@ a side stripe or cast shadow for navigation selection.
 | Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                   |
 | Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes               |
 | Mini icon action directly beside a value    | `mini-icon-action`                                                                     | Adding padding, a background fill, or press scaling          |
+| Icon action inside a text field             | `TextInput` `leading` or `trailing` snippet with a `field-action` button               | A borderless input inside a hand-built frame                 |
 | Global app-header icon                      | `app-header-icon`                                                                      | `icon-action` with compensating margins                      |
 | Durable content container                   | `Panel` or `panel-shell`                                                               | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                          |
@@ -193,6 +201,10 @@ The composer uses this variant for three groups: inline text styles, block
 formats, and lists with indentation. Only the groups have gaps between them. Formatting buttons use `aria-pressed` for the
 shared active fill. Keep an intrinsic-width group inside a horizontal scroller
 when the controls must stay on one row in a narrow pane.
+
+Reply and edit indicators sit above the formatting toolbar and the input
+surface, directly on the room work plane, without a fill. The composer grows
+upwards when they appear, so the input does not move.
 
 Below 560 px of composer content width, the editor uses the full inner width.
 The formatting toggle sits below it at the start of the surface. Attachment,
@@ -428,9 +440,11 @@ Coloured fills retain a matched tonal border. Secondary buttons use a quiet
 share the `control-raised` finish. Header icons stay flat. Do not add
 local gloss, blur, transparency, or extra shadows.
 
-Compact standalone composer actions and participant-card actions use
+Compact standalone composer actions and user-card and participant-card actions, except mode toggles, use
 `CompactActionButton`. Their backgrounds are transparent at rest and show
 the shared bevel on hover or keyboard focus. Disabled controls remain flat.
+The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
+which colours the icon with the action colour.
 
 All message attachment actions pair `attachment-action-button` with `btn-secondary`
 or `btn-danger-secondary` for deletion. The attachment utility sets the square
@@ -881,6 +895,41 @@ style blocks are expected in a few specialized areas: media overlays, rich-text
 editing, viewport/safe-area chrome, and content whose geometry comes from
 external media. Keep those exceptions local and document why the semantic
 system does not apply.
+
+### Reviewed Exceptions
+
+The design-system audit (#1647) confirmed these exceptions. Do not convert them
+to the standard primitives unless their purpose changes.
+
+| Area                                | Exception                                                                                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Media overlays and viewers          | Literal black and white in `ZoomableImage`, `AttachmentModal`, `FullscreenVideoOverlay`, `VideoThumbnail`, `NativeScreenShareDialog`, and badges over real thumbnails.    |
+| Untrusted HTML previews             | `HtmlAttachmentModal` and `AttachmentPreview` keep a white canvas because untrusted HTML expects a white default page.                                                    |
+| Modal and drawer backdrops          | `backdrop:bg-black/50` and the mobile drawer scrim work in both themes.                                                                                                   |
+| Server identity and theme samples   | Generated server-logo gradients, accent swatches, and surface-tone samples show fixed colours on purpose.                                                                 |
+| Wordmark easter egg                 | `SimulatedChattoWordmark` is a canvas game with its own palette and physical coordinates.                                                                                 |
+| Specialized text entry              | `QuickSwitcher`, `EmojiPicker`, and `ChatSearchInput` keep raw search inputs. Accent and tone pickers keep visually hidden radios behind their swatches.                  |
+| Rich-text editor chrome             | `TipTapEditor` keeps its invisible code-language `<select>`, measured corner positioning, and scoped ProseMirror styles.                                                  |
+| Chat hover bars and quick reactions | `MessageHoverBar` and `MessageActionMenu` keep compact native buttons at 28 px for dense desktop hover actions.                                                           |
+| Attachment actions                  | `attachment-action-button` pairs with a `btn-*` tone by design.                                                                                                           |
+| Physical coordinates                | `FloatingPopover`, `SegmentedControl`, `ZoomableImage`, `TopOverlayNotice`, centred overlays, media controls, and the app-header title-bar insets use physical positions. |
+| Custom native dialogs               | `QuickSwitcher` owns a native `<dialog>` for the command palette.                                                                                                         |
+| Draggable room groups               | `AdminRoomLayoutEditor` assembles `panel-shell` directly, as described in the panel rules above.                                                                          |
+| First-run setup                     | `setup/+page.svelte` uses a pane page instead of `AuthLayout` because it runs inside the client shell.                                                                    |
+
+## Automated Guardrails
+
+`pnpm check` runs `scripts/check-design-system.mjs`. It rejects retired and
+unknown colour tokens, raw palette colours, non-existent logical corner
+utilities, hand-built button recipes and inline links, raw selects and text
+areas in feature code, redundant or non-standard right-to-left utilities,
+accessibility icons for descriptions, unreviewed `<style>` blocks, and public
+design-system components without a story.
+
+Each reviewed exception is listed next to the check that it bypasses, with a
+reason. `knownDrift` lists drift that an open issue tracks. Remove an entry when
+its issue lands. Do not add an entry only to make the check pass: fix the cause,
+or record a reviewed exception with its reason.
 
 ## Initial Page Reveal
 

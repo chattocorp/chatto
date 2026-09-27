@@ -442,7 +442,7 @@
         class={[
           'z-10 flex gap-1',
           layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
-          layout === 'overlay' && 'absolute top-3 right-2',
+          layout === 'overlay' && 'absolute end-2 top-3',
           layout !== 'row' &&
             'transition-opacity feedback-quick group-hover/attachment:opacity-100 focus-within:opacity-100 compact-input:hover-actions:opacity-0'
         ]}
@@ -504,7 +504,7 @@
           />
         {:else}
           <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
-            <span class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
+            <span aria-hidden="true" class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
           </span>
         {/if}
       </button>
@@ -673,7 +673,7 @@
           aria-hidden="true"
           data-testid="message-image-gallery-left-fade"
           class={[
-            'pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent transition-opacity',
+            'pointer-events-none absolute inset-y-0 start-0 z-10 w-8 bg-gradient-to-r from-background to-transparent transition-opacity group-hover/msg:from-surface rtl:bg-gradient-to-l',
             !galleryEdges.start && 'opacity-0'
           ]}
         ></div>
@@ -681,7 +681,7 @@
           aria-hidden="true"
           data-testid="message-image-gallery-right-fade"
           class={[
-            'pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent transition-opacity',
+            'pointer-events-none absolute inset-y-0 end-0 z-10 w-8 bg-gradient-to-l from-background to-transparent transition-opacity group-hover/msg:from-surface rtl:bg-gradient-to-r',
             !galleryEdges.end && 'opacity-0'
           ]}
         ></div>

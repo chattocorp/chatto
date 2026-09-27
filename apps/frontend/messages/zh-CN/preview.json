@@ -4,6 +4,8 @@
     "delete": "删除预览",
     "open_link": "打开链接",
     "copy_url": "复制 URL",
+    "url_copied": "URL 已复制到剪贴板",
+    "copy_url_failed": "复制 URL 失败",
     "show_content": "显示内容",
     "hide_content": "隐藏内容",
     "youtube_title": "YouTube 视频",

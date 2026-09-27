@@ -18,7 +18,7 @@
 <PageTitle title={m('chat.overview.title')} />
 
 <div class="pane-page">
-  <PaneHeader title={m('chat.overview.title')} showMobileNav />
+  <PaneHeader title={m('chat.overview.title')} />
 
   <div class="flex-1 overflow-auto">
     <div class="mx-auto flex max-w-6xl flex-col gap-8 p-6">

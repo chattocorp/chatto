@@ -103,6 +103,7 @@
         "copy_message_link": "メッセージのリンクをコピー",
         "copy_image": "画像をコピー",
         "link_copied": "リンクをコピーしました",
+        "message_link_copied": "メッセージのリンクをコピーしました",
         "copy_link_failed": "リンクをコピーできませんでした",
         "image_copied": "画像をコピーしました",
         "copy_image_failed": "画像をコピーできませんでした"
@@ -218,6 +219,7 @@
       "call": "電話をかける",
       "jump_to_file": "{filename} にジャンプします",
       "loading_files": "ファイルをロードしています...",
+      "loading_members": "メンバーを読み込み中...",
       "calls_unavailable": "このサーバーでは通話を利用できません。",
       "view_profile": "{name} のプロフィールを見る",
       "in_voice_call": "音声通話中",

@@ -83,7 +83,7 @@ The owner applies and saves changes.
             <span
               class="absolute end-1.5 bottom-1.5 flex size-5 items-center justify-center rounded-full bg-white text-black shadow-sm"
             >
-              <span class="iconify icon-[uil--check] text-sm"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--check] text-sm"></span>
             </span>
           {/if}
         </span>

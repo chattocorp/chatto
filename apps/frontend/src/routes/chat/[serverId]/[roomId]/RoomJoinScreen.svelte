@@ -105,7 +105,7 @@
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button loading={joining} onclick={() => void joinRoom()}>
-          <span class="iconify icon-[uil--plus]"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
           {m('room.join.action')}
         </Button>
       </div>
@@ -116,7 +116,7 @@
         class="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-surface text-muted"
         aria-hidden="true"
       >
-        <span class="iconify icon-[uil--lock] text-2xl"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--lock] text-2xl"></span>
       </div>
 
       <h1 class="text-2xl font-semibold text-text">
@@ -128,7 +128,7 @@
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button href={overviewPath} variant="secondary">
-          <span class="iconify icon-[uil--arrow-left] rtl:-scale-x-100"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--arrow-left] rtl:-scale-x-100"></span>
           {m('ui.access_denied.back_to_server')}
         </Button>
       </div>

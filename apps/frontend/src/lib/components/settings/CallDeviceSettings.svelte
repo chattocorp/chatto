@@ -123,82 +123,85 @@
   }
 </script>
 
-<PaneHeader title={m('voice.preferences.title')} subtitle={m('voice.preferences.scope')} />
-<PaneContent>
-  <div class="flex flex-col gap-6">
-    <Panel title={m('voice.devices')} icon="iconify icon-[uil--headphones]">
-      <div class="flex max-w-xl flex-col gap-5">
-        <Select
-          id="call-microphone"
-          label={m('voice.microphone')}
-          options={options('audioinput', preferences.microphone)}
-          value={preferences.microphone}
-          onValueChange={(value) => select('audioinput', value)}
-        />
-        <Select
-          id="call-speaker"
-          label={m('voice.speaker')}
-          options={options('audiooutput', preferences.speaker)}
-          value={preferences.speaker}
-          disabled={!outputSupported || test.finalizing}
-          description={!outputSupported ? m('voice.preferences.output_unsupported') : undefined}
-          onValueChange={(value) => select('audiooutput', value)}
-        />
-        <Select
-          id="call-camera"
-          label={m('voice.camera')}
-          options={options('videoinput', preferences.camera)}
-          value={preferences.camera}
-          onValueChange={(value) => select('videoinput', value)}
-        />
-        {#if deviceError}<Hint>{m('voice.media_device_failed')}</Hint>{/if}
-      </div>
-    </Panel>
-    <Panel title={m('voice.preferences.call_settings')} icon="iconify icon-[uil--phone]">
-      <Checkbox
-        id="call-join-muted"
-        label={m('voice.preferences.join_muted')}
-        bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
-      />
-    </Panel>
-    <Panel title={m('voice.preferences.processing')} icon="iconify icon-[uil--microphone]">
-      <div class="flex max-w-xl flex-col gap-4">
-        <MicrophoneProcessing
-          {preferences}
-          level={inCall ? callLevel : test.level}
-          unavailable={inCall ? gateUnavailable : test.gateUnavailable}
-        />
-        <div class="flex flex-wrap gap-2">
-          {#if test.pending}
-            <Button variant="secondary" onclick={() => test.cancel()}>{m('common.cancel')}</Button>
-          {:else if test.active}
-            <Button variant="secondary" onclick={() => test.stop()}
-              >{m('voice.preferences.stop_test')}</Button
-            >
-          {:else if !test.finalizing}
-            <Button onclick={startTest} disabled={inCall}
-              >{m('voice.preferences.start_test')}</Button
-            >
-            {#if test.playing}
-              <Button variant="secondary" onclick={() => test.stopPlayback()}
-                >{m('voice.preferences.stop_playback')}</Button
-              >
-            {:else if test.hasRecording}
-              <Button
-                variant="secondary"
-                disabled={test.playbackPending}
-                onclick={() => test.playAgain()}>{m('voice.preferences.play_again')}</Button
-              >
-            {/if}
-          {/if}
+<div class="pane-page">
+  <PaneHeader title={m('voice.preferences.title')} subtitle={m('voice.preferences.scope')} />
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={m('voice.devices')} icon="iconify icon-[uil--headphones]">
+        <div class="flex max-w-xl flex-col gap-5">
+          <Select
+            id="call-microphone"
+            label={m('voice.microphone')}
+            options={options('audioinput', preferences.microphone)}
+            value={preferences.microphone}
+            onValueChange={(value) => select('audioinput', value)}
+          />
+          <Select
+            id="call-speaker"
+            label={m('voice.speaker')}
+            options={options('audiooutput', preferences.speaker)}
+            value={preferences.speaker}
+            disabled={!outputSupported || test.finalizing}
+            description={!outputSupported ? m('voice.preferences.output_unsupported') : undefined}
+            onValueChange={(value) => select('audiooutput', value)}
+          />
+          <Select
+            id="call-camera"
+            label={m('voice.camera')}
+            options={options('videoinput', preferences.camera)}
+            value={preferences.camera}
+            onValueChange={(value) => select('videoinput', value)}
+          />
+          {#if deviceError}<Hint>{m('voice.media_device_failed')}</Hint>{/if}
         </div>
-        {#if test.pending}<p role="status">{m('voice.preferences.waiting')}</p>{/if}
-        {#if test.active}<p role="status">{m('voice.preferences.recording')}</p>{/if}
-        {#if test.finalizing}<p role="status">{m('voice.preferences.finalizing')}</p>{/if}
-        {#if test.playbackBlocked}<Hint>{m('voice.preferences.playback_blocked')}</Hint>{/if}
-        {#if test.error}<Hint>{m('voice.preferences.test_failed')}</Hint>{/if}
-        {#if inCall}<Hint>{m('voice.preferences.test_in_call')}</Hint>{/if}
-      </div>
-    </Panel>
-  </div>
-</PaneContent>
+      </Panel>
+      <Panel title={m('voice.preferences.call_settings')} icon="iconify icon-[uil--phone]">
+        <Checkbox
+          id="call-join-muted"
+          label={m('voice.preferences.join_muted')}
+          bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
+        />
+      </Panel>
+      <Panel title={m('voice.preferences.processing')} icon="iconify icon-[uil--microphone]">
+        <div class="flex max-w-xl flex-col gap-4">
+          <MicrophoneProcessing
+            {preferences}
+            level={inCall ? callLevel : test.level}
+            unavailable={inCall ? gateUnavailable : test.gateUnavailable}
+          />
+          <div class="flex flex-wrap gap-2">
+            {#if test.pending}
+              <Button variant="secondary" onclick={() => test.cancel()}>{m('common.cancel')}</Button
+              >
+            {:else if test.active}
+              <Button variant="secondary" onclick={() => test.stop()}
+                >{m('voice.preferences.stop_test')}</Button
+              >
+            {:else if !test.finalizing}
+              <Button onclick={startTest} disabled={inCall}
+                >{m('voice.preferences.start_test')}</Button
+              >
+              {#if test.playing}
+                <Button variant="secondary" onclick={() => test.stopPlayback()}
+                  >{m('voice.preferences.stop_playback')}</Button
+                >
+              {:else if test.hasRecording}
+                <Button
+                  variant="secondary"
+                  disabled={test.playbackPending}
+                  onclick={() => test.playAgain()}>{m('voice.preferences.play_again')}</Button
+                >
+              {/if}
+            {/if}
+          </div>
+          {#if test.pending}<p role="status">{m('voice.preferences.waiting')}</p>{/if}
+          {#if test.active}<p role="status">{m('voice.preferences.recording')}</p>{/if}
+          {#if test.finalizing}<p role="status">{m('voice.preferences.finalizing')}</p>{/if}
+          {#if test.playbackBlocked}<Hint>{m('voice.preferences.playback_blocked')}</Hint>{/if}
+          {#if test.error}<Hint>{m('voice.preferences.test_failed')}</Hint>{/if}
+          {#if inCall}<Hint>{m('voice.preferences.test_in_call')}</Hint>{/if}
+        </div>
+      </Panel>
+    </div>
+  </PaneContent>
+</div>

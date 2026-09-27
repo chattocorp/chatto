@@ -67,7 +67,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       onclick={openAddServerDialog}
       class={['server-gutter-item cursor-pointer', directoryActive && 'server-gutter-item-active']}
     >
-      <span class="iconify icon-[uil--plus]"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
     </a>
   </div>
 </div>

@@ -45,7 +45,7 @@ plane for forms, summaries, record tables, and dense matrices.
       <div class="min-w-0">
         <h2 class="flex items-center gap-2 text-base font-semibold text-text-top">
           {#if icon}
-            <span class={icon}></span>
+            <span aria-hidden="true" class={icon}></span>
           {/if}
           {#if titleContent}{@render titleContent()}{:else}{title}{/if}
           {#if count !== undefined}

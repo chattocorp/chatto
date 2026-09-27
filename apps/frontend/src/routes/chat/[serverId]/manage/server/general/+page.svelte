@@ -10,12 +10,10 @@
   title={m('admin.common.server_admin_page_title', { title: m('server_settings.general') })}
 />
 
-<PaneHeader
-  title={m('server_settings.general')}
-  subtitle={m('admin.general.subtitle')}
-  showMobileNav
-/>
+<div class="pane-page">
+  <PaneHeader title={m('server_settings.general')} subtitle={m('admin.general.subtitle')} />
 
-<PaneContent>
-  <ServerSettings />
-</PaneContent>
+  <PaneContent>
+    <ServerSettings />
+  </PaneContent>
+</div>

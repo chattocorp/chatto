@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Color = 'warning' | 'ambient' | 'action' | 'muted';
+  type Color = 'warning' | 'ambient';
 
   let {
     count,
@@ -17,9 +17,7 @@
 
   const colorClasses = {
     warning: 'bg-attention text-on-attention',
-    ambient: 'bg-text text-background',
-    action: 'bg-action text-on-action',
-    muted: 'bg-muted text-background'
+    ambient: 'bg-text text-background'
   } as const;
 
   const label = $derived(count > 99 ? '99+' : String(Math.max(0, count)));

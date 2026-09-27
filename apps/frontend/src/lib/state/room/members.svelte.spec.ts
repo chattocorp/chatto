@@ -58,7 +58,7 @@ function user(id: string, login = id, isBot = false) {
 }
 
 function pageResult(
-  users: ReturnType<typeof user>[],
+  users: (ReturnType<typeof user> & { bot?: { ownerUserId: string } })[],
   hasMore = false,
   totalCount = users.length
 ): MemberDirectoryPage {

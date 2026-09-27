@@ -103,6 +103,7 @@
         "copy_message_link": "複製訊息連結",
         "copy_image": "複製圖片",
         "link_copied": "連結已複製",
+        "message_link_copied": "訊息連結已複製",
         "copy_link_failed": "無法複製連結",
         "image_copied": "圖片已複製",
         "copy_image_failed": "無法複製圖片"
@@ -218,6 +219,7 @@
       "call": "通話",
       "jump_to_file": "前往 {filename}",
       "loading_files": "正在載入檔案...",
+      "loading_members": "正在載入成員...",
       "calls_unavailable": "此伺服器不支援通話。",
       "view_profile": "檢視 {name} 的個人檔案",
       "in_voice_call": "正在語音通話",

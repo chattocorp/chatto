@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
+import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
+import type { ProjectedServerState } from './projection.svelte';
 import { ServerInfoState } from './state.svelte';
 
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
@@ -174,5 +176,39 @@ describe('ServerInfoState.init()', () => {
       reason: 'server-too-old'
     });
     expect(state.supportsRealtimeProjection).toBe(false);
+  });
+
+  it('reads runtime settings from the projection and falls back to defaults', () => {
+    let projected: ProjectedServerState | null = null;
+    const state = new ServerInfoState('https://acme.test', vi.fn(), () => projected);
+
+    expect(state.motd).toBeNull();
+    expect(state.livekitUrl).toBeNull();
+    expect(state.maxUploadSize).toBe(25 * 1024 * 1024);
+    expect(state.messageEditWindowSeconds).toBe(3 * 60 * 60);
+
+    projected = {
+      motd: 'Hello',
+      runtime: new ServerRuntimeConfig({
+        livekitUrl: 'wss://livekit.acme.test',
+        videoProcessingEnabled: true,
+        maxUploadSize: 1024n,
+        maxVideoUploadSize: 2048n,
+        messageEditWindowSeconds: 60
+      })
+    };
+
+    expect(state.motd).toBe('Hello');
+    expect(state.livekitUrl).toBe('wss://livekit.acme.test');
+    expect(state.videoProcessingEnabled).toBe(true);
+    expect(state.maxUploadSize).toBe(1024);
+    expect(state.maxVideoUploadSize).toBe(2048);
+    expect(state.messageEditWindowSeconds).toBe(60);
+
+    // A projection reset clears the settings again.
+    projected = null;
+
+    expect(state.livekitUrl).toBeNull();
+    expect(state.maxUploadSize).toBe(25 * 1024 * 1024);
   });
 });

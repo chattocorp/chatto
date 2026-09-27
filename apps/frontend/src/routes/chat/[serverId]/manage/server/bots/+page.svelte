@@ -189,108 +189,110 @@
 </script>
 
 <PageTitle title={m('admin.common.server_admin_page_title', { title: m('settings.bots.title') })} />
-<PaneHeader title={m('settings.bots.title')} subtitle={m('settings.bots.subtitle')} showMobileNav />
 
-<PaneContent bind:scrollContainer>
-  {#if !supportsBots}
-    <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
-  {:else}
-    <div class="flex flex-col gap-6">
-      {#if !canCreateBots}
-        <Hint>{m('settings.bots.create_permission_required')}</Hint>
-      {/if}
+<div class="pane-page">
+  <PaneHeader title={m('settings.bots.title')} subtitle={m('settings.bots.subtitle')} />
 
-      <div class="max-w-md">
-        <TextInput
-          id="bot-search"
-          label={m('settings.bots.list_title')}
-          labelHidden
-          leadingIcon="iconify icon-[uil--search]"
-          bind:value={searchInput}
-          oninput={scheduleSearch}
-        />
-      </div>
+  <PaneContent bind:scrollContainer>
+    {#if !supportsBots}
+      <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
+    {:else}
+      <div class="flex flex-col gap-6">
+        {#if !canCreateBots}
+          <Hint>{m('settings.bots.create_permission_required')}</Hint>
+        {/if}
 
-      {#if botsQuery.error}
-        <Hint tone="danger">{botsQuery.error.message}</Hint>
-      {/if}
+        {#if botsQuery.error}
+          <Hint tone="danger">{botsQuery.error.message}</Hint>
+        {/if}
 
-      <Panel title={m('settings.bots.list_title')} count={totalCount} noPadding>
-        {#snippet actions()}
-          {#if canCreateBots}
-            <Button size="sm" onclick={openCreate}>
-              <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
-              {m('settings.bots.create')}
-            </Button>
-          {/if}
-        {/snippet}
-        <DataTable
-          items={bots}
-          columns={3}
-          loading={botsQuery.isPending}
-          emptyMessage={m('settings.bots.empty_body')}
-          hasMore={botsQuery.hasNextPage && !botsQuery.error}
-          loadingMore={botsQuery.isFetchingNextPage}
-          onLoadMore={loadMore}
-          loadMoreRoot={scrollContainer}
-          onRowClick={(bot) =>
-            goto(
-              resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-                serverId: serverIdToSegment(serverScope.serverId),
-                botId: bot.id
-              })
-            )}
-        >
-          {#snippet header()}
-            <th class="table-header-cell">{m('settings.bots.singular')}</th>
-            <th class="table-header-cell">{m('settings.bots.username')}</th>
-            <th class="table-header-cell">{m('settings.bots.owner')}</th>
-          {/snippet}
-          {#snippet row(bot)}
-            {@const owner = ownersById.get(bot.ownerUserId)}
-            <td class="px-4 py-3">
-              <UserIdentity
-                user={{
-                  id: bot.id,
-                  login: bot.login,
-                  displayName: bot.displayName,
-                  avatarUrl: bot.avatarUrl,
-                  deleted: false,
-                  isBot: true,
-                  bio: bot.bio,
-                  presenceStatus: PresenceStatus.OFFLINE
-                }}
-                viewerSettings={serverScope.store.currentUser.user?.settings}
+        <Panel title={m('settings.bots.list_title')} count={totalCount} noPadding>
+          {#snippet actions()}
+            <div class="w-48 sm:w-64">
+              <TextInput
+                id="bot-search"
+                label={m('settings.bots.list_title')}
+                labelHidden
+                leadingIcon="iconify icon-[uil--search]"
+                bind:value={searchInput}
+                oninput={scheduleSearch}
               />
-            </td>
-            <td class="px-4 py-3">
-              <a
-                class="link text-muted"
-                href={resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+            </div>
+            {#if canCreateBots}
+              <Button size="sm" onclick={openCreate}>
+                <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
+                {m('settings.bots.create')}
+              </Button>
+            {/if}
+          {/snippet}
+          <DataTable
+            items={bots}
+            columns={3}
+            loading={botsQuery.isPending}
+            emptyMessage={m('settings.bots.empty_body')}
+            hasMore={botsQuery.hasNextPage && !botsQuery.error}
+            loadingMore={botsQuery.isFetchingNextPage}
+            onLoadMore={loadMore}
+            loadMoreRoot={scrollContainer}
+            onRowClick={(bot) =>
+              goto(
+                resolve('/chat/[serverId]/manage/server/bots/[botId]', {
                   serverId: serverIdToSegment(serverScope.serverId),
                   botId: bot.id
-                })}
-                onclick={(event) => event.stopPropagation()}>@{bot.login}</a
-              >
-            </td>
-            <td class="px-4 py-3">
-              {#if owner}
+                })
+              )}
+          >
+            {#snippet header()}
+              <th class="table-header-cell">{m('settings.bots.singular')}</th>
+              <th class="table-header-cell">{m('settings.bots.username')}</th>
+              <th class="table-header-cell">{m('settings.bots.owner')}</th>
+            {/snippet}
+            {#snippet row(bot)}
+              {@const owner = ownersById.get(bot.ownerUserId)}
+              <td class="px-4 py-3">
                 <UserIdentity
-                  user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                  user={{
+                    id: bot.id,
+                    login: bot.login,
+                    displayName: bot.displayName,
+                    avatarUrl: bot.avatarUrl,
+                    deleted: false,
+                    isBot: true,
+                    bio: bot.bio,
+                    presenceStatus: PresenceStatus.OFFLINE
+                  }}
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
-              {:else if ownersQuery.isPending}
-                <LoadingFog class="h-5 w-28" />
-              {:else}
-                <span class="text-muted">{m('common.unknown')}</span>
-              {/if}
-            </td>
-          {/snippet}
-        </DataTable>
-      </Panel>
-    </div>
-  {/if}
-</PaneContent>
+              </td>
+              <td class="px-4 py-3">
+                <a
+                  class="link text-muted"
+                  href={resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                    serverId: serverIdToSegment(serverScope.serverId),
+                    botId: bot.id
+                  })}
+                  onclick={(event) => event.stopPropagation()}>@{bot.login}</a
+                >
+              </td>
+              <td class="px-4 py-3">
+                {#if owner}
+                  <UserIdentity
+                    user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                    viewerSettings={serverScope.store.currentUser.user?.settings}
+                  />
+                {:else if ownersQuery.isPending}
+                  <LoadingFog class="h-5 w-28" />
+                {:else}
+                  <span class="text-muted">{m('common.unknown')}</span>
+                {/if}
+              </td>
+            {/snippet}
+          </DataTable>
+        </Panel>
+      </div>
+    {/if}
+  </PaneContent>
+</div>
 
 <FormDialog
   bind:visible={createVisible}

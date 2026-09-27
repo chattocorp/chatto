@@ -171,7 +171,7 @@ username field while the cooldown runs.
     />
     {#snippet footer()}
       <Button type="submit" disabled={!modified || saving} loading={saving}>
-        <span class="iconify icon-[uil--check]"></span>
+        <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
         {m('settings.profile.save_button')}
       </Button>
     {/snippet}

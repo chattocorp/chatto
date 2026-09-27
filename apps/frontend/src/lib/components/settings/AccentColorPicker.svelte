@@ -45,7 +45,7 @@ The owner applies and saves changes. Samples retain their own palette colours.
             <span
               class="flex size-6 items-center justify-center rounded-full bg-white text-black shadow-sm"
             >
-              <span class="iconify icon-[uil--check] text-base"></span>
+              <span aria-hidden="true" class="iconify icon-[uil--check] text-base"></span>
             </span>
           {/if}
         </span>

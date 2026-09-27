@@ -95,7 +95,7 @@ test.describe('Server Admin Members', () => {
       await serverAdminPage.gotoMembersDirectly(server.id);
 
       // Should see the members page header
-      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible();
 
       // Should see the admin user in the list
       await expect(page.getByRole('cell', { name: `@${admin.login}`, exact: true })).toBeVisible();
@@ -250,7 +250,7 @@ test.describe('Server Admin Members', () => {
 
       // Should navigate back to members list
       await expect(page).toHaveURL(routes.serverAdminMembers);
-      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible();
     });
 
     test('non-admin member sees access denied on member details page', async ({
@@ -324,7 +324,7 @@ test.describe('Server Admin Members', () => {
 
       // Success returns to the members list.
       await expect(page).toHaveURL(routes.serverAdminMembers, { timeout: TIMEOUTS.UI_STANDARD });
-      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible();
 
       // The server actually deleted the account.
       await waitForUserDeletedViaConnect(page, target.id!);

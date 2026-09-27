@@ -590,7 +590,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
           }}
           onblur={applyLinkHref}
-          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-emphasized px-2 text-xs text-text transition-[background-color,border-color] outline-none hover:bg-surface-strong focus:border-action disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-emphasized px-2 text-xs text-text transition-[background-color,border-color] feedback-quick outline-none hover:bg-surface-strong focus:border-action disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
@@ -598,9 +598,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           title={m('composer.open_link')}
           disabled={!activeLinkHref}
           onclick={openActiveLink}
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96]"
+          class="icon-action"
         >
-          <span class="iconify icon-[uil--external-link-alt] text-base"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--external-link-alt] text-base"></span>
         </button>
         <button
           type="button"
@@ -608,9 +608,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           title={m('composer.remove_link')}
           disabled={!editable}
           onclick={removeLink}
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+          class="icon-action"
         >
-          <span class="iconify icon-[uil--link-broken] text-base"></span>
+          <span aria-hidden="true" class="iconify icon-[uil--link-broken] text-base"></span>
         </button>
       </div>
     </div>
@@ -631,7 +631,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
-        <span class="iconify icon-[uil--angle-down] size-3"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--angle-down] size-3"></span>
         <select
           name="composer-code-language"
           aria-label={m('composer.code_language')}

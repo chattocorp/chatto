@@ -103,6 +103,7 @@
         "copy_message_link": "Zkopírovat odkaz na zprávu",
         "copy_image": "Zkopírovat obrázek",
         "link_copied": "Odkaz zkopírován",
+        "message_link_copied": "Odkaz na zprávu zkopírován",
         "copy_link_failed": "Odkaz se nepodařilo zkopírovat",
         "image_copied": "Obrázek zkopírován",
         "copy_image_failed": "Obrázek se nepodařilo zkopírovat"
@@ -218,6 +219,7 @@
       "call": "Zavolejte",
       "jump_to_file": "Přejít na {filename}",
       "loading_files": "Načítání souborů...",
+      "loading_members": "Načítání členů...",
       "calls_unavailable": "Na tomto serveru nejsou hovory dostupné.",
       "view_profile": "Zobrazit profil uživatele {name}",
       "in_voice_call": "V hlasovém hovoru",

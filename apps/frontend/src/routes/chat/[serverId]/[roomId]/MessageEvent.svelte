@@ -627,8 +627,11 @@
         'iconify shrink-0 text-xs leading-none text-action',
         kind === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
       ]}
-      title={kind === 'video' ? 'In a video call' : 'In a voice call'}
-      aria-label={kind === 'video' ? 'In a video call' : 'In a voice call'}
+      role="img"
+      title={kind === 'video' ? m('room.sidebar.in_video_call') : m('room.sidebar.in_voice_call')}
+      aria-label={kind === 'video'
+        ? m('room.sidebar.in_video_call')
+        : m('room.sidebar.in_voice_call')}
       data-testid={`user-call-presence-${kind}`}
     ></span>
   {/if}

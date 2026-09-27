@@ -6,7 +6,6 @@
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
   import Panel from '$lib/ui/Panel.svelte';
   import DataTable from '$lib/ui/DataTable.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { Hint, PaneContent, Pill } from '$lib/ui';
@@ -77,6 +76,8 @@
   const hasMore = $derived(membersQuery.hasNextPage);
   const loading = $derived(membersQuery.isPending);
   const loadingMore = $derived(membersQuery.isFetchingNextPage);
+  // The first page replaces the table body with a loading block.
+  const initialLoading = $derived(loading && users.length === 0);
   const error = $derived(
     membersQuery.error instanceof Error ? membersQuery.error.message : membersQuery.error
   );
@@ -117,91 +118,94 @@
 <PageTitle title={m('admin.common.page_title', { title: m('admin.members.title') })} />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('admin.members.title')}
-    subtitle={m('admin.members.subtitle')}
-    showMobileNav
-  />
+  <PaneHeader title={m('admin.members.title')} subtitle={m('admin.members.subtitle')} />
 
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
-      <!-- Search input -->
-      <div class="max-w-md">
-        <TextInput
-          label={m('admin.members.search')}
-          placeholder={m('admin.members.search_placeholder')}
-          bind:value={searchInput}
-          oninput={scheduleSearch}
-        />
-      </div>
+      {#if error}
+        <Hint tone="danger">{error}</Hint>
+      {/if}
 
-      {#if loading && users.length === 0}
-        <LoadingFog class="h-40 w-full" label={m('admin.members.loading')} />
-      {:else}
-        {#if error}
-          <Hint tone="danger">{error}</Hint>
-        {/if}
+      <Panel
+        title={m('admin.members.title')}
+        count={initialLoading ? undefined : totalCount}
+        noPadding
+      >
+        {#snippet actions()}
+          <div class="w-48 sm:w-64">
+            <TextInput
+              label={m('admin.members.search')}
+              labelHidden
+              leadingIcon="iconify icon-[uil--search]"
+              placeholder={m('admin.members.search_placeholder')}
+              bind:value={searchInput}
+              oninput={scheduleSearch}
+            />
+          </div>
+        {/snippet}
+        <DataTable
+          items={users}
+          columns={5}
+          loading={initialLoading}
+          loadingMessage={m('admin.members.loading')}
+          emptyMessage={m('admin.members.empty')}
+          hasMore={hasMore && !error}
+          {loadingMore}
+          onLoadMore={loadMore}
+          loadMoreRoot={scrollContainer}
+          loadingMoreMessage={m('admin.members.loading_more')}
+          onRowClick={(user) =>
+            goto(
+              resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                serverId: serverIdToSegment(serverScope.serverId),
+                userId: user.id
+              })
+            )}
+        >
+          {#snippet header()}
+            <th class="table-header-cell">{m('admin.common.user')}</th>
+            <th class="table-header-cell">{m('admin.users.login')}</th>
+            <th class="table-header-cell">{m('admin.users.email')}</th>
+            <th class="table-header-cell">{m('admin.common.joined')}</th>
+            <th class="table-header-cell">{m('admin.common.roles')}</th>
+          {/snippet}
+          {#snippet row(user)}
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <UserAvatar user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }} size="sm" />
+                <AccountName name={user.displayName} identity={user} />
+              </div>
+            </td>
+            <td class="px-4 py-3 text-muted">@{user.login}</td>
+            <td class="px-4 py-3 text-muted">
+              {#if user.primaryVerifiedEmail}
+                <span class="flex min-w-0 items-center gap-1">
+                  <span
+                    class="iconify icon-[uil--check-circle] shrink-0 text-success"
+                    role="img"
+                    aria-label={m('admin.members.email_verified')}
+                  ></span>
+                  <bdi class="truncate" dir="auto" title={user.primaryVerifiedEmail}
+                    >{user.primaryVerifiedEmail}</bdi
+                  >
+                </span>
+              {:else}
+                —
+              {/if}
+            </td>
+            <td class="px-4 py-3 text-muted">{formatDate(user.createdAt)}</td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-1">
+                {#each getDisplayRoles(user) as roleName (roleName)}
+                  <Pill>{getRoleDisplayName(roleName)}</Pill>
+                {/each}
+              </div>
+            </td>
+          {/snippet}
+        </DataTable>
+      </Panel>
 
-        <Panel noPadding>
-          <DataTable
-            items={users}
-            columns={5}
-            emptyMessage={m('admin.members.empty')}
-            hasMore={hasMore && !error}
-            {loadingMore}
-            onLoadMore={loadMore}
-            loadMoreRoot={scrollContainer}
-            loadingMoreMessage={m('admin.members.loading_more')}
-            onRowClick={(user) =>
-              goto(
-                resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                  serverId: serverIdToSegment(serverScope.serverId),
-                  userId: user.id
-                })
-              )}
-          >
-            {#snippet header()}
-              <th class="table-header-cell">{m('admin.common.user')}</th>
-              <th class="table-header-cell">{m('admin.users.login')}</th>
-              <th class="table-header-cell">{m('admin.users.email')}</th>
-              <th class="table-header-cell">{m('admin.common.joined')}</th>
-              <th class="table-header-cell">{m('admin.common.roles')}</th>
-            {/snippet}
-            {#snippet row(user)}
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-2">
-                  <UserAvatar
-                    user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }}
-                    size="sm"
-                  />
-                  <AccountName name={user.displayName} identity={user} />
-                </div>
-              </td>
-              <td class="px-4 py-3 text-muted">@{user.login}</td>
-              <td class="px-4 py-3 text-muted">
-                {#if user.primaryVerifiedEmail}
-                  <span class="flex min-w-0 items-center gap-1">
-                    <span class="iconify icon-[uil--check-circle] shrink-0 text-success"></span>
-                    <bdi class="truncate" dir="auto" title={user.primaryVerifiedEmail}
-                      >{user.primaryVerifiedEmail}</bdi
-                    >
-                  </span>
-                {:else}
-                  —
-                {/if}
-              </td>
-              <td class="px-4 py-3 text-muted">{formatDate(user.createdAt)}</td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  {#each getDisplayRoles(user) as roleName (roleName)}
-                    <Pill>{getRoleDisplayName(roleName)}</Pill>
-                  {/each}
-                </div>
-              </td>
-            {/snippet}
-          </DataTable>
-        </Panel>
-
+      {#if !initialLoading}
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="text-sm text-muted">
             {m('admin.members.showing', { shown: users.length, total: totalCount })}

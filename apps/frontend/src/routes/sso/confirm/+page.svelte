@@ -107,9 +107,7 @@
 
 <PageTitle title={m('auth.sso.title')} />
 
-<AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.sso.title')}</h1>
-
+<AuthLayout title={m('auth.sso.title')}>
   {#if !data.token}
     <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
     <p class="mt-6 text-center">
@@ -165,14 +163,14 @@
         loading={submitting}
         loadingText={m('auth.sso.creating')}
       >
-        <span class="iconify icon-[uil--user-plus]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--user-plus]"></span>
         {m('common.create_account')}
       </Button>
     </form>
 
     <div class="mt-3">
       <Button variant="secondary" fullWidth href={resolve('/login')} disabled={submitting}>
-        <span class="iconify icon-[mdi--login]"></span>
+        <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
         {m('auth.sso.sign_in_existing')}
       </Button>
     </div>
@@ -202,7 +200,7 @@
         loadingText={m('auth.sso.linking')}
         onclick={handleLink}
       >
-        <span class="iconify icon-[uil--link]"></span>
+        <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
         {m('auth.sso.link_button')}
       </Button>
       <Button variant="secondary" fullWidth onclick={handleCancel} disabled={submitting}>

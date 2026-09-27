@@ -29,11 +29,11 @@
   const jumpLabel = $derived(`${m('room.message.meta.in_reply_to')} ${jumpText}`);
 </script>
 
+<!-- The row click is a pointer shortcut. Keyboard access comes from the nested jump button. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   data-testid="reply-attribution"
-  aria-label={m('room.message.meta.in_reply_to')}
   title={m('room.message.meta.in_reply_to')}
   class={[
     'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
@@ -45,12 +45,12 @@
   {#if compact}
     <span
       aria-hidden="true"
-      class="rounded-ts-md h-3 w-5 shrink-0 border-s-2 border-t-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
+      class="h-3 w-5 shrink-0 rounded-ss-md border-s-2 border-t-2 border-surface-strong/30 transition-colors feedback-quick group-hover/reply:border-surface-strong/55"
     ></span>
   {:else}
     <span
       aria-hidden="true"
-      class="rounded-ts-md absolute start-0 top-[11px] h-7 w-[39px] border-s-2 border-t-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
+      class="absolute start-0 top-[11px] h-7 w-[39px] rounded-ss-md border-s-2 border-t-2 border-surface-strong/30 transition-colors feedback-quick group-hover/reply:border-surface-strong/55"
     ></span>
   {/if}
 
@@ -72,8 +72,13 @@
             'iconify shrink-0 text-xs leading-none text-action',
             callPresence === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
           ]}
-          title={callPresence === 'video' ? 'In a video call' : 'In a voice call'}
-          aria-label={callPresence === 'video' ? 'In a video call' : 'In a voice call'}
+          role="img"
+          title={callPresence === 'video'
+            ? m('room.sidebar.in_video_call')
+            : m('room.sidebar.in_voice_call')}
+          aria-label={callPresence === 'video'
+            ? m('room.sidebar.in_video_call')
+            : m('room.sidebar.in_voice_call')}
           data-testid={`user-call-presence-${callPresence}`}
         ></span>
       {/if}

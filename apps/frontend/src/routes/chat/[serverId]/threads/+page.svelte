@@ -335,7 +335,7 @@
 <PageTitle title={m('chat.threads.title')} />
 
 <div class="pane-page">
-  <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} showMobileNav />
+  <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} />
 
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6">
@@ -536,11 +536,8 @@
                   </section>
                 {/each}
                 {#if hasMore}
-                  <div
-                    class="flex min-h-14 justify-center p-4 text-muted"
-                    {@attach loadMoreWhenVisible}
-                  >
-                    {#if loadingMore}{m('common.loading')}{/if}
+                  <div class="flex min-h-14 justify-center p-4" {@attach loadMoreWhenVisible}>
+                    {#if loadingMore}<LoadingFog class="h-10 w-full" />{/if}
                   </div>
                 {/if}
               </div>

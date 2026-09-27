@@ -435,7 +435,7 @@
         <th class="table-header-cell">{m('admin.common.user')}</th>
         <th class="table-header-cell">{m('admin.users.login')}</th>
         {#if canEditMembership}
-          <th class="table-header-cell text-right">
+          <th class="table-header-cell text-end">
             <span class="sr-only">{m('admin.rooms_admin.remove_member')}</span>
           </th>
         {/if}
@@ -453,7 +453,7 @@
         </td>
         <td class="px-4 py-3 text-muted">@{member.login}</td>
         {#if canEditMembership}
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-end">
             <Button
               variant="danger-secondary"
               size="sm"

@@ -5,6 +5,7 @@
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import Hint from '$lib/ui/Hint.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError } from '$lib/ui/form';
   import { onMount } from 'svelte';
@@ -159,16 +160,10 @@
 
 <PageTitle title={m('auth.oauth.title')} />
 
-<AuthLayout compact>
+<AuthLayout compact title={m('auth.oauth.heading')}>
   <div class="flex flex-col gap-5">
-    <div class="text-center">
-      <h1 class="text-2xl font-bold">{m('auth.oauth.heading')}</h1>
-    </div>
-
     {#if loading}
-      <div class="flex justify-center py-8">
-        <span class="iconify icon-[mdi--loading] animate-spin text-3xl text-muted"></span>
-      </div>
+      <LoadingFog class="h-48 w-full" />
     {:else if request}
       <div class="flex flex-col gap-4">
         <div class="text-center">
@@ -189,36 +184,54 @@
           <ul class="flex flex-col gap-2 text-sm text-muted">
             {#if request.scopes.length === 0}
               <li class="flex gap-2">
-                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                <span
+                  aria-hidden="true"
+                  class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                ></span>
                 <span>{m('auth.oauth.allow_profile')}</span>
               </li>
               <li class="flex gap-2">
-                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                <span
+                  aria-hidden="true"
+                  class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                ></span>
                 <span>{m('auth.oauth.allow_messages')}</span>
               </li>
             {:else}
               {#if request.scopes.includes('chatto:rooms:read')}
                 <li class="flex gap-2">
-                  <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                  <span
+                    aria-hidden="true"
+                    class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                  ></span>
                   <span>{m('auth.oauth.allow_rooms_read')}</span>
                 </li>
               {/if}
               {#if request.scopes.includes('chatto:rooms:write')}
                 <li class="flex gap-2">
-                  <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                  <span
+                    aria-hidden="true"
+                    class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                  ></span>
                   <span>{m('auth.oauth.allow_rooms_write')}</span>
                 </li>
               {/if}
               {#if request.scopes.includes('chatto:messages:read') || request.scopes.includes('chatto:messages:write')}
                 <li class="flex gap-2">
-                  <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                  <span
+                    aria-hidden="true"
+                    class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                  ></span>
                   <span>{m('auth.oauth.allow_messages')}</span>
                 </li>
               {/if}
             {/if}
             {#if !request.localRedirect}
               <li class="flex gap-2">
-                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                <span
+                  aria-hidden="true"
+                  class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                ></span>
                 <span>{m('auth.oauth.allow_remember')}</span>
               </li>
             {/if}
@@ -236,7 +249,7 @@
             disabled={submitting !== null}
             onclick={() => submitConsent('approve')}
           >
-            <span class="iconify icon-[mdi--check]"></span>
+            <span aria-hidden="true" class="iconify icon-[mdi--check]"></span>
             {m('auth.oauth.title')}
           </Button>
           <Button
@@ -248,7 +261,7 @@
             disabled={submitting !== null}
             onclick={() => submitConsent('deny')}
           >
-            <span class="iconify icon-[mdi--close]"></span>
+            <span aria-hidden="true" class="iconify icon-[mdi--close]"></span>
             {m('common.cancel')}
           </Button>
         </div>

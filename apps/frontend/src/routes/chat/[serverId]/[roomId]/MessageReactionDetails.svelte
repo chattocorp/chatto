@@ -177,7 +177,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
           aria-label={`${getEmojiDisplayName(reaction.emoji)} (${reaction.count})`}
           tabindex={index === selectedIndex ? 0 : -1}
           class={[
-            'meta-badge min-h-10 shrink-0 gap-1.5 px-3 text-sm',
+            'meta-badge min-h-10 shrink-0 cursor-pointer gap-1.5 px-3 text-sm',
             index === selectedIndex ? 'border-action/50 text-text' : 'border-transparent text-muted'
           ]}
           onclick={() => selectEmoji(index)}

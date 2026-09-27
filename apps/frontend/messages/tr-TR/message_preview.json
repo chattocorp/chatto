@@ -4,6 +4,8 @@
     "attachment_image": "Resim",
     "attachment_video": "video",
     "attachment_audio": "Ses",
-    "attachment_file": "Dosya"
+    "attachment_file": "Dosya",
+    "open_linked_message": "Bağlantılı mesajı aç",
+    "open_linked_message_from": "{name} kullanıcısının bağlantılı mesajını aç"
   }
 }

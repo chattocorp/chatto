@@ -61,7 +61,7 @@ a page without competing with primary content.
 
 <div class={['flex items-start gap-3 rounded-lg border p-4', toneStyles[tone]]}>
   {#if resolvedIcon}
-    <span class={['iconify mt-0.5 shrink-0 text-lg', resolvedIcon]}></span>
+    <span aria-hidden="true" class={['iconify mt-0.5 shrink-0 text-lg', resolvedIcon]}></span>
   {/if}
   <div class="min-w-0 flex-1">
     {@render children()}

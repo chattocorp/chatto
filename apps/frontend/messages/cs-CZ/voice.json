@@ -9,6 +9,7 @@
     "join_call": "Připojte se k hovoru",
     "start_call": "Zahájit hovor",
     "leave": "Opustit hovor",
+    "open_call_room": "Otevřít {room}",
     "share_screen": "Sdílet obrazovku",
     "stop_share_screen": "Zastavit sdílení obrazovky",
     "applications": "Aplikace",

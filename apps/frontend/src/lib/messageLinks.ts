@@ -11,6 +11,7 @@ import { resolve } from '$app/paths';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 import { toast } from '$lib/ui/toast';
+import { m } from '$lib/i18n/messages';
 
 export interface MessageLink {
   /** URL segment for the server (`-` for origin, hostname for remote). */
@@ -200,9 +201,9 @@ export async function copyMessageLinkToClipboard(
     await navigator.clipboard.writeText(
       buildMessageLinkURL(serverId, roomId, messageId, threadRootEventId)
     );
-    toast.success('Message link copied');
+    toast.success(m('room.message.actions.message_link_copied'));
   } catch {
-    toast.error('Failed to copy link');
+    toast.error(m('room.message.actions.copy_link_failed'));
   }
 }
 

@@ -160,7 +160,7 @@
         class="mb-8 flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-action/50 bg-action/10 text-action"
         aria-hidden="true"
       >
-        <span class="iconify icon-[mdi--server-plus] text-4xl"></span>
+        <span aria-hidden="true" class="iconify icon-[mdi--server-plus] text-4xl"></span>
       </div>
 
       <div class="flex flex-col gap-3">
@@ -174,7 +174,7 @@
 
       <div class="mt-8 w-full">
         <Button variant="action" size="lg" fullWidth href={resolve('/chat/servers')}>
-          <span class="iconify icon-[mdi--plus] text-lg"></span>
+          <span aria-hidden="true" class="iconify icon-[mdi--plus] text-lg"></span>
           {m('auth.login.add_server')}
         </Button>
       </div>
@@ -187,11 +187,7 @@
     </div>
   </AuthLayout>
 {:else}
-  <AuthLayout {compact}>
-    <h1 class={[compact ? 'mb-4' : 'mb-6', 'text-center text-2xl font-bold']}>
-      {m('auth.login.title')}
-    </h1>
-
+  <AuthLayout {compact} title={m('auth.login.title')}>
     {#if data.passwordResetSuccess}
       <div class="mb-4">
         <Hint tone="success">
@@ -214,7 +210,8 @@
             loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
             onclick={(e) => handleProviderClick(e, provider)}
           >
-            <span class={['iconify text-lg', providerIcon(provider.type)]}></span>
+            <span aria-hidden="true" class={['iconify text-lg', providerIcon(provider.type)]}
+            ></span>
             {m('auth.login.continue_with_provider', { provider: provider.label })}
           </Button>
         {/each}
@@ -264,7 +261,7 @@
           loading={isLoading}
           loadingText={m('auth.login.signing_in')}
         >
-          <span class="iconify icon-[mdi--login]"></span>
+          <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
           {m('common.sign_in')}
         </Button>
       </Form>

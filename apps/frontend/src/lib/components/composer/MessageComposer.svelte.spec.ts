@@ -359,6 +359,14 @@ async function openFormattingShelf(container: HTMLElement) {
   );
 }
 
+/** The fixture's plain server info, whose runtime settings the tests change. */
+function testServerInfo(): { videoProcessingEnabled: boolean; maxUploadSize: number } {
+  return server.scope.store.serverInfo as unknown as {
+    videoProcessingEnabled: boolean;
+    maxUploadSize: number;
+  };
+}
+
 describe('MessageComposer', () => {
   beforeEach(() => {
     connectionAttempts.set('failed', 0);
@@ -1402,7 +1410,7 @@ describe('MessageComposer', () => {
     });
 
     it('stages selected video files when video processing is enabled', async () => {
-      server.scope.store.serverInfo.videoProcessingEnabled = true;
+      testServerInfo().videoProcessingEnabled = true;
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const input = q(container, 'input[type="file"]') as HTMLInputElement;
 
@@ -1433,7 +1441,7 @@ describe('MessageComposer', () => {
     });
 
     it('rejects selected files over the server upload size limit', async () => {
-      server.scope.store.serverInfo.maxUploadSize = 1;
+      testServerInfo().maxUploadSize = 1;
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const input = q(container, 'input[type="file"]') as HTMLInputElement;
 

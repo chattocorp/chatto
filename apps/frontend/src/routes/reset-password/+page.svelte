@@ -67,9 +67,7 @@
 
 <PageTitle title={m('auth.reset_password.page_title')} />
 
-<AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.reset_password.title')}</h1>
-
+<AuthLayout title={m('auth.reset_password.title')}>
   {#if !token}
     <Hint tone="danger">
       <p class="mb-2 font-medium">{m('auth.reset_password.invalid_title')}</p>

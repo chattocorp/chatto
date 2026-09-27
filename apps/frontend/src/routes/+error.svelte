@@ -1,19 +1,15 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { Button } from '$lib/ui/form';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Button } from '$lib/ui/form';
 </script>
 
 <PageTitle title={m('error_page.title')} />
 
 <div class="flex min-h-full flex-1 items-center justify-center px-6 py-12 text-center">
   <section class="flex max-w-md flex-col items-center gap-5" aria-labelledby="error-page-title">
-    <div
-      class="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-muted ring-1 ring-text/5"
-      aria-hidden="true"
-    >
-      <span class="iconify icon-[uil--exclamation-triangle] text-3xl"></span>
-    </div>
+    <span class="iconify icon-[uil--exclamation-triangle] text-5xl text-muted" aria-hidden="true"
+    ></span>
 
     <div class="flex flex-col gap-2">
       <h1 id="error-page-title" class="text-xl font-semibold text-balance text-text-top">

@@ -183,8 +183,9 @@
     return formatter.format(date);
   }
 
-  function applyFilters() {
-    if (!hasDraftChanges) return;
+  function applyFilters(event: SubmitEvent) {
+    event.preventDefault();
+    if (!hasDraftChanges || eventLog.loading) return;
     navigateWithFilter(draftFilter);
   }
 
@@ -239,14 +240,10 @@
 <PageTitle title={m('admin.common.page_title', { title: m('admin.event_log.title') })} />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('admin.event_log.title')}
-    subtitle={m('admin.event_log.subtitle')}
-    showMobileNav
-  />
+  <PaneHeader title={m('admin.event_log.title')} subtitle={m('admin.event_log.subtitle')} />
 
   <PaneContent bind:scrollContainer>
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-6">
       {#if eventLog.error}
         <Hint tone="danger">{eventLog.error}</Hint>
       {/if}
@@ -274,7 +271,7 @@
       {/if}
 
       <Panel title={m('admin.event_log.filters')}>
-        <div class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" onsubmit={applyFilters}>
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <Combobox
               id="event-log-event-type"
@@ -308,29 +305,28 @@
             >
               {m('admin.event_log.clear')}
             </Button>
-            <Button onclick={applyFilters} disabled={!hasDraftChanges || eventLog.loading}>
+            <Button type="submit" disabled={!hasDraftChanges || eventLog.loading}>
               {m('admin.event_log.apply')}
             </Button>
           </div>
-        </div>
+        </form>
       </Panel>
 
-      <div class="text-sm text-muted">
-        {eventLog.totalCount === '1'
-          ? m('admin.event_log.total_events_one', { count: formattedTotalCount })
-          : m('admin.event_log.total_events_many', { count: formattedTotalCount })}
-        {#if eventLog.hasActiveFilter}
-          · {eventLog.scannedCount === 1
-            ? m('admin.event_log.inspected_rows_one', {
-                count: eventLog.scannedCount.toLocaleString()
-              })
-            : m('admin.event_log.inspected_rows_many', {
-                count: eventLog.scannedCount.toLocaleString()
-              })}
-        {/if}
-      </div>
-
-      <Panel noPadding>
+      <Panel title={m('admin.system.events')} noPadding>
+        {#snippet subtitle()}
+          {eventLog.totalCount === '1'
+            ? m('admin.event_log.total_events_one', { count: formattedTotalCount })
+            : m('admin.event_log.total_events_many', { count: formattedTotalCount })}
+          {#if eventLog.hasActiveFilter}
+            · {eventLog.scannedCount === 1
+              ? m('admin.event_log.inspected_rows_one', {
+                  count: eventLog.scannedCount.toLocaleString()
+                })
+              : m('admin.event_log.inspected_rows_many', {
+                  count: eventLog.scannedCount.toLocaleString()
+                })}
+          {/if}
+        {/snippet}
         <DataTable
           items={eventLog.entries}
           columns={5}
