@@ -290,7 +290,7 @@ preview on screen.
           fill={false}
           fadeHeight="h-5"
           fadeColorClass="from-surface via-surface/80"
-          scrollClass="max-h-52 overscroll-contain"
+          scrollClass="max-h-52"
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent body={bodyMarkdown} viewerLogin={store?.currentUser.user?.login} />

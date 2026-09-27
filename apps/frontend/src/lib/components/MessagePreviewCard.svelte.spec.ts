@@ -428,6 +428,7 @@ describe('MessagePreviewCard', () => {
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
     const scrollViewport = container.querySelector<HTMLElement>('.max-h-52.overflow-y-auto');
     expect(scrollViewport).not.toBeNull();
+    expect(getComputedStyle(scrollViewport!).overscrollBehaviorY).toBe('auto');
     expect(
       [...container.querySelectorAll('[data-testid="message-preview-card"] bdi')]
         .map((value) => value.textContent)
@@ -463,6 +464,8 @@ describe('MessagePreviewCard', () => {
       return viewport!;
     });
     const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+
+    expect(getComputedStyle(scrollViewport).overscrollBehaviorY).toBe('auto');
 
     await vi.waitFor(() => {
       expect(fades[0].classList).toContain('opacity-0');
