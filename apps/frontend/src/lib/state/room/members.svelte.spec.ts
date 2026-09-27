@@ -70,19 +70,21 @@ function pageResult(
   };
 }
 
-function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirectoryPage>>) {
-  return new RoomMembersStore(new FakeMemberDirectoryAPI(results));
+function createStore(
+  roomId: string,
+  results: Array<MemberDirectoryPage | Promise<MemberDirectoryPage>>
+) {
+  return new RoomMembersStore(roomId, new FakeMemberDirectoryAPI(results));
 }
 
 describe('RoomMembersStore', () => {
   it('retains the complete visible membership until all refresh pages arrive', async () => {
     const finalPage = deferred<MemberDirectoryPage>();
-    const store = createStore([
+    const store = createStore('room', [
       pageResult([user('u1'), user('u2')]),
       pageResult([user('u1')], true, 2),
       finalPage.promise
     ]);
-    store.setRoom('room');
     await store.loadInitial();
     const refresh = store.refresh();
     await vi.waitFor(() => expect(store.isBackgroundLoading).toBe(true));
@@ -102,8 +104,7 @@ describe('RoomMembersStore', () => {
         : pageResult([])
     );
     const presence = new ServerPresence();
-    const store = new RoomMembersStore(api, presence);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api, { presence });
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.members.map((member) => member.id)).toEqual(['online']));
     // The preview reports the status it filtered by to the server's presence owner.
@@ -127,8 +128,7 @@ describe('RoomMembersStore', () => {
       status === PresenceStatus.ONLINE ? preview.promise : pageResult([])
     );
     const presence = new ServerPresence();
-    const store = new RoomMembersStore(api, presence);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api, { presence });
     const loading = store.loadInitial();
     await vi.waitFor(() =>
       expect(api.listOnlineRoomMembers).toHaveBeenCalledWith(
@@ -155,8 +155,7 @@ describe('RoomMembersStore', () => {
     );
     const presence = new ServerPresence();
     presence.set('u', PresenceStatus.OFFLINE);
-    const store = new RoomMembersStore(api, presence);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api, { presence });
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.members).toHaveLength(1));
     expect(presence.get('u')).toBe(PresenceStatus.DO_NOT_DISTURB);
@@ -173,8 +172,7 @@ describe('RoomMembersStore', () => {
         ? { members: [], consumedCount: 250, hasMore: true, totalCount: 251 }
         : pageResult([user('last-online')]);
     });
-    const store = new RoomMembersStore(api);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api);
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.members).toHaveLength(1));
     expect(api.listOnlineRoomMembers).toHaveBeenCalledWith(
@@ -197,8 +195,7 @@ describe('RoomMembersStore', () => {
         if (status === PresenceStatus.ONLINE) return preview.promise;
         throw new Error('preview unavailable');
       });
-      const store = new RoomMembersStore(api);
-      store.setRoom('room');
+      const store = new RoomMembersStore('room', api);
       await store.loadInitial();
       if (reset) store.resetProjectionState();
       preview.resolve(pageResult([user('stale')]));
@@ -213,8 +210,7 @@ describe('RoomMembersStore', () => {
       oldPage.promise,
       pageResult([user('first'), user('joined')])
     ]);
-    const store = new RoomMembersStore(api);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api);
     const oldLoad = store.loadInitial();
     await store.applyMembership('joined', true, 'event-boundary');
     expect(api.listRoomMembers).toHaveBeenNthCalledWith(2, 'room', '', 250, 0, {
@@ -231,8 +227,7 @@ describe('RoomMembersStore', () => {
       initial.promise,
       pageResult([user('far-away-id', 'zelda')])
     ]);
-    const store = new RoomMembersStore(api);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api);
     const loading = store.loadInitial();
     const matches = await store.searchMembers('zel');
     expect(matches.map((member) => member.login)).toEqual(['zelda']);
@@ -246,8 +241,7 @@ describe('RoomMembersStore', () => {
       { members: [], consumedCount: 250, hasMore: true, totalCount: 251 },
       pageResult([user('last')], false, 251)
     ]);
-    const store = new RoomMembersStore(api);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api);
     await store.loadInitial();
     expect(api.listRoomMembers).toHaveBeenNthCalledWith(2, 'room', '', 250, 250);
     expect(store.members.map((member) => member.id)).toEqual(['last']);
@@ -256,8 +250,7 @@ describe('RoomMembersStore', () => {
   it('applies joins, leaves, and profile updates without relisting a complete room', async () => {
     const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
     api.batchGetUsers = vi.fn(async () => [user('second')]);
-    const store = new RoomMembersStore(api);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api);
     await store.loadInitial();
     await store.applyMembership('second', true);
     await store.applyMembership('second', true);
@@ -285,8 +278,7 @@ describe('RoomMembersStore', () => {
       queryScope: 'connection',
       getAPI: () => api
     } as unknown as ServerConnection;
-    const store = new RoomMembersStore(connection);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', connection);
     await store.loadInitial();
 
     await store.applyMembership('second', true, 'join-cursor');
@@ -329,8 +321,7 @@ describe('RoomMembersStore', () => {
       queryScope: 'connection',
       getAPI: () => api
     } as unknown as ServerConnection;
-    const store = new RoomMembersStore(connection);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', connection);
     await store.loadInitial();
     expect(store.members[0]?.login).toBe('current');
 
@@ -363,8 +354,7 @@ describe('RoomMembersStore', () => {
       queryScope: 'connection',
       getAPI: () => api
     } as unknown as ServerConnection;
-    const store = new RoomMembersStore(connection);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', connection);
     await store.loadInitial();
 
     expect(store.members).toEqual([]);
@@ -397,8 +387,7 @@ describe('RoomMembersStore', () => {
       queryScope: 'connection',
       getAPI: () => api
     } as unknown as ServerConnection;
-    const store = new RoomMembersStore(connection);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', connection);
     await store.loadInitial();
 
     expect(store.members).toEqual([
@@ -442,8 +431,7 @@ describe('RoomMembersStore', () => {
       queryScope: 'connection',
       getAPI: () => api
     } as unknown as ServerConnection;
-    const store = new RoomMembersStore(connection);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', connection);
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
 
@@ -467,8 +455,7 @@ describe('RoomMembersStore', () => {
     const pending = deferred<ReturnType<typeof user>[]>();
     const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
     api.batchGetUsers = vi.fn(() => pending.promise);
-    const store = new RoomMembersStore(api);
-    store.setRoom('room');
+    const store = new RoomMembersStore('room', api);
     await store.loadInitial();
     const join = store.applyMembership('second', true);
     await store.applyMembership('second', false);
@@ -481,10 +468,9 @@ describe('RoomMembersStore', () => {
   });
 
   it('preserves explicit bot identity from directory members', async () => {
-    const store = createStore([
+    const store = createStore('room-1', [
       pageResult([{ ...user('bot-1', 'helper_bot', true), bot: { ownerUserId: 'owner-1' } }])
     ]);
-    store.setRoom('room-1');
     await store.loadInitial();
 
     expect(store.members[0]?.isBot).toBe(true);
@@ -497,9 +483,8 @@ describe('RoomMembersStore', () => {
       pageResult([user('u1', 'alice')], true, 3),
       backgroundPage.promise
     ]);
-    const store = new RoomMembersStore(fakeAPI);
+    const store = new RoomMembersStore('room-1', fakeAPI);
 
-    store.setRoom('room-1');
     const loading = store.loadInitial();
 
     await vi.waitFor(() => {
@@ -529,17 +514,15 @@ describe('RoomMembersStore', () => {
     expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.totalCount).toBe(3);
-    expect(store.hasLoaded).toBe(true);
     expect(store.hasLoadedAll).toBe(true);
     expect(store.isBackgroundLoading).toBe(false);
   });
 
   it('filters loaded members locally without changing the canonical count', async () => {
-    const store = createStore([
+    const store = createStore('room-1', [
       pageResult([user('u1', 'alice'), user('u2', 'boris'), user('u3', 'cora')], false, 3)
     ]);
 
-    store.setRoom('room-1');
     await store.loadInitial();
     await store.setSearch('bo');
 
@@ -555,9 +538,8 @@ describe('RoomMembersStore', () => {
       backgroundPage.promise,
       pageResult([user('u3', 'cora')], false, 1)
     ]);
-    const store = new RoomMembersStore(fakeAPI);
+    const store = new RoomMembersStore('room-1', fakeAPI);
 
-    store.setRoom('room-1');
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
 
@@ -589,9 +571,8 @@ describe('RoomMembersStore', () => {
       staleSearch.promise,
       refreshedPage.promise
     ]);
-    const store = new RoomMembersStore(fakeAPI);
+    const store = new RoomMembersStore('room-1', fakeAPI);
 
-    store.setRoom('room-1');
     const initialLoad = store.loadInitial();
     await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
 
@@ -617,9 +598,8 @@ describe('RoomMembersStore', () => {
       pageResult([user('u2', 'match-a')], true, 2),
       pageResult([user('u3', 'match-b')], false, 2)
     ]);
-    const store = new RoomMembersStore(fakeAPI);
+    const store = new RoomMembersStore('room-1', fakeAPI);
 
-    store.setRoom('room-1');
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
 
@@ -648,10 +628,9 @@ describe('RoomMembersStore', () => {
   it('records failed initial loads to avoid immediate ensureLoaded retries', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fakeAPI = new FakeMemberDirectoryAPI([Promise.reject(new Error('network failed'))]);
-    const store = new RoomMembersStore(fakeAPI);
+    const store = new RoomMembersStore('room-1', fakeAPI);
 
     try {
-      store.setRoom('room-1');
       store.ensureLoaded();
 
       await vi.waitFor(() => {
@@ -673,10 +652,9 @@ describe('RoomMembersStore', () => {
       pageResult([user('u1', 'alice')], true, 3),
       Promise.reject(new Error('network failed'))
     ]);
-    const store = new RoomMembersStore(fakeAPI);
+    const store = new RoomMembersStore('room-1', fakeAPI);
 
     try {
-      store.setRoom('room-1');
       await store.loadInitial();
 
       expect(store.members.map((member) => member.login)).toEqual(['alice']);
@@ -693,9 +671,8 @@ describe('RoomMembersStore', () => {
   it('refresh keeps initial loading pending until the replacement first page arrives', async () => {
     const initial = deferred<MemberDirectoryPage>();
     const refresh = deferred<MemberDirectoryPage>();
-    const store = createStore([initial.promise, refresh.promise]);
+    const store = createStore('room-1', [initial.promise, refresh.promise]);
 
-    store.setRoom('room-1');
     const initialLoad = store.loadInitial();
     expect(store.isInitialLoading).toBe(true);
 
@@ -705,7 +682,7 @@ describe('RoomMembersStore', () => {
     refresh.resolve(pageResult([user('u2', 'refresh')]));
     await refreshLoad;
 
-    expect(store.hasLoaded).toBe(true);
+    expect(store.hasLoadedAll).toBe(true);
     expect(store.isInitialLoading).toBe(false);
     expect(store.members.map((member) => member.id)).toEqual(['u2']);
 
@@ -717,13 +694,12 @@ describe('RoomMembersStore', () => {
   });
 
   it('refresh reloads all pages and preserves local search as display-only state', async () => {
-    const store = createStore([
+    const store = createStore('room-1', [
       pageResult([user('u1', 'initial')], false, 1),
       pageResult([user('u2', 'refresh-a')], true, 3),
       pageResult([user('u3', 'refresh-b'), user('u4', 'other')], false, 3)
     ]);
 
-    store.setRoom('room-1');
     await store.loadInitial();
     await store.setSearch('refresh');
     await store.refresh();
@@ -737,18 +713,34 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(3);
   });
 
-  it('distinguishes pending projection membership from a complete empty roster', () => {
-    const store = new RoomMembersStore(null);
-
-    store.awaitProjection('room-1');
-    expect(store.isInitialLoading).toBe(true);
+  it('uses complete projected membership instead of server reads', async () => {
+    let projected = $state<string[] | null>(null);
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'alice'), user('u2', 'boris')], false, 2)
+    ]);
+    const store = new RoomMembersStore('room-1', fakeAPI, {
+      projectedMemberIds: () => projected
+    });
     expect(store.hasFirstPage).toBe(false);
-    expect(store.hasLoadedAll).toBe(false);
 
-    store.replaceProjection('room-1', []);
-    expect(store.isInitialLoading).toBe(false);
+    // A complete empty roster is loaded, not pending.
+    projected = [];
     expect(store.hasFirstPage).toBe(true);
     expect(store.hasLoadedAll).toBe(true);
+    expect(store.totalCount).toBe(0);
+    store.ensureLoaded();
+    await store.refresh({ reauthorize: true });
+    expect(fakeAPI.listRoomMembers).not.toHaveBeenCalled();
+    expect(fakeAPI.listOnlineRoomMembers).not.toHaveBeenCalled();
+
+    projected = null;
+    await store.loadInitial();
+    expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris']);
+
+    projected = ['u2'];
+    expect(store.members.map((member) => member.login)).toEqual(['boris']);
+    expect(store.totalCount).toBe(1);
+    expect(await store.searchMembers('ali')).toEqual([]);
   });
 
   it.each([false, true])(
@@ -760,10 +752,9 @@ describe('RoomMembersStore', () => {
         pageResult([user('u2', 'refresh-a')], true, 3),
         Promise.reject(new Error('network failed'))
       ]);
-      const store = new RoomMembersStore(fakeAPI);
+      const store = new RoomMembersStore('room-1', fakeAPI);
 
       try {
-        store.setRoom('room-1');
         await store.loadInitial();
         await store.refresh({ reauthorize });
 

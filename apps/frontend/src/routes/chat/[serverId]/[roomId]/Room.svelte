@@ -65,13 +65,13 @@
   }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
   const serverScope = useServerScope();
-  const roomMembersStore = $derived(serverScope.store.membersForRoom(roomId));
+  const roomMembersStore = $derived(serverScope.store.rooms.members(roomId));
   setRoomMembersStore(() => roomMembersStore);
   const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const stores = $derived(serverScope.store);
-  const roomFilesStore = $derived(stores.filesForRoom(roomId));
-  const roomMessageSearchStore = $derived(stores.messageSearchForRoom(roomId));
+  const roomFilesStore = $derived(stores.rooms.files(roomId));
+  const roomMessageSearchStore = $derived(stores.rooms.search(roomId));
   const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
@@ -130,7 +130,7 @@
 
   // Create context-based state (must be synchronous, before children render)
   createMentionRoles(() => stores.mentionRoles.roles);
-  const roomMessageStore = $derived(stores.messagesForRoom(roomId));
+  const roomMessageStore = $derived(stores.rooms.messages(roomId));
 
   const room = useRoomData(() => ({ roomId }));
   const canReadMessages = $derived(room.roomData?.canReadMessages !== false);
@@ -156,7 +156,7 @@
   const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
   const roomPinsStore = $derived(
     room.roomData && canReadMessages && !room.isDM && supportsPinnedMessages
-      ? stores.pinsForRoom(roomId)
+      ? stores.rooms.pins(roomId)
       : null
   );
 
@@ -425,21 +425,13 @@
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
 
-  const syncRoomMembers: Attachment = () => {
-    const selectedRoomId = roomId;
-    const hasFirstPage = roomMembersStore.hasFirstPage;
-    const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
-    const projectedMemberIds = hasCompleteMembership
-      ? stores.projectedMemberIdsForRoom(selectedRoomId)
-      : [];
-    untrack(() => {
-      roomMembersStore.setRoom(selectedRoomId);
-      if (hasCompleteMembership) {
-        roomMembersStore.replaceProjection(selectedRoomId, projectedMemberIds);
-      } else {
-        if (!hasFirstPage) roomMembersStore.ensureLoaded();
-      }
-    });
+  // A DM's projection has every member, so its store has a first page at once.
+  // A reset discards a load in progress or a failed load; the load then starts again.
+  const loadRoomMembers: Attachment = () => {
+    const store = roomMembersStore;
+    if (!store.hasFirstPage && !store.isInitialLoading && !store.loadError) {
+      untrack(() => store.ensureLoaded());
+    }
   };
 
   const syncRoomFiles: Attachment = () => {
@@ -631,7 +623,7 @@
 {#if room.roomData !== null}
   <div
     class="flex min-h-0 min-w-0 flex-1"
-    {@attach syncRoomMembers}
+    {@attach loadRoomMembers}
     {@attach syncRoomFiles}
     {@attach syncRoomPins}
     {@attach syncRoomCallWide}

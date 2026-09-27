@@ -120,7 +120,8 @@
         "reply": "Vastata lõimedes",
         "manage_messages": "Hallata sõnumeid"
       },
-      "owned_by": "Omanik"
+      "owned_by": "Omanik",
+      "open_card": "Ava kasutaja {name} profiilikaart"
     }
   }
 }

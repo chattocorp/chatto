@@ -53,7 +53,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { fromAction, type Attachment } from 'svelte/attachments';
-  import { SvelteMap } from 'svelte/reactivity';
+  import { MediaQuery, SvelteMap } from 'svelte/reactivity';
+  import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
   import {
     dragHandle,
     dragHandleZone,
@@ -85,6 +86,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const supportsRelativeSidebarMoves = $derived(
     stores.serverInfo.supportsFeature('relativeSidebarMoves')
   );
+  const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
+  /**
+   * Whether sidebar entries and groups can be reordered by drag and drop.
+   * Touch-only devices get no drag handles: svelte-dnd-action cancels the
+   * default action of every touchstart on a handle, so a handle over each
+   * managed row's leading icon and group disclosure blocks scrolling and taps.
+   * Server-wide room managers can reorder in Server Admin → Rooms instead;
+   * FDR-017 records the gap for group-scoped managers.
+   */
+  const sidebarDragEnabled = $derived(supportsRelativeSidebarMoves && !touchOnly.current);
+  /** Whether the viewer can reorder whole room groups by drag and drop. */
+  const groupDragEnabled = $derived(sidebarDragEnabled && canReorderGroups);
 
   const navigation = $derived(stores.navigation);
   const roomUnreadStore = $derived(stores.roomUnread);
@@ -596,7 +609,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let itemDragAttachments = $derived(
     new Map(
       visibleSets
-        .filter((group) => supportsRelativeSidebarMoves && group.viewerCanManageGroup)
+        .filter((group) => sidebarDragEnabled && group.viewerCanManageGroup)
         .map((group) => [group.id, createItemDragAttachment(group.id)] as const)
     )
   );
@@ -849,7 +862,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
   {@const presentation = isDM ? dmPresentation(room) : null}
   {@const owningGroup = groupByRoomId.get(room.id)}
-  {@const showDragHandle = supportsRelativeSidebarMoves && owningGroup?.viewerCanManageGroup}
+  {@const showDragHandle = sidebarDragEnabled && owningGroup?.viewerCanManageGroup}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
@@ -884,9 +897,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               class={[
                 'iconify sidebar-icon icon-[uil--globe] transition-opacity feedback-quick',
                 showUnread ? 'text-text-top' : 'text-muted',
-                showDragHandle
-                  ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
-                  : ''
+                showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
               ]}
               role="img"
               aria-label={m('room.directory.universal')}
@@ -897,9 +908,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               class={[
                 'sidebar-icon transition-opacity feedback-quick',
                 showUnread ? 'text-text-top' : 'text-muted',
-                showDragHandle
-                  ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
-                  : ''
+                showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
               ]}>#</span
             >
           {/if}
@@ -907,18 +916,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <span
             class={[
               'sidebar-icon text-muted transition-opacity feedback-quick',
-              showDragHandle
-                ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
-                : ''
+              showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
             ]}>+</span
           >
         {:else}
           <span
             class={[
               'iconify sidebar-icon icon-[uil--lock] text-muted transition-opacity feedback-quick',
-              showDragHandle
-                ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
-                : ''
+              showDragHandle ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0' : ''
             ]}
             role="img"
             aria-label={m('room.directory.restricted')}
@@ -928,7 +933,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {#if showDragHandle}
           <button
             type="button"
-            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/room:pointer-events-auto group-focus-within/room:opacity-100 group-hover/room:pointer-events-auto group-hover/room:opacity-100 active:cursor-grabbing touch-input:pointer-events-auto touch-input:opacity-100"
+            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/room:pointer-events-auto group-focus-within/room:opacity-100 group-hover/room:pointer-events-auto group-hover/room:opacity-100 active:cursor-grabbing"
             aria-label={m('admin.rooms_admin.drag_room')}
             onclick={(event) => {
               event.preventDefault();
@@ -990,7 +995,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {:else}
     {@const target = sidebarLinkTarget(item.link.url, activeServerBaseURL)}
     {@const owningGroup = groupByItemId.get(item.id)}
-    {@const showDragHandle = supportsRelativeSidebarMoves && owningGroup?.viewerCanManageGroup}
+    {@const showDragHandle = sidebarDragEnabled && owningGroup?.viewerCanManageGroup}
     <a
       {...sidebarLinkAnchorAttributes(target)}
       aria-disabled={!target.valid}
@@ -1008,15 +1013,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           aria-hidden="true"
           class={[
             'iconify sidebar-icon icon-[uil--external-link-alt] text-muted transition-opacity feedback-quick',
-            showDragHandle
-              ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0 touch-input:opacity-0'
-              : ''
+            showDragHandle ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0' : ''
           ]}
         ></span>
         {#if showDragHandle}
           <button
             type="button"
-            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing touch-input:pointer-events-auto touch-input:opacity-100"
+            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing"
             aria-label={m('admin.rooms_admin.drag_link')}
             onclick={(event) => {
               event.preventDefault();
@@ -1070,7 +1073,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet groupLeadingOverlay()}
   <button
     type="button"
-    class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing touch-input:pointer-events-auto touch-input:opacity-100"
+    class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing"
     aria-label={m('admin.rooms_admin.drag_group')}
     onclick={(event) => event.stopPropagation()}
     onpointerdown={(event) => event.stopPropagation()}
@@ -1127,11 +1130,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {:else}
   <nav class="room-list md:w-full">
     <div
-      class={supportsRelativeSidebarMoves && canReorderGroups ? 'sidebar-drop-target' : undefined}
-      data-testid={supportsRelativeSidebarMoves && canReorderGroups
-        ? 'room-groups-dropzone'
-        : undefined}
-      {@attach supportsRelativeSidebarMoves && canReorderGroups ? groupDragAttachment : undefined}
+      class={groupDragEnabled ? 'sidebar-drop-target' : undefined}
+      data-testid={groupDragEnabled ? 'room-groups-dropzone' : undefined}
+      {@attach groupDragEnabled ? groupDragAttachment : undefined}
     >
       {#each renderManagedSections as section, i (section.id)}
         {#snippet footer()}
@@ -1150,11 +1151,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           keepVisibleWhenCollapsed={section.keepVisibleWhenCollapsed}
           contextMenuTrigger={section.contextMenuTrigger}
           itemsAttachment={isDndShadow(section) ? undefined : section.itemsAttachment}
-          containItemDrag
+          containItemDrag={groupDragEnabled}
           isDndShadow={isDndShadow(section)}
           {headerActions}
           {footer}
-          leadingOverlay={!isDndShadow(section) && supportsRelativeSidebarMoves && canReorderGroups
+          leadingOverlay={!isDndShadow(section) && groupDragEnabled
             ? groupLeadingOverlay
             : undefined}
           separated={i > 0}

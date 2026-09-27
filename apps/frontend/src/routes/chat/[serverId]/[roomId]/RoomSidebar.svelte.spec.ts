@@ -5,6 +5,7 @@ import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
+import { resetRoomGroupCollapseForTests } from '$lib/components/chat/roomGroupCollapse';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
@@ -214,7 +215,13 @@ function buttonByText(container: Element, text: string): HTMLButtonElement | und
   );
 }
 
-function renderedMemberTitles(container: Element): string[] {
+/** The query methods shared by a DOM element and a {@link memberGroup} scope. */
+interface ElementQueries {
+  querySelector(selector: string): Element | null;
+  querySelectorAll(selector: string): NodeListOf<Element>;
+}
+
+function renderedMemberTitles(container: ElementQueries): string[] {
   return Array.from(container.querySelectorAll('[title^="View profile of "]')).map(
     (element) => element.getAttribute('title') ?? ''
   );
@@ -226,17 +233,24 @@ function memberGroupLabels(container: Element): string[] {
   );
 }
 
-function memberGroup(container: Element, label: string): Element {
-  const group = Array.from(container.querySelectorAll('[data-testid="room-group-section"]')).find(
-    (section) =>
-      section.querySelector('[data-testid="room-member-group-heading"]')?.textContent?.trim() ===
-      label
-  );
-  if (!group) throw new Error(`Missing room member group: ${label}`);
-  return group;
+/**
+ * Scopes queries to the rendered heading and rows of one member group. The
+ * virtualized member list renders groups as sibling items, not nested sections.
+ */
+function memberGroup(container: Element, label: string): ElementQueries {
+  const heading = Array.from(
+    container.querySelectorAll('[data-testid="room-member-group-heading"]')
+  ).find((element) => element.textContent?.trim() === label);
+  const groupId = heading?.closest('[data-room-group-id]')?.getAttribute('data-room-group-id');
+  if (!groupId) throw new Error(`Missing room member group: ${label}`);
+  const scoped = (selector: string) => `[data-room-group-id="${groupId}"] :is(${selector})`;
+  return {
+    querySelector: (selector) => container.querySelector(scoped(selector)),
+    querySelectorAll: (selector) => container.querySelectorAll(scoped(selector))
+  };
 }
 
-function presenceBadge(container: Element, label: string): Element | null {
+function presenceBadge(container: ElementQueries, label: string): Element | null {
   return container.querySelector(`[aria-label="${label}"]`);
 }
 
@@ -258,14 +272,6 @@ function roomFileRowLabels(container: Element): string[] {
   return Array.from(container.querySelectorAll('[data-testid="room-file-row"]')).map(
     (element) => element.textContent?.trim() ?? ''
   );
-}
-
-async function flushRoomFilesPanel(): Promise<void> {
-  await tick();
-  await Promise.resolve();
-  await tick();
-  await Promise.resolve();
-  await tick();
 }
 
 async function waitForMemberSearchDebounce(): Promise<void> {
@@ -393,9 +399,18 @@ function roomAudioFile(filename: string) {
   };
 }
 
+// Component tests run without the app stylesheet. Give the virtualized list viewports the
+// fixed, scrollable height they have in the app, so the virtualizer measures a stable viewport.
+const virtualListViewportStyle = Object.assign(document.createElement('style'), {
+  textContent:
+    '[data-testid="room-member-list"], [data-testid="room-file-list"] { height: 480px; overflow-y: auto; }'
+});
+document.head.append(virtualListViewportStyle);
+
 describe('RoomSidebar', () => {
   beforeEach(async () => {
     resetUserStoresForTests();
+    resetRoomGroupCollapseForTests();
     presence = new ServerPresence();
     server = createTestServerScope({
       serverId: 'test-server',
@@ -639,12 +654,53 @@ describe('RoomSidebar', () => {
     });
 
     await vi.waitFor(() => {
-      expect(renderedMemberTitles(container)).toHaveLength(142);
+      expect(buttonByText(container, 'Online (142)')).toBeTruthy();
     });
-    for (let index = 1; index <= 142; index++) {
-      expect(renderedMemberTitles(container)).toContain(`View profile of User ${index}`);
-    }
     expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
+  });
+
+  it('renders only the member rows near the visible part of a large room', async () => {
+    // Names sort as User 1, User 10, User 100, …, User 99.
+    const members = Array.from({ length: 500 }, (_, index) => ({
+      ...member(index + 1),
+      presenceStatus: index < 200 ? PresenceStatus.ONLINE : PresenceStatus.OFFLINE
+    }));
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage(members, 500, false));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    // Off-screen group headings are virtualized too, so only Online is mounted at first.
+    await vi.waitFor(() => {
+      expect(memberGroupLabels(container)).toEqual(['Online (200)']);
+      expect(renderedMemberTitles(container)[0]).toBe('View profile of User 1');
+    });
+    const renderedOnline = renderedMemberTitles(container).length;
+    expect(renderedOnline).toBeGreaterThan(0);
+    expect(renderedOnline).toBeLessThan(40);
+
+    const viewport = q(container, '[data-testid="room-member-list"]')!;
+    viewport.scrollTop = viewport.scrollHeight;
+    await vi.waitFor(() => {
+      expect(memberGroupLabels(container)).toContain('Offline (300)');
+      expect(renderedMemberTitles(container)).toContain('View profile of User 99');
+    });
+    expect(renderedMemberTitles(container)).not.toContain('View profile of User 1');
+
+    // Expanding Offline adds its rows to the end of the list, still virtualized.
+    buttonByText(container, 'Offline (300)')!.click();
+    await vi.waitFor(() => {
+      expect(memberGroup(container, 'Offline (300)').querySelector('button')).toHaveAttribute(
+        'aria-expanded',
+        'true'
+      );
+    });
+    viewport.scrollTop = viewport.scrollHeight;
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toContain('View profile of User 499');
+    });
+    expect(renderedMemberTitles(container).length).toBeLessThan(40);
   });
 
   it('aligns isolated LTR member logins to the logical start in RTL', async () => {
@@ -690,7 +746,7 @@ describe('RoomSidebar', () => {
     );
     expect(bots.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
     expect(presenceBadge(bots, 'Offline')).toBeFalsy();
-    expect(q(bots, '[data-testid="room-member-card"]')).not.toHaveClass('opacity-50');
+    expect(bots.querySelector('[data-testid="room-member-card"]')).not.toHaveClass('opacity-50');
     expect(q(container, 'h1')?.textContent).toContain('Members (1)');
   });
 
@@ -724,7 +780,7 @@ describe('RoomSidebar', () => {
     expect(renderedMemberTitles(memberGroup(container, 'Offline (1)'))).toEqual([]);
     expect(q(container, 'h1')?.textContent).toContain('Members (4)');
 
-    (q(memberGroup(container, 'Offline (1)'), 'button') as HTMLButtonElement).click();
+    (memberGroup(container, 'Offline (1)').querySelector('button') as HTMLButtonElement).click();
     await vi.waitFor(() => {
       expect(renderedMemberTitles(memberGroup(container, 'Offline (1)'))).toEqual([
         'View profile of Morgan Human'
@@ -1798,7 +1854,12 @@ describe('RoomSidebar', () => {
         expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);
       });
       expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      // The virtualizer can resize the list while ResizeObserver delivers row sizes. Browsers
+      // report that as a benign loop notification and deliver the rest in the next frame.
+      const errors = consoleErrorSpy.mock.calls.filter(
+        ([error]) => !String(error).includes('ResizeObserver loop')
+      );
+      expect(errors).toEqual([]);
     } finally {
       consoleErrorSpy.mockRestore();
     }
@@ -1875,7 +1936,7 @@ describe('RoomSidebar', () => {
     expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
     expect(presenceBadge(memberGroup(container, 'Bots (1)'), 'Offline')).toBeFalsy();
     expect(
-      q(memberGroup(container, 'Bots (1)'), '[data-testid="room-member-card"]')
+      memberGroup(container, 'Bots (1)').querySelector('[data-testid="room-member-card"]')
     ).not.toHaveClass('opacity-50');
 
     presence.set(bot.id, PresenceStatus.AWAY);
@@ -1922,9 +1983,7 @@ describe('RoomSidebar', () => {
 
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
-    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
-      2
-    );
+    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(2);
   });
 
   it('separates an offline-only member group from member search', async () => {
@@ -1943,9 +2002,7 @@ describe('RoomSidebar', () => {
     });
 
     expect(buttonByText(container, 'Online (1)')).toBeFalsy();
-    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
-      1
-    );
+    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(1);
   });
 
   it('coalesces a burst of presence-driven member group movement', async () => {
@@ -2368,11 +2425,11 @@ describe('RoomSidebar', () => {
       }
     });
 
-    await flushRoomFilesPanel();
-    expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
-    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
-      1
-    );
+    // The virtualizer mounts rows after it measures its viewport.
+    await vi.waitFor(() => {
+      expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
+    });
+    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(1);
     expect(roomFileRowLabels(container)).toHaveLength(2);
     expect(roomFileRowLabels(container)[0]).toContain('today.txt');
     expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
@@ -2386,24 +2443,59 @@ describe('RoomSidebar', () => {
     await expect.element(yesterdayHeading).toHaveAttribute('aria-expanded', 'true');
 
     MockIntersectionObserver.instances[0].trigger();
-    await flushRoomFilesPanel();
-
-    expect(roomFileGroupHeadings(container)).toEqual([
-      'Today',
-      'Yesterday',
-      'This week',
-      'This month',
-      'May 2026'
-    ]);
-    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
-      4
-    );
+    await vi.waitFor(() => {
+      expect(roomFileGroupHeadings(container)).toEqual([
+        'Today',
+        'Yesterday',
+        'This week',
+        'This month',
+        'May 2026'
+      ]);
+    });
+    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(4);
     const labels = roomFileRowLabels(container);
     expect(labels).toHaveLength(5);
     expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);
     expect(labels[2]).toContain('week.txt');
     expect(labels[3]).toContain('month.txt');
     expect(labels[4]).toContain('older-month.txt');
+  });
+
+  it('renders only the file rows near the visible part of a long file list', async () => {
+    const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
+    const files = Array.from({ length: 150 }, (_, index) =>
+      roomFile(`message-${index}`, null, `file-${index}.txt`, '2026-06-17T08:00:00Z')
+    );
+    attachmentMocks.listRoomAttachments.mockResolvedValueOnce({
+      items: files,
+      totalCount: 300,
+      hasMore: true
+    });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false),
+        fileGroupingNow
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(roomFileRowLabels(container)[0]).toContain('file-0.txt');
+    });
+    expect(roomFileRowLabels(container).length).toBeLessThan(30);
+    // The load-more sentinel follows the full virtual height, not the mounted rows.
+    expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeTruthy();
+
+    const viewport = q(container, '[data-testid="room-file-list"]')!;
+    viewport.scrollTop = viewport.scrollHeight;
+    await vi.waitFor(() => {
+      expect(roomFileRowLabels(container).some((label) => label.includes('file-149.txt'))).toBe(
+        true
+      );
+    });
+    expect(roomFileRowLabels(container).some((label) => label.includes('file-0.txt'))).toBe(false);
+    expect(roomFileRowLabels(container).length).toBeLessThan(30);
   });
 
   it('localizes room file date groups with the active locale', async () => {
@@ -2431,15 +2523,15 @@ describe('RoomSidebar', () => {
       }
     });
 
-    await flushRoomFilesPanel();
-
-    expect(roomFileGroupHeadings(container)).toEqual([
-      'Heute',
-      'Gestern',
-      'Diese Woche',
-      'Dieser Monat',
-      'Mai 2026'
-    ]);
+    await vi.waitFor(() => {
+      expect(roomFileGroupHeadings(container)).toEqual([
+        'Heute',
+        'Gestern',
+        'Diese Woche',
+        'Dieser Monat',
+        'Mai 2026'
+      ]);
+    });
   });
 
   it('falls back to a file icon when a video thumbnail fails to load', async () => {

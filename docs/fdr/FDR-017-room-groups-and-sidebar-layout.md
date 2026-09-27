@@ -16,7 +16,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed or expanded. A viewer with effective group `room.manage` also sees group actions, including when no rooms in the group are otherwise visible.
 - Authorized viewers manage the layout where they use it. Group headers provide actions to create rooms and links, open group settings, or delete an empty group. Room and link rows provide their applicable settings, edit, archive, and delete actions. Server-wide room managers can create a group from a compact control after the last room group.
 - A group header shows a permanent **+** button when the viewer can create a room or manage the group. It opens a small menu with **New Room** (`room.create`) and **New Link** (group `room.manage`), showing only permitted actions. The button also works when the group is collapsed. The controls and open creation menu update when group permissions change, including when privileged mode is enabled or disabled. Each action creates its entry in that group. The header context menu keeps the creation and management actions.
-- Explicit drag handles let authorized viewers reorder groups and move room or link entries within or between groups. Pointer-based layouts fade each drag handle in over the leading row icon. Touch layouts keep the controls visible.
+- Explicit drag handles let authorized viewers reorder groups and move room or link entries within or between groups. Each drag handle fades in over the leading row icon on hover or focus. Touch-only devices have a coarse pointer and no hover input. These devices show no drag handles in the sidebar. A swipe that starts on a row icon scrolls the list. A tap on a group chevron collapses or expands the group. On these devices, server-wide room managers reorder the layout in **Server Admin → Rooms**.
 - Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
 - When a channel room or DM becomes current, its sidebar row scrolls into view
   if the row exists. An already visible row stays in place. A closed sidebar
@@ -97,7 +97,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** Creation, removal, and ordering actions live next to the affected room group, room, or sidebar link. Detailed metadata and permission settings remain on resource pages in the management area. The room-layout overview remains available during the transition.
 **Why:** Operators can adjust the navigation structure without leaving the navigation context. The split also keeps complex forms out of the narrow sidebar.
-**Tradeoff:** The permanent creation button uses space in each group header so users can find it. Drag handles still appear on hover or focus, and stay visible on touch layouts. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
+**Tradeoff:** The permanent creation button uses space in each group header so users can find it. Drag handles appear on hover or focus. Touch-only devices have no drag handles in the sidebar. The drag library blocks scrolling for each touch that starts on a handle, and each managed row has a handle. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
 
 ### 11. Structural changes commit all authoritative facts together
 
@@ -123,6 +123,10 @@ ADR-086 and ADR-087.
 - `room.list` — controls whether a channel room appears in the sidebar and room directory for non-members.
 - `room.join` — controls whether a non-member can join a visible channel room directly.
 - All channel-room-scope permissions (`message.post`, `room.join`, etc.) are configurable per group with per-room overrides.
+
+## Open Questions
+
+- Touch-only devices have no sidebar drag handles. A viewer with group `room.manage` but not server-wide `room.manage` cannot open **Server Admin → Rooms**. This viewer cannot reorder the layout on a touch-only device. Move commands in the row and group context menus can close this gap.
 
 ## Related
 

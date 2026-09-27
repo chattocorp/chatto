@@ -15,6 +15,7 @@ import '../app.css';
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
+import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -1991,6 +1992,65 @@ describe('RoomList', () => {
     expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
     expect(container.querySelector('[data-testid="room-group-actions-button"]')).toBeNull();
     expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
+  });
+
+  it('omits drag handles and zones on touch-only devices so touches reach the rows', async () => {
+    const matchMedia = window.matchMedia.bind(window);
+    const spy = vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
+      query === TOUCH_ONLY_QUERY
+        ? ({
+            matches: true,
+            media: query,
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false
+          } satisfies MediaQueryList)
+        : matchMedia(query)
+    );
+    try {
+      mocks.store.navigation.roomGroups = [
+        {
+          id: 'projects',
+          name: 'Projects',
+          viewerCanManageGroup: true,
+          viewerCanCreateRoom: true,
+          roomIds: ['channel-1'],
+          items: [
+            { id: 'room:channel-1', type: 'room', roomId: 'channel-1' },
+            {
+              id: 'link:docs',
+              type: 'link',
+              link: { id: 'docs', label: 'Docs', url: '/docs' }
+            }
+          ]
+        }
+      ];
+
+      const { container } = render(RoomList, { props: { canReorderGroups: true } });
+
+      await expect
+        .element(q(container, '[data-testid="room-group-disclosure-icon"]'))
+        .toBeInTheDocument();
+      expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
+      expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
+      expect(container.querySelector('[data-testid="sidebar-link-drag-handle"]')).toBeNull();
+      expect(container.querySelector('[data-testid="room-group-items-dropzone"]')).toBeNull();
+      expect(container.querySelector('[data-testid="room-groups-dropzone"]')).toBeNull();
+
+      // Without drag zones, touches on rows must still reach app-shell gestures
+      // such as the mobile sidebar swipe.
+      const reachedContainer = vi.fn();
+      container.addEventListener('touchstart', reachedContainer);
+      q(container, '[data-testid="sidebar-link-leading-icon"]')?.dispatchEvent(
+        new Event('touchstart', { bubbles: true })
+      );
+      expect(reachedContainer).toHaveBeenCalledOnce();
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('persists a relative sidebar-item placement after a handled drop', async () => {

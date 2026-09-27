@@ -468,6 +468,9 @@ export class RoomPage {
   /**
    * Get all member display names in the order they appear in the list.
    * Returns an array of display name strings.
+   *
+   * The member list is virtualized, so this reads only mounted rows. Use it for
+   * rooms whose members fit in the visible part of the list.
    */
   async getMemberDisplayNamesInOrder(): Promise<string[]> {
     await this.openMembersPanel();

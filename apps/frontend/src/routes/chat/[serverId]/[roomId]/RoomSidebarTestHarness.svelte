@@ -53,17 +53,16 @@ can exercise pagination wiring without mounting the full chat room.
 
   const serverScope = useServerScope();
   const roomFilesStore = $derived(new RoomFilesStore(serverScope.connection, roomId));
-  const roomMembersStore = setRoomMembersStore(
-    new RoomMembersStore(serverScope.connection, serverScope.store.presence)
+  const roomMembersStore = $derived(
+    new RoomMembersStore(roomId, serverScope.connection, {
+      presence: serverScope.store.presence
+    })
   );
+  setRoomMembersStore(() => roomMembersStore);
 
   const syncMembersStore: Attachment = () => {
-    const selectedRoomId = roomId;
-    const active = activePanel === 'members';
-    untrack(() => {
-      roomMembersStore.setRoom(selectedRoomId);
-      if (active) roomMembersStore.ensureLoaded();
-    });
+    const store = roomMembersStore;
+    if (activePanel === 'members') untrack(() => store.ensureLoaded());
   };
 
   const syncFilesStore: Attachment = () => {

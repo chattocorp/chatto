@@ -1,3 +1,4 @@
+import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -54,12 +55,10 @@ const mocks = vi.hoisted(() => ({
     ): { eventId: string; notificationId: string | null } | null => null
   ),
   markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
-  messagesForRoom: vi.fn(),
-  membersForRoom: vi.fn(),
+  roomMessages: vi.fn(),
+  roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
   nextServerRestoreProjectedRoomWindow: vi.fn(),
-  projectedMemberIdsForRoom: vi.fn(() => []),
-  hasCompleteProjectedRoomMembership: vi.fn(() => true),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -380,7 +379,7 @@ beforeEach(() => {
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
   // Like the server store, create one timeline per room.
   const messagesByRoom: Record<string, MessagesStore> = Object.create(null);
-  mocks.messagesForRoom.mockImplementation(
+  mocks.roomMessages.mockImplementation(
     (roomId: string) =>
       (messagesByRoom[roomId] ??= new MessagesStore(
         {} as never,
@@ -423,26 +422,24 @@ beforeEach(() => {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
       mentionRoles: mocks.mentionRoles,
-      messagesForRoom: mocks.messagesForRoom,
-      membersForRoom: mocks.membersForRoom,
-      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
-      messageSearchForRoom: () => ({}),
+      rooms: {
+        messages: mocks.roomMessages,
+        members: mocks.roomMembers,
+        files: () => ({ retain: mocks.roomFilesRetain }),
+        search: () => ({})
+      },
       restoreProjectedRoomWindow:
         serverId === 'server-2'
           ? mocks.nextServerRestoreProjectedRoomWindow
-          : mocks.restoreProjectedRoomWindow,
-      projectedMemberIdsForRoom: mocks.projectedMemberIdsForRoom,
-      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
+          : mocks.restoreProjectedRoomWindow
     })
   });
   mocks.roomKind = RoomKind.CHANNEL;
-  mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
-  mocks.membersForRoom.mockImplementation((roomId: string) => {
+  mocks.roomMembers.mockImplementation((roomId: string) => {
     let store = membersByRoom[roomId];
     if (!store) {
-      store = new RoomMembersStore();
-      store.setRoom(roomId);
+      store = new RoomMembersStore(roomId);
       membersByRoom[roomId] = store;
     }
     return store;
@@ -477,7 +474,6 @@ afterEach(async () => {
 
 describe('Room interaction bundles', () => {
   it('loads channel membership through the canonical member directory', async () => {
-    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
       .mockImplementation(() => {});
@@ -487,8 +483,32 @@ describe('Room interaction bundles', () => {
     await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
   });
 
+  it.each(['pending', 'failed'])(
+    'restarts a %s channel member load after a reset',
+    async (state) => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      let reads = 0;
+      const api = {
+        listRoomMembers: vi.fn(() =>
+          state === 'failed' && ++reads === 1
+            ? Promise.reject(new Error('offline'))
+            : new Promise<never>(() => {})
+        ),
+        listOnlineRoomMembers: vi.fn(() => new Promise<never>(() => {}))
+      };
+      const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
+      mocks.roomMembers.mockReturnValue(store);
+
+      render(Room, { props: { roomId: 'room-1' } });
+      await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
+      if (state === 'failed') await vi.waitFor(() => expect(store.loadError).toBe('offline'));
+
+      store.resetProjectionState();
+      await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
+    }
+  );
+
   it('leaves membership event handling to the session store without a component reload', async () => {
-    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
     const refresh = vi.spyOn(RoomMembersStore.prototype, 'refresh').mockResolvedValue();
     render(Room, { props: { roomId: 'room-1' } });
