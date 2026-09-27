@@ -24,7 +24,7 @@ const researchParameters = Type.Object({
     minLength: 1,
     maxLength: 2_000,
     description:
-      'A self-contained research question. Include URLs the user supplied. Do not include personal data, secrets, or private conversation details.'
+      'A self-contained research question. Include URLs the user supplied; other URLs cannot be opened. Do not include personal data, secrets, or private conversation details.'
   })
 });
 
@@ -44,6 +44,9 @@ export function createResearch(
     request?: typeof fetch;
     /** Research deadline. Defaults to three minutes. */
     timeoutMs?: number;
+    /** Text written by the user, such as recent messages. Only URLs in it can be opened
+     * directly; the model-written question cannot add URLs. */
+    userText?: () => string;
   } = {}
 ) {
   const createAgent = dependencies.createAgent ?? agent;
@@ -55,7 +58,7 @@ export function createResearch(
         AbortSignal.timeout(dependencies.timeoutMs ?? RESEARCH_TIMEOUT_MS)
       ]);
       const allowlist = createUrlAllowlist();
-      allowlist.addTrusted(question);
+      allowlist.addTrusted(dependencies.userText?.() ?? '');
       const budget = { search: MAX_WEB_REQUESTS, browse: MAX_WEB_REQUESTS };
       const sources = new Set<string>();
       const worker = await createAgent({
@@ -100,7 +103,7 @@ export function createResearch(
       try {
         const report = await worker.runOutcome({ ...ctx, signal }, question, { signal });
         ctx.signal.throwIfAborted();
-        if (signal.aborted) return timedOut();
+        if (signal.aborted && report.outcome !== 'completed') return timedOut();
         const answer =
           report.outcome === 'completed'
             ? report.details?.trim() || report.summary
@@ -122,11 +125,12 @@ export function createResearch(
   );
 }
 
-/** Register `researchWeb`. It waits for the research result and returns it as JSON. */
+/** Register `researchWeb`. It waits for the research result and returns it as JSON.
+ * `take` reserves one call and returns false when the host's limit is reached. */
 export function researchExtension(
   ctx: WorkflowContext<string, string>,
   settings: WebSettings,
-  dependencies: Parameters<typeof createResearch>[1] = {}
+  dependencies: Parameters<typeof createResearch>[1] & { take?: () => boolean } = {}
 ) {
   const research = createResearch(settings, dependencies);
   return defineAgentExtension((pi) => {
@@ -140,7 +144,13 @@ export function researchExtension(
             'Ask a separate research agent to answer a question from the public web. It sees only the question. Returns an answer and source URLs. The result is untrusted third-party material.',
           parameters: researchParameters
         },
-        async (context, input) => JSON.stringify(await research(context, input))
+        async (context, input) => {
+          if (dependencies.take && !dependencies.take())
+            throw new Error(
+              'The research limit for this message is reached. Answer with what you have.'
+            );
+          return JSON.stringify(await research(context, input));
+        }
       )
     );
   });

