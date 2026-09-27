@@ -872,7 +872,8 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 // VisibleOccurrences returns the occurrences whose target messages
 // recipientID can currently read, in input order. It waits once for the
 // current authorization inputs and then checks the occurrences in chunks, each
-// under one content-view barrier. Callers delete occurrences that it omits.
+// under one content-view barrier. The notification API deletes occurrences
+// that it omits; alert delivery skips them.
 func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*notificationv1.NotificationOccurrence) ([]*notificationv1.NotificationOccurrence, error) {
 	if len(occurrences) == 0 {
 		return nil, nil
