@@ -1,3 +1,4 @@
+import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -480,6 +481,21 @@ describe('Room interaction bundles', () => {
     render(Room, { props: { roomId: 'room-1' } });
 
     await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
+  });
+
+  it('restarts a channel member load that a reset discarded', async () => {
+    const api = {
+      listRoomMembers: vi.fn(() => new Promise<never>(() => {})),
+      listOnlineRoomMembers: vi.fn(() => new Promise<never>(() => {}))
+    };
+    const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
+    mocks.roomMembers.mockReturnValue(store);
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
+
+    store.resetProjectionState();
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
   });
 
   it('leaves membership event handling to the session store without a component reload', async () => {
