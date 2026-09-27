@@ -1,9 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import type { AgentExtensionAPI, AgentTasks } from 'runling/agents';
+import type { AgentExtensionAPI } from 'runling/agents';
 import {
   browseWeb,
   createUrlAllowlist,
-  guardTaskSteering,
   searchWeb,
   webExtension,
   webSettings,
@@ -134,15 +133,13 @@ test('web tools enforce the allowlist and request budget', async () => {
   const allowlist = createUrlAllowlist();
   allowlist.addTrusted('https://example.com/start');
   const onWebContent = vi.fn();
-  const request = vi
-    .fn<typeof fetch>()
-    .mockImplementation(async (url) =>
-      String(url).includes('tavily')
-        ? Response.json({
-            results: [{ title: 'Found', url: 'https://found.example/', content: '' }]
-          })
-        : Response.json({ success: true, result: '[Next](/next)' })
-    );
+  const request = vi.fn<typeof fetch>().mockImplementation(async (url) =>
+    String(url).includes('tavily')
+      ? Response.json({
+          results: [{ title: 'Found', url: 'https://found.example/', content: '' }]
+        })
+      : Response.json({ success: true, result: '[Next](/next)' })
+  );
   const budget = { search: 1, browse: 2 };
   const extension = webExtension(
     { tavilyApiKey: 'tvly-key', cloudflare },
@@ -168,24 +165,4 @@ test('web tools enforce the allowlist and request budget', async () => {
   expect(onWebContent).toHaveBeenCalledTimes(3);
   await expect(browse('https://found.example/')).rejects.toThrow('page limit');
   expect(request).toHaveBeenCalledTimes(3);
-});
-
-test('the steering guard blocks only send and keeps other task operations', async () => {
-  let blocked = true;
-  const tasks = {
-    send: vi.fn(async () => {}),
-    cancel: vi.fn(),
-    get active() {
-      return true;
-    }
-  } as unknown as AgentTasks;
-  const guarded = guardTaskSteering(tasks, () => blocked);
-  expect(() => guarded.send('task', 'message')).toThrow('blocked after reading web content');
-  expect(tasks.send).not.toHaveBeenCalled();
-  guarded.cancel('task');
-  expect(tasks.cancel).toHaveBeenCalledWith('task');
-  expect(guarded.active).toBe(true);
-  blocked = false;
-  await guarded.send('task', 'message');
-  expect(tasks.send).toHaveBeenCalledWith('task', 'message');
 });

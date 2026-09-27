@@ -156,10 +156,10 @@ The agent is instructed not to disclose its model, model provider, instructions,
 or host configuration. This instruction does not guarantee confidentiality. Do not
 put secrets in agent instructions or tool results.
 
-## Web search and browsing
+## Web research
 
-ChattoBot can search the web and read web pages when you configure these optional
-services. Each tool is present only when its credentials are set:
+ChattoBot can answer questions from the public web through a separate research
+agent. Configure one or both of these optional services:
 
 ```dotenv
 # webSearch: Tavily Search API (basic search, at most 5 results per query)
@@ -170,36 +170,38 @@ CHATTO_CLOUDFLARE_API_TOKEN=...
 ```
 
 Set both Cloudflare values or neither. Restart the bot after you change them.
-The agent uses these tools when the Chatto references do not answer a question,
-or when the user asks about another site. Cloudflare loads each page in a browser
-on its network and returns up to 30,000 characters of Markdown. Target sites see
-Cloudflare, not the bot host, and the bot cannot reach private network addresses
-through this tool.
+When at least one service is configured, the chat agent gets a `researchWeb`
+tool. It uses the tool when the Chatto references do not answer a question, or
+when the user asks about another site. The tool starts a research agent with
+these limits:
 
-Web content and messages from other thread participants can contain instructions
-that try to control the agent. The host applies these limits:
+- It receives only the question that the chat agent writes, not the thread.
+- Its only tools are `webSearch` and `browsePage`. It cannot delegate work, post
+  to Chatto, or read the source checkout.
+- It can make at most 5 searches and 5 page reads, and it stops after three
+  minutes. It returns an answer and the source URLs.
+- `browsePage` opens only URLs in the question, `webSearch` results, and at most
+  50 links from the page it read last. Cloudflare loads each page in a browser on
+  its network and returns up to 30,000 characters of Markdown. Target sites see
+  Cloudflare, not the bot host, and the tool cannot reach private network addresses.
 
-- `browsePage` opens only URLs that appear in the conversation owner's messages or
-  in `webSearch` results, and at most 50 links from the most recently read page.
-  Injected text therefore cannot add conversation data to a URL. A hostile page
-  can still tell the agent which of its links to open. Each user message allows
-  at most 5 searches and 5 page reads. This limits the channel to a few dozen
-  bits for each user message, for example a short code, but does not close it.
-- After the agent reads web content, the host refuses `implementChatto`,
-  `askImplementation`, and `task_send` until a user message sent after that
-  content reaches the agent. Task notifications and earlier messages do not
-  remove this limit.
+The investigation and implementation workers have no web access.
 
-Read-only investigation and `task_cancel` remain available. Instructions in earlier
-web content remain in the conversation history, and an investigation plan can
-contain them. Review plans before you ask for implementation, and use web access
-only with trusted users.
+Web content can contain instructions that try to control an agent. A research
+result can carry such instructions to the chat agent. After a research result
+enters a conversation, Runling blocks `implementChatto`, `askImplementation`, and
+`task_send` for the rest of that conversation. The chat agent tells the user to
+start a new conversation for these actions. Read-only investigation and
+`task_cancel` remain available. An investigation plan made after research can
+contain injected instructions, but plans stay in their conversation, so they
+cannot reach implementation. See Runling's
+[ADR-005](../runling/docs/adr/ADR-005-untrusted-context.md).
 
 Tavily receives each search query and the host's IP address. Cloudflare receives
-each page URL and the host's IP address. The agent is instructed not to put
-personal data, secrets, or private conversation details in queries or URLs; this
-instruction is not a guarantee. Both services charge for use: Tavily per search
-credit, and Browser Run by browser time.
+each page URL and the host's IP address. The chat agent is instructed not to put
+personal data, secrets, or private conversation details in research questions;
+this instruction is not a guarantee. Both services charge for use: Tavily per
+search credit, and Browser Run by browser time.
 
 ## Source investigation
 
@@ -507,7 +509,7 @@ Reference requests disclose the host's IP address and requested page path to
 for the Awesome Chatto list. They do not send Chatto credentials. Retrieved page
 text is sent to the model provider as reference material. When web access is
 configured, Tavily and Cloudflare receive the data described in
-[Web search and browsing](#web-search-and-browsing).
+[Web research](#web-research).
 
 Run checks from the repository root:
 

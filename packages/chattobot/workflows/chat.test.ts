@@ -379,3 +379,54 @@ test('refreshes history for a later mention in the same conversation', async () 
     backgroundTasks: []
   });
 });
+
+test('web research runs in a separate agent and blocks delegation in the supervisor', async () => {
+  const created: import('runling/agents').AgentOptions[] = [];
+  const createAgent = vi.fn(async (options: import('runling/agents').AgentOptions) => {
+    created.push(options);
+    return {
+      runOutcome: async () => ({
+        outcome: 'completed' as const,
+        summary: 'Done',
+        usage: emptyTokenUsage()
+      }),
+      steer: async () => false,
+      dispose: () => {}
+    };
+  });
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    post: async () => {},
+    typing: async () => {},
+    readThread: async () => [],
+    timeout: 0,
+    createAgent,
+    implementation: { directory: '/unused', repository: 'example/chatto' },
+    web: { tavilyApiKey: 'tvly-key' }
+  });
+  await bot(createWorkflowContext(), delivery);
+  const [supervisor] = created;
+  expect(supervisor!.tools).toContain('researchWeb');
+  expect(supervisor!.tools).not.toContain('webSearch');
+  expect(supervisor!.tools).not.toContain('browsePage');
+  expect(supervisor!.trust).toEqual({
+    untrusted: ['researchWeb'],
+    blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send']
+  });
+
+  created.length = 0;
+  await createChattoBot({
+    acknowledge: async () => {},
+    post: async () => {},
+    typing: async () => {},
+    readThread: async () => [],
+    timeout: 0,
+    createAgent
+  })(createWorkflowContext(), {
+    ...delivery,
+    id: 'second',
+    message: { ...delivery.message, id: 'second' }
+  });
+  expect(created[0]!.tools).not.toContain('researchWeb');
+  expect(created[0]!.trust).toBeUndefined();
+});
