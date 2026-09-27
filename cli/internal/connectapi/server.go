@@ -250,6 +250,18 @@ func (a *API) absolutizeServerURL(ctx context.Context, value string) string {
 	if requestBaseURL := requestBaseURLFromContext(ctx); requestBaseURL != "" {
 		return requestBaseURL + value
 	}
+	return a.canonicalServerURL(value)
+}
+
+// canonicalServerURL converts a server-relative path to an absolute URL on the
+// webserver.url origin and ignores the request origin. Use it for URLs that
+// other users receive, such as call participant metadata, so one client's
+// hostname alias does not leak to them. Without webserver.url, it returns the
+// value unchanged.
+func (a *API) canonicalServerURL(value string) string {
+	if value == "" || strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
+	}
 	if a.config.Webserver.URL != "" {
 		base, err := url.Parse(a.config.Webserver.URL)
 		if err == nil && base.Scheme != "" && base.Host != "" {
