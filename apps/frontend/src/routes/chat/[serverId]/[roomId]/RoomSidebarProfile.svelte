@@ -1,12 +1,13 @@
 <!--
 @component
 
-Displays a user's complete public profile in the room sidebar. The component
-uses cached user data while it refreshes and updates shared profile fields as
-realtime changes arrive.
+Displays a user's complete public profile in the room sidebar. The header is
+the shared user card; right-click, touch long-press, and its menu button open
+the shared user menu, which includes bot management for permitted viewers. The
+component uses cached user data while it refreshes and updates shared profile
+fields as realtime changes arrive.
 -->
 <script lang="ts">
-  import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
@@ -14,6 +15,8 @@ realtime changes arrive.
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import UserBio from '$lib/components/users/UserBio.svelte';
@@ -30,7 +33,8 @@ realtime changes arrive.
     getLiveLogin,
     getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
-  import { Hint, LoadingFog } from '$lib/ui';
+  import { formatAccountName } from '$lib/render/accountName';
+  import { Hint, LoadingFog, UserCard } from '$lib/ui';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
   let {
@@ -80,18 +84,12 @@ realtime changes arrive.
     baseUser ? getLiveTimezone(baseUser.id, baseUser.timezone ?? null) : null
   );
   const customStatus = $derived(baseUser ? getLiveCustomStatus(baseUser.id, null) : null);
-  const avatarUser = $derived(
-    baseUser
-      ? {
-          id: baseUser.id,
-          login: baseUser.login,
-          displayName: baseUser.displayName,
-          avatarUrl: baseUser.avatarUrl,
-          presenceStatus: PresenceStatus.UNSPECIFIED,
-          customStatus: null
-        }
-      : null
+  const presence = $derived(serverScope.store.presence.get(userId) ?? PresenceStatus.OFFLINE);
+  /** The profile user as the avatar and the shared user menu expect it. */
+  const menuUser = $derived(
+    baseUser ? { ...baseUser, bio, timezone, presenceStatus: presence, customStatus } : null
   );
+  const profileMenu = new UserMenuState<string>();
 
   function formatLocalTime(zone: string): string | null {
     try {
@@ -110,19 +108,41 @@ realtime changes arrive.
 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-testid="room-sidebar-profile">
   {#if loading}
     <LoadingFog class="h-40 w-full" />
-  {:else if notFound || !baseUser || !avatarUser}
+  {:else if notFound || !baseUser || !menuUser}
     <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
   {:else}
-    <div class="flex items-center gap-4">
-      <UserAvatar user={avatarUser} size="xl" />
-      <div class="min-w-0 flex-1">
-        <h2 class="truncate text-lg font-semibold text-text-top">
-          <AccountName name={displayName} identity={baseUser} />
-        </h2>
-        <p class="truncate text-sm text-muted" dir="ltr">@{login}</p>
-        <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
-      </div>
+    <div {@attach baseUser.deleted ? undefined : profileMenu.trigger(() => baseUser.id)}>
+      <UserCard
+        variant="card"
+        name={displayName}
+        identity={baseUser}
+        username={login}
+        testId="profile-user-card"
+        menu={baseUser.deleted
+          ? undefined
+          : {
+              label: m('room.sidebar.view_profile', {
+                name: formatAccountName(displayName, baseUser)
+              }),
+              onclick: (event) => profileMenu.toggle(baseUser.id, event),
+              expanded: profileMenu.target === baseUser.id,
+              testId: 'profile-user-menu-button'
+            }}
+      >
+        {#snippet avatar()}
+          <UserAvatar user={menuUser} {presence} size="sm" showPresence />
+        {/snippet}
+      </UserCard>
     </div>
+    <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
+
+    <UserMenu
+      state={profileMenu}
+      user={menuUser}
+      viewerSettings={serverScope.store.currentUser.user?.settings}
+      canSendMessage={!!onSendMessage}
+      onSendMessage={() => onSendMessage?.(userId)}
+    />
 
     {#if baseUser.isBot && baseUser.bot?.ownerUserId}
       {#key baseUser.bot?.ownerUserId}
