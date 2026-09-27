@@ -196,6 +196,30 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 	})
 }
 
+func TestAbsolutizeMediaURL(t *testing.T) {
+	t.Run("uses the request base URL with webserver.url", func(t *testing.T) {
+		api := New(nil, config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com"},
+		}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "https://alias.example.com")
+
+		if got, want := api.absolutizeMediaURL(ctx, "/assets/files/A1"), "https://alias.example.com/assets/files/A1"; got != want {
+			t.Fatalf("absolutizeMediaURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("keeps server-relative paths without webserver.url", func(t *testing.T) {
+		// Behind a TLS-terminating proxy, the direct request origin can have
+		// the wrong scheme.
+		api := New(nil, config.ChattoConfig{}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "http://chat.example.com")
+
+		if got, want := api.absolutizeMediaURL(ctx, "/assets/files/A1"), "/assets/files/A1"; got != want {
+			t.Fatalf("absolutizeMediaURL = %q, want %q", got, want)
+		}
+	})
+}
+
 func TestRoomAndThreadTimelineRequiresAuthAndMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
@@ -1862,6 +1886,7 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	}
 
 	// Asset URLs use the public origin of the request, such as a hostname alias.
+	env.api.config.Webserver.URL = "https://chat.example"
 	ctx := WithRequestBaseURL(withCaller(env.ctx, env.viewer), "https://alias.example")
 	setResponse, err := env.messages.SetAttachmentDescription(ctx, connect.NewRequest(&apiv1.SetAttachmentDescriptionRequest{
 		RoomId:       room.Id,

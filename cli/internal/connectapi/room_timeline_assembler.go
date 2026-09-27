@@ -452,11 +452,11 @@ func callEvent(roomID, callID string) *apiv1.RoomTimelineCallEvent {
 	return &apiv1.RoomTimelineCallEvent{RoomId: roomID, CallId: callID}
 }
 
-// assetURLView maps a core asset URL to its API view. The URL is absolute on
-// the public origin of the request in ctx.
+// assetURLView maps a core asset URL to its API view. With webserver.url, the
+// URL is absolute on the public origin of the request in ctx.
 func (a *API) assetURLView(ctx context.Context, assetURL core.StableAssetURL) *apiv1.MessageAssetUrl {
 	return &apiv1.MessageAssetUrl{
-		Url:       a.absolutizeAssetURL(ctx, assetURL.URL),
+		Url:       a.absolutizeMediaURL(ctx, assetURL.URL),
 		ExpiresAt: timestamppb.New(assetURL.ExpiresAt),
 	}
 }

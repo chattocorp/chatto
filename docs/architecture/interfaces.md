@@ -402,7 +402,9 @@ protocol headers are not implicitly trusted. `webserver.trusted_proxies`
 affects client IP attribution and realtime same-origin comparison, not public
 URL authority. Core returns server-relative asset URLs. The API layer makes
 them absolute for each request, so asset URLs use the same origin as the other
-URLs in the response.
+URLs in the response. Without `webserver.url`, attachment and link-preview URLs
+stay server-relative. Call participant metadata always uses the `webserver.url`
+origin because other participants read it.
 
 Chatto-streamed protected attachments are sequential full responses. They
 advertise `Accept-Ranges: none` and ignore `Range`, returning `200` with the

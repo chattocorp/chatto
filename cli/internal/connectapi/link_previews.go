@@ -50,7 +50,7 @@ func apiLinkPreview(ctx context.Context, api *API, preview *evtv1.LinkPreview) *
 
 	imageURL := ""
 	if imageAssetKey != "" {
-		imageURL = api.absolutizeAssetURL(ctx, api.core.GetTransformedServerAssetURL(imageAssetKey, 600, 314, "contain"))
+		imageURL = api.absolutizeMediaURL(ctx, api.core.GetTransformedServerAssetURL(imageAssetKey, 600, 314, "contain"))
 	}
 
 	out := &apiv1.LinkPreview{
@@ -130,7 +130,7 @@ func linkPreviewAsset(ctx context.Context, api *API, asset *evtv1.AssetRecord, w
 		return nil, nil
 	}
 	assetID := asset.GetId()
-	url := api.absolutizeAssetURL(ctx, api.core.GetTransformedServerAssetURL(core.ServerAssetDeliveryKey(asset), width, height, fit))
+	url := api.absolutizeMediaURL(ctx, api.core.GetTransformedServerAssetURL(core.ServerAssetDeliveryKey(asset), width, height, fit))
 	if url == "" {
 		return nil, &assetID
 	}

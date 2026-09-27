@@ -239,6 +239,18 @@ func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
 	return a.absolutizeServerURL(ctx, assetURL)
 }
 
+// absolutizeMediaURL converts a server-relative attachment or link-preview
+// URL to an absolute URL like absolutizeAssetURL. Without webserver.url, it
+// keeps the server-relative path: the direct request scheme can be wrong behind
+// a TLS-terminating proxy, and media players reject mixed content. Clients
+// resolve relative asset URLs against the server that issued them.
+func (a *API) absolutizeMediaURL(ctx context.Context, mediaURL string) string {
+	if a.config.Webserver.URL == "" {
+		return mediaURL
+	}
+	return a.absolutizeAssetURL(ctx, mediaURL)
+}
+
 // absolutizeServerURL converts a server-relative path to an absolute URL. It
 // prefers the request base URL, so a client that uses a configured hostname
 // alias receives URLs on that alias. Without a request base URL, it uses
