@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -26,6 +27,9 @@ import (
 const (
 	notificationPhysicalDeleteRetry = time.Minute
 	notificationLifecycleBatchSize  = 100
+	// notificationVisibilityChunkSize bounds how long one visibility check
+	// holds the content-view barrier, which also blocks event application.
+	notificationVisibilityChunkSize = 256
 )
 
 type CreateNotificationOccurrenceInput struct {
@@ -865,6 +869,11 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	return len(matches), nil
 }
 
+// VisibleOccurrences returns the occurrences whose target messages
+// recipientID can currently read, in input order. It waits once for the
+// current authorization inputs and then checks the occurrences in chunks, each
+// under one content-view barrier. The notification API deletes occurrences
+// that it omits; alert delivery skips them.
 func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*notificationv1.NotificationOccurrence) ([]*notificationv1.NotificationOccurrence, error) {
 	if len(occurrences) == 0 {
 		return nil, nil
@@ -905,19 +914,39 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	if err := m.core.rbacModel.waitFor(ctx, rbacPosition); err != nil {
 		return nil, fmt.Errorf("wait for notification RBAC visibility boundary: %w", err)
 	}
+	if _, err := m.core.GetUser(ctx, recipientID); errors.Is(err, ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
 	visible := make([]*notificationv1.NotificationOccurrence, 0, len(occurrences))
-	for _, occurrence := range occurrences {
-		allowed, err := m.targetVisibleFromCurrentProjections(ctx, recipientID, occurrence)
+	for chunk := range slices.Chunk(occurrences, notificationVisibilityChunkSize) {
+		// Threads, the timeline, and authorization state are components of one
+		// content view, so a barrier sees thread relationships for every
+		// timeline entry that it sees. One barrier per chunk also avoids two
+		// barriers per occurrence, which serialize with event application.
+		err := m.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+			for _, occurrence := range chunk {
+				allowed, err := m.targetVisibleFromCurrentProjections(readCtx, recipientID, occurrence)
+				if err != nil {
+					return err
+				}
+				if allowed {
+					visible = append(visible, occurrence)
+				}
+			}
+			return nil
+		})
 		if err != nil {
 			return nil, err
-		}
-		if allowed {
-			visible = append(visible, occurrence)
 		}
 	}
 	return visible, nil
 }
 
+// targetVisibleFromCurrentProjections checks one occurrence against in-memory
+// projections only. The caller must confirm that the recipient exists and hold
+// the content-view barrier.
 func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil || occurrence.GetRecipientId() != recipientID {
 		return false, nil
@@ -926,10 +955,9 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	if message == nil || message.GetRoomId() == "" {
 		return false, nil
 	}
-	if _, err := m.core.GetUser(ctx, recipientID); errors.Is(err, ErrNotFound) {
+	entry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
+	if !ok || entry == nil || entry.RoomID != message.GetRoomId() {
 		return false, nil
-	} else if err != nil {
-		return false, err
 	}
 	room, err := m.core.FindRoomByID(ctx, message.GetRoomId())
 	if errors.Is(err, ErrNotFound) {
@@ -941,14 +969,6 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	member, err := m.core.RoomMembershipExists(ctx, KindOfRoom(room), recipientID, room.GetId())
 	if err != nil || !member {
 		return member, err
-	}
-	entry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
-	if !ok || entry == nil || entry.RoomID != room.GetId() {
-		return false, nil
-	}
-	messagePosition := events.SubjectPosition(evtstream.RoomAggregate(room.GetId()).Subject(entry.EventType), entry.StreamSeq)
-	if err := m.core.roomModel.waitForThreads(ctx, messagePosition); err != nil {
-		return false, fmt.Errorf("wait for notification message relationship: %w", err)
 	}
 	allowed, err := m.core.CanReadMessage(ctx, recipientID, KindOfRoom(room), room.GetId(), message.GetEventId())
 	if err != nil || !allowed {

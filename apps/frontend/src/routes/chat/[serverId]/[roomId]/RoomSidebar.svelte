@@ -24,7 +24,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import UserCard from '$lib/ui/UserCard.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
-  import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
 
   import type {
     RoomFilesStore,
@@ -153,9 +154,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let sidebarElement = $state<HTMLElement | null>(null);
   let fullscreenElement = $state<Element | null>(null);
 
-  // Track which member's popover is open
-  let popoverMemberId = $state<string | null>(null);
-  let popoverAnchorRect = $state<DOMRect | null>(null);
+  const userMenu = new UserMenuState<string>();
   let banningMemberId = $state<string | null>(null);
   let banDialogMember = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
@@ -165,22 +164,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let observedLiveOnlineState = new Map<string, boolean>();
   let groupedMembersSnapshot: RoomMember[] | null = null;
   let observedPresenceVersion = -1;
-
-  function togglePopover(memberId: string, e: MouseEvent) {
-    if (popoverMemberId === memberId) {
-      popoverMemberId = null;
-      popoverAnchorRect = null;
-    } else {
-      popoverMemberId = memberId;
-      const button = (e.target as HTMLElement).closest('button');
-      popoverAnchorRect = button?.getBoundingClientRect() ?? null;
-    }
-  }
-
-  function closePopover() {
-    popoverMemberId = null;
-    popoverAnchorRect = null;
-  }
 
   // Get effective presence for a member (live update or fall back to initial value)
   function getPresence(member: RoomMember): PresenceStatus {
@@ -329,7 +312,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   // Look up the selected member for the popover (rendered outside the {#each} loop
   // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
   const popoverMember = $derived(
-    popoverMemberId ? (allMembers.find((m) => m.id === popoverMemberId) ?? null) : null
+    userMenu.target ? (allMembers.find((m) => m.id === userMenu.target) ?? null) : null
   );
 
   const canRemovePopoverMember = $derived(
@@ -344,7 +327,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
     banDialogMember = member;
     banError = null;
-    closePopover();
+    userMenu.close();
   }
 
   async function banFromRoom(member: RoomMember, reason: string, suspension: RoomSuspensionChoice) {
@@ -515,10 +498,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
         />
       </div>
 
-      {#if popoverMember && popoverAnchorRect}
-        <UserContextMenu
+      {#if popoverMember}
+        <UserMenu
+          state={userMenu}
           user={popoverMember}
-          anchorRect={popoverAnchorRect}
           canSendMessage={canStartDMs}
           canBanFromRoom={canRemovePopoverMember}
           banningFromRoom={banningMemberId === popoverMember.id}
@@ -526,7 +509,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
           onSendMessage={() => startDMWith(activeServerId, popoverMember!.id)}
           onBanFromRoom={() => openBanDialog(popoverMember!)}
           {onOpenProfile}
-          onClose={closePopover}
         />
       {/if}
     </div>
@@ -606,40 +588,38 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {@const callPresence = member.deleted
     ? null
     : activeCallRooms.getParticipantCallPresenceInAnyRoom(member.id)}
-  <UserCard
-    variant="row"
-    username={member.login}
-    class={!member.isBot && !isOnline ? 'opacity-50' : undefined}
-    secondaryTestId="room-member-login"
-    testId="room-member-card"
-    menu={member.deleted
-      ? undefined
-      : {
-          label: m('room.sidebar.view_profile', {
-            name: formatAccountName(member.displayName, member)
-          }),
-          onclick: (event) => togglePopover(member.id, event),
-          revealOnHover: true,
-          oncontextmenu: (event) => {
-            popoverMemberId = member.id;
-            popoverAnchorRect = event.currentTarget.getBoundingClientRect();
-          },
-          expanded: popoverMemberId === member.id
-        }}
-  >
-    {#snippet avatar()}
-      <UserAvatar user={member} serverId={serverScope.serverId} size="sm" showPresence />
-    {/snippet}
-    {#snippet name()}
-      {#if member.deleted}
-        <DeletedUserLabel />
-      {:else}
-        <AccountName name={member.displayName} identity={member} />
-      {/if}
-    {/snippet}
-    {#snippet badges()}
-      <UserCustomStatusBadge status={member.customStatus} class="shrink-0 text-xs" />
-      {@render callPresenceIcon(callPresence)}
-    {/snippet}
-  </UserCard>
+  <div {@attach member.deleted ? undefined : userMenu.trigger(() => member.id)}>
+    <UserCard
+      variant="row"
+      username={member.login}
+      class={!member.isBot && !isOnline ? 'opacity-50' : undefined}
+      secondaryTestId="room-member-login"
+      testId="room-member-card"
+      menu={member.deleted
+        ? undefined
+        : {
+            label: m('room.sidebar.view_profile', {
+              name: formatAccountName(member.displayName, member)
+            }),
+            onclick: (event) => userMenu.toggle(member.id, event),
+            revealOnHover: true,
+            expanded: userMenu.target === member.id
+          }}
+    >
+      {#snippet avatar()}
+        <UserAvatar user={member} serverId={serverScope.serverId} size="sm" showPresence />
+      {/snippet}
+      {#snippet name()}
+        {#if member.deleted}
+          <DeletedUserLabel />
+        {:else}
+          <AccountName name={member.displayName} identity={member} />
+        {/if}
+      {/snippet}
+      {#snippet badges()}
+        <UserCustomStatusBadge status={member.customStatus} class="shrink-0 text-xs" />
+        {@render callPresenceIcon(callPresence)}
+      {/snippet}
+    </UserCard>
+  </div>
 {/snippet}

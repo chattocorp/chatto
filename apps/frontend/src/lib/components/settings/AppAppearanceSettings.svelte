@@ -79,7 +79,7 @@
   }>);
 </script>
 
-<PageTitle title={m('settings.app_preferences.appearance.title')} />
+<PageTitle title={m('settings.app_preferences.appearance.title')} scope="app" />
 <PaneHeader
   title={m('settings.app_preferences.appearance.title')}
   subtitle={m('settings.app_preferences.subtitle')}

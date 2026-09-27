@@ -7,32 +7,13 @@ import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
-import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-import { botDetailPageTestState, botDetailTestPage } from './BotDetailPageTestState.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
-  getBot: vi.fn(),
-  listOutboundWebhooks: vi.fn(),
-  batchGetUsers: vi.fn(),
-  listUsers: vi.fn(),
-  createBotAPIKey: vi.fn(),
-  revokeBotAPIKey: vi.fn(),
-  reassignBotOwner: vi.fn(),
-  createBotIncomingWebhook: vi.fn(),
-  revokeBotIncomingWebhook: vi.fn(),
-  updateUserProfile: vi.fn(),
-  uploadAvatar: vi.fn(),
-  deleteAvatar: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  settings: null as { timezone: string; timeFormat: TimeFormat } | null,
-  canManageBots: true,
-  canManageAccounts: false,
-  supportsMultipleAPIKeys: true,
-  supportsOutboundWebhooks: true,
-  supportsManagedProfiles: true,
   bot: {
     id: 'bot-user-id',
     login: 'helper_bot',
@@ -57,56 +38,38 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$app/state', () => ({ page: botDetailTestPage }));
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'server-1',
-    store: {
-      serverInfo: {
-        supportsFeature: (feature: string) =>
-          feature === 'botOutboundWebhooks'
-            ? mocks.supportsOutboundWebhooks
-            : feature === 'managedUserProfiles'
-              ? mocks.supportsManagedProfiles
-              : feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
-      },
-      currentUser: { user: { settings: mocks.settings } },
-      navigation: {
-        currentUserId: 'viewer',
-        rooms: [
-          { id: 'R-alerts', name: 'alerts', type: RoomKind.CHANNEL },
-          { id: 'R-general', name: 'general', type: RoomKind.CHANNEL },
-          { id: 'R-dm', name: 'Private conversation', type: RoomKind.DM }
-        ]
-      },
-      permissions: {
-        ...NO_SERVER_PERMISSIONS,
-        loaded: true,
-        canAdminManageAccounts: mocks.canManageAccounts,
-        canManageBots: mocks.canManageBots
-      }
-    },
-    connection: {
-      queryScope: 'session-1',
-      getAPI: () => ({
-        getBot: mocks.getBot,
-        listOutboundWebhooks: mocks.listOutboundWebhooks,
-        batchGetUsers: mocks.batchGetUsers,
-        listUsers: mocks.listUsers,
-        createBotAPIKey: mocks.createBotAPIKey,
-        revokeBotAPIKey: mocks.revokeBotAPIKey,
-        reassignBotOwner: mocks.reassignBotOwner,
-        createBotIncomingWebhook: mocks.createBotIncomingWebhook,
-        revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
-        updateUserProfile: mocks.updateUserProfile,
-        uploadAvatar: mocks.uploadAvatar,
-        deleteAvatar: mocks.deleteAvatar
-      })
-    },
-    isCurrent: () => true
-  })
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return { botId: routeBotId };
+    }
+  }
 }));
+
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+const api = {
+  getBot: vi.fn(),
+  listOutboundWebhooks: vi.fn(),
+  batchGetUsers: vi.fn(),
+  listUsers: vi.fn(),
+  createBotAPIKey: vi.fn(),
+  revokeBotAPIKey: vi.fn(),
+  reassignBotOwner: vi.fn(),
+  createBotIncomingWebhook: vi.fn(),
+  revokeBotIncomingWebhook: vi.fn(),
+  updateUserProfile: vi.fn(),
+  uploadAvatar: vi.fn(),
+  deleteAvatar: vi.fn()
+};
+let server: TestServerScope;
+let routeBotId = $state('bot-user-id');
 
 vi.mock('$lib/components/rbac', async () => ({
   UserPermissionsMatrix: (await import('./BotUserPermissionsMatrixMock.svelte')).default
@@ -141,15 +104,22 @@ describe('Bot detail page', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
-    botDetailPageTestState.reset();
-    mocks.settings = null;
-    mocks.canManageBots = true;
-    mocks.canManageAccounts = false;
-    mocks.supportsMultipleAPIKeys = true;
-    mocks.supportsOutboundWebhooks = true;
-    mocks.supportsManagedProfiles = true;
+    routeBotId = 'bot-user-id';
+    server = createTestServerScope({
+      api,
+      permissions: { canManageBots: true },
+      store: {
+        navigation: {
+          rooms: [
+            { id: 'R-alerts', name: 'alerts', type: RoomKind.CHANNEL },
+            { id: 'R-general', name: 'general', type: RoomKind.CHANNEL },
+            { id: 'R-dm', name: 'Private conversation', type: RoomKind.DM }
+          ]
+        }
+      }
+    });
     mocks.bot.lastLoginChange = null;
-    mocks.updateUserProfile.mockImplementation(
+    api.updateUserProfile.mockImplementation(
       (userId: string, input: { login?: string; displayName?: string; bio?: string }) =>
         Promise.resolve({
           id: userId,
@@ -160,14 +130,14 @@ describe('Bot detail page', () => {
           avatarUrl: null
         })
     );
-    mocks.listOutboundWebhooks.mockResolvedValue([]);
-    mocks.getBot.mockResolvedValue(mocks.bot);
-    mocks.batchGetUsers.mockResolvedValue([]);
-    mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
-    mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
+    api.listOutboundWebhooks.mockResolvedValue([]);
+    api.getBot.mockResolvedValue(mocks.bot);
+    api.batchGetUsers.mockResolvedValue([]);
+    api.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
+    api.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
       Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
     );
-    mocks.createBotAPIKey.mockResolvedValue({
+    api.createBotAPIKey.mockResolvedValue({
       bot: {
         ...mocks.bot,
         apiKeys: [
@@ -183,8 +153,8 @@ describe('Bot detail page', () => {
       },
       apiKey: 'created-secret'
     });
-    mocks.revokeBotAPIKey.mockResolvedValue({ ...mocks.bot, apiKeys: [] });
-    mocks.createBotIncomingWebhook.mockResolvedValue({
+    api.revokeBotAPIKey.mockResolvedValue({ ...mocks.bot, apiKeys: [] });
+    api.createBotIncomingWebhook.mockResolvedValue({
       bot: {
         ...mocks.bot,
         incomingWebhooks: [
@@ -199,9 +169,9 @@ describe('Bot detail page', () => {
       },
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    mocks.revokeBotIncomingWebhook.mockResolvedValue({ ...mocks.bot, incomingWebhooks: [] });
-    mocks.uploadAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: '/bot-avatar.webp' });
-    mocks.deleteAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: null });
+    api.revokeBotIncomingWebhook.mockResolvedValue({ ...mocks.bot, incomingWebhooks: [] });
+    api.uploadAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: '/bot-avatar.webp' });
+    api.deleteAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: null });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
@@ -209,13 +179,13 @@ describe('Bot detail page', () => {
   it.each([true, false])(
     'gates outbound webhook settings on server support (%s)',
     async (supported) => {
-      mocks.supportsOutboundWebhooks = supported;
+      server.features = { botOutboundWebhooks: supported };
       const { container } = render(BotDetailPage);
       await settle();
       expect(container.querySelector('[data-testid="bot-outbound-webhooks"]') !== null).toBe(
         supported
       );
-      expect(mocks.listOutboundWebhooks).toHaveBeenCalledTimes(supported ? 1 : 0);
+      expect(api.listOutboundWebhooks).toHaveBeenCalledTimes(supported ? 1 : 0);
     }
   );
 
@@ -231,7 +201,7 @@ describe('Bot detail page', () => {
     );
     createButtons.at(-1)?.click();
     await vi.waitFor(() =>
-      expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Production')
+      expect(api.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Production')
     );
     await vi.waitFor(() =>
       expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret')
@@ -240,7 +210,7 @@ describe('Bot detail page', () => {
   });
 
   it('includes the selected room in the show-once URL and resets it for the next webhook', async () => {
-    mocks.createBotIncomingWebhook.mockResolvedValue({
+    api.createBotIncomingWebhook.mockResolvedValue({
       webhookUrl: 'https://chat.example/webhooks/incoming/secret?existing=keep'
     });
     const { container } = render(BotDetailPage);
@@ -265,7 +235,7 @@ describe('Bot detail page', () => {
         'https://chat.example/webhooks/incoming/secret?existing=keep&room_id=R-alerts'
       )
     );
-    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Grafana');
+    expect(api.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Grafana');
     buttonByText(container, 'Got it').click();
     flushSync();
     expect(container.textContent).not.toContain('/incoming/secret');
@@ -287,13 +257,13 @@ describe('Bot detail page', () => {
     buttonByText(container, 'Save changes').click();
 
     await vi.waitFor(() =>
-      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
         displayName: 'Renamed Bot'
       })
     );
     await vi.waitFor(() => {
       const cached = queryClient.getQueryData<{ displayName: string; bio: string | null }>(
-        settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id')
+        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
       );
       expect(cached?.displayName).toBe('Renamed Bot');
       expect(cached?.bio).toBe('Initial bot bio');
@@ -302,7 +272,7 @@ describe('Bot detail page', () => {
   });
 
   it('keeps the bot profile draft when a save fails', async () => {
-    mocks.updateUserProfile.mockRejectedValueOnce(new Error('Username is already taken'));
+    api.updateUserProfile.mockRejectedValueOnce(new Error('Username is already taken'));
     const { container } = render(BotDetailPage);
     await settle();
 
@@ -325,22 +295,23 @@ describe('Bot detail page', () => {
     );
     // A realtime refresh delivers another manager's display-name change.
     queryClient.setQueryData(
-      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id'),
+      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id'),
       { ...mocks.bot, displayName: 'Renamed Elsewhere' }
     );
     flushSync();
+    await vi.waitFor(() => expect(container.textContent).toContain('Renamed Elsewhere'));
     buttonByText(container, 'Save changes').click();
     await vi.waitFor(() => buttonByText(document, 'Change username').click());
 
     await vi.waitFor(() =>
-      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
         login: 'renamed_bot'
       })
     );
   });
 
   it('shows a localized message when the profile changed concurrently', async () => {
-    mocks.updateUserProfile.mockRejectedValueOnce(
+    api.updateUserProfile.mockRejectedValueOnce(
       new ConnectError('optimistic concurrency sequence mismatch', Code.Aborted)
     );
     const { container } = render(BotDetailPage);
@@ -368,11 +339,11 @@ describe('Bot detail page', () => {
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain('Change the username of this bot to @fresh_name?')
     );
-    expect(mocks.updateUserProfile).not.toHaveBeenCalled();
+    expect(api.updateUserProfile).not.toHaveBeenCalled();
 
     buttonByText(document, 'Change username').click();
     await vi.waitFor(() =>
-      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', { login: 'fresh_name' })
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', { login: 'fresh_name' })
     );
     await vi.waitFor(() =>
       expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).not.toBeNull()
@@ -393,8 +364,8 @@ describe('Bot detail page', () => {
   });
 
   it('lets an account manager rename a bot during its cooldown without confirmation', async () => {
-    mocks.canManageBots = false;
-    mocks.canManageAccounts = true;
+    server.permissions.canManageBots = false;
+    server.permissions.canAdminManageAccounts = true;
     mocks.bot.lastLoginChange = new Date();
     const { container } = render(BotDetailPage);
     await settle();
@@ -405,7 +376,7 @@ describe('Bot detail page', () => {
     buttonByText(container, 'Save changes').click();
 
     await vi.waitFor(() =>
-      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
         login: 'admin_renamed'
       })
     );
@@ -413,7 +384,7 @@ describe('Bot detail page', () => {
   });
 
   it('hides bot profile editing on servers without managed profile updates', async () => {
-    mocks.supportsManagedProfiles = false;
+    server.features = { managedUserProfiles: false };
     const { container } = render(BotDetailPage);
     await settle();
 
@@ -421,7 +392,7 @@ describe('Bot detail page', () => {
   });
 
   it('hides bot profile editing from viewers who cannot manage the bot', async () => {
-    mocks.canManageBots = false;
+    server.permissions.canManageBots = false;
     const { container } = render(BotDetailPage);
     await settle();
 
@@ -438,10 +409,10 @@ describe('Bot detail page', () => {
     Object.defineProperty(input, 'files', { configurable: true, value: [file] });
     input.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await vi.waitFor(() => expect(mocks.uploadAvatar).toHaveBeenCalledWith('bot-user-id', file));
+    await vi.waitFor(() => expect(api.uploadAvatar).toHaveBeenCalledWith('bot-user-id', file));
     await vi.waitFor(() => {
       const cached = queryClient.getQueryData<{ avatarUrl: string | null }>(
-        settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id')
+        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
       );
       expect(cached?.avatarUrl).toBe('/bot-avatar.webp');
     });
@@ -459,7 +430,7 @@ describe('Bot detail page', () => {
     );
     createButtons.at(-1)?.click();
     await vi.waitFor(() =>
-      expect(mocks.createBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'Production')
+      expect(api.createBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'Production')
     );
     await vi.waitFor(() => expect(container.textContent).toContain('created-secret'));
 
@@ -470,14 +441,12 @@ describe('Bot detail page', () => {
     );
     revokeButtons.at(-1)?.click();
     await vi.waitFor(() =>
-      expect(mocks.revokeBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'legacy')
+      expect(api.revokeBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'legacy')
     );
   });
 
   it('closes a pending credential revocation when the route reuses the page for another bot', async () => {
-    mocks.getBot.mockImplementation((botId: string) =>
-      Promise.resolve({ ...mocks.bot, id: botId })
-    );
+    api.getBot.mockImplementation((botId: string) => Promise.resolve({ ...mocks.bot, id: botId }));
     const { container } = render(BotDetailPage);
     await settle();
 
@@ -485,16 +454,16 @@ describe('Bot detail page', () => {
     flushSync();
     expect(container.querySelector('dialog[open]')).not.toBeNull();
 
-    queryClient.setQueryData(
-      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-b'),
-      { ...mocks.bot, id: 'bot-b' }
-    );
-    botDetailPageTestState.botId = 'bot-b';
+    queryClient.setQueryData(settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-b'), {
+      ...mocks.bot,
+      id: 'bot-b'
+    });
+    routeBotId = 'bot-b';
     await vi.waitFor(() => expect(container.textContent).toContain('bot-b'));
     await settle();
 
     expect(container.querySelector('dialog[open]')).toBeNull();
-    expect(mocks.revokeBotAPIKey).not.toHaveBeenCalled();
+    expect(api.revokeBotAPIKey).not.toHaveBeenCalled();
   });
 
   it('keeps hydrated webhook telemetry while it refetches after credential issuance', async () => {
@@ -511,8 +480,8 @@ describe('Bot detail page', () => {
         }
       ]
     };
-    mocks.getBot.mockResolvedValueOnce(hydrated).mockImplementation(() => new Promise(() => {}));
-    mocks.createBotIncomingWebhook.mockResolvedValue({
+    api.getBot.mockResolvedValueOnce(hydrated).mockImplementation(() => new Promise(() => {}));
+    api.createBotIncomingWebhook.mockResolvedValue({
       bot: {
         ...hydrated,
         incomingWebhooks: [
@@ -538,10 +507,10 @@ describe('Bot detail page', () => {
       (button) => button.textContent?.trim() === 'Create Webhook'
     );
     createButtons.at(-1)?.click();
-    await vi.waitFor(() => expect(mocks.getBot).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(api.getBot).toHaveBeenCalledTimes(2));
 
     const cached = queryClient.getQueryData<typeof hydrated>(
-      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id')
+      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
     );
     expect(cached?.incomingWebhooks[0]).toMatchObject({
       id: 'existing-webhook',
@@ -552,7 +521,7 @@ describe('Bot detail page', () => {
 
   it('shows independent webhook lifecycle and last-use states', async () => {
     const recordedAt = new Date('2026-08-27T12:30:00Z');
-    mocks.getBot.mockResolvedValue({
+    api.getBot.mockResolvedValue({
       ...mocks.bot,
       incomingWebhooks: [
         {
@@ -591,7 +560,7 @@ describe('Bot detail page', () => {
   });
 
   it('shows the bot user ID and hydrates its owner as a reusable user identity', async () => {
-    mocks.batchGetUsers.mockResolvedValue([
+    api.batchGetUsers.mockResolvedValue([
       {
         id: 'owner-user-id',
         login: 'alice',
@@ -606,7 +575,7 @@ describe('Bot detail page', () => {
       expect(container.textContent).toContain('Alice Owner');
     });
 
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith(['owner-user-id']);
+    expect(api.batchGetUsers).toHaveBeenCalledWith(['owner-user-id']);
     expect(container.textContent).toContain('User ID');
     expect(container.textContent).toContain('bot-user-id');
     expect(container.querySelector('button[title="Copy to clipboard"]')).not.toBeNull();
@@ -617,17 +586,15 @@ describe('Bot detail page', () => {
   });
 
   it("formats API key timestamps with the viewer's timezone and time format", async () => {
-    mocks.supportsMultipleAPIKeys = false;
-    mocks.settings = {
-      timezone: 'America/New_York',
-      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-    };
+    server.features = { botMultipleApiKeys: false };
+    const settings = { timezone: 'America/New_York', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR };
+    server.currentUser.user!.settings = settings;
     const { container } = render(BotDetailPage);
     await settle();
 
     const expected = formatDateTime(
       mocks.bot.apiKeyCreatedAt,
-      timeFormatSettingsFor(mocks.settings),
+      timeFormatSettingsFor(settings),
       'en-GB'
     );
     expect(container.textContent).toContain(expected);
@@ -637,7 +604,7 @@ describe('Bot detail page', () => {
   });
 
   it('shows owner reassignment only to bot managers', async () => {
-    mocks.canManageBots = false;
+    server.permissions.canManageBots = false;
     const { container } = render(BotDetailPage);
     await settle();
 
@@ -645,8 +612,8 @@ describe('Bot detail page', () => {
   });
 
   it('shows only identity management to an account manager who does not manage bots', async () => {
-    mocks.canManageBots = false;
-    mocks.canManageAccounts = true;
+    server.permissions.canManageBots = false;
+    server.permissions.canAdminManageAccounts = true;
     const { container } = render(BotDetailPage);
     await settle();
 
@@ -658,7 +625,7 @@ describe('Bot detail page', () => {
   });
 
   it('reassigns the bot to a selected human owner', async () => {
-    mocks.listUsers.mockResolvedValue({
+    api.listUsers.mockResolvedValue({
       members: [
         {
           id: 'recipient-user-id',
@@ -695,7 +662,7 @@ describe('Bot detail page', () => {
     submit.click();
 
     await vi.waitFor(() =>
-      expect(mocks.reassignBotOwner).toHaveBeenCalledWith('bot-user-id', 'recipient-user-id')
+      expect(api.reassignBotOwner).toHaveBeenCalledWith('bot-user-id', 'recipient-user-id')
     );
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Bot owner reassigned');
   });

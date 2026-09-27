@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ChoiceRow, Hint, PaneContent, PaneHeader } from '$lib/ui';
@@ -270,6 +271,8 @@
     }
   }
 </script>
+
+<PageTitle title={m('settings.notifications.title')} />
 
 <PaneHeader
   title={m('settings.notifications.title')}

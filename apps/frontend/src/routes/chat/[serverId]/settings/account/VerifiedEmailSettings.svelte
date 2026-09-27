@@ -47,7 +47,7 @@
     navigationGeneration: number;
   };
 
-  const viewerUserId = $derived(serverScope.store.currentUser.user?.id ?? '');
+  const viewerUserId = $derived(serverScope.store.accountId ?? '');
 
   function emailActionScope(): EmailActionScope {
     return {

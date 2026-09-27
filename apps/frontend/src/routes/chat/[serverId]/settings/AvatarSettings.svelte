@@ -9,21 +9,19 @@
   const currentUser = serverScope.store.currentUser;
 
   async function uploadAvatar(file: File): Promise<boolean> {
-    const userId = currentUser.user?.id;
+    const userId = serverScope.store.accountId;
     if (!userId) return false;
     const updated = await serverScope.connection.getAPI(createUserAPI).uploadAvatar(userId, file);
-    if (!serverScope.isCurrent() || currentUser.user?.id !== userId) return false;
-    currentUser.user = { ...currentUser.user, avatarUrl: updated.avatarUrl };
-    return true;
+    if (!serverScope.isCurrent()) return false;
+    return currentUser.update(userId, () => ({ avatarUrl: updated.avatarUrl }));
   }
 
   async function deleteAvatar(): Promise<boolean> {
-    const userId = currentUser.user?.id;
+    const userId = serverScope.store.accountId;
     if (!userId) return false;
     const updated = await serverScope.connection.getAPI(createUserAPI).deleteAvatar(userId);
-    if (!serverScope.isCurrent() || currentUser.user?.id !== userId) return false;
-    currentUser.user = { ...currentUser.user, avatarUrl: updated.avatarUrl };
-    return true;
+    if (!serverScope.isCurrent()) return false;
+    return currentUser.update(userId, () => ({ avatarUrl: updated.avatarUrl }));
   }
 </script>
 

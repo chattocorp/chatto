@@ -458,3 +458,38 @@ func TestChattoConfig_Validate_Push(t *testing.T) {
 		})
 	}
 }
+
+func TestSMTPConfigInsecureTransportSettings(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  SMTPConfig
+		want []string
+	}{
+		{name: "disabled SMTP reports nothing", cfg: SMTPConfig{TLS: SMTPTLSOpportunistic, TLSSkipVerify: true}},
+		{name: "default policy is secure", cfg: SMTPConfig{Enabled: true, Port: 587}},
+		{name: "implicit TLS is secure", cfg: SMTPConfig{Enabled: true, Port: 465, TLS: SMTPTLSImplicit}},
+		{name: "server name override is secure", cfg: SMTPConfig{Enabled: true, Port: 587, TLSServerName: "mail.example.com"}},
+		{name: "opportunistic TLS", cfg: SMTPConfig{Enabled: true, Port: 587, TLS: " Opportunistic "}, want: []string{"smtp.tls=opportunistic"}},
+		{name: "skip verify", cfg: SMTPConfig{Enabled: true, Port: 587, TLSSkipVerify: true}, want: []string{"smtp.tls_skip_verify=true"}},
+		{
+			name: "both settings",
+			cfg:  SMTPConfig{Enabled: true, Host: "smtp.example.com", Port: 587, TLS: SMTPTLSOpportunistic, TLSSkipVerify: true, Username: "user@example.com", From: "noreply@example.com"},
+			want: []string{"smtp.tls=opportunistic", "smtp.tls_skip_verify=true"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.InsecureTransportSettings()
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Fatalf("InsecureTransportSettings() = %v, want %v", got, tt.want)
+			}
+			// The result is logged, so it must contain configuration keys only.
+			for _, setting := range got {
+				if strings.Contains(setting, "example.com") {
+					t.Errorf("setting %q contains configured host or address data", setting)
+				}
+			}
+		})
+	}
+}

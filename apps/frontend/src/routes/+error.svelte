@@ -1,7 +1,10 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import { Button } from '$lib/ui/form';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
 </script>
+
+<PageTitle title={m('error_page.title')} />
 
 <div class="flex min-h-full flex-1 items-center justify-center px-6 py-12 text-center">
   <section class="flex max-w-md flex-col items-center gap-5" aria-labelledby="error-page-title">

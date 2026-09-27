@@ -45,11 +45,12 @@ Include this component once in the application root so signed-out pages also cle
       if (!bus) continue;
       const handledNotificationIds: string[] = [];
       const notificationPreferences = getServerNotificationPreferences(instance.id);
-      const viewer = stores.currentUser?.user;
+      const viewerId = stores.viewerId;
+      const accountId = stores.accountId;
       function isDoNotDisturb() {
         return (
-          viewer &&
-          presencePreferences.get({ serverId: instance.id, userId: viewer.id }).status ===
+          viewerId &&
+          presencePreferences.get({ serverId: instance.id, userId: viewerId }).status ===
             PresenceStatus.DO_NOT_DISTURB
         );
       }
@@ -80,7 +81,7 @@ Include this component once in the application root so signed-out pages also cle
           !readSucceeded ||
           !active ||
           !stores.isAuthenticated ||
-          stores.currentUser?.user?.id !== viewer?.id ||
+          stores.accountId !== accountId ||
           isDoNotDisturb() ||
           !hasAudibleCreation
         )
@@ -152,11 +153,11 @@ Include this component once in the application root so signed-out pages also cle
 {#each serverRegistry.servers as instance (instance.id)}
   {@const stores = serverRegistry.getStore(instance.id)}
   {#if stores.isAuthenticated}
-    {#if stores.currentUser?.user?.id}
-      {#key stores.currentUser.user.id}
+    {#if stores.accountId}
+      {#key stores.accountId}
         <PushNotificationSync
           serverUrl={instance.url}
-          recipientId={stores.currentUser.user.id}
+          recipientId={stores.accountId}
           notifications={stores.notifications}
         />
       {/key}

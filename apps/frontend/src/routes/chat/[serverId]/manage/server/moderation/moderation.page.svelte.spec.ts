@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import type { RoomSuspensionSummary } from '$lib/api-client/rooms';
@@ -66,20 +67,13 @@ class MockIntersectionObserver implements IntersectionObserver {
   }
 }
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: { currentUser: { user: { settings: null } } },
-    connection: {
-      queryScope: 'moderation-test',
-      getAPI: () => ({
-        listSuspensions: mocks.listSuspensions,
-        liftSuspension: mocks.liftSuspension
-      })
-    },
-    isCurrent: () => true
-  })
-}));
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/components/UserAvatar.svelte', async () => ({
   default: (await import('./ModerationUserAvatarMock.svelte')).default
@@ -143,6 +137,10 @@ async function settle() {
 describe('server admin moderation bans', () => {
   beforeEach(() => {
     queryClient.clear();
+    createTestServerScope({
+      serverId: 'origin',
+      api: { listSuspensions: mocks.listSuspensions, liftSuspension: mocks.liftSuspension }
+    });
     originalIntersectionObserver = globalThis.IntersectionObserver;
     observers = [];
     globalThis.IntersectionObserver =

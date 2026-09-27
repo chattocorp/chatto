@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { beforeNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
@@ -44,7 +45,7 @@
       serverId: serverIdToSegment(serverScope.serverId)
     })
   );
-  const viewerUserId = $derived(serverScope.store.currentUser.user?.id ?? '');
+  const viewerUserId = $derived(serverScope.store.accountId ?? '');
   let pendingEmail = $derived(
     viewerUserId ? readPendingEmailVerification(serverScope.serverId, viewerUserId) : ''
   );
@@ -154,6 +155,8 @@
     }
   }
 </script>
+
+<PageTitle title={m('settings.account.email.verify')} />
 
 <PaneHeader
   title={m('settings.account.email.code_label')}

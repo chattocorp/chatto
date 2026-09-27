@@ -211,16 +211,42 @@ describe('MarkdownEditor', () => {
     expect(api.getText()).toBe('first\nsecond');
   });
 
-  it('lets Escape followed by Tab move focus out of the editor', async () => {
-    const { container } = await renderEditor();
+  it.each([
+    { name: 'empty text', text: '', select: false },
+    { name: 'normal text', text: 'A draft message', select: false },
+    { name: 'a list', text: '- first\n  - second', select: false },
+    { name: 'fenced code', text: '```js\n  const value = 1;\n```', select: false },
+    { name: 'selected text', text: 'first\nsecond', select: true }
+  ])('lets Tab and Shift+Tab leave $name unchanged and move focus', async ({ text, select }) => {
+    const readyApis: ComposerEditorApi[] = [];
+    const { container } = await renderEditor({
+      onReady: (api: ComposerEditorApi) => readyApis.push(api)
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const beforeEditor = document.createElement('button');
+    beforeEditor.textContent = 'Before editor';
     const afterEditor = document.createElement('button');
     afterEditor.textContent = 'After editor';
+    container.prepend(beforeEditor);
     container.append(afterEditor);
+    api.setContent(text);
 
-    await userEvent.click(page.getByRole('textbox', { name: 'Write Markdown' }));
-    await userEvent.keyboard('{Escape}{Tab}');
+    for (const [key, target] of [
+      ['{Tab}', afterEditor],
+      ['{Shift>}{Tab}{/Shift}', beforeEditor]
+    ] as const) {
+      api.focus('end');
+      if (text.startsWith('```')) await userEvent.keyboard('{ArrowUp}');
+      if (select) {
+        await userEvent.keyboard('{Shift>}{ArrowUp}{Home}{/Shift}');
+        expect(window.getSelection()?.toString()).toBe(text);
+      }
+      await userEvent.keyboard(key);
 
-    expect(document.activeElement).toBe(afterEditor);
+      expect(document.activeElement).toBe(target);
+      expect(api.getText()).toBe(text);
+    }
   });
 
   it('uses the visual editor font at 16px with per-line bidirectional text', async () => {

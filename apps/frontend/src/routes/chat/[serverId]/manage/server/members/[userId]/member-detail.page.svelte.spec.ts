@@ -5,20 +5,37 @@ import type { UserSummary } from '$lib/api-client/users';
 import type {
   AdminMember,
   AdminMemberDetails,
-  AdminRoleMutationResult,
-  AdminUserManagementAPI
+  AdminRoleMutationResult
 } from '$lib/api-client/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
-import {
-  memberDetailPageTestState,
-  memberDetailTestPage
-} from './MemberDetailPageTestState.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn()
+}));
+
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return { userId: routeUserId };
+    }
+  }
+}));
+
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
+const api = {
   getMember: vi.fn(),
   updateUserProfile: vi.fn(),
   clearUsernameCooldown: vi.fn(),
@@ -26,49 +43,10 @@ const mocks = vi.hoisted(() => ({
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   uploadAvatar: vi.fn(),
-  deleteAvatar: vi.fn(),
-  toastSuccess: vi.fn(),
-  toastError: vi.fn(),
-  scopeCurrent: true,
-  canAdminManageAccounts: true
-}));
-
-vi.mock('$app/state', () => ({ page: memberDetailTestPage }));
-
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    get serverId() {
-      return memberDetailPageTestState.serverId;
-    },
-    get connection() {
-      return {
-        queryScope: memberDetailPageTestState.sessionId,
-        getAPI: () =>
-          ({
-            getMember: mocks.getMember,
-            updateUserProfile: mocks.updateUserProfile,
-            clearUsernameCooldown: mocks.clearUsernameCooldown,
-            changeUserPassword: mocks.changeUserPassword,
-            assignRole: mocks.assignRole,
-            revokeRole: mocks.revokeRole,
-            uploadAvatar: mocks.uploadAvatar,
-            deleteAvatar: mocks.deleteAvatar
-          }) as unknown as AdminUserManagementAPI
-      };
-    },
-    get store() {
-      return {
-        serverInfo: { supportsFeature: () => true },
-        currentUser: { user: { id: 'viewer', settings: null } },
-        permissions: {
-          canAdminViewUsers: true,
-          canAdminManageAccounts: mocks.canAdminManageAccounts
-        }
-      };
-    },
-    isCurrent: () => mocks.scopeCurrent
-  })
-}));
+  deleteAvatar: vi.fn()
+};
+let server: TestServerScope;
+let routeUserId = $state('alice');
 
 vi.mock('$lib/components/rbac', async () => ({
   UserPermissionsMatrix: (await import('./MemberPermissionsMatrixMock.svelte')).default
@@ -174,13 +152,14 @@ describe('server member detail queries', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
-    memberDetailPageTestState.reset();
-    mocks.scopeCurrent = true;
-    mocks.canAdminManageAccounts = true;
-    mocks.getMember.mockImplementation((userId: string) =>
-      Promise.resolve(details(member(userId)))
-    );
-    mocks.updateUserProfile.mockImplementation(
+    routeUserId = 'alice';
+    server = createTestServerScope({
+      viewer: { id: 'viewer' },
+      api,
+      permissions: { canAdminViewUsers: true, canAdminManageAccounts: true }
+    });
+    api.getMember.mockImplementation((userId: string) => Promise.resolve(details(member(userId))));
+    api.updateUserProfile.mockImplementation(
       (userId: string, { login, displayName }: { login?: string; displayName?: string }) =>
         Promise.resolve({
           id: userId,
@@ -190,21 +169,19 @@ describe('server member detail queries', () => {
           avatarUrl: null
         } satisfies UserSummary)
     );
-    mocks.clearUsernameCooldown.mockResolvedValue(true);
-    mocks.changeUserPassword.mockImplementation((userId: string) =>
-      Promise.resolve(member(userId))
-    );
-    mocks.assignRole.mockImplementation((userId: string) =>
+    api.clearUsernameCooldown.mockResolvedValue(true);
+    api.changeUserPassword.mockImplementation((userId: string) => Promise.resolve(member(userId)));
+    api.assignRole.mockImplementation((userId: string) =>
       Promise.resolve({
         changed: true,
         member: member(userId, { roles: ['everyone', 'admin'] })
       } satisfies AdminRoleMutationResult)
     );
-    mocks.revokeRole.mockResolvedValue({ changed: true, member: null });
-    mocks.uploadAvatar.mockImplementation((userId: string) =>
+    api.revokeRole.mockResolvedValue({ changed: true, member: null });
+    api.uploadAvatar.mockImplementation((userId: string) =>
       Promise.resolve({ id: userId, avatarUrl: '/avatar.webp' })
     );
-    mocks.deleteAvatar.mockImplementation((userId: string) =>
+    api.deleteAvatar.mockImplementation((userId: string) =>
       Promise.resolve({ id: userId, avatarUrl: null })
     );
     await loadLocaleMessages('en-GB');
@@ -212,7 +189,7 @@ describe('server member detail queries', () => {
   });
 
   it('marks a bot account in the member overview', async () => {
-    mocks.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
+    api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
 
     const rendered = render(MemberDetailPage);
     await settle();
@@ -230,28 +207,26 @@ describe('server member detail queries', () => {
     await settle();
     expect(rendered.container.textContent).toContain('ALICE');
 
-    memberDetailPageTestState.userId = 'bob';
+    routeUserId = 'bob';
     flushSync();
     await settle();
     expect(rendered.container.textContent).toContain('BOB');
 
-    memberDetailPageTestState.userId = 'alice';
+    routeUserId = 'alice';
     flushSync();
     await settle();
 
-    expect(mocks.getMember).toHaveBeenCalledTimes(2);
+    expect(api.getMember).toHaveBeenCalledTimes(2);
     expect(rendered.container.textContent).toContain('ALICE');
   });
 
   it('ignores an older member response after the route changes', async () => {
     const alice = deferred<AdminMemberDetails>();
-    mocks.getMember
-      .mockReturnValueOnce(alice.promise)
-      .mockResolvedValueOnce(details(member('bob')));
+    api.getMember.mockReturnValueOnce(alice.promise).mockResolvedValueOnce(details(member('bob')));
     const rendered = render(MemberDetailPage);
-    await vi.waitFor(() => expect(mocks.getMember).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(api.getMember).toHaveBeenCalledOnce());
 
-    memberDetailPageTestState.userId = 'bob';
+    routeUserId = 'bob';
     flushSync();
     await settle();
     alice.resolve(details(member('alice')));
@@ -262,19 +237,19 @@ describe('server member detail queries', () => {
   });
 
   it('reloads the same user when the server session changes', async () => {
-    mocks.getMember
+    api.getMember
       .mockResolvedValueOnce(details(member('shared', { displayName: 'Server One' })))
       .mockResolvedValueOnce(details(member('shared', { displayName: 'Server Two' })));
-    memberDetailPageTestState.userId = 'shared';
+    routeUserId = 'shared';
     const rendered = render(MemberDetailPage);
     await settle();
     expect(rendered.container.textContent).toContain('Server One');
 
-    memberDetailPageTestState.sessionId = 'session-2';
+    server.queryScope = 'session-2';
     flushSync();
     await settle();
 
-    expect(mocks.getMember).toHaveBeenCalledTimes(2);
+    expect(api.getMember).toHaveBeenCalledTimes(2);
     expect(rendered.container.textContent).toContain('Server Two');
   });
 
@@ -289,21 +264,21 @@ describe('server member detail queries', () => {
 
     expect(rendered.container.textContent).toContain('Member not found');
     expect(rendered.container.textContent).not.toContain('ALICE');
-    expect(mocks.getMember).toHaveBeenCalledOnce();
+    expect(api.getMember).toHaveBeenCalledOnce();
   });
 
   it('offers account deletion only to authorised viewers of other human members', async () => {
     // user.delete-any is independent from user.manage-accounts. The backend
     // expresses the former through viewerCanDeleteAccount.
-    mocks.canAdminManageAccounts = false;
+    server.permissions.canAdminManageAccounts = false;
     const rendered = render(MemberDetailPage);
     await settle();
     expect(rendered.container.textContent).toContain('Danger Zone');
     expect(rendered.container.textContent).toContain('Delete account');
     expect(rendered.container.textContent).not.toContain('Identity Settings');
 
-    mocks.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
-    memberDetailPageTestState.userId = 'helper_bot';
+    api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
+    routeUserId = 'helper_bot';
     flushSync();
     await settle();
     expect(rendered.container.textContent).not.toContain('Danger Zone');
@@ -316,9 +291,9 @@ describe('server member detail queries', () => {
     buttonByText(rendered.container, 'Save').click();
     await settle();
 
-    expect(mocks.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
+    expect(api.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
     const cached = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice')
+      adminQueryKeys.member('server-1', server.scope.connection, 'alice')
     );
     expect(cached?.member?.login).toBe('renamed');
   });
@@ -329,14 +304,15 @@ describe('server member detail queries', () => {
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     // A realtime admin refresh delivers the member's own display-name change.
     queryClient.setQueryData(
-      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice'),
+      adminQueryKeys.member('server-1', server.scope.connection, 'alice'),
       details(member('alice', { displayName: 'Changed Elsewhere' }))
     );
     flushSync();
+    await vi.waitFor(() => expect(rendered.container.textContent).toContain('Changed Elsewhere'));
     buttonByText(rendered.container, 'Save').click();
     await settle();
 
-    expect(mocks.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
+    expect(api.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
   });
 
   it('uploads the selected member avatar and updates the detail cache', async () => {
@@ -349,16 +325,16 @@ describe('server member detail queries', () => {
     Object.defineProperty(input, 'files', { configurable: true, value: [file] });
     input.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await vi.waitFor(() => expect(mocks.uploadAvatar).toHaveBeenCalledWith('alice', file));
+    await vi.waitFor(() => expect(api.uploadAvatar).toHaveBeenCalledWith('alice', file));
     await settle();
     const cached = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice')
+      adminQueryKeys.member('server-1', server.scope.connection, 'alice')
     );
     expect(cached?.member?.avatarUrl).toBe('/avatar.webp');
   });
 
   it('sets a password and clears the username cooldown through mutations', async () => {
-    mocks.getMember.mockResolvedValueOnce(
+    api.getMember.mockResolvedValueOnce(
       details(member('alice', { lastLoginChange: new Date().toISOString() }))
     );
     const rendered = render(MemberDetailPage);
@@ -366,7 +342,7 @@ describe('server member detail queries', () => {
 
     buttonByText(rendered.container, 'Reset cooldown').click();
     await settle();
-    expect(mocks.clearUsernameCooldown).toHaveBeenCalledWith('alice');
+    expect(api.clearUsernameCooldown).toHaveBeenCalledWith('alice');
 
     setInput(
       rendered.container.querySelector('#admin-member-password') as HTMLInputElement,
@@ -379,13 +355,13 @@ describe('server member detail queries', () => {
     buttonByText(rendered.container, 'Set Password').click();
     await settle();
 
-    expect(mocks.changeUserPassword).toHaveBeenCalledWith('alice', 'new-password');
+    expect(api.changeUserPassword).toHaveBeenCalledWith('alice', 'new-password');
   });
 
   it('updates roles and invalidates the related permission snapshots', async () => {
     const userPermissionsKey = adminQueryKeys.userPermissions(
       'server-1',
-      { queryScope: 'session-1' },
+      server.scope.connection,
       'alice'
     );
     queryClient.setQueryData(userPermissionsKey, { marker: true });
@@ -395,14 +371,14 @@ describe('server member detail queries', () => {
     (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
     await settle();
 
-    expect(mocks.assignRole).toHaveBeenCalledWith('alice', 'admin');
+    expect(api.assignRole).toHaveBeenCalledWith('alice', 'admin');
     expect(queryClient.getQueryState(userPermissionsKey)?.isInvalidated).toBe(true);
     expect(rendered.container.textContent).toContain('Admin');
   });
 
   it('allows a new member role change while the previous member mutation is pending', async () => {
     const aliceRole = deferred<AdminRoleMutationResult>();
-    mocks.assignRole.mockReturnValueOnce(aliceRole.promise).mockResolvedValueOnce({
+    api.assignRole.mockReturnValueOnce(aliceRole.promise).mockResolvedValueOnce({
       changed: true,
       member: member('bob', { roles: ['everyone', 'admin'] })
     });
@@ -410,18 +386,18 @@ describe('server member detail queries', () => {
     await settle();
 
     (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
-    await vi.waitFor(() => expect(mocks.assignRole).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(api.assignRole).toHaveBeenCalledOnce());
 
-    memberDetailPageTestState.userId = 'bob';
+    routeUserId = 'bob';
     flushSync();
     await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
     flushSync();
     (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
 
-    await vi.waitFor(() => expect(mocks.assignRole).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(api.assignRole).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => {
       const bob = queryClient.getQueryData<AdminMemberDetails>(
-        adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'bob')
+        adminQueryKeys.member('server-1', server.scope.connection, 'bob')
       );
       expect(bob?.member?.roles).toContain('admin');
     });
@@ -436,14 +412,14 @@ describe('server member detail queries', () => {
 
   it('does not apply a mutation result after navigating to another member', async () => {
     const update = deferred<UserSummary>();
-    mocks.updateUserProfile.mockReturnValueOnce(update.promise);
+    api.updateUserProfile.mockReturnValueOnce(update.promise);
     const rendered = render(MemberDetailPage);
     await settle();
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     buttonByText(rendered.container, 'Save').click();
-    await vi.waitFor(() => expect(mocks.updateUserProfile).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(api.updateUserProfile).toHaveBeenCalledOnce());
 
-    memberDetailPageTestState.userId = 'bob';
+    routeUserId = 'bob';
     flushSync();
     await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
     flushSync();
@@ -458,7 +434,7 @@ describe('server member detail queries', () => {
     await settle();
 
     const bob = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'bob')
+      adminQueryKeys.member('server-1', server.scope.connection, 'bob')
     );
     expect(bob?.member?.login).toBe('bob');
     expect(rendered.container.textContent).toContain('BOB');

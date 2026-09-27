@@ -28,6 +28,9 @@ const connection = {
   })
 };
 
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   beforeNavigate: mocks.beforeNavigate,
@@ -37,7 +40,12 @@ vi.mock('$app/navigation', async (importOriginal) => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: { currentUser: mocks.currentUser },
+    store: {
+      currentUser: mocks.currentUser,
+      get accountId() {
+        return mocks.currentUser.user?.id ?? null;
+      }
+    },
     connection,
     isCurrent: () => mocks.scopeCurrent
   })

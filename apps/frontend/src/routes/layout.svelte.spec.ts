@@ -67,10 +67,6 @@ vi.mock('$app/state', async () => {
   };
 });
 
-vi.mock('$lib/hooks/usePageTitle.svelte', () => ({
-  usePageTitle: () => () => 'Chatto'
-}));
-
 vi.mock('$lib/hooks/usePinchZoomPrevention.svelte', () => ({
   usePinchZoomPrevention: vi.fn()
 }));

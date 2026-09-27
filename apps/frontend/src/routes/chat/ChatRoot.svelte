@@ -37,7 +37,7 @@
   const verifiedOriginUserId = $derived.by(() => {
     const store = originServerId ? serverRegistry.tryGetStore(originServerId) : undefined;
     const currentUser = store?.currentUser;
-    const userId = currentUser?.user?.id;
+    const userId = store?.accountId;
     return userId && currentUser?.verifiedUserId === userId && store?.isAuthenticated
       ? userId
       : null;
@@ -62,8 +62,8 @@
 
     function clearTerminatedOriginSession() {
       if (!serverId || !userId) return;
-      const current = serverRegistry.tryGetStore(serverId)?.currentUser;
-      if (current?.user?.id !== userId || current.verifiedUserId !== userId) return;
+      const store = serverRegistry.tryGetStore(serverId);
+      if (store?.accountId !== userId || store.currentUser.verifiedUserId !== userId) return;
       serverRegistry.clearServerAuthentication(serverId);
       const remainingServerId = serverRegistry.firstAuthenticatedServerId(serverId);
       hardRedirectAfterSignOut(
@@ -92,24 +92,22 @@
     const serverId = originServerId;
     const userId = verifiedOriginUserId;
     if (!serverId || !userId) return;
-    const currentUser = serverRegistry.tryGetStore(serverId)?.currentUser;
+    const store = serverRegistry.tryGetStore(serverId);
+    const currentUser = store?.currentUser;
     const status = currentUser?.user?.customStatus;
     if (!status?.expiresAt) return;
 
     return scheduleCustomStatusExpiry(status, () => {
-      if (
-        currentUser?.user?.id === userId &&
-        currentUser.user.customStatus?.expiresAt === status.expiresAt
-      ) {
-        currentUser.user = { ...currentUser.user, customStatus: null };
-      }
+      currentUser?.update(userId, (user) =>
+        user.customStatus?.expiresAt === status.expiresAt ? { customStatus: null } : null
+      );
     });
   });
 
   function presenceReporters() {
     return serverRegistry.servers.flatMap((server) => {
       const store = serverRegistry.tryGetStore(server.id);
-      const userId = store?.currentUser.user?.id;
+      const userId = store?.accountId;
       if (!store?.isAuthenticated || !userId) return [];
       const api = serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI);
       return [{ serverId: server.id, userId, ...api }];
@@ -141,8 +139,9 @@
       const store = serverRegistry.tryGetStore(server.id);
       const user = store?.currentUser.user;
       if (!store || !user || !store.isAuthenticated) continue;
+      const userId = store.accountId;
       if (user.settings?.shareTimezone === undefined) continue;
-      const key = `${server.id}:${user.id}`;
+      const key = `${server.id}:${userId}`;
       if (!timezoneReports.begin(key)) continue;
       // Empty means the user explicitly selected browser default. Only an
       // absent preference permits automatic device reporting.
@@ -153,16 +152,11 @@
       void api
         .updateSettings({ timezone: zone })
         .then((settings) => {
-          const currentUser = store.currentUser;
-          if (currentUser.user?.id !== user.id) return;
-          if (!currentUser.user.settings) {
-            currentUser.user = { ...currentUser.user, settings };
-          } else if (currentUser.user.settings.timezone == null) {
-            currentUser.user = {
-              ...currentUser.user,
-              settings: { ...currentUser.user.settings, timezone: settings.timezone ?? null }
-            };
-          }
+          store.currentUser.update(userId, (user) => {
+            if (!user.settings) return { settings };
+            if (user.settings.timezone != null) return null;
+            return { settings: { ...user.settings, timezone: settings.timezone ?? null } };
+          });
         })
         .catch(() => {
           // Reporting is best-effort; the absence simply keeps the profile

@@ -125,7 +125,7 @@
     normalizedLogin: string | undefined,
     normalizedBio?: string
   ) {
-    const userId = currentUser.user?.id;
+    const userId = serverScope.store.accountId;
     if (!userId) return;
     isSaving = true;
     error = '';
@@ -138,19 +138,15 @@
         bio: normalizedBio
       });
 
-      if (currentUser.user) {
-        const lastLoginChange =
+      currentUser.update(userId, (user) => ({
+        displayName: updated.displayName,
+        login: updated.login,
+        bio: updated.bio ?? '',
+        lastLoginChange:
           normalizedLogin && !canBypassLoginCooldown
             ? new Date().toISOString()
-            : currentUser.user.lastLoginChange;
-        currentUser.user = {
-          ...currentUser.user,
-          displayName: updated.displayName,
-          login: updated.login,
-          bio: updated.bio ?? '',
-          lastLoginChange
-        };
-      }
+            : user.lastLoginChange
+      }));
 
       baseline = {
         displayName: updated.displayName,

@@ -2,9 +2,12 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
+import { userEvent } from 'vitest/browser';
 import { q } from '$lib/test-utils';
 import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
 import UserIdentity from './UserIdentity.svelte';
+import UserMenu from './UserMenu.svelte';
+import { UserMenuState } from './UserMenuState.svelte';
 
 vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => serverId
@@ -155,6 +158,102 @@ describe('UserIdentity', () => {
       expect(q(container, 'dialog')?.textContent).toContain('Alice Example');
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('UserMenu lifecycle', () => {
+  it('does not render a menu after it closes while its module loads', async () => {
+    let resolveModule!: (module: { default: typeof UserContextMenu }) => void;
+    const loader = vi.fn(
+      () => new Promise<{ default: typeof UserContextMenu }>((resolve) => (resolveModule = resolve))
+    );
+    const state = new UserMenuState<string>();
+    const { container } = render(UserMenu, { props: { state, user, loader } });
+    expect(loader).not.toHaveBeenCalled();
+
+    const trigger = document.createElement('button');
+    trigger.onclick = (event) => state.open(user.id, event);
+    trigger.click();
+    await tick();
+    expect(loader).toHaveBeenCalledOnce();
+    await userEvent.keyboard('{Escape}');
+    await tick();
+    expect(state.target).toBeNull();
+    resolveModule({ default: UserContextMenu });
+    await tick();
+    expect(q(container, '[role="dialog"]')).toBeNull();
+
+    // A later open must work after the pending menu was dismissed.
+    loader.mockResolvedValue({ default: UserContextMenu });
+    trigger.click();
+    await tick();
+    await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
+  });
+
+  it('lets the user retry a failed menu load', async () => {
+    const loader = vi.fn(userContextMenuLoader).mockRejectedValueOnce(new Error('Load failed'));
+    const state = new UserMenuState<string>();
+    const screen = render(UserMenu, { props: { state, user, loader } });
+    const trigger = document.createElement('button');
+    trigger.onclick = (event) => state.open(user.id, event);
+    trigger.click();
+
+    await expect.poll(() => q(screen.container, '[role="alertdialog"]')).not.toBeNull();
+    q(screen.container, '[role="alertdialog"] button')!.click();
+    await expect.element(screen.getByTestId('copy-user-id')).toBeInTheDocument();
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the latest target and user when a pending menu load completes', async () => {
+    let resolveModule!: (module: { default: typeof UserContextMenu }) => void;
+    const pending = new Promise<{ default: typeof UserContextMenu }>(
+      (resolve) => (resolveModule = resolve)
+    );
+    const state = new UserMenuState<string>();
+    const screen = render(UserMenu, { props: { state, user, loader: () => pending } });
+    const trigger = document.createElement('button');
+    trigger.onclick = (event) => state.open(user.id, event);
+    trigger.click();
+    await tick();
+
+    const nextUser = { ...user, id: 'owner-2', login: 'bob', displayName: 'Bob Example' };
+    trigger.onclick = (event) => state.open(nextUser.id, event);
+    trigger.click();
+    await screen.rerender({ user: nextUser });
+    resolveModule({ default: UserContextMenu });
+    await expect.element(screen.getByTestId('copy-user-id')).toBeInTheDocument();
+    expect(state.target).toBe(nextUser.id);
+    expect(screen.container.textContent).toContain('Bob Example');
+    expect(screen.container.textContent).not.toContain('Alice Example');
+  });
+
+  it('replaces point placement with a button anchor and toggles the selected target closed', async () => {
+    const state = new UserMenuState<string>();
+    const { container } = render(UserMenu, {
+      props: { state, user, loader: userContextMenuLoader }
+    });
+    const trigger = document.createElement('button');
+    const cleanup = state.trigger(() => user.id)(trigger);
+    try {
+      trigger.dispatchEvent(new MouseEvent('contextmenu', { clientX: 40, clientY: 60 }));
+      await tick();
+      expect(state.selection?.position).toEqual({ x: 40, y: 60 });
+
+      trigger.onclick = (event) => state.open(user.id, event);
+      trigger.click();
+      await tick();
+      expect(state.selection?.position).toBeUndefined();
+      expect(state.selection?.anchorRect).toBeDefined();
+      await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
+
+      trigger.onclick = (event) => state.toggle(user.id, event);
+      trigger.click();
+      await tick();
+      expect(state.target).toBeNull();
+      expect(q(container, '[role="dialog"]')).toBeNull();
+    } finally {
+      cleanup?.();
     }
   });
 });

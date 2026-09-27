@@ -2,7 +2,8 @@
 @component
 
 Displays the current (server-scoped) user at the bottom of the secondary
-sidebar. Shows the avatar with presence and the live display name.
+sidebar. Shows the avatar with presence and the live display name. Right-click
+or touch long-press opens the profile menu; avatar clicks open presence settings.
 -->
 <script lang="ts">
   import UserCard from '$lib/ui/UserCard.svelte';
@@ -40,6 +41,13 @@ sidebar. Shows the avatar with presence and the live display name.
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import ScreenShareControlButton from './voice/ScreenShareControlButton.svelte';
   import VoiceCallControlButton from './voice/VoiceCallControlButton.svelte';
+  import UserMenu from './users/UserMenu.svelte';
+  import { UserMenuState } from './users/UserMenuState.svelte';
+
+  const profileMenu = new UserMenuState<string>(() => {
+    statusMenuAnchor = null;
+  });
+  const profileMenuTrigger = profileMenu.trigger(() => activeServerUser?.id ?? null);
 
   let customStatusEditorModule: Promise<typeof import('./UserCustomStatusEditor.svelte')> | null =
     null;
@@ -101,7 +109,7 @@ sidebar. Shows the avatar with presence and the live display name.
     if (room.type === RoomKind.DM) {
       return buildDirectMessagePresentation(
         room.members,
-        navigation?.currentUserId,
+        activeStore.projectionViewerId,
         m('common.you'),
         getLiveDisplayName
       ).label;
@@ -141,6 +149,7 @@ sidebar. Shows the avatar with presence and the live display name.
   }
 
   function openStatusMenu(event: MouseEvent) {
+    profileMenu.close();
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     statusMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
   }
@@ -209,9 +218,7 @@ sidebar. Shows the avatar with presence and the live display name.
     clearingCustomStatus = true;
     try {
       const customStatus = await deleteCustomStatus(config);
-      if (store.currentUser.user?.id === userId) {
-        store.currentUser.user = { ...store.currentUser.user, customStatus };
-      }
+      store.currentUser.update(userId, () => ({ customStatus }));
       if (activeServerId === serverId && activeServerUser?.id === userId) {
         if (statusMenuAnchor === menuAnchor) statusMenuAnchor = null;
         toast.success(m('settings.profile.status.cleared'));
@@ -227,11 +234,7 @@ sidebar. Shows the avatar with presence and the live display name.
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
     const store = activeStore;
-    if (!store.currentUser.user) return;
-    store.currentUser.user = {
-      ...store.currentUser.user,
-      customStatus: status
-    };
+    store.currentUser.update(store.accountId, () => ({ customStatus: status }));
   }
 
   function openActiveCallRoom(): void {
@@ -345,69 +348,71 @@ sidebar. Shows the avatar with presence and the live display name.
       </FadeScale>
     {/if}
 
-    <UserCard
-      variant="card"
-      name={displayName}
-      identity={activeServerUser}
-      username={login}
-      testId="current-user-identity-card"
-      textTestId="current-user-identity-text"
-      secondaryTestId="current-user-login"
-    >
-      {#snippet avatar()}
-        <button
-          type="button"
-          title={m('settings.profile.presence.button', { status: presenceLabel })}
-          aria-label={m('settings.profile.presence.button', { status: presenceLabel })}
-          class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
-          data-testid="current-user-presence-menu"
-          onclick={openStatusMenu}
-        >
-          <UserAvatar user={activeServerUser} serverId={activeServerId} size="sm" showPresence />
-        </button>
-      {/snippet}
-      {#snippet badges()}
-        <UserCustomStatusBadge status={customStatus} class="text-xs" />
-      {/snippet}
-      {#snippet actions()}
-        {#if voiceCallState?.connected}
-          <ConnectionQualityHint
-            quality={voiceCallState.participants.find((p) => p.isLocal)?.connectionQuality}
-          />
-        {/if}
-        {#if privilegedMode?.available}
+    <div {@attach profileMenuTrigger}>
+      <UserCard
+        variant="card"
+        name={displayName}
+        identity={activeServerUser}
+        username={login}
+        testId="current-user-identity-card"
+        textTestId="current-user-identity-text"
+        secondaryTestId="current-user-login"
+      >
+        {#snippet avatar()}
           <button
             type="button"
-            class={[
-              'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors feedback-quick',
-              privilegedMode.active
-                ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
-                : 'hover:bg-elevated text-muted hover:text-text'
-            ]}
-            title={privilegedMode.active
-              ? m('chat.privileged_mode.disable')
-              : m('chat.privileged_mode.enable')}
-            aria-label={privilegedMode.active
-              ? m('chat.privileged_mode.disable')
-              : m('chat.privileged_mode.enable')}
-            data-testid="privileged-mode-toggle"
-            disabled={privilegedModeLoading}
-            onclick={() =>
-              privilegedMode.active
-                ? void setPrivilegedMode(false)
-                : (privilegedModeDialogVisible = true)}
+            title={m('settings.profile.presence.button', { status: presenceLabel })}
+            aria-label={m('settings.profile.presence.button', { status: presenceLabel })}
+            class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
+            data-testid="current-user-presence-menu"
+            onclick={openStatusMenu}
           >
-            <span
-              class={[
-                'iconify text-lg',
-                privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
-              ]}
-              aria-hidden="true"
-            ></span>
+            <UserAvatar user={activeServerUser} serverId={activeServerId} size="sm" showPresence />
           </button>
-        {/if}
-      {/snippet}
-    </UserCard>
+        {/snippet}
+        {#snippet badges()}
+          <UserCustomStatusBadge status={customStatus} class="text-xs" />
+        {/snippet}
+        {#snippet actions()}
+          {#if voiceCallState?.connected}
+            <ConnectionQualityHint
+              quality={voiceCallState.participants.find((p) => p.isLocal)?.connectionQuality}
+            />
+          {/if}
+          {#if privilegedMode?.available}
+            <button
+              type="button"
+              class={[
+                'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors feedback-quick',
+                privilegedMode.active
+                  ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
+                  : 'hover:bg-elevated text-muted hover:text-text'
+              ]}
+              title={privilegedMode.active
+                ? m('chat.privileged_mode.disable')
+                : m('chat.privileged_mode.enable')}
+              aria-label={privilegedMode.active
+                ? m('chat.privileged_mode.disable')
+                : m('chat.privileged_mode.enable')}
+              data-testid="privileged-mode-toggle"
+              disabled={privilegedModeLoading}
+              onclick={() =>
+                privilegedMode.active
+                  ? void setPrivilegedMode(false)
+                  : (privilegedModeDialogVisible = true)}
+            >
+              <span
+                class={[
+                  'iconify text-lg',
+                  privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
+                ]}
+                aria-hidden="true"
+              ></span>
+            </button>
+          {/if}
+        {/snippet}
+      </UserCard>
+    </div>
   </div>
 {/if}
 
@@ -423,6 +428,8 @@ sidebar. Shows the avatar with presence and the live display name.
 >
   {m('chat.privileged_mode.confirmation')}
 </ConfirmDialog>
+
+<UserMenu state={profileMenu} user={activeServerUser} viewerSettings={activeServerUser?.settings} />
 
 {#if statusMenuAnchor && activeServerUser}
   <ContextMenu

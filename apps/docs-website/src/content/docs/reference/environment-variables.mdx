@@ -471,7 +471,7 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_TLS" toml="smtp.tls" default="mandatory">
-  SMTP TLS policy. Use `mandatory` to require STARTTLS on port `587`, or `implicit` for SMTPS on port `465`. When this value is omitted or left as `mandatory`, Chatto automatically uses implicit TLS for port `465`. Use `opportunistic` only when the SMTP server cannot support mandatory STARTTLS and plaintext fallback is explicitly acceptable.
+  SMTP TLS policy. Use `mandatory` to require STARTTLS on port `587`, or `implicit` for SMTPS on port `465`. When this value is omitted or left as `mandatory`, Chatto automatically uses implicit TLS for port `465`. Use `opportunistic` only when the SMTP server cannot support mandatory STARTTLS and plaintext fallback is explicitly acceptable. Chatto logs a warning at startup when this value is `opportunistic`.
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_TLS_SERVER_NAME" toml="smtp.tls_server_name">
@@ -479,7 +479,7 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_TLS_SKIP_VERIFY" toml="smtp.tls_skip_verify" default="false">
-  Disable SMTP TLS certificate verification. Insecure; use only for trusted internal SMTP servers with self-signed or mismatched certificates.
+  Disable SMTP TLS certificate verification. Insecure; use only for trusted internal SMTP servers with self-signed or mismatched certificates. Chatto logs a warning at startup when this value is `true`.
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_USERNAME" toml="smtp.username">

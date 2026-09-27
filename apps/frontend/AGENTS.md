@@ -329,6 +329,11 @@ Do not generate playground links for code written into this repository.
   authenticated remote server with an anonymous origin server.
 - Use helpers from `$lib/test-utils` rather than re-rolling connection/context
   mocks.
+- Mock the `/chat/[serverId]` scope with `createTestServerScope` from
+  `$lib/test-utils/serverScope.svelte`. Replace the scope module with the
+  `serverScopeModule` of that file, call `createTestServerScope` in
+  `beforeEach`, and change the fixture's state in tests. Do not write a new
+  `useServerScope` mock by hand.
 - `vitest-setup-client.ts` imports `$lib/query/client` before each browser
   spec. Because of this, `vi.mock` of `$lib/query/client` or
   `@tanstack/svelte-query` in a browser spec has no effect. Test against the

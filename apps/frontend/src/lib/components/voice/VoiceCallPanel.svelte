@@ -38,11 +38,8 @@ Room sidebar panel for voice/video calls.
   import { serverIdToSegment } from '$lib/navigation';
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
   import ScreenShareControlButton from './ScreenShareControlButton.svelte';
-  import {
-    contextMenuTrigger,
-    type ContextMenuTriggerDetails
-  } from '$lib/ui/contextMenuTrigger.svelte';
-  import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import {
     getVoiceCallJoinErrorMessage,
     type CallParticipantInfo
@@ -210,40 +207,10 @@ Room sidebar panel for voice/video calls.
 
   const canStartDMs = $derived(stores.permissions.canStartDMs);
 
-  // User context menu popover
-  let popoverParticipant = $state<DisplayParticipant | null>(null);
-  let popoverScreen = $state(false);
-  let popoverAnchorRect = $state<{ top: number; bottom: number; left: number } | null>(null);
-  let popoverPosition = $state<{ x: number; y: number } | undefined>();
-  let popoverPresentation = $state<'auto' | 'sheet'>('auto');
+  const userMenu = new UserMenuState<{ participant: DisplayParticipant; screen: boolean }>();
 
   function showUserMenu(participant: DisplayParticipant, e: MouseEvent, screen = false) {
-    const button = e.currentTarget as HTMLElement;
-    const rect = button?.getBoundingClientRect();
-    if (!rect) return;
-    popoverParticipant = participant;
-    popoverScreen = screen;
-    popoverPosition = undefined;
-    popoverPresentation = 'auto';
-    popoverAnchorRect = { top: rect.top, bottom: rect.bottom, left: rect.left };
-  }
-
-  function showParticipantContextMenu(
-    participant: DisplayParticipant,
-    details: ContextMenuTriggerDetails,
-    screen = false
-  ) {
-    popoverParticipant = participant;
-    popoverScreen = screen;
-    popoverAnchorRect = null;
-    popoverPosition = details.position;
-    popoverPresentation = details.presentation;
-  }
-
-  function closeUserMenu() {
-    popoverParticipant = null;
-    popoverAnchorRect = null;
-    popoverPosition = undefined;
+    userMenu.open({ participant, screen }, e);
   }
 
   function openVoicePreferences() {
@@ -379,7 +346,8 @@ Room sidebar panel for voice/video calls.
         name: formatAccountName(participant.displayName, participant.avatarUser)
       }),
       onclick: (event) => showUserMenu(participant, event, screen),
-      expanded: popoverParticipant?.key === participant.key && popoverScreen === screen,
+      expanded:
+        userMenu.target?.participant.key === participant.key && userMenu.target.screen === screen,
       testId: 'call-participant-menu-button'
     }}
   >
@@ -415,7 +383,7 @@ Room sidebar panel for voice/video calls.
     ]}
     title={formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-participant-card"
-    {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
+    {@attach userMenu.trigger(() => ({ participant, screen: false }))}
     data-call-media-card={showVideo ? true : undefined}
   >
     {@render participantHeader(
@@ -449,9 +417,7 @@ Room sidebar panel for voice/video calls.
       name: formatAccountName(participant.displayName, participant.avatarUser)
     })}
     data-testid="call-screen-share-card"
-    {@attach contextMenuTrigger((details) =>
-      showParticipantContextMenu(participant, details, true)
-    )}
+    {@attach userMenu.trigger(() => ({ participant, screen: true }))}
     data-call-media-card
   >
     {@render participantHeader(
@@ -489,9 +455,7 @@ Room sidebar panel for voice/video calls.
         })
       : formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-featured-stage-card"
-    {@attach contextMenuTrigger((details) =>
-      showParticipantContextMenu(participant, details, isScreen)
-    )}
+    {@attach userMenu.trigger(() => ({ participant, screen: isScreen }))}
     data-call-media-card={isScreen || isVideo ? true : undefined}
   >
     {@render participantHeader(
@@ -712,17 +676,14 @@ Room sidebar panel for voice/video calls.
   </div>
 </div>
 
-{#if popoverParticipant && (popoverAnchorRect || popoverPosition)}
-  <UserContextMenu
-    audioSource={popoverScreen ? 'streamVolume' : 'voiceVolume'}
-    user={popoverParticipant.avatarUser}
-    anchorRect={popoverAnchorRect}
-    position={popoverPosition}
-    presentation={popoverPresentation}
+{#if userMenu.target}
+  <UserMenu
+    state={userMenu}
+    audioSource={userMenu.target.screen ? 'streamVolume' : 'voiceVolume'}
+    user={userMenu.target.participant.avatarUser}
     canSendMessage={canStartDMs}
     viewerSettings={serverScope.store.currentUser.user?.settings}
-    onSendMessage={() => startDMWith(activeServerId, popoverParticipant!.avatarUser.id)}
+    onSendMessage={() => startDMWith(activeServerId, userMenu.target!.participant.avatarUser.id)}
     {onOpenProfile}
-    onClose={closeUserMenu}
   />
 {/if}

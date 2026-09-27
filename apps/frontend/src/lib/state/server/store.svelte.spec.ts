@@ -680,6 +680,26 @@ describe('ServerStateStore viewer', () => {
       })
     );
   });
+
+  it('falls back to the saved session ID for display before the account loads', () => {
+    const store = makeStore(new FakeServerConnection([]));
+
+    expect(store.viewerId).toBe('U1');
+    expect(store.accountId).toBeNull();
+  });
+
+  it('keeps the accepted account while verification is invalidated for reauthentication', () => {
+    const store = makeStore(new FakeServerConnection([]), { ...registered, userId: null });
+    store.currentUser.accept({ id: 'U1', login: 'alice' } as NonNullable<
+      typeof store.currentUser.user
+    >);
+
+    store.currentUser.invalidateVerification();
+
+    expect(store.currentUser.verifiedUserId).toBeNull();
+    expect(store.accountId).toBe('U1');
+    expect(store.viewerId).toBe('U1');
+  });
 });
 
 describe('ServerStateStore permissions', () => {
@@ -2865,6 +2885,24 @@ describe('ServerStateStore unified realtime resources', () => {
   it('revokes viewer room access synchronously when the viewer leaves', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    const messages = store.messagesForRoom('R1');
+    const clear = vi.spyOn(messages, 'clearForAccessRevocation');
+    await flushPromises();
+    clear.mockClear();
+
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
+
+    expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it('revokes room access when the projection viewer leaves before the account loads', async () => {
+    const store = makeStore(new FakeServerConnection([]), { ...registered, userId: null });
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    store.realtimeSync.markCaughtUp(undefined);
+    expect(store.accountId).toBeNull();
+    expect(store.projectionViewerId).toBe('U1');
     const messages = store.messagesForRoom('R1');
     const clear = vi.spyOn(messages, 'clearForAccessRevocation');
     await flushPromises();

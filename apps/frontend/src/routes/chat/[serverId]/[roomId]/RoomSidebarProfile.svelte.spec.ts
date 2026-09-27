@@ -6,33 +6,19 @@ import { queryClient, removeServerQueries } from '$lib/query/client';
 import { q } from '$lib/test-utils';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
-const mocks = vi.hoisted(() => ({
-  batchGetUsers: vi.fn(),
-  viewerSettings: {
-    timezone: 'Europe/Berlin',
-    timeFormat: 0
-  }
-}));
+const batchGetUsers = vi.fn();
+let server: TestServerScope;
+/** The shared profile store of the fixture's server session. */
+const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
 
 vi.mock('$lib/api-client/users', () => ({ createUserAPI: vi.fn() }));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    connection: {
-      queryScope: 'session-1',
-      getAPI: () => ({ batchGetUsers: mocks.batchGetUsers })
-    },
-    store: {
-      currentUser: { user: { settings: mocks.viewerSettings } },
-      get projection() {
-        return { users: getUserStore('origin', 'session-1') };
-      }
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: (_userId: string, fallback: string | null) => fallback,
@@ -71,8 +57,19 @@ describe('RoomSidebarProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetUserStoresForTests();
-    mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_24_HOUR;
-    mocks.batchGetUsers.mockResolvedValue([user]);
+    server = createTestServerScope({
+      serverId: 'origin',
+      api: { batchGetUsers },
+      viewer: {
+        settings: { timezone: 'Europe/Berlin', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR }
+      },
+      store: {
+        get projection() {
+          return { users: userStore() };
+        }
+      }
+    });
+    batchGetUsers.mockResolvedValue([user]);
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-04-27T14:30:00Z'));
   });
 
@@ -83,8 +80,8 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('renders a cached profile while the fresh query is pending', () => {
-    getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
-    mocks.batchGetUsers.mockReturnValue(new Promise(() => {}));
+    userStore().set(user.id, userProfileFixture(user));
+    batchGetUsers.mockReturnValue(new Promise(() => {}));
 
     const { container } = renderProfile();
 
@@ -96,7 +93,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('collapses and expands the bio section', async () => {
-    getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
+    userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
     await expect.poll(() => q(container, '[data-testid="profile-bio-heading"]')).not.toBeNull();
     const heading = q(container, '[data-testid="profile-bio-heading"]');
@@ -113,13 +110,13 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('omits the bio section when no bio is set', () => {
-    getUserStore('origin', 'session-1').set(user.id, userProfileFixture({ ...user, bio: null }));
+    userStore().set(user.id, userProfileFixture({ ...user, bio: null }));
     const { container } = renderProfile();
     expect(q(container, '[data-testid="profile-bio-heading"]')).toBeNull();
   });
 
   it('shows loading while an uncached profile is loading', () => {
-    mocks.batchGetUsers.mockReturnValue(new Promise(() => {}));
+    batchGetUsers.mockReturnValue(new Promise(() => {}));
 
     const { container } = renderProfile();
 
@@ -128,8 +125,8 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('uses the viewer preferred 12-hour time format', () => {
-    getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
-    mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
+    userStore().set(user.id, userProfileFixture(user));
+    server.currentUser.user!.settings!.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
 
     const { container } = renderProfile();
 
@@ -151,7 +148,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('shows the not-found state when the query returns no user', async () => {
-    mocks.batchGetUsers.mockResolvedValue([]);
+    batchGetUsers.mockResolvedValue([]);
 
     const { container } = renderProfile();
 
@@ -161,7 +158,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('uses shared profile updates and deletion instead of retained query data', async () => {
-    const profiles = getUserStore('origin', 'session-1');
+    const profiles = userStore();
     profiles.set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
     profiles.set(user.id, userProfileFixture({ ...user, displayName: 'Updated profile' }));

@@ -23,7 +23,7 @@ fallbacks and live profile updates. Only the name truncates in narrow layouts.
 
 <span
   class={[
-    'inline-flex max-w-full min-w-0 gap-1.5 align-baseline',
+    'inline-flex max-w-full min-w-0 gap-1 align-baseline',
     badgeSize === 'md' ? 'items-baseline' : 'items-center',
     className
   ]}

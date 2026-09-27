@@ -26,6 +26,12 @@ const { mocks } = vi.hoisted(() => {
   const createStore = () => ({
     isAuthenticated: true,
     currentUser: { user: { id: 'viewer' } },
+    get viewerId(): string | null {
+      return this.currentUser.user.id;
+    },
+    get accountId(): string | null {
+      return this.currentUser.user.id;
+    },
     waitForRealtimeResourceRefresh: vi.fn(async () => true),
     notifications: {
       occurrences: [] as Array<{

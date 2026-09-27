@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
-import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
 import {
   compactEffectivePermissions,
@@ -10,26 +10,12 @@ import {
   inactiveBotGrants
 } from './botPermissionText';
 
-const mocks = vi.hoisted(() => ({
-  listEffectivePermissions: vi.fn(),
-  getUserPermissionMatrix: vi.fn(),
-  serverId: 'effective-test'
-}));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: mocks.serverId,
-    connection: { queryScope: 'session', getAPI: () => mocks },
-    store: {
-      projection: {
-        viewer: {
-          user: { profile: { id: 'viewer' } },
-          viewerPermissions: { permissions: [] }
-        }
-      },
-      permissions: { ...NO_SERVER_PERMISSIONS, loaded: true }
-    }
-  })
-}));
+const mocks = { listEffectivePermissions: vi.fn(), getUserPermissionMatrix: vi.fn() };
+let server: TestServerScope;
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 import BotPermissionSummary from './BotPermissionSummary.svelte';
 
 function grant(
@@ -50,10 +36,22 @@ function grant(
 let view: ReturnType<typeof render> | undefined;
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.serverId = `effective-test-${crypto.randomUUID()}`;
+  server = createTestServerScope({
+    serverId: `effective-test-${crypto.randomUUID()}`,
+    viewer: { id: 'viewer' },
+    api: mocks,
+    store: {
+      projection: {
+        viewer: {
+          user: { profile: { id: 'viewer' } },
+          viewerPermissions: { permissions: [] }
+        }
+      }
+    }
+  });
   queryClient.clear();
   localStorage.clear();
-  queryClient.setQueryDefaults(['server', mocks.serverId], { retry: false });
+  queryClient.setQueryDefaults(['server', server.serverId], { retry: false });
 });
 afterEach(() => {
   queryClient.clear();
@@ -93,7 +91,7 @@ it('hides stale effective grants after a read error and permits retry', async ()
   view = render(BotPermissionSummary, { botId: 'bot' });
   await expect.element(page.getByText('Read all messages')).toBeVisible();
   mocks.listEffectivePermissions.mockRejectedValue(new Error('offline'));
-  await queryClient.invalidateQueries({ queryKey: ['server', mocks.serverId] });
+  await queryClient.invalidateQueries({ queryKey: ['server', server.serverId] });
   await expect.element(page.getByRole('alert')).toBeVisible();
   expect(view.container.textContent).not.toContain('Read all messages');
   mocks.listEffectivePermissions.mockResolvedValue([]);

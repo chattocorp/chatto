@@ -126,7 +126,7 @@
   // Permission checks for message actions. Authors can always edit (within
   // the edit window) and delete their own messages; managing other users'
   // messages requires message.manage.
-  const isAuthor = $derived(currentUser.user?.id === event?.actorId);
+  const isAuthor = $derived(stores.viewerId === event?.actorId);
   const canEdit = $derived(
     canEditMessage({
       isAuthor,
@@ -476,7 +476,7 @@
     shouldHighlightCurrentUserMention({
       actorId: event?.actorId,
       body: msg?.body,
-      currentUserId: currentUser.user?.id,
+      currentUserId: stores.viewerId,
       currentUserLogin: currentUser.user?.login,
       members
     })

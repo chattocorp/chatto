@@ -37,6 +37,20 @@ describe('CurrentUserState', () => {
     expect(typeof CurrentUserState).toBe('function');
   });
 
+  it('updates account data only while the same account is loaded', () => {
+    const state = new CurrentUserState();
+    state.accept({ id: 'U1', displayName: 'Old' } as CurrentUser);
+
+    expect(state.update('U1', () => ({ displayName: 'New' }))).toBe(true);
+    expect(state.user?.displayName).toBe('New');
+
+    // A response for an earlier account, an unknown account, or a skipped change does nothing.
+    expect(state.update('U2', () => ({ displayName: 'Other' }))).toBe(false);
+    expect(state.update(null, () => ({ displayName: 'Other' }))).toBe(false);
+    expect(state.update('U1', () => null)).toBe(false);
+    expect(state.user?.displayName).toBe('New');
+  });
+
   it('shares an in-flight viewer request between concurrent callers', async () => {
     let resolveViewer!: (user: CurrentUser) => void;
     const viewerRequest = new Promise<CurrentUser>((resolve) => {

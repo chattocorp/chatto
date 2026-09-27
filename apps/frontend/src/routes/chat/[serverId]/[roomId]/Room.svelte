@@ -130,7 +130,6 @@
 
   // Create context-based state (must be synchronous, before children render)
   createMentionRoles(() => stores.mentionRoles.roles);
-  const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
   const room = useRoomData(() => ({ roomId }));
@@ -191,7 +190,7 @@
   );
 
   function getRecentThreadRootCandidate() {
-    const currentUserId = currentUser.user?.id;
+    const currentUserId = stores.viewerId;
     if (
       !currentUserId ||
       !permissions.canPostInThread ||
@@ -627,11 +626,9 @@
   rendering in that case to avoid a flash of the previous room's UI under
   the new (empty) data.
 -->
-{#if room.roomData !== null}
-  {#if presentation.pageTitle}
-    <PageTitle title={presentation.pageTitle} />
-  {/if}
+<PageTitle title={presentation.pageTitle} />
 
+{#if room.roomData !== null}
   <div
     class="flex min-h-0 min-w-0 flex-1"
     {@attach syncRoomMembers}

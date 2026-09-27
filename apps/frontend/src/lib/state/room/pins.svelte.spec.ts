@@ -30,7 +30,7 @@ function pinPage(
 function makeStore(
   api: PinnedMessagesAPI,
   serverId = 'server-1',
-  viewerId = 'viewer-1'
+  viewerId: string | null = 'viewer-1'
 ): RoomPinsStore {
   const connection = { getAPI: () => api } as unknown as ServerConnection;
   return new RoomPinsStore(connection, serverId, viewerId, 'R1');
@@ -181,6 +181,35 @@ describe('RoomPinsStore', () => {
     expect(store.hasUnseen).toBe(false);
     expect(localStorage.getItem(storageKey)).toBeNull();
     release();
+  });
+
+  it('does not read or write the pins seen marker before the viewer is known', async () => {
+    const isPinsSeenKey = ([key]: unknown[]) => String(key).endsWith(':pinsSeen');
+    const getItem = vi.spyOn(Storage.prototype, 'getItem');
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const removeItem = vi.spyOn(Storage.prototype, 'removeItem');
+    try {
+      const api = {
+        list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1')])),
+        create: vi.fn(),
+        remove: vi.fn()
+      } as unknown as PinnedMessagesAPI;
+      const store = makeStore(api, 'server-1', null);
+      const release = store.retain();
+      await vi.waitFor(() => expect(store.items).toHaveLength(1));
+
+      store.markSeen();
+      store.reset({ accessRevoked: true });
+      release();
+
+      expect(getItem.mock.calls.some(isPinsSeenKey)).toBe(false);
+      expect(setItem.mock.calls.some(isPinsSeenKey)).toBe(false);
+      expect(removeItem.mock.calls.some(isPinsSeenKey)).toBe(false);
+    } finally {
+      getItem.mockRestore();
+      setItem.mockRestore();
+      removeItem.mockRestore();
+    }
   });
 
   it('does not report an offline unpin as a new pin', async () => {

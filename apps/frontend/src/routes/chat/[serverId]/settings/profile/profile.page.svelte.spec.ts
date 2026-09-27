@@ -3,63 +3,30 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import ProfilePage from './+page.svelte';
 import { q } from '$lib/test-utils';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const avatarDataUrl = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  mutation: vi.fn(),
   updateProfile: vi.fn(),
   uploadAvatar: vi.fn(),
-  deleteAvatar: vi.fn(),
-  supportsUserAvatars: true,
-  currentUser: {
-    user: {
-      id: 'user-1',
-      login: 'alice',
-      displayName: 'Alice',
-      avatarUrl: null,
-      bio: null,
-      viewerCanDeleteAccount: true,
-      lastLoginChange: null as string | null
-    },
-    loading: false
-  },
-  permissions: {
-    canAdminManageAccounts: false
-  }
+  deleteAvatar: vi.fn()
 }));
+
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {
-      currentUser: mocks.currentUser,
-      permissions: mocks.permissions,
-      serverInfo: {
-        supportsFeature: (feature: string) => feature !== 'userAvatars' || mocks.supportsUserAvatars
-      }
-    },
-    connection: {
-      isConnected: true,
-      showConnectionLostBanner: false,
-      connectBaseUrl: '/api/connect',
-      bearerToken: null,
-      getAPI: (factory: (config: never) => unknown) => factory({} as never),
-      client: {
-        query: mocks.query,
-        mutation: mocks.mutation,
-        subscription: vi.fn()
-      }
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/users', () => ({
   createUserAPI: () => ({
@@ -96,27 +63,26 @@ async function pasteBio(container: HTMLElement, text: string) {
 describe('Profile settings page', () => {
   beforeEach(() => {
     userPreferences.composerEditor = 'markdown';
-    mocks.currentUser.user = {
-      id: 'user-1',
-      login: 'alice',
-      displayName: 'Alice',
-      avatarUrl: null,
-      bio: null,
-      viewerCanDeleteAccount: true,
-      lastLoginChange: null
-    };
-    mocks.query.mockReset();
-    mocks.permissions.canAdminManageAccounts = false;
-    mocks.supportsUserAvatars = true;
-    mocks.mutation.mockReset();
+    server = createTestServerScope({
+      serverId: 'origin',
+      viewer: {
+        id: 'user-1',
+        login: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+        bio: null,
+        viewerCanDeleteAccount: true,
+        lastLoginChange: null
+      }
+    });
     mocks.updateProfile.mockReset();
     mocks.updateProfile.mockImplementation((_userId, input) =>
       Promise.resolve({
         id: 'user-1',
-        displayName: input.displayName ?? mocks.currentUser.user!.displayName,
-        login: input.login ?? mocks.currentUser.user!.login,
-        avatarUrl: mocks.currentUser.user!.avatarUrl,
-        bio: input.bio ?? mocks.currentUser.user!.bio
+        displayName: input.displayName ?? server.currentUser.user!.displayName,
+        login: input.login ?? server.currentUser.user!.login,
+        avatarUrl: server.currentUser.user!.avatarUrl,
+        bio: input.bio ?? server.currentUser.user!.bio
       })
     );
     mocks.uploadAvatar.mockReset();
@@ -151,7 +117,7 @@ describe('Profile settings page', () => {
   });
 
   it('hides the avatar editor when the server does not support targeted avatars', async () => {
-    mocks.supportsUserAvatars = false;
+    server.features = { userAvatars: false };
     const { container } = render(ProfilePage);
     await settle();
 
@@ -316,7 +282,7 @@ describe('Profile settings page', () => {
   });
 
   it('keeps the username cooldown for a regular user', async () => {
-    mocks.currentUser.user.lastLoginChange = new Date().toISOString();
+    server.currentUser.user!.lastLoginChange = new Date().toISOString();
     const { container } = render(ProfilePage);
     await settle();
 
@@ -329,8 +295,8 @@ describe('Profile settings page', () => {
 
   it('lets an account manager bypass their own username cooldown', async () => {
     const lastLoginChange = new Date().toISOString();
-    mocks.currentUser.user.lastLoginChange = lastLoginChange;
-    mocks.permissions.canAdminManageAccounts = true;
+    server.currentUser.user!.lastLoginChange = lastLoginChange;
+    server.permissions.canAdminManageAccounts = true;
     const { container } = render(ProfilePage);
     await settle();
 
@@ -363,7 +329,7 @@ describe('Profile settings page', () => {
         bio: undefined
       });
     });
-    expect(mocks.currentUser.user.lastLoginChange).toBe(lastLoginChange);
+    expect(server.currentUser.user!.lastLoginChange).toBe(lastLoginChange);
   });
 
   it('uploads an avatar through the targeted user API', async () => {
@@ -383,7 +349,7 @@ describe('Profile settings page', () => {
     await vi.waitFor(() => {
       expect(mocks.uploadAvatar).toHaveBeenCalledWith('user-1', file);
     });
-    expect(mocks.currentUser.user?.avatarUrl).toBe(avatarDataUrl);
+    expect(server.currentUser.user?.avatarUrl).toBe(avatarDataUrl);
     await vi.waitFor(() => {
       const img = container.querySelector('img') as HTMLImageElement | null;
       expect(img?.src).toBe(avatarDataUrl);

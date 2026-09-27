@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -96,6 +97,7 @@
 
     isSaving = true;
     error = '';
+    const userId = serverScope.store.accountId;
 
     try {
       const input: UpdateSettingsInput = {};
@@ -110,12 +112,7 @@
       }
       const settings = await accountAPI().updateSettings(input);
       if (!serverScope.isCurrent()) return;
-      if (currentUser.user) {
-        currentUser.user = {
-          ...currentUser.user,
-          settings
-        };
-      }
+      currentUser.update(userId, () => ({ settings }));
 
       toast.success(m('settings.preferences.saved'));
     } catch (err) {
@@ -148,6 +145,8 @@
     description: string;
   }>);
 </script>
+
+<PageTitle title={m('settings.preferences.title')} />
 
 <PaneHeader
   title={m('settings.preferences.title')}

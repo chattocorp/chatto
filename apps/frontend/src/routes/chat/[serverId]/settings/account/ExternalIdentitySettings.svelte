@@ -36,6 +36,8 @@
   } = $props();
 
   const serverScope = useServerScope();
+  // Private identity data and provider links belong to the accepted account only.
+  const accountId = $derived(serverScope.store.accountId);
   let componentActive = true;
   let privacyGeneration = 0;
   const removeCacheRemovalListener = registerServerQueryCacheRemovalListener((removedServerId) => {
@@ -68,7 +70,7 @@
     () => {
       const activeServerId = serverScope.serverId;
       const activeConnection = serverScope.connection;
-      const activeUserId = currentUser.user?.id ?? '';
+      const activeUserId = accountId ?? '';
       return {
         queryKey: settingsQueryKeys.externalIdentities(
           activeServerId,
@@ -85,9 +87,9 @@
     () => queryClient
   );
 
-  const providers = $derived(currentUser.user?.id ? (identitiesQuery.data?.providers ?? []) : []);
+  const providers = $derived(accountId ? (identitiesQuery.data?.providers ?? []) : []);
   const linkedIdentities = $derived(
-    currentUser.user?.id ? (identitiesQuery.data?.linkedIdentities ?? []) : []
+    accountId ? (identitiesQuery.data?.linkedIdentities ?? []) : []
   );
   const loading = $derived(identitiesQuery.isPending && !identitiesQuery.data);
   let actionError = $state('');
@@ -105,7 +107,7 @@
     return (
       providerLinkWindow !== null &&
       isCurrentSession(providerLinkWindow.scope) &&
-      providerLinkWindow.userId === currentUser.user?.id
+      providerLinkWindow.userId === accountId
     );
   }
 
@@ -157,7 +159,7 @@
 
   function openProviderLink(provider: ExternalIdentityProviderInfo) {
     actionError = '';
-    const userId = currentUser.user?.id;
+    const userId = accountId;
     if (!userId) return;
     const url = new URL('/chat/-/settings/account', serverScope.connection.connectBaseUrl);
     url.searchParams.set('link_provider', provider.id);
@@ -185,7 +187,7 @@
   }
 
   function continueProviderLink(providerId: string, userId: string) {
-    if (!userId || userId !== currentUser.user?.id) {
+    if (!userId || userId !== accountId) {
       actionError = m('settings.account.sso.account_mismatch');
       return;
     }
@@ -199,7 +201,7 @@
   }
 
   function completeProviderLink(providerId: string, userId: string) {
-    if (!userId || userId !== currentUser.user?.id) {
+    if (!userId || userId !== accountId) {
       actionError = m('settings.account.sso.account_mismatch');
       return;
     }
@@ -322,7 +324,7 @@
   ) {
     const returnURL = new URL(accountSettingsPath, window.location.origin);
     returnURL.searchParams.set('link_provider', provider.id);
-    returnURL.searchParams.set('link_user', currentUser.user?.id ?? '');
+    returnURL.searchParams.set('link_user', accountId ?? '');
     returnURL.searchParams.set('link_complete', '1');
     const variables: LinkVariables = {
       ...mutationScope(),
@@ -494,7 +496,7 @@
   <Interval milliseconds={2000} ontick={checkProviderLinkResult} />
 {/if}
 
-{#if serverRegistry.isOriginServer(serverScope.serverId) && currentUser.user?.id && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
+{#if serverRegistry.isOriginServer(serverScope.serverId) && accountId && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
   <IdentityLinkContinuation oncontinue={continueProviderLink} oncomplete={completeProviderLink} />
 {/if}
 

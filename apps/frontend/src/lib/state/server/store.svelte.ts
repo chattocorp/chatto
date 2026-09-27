@@ -154,10 +154,34 @@ export class ServerStateStore {
   readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
-  /** Display identity is independent of whether this connection has verified its account. */
+  /**
+   * The viewer's user ID for display and device-local keys: own-message
+   * styling, "is this me" checks, and local storage names. Before the account
+   * loads it falls back to the ID saved with this device's session. Never use
+   * it to scope private data or requests; use {@link accountId} instead.
+   */
   get viewerId(): string | null {
-    return this.currentUser.user?.id ?? this.#getSession().userId ?? null;
+    return this.accountId ?? this.#getSession().userId ?? null;
   }
+
+  /**
+   * The account that `currentUser` accepted for this server, or null before it
+   * loads. It stays set while the session reauthenticates. Use it to scope
+   * private queries and requests, and to check that a response still belongs
+   * to the same account. It never falls back to the saved session ID.
+   */
+  get accountId(): string | null {
+    return this.currentUser.user?.id ?? null;
+  }
+
+  /**
+   * The viewer of the realtime projection, or null until the projection is
+   * readable. Compare it with projection rows, such as room members.
+   */
+  get projectionViewerId(): string | null {
+    return this.navigation.currentUserId;
+  }
+
   /** Viewer display data; authentication must use currentUser.verifiedUserId instead. */
   get viewerUser(): CurrentUser | undefined {
     return (
@@ -183,8 +207,8 @@ export class ServerStateStore {
    */
   readonly permissions: ServerPermissions = $derived.by(() => {
     const response = this.projection.viewer;
-    const acceptedUserId = this.currentUser.user?.id;
-    if (!response || !acceptedUserId || response.user?.profile?.id !== acceptedUserId) {
+    const accountId = this.accountId;
+    if (!response || !accountId || response.user?.profile?.id !== accountId) {
       return NO_SERVER_PERMISSIONS;
     }
     return serverPermissionsFromViewer(viewerResponseToState(response));
@@ -444,7 +468,7 @@ export class ServerStateStore {
     for (const store of Object.values(this.#roomMembers)) {
       for (const member of store.members) userIds.add(member.id);
     }
-    const viewerId = this.currentUserId();
+    const viewerId = this.realtimeViewerId();
     if (viewerId) userIds.add(viewerId);
     for (const room of this.projection.rooms.values()) {
       for (const userId of room.memberUserIds) userIds.add(userId);
@@ -562,7 +586,7 @@ export class ServerStateStore {
   messagesForRoom(roomId: string): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null, {
+    store = new MessagesStore(this.#serverConnection, () => this.realtimeViewerId(), {
       roomId
     });
     this.#roomMessages[roomId] = store;
@@ -638,12 +662,7 @@ export class ServerStateStore {
   pinsForRoom(roomId: string): RoomPinsStore {
     let store = this.#roomPins[roomId];
     if (store) return store;
-    store = new RoomPinsStore(
-      this.#serverConnection,
-      this.serverId,
-      this.currentUser.user?.id ?? this.#getSession().userId ?? '',
-      roomId
-    );
+    store = new RoomPinsStore(this.#serverConnection, this.serverId, this.viewerId, roomId);
     this.#roomPins[roomId] = store;
     return store;
   }
@@ -738,11 +757,7 @@ export class ServerStateStore {
   /** Message-read loss does not imply loss of voice or room membership. */
   private clearRoomMessageAccess(roomId: string, forgetStores = false): void {
     this.#messageReconciler.invalidateRoom(roomId);
-    clearRoomPinsSeenMarker(
-      this.serverId,
-      this.currentUser.user?.id ?? this.#getSession().userId ?? '',
-      roomId
-    );
+    clearRoomPinsSeenMarker(this.serverId, this.viewerId, roomId);
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
     this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
     const roomStore = this.#roomMessages[roomId];
@@ -786,7 +801,7 @@ export class ServerStateStore {
     const key = `${roomId}\u0000${threadRootEventId}`;
     let store = this.#threadMessages[key];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null, {
+    store = new MessagesStore(this.#serverConnection, () => this.realtimeViewerId(), {
       roomId,
       threadRootEventId
     });
@@ -819,8 +834,8 @@ export class ServerStateStore {
       update.event &&
       affectsViewerPermissions(
         update.event,
-        this.currentUserId(),
-        this.projection.users.get(this.currentUserId() ?? '')?.roles
+        this.realtimeViewerId(),
+        this.projection.users.get(this.realtimeViewerId() ?? '')?.roles
       )
     ) {
       this.refreshViewerPermissions(update);
@@ -1333,7 +1348,7 @@ export class ServerStateStore {
         return;
       case 'userLeftRoom':
         if (roomId && event.actorId) this.updateRoomMembership(roomId, event.actorId, false);
-        if (event.actorId === this.currentUser.user?.id) {
+        if (event.actorId === this.realtimeViewerId()) {
           if (roomId) this.clearRoomAccess(roomId);
         }
         if (payload.case === 'userLeftRoom') {
@@ -1410,7 +1425,7 @@ export class ServerStateStore {
           payload.value.roomId,
           payload.value.callId || null,
           event.actorId || null,
-          this.currentUserId()
+          this.realtimeViewerId()
         );
         this.refreshRealtimeResource('activeCalls');
         return;
@@ -1442,7 +1457,7 @@ export class ServerStateStore {
         // Occurrence changes have their own hint and must not be inferred here.
         if (
           !event.actorId ||
-          event.actorId !== this.currentUserId() ||
+          event.actorId !== this.realtimeViewerId() ||
           this.roomAttentionMayChange(payload.value.roomId) ||
           (this.projection.rooms.get(payload.value.roomId)?.room?.slowModeSeconds ?? 0) > 0
         ) {
@@ -1493,14 +1508,14 @@ export class ServerStateStore {
         refreshRegisteredAdminProfileQueries(this.serverId);
         return;
       case 'viewerPresencePreferenceChanged':
-        if (this.currentUser.user?.id) {
-          refreshPresencePreference({ serverId: this.serverId, userId: this.currentUser.user.id });
+        if (this.accountId) {
+          refreshPresencePreference({ serverId: this.serverId, userId: this.accountId });
         }
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');
         this.refreshRealtimeResource('rooms');
-        if (this.currentUser.user?.id) this.refreshRealtimeUsers([this.currentUser.user.id]);
+        if (this.accountId) this.refreshRealtimeUsers([this.accountId]);
         return;
       case 'roomReadStateChanged':
         if (this.roomAttentionMayChange(payload.value.roomId))
@@ -1884,7 +1899,7 @@ export class ServerStateStore {
   ): void {
     if (this.#playedCallSoundEventIds.includes(eventId)) return;
 
-    const currentUserId = this.currentUserId();
+    const currentUserId = this.realtimeViewerId();
     if (!actorId || !currentUserId) return;
 
     const decision = this.voiceCall.callTransitionSoundDecision(
@@ -1908,13 +1923,17 @@ export class ServerStateStore {
     }
   }
 
-  private currentUserId(): string | null {
-    return this.navigation.currentUserId ?? this.currentUser.user?.id ?? this.#getSession().userId;
+  /**
+   * The viewer to use when this store interprets realtime events: the
+   * projection viewer, then the accepted account, then the saved session ID.
+   */
+  private realtimeViewerId(): string | null {
+    return this.projectionViewerId ?? this.viewerId;
   }
 
   /** Remove optimistic call UI state after a local join attempt fails. */
   handleVoiceCallJoinFailed(roomId: string): void {
-    const currentUserId = this.navigation.currentUserId;
+    const currentUserId = this.projectionViewerId;
     this.activeCallRooms.handleLeave(roomId, null, currentUserId);
   }
 

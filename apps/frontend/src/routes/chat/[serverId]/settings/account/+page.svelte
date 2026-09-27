@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
@@ -25,6 +26,8 @@
   }
 </script>
 
+<PageTitle title={m('settings.account.title')} />
+
 <PaneHeader
   title={m('settings.account.title')}
   subtitle={m('settings.account.subtitle')}
@@ -37,7 +40,7 @@
       <dl class="flex max-w-md flex-col gap-3 text-sm">
         <div class="flex items-center justify-between">
           <dt class="text-muted">{m('admin.members.user_id')}</dt>
-          <dd class="font-mono">{currentUser.user?.id}</dd>
+          <dd class="font-mono">{serverScope.store.accountId}</dd>
         </div>
         <div class="flex items-center justify-between">
           <dt class="text-muted">{m('settings.account.username')}</dt>
@@ -53,7 +56,7 @@
     </Panel>
 
     <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
-    {#key `${serverScope.connection.queryScope}:${currentUser.user?.id ?? ''}`}
+    {#key `${serverScope.connection.queryScope}:${serverScope.store.accountId ?? ''}`}
       <VerifiedEmailSettings />
     {/key}
     <ExternalIdentitySettings {currentUser} {accountSettingsPath} />

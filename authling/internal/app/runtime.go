@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -90,6 +91,9 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 	}
 	if logger == nil {
 		return nil, fmt.Errorf("event logger is required")
+	}
+	if settings := cfg.SMTP.InsecureTransportSettings(); len(settings) > 0 {
+		logger.Warn("Insecure SMTP transport configured; verification and password-reset codes can be intercepted on the network", "settings", strings.Join(settings, ", "))
 	}
 	connection, err := natsruntime.Open(ctx, cfg.NATS)
 	if err != nil {

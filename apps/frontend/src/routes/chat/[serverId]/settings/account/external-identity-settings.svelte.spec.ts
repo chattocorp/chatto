@@ -20,6 +20,7 @@ const { mocks } = vi.hoisted(() => ({
     startLink: vi.fn(),
     disconnect: vi.fn(),
     serverId: 'origin',
+    accountId: 'user-alice' as string | null,
     scopeCurrent: true,
     beginExplicitSignOutRedirect: vi.fn(),
     cancelExplicitSignOutRedirect: vi.fn(),
@@ -59,6 +60,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: mocks.serverId,
     connection,
+    store: {
+      get accountId() {
+        return mocks.accountId;
+      }
+    },
     isCurrent: () => mocks.scopeCurrent
   })
 }));
@@ -90,6 +96,7 @@ async function settle(): Promise<void> {
 }
 
 function renderSettings(user: CurrentUserState = currentUser) {
+  mocks.accountId = user.user?.id ?? null;
   return render(ExternalIdentitySettings, {
     props: { currentUser: user, accountSettingsPath: '/chat/-/settings/account' }
   });

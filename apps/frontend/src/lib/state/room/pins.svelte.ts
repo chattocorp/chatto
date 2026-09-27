@@ -16,7 +16,11 @@ export function roomPinsSeenStorageKey(serverId: string, viewerId: string, roomI
   return serverStorageKey(serverId, `viewer:${viewerId}:room:${roomId}:pinsSeen`);
 }
 
-export function clearRoomPinsSeenMarker(serverId: string, viewerId: string, roomId: string): void {
+export function clearRoomPinsSeenMarker(
+  serverId: string,
+  viewerId: string | null,
+  roomId: string
+): void {
   if (browser && viewerId)
     localStorage.removeItem(roomPinsSeenStorageKey(serverId, viewerId, roomId));
 }
@@ -32,8 +36,9 @@ export class RoomPinsStore {
   private readonly api: PinnedMessagesAPI;
   readonly roomId: string;
   private readonly serverId: string;
-  private readonly viewerId: string;
-  private readonly seenStorageKey: string;
+  private readonly viewerId: string | null;
+  /** Device-local "pins seen" key, or null when the viewer is unknown. A store never outlives its account. */
+  private readonly seenStorageKey: string | null;
   private hydrated = false;
   private retainCount = 0;
   private requestEpoch = 0;
@@ -48,15 +53,17 @@ export class RoomPinsStore {
   constructor(
     serverConnection: ServerConnection,
     serverId: string,
-    viewerId: string,
+    viewerId: string | null,
     roomId: string
   ) {
     this.roomId = roomId;
     this.serverId = serverId;
     this.viewerId = viewerId;
     this.api = serverConnection.getAPI(createPinnedMessagesAPI);
-    this.seenStorageKey = roomPinsSeenStorageKey(serverId, viewerId, roomId);
-    if (browser) this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
+    this.seenStorageKey = viewerId ? roomPinsSeenStorageKey(serverId, viewerId, roomId) : null;
+    if (browser && this.seenStorageKey) {
+      this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
+    }
   }
 
   get hasUnseen(): boolean {
@@ -180,7 +187,9 @@ export class RoomPinsStore {
   markSeen(): void {
     if (!this.latestKnownMarker) return;
     this.lastSeenMarker = this.latestKnownMarker;
-    if (browser) localStorage.setItem(this.seenStorageKey, this.lastSeenMarker);
+    if (browser && this.seenStorageKey) {
+      localStorage.setItem(this.seenStorageKey, this.lastSeenMarker);
+    }
   }
 
   reset(options: { rehydrateRetained?: boolean; accessRevoked?: boolean } = {}): void {

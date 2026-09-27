@@ -4,31 +4,12 @@ import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
-const mocks = vi.hoisted(() => ({ batchGetUsers: vi.fn() }));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'owner-test',
-    connection: {
-      queryScope: 'session',
-      getAPI: () => ({
-        batchGetUsers: async (ids: string[]) => {
-          const users = await mocks.batchGetUsers(ids);
-          const store = getUserStore('owner-test', 'session');
-          for (const user of users) store.set(user.id, userProfileFixture(user));
-          return users;
-        }
-      })
-    },
-    isCurrent: () => true,
-    store: {
-      permissions: { loaded: false },
-      get projection() {
-        return { users: getUserStore('owner-test', 'session') };
-      }
-    }
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_id: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
@@ -45,9 +26,28 @@ const owner = {
   avatarUrl: null,
   deleted: false
 };
+const mocks = { batchGetUsers: vi.fn() };
+let server: TestServerScope;
+const users = () => getUserStore(server.serverId, server.scope.connection.queryScope);
 let view: ReturnType<typeof render> | undefined;
 beforeEach(() => {
   vi.resetAllMocks();
+  server = createTestServerScope({
+    serverId: 'owner-test',
+    permissions: { loaded: false },
+    api: {
+      batchGetUsers: async (ids: string[]) => {
+        const result = await mocks.batchGetUsers(ids);
+        for (const user of result) users().set(user.id, userProfileFixture(user));
+        return result;
+      }
+    },
+    store: {
+      get projection() {
+        return { users: users() };
+      }
+    }
+  });
   queryClient.clear();
   resetUserStoresForTests();
   queryClient.setQueryDefaults(['server', 'owner-test'], { retry: false });

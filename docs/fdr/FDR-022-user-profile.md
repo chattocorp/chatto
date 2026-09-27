@@ -1,13 +1,19 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-26
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
 A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. A bot, its owner, and bot or account managers can change the login, display name, bio, and avatar of a bot (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, thread presentation, language, editor, and send-key behavior. The app applies these choices to its registered servers.
 
 ## Behavior
+
+- Right-click the current-user card to open your Profile Card. On touch devices,
+  press and hold the card. Clicking or tapping the avatar opens presence settings.
+- Member cards also open their Profile Card on right-click or touch long-press.
+  A menu that is still loading can be dismissed. If loading fails, the menu offers
+  **Try Again**.
 
 An explicit browser-default time zone is stored as an empty optional value.
 An absent value means no choice has been recorded. Automatic device reporting

@@ -111,7 +111,6 @@ block in the DOM until it finishes.
               onclick={() => editorApi?.adjustIndent('outdent')}
               disabled={inputDisabled || !editorApi || !indentState.canOutdent}
               aria-label={m('composer.format.outdent')}
-              aria-keyshortcuts="Shift+Tab"
               title={m('composer.format.outdent')}
               class="pill-button"
             >
@@ -123,7 +122,6 @@ block in the DOM until it finishes.
               onclick={() => editorApi?.adjustIndent('indent')}
               disabled={inputDisabled || !editorApi || !indentState.canIndent}
               aria-label={m('composer.format.indent')}
-              aria-keyshortcuts="Tab"
               title={m('composer.format.indent')}
               class="pill-button"
             >

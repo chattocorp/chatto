@@ -147,7 +147,7 @@ thread IDs can change while the pane stays mounted.
             ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs }
             : null,
         getMarkerEvents: () => events,
-        getMarkerSkipActorId: () => stores.currentUser.user?.id ?? null,
+        getMarkerSkipActorId: () => stores.viewerId,
         onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
       })
     : useRoomUnread(() => ({ roomId, events, canReadMessages }));
@@ -245,8 +245,8 @@ thread IDs can change while the pane stays mounted.
 
     const actorId = projectionEvent.event?.actorId;
     if (actorId) typingIndicator.removeTypingUser(actorId);
-    const viewer = stores.currentUser.user;
-    if (viewer && actorId !== viewer.id && appState.isPresent) {
+    const accountId = stores.accountId;
+    if (accountId && actorId !== accountId && appState.isPresent) {
       void unread.markAsRead(threadRootEventId ?? roomId, projectionEvent.event?.id ?? '');
     }
   });

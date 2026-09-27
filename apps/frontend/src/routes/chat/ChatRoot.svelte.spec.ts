@@ -22,12 +22,18 @@ const mocks = vi.hoisted(() => {
     get isAuthenticated() {
       return this.currentUser.user !== undefined;
     },
+    get accountId(): string | null {
+      return this.currentUser.user?.id ?? null;
+    },
     voiceCall: { isInAnyCall: false },
     serverInfo: { supportsRealtimeProjection: true },
     realtimeSync: { serverId: 'origin-sync' }
   };
   const remoteStore = {
     currentUser: remoteCurrentUser,
+    get accountId(): string | null {
+      return this.currentUser.user.id;
+    },
     isAuthenticated: true,
     voiceCall: { isInAnyCall: false },
     serverInfo: { supportsRealtimeProjection: true },
@@ -209,6 +215,9 @@ vi.mock('$lib/components/WelcomeBanner.svelte', async () => ({
 }));
 
 import ChatRoot from './ChatRoot.svelte';
+
+// The plain account mock uses the real same-account update rule.
+Object.assign(mocks.remoteCurrentUser, { update: CurrentUserState.prototype.update });
 
 const originUser: CurrentUser = {
   id: 'origin-user',

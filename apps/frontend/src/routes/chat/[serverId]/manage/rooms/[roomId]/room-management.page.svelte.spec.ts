@@ -13,11 +13,7 @@ import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
-import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
-import {
-  roomManagementPageTestState,
-  roomManagementTestPage
-} from './RoomManagementPageTestState.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
@@ -26,14 +22,22 @@ const mocks = vi.hoisted(() => ({
   updateRoom: vi.fn(),
   refreshLayout: vi.fn(),
   success: vi.fn(),
-  error: vi.fn(),
-  serverVersion: '0.5.0'
+  error: vi.fn()
 }));
 
-vi.mock('$app/state', () => ({ page: roomManagementTestPage }));
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return { serverId: server.serverId, roomId: 'shared-room' };
+    }
+  }
+}));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => roomManagementPageTestState.serverId
+  getActiveServer: () => server.serverId
 }));
 
 vi.mock('$lib/hooks', () => ({
@@ -46,55 +50,17 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     isOriginServer: () => false,
     getServer: (serverId: string) => ({ id: serverId, url: `https://${serverId}.example.test` }),
-    tryGetStore: () => ({
-      serverInfo: {
-        get version() {
-          return mocks.serverVersion;
-        },
-        supportsFeature: () => mocks.serverVersion === '0.5.0'
-      }
-    }),
+    tryGetStore: () => server.scope.store,
     getStore: () => ({})
   }
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    get serverId() {
-      return roomManagementPageTestState.serverId;
-    },
-    get connection() {
-      const serverId = roomManagementPageTestState.serverId;
-      return {
-        queryScope: `${serverId}-query-scope`,
-        getAPI: (factory: (config: never) => unknown) =>
-          factory({
-            serverId,
-            baseUrl: `https://${serverId}.example.test/api/connect`,
-            bearerToken: `${serverId}-token`
-          } as never)
-      };
-    },
-    get store() {
-      return {
-        serverInfo: {
-          get version() {
-            return mocks.serverVersion;
-          },
-          supportsFeature: () => mocks.serverVersion === '0.5.0'
-        },
-        adminRoomLayout: { refresh: mocks.refreshLayout },
-        permissions: {
-          ...NO_SERVER_PERMISSIONS,
-          loaded: true,
-          canManageRooms: true,
-          canAdminManageRoles: true
-        }
-      };
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/adminRoomLayout', () => ({
   createAdminRoomLayoutAPI: ({ serverId }: { serverId: string }) => ({
@@ -207,7 +173,11 @@ describe('room management page identity and realtime authority', () => {
     queryClient.clear();
     vi.clearAllMocks();
     mocks.projectionHandlers = [];
-    mocks.serverVersion = '0.5.0';
+    server = createTestServerScope({
+      serverId: 'server-a',
+      permissions: { canManageRooms: true, canAdminManageRoles: true },
+      store: { adminRoomLayout: { refresh: mocks.refreshLayout } }
+    });
     mocks.refreshLayout.mockResolvedValue(undefined);
     mocks.listRoomMembers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
     mocks.updateRoom.mockResolvedValue({
@@ -219,7 +189,6 @@ describe('room management page identity and realtime authority', () => {
       threadingMode: RoomThreadingMode.ENABLED,
       archived: false
     });
-    roomManagementPageTestState.reset();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
@@ -237,7 +206,7 @@ describe('room management page identity and realtime authority', () => {
         ?.getAttribute('data-scroll-contents')
     ).toBe('false');
 
-    roomManagementPageTestState.serverId = 'server-b';
+    server.serverId = 'server-b';
     flushSync();
     await settle();
 
@@ -305,7 +274,7 @@ describe('room management page identity and realtime authority', () => {
   });
 
   it('hides member management on servers that predate the room-management API', async () => {
-    mocks.serverVersion = '0.4.19';
+    server.features = false;
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
 
     const { container } = render(RoomManagementPage);
@@ -316,7 +285,7 @@ describe('room management page identity and realtime authority', () => {
   });
 
   it('does not request management details from servers that predate the admin API', async () => {
-    mocks.serverVersion = '0.4.19';
+    server.features = false;
 
     const { container } = render(RoomManagementPage);
     await settle();
@@ -567,11 +536,7 @@ describe('room management page identity and realtime authority', () => {
     });
     await settle();
 
-    const queryKey = adminQueryKeys.room(
-      'server-a',
-      { queryScope: 'server-a-query-scope' },
-      'shared-room'
-    );
+    const queryKey = adminQueryKeys.room('server-a', server.scope.connection, 'shared-room');
     expect(queryClient.getQueryData<AdminManagedRoom>(queryKey)?.name).not.toBe('private-name');
     expect(mocks.success).not.toHaveBeenCalled();
   });

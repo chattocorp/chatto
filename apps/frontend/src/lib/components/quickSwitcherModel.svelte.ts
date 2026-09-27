@@ -336,7 +336,7 @@ export class QuickSwitcherModel {
       const store = serverRegistry.tryGetStore(instance.id);
       const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
       const serverLabel = multiInstance ? serverName : '';
-      const currentUserId = store?.currentUser.user?.id ?? undefined;
+      const currentUserId = store?.viewerId ?? undefined;
       const logo: ServerLogo = { name: serverName, logoUrl: store?.serverInfo.iconUrl ?? null };
       const directMessageUserIds = new SvelteSet<string>();
 
