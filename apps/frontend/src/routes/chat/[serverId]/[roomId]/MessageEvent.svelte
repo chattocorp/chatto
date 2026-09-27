@@ -259,7 +259,7 @@
   const editChannelEchoEventId = $derived(eventReferences?.editChannelEchoEventId ?? null);
   const threadRootEventId = $derived(eventReferences?.threadRootEventId ?? null);
   const pinsStore = $derived(
-    roomPermissions.canViewPinnedMessages ? stores.pinsForRoom(roomId) : null
+    roomPermissions.canViewPinnedMessages ? stores.rooms.pins(roomId) : null
   );
   const canPin = $derived(roomPermissions.canPinMessages && Boolean(pinsStore));
   const isPinned = $derived(

@@ -224,30 +224,32 @@ describe('ThreadPane', () => {
         readViews: { register: mocks.registerReadView },
         notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
         reconcileThreadRead: mocks.reconcileThreadRead,
-        retainMessagesForThread:
-          serverId === 'server-2'
-            ? mocks.nextServerRetainMessagesForThread
-            : mocks.retainMessagesForThread,
-        releaseMessagesForThread:
-          serverId === 'server-2'
-            ? mocks.nextServerReleaseMessagesForThread
-            : mocks.releaseMessagesForThread,
-        messagesForThread: () =>
-          Object.assign(
-            serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
-            {
-              isLoadingMore: false,
-              hasReachedStart: true,
-              setThread: mocks.setThread,
-              dispose: mocks.disposeMessagesStore,
-              ingestEvent: mocks.ingestEvent,
-              refreshCurrentWindow: mocks.refreshCurrentWindow,
-              jumpToMessage: mocks.storeJumpToMessage,
-              restoreLatestWindow: mocks.restoreLatestWindow,
-              setThreadRootFollowState: mocks.setThreadRootFollowState,
-              loadMore: mocks.loadMore
-            }
-          )
+        rooms: {
+          retainThread:
+            serverId === 'server-2'
+              ? mocks.nextServerRetainMessagesForThread
+              : mocks.retainMessagesForThread,
+          releaseThread:
+            serverId === 'server-2'
+              ? mocks.nextServerReleaseMessagesForThread
+              : mocks.releaseMessagesForThread,
+          thread: () =>
+            Object.assign(
+              serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
+              {
+                isLoadingMore: false,
+                hasReachedStart: true,
+                setThread: mocks.setThread,
+                dispose: mocks.disposeMessagesStore,
+                ingestEvent: mocks.ingestEvent,
+                refreshCurrentWindow: mocks.refreshCurrentWindow,
+                jumpToMessage: mocks.storeJumpToMessage,
+                restoreLatestWindow: mocks.restoreLatestWindow,
+                setThreadRootFollowState: mocks.setThreadRootFollowState,
+                loadMore: mocks.loadMore
+              }
+            )
+        }
       })
     });
     mocks.appState.isPresent = true;

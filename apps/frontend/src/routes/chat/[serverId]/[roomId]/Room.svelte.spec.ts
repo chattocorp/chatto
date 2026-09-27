@@ -423,10 +423,12 @@ beforeEach(() => {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
       mentionRoles: mocks.mentionRoles,
-      messagesForRoom: mocks.messagesForRoom,
-      membersForRoom: mocks.membersForRoom,
-      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
-      messageSearchForRoom: () => ({}),
+      rooms: {
+        messages: mocks.messagesForRoom,
+        members: mocks.membersForRoom,
+        files: () => ({ retain: mocks.roomFilesRetain }),
+        search: () => ({})
+      },
       restoreProjectedRoomWindow:
         serverId === 'server-2'
           ? mocks.nextServerRestoreProjectedRoomWindow

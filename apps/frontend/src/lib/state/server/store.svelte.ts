@@ -31,7 +31,7 @@ import { createRoomCommandAPI } from '$lib/api-client/rooms';
 import { createNotificationAPI } from '$lib/api-client/notifications';
 import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
-import { createMessageSearchAPI, type MessageSearchAPI } from '$lib/api-client/messageSearch';
+import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
 import {
@@ -45,13 +45,11 @@ import { RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.
 import type { ServerConnection } from './serverConnection.svelte';
 import type { ServerRegistration } from './catalog.svelte';
 import type { ServerSession } from './sessions.svelte';
-import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { getUserStore } from './users.svelte';
-import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
-import type { RoomMember } from '$lib/state/room';
-import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
+import type { MessagesStore, RoomMember } from '$lib/state/room';
+import { RoomStores } from './roomStores.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -93,8 +91,6 @@ import {
  * - null = no indicator
  */
 export type ServerIndicator = 'notification' | 'unread' | null;
-
-const MAX_RETAINED_ROOM_SEARCHES = 10;
 
 /** One bounded timeline read. Different anchors or directions need separate reads. */
 type MessageWindowRefresh = {
@@ -221,23 +217,12 @@ export class ServerStateStore {
   readonly #getSession: () => ServerSession;
   readonly #originServer: boolean;
   readonly #serverConnection: ServerConnection;
-  // These registries are intentionally non-reactive. The stores they own are
-  // reactive, while selector calls may occur during derived evaluation.
-  #roomMessages: Record<string, MessagesStore> = Object.create(null);
-  #roomMembers: Record<string, RoomMembersStore> = Object.create(null);
-  #roomMemberRoots: Record<string, () => void> = Object.create(null);
   /** Observed presence of this server's users. Every presence reader uses it. */
   readonly presence = new ServerPresence();
-  #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
-  #roomPins: Record<string, RoomPinsStore> = Object.create(null);
-  #roomMessageSearch: Record<string, MessageSearchStore> = Object.create(null);
-  #roomMessageSearchRecency: string[] = [];
-  #threadMessages: Record<string, MessagesStore> = Object.create(null);
-  #threadMessageRefCounts: Record<string, number> = Object.create(null);
+  /** The room-scoped stores: timelines, file lists, pins, members, and room search. */
+  readonly rooms: RoomStores;
   #adminRoomLayoutSubscriptions = 0;
 
-  readonly #playedCallSoundEventIds: string[] = [];
-  readonly #messageSearchAPI: MessageSearchAPI;
   readonly #privilegedModeAPI: PrivilegedModeAPI;
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
@@ -268,11 +253,10 @@ export class ServerStateStore {
     (roomId, ids, cursor) =>
       this.#serverConnection.getAPI(createMessageResourcesAPI).read(roomId, ids, cursor),
     (roomId, cursor) => {
-      const timelines = this.loadedMessageStores(roomId).map((store) =>
-        store.captureMessageReconciliation()
-      );
-      const files = this.#roomFiles[roomId];
-      const pins = this.#roomPins[roomId];
+      const timelines = this.rooms
+        .timelines(roomId)
+        .map((store) => store.captureMessageReconciliation());
+      const { files, pins } = this.rooms.loaded(roomId) ?? {};
       return (id, resource, insert) => {
         for (const apply of timelines) apply(id, resource?.timeline ?? null, insert);
         files?.applyMessageUpdate(id, resource?.message ?? null, insert, cursor);
@@ -302,7 +286,6 @@ export class ServerStateStore {
     const voiceCallAPI = serverConnection.getAPI(createVoiceCallAPI);
     const adminRoomLayoutAPI = serverConnection.getAPI(createAdminRoomLayoutAPI);
     const messageSearchAPI = serverConnection.getAPI(createMessageSearchAPI);
-    this.#messageSearchAPI = messageSearchAPI;
     this.#realtimeResources = serverConnection.getAPI(createRealtimeResourceAPI);
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
@@ -364,6 +347,15 @@ export class ServerStateStore {
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated);
     this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
+    this.rooms = new RoomStores({
+      serverId: this.serverId,
+      connection: serverConnection,
+      presence: this.presence,
+      messageSearchAPI,
+      realtimeViewerId: () => this.realtimeViewerId(),
+      viewerId: () => this.viewerId,
+      isAuthenticated: () => this.isAuthenticated
+    });
   }
 
   /** Change privilege activation and reconcile effective viewer permissions in place. */
@@ -467,7 +459,7 @@ export class ServerStateStore {
     // Refresh every user that the retained projection still references after
     // the authoritative room read has been applied.
     const userIds = new SvelteSet(this.projection.users.keys());
-    for (const store of Object.values(this.#roomMembers)) {
+    for (const store of this.rooms.all('members')) {
       for (const member of store.members) userIds.add(member.id);
     }
     const viewerId = this.realtimeViewerId();
@@ -507,20 +499,21 @@ export class ServerStateStore {
 
     if (this.#realtimeSnapshotPending) {
       await Promise.all(
-        [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map(
-          (store) =>
+        this.rooms
+          .timelines()
+          .map((store) =>
             store.hydrateRealtimeProjection(
               cursor,
               () => generation === this.#realtimeProjectionGeneration,
               true
             )
-        )
+          )
       );
       this.requireCurrentRealtimeProjection(generation);
       // Retained channel membership can have been read before this snapshot.
       // Recheck it at the snapshot cursor before declaring the view current.
       await Promise.all(
-        Object.values(this.#roomMembers).map((store) => store.refresh({ minimumCursor: cursor }))
+        this.rooms.all('members').map((store) => store.refresh({ minimumCursor: cursor }))
       );
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
@@ -585,41 +578,34 @@ export class ServerStateStore {
     if (!room || room.archived) throw new Error('Conversation is unavailable');
   }
 
-  /** Stable timeline owner for one room. */
-  messagesForRoom(roomId: string): MessagesStore {
-    let store = this.#roomMessages[roomId];
-    if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.realtimeViewerId(), {
-      roomId
-    });
-    this.#roomMessages[roomId] = store;
-    return store;
-  }
-
   /** Return known follow state from a loaded canonical room timeline. */
   loadedThreadFollowState(roomId: string, threadRootEventId: string): boolean | null {
-    const event = this.#roomMessages[roomId]?.getEventById(threadRootEventId);
+    const event = this.rooms.loaded(roomId)?.messages?.getEventById(threadRootEventId);
     if (event?.event.kind !== TimelineEventKind.MessagePosted) return null;
     return event.event.viewerIsFollowingThread ?? null;
   }
 
   /** Check loaded canonical room timelines for one unread followed thread. */
   hasUnreadFollowedThreadInLoadedRooms(): boolean {
-    return Object.entries(this.#roomMessages).some(([roomId, store]) =>
-      store.rootEvents.some(
-        (event) =>
-          event.event.kind === TimelineEventKind.MessagePosted &&
-          event.event.viewerIsFollowingThread === true &&
-          event.event.viewerHasUnreadThread === true &&
-          !this.readViews.covers(roomId, event.id)
-      )
-    );
+    return this.rooms
+      .entries()
+      .some(
+        ([roomId, { messages }]) =>
+          messages?.rootEvents.some(
+            (event) =>
+              event.event.kind === TimelineEventKind.MessagePosted &&
+              event.event.viewerIsFollowingThread === true &&
+              event.event.viewerHasUnreadThread === true &&
+              !this.readViews.covers(roomId, event.id)
+          ) ?? false
+      );
   }
 
   /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
   reconcileThreadRead(roomId: string, threadRootEventId: string): void {
-    const roomStore = this.#roomMessages[roomId];
-    if (roomStore) this.scheduleMessageReconciliation(roomId, threadRootEventId);
+    if (this.rooms.loaded(roomId)?.messages) {
+      this.scheduleMessageReconciliation(roomId, threadRootEventId);
+    }
     refreshRegisteredFollowedThreadQueries(this.serverId);
     if (
       !this.notifications.hasLoaded ||
@@ -652,73 +638,13 @@ export class ServerStateStore {
     );
   }
 
-  /** Stable lazy file-list owner for one room on this server. */
-  filesForRoom(roomId: string): RoomFilesStore {
-    let store = this.#roomFiles[roomId];
-    if (store) return store;
-    store = new RoomFilesStore(this.#serverConnection, roomId);
-    this.#roomFiles[roomId] = store;
-    return store;
-  }
-
-  /** Stable room pin owner, retained while its channel route is mounted. */
-  pinsForRoom(roomId: string): RoomPinsStore {
-    let store = this.#roomPins[roomId];
-    if (store) return store;
-    store = new RoomPinsStore(this.#serverConnection, this.serverId, this.viewerId, roomId);
-    this.#roomPins[roomId] = store;
-    return store;
-  }
-
-  /** Stable transient message-search state scoped to one room. */
-  messageSearchForRoom(roomId: string): MessageSearchStore {
-    let store = this.#roomMessageSearch[roomId];
-    if (store) {
-      this.#touchRoomMessageSearch(roomId);
-      return store;
-    }
-    if (this.#roomMessageSearchRecency.length >= MAX_RETAINED_ROOM_SEARCHES) {
-      const oldestRoomId = this.#roomMessageSearchRecency.shift();
-      if (oldestRoomId) {
-        const evicted = this.#roomMessageSearch[oldestRoomId];
-        delete this.#roomMessageSearch[oldestRoomId];
-        // Selectors can allocate this store during rendering. Release the
-        // evicted store immediately, then clear its reactive state after render.
-        // Capture the old owner so this cannot reset a replacement for that room.
-        if (evicted) queueMicrotask(() => evicted.reset());
-      }
-    }
-    store = new MessageSearchStore(this.#messageSearchAPI, () => this.isAuthenticated);
-    this.#roomMessageSearch[roomId] = store;
-    this.#roomMessageSearchRecency.push(roomId);
-    return store;
-  }
-
   /** Load the latest room window at a route boundary when retained data needs it. */
   restoreProjectedRoomWindow(roomId: string): void {
-    const messages = this.messagesForRoom(roomId);
-    void messages.restoreLatestWindow();
-  }
-
-  /** Membership survives route changes and receives server-level realtime updates. */
-  membersForRoom(roomId: string): RoomMembersStore {
-    let store = this.#roomMembers[roomId];
-    if (!store) {
-      // A route can create this store from a derived selector. Give its own
-      // derived fields an owner that lasts until this server store is disposed.
-      let created!: RoomMembersStore;
-      this.#roomMemberRoots[roomId] = $effect.root(() => {
-        created = new RoomMembersStore(this.#serverConnection, this.presence);
-        created.setRoom(roomId);
-      });
-      store = created;
-      this.#roomMembers[roomId] = store;
-    }
-    return store;
+    void this.rooms.messages(roomId).restoreLatestWindow();
   }
 
   private updateRoomMembership(roomId: string, userId: string, joined: boolean): void {
-    const store = this.#roomMembers[roomId];
+    const store = this.rooms.loaded(roomId)?.members;
     if (!store) return;
     this.trackProjectionReconciliation(
       store.applyMembership(userId, joined, this.#currentEventMinimumCursor),
@@ -729,26 +655,13 @@ export class ServerStateStore {
   /** Universal membership depends on server authorization, not only join facts. */
   private invalidateUniversalMembership(): void {
     for (const [id, room] of this.projection.rooms) {
-      if (room.room?.universal) this.#roomMembers[id]?.resetProjectionState();
-    }
-  }
-
-  private evictRetainedRoom(roomId: string): void {
-    this.#roomMessages[roomId]?.dispose();
-    delete this.#roomMessages[roomId];
-    this.#roomPins[roomId]?.dispose();
-    delete this.#roomPins[roomId];
-    for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-      if (!key.startsWith(`${roomId}\u0000`)) continue;
-      threadStore.dispose();
-      delete this.#threadMessages[key];
-      delete this.#threadMessageRefCounts[key];
+      if (room.room?.universal) this.rooms.loaded(id)?.members?.resetProjectionState();
     }
   }
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
-    this.#roomMembers[roomId]?.resetProjectionState();
+    this.rooms.loaded(roomId)?.members?.resetProjectionState();
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.projection.removeRoomCalls(roomId);
     this.notifications.clearRoom(roomId);
@@ -758,76 +671,15 @@ export class ServerStateStore {
   /** Message-read loss does not imply loss of voice or room membership. */
   private clearRoomMessageAccess(roomId: string, forgetStores = false): void {
     this.#messageReconciler.invalidateRoom(roomId);
-    clearRoomPinsSeenMarker(this.serverId, this.viewerId, roomId);
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
     this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
-    const roomStore = this.#roomMessages[roomId];
-    roomStore?.clearForAccessRevocation();
-    const filesStore = this.#roomFiles[roomId];
-    filesStore?.reset();
-    const pinsStore = this.#roomPins[roomId];
-    pinsStore?.reset({ accessRevoked: true });
-    if (forgetStores) {
-      roomStore?.dispose();
-      delete this.#roomMessages[roomId];
-      filesStore?.dispose();
-      delete this.#roomFiles[roomId];
-      pinsStore?.dispose();
-      delete this.#roomPins[roomId];
-    }
-    for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-      if (!key.startsWith(`${roomId}\u0000`)) continue;
-      threadStore.clearForAccessRevocation();
-      if (forgetStores) {
-        threadStore.dispose();
-        delete this.#threadMessages[key];
-        delete this.#threadMessageRefCounts[key];
-      }
-    }
+    this.rooms.clearMessageAccess(roomId, forgetStores);
   }
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
   private restoreRoomAccess(roomId: string): void {
     this.notifications.restoreRoom(roomId);
-    this.#roomMessages[roomId]?.restoreAfterAccessGrant();
-    this.#roomFiles[roomId]?.restoreAfterAccessGrant();
-    this.#roomPins[roomId]?.restoreAfterAccessGrant();
-    for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-      if (key.startsWith(`${roomId}\u0000`)) threadStore.restoreAfterAccessGrant();
-    }
-  }
-
-  /** Stable lazy thread timeline owner fed by the server projection once opened. */
-  messagesForThread(roomId: string, threadRootEventId: string): MessagesStore {
-    const key = `${roomId}\u0000${threadRootEventId}`;
-    let store = this.#threadMessages[key];
-    if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.realtimeViewerId(), {
-      roomId,
-      threadRootEventId
-    });
-    this.#threadMessages[key] = store;
-    return store;
-  }
-
-  /** Keep a mounted thread mirror alive until its final consumer unmounts. */
-  retainMessagesForThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
-    const key = `${roomId}\u0000${threadRootEventId}`;
-    if (this.#threadMessages[key] !== store) return;
-    this.#threadMessageRefCounts[key] = (this.#threadMessageRefCounts[key] ?? 0) + 1;
-  }
-
-  /** Release the UI consumer; retain the canonical window for replay. */
-  releaseMessagesForThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
-    const key = `${roomId}\u0000${threadRootEventId}`;
-    if (this.#threadMessages[key] !== store) return;
-    const remaining = (this.#threadMessageRefCounts[key] ?? 1) - 1;
-    if (remaining > 0) {
-      this.#threadMessageRefCounts[key] = remaining;
-      return;
-    }
-    store.clearViewport();
-    delete this.#threadMessageRefCounts[key];
+    this.rooms.restoreAccess(roomId);
   }
 
   /**
@@ -883,7 +735,7 @@ export class ServerStateStore {
           if (!update.retainView && !this.resetProjectionMirrors())
             throw new Error('Mirror cleanup incomplete');
         },
-        ...[this.messageSearch, ...Object.values(this.#roomMessageSearch)].map((store) => () => {
+        ...[this.messageSearch, ...this.rooms.all('search')].map((store) => () => {
           if (!update.retainView) store.clearResults();
         })
       ]);
@@ -920,7 +772,7 @@ export class ServerStateStore {
             presenceReadVersion
           );
           const members = resource.value.users.map(mapDirectoryMember);
-          for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
+          for (const store of this.rooms.all('members')) store.updateUsers(members);
           break;
         }
         case 'rooms':
@@ -958,10 +810,10 @@ export class ServerStateStore {
 
     if (sourceEvent?.event.case === 'messagePinned') {
       const pin = sourceEvent.event.value;
-      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, true, sourceEvent.id);
+      this.rooms.loaded(pin.roomId)?.pins?.applyRealtimeChange(pin, true, sourceEvent.id);
     } else if (sourceEvent?.event.case === 'messageUnpinned') {
       const pin = sourceEvent.event.value;
-      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, false, sourceEvent.id);
+      this.rooms.loaded(pin.roomId)?.pins?.applyRealtimeChange(pin, false, sourceEvent.id);
     }
     if (sourceEvent) {
       this.#currentEventMinimumCursor = update.cursor ?? undefined;
@@ -1044,7 +896,7 @@ export class ServerStateStore {
       if (!current()) return;
       this.invalidateUniversalMembership();
       await Promise.all(
-        Object.values(this.#roomMembers).map((store) => store.refresh({ reauthorize: true }))
+        this.rooms.all('members').map((store) => store.refresh({ reauthorize: true }))
       );
       // Each cache must complete its own check before a partial failure is
       // reported to the cursor owner for retry.
@@ -1066,14 +918,7 @@ export class ServerStateStore {
   /** Read and posting changes require fresh message content and reply capabilities. */
   private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
     const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
-    const ids = new SvelteSet([
-      ...Object.keys(this.#roomMessages),
-      ...Object.keys(this.#roomFiles),
-      ...Object.keys(this.#roomPins),
-      ...Object.keys(this.#roomMembers),
-      ...this.projection.rooms.keys()
-    ]);
-    for (const key of Object.keys(this.#threadMessages)) ids.add(key.split('\u0000')[0]);
+    const ids = new SvelteSet([...this.rooms.roomIds(), ...this.projection.rooms.keys()]);
     for (const roomId of ids) {
       const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
@@ -1107,20 +952,14 @@ export class ServerStateStore {
       this.clearRoomMessageAccess(roomId);
       this.restoreRoomAccess(roomId);
       const generation = this.#realtimeProjectionGeneration;
-      for (const store of [
-        this.#roomMessages[roomId],
-        ...Object.entries(this.#threadMessages)
-          .filter(([key]) => key.startsWith(`${roomId}\u0000`))
-          .map(([, store]) => store)
-      ]) {
-        if (store)
-          this.trackProjectionReconciliation(
-            store.hydrateRealtimeProjection(
-              cursor ?? '',
-              () => generation === this.#realtimeProjectionGeneration
-            ),
-            generation
-          );
+      for (const store of this.rooms.timelines(roomId)) {
+        this.trackProjectionReconciliation(
+          store.hydrateRealtimeProjection(
+            cursor ?? '',
+            () => generation === this.#realtimeProjectionGeneration
+          ),
+          generation
+        );
       }
     }
   }
@@ -1151,15 +990,14 @@ export class ServerStateStore {
   }
   private scrubRemovedUser(userId: string): void {
     this.projection.users.delete(userId);
-    for (const roomId of Object.keys(this.#roomMembers))
-      this.updateRoomMembership(roomId, userId, false);
+    for (const [roomId, { members }] of this.rooms.entries())
+      if (members) this.updateRoomMembership(roomId, userId, false);
     scrubRegisteredFollowedThreadUser(this.serverId);
     scrubRegisteredRoomMemberUser(this.serverId, userId);
     removeRegisteredAdminUserQueries(this.serverId, userId);
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
     this.notifications.scrubUser(userId);
-    for (const store of Object.values(this.#roomMessages)) store.scrubUserReferences(userId);
-    for (const store of Object.values(this.#threadMessages)) store.scrubUserReferences(userId);
+    for (const store of this.rooms.timelines()) store.scrubUserReferences(userId);
   }
 
   private scrubRemovedRoom(roomId: string): void {
@@ -1421,22 +1259,24 @@ export class ServerStateStore {
           this.scheduleMessageReconciliation(roomId, rawValue.messageEventId);
         return;
       case 'voiceCallParticipantJoined':
-        this.playCallTransitionSound(
+        this.voiceCall.playTransitionSound(
           event.id,
           'join',
           payload.value.roomId,
           payload.value.callId || null,
-          event.actorId || null
+          event.actorId || null,
+          this.realtimeViewerId()
         );
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallParticipantLeft':
-        this.playCallTransitionSound(
+        this.voiceCall.playTransitionSound(
           event.id,
           'leave',
           payload.value.roomId,
           payload.value.callId || null,
-          event.actorId || null
+          event.actorId || null,
+          this.realtimeViewerId()
         );
         this.voiceCall.handleParticipantLeftEvent(
           payload.value.roomId,
@@ -1490,7 +1330,7 @@ export class ServerStateStore {
       case 'roomThreadingModeChanged':
       case 'userJoinedRoom':
         if (payload.case === 'roomUniversalChanged' && roomId)
-          this.#roomMembers[roomId]?.resetProjectionState();
+          this.rooms.loaded(roomId)?.members?.resetProjectionState();
         if (payload.case === 'userJoinedRoom') {
           if (roomId && event.actorId) {
             this.updateRoomMembership(roomId, event.actorId, true);
@@ -1596,12 +1436,7 @@ export class ServerStateStore {
         viewerHasUnreadThread: null
       }
     };
-    for (const [roomId, store] of Object.entries(this.#roomMessages)) {
-      if (roomId === posted.roomId) store.ingestEvent(timelineEvent);
-    }
-    for (const [key, store] of Object.entries(this.#threadMessages)) {
-      if (key.startsWith(`${posted.roomId}\u0000`)) store.ingestEvent(timelineEvent);
-    }
+    for (const store of this.rooms.timelines(posted.roomId)) store.ingestEvent(timelineEvent);
   }
 
   private refreshLoadedMessageWindows(
@@ -1612,19 +1447,16 @@ export class ServerStateStore {
     threadForward = false,
     minimumCursor = this.#currentEventMinimumCursor
   ): void {
-    for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
+    const refresh = (store: MessagesStore, anchor: string | null, forward: boolean) => {
+      const visibleAnchor = anchor
+        ? (store.refreshAnchorForMessageMutation(anchor) ?? anchor)
+        : null;
+      this.scheduleMessageWindowRefresh(store, visibleAnchor, forward, minimumCursor);
+    };
+    for (const [candidateRoomId, room] of this.rooms.entries()) {
       if (roomId && candidateRoomId !== roomId) continue;
-      const visibleAnchor = roomAnchorEventId
-        ? (store.refreshAnchorForMessageMutation(roomAnchorEventId) ?? roomAnchorEventId)
-        : null;
-      this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward, minimumCursor);
-    }
-    for (const [key, store] of Object.entries(this.#threadMessages)) {
-      if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
-      const visibleAnchor = anchorEventId
-        ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
-        : null;
-      this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward, minimumCursor);
+      if (room.messages) refresh(room.messages, roomAnchorEventId, roomForward);
+      for (const store of Object.values(room.threads)) refresh(store, anchorEventId, threadForward);
     }
   }
 
@@ -1635,7 +1467,7 @@ export class ServerStateStore {
    * around the message when a timeline contains it.
    */
   applyLocalMessageMutation(roomId: string, eventId: string, kind: LocalMessageMutation): void {
-    for (const store of this.loadedMessageStores(roomId)) {
+    for (const store of this.rooms.timelines(roomId)) {
       if (kind === 'message-deleted') {
         store.applyLocalMessageDeletion(eventId);
         continue;
@@ -1643,15 +1475,6 @@ export class ServerStateStore {
       const anchorEventId = store.refreshAnchorForMessageMutation(eventId);
       if (anchorEventId) void store.refreshCurrentWindow(anchorEventId);
     }
-  }
-
-  private loadedMessageStores(roomId: string): MessagesStore[] {
-    return [
-      ...(this.#roomMessages[roomId] ? [this.#roomMessages[roomId]] : []),
-      ...Object.entries(this.#threadMessages)
-        .filter(([key]) => key.startsWith(`${roomId}\u0000`))
-        .map(([, store]) => store)
-    ];
   }
 
   /** One authoritative read serves every loaded view, including closed-thread files. */
@@ -1662,10 +1485,11 @@ export class ServerStateStore {
     threadRootEventId?: string
   ): void {
     if (!roomId || !id) return;
-    const stores = this.loadedMessageStores(roomId);
-    if (!stores.length && !this.#roomFiles[roomId] && !this.#roomPins[roomId]) return;
+    const stores = this.rooms.timelines(roomId);
+    const { files, pins } = this.rooms.loaded(roomId) ?? {};
+    if (!stores.length && !files && !pins) return;
     const ids = new SvelteSet([id, ...stores.flatMap((store) => store.relatedMessageIds(id))]);
-    for (const related of this.#roomFiles[roomId]?.relatedMessageIds(id) ?? []) ids.add(related);
+    for (const related of files?.relatedMessageIds(id) ?? []) ids.add(related);
     if (threadRootEventId) ids.add(threadRootEventId);
     const generation = this.#realtimeProjectionGeneration;
     const cursor = this.#currentEventMinimumCursor;
@@ -1681,14 +1505,11 @@ export class ServerStateStore {
     retractedAt: string
   ): void {
     if (!messageEventId) return;
-    this.#roomFiles[roomId]?.applyMessageUpdate(messageEventId, null, false);
-    this.#roomPins[roomId]?.applyMessageRetraction(messageEventId);
-    for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
-      if (roomId && candidateRoomId !== roomId) continue;
-      store.applyMessageRetraction(messageEventId, retractedAt);
-    }
-    for (const [key, store] of Object.entries(this.#threadMessages)) {
-      if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
+    const { files, pins } = this.rooms.loaded(roomId) ?? {};
+    files?.applyMessageUpdate(messageEventId, null, false);
+    pins?.applyMessageRetraction(messageEventId);
+    // A retraction without a room applies to every loaded timeline.
+    for (const store of this.rooms.timelines(roomId || undefined)) {
       store.applyMessageRetraction(messageEventId, retractedAt);
     }
   }
@@ -1772,12 +1593,10 @@ export class ServerStateStore {
     isFollowing: boolean
   ): void {
     if (!roomId || !threadRootEventId) return;
-    const roomStore = this.#roomMessages[roomId];
-    roomStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
-    if (roomStore) this.scheduleMessageReconciliation(roomId, threadRootEventId);
-
-    const threadStore = this.#threadMessages[`${roomId}\u0000${threadRootEventId}`];
-    threadStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
+    const room = this.rooms.loaded(roomId);
+    room?.messages?.setThreadRootFollowState(threadRootEventId, isFollowing);
+    if (room?.messages) this.scheduleMessageReconciliation(roomId, threadRootEventId);
+    room?.threads[threadRootEventId]?.setThreadRootFollowState(threadRootEventId, isFollowing);
   }
   get #adminRoomLayoutActive(): boolean {
     return this.#adminRoomLayoutSubscriptions > 0;
@@ -1785,7 +1604,7 @@ export class ServerStateStore {
 
   private forEachMessageSearch(callback: (store: MessageSearchStore) => void): void {
     callback(this.messageSearch);
-    for (const store of Object.values(this.#roomMessageSearch)) callback(store);
+    for (const store of this.rooms.all('search')) callback(store);
   }
 
   private forRoomMessageSearch(
@@ -1793,14 +1612,8 @@ export class ServerStateStore {
     callback: (store: MessageSearchStore) => void
   ): void {
     callback(this.messageSearch);
-    const roomStore = this.#roomMessageSearch[roomId];
+    const roomStore = this.rooms.loaded(roomId)?.search;
     if (roomStore) callback(roomStore);
-  }
-
-  #touchRoomMessageSearch(roomId: string): void {
-    const currentIndex = this.#roomMessageSearchRecency.indexOf(roomId);
-    if (currentIndex >= 0) this.#roomMessageSearchRecency.splice(currentIndex, 1);
-    this.#roomMessageSearchRecency.push(roomId);
   }
 
   private scheduleAdminRoomLayoutRefresh(): void {
@@ -1824,15 +1637,7 @@ export class ServerStateStore {
       () => refreshRegisteredAdminQueries(this.serverId),
       () => this.projection.users.clear(),
       () => this.presence.clear(),
-      ...Object.values(this.#roomMembers).map((store) => () => store.resetProjectionState()),
-      ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
-      ...Object.values(this.#threadMessages).map((store) => () => store.resetProjectionState()),
-      ...Object.values(this.#roomFiles).map(
-        (store) => () => store.reset({ rehydrateRetained: true })
-      ),
-      ...Object.values(this.#roomPins).map(
-        (store) => () => store.reset({ rehydrateRetained: true })
-      ),
+      ...this.rooms.resetHandlers(),
       () => this.roomDirectory.resetOptimisticState(),
       () => this.adminRoomLayout.resetProjectionState(),
       () => this.mentionRoles.invalidate(),
@@ -1840,7 +1645,7 @@ export class ServerStateStore {
       () => this.roomUnread.clear(),
       () => this.pendingHighlights.clear()
     ]);
-    this.#playedCallSoundEventIds.length = 0;
+    this.voiceCall.forgetTransitionSounds();
     return complete;
   }
 
@@ -1905,39 +1710,6 @@ export class ServerStateStore {
     return null;
   }
 
-  private playCallTransitionSound(
-    eventId: string,
-    kind: 'join' | 'leave',
-    roomId: string,
-    callId: string | null,
-    actorId: string | null
-  ): void {
-    if (this.#playedCallSoundEventIds.includes(eventId)) return;
-
-    const currentUserId = this.realtimeViewerId();
-    if (!actorId || !currentUserId) return;
-
-    const decision = this.voiceCall.callTransitionSoundDecision(
-      kind,
-      roomId,
-      callId,
-      actorId === currentUserId
-    );
-    if (decision === 'skip') return;
-
-    this.rememberPlayedCallSoundEvent(eventId);
-    if (decision === 'defer') return;
-
-    void playCallSound(kind);
-  }
-
-  private rememberPlayedCallSoundEvent(eventId: string): void {
-    this.#playedCallSoundEventIds.push(eventId);
-    if (this.#playedCallSoundEventIds.length > 500) {
-      this.#playedCallSoundEventIds.shift();
-    }
-  }
-
   /**
    * The viewer to use when this store interprets realtime events: the
    * projection viewer, then the accepted account, then the saved session ID.
@@ -1965,26 +1737,11 @@ export class ServerStateStore {
     this.checkingPermissions = false;
     this.#serverConnection.invalidatePrivateData();
     removeRegisteredServerQueries(this.serverId);
-    for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();
-    this.#roomMembers = Object.create(null);
-    for (const dispose of Object.values(this.#roomMemberRoots)) dispose();
-    this.#roomMemberRoots = Object.create(null);
+    this.rooms.dispose();
     this.presence.clear();
     this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;
     this.realtimeSync.reset();
-    for (const store of Object.values(this.#roomMessages)) store.dispose();
-    this.#roomMessages = Object.create(null);
-    for (const store of Object.values(this.#roomFiles)) store.dispose();
-    this.#roomFiles = Object.create(null);
-    for (const store of Object.values(this.#roomPins)) store.dispose();
-    this.#roomPins = Object.create(null);
-    for (const store of Object.values(this.#roomMessageSearch)) store.reset();
-    this.#roomMessageSearch = Object.create(null);
-    this.#roomMessageSearchRecency = [];
-    for (const store of Object.values(this.#threadMessages)) store.dispose();
-    this.#threadMessages = Object.create(null);
-    this.#threadMessageRefCounts = Object.create(null);
     this.roomUnread.clear();
     this.pendingHighlights.clear();
     this.messageSearch.reset();

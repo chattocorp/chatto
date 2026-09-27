@@ -256,6 +256,8 @@ export class VoiceCallState {
     roomId: string;
     callId: string;
   } | null = null;
+  /** Transition events that played or wait for the connection, oldest first. */
+  private playedTransitionSoundEventIds: string[] = [];
   private recentlyDisconnectedCall: {
     roomId: string;
     callId: string;
@@ -413,6 +415,32 @@ export class VoiceCallState {
     }
 
     return 'skip';
+  }
+
+  /**
+   * Play the sound of a durable call transition event once, when
+   * {@link callTransitionSoundDecision} allows it. A replay of the same event
+   * stays silent. Without a known actor and viewer, nothing plays.
+   */
+  playTransitionSound(
+    eventId: string,
+    kind: 'join' | 'leave',
+    roomId: string,
+    callId: string | null,
+    actorId: string | null,
+    viewerId: string | null
+  ): void {
+    if (!actorId || !viewerId || this.playedTransitionSoundEventIds.includes(eventId)) return;
+    const decision = this.callTransitionSoundDecision(kind, roomId, callId, actorId === viewerId);
+    if (decision === 'skip') return;
+    this.playedTransitionSoundEventIds.push(eventId);
+    if (this.playedTransitionSoundEventIds.length > 500) this.playedTransitionSoundEventIds.shift();
+    if (decision === 'play') void playCallSound(kind);
+  }
+
+  /** Forget which transition events played, for example at a projection reset. */
+  forgetTransitionSounds(): void {
+    this.playedTransitionSoundEventIds = [];
   }
 
   /**

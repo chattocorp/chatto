@@ -1151,7 +1151,7 @@ describe('ServerStateStore room search state', () => {
 
     const memberIds = store.projectedMemberIdsForRoom('dm');
     expect(memberIds).toEqual(['U2', 'U3']);
-    const members = store.membersForRoom('dm');
+    const members = store.rooms.members('dm');
     members.replaceProjection('dm', memberIds);
     expect(members.totalCount).toBe(2);
     expect(members.members).toEqual([]);
@@ -1175,9 +1175,9 @@ describe('ServerStateStore room search state', () => {
 
   it('keeps retained room members reactive after the route that created them closes', () => {
     const store = makeStore(new FakeServerConnection([]));
-    let members!: ReturnType<typeof store.membersForRoom>;
+    let members!: ReturnType<typeof store.rooms.members>;
     const closeRoute = $effect.root(() => {
-      members = store.membersForRoom('a');
+      members = store.rooms.members('a');
       expect(members.members).toEqual([]);
     });
 
@@ -1260,12 +1260,12 @@ describe('ServerStateStore room search state', () => {
 
   it('retains member lists across A to B to A navigation and clears them on reset', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const a = store.membersForRoom('a');
+    const a = store.rooms.members('a');
     await a.loadInitial();
-    await store.membersForRoom('b').loadInitial();
+    await store.rooms.members('b').loadInitial();
     const requests = apiMocks.listRoomMembers.mock.calls.length;
-    expect(store.membersForRoom('a')).toBe(a);
-    store.membersForRoom('a').ensureLoaded();
+    expect(store.rooms.members('a')).toBe(a);
+    store.rooms.members('a').ensureLoaded();
     await flushPromises();
     expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(requests);
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
@@ -1277,9 +1277,9 @@ describe('ServerStateStore room search state', () => {
 
   it('applies a leave to an inactive retained room without relisting', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const a = store.membersForRoom('a');
+    const a = store.rooms.members('a');
     a.replaceProjection('a', ['U2']);
-    await store.membersForRoom('b').loadInitial();
+    await store.rooms.members('b').loadInitial();
     const requests = apiMocks.listRoomMembers.mock.calls.length;
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
@@ -1296,12 +1296,12 @@ describe('ServerStateStore room search state', () => {
   });
   it('retains separate transient search state for each room', () => {
     const store = makeStore(new FakeServerConnection([]));
-    const firstRoomSearch = store.messageSearchForRoom('R1');
-    const secondRoomSearch = store.messageSearchForRoom('R2');
+    const firstRoomSearch = store.rooms.search('R1');
+    const secondRoomSearch = store.rooms.search('R2');
 
     firstRoomSearch.query = 'first room only';
 
-    expect(store.messageSearchForRoom('R1')).toBe(firstRoomSearch);
+    expect(store.rooms.search('R1')).toBe(firstRoomSearch);
     expect(secondRoomSearch).not.toBe(firstRoomSearch);
     expect(secondRoomSearch.query).toBe('');
     expect(store.messageSearch.query).toBe('');
@@ -1309,23 +1309,23 @@ describe('ServerStateStore room search state', () => {
 
   it('bounds retained room search plaintext', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const oldestSearch = store.messageSearchForRoom('R1');
+    const oldestSearch = store.rooms.search('R1');
     oldestSearch.query = 'sensitive result scope';
-    for (let index = 2; index <= 11; index++) store.messageSearchForRoom(`R${index}`);
+    for (let index = 2; index <= 11; index++) store.rooms.search(`R${index}`);
 
     await Promise.resolve();
     expect(oldestSearch.query).toBe('');
-    expect(store.messageSearchForRoom('R1')).not.toBe(oldestSearch);
+    expect(store.rooms.search('R1')).not.toBe(oldestSearch);
   });
 
   it('can select the eleventh room search from a render derivation', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const oldestSearch = store.messageSearchForRoom('R1');
+    const oldestSearch = store.rooms.search('R1');
     oldestSearch.query = 'old room query';
-    for (let index = 2; index <= 10; index++) store.messageSearchForRoom(`R${index}`);
+    for (let index = 2; index <= 10; index++) store.rooms.search(`R${index}`);
 
     const closeRoute = $effect.root(() => {
-      const selectedSearch = $derived(store.messageSearchForRoom('R11'));
+      const selectedSearch = $derived(store.rooms.search('R11'));
       const renderQuery = () => selectedSearch.query;
       expect(renderQuery()).toBe('');
     });
@@ -1336,10 +1336,10 @@ describe('ServerStateStore room search state', () => {
 
   it('does not clear a replacement search while cleaning up its evicted owner', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const oldestSearch = store.messageSearchForRoom('R1');
+    const oldestSearch = store.rooms.search('R1');
     oldestSearch.query = 'old query';
-    for (let index = 2; index <= 11; index++) store.messageSearchForRoom(`R${index}`);
-    const replacement = store.messageSearchForRoom('R1');
+    for (let index = 2; index <= 11; index++) store.rooms.search(`R${index}`);
+    const replacement = store.rooms.search('R1');
     replacement.query = 'new query';
 
     await Promise.resolve();
@@ -1366,7 +1366,7 @@ describe('ServerStateStore unified realtime resources', () => {
           viewerState: { isMember: true, permissions: grants(true, true) }
         })
       );
-      const messages = store.messagesForRoom('R1');
+      const messages = store.rooms.messages('R1');
       await flushPromises();
       messages.ingestEvent({
         id: 'M1',
@@ -1436,7 +1436,7 @@ describe('ServerStateStore unified realtime resources', () => {
       }
     });
     store.projection.rooms.set('R1', room);
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     await flushPromises();
     messages.ingestEvent({
       id: 'retained',
@@ -1471,7 +1471,7 @@ describe('ServerStateStore unified realtime resources', () => {
       await expect(store.completeRealtimeCatchUp('first')).rejects.toThrow('offline');
       expect(messages.rootEvents[0]?.event).toMatchObject({ body: 'Retained text' });
       await store.completeRealtimeCatchUp('retry');
-      expect(store.messagesForRoom('R1')).toBe(messages);
+      expect(store.rooms.messages('R1')).toBe(messages);
       // An authoritative empty page must replace the retained rows too.
       expect(messages.rootEvents).toEqual([]);
       expect(read).toHaveBeenCalledTimes(2);
@@ -1495,7 +1495,7 @@ describe('ServerStateStore unified realtime resources', () => {
         }
       })
     );
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const resetMessages = vi.spyOn(messages, 'resetProjectionState');
 
     store.realtimeProjectionHandler(
@@ -1581,8 +1581,8 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     store.realtimeSync.markCaughtUp('retained');
-    const resetMessages = vi.spyOn(store.messagesForRoom('R1'), 'resetProjectionState');
-    const revokeMessages = vi.spyOn(store.messagesForRoom('R1'), 'clearForAccessRevocation');
+    const resetMessages = vi.spyOn(store.rooms.messages('R1'), 'resetProjectionState');
+    const revokeMessages = vi.spyOn(store.rooms.messages('R1'), 'clearForAccessRevocation');
     const revokeCall = vi.spyOn(store.voiceCall, 'handleRoomAccessRevoked');
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -1740,7 +1740,7 @@ describe('ServerStateStore unified realtime resources', () => {
     });
     store.projection.rooms.set('R1', room);
     store.realtimeSync.markCaughtUp('retained');
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const hydrate = vi.spyOn(messages, 'hydrateRealtimeProjection').mockResolvedValue(true);
     let fail = true;
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
@@ -1760,7 +1760,7 @@ describe('ServerStateStore unified realtime resources', () => {
     fail = false;
     store.realtimeProjectionHandler(event);
     await store.waitForRealtimeReconciliation();
-    expect(store.messagesForRoom('R1')).toBe(messages);
+    expect(store.rooms.messages('R1')).toBe(messages);
     expect(store.projection.rooms.get('R1')).toBe(room);
     expect(hydrate).toHaveBeenCalledWith('retry', expect.any(Function));
     expect(fake.forceReconnect).not.toHaveBeenCalled();
@@ -1890,7 +1890,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('reauthorizes independent caches even when one authority read fails', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const search = vi.spyOn(store.messageSearch, 'refreshPermissions');
-    const members = vi.spyOn(store.membersForRoom('R1'), 'refresh').mockResolvedValue();
+    const members = vi.spyOn(store.rooms.members('R1'), 'refresh').mockResolvedValue();
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
       if (family === 'viewer') throw new Error('viewer offline');
       return [];
@@ -1916,7 +1916,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     store.realtimeSync.markCaughtUp('retained');
-    const resetMessages = vi.spyOn(store.messagesForRoom('room'), 'resetProjectionState');
+    const resetMessages = vi.spyOn(store.rooms.messages('room'), 'resetProjectionState');
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         event: new RealtimeEvent({
@@ -1983,7 +1983,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('coalesces the resource hints from a post before starting reads', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    store.messagesForRoom('R1');
+    store.rooms.messages('R1');
     await flushPromises(20);
     apiMocks.readRealtimeResource.mockClear();
     store.realtimeProjectionHandler(
@@ -2472,7 +2472,7 @@ describe('ServerStateStore unified realtime resources', () => {
     async (scope) => {
       const store = makeStore(new FakeServerConnection([]));
       const messages =
-        scope === 'room' ? store.messagesForRoom('R1') : store.messagesForThread('R1', 'ROOT');
+        scope === 'room' ? store.rooms.messages('R1') : store.rooms.thread('R1', 'ROOT');
       await flushPromises(20);
       const row = (id: number, updated = false): TimelineEventView => ({
         id: `M${id}`,
@@ -2692,8 +2692,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
-    const members = store.membersForRoom('R1');
+    const messages = store.rooms.messages('R1');
+    const members = store.rooms.members('R1');
     const timelineRead = deferred<boolean>();
     const membershipRead = deferred<void>();
     const hydrate = vi
@@ -2741,7 +2741,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('does not replace mounted timelines after an ordinary resume', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const hydrate = vi.spyOn(messages, 'hydrateRealtimeProjection');
     await flushPromises();
 
@@ -2794,7 +2794,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('does not complete a durable cursor when message hydration fails', async () => {
     const messageRead = deferred<MessageResource[]>();
     const store = makeStore(new FakeServerConnection([]));
-    store.messagesForRoom('R1');
+    store.rooms.messages('R1');
     apiMocks.readMessages.mockReturnValueOnce(messageRead.promise);
     await flushPromises();
 
@@ -2832,7 +2832,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('waits for cursorless window reads and shared message reads without auxiliary RPCs', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     await flushPromises(20);
     const first = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
     const last = deferred<MessageResource[]>();
@@ -2897,7 +2897,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('discards queued message reads when a snapshot replaces the projection', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     await flushPromises(20);
     const first = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockReturnValue(first.promise);
@@ -2956,9 +2956,9 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('applies a local message deletion to every loaded timeline of that room only', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const room = store.messagesForRoom('R1');
-    const thread = store.messagesForThread('R1', 'ROOT');
-    const otherRoom = store.messagesForRoom('R2');
+    const room = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'ROOT');
+    const otherRoom = store.rooms.messages('R2');
     await flushPromises(20);
     const deleteInRoom = vi.spyOn(room, 'applyLocalMessageDeletion');
     const deleteInThread = vi.spyOn(thread, 'applyLocalMessageDeletion');
@@ -2993,8 +2993,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('refreshes the window around a loaded message after another local message change', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const room = store.messagesForRoom('R1');
-    const thread = store.messagesForThread('R1', 'ROOT');
+    const room = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'ROOT');
     await flushPromises(20);
     room.ingestEvent(postedRow('M1'));
     room.ingestEvent(postedRow('ECHO', 'ORIGINAL'));
@@ -3027,7 +3027,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('removes a locally deleted channel echo without refreshing around it', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const room = store.messagesForRoom('R1');
+    const room = store.rooms.messages('R1');
     await flushPromises(20);
     room.ingestEvent(postedRow('ECHO', 'ORIGINAL'));
     const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow');
@@ -3042,7 +3042,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('does not revoke viewer room access when another user leaves', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const clear = vi.spyOn(messages, 'clearForAccessRevocation');
     await flushPromises();
     clear.mockClear();
@@ -3055,7 +3055,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('revokes viewer room access synchronously when the viewer leaves', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const clear = vi.spyOn(messages, 'clearForAccessRevocation');
     await flushPromises();
     clear.mockClear();
@@ -3073,7 +3073,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeSync.markCaughtUp(undefined);
     expect(store.accountId).toBeNull();
     expect(store.projectionViewerId).toBe('U1');
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const clear = vi.spyOn(messages, 'clearForAccessRevocation');
     await flushPromises();
     clear.mockClear();
@@ -3107,10 +3107,10 @@ describe('ServerStateStore unified realtime resources', () => {
   ] as const)('scopes $case reads to the affected room and message', async (event) => {
     const store = makeStore(new FakeServerConnection([]));
     const rooms = ['R1', 'R2'].map((id) => ({
-      room: store.messagesForRoom(id),
-      thread: store.messagesForThread(id, 'ROOT'),
-      files: store.filesForRoom(id),
-      pins: store.pinsForRoom(id)
+      room: store.rooms.messages(id),
+      thread: store.rooms.thread(id, 'ROOT'),
+      files: store.rooms.files(id),
+      pins: store.rooms.pins(id)
     }));
     await flushPromises(20);
     const refreshes = rooms.map(({ room, thread, files, pins }) => ({
@@ -3143,7 +3143,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('refreshes a mounted room timeline for canonical membership rows', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
       hasOlder: false,
       hasNewer: false,
@@ -3174,7 +3174,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('refreshes a mounted room timeline for a threading-mode row', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
       hasOlder: false,
       hasNewer: false,
@@ -3207,8 +3207,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('batches thread roots and replies without refreshing timeline windows', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
-    const threadMessages = store.messagesForThread('R1', 'E-ROOT');
+    const messages = store.rooms.messages('R1');
+    const threadMessages = store.rooms.thread('R1', 'E-ROOT');
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
       hasOlder: false,
       hasNewer: false,
@@ -3269,7 +3269,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('keeps a long thread window when reconciling a successful read', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const thread = store.messagesForThread('R1', 'ROOT');
+    const thread = store.rooms.thread('R1', 'ROOT');
     await flushPromises();
     const row = (index: number): TimelineEventView => ({
       id: index === 0 ? 'ROOT' : `REPLY-${index}`,
@@ -3308,8 +3308,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('reconciles every successful thread read without a realtime hint', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const room = store.messagesForRoom('R1');
-    const thread = store.messagesForThread('R1', 'E-ROOT');
+    const room = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'E-ROOT');
     const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
     const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow').mockResolvedValue(result);
     const refreshThread = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue(result);
@@ -3332,7 +3332,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it.each([false, true])('uses cached realtime authors (bot: %s)', async (isBot) => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(false);
     await flushPromises();
     const ingest = vi.spyOn(messages, 'ingestEvent');
@@ -3397,11 +3397,11 @@ describe('ServerStateStore unified realtime resources', () => {
     'shares one reply read across Files, pins and timelines (thread open: %s)',
     async (openThread) => {
       const store = makeStore(new FakeServerConnection([]));
-      const room = store.messagesForRoom('R1');
-      const thread = openThread ? store.messagesForThread('R1', 'ROOT') : null;
-      const unrelated = store.messagesForThread('R1', 'OTHER');
-      const files = store.filesForRoom('R1');
-      const pins = store.pinsForRoom('R1');
+      const room = store.rooms.messages('R1');
+      const thread = openThread ? store.rooms.thread('R1', 'ROOT') : null;
+      const unrelated = store.rooms.thread('R1', 'OTHER');
+      const files = store.rooms.files('R1');
+      const pins = store.rooms.pins('R1');
       const message = new Message({
         id: 'REPLY',
         roomId: 'R1',
@@ -3505,8 +3505,8 @@ describe('ServerStateStore unified realtime resources', () => {
   it('does not restore files from a message read after room access is revoked', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
-    store.messagesForRoom('R1');
-    const files = store.filesForRoom('R1');
+    store.rooms.messages('R1');
+    const files = store.rooms.files('R1');
     await files.hydrate();
     const pending = deferred<MessageResource[]>();
     apiMocks.readMessages.mockReturnValue(pending.promise);
@@ -3536,7 +3536,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('hydrates a new room post through the shared batch without a window read', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
+    const messages = store.rooms.messages('R1');
     const ingest = vi.spyOn(messages, 'ingestEvent');
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
       hasOlder: false,
