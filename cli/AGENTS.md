@@ -458,6 +458,12 @@ server.
   tool, not a production RSS model. Confirm meaningful wins against a restored
   real EVT history before shipping them. If the fixture event mix changes,
   bump its version so results from different workloads are not compared.
+- Run `mise bench-projections-store` to measure retained heap, request-path
+  reads, and replay against a real EVT history. Set
+  `CHATTO_BENCH_EVT_STORE_DIR` to a copy of a NATS data directory under
+  `.context/bench/`. Never use a live server's directory. The copy holds real
+  user data; delete it after use. Compare base and branch results with
+  `benchstat` before you ship a memory change.
 - For realtime connection-memory work, negotiate production WebSocket
   compression and use an external load generator so client allocations do not
   enter the server profile.

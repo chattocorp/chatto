@@ -634,6 +634,17 @@ dir = "cli"
 env = { CHATTO_BENCH_HEAP_PROFILE_DIR = "../.context/bench/projections" }
 run = "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=1"
 
+[tasks.bench-projections-store]
+description = "Benchmark projection memory, reads, and replay against a copied NATS data directory"
+depends = ["setup-cli"]
+dir = "cli"
+run = [
+    "test -n \"$CHATTO_BENCH_EVT_STORE_DIR\" || { echo 'Set CHATTO_BENCH_EVT_STORE_DIR to a copied NATS data directory' >&2; exit 1; }",
+    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeapFromStore$' -benchmem -benchtime=1x -count=1",
+    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReadsFromStore$/(threads|reactions)/' -benchmem -benchtime=200000x -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReadsFromStore$/replay/' -benchmem -benchtime=5x -count=${CHATTO_BENCH_COUNT:-5}",
+]
+
 # =============================================================================
 # Testing
 # =============================================================================

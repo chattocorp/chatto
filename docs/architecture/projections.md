@@ -260,14 +260,18 @@ indexes. A sparse fallback keeps the original ID if the referenced event has
 not arrived or is outside the timeline. The Threads component uses structured
 keys for follow state and followed-thread indexes.
 
-The Threads and Reactions components each intern user, room, emoji, and event
-IDs in a component-local, append-only ID table. Their indexes store dense
-`uint32` handles instead of repeated ID strings. The table holds each ID string
-once. Handles are process-local; snapshots store ID strings. Room deletion
-removes the room's index entries but keeps its interned IDs until the next
-rebuild or restore. Reactions keeps a short slice of active reactions for each
-message instead of nested maps. All of these components reconstruct detached
-read results.
+Threads interns user and room IDs in one small table and event IDs in a second
+table. Its indexes store `uint32` handles instead of ID strings. Each ID string
+is held once. Handles are process-local; snapshots store ID strings. Room
+deletion removes the room's message references and relationships. The interned
+IDs of that room stay until the next rebuild or restore.
+
+Reactions interns message, emoji, user, and room IDs in one table. It keeps the
+source event ID of each active reaction as a string, because each source ID
+occurs only once. Each message has a short slice of active reactions, sorted by
+emoji and user handles.
+
+Timeline, Threads, and Reactions construct detached read results.
 
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A

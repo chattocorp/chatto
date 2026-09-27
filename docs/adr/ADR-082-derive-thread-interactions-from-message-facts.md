@@ -13,6 +13,12 @@
 > equivalent to receiving a direct mention. Derive recipients from DM
 > membership at the message's position in EVT.
 
+> **Amended 2026-09-27:** The Threads projection keeps only the existence of
+> each relationship: one account, thread root, and room. It does not keep the
+> source event ID, source time, or cause, because reads only ask whether a
+> relationship exists. The Threads snapshot stores relationships without cause
+> metadata.
+
 ## Context
 
 ADR-080 adds broad channel-room access through `message.read`. Chatto also
