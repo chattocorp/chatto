@@ -1,9 +1,12 @@
 <script lang="ts">
   import CallDeviceSettings from '$lib/components/settings/CallDeviceSettings.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   const scope = useServerScope();
 </script>
+
+<PageTitle title={m('voice.preferences.title')} />
 
 {#key `${scope.serverId}:${scope.store.voiceCall.isInAnyCall}`}
   {#if scope.store.voiceCall.preferences}
@@ -19,7 +22,5 @@
             ? scope.store.voiceCall.setAudioOutputDevice(id)
             : scope.store.voiceCall.setVideoDevice(id)}
     />
-  {:else}
-    <PageTitle />
   {/if}
 {/key}
