@@ -15,24 +15,19 @@
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
-  import type { PresenceCache } from '$lib/state/presenceCache.svelte';
-  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { idleState } from '$lib/state/idle.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
   let {
-    presenceCache,
     children
   }: {
-    presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
 
   // Follow the registry's verified identity instead of the root load's user, so
   // session effects start when verification ends without a new route load.
-  const rootPresenceCache = untrack(() => presenceCache);
   const originServerId = $derived(serverRegistry.originServer?.id ?? null);
   const verifiedOriginUserId = $derived.by(() => {
     const store = originServerId ? serverRegistry.tryGetStore(originServerId) : undefined;
@@ -118,15 +113,6 @@
   onDestroy(() => presenceTracking.stop());
 
   $effect(() => presenceTracking.sync());
-
-  $effect(() => {
-    for (const scope of presenceReporters()) {
-      rootPresenceCache.update(
-        { serverId: scope.serverId, userId: scope.userId },
-        presencePreferences.get(scope).status
-      );
-    }
-  });
 
   // Report this device's time zone once per (server, user) when the viewer has
   // no explicit override. Explicitly chosen zones are never overwritten, so

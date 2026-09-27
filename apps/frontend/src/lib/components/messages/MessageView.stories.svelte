@@ -26,9 +26,7 @@
 </script>
 
 <script lang="ts">
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
-  createPresenceCache();
   provideUserProfiles();
 </script>
 

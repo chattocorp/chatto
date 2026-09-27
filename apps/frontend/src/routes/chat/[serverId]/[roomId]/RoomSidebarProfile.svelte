@@ -114,7 +114,7 @@ realtime changes arrive.
     <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
   {:else}
     <div class="flex items-center gap-4">
-      <UserAvatar user={avatarUser} serverId={serverScope.serverId} size="xl" />
+      <UserAvatar user={avatarUser} size="xl" />
       <div class="min-w-0 flex-1">
         <h2 class="truncate text-lg font-semibold text-text-top">
           <AccountName name={displayName} identity={baseUser} />

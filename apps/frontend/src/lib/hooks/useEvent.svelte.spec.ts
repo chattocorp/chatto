@@ -2,7 +2,6 @@ import { flushSync } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceChangedEvent, UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 
 const serverScope = $state({ serverId: 'origin' });
@@ -22,7 +21,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: mocks.useServerScope
 }));
 
-import { usePresenceChange, useProjectionEvent, useTypingEvent } from './useEvent.svelte';
+import { useProjectionEvent, useTypingEvent } from './useEvent.svelte';
 
 let buses: Map<string, EventBus>;
 
@@ -93,43 +92,6 @@ describe('useProjectionEvent', () => {
 
     expect(mocks.getBus).toHaveBeenCalledWith('unknown');
     expect(() => dispose()).not.toThrow();
-  });
-});
-
-describe('usePresenceChange', () => {
-  it('receives only presence changes that have an actor', () => {
-    const origin = registerBus('origin');
-    const handler = vi.fn();
-    const dispose = $effect.root(() => {
-      usePresenceChange(handler);
-    });
-    flushSync();
-
-    const presence = (actorId: string) =>
-      new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
-          actorId,
-          event: {
-            case: 'presenceChanged',
-            value: new PresenceChangedEvent({ status: PresenceStatus.AWAY })
-          }
-        })
-      });
-    origin.publish(presence('U2'));
-    origin.publish(presence(''));
-    origin.publish(
-      new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
-          actorId: 'U3',
-          event: { case: 'userTyping', value: new UserTypingEvent({ roomId: 'R1' }) }
-        })
-      })
-    );
-    origin.publish(new RealtimeProjectionUpdate());
-
-    expect(handler).toHaveBeenCalledExactlyOnceWith('U2', PresenceStatus.AWAY);
-    dispose();
-    expect(origin.listenerCount).toBe(0);
   });
 });
 

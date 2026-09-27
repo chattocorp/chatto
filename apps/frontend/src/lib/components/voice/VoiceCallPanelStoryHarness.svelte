@@ -4,7 +4,6 @@
   import type { Component } from 'svelte';
   import type { Track } from 'livekit-client';
   import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
@@ -30,7 +29,6 @@
 
   const roomId = 'storybook-call-room';
   const storybookServerId = 'storybook-call-server';
-  createPresenceCache();
   provideUserProfiles();
   const getScopedServerId = () => serverRegistry.originServer?.id ?? storybookServerId;
   provideServerScope({

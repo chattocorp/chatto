@@ -60,10 +60,6 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: () => null
 }));
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
-}));
-
 vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError }
 }));

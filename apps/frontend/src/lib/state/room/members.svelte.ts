@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { ServerPresence } from '$lib/state/server/presence.svelte';
 import { createContext } from 'svelte';
 import { Code, isConnectCode } from '$lib/api-client/connect';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -85,8 +86,6 @@ export class RoomMembersStore {
   loadError = $state<string | null>(null);
   searchInput = $state('');
   activeSearch = $state('');
-  livePresence = new SvelteMap<string, PresenceStatus>();
-  presenceVersion = $state(0);
 
   private readonly api: MemberDirectoryAPI | null;
   private roomId = '';
@@ -94,11 +93,17 @@ export class RoomMembersStore {
   #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
   #membershipChanges = new SvelteMap<string, boolean>();
   #minimumCursor: string | undefined;
-  #presenceChanges = new SvelteMap<string, number>();
   #previewIds = new SvelteSet<string>();
   #fullScanFinished = false;
 
-  constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
+  /** The server's presence owner, which receives fresh presence from preview reads. */
+  readonly #presence: ServerPresence | null;
+
+  constructor(
+    source?: ServerConnection | MemberDirectoryAPI | null,
+    presence: ServerPresence | null = null
+  ) {
+    this.#presence = presence;
     if (!source) {
       this.api = null;
     } else if ('listRoomMembers' in source) {
@@ -341,12 +346,6 @@ export class RoomMembersStore {
     }
   }
 
-  setPresence(userId: string, status: PresenceStatus): void {
-    this.livePresence.set(userId, status);
-    this.presenceVersion++;
-    this.#presenceChanges.set(userId, this.presenceVersion);
-  }
-
   /** Standalone fixtures receive profile changes here; connected rooms use UserStore. */
   updateUsers(users: DirectoryMember[]): void {
     this.#searchCache.clear();
@@ -432,7 +431,7 @@ export class RoomMembersStore {
     let offset = 0;
     try {
       while (loadId === this.#loadId && !this.hasLoadedAll && !this.#fullScanFinished) {
-        const presenceVersion = this.presenceVersion;
+        const presenceVersion = this.#presence?.version ?? 0;
         const page = await this.api.listOnlineRoomMembers(
           this.roomId,
           status,
@@ -447,9 +446,7 @@ export class RoomMembersStore {
         // A realtime change received during this request takes precedence.
         for (const id of ids) {
           this.#previewIds.add(id);
-          if ((this.#presenceChanges.get(id) ?? 0) <= presenceVersion) {
-            this.livePresence.set(id, status);
-          }
+          this.#presence?.applyPreview(id, status, presenceVersion);
         }
         this.#memberIds = appendPageIds(this.#memberIds, ids);
         if (ids.length > 0) {
@@ -548,11 +545,8 @@ export class RoomMembersStore {
     this.#searchCache.clear();
     this.#membershipChanges.clear();
     this.#minimumCursor = undefined;
-    this.livePresence.clear();
-    this.#presenceChanges.clear();
     this.#previewIds.clear();
     this.#fullScanFinished = true;
-    this.presenceVersion = 0;
   }
 }
 
@@ -586,11 +580,6 @@ export function useRoomMembersStore(): () => RoomMembersStore {
 
 export function getRoomMembers(): RoomMember[] {
   return getRoomMembersStore().members;
-}
-
-export function getMemberPresence(member: RoomMember): PresenceStatus {
-  const state = getRoomMembersStore();
-  return state.livePresence.get(member.id) ?? member.presenceStatus;
 }
 
 function memberFromDirectory(member: DirectoryMember): RoomMember {

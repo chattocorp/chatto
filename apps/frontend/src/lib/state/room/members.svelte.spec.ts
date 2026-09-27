@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { disposeUserStore, getUserStore } from '$lib/state/server/users.svelte';
+import { ServerPresence } from '$lib/state/server/presence.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
 class FakeMemberDirectoryAPI {
@@ -100,11 +101,13 @@ describe('RoomMembersStore', () => {
         ? pageResult([{ ...user('online'), presenceStatus: PresenceStatus.OFFLINE }])
         : pageResult([])
     );
-    const store = new RoomMembersStore(api);
+    const presence = new ServerPresence();
+    const store = new RoomMembersStore(api, presence);
     store.setRoom('room');
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.members.map((member) => member.id)).toEqual(['online']));
-    expect(store.livePresence.get('online')).toBe(PresenceStatus.AWAY);
+    // The preview reports the status it filtered by to the server's presence owner.
+    expect(presence.get('online')).toBe(PresenceStatus.AWAY);
     expect(store.hasFirstPage).toBe(true);
     expect(store.hasLoadedAll).toBe(false);
     first.resolve(pageResult([user('offline')], true, 2000));
@@ -123,13 +126,40 @@ describe('RoomMembersStore', () => {
     api.listOnlineRoomMembers = vi.fn(async (_room, status) =>
       status === PresenceStatus.ONLINE ? preview.promise : pageResult([])
     );
-    const store = new RoomMembersStore(api);
+    const presence = new ServerPresence();
+    const store = new RoomMembersStore(api, presence);
     store.setRoom('room');
     const loading = store.loadInitial();
-    store.setPresence('u', PresenceStatus.OFFLINE);
+    await vi.waitFor(() =>
+      expect(api.listOnlineRoomMembers).toHaveBeenCalledWith(
+        'room',
+        PresenceStatus.ONLINE,
+        ROOM_MEMBERS_PAGE_SIZE,
+        0,
+        {}
+      )
+    );
+    presence.set('u', PresenceStatus.OFFLINE);
     preview.resolve(pageResult([user('u')]));
     await vi.waitFor(() => expect(store.members).toHaveLength(1));
-    expect(store.livePresence.get('u')).toBe(PresenceStatus.OFFLINE);
+    expect(presence.get('u')).toBe(PresenceStatus.OFFLINE);
+    full.resolve(pageResult([user('u')]));
+    await loading;
+  });
+
+  it('replaces presence known before the online preview started', async () => {
+    const full = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([full.promise]);
+    api.listOnlineRoomMembers = vi.fn(async (_room, status) =>
+      status === PresenceStatus.DO_NOT_DISTURB ? pageResult([user('u')]) : pageResult([])
+    );
+    const presence = new ServerPresence();
+    presence.set('u', PresenceStatus.OFFLINE);
+    const store = new RoomMembersStore(api, presence);
+    store.setRoom('room');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.members).toHaveLength(1));
+    expect(presence.get('u')).toBe(PresenceStatus.DO_NOT_DISTURB);
     full.resolve(pageResult([user('u')]));
     await loading;
   });

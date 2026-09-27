@@ -49,12 +49,6 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  getPresenceCache: () => ({
-    get: (_scope: { serverId: string; userId: string }, fallback: string) => fallback
-  })
-}));
-
 const user = {
   id: 'user-1',
   login: 'alice',

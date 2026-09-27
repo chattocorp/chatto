@@ -1,10 +1,8 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import { eventBusManager } from '$lib/state/server/eventBus.svelte';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 
 type ServerIdSelector = () => string;
-type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 
 export interface TypingEventData {
   userId: string;
@@ -33,14 +31,6 @@ export function useProjectionEvent(
     const serverId = selectServerId();
     return serverId ? eventBusManager.getBus(serverId)?.subscribe(handler) : undefined;
   });
-}
-
-/** Subscribe to presence changes on the route or explicitly selected server. */
-export function usePresenceChange(handler: PresenceHandler, getServerId?: ServerIdSelector): void {
-  useProjectionEvent(({ event }) => {
-    if (event?.event.case !== 'presenceChanged' || !event.actorId) return;
-    handler(event.actorId, event.event.value.status);
-  }, getServerId);
 }
 
 /** Subscribe to typing signals on the selected server with automatic cleanup. */

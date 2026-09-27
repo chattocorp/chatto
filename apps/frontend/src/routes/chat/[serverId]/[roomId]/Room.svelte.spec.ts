@@ -155,7 +155,6 @@ vi.mock('$lib/hooks', () => ({
   useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
   },
-  usePresenceChange: vi.fn(),
   // ConversationPane uses this only for thread timelines.
   useUnreadMarker: vi.fn(),
   createTypingIndicator: () => ({

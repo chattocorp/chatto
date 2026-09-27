@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet } from 'svelte';
 import type { CurrentUser } from '$lib/api-client/viewer';
-import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 
 const mocks = vi.hoisted(() => {
@@ -53,7 +52,6 @@ const mocks = vi.hoisted(() => {
     stopPresenceTracking: vi.fn(),
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
-    presenceStatuses: { origin: 1, remote: 4 },
     onSessionTerminated: vi.fn(),
     stopSessionTermination: vi.fn(),
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
@@ -61,7 +59,6 @@ const mocks = vi.hoisted(() => {
     hardRedirectAfterSignOut: vi.fn(),
     originSignInRequired: false,
     beginOriginReauthentication: vi.fn(),
-    presenceCacheUpdate: vi.fn(),
     deviceTimezone: vi.fn<() => string | null>(() => null),
     updateSettings: vi.fn(async () => ({
       timezone: 'Europe/Berlin',
@@ -141,14 +138,6 @@ vi.mock('$lib/presenceTracking', () => ({
   initPresenceTracking: (...args: unknown[]) => {
     mocks.initPresenceTracking(...args);
     return { sync: () => (args[0] as () => unknown[])(), stop: mocks.stopPresenceTracking };
-  }
-}));
-
-vi.mock('$lib/state/server/presencePreference.svelte', () => ({
-  presencePreferences: {
-    get: ({ serverId }: { serverId: 'origin' | 'remote' }) => ({
-      status: mocks.presenceStatuses[serverId]
-    })
   }
 }));
 
@@ -239,8 +228,6 @@ const children = createRawSnippet(() => ({
 
 describe('ChatRoot', () => {
   beforeEach(() => {
-    mocks.presenceStatuses.origin = PresenceStatus.ONLINE;
-    mocks.presenceStatuses.remote = PresenceStatus.OFFLINE;
     mocks.originCurrentUser = new CurrentUserState(true);
     mocks.originStore.currentUser = mocks.originCurrentUser;
     mocks.remoteCurrentUser.user = {
@@ -261,10 +248,7 @@ describe('ChatRoot', () => {
   it('opens sign-in when the origin rejected its viewer and nothing remains to read', () => {
     mocks.originSignInRequired = true;
     const { unmount } = render(ChatRoot, {
-      props: {
-        presenceCache: { update: mocks.presenceCacheUpdate } as unknown as PresenceCache,
-        children
-      }
+      props: { children }
     });
 
     expect(mocks.beginOriginReauthentication).toHaveBeenCalledOnce();
@@ -273,10 +257,7 @@ describe('ChatRoot', () => {
 
   it('keeps the current page while the origin session is usable or still readable', () => {
     const { unmount } = render(ChatRoot, {
-      props: {
-        presenceCache: { update: mocks.presenceCacheUpdate } as unknown as PresenceCache,
-        children
-      }
+      props: { children }
     });
 
     expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
@@ -287,34 +268,18 @@ describe('ChatRoot', () => {
     mocks.originCurrentUser.user = originUser;
     mocks.originCurrentUser.loading = false;
     mocks.originCurrentUser.verifiedUserId = originUser.id;
-    const presenceCache = {
-      update: mocks.presenceCacheUpdate
-    } as unknown as PresenceCache;
-
     const { container, unmount } = render(ChatRoot, {
-      props: {
-        presenceCache,
-        children
-      }
+      props: { children }
     });
 
     expect(mocks.originCurrentUser.user).toEqual(originUser);
     expect(mocks.originCurrentUser.loading).toBe(false);
     expect(mocks.lifecycle[0]).toBe('session');
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
-    expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
-      { serverId: 'origin', userId: 'origin-user' },
-      PresenceStatus.ONLINE
-    );
     const [[getPresenceAPIs]] = mocks.initPresenceTracking.mock.calls as [[() => unknown[]]];
     expect(
       getPresenceAPIs().map((api) => ({ serverId: (api as { serverId: string }).serverId }))
     ).toEqual([{ serverId: 'origin' }, { serverId: 'remote' }]);
-
-    expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
-      { serverId: 'remote', userId: 'remote-user' },
-      PresenceStatus.OFFLINE
-    );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
 
@@ -333,8 +298,7 @@ describe('ChatRoot', () => {
   });
 
   it('installs origin session handling when the viewer becomes verified', async () => {
-    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
-    const { container, unmount } = render(ChatRoot, { props: { presenceCache, children } });
+    const { container, unmount } = render(ChatRoot, { props: { children } });
     const child = container.querySelector('[data-testid="chat-root-child"]');
 
     expect(mocks.onSessionTerminated).not.toHaveBeenCalled();
@@ -360,15 +324,8 @@ describe('ChatRoot', () => {
   });
 
   it('keeps remote realtime and presence active without installing origin-only behavior', () => {
-    const presenceCache = {
-      update: mocks.presenceCacheUpdate
-    } as unknown as PresenceCache;
-
     const { container, unmount } = render(ChatRoot, {
-      props: {
-        presenceCache,
-        children
-      }
+      props: { children }
     });
 
     expect(mocks.originCurrentUser.user).toBeUndefined();
@@ -377,10 +334,6 @@ describe('ChatRoot', () => {
     expect(mocks.lifecycle).not.toContain('session');
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
     expect(mocks.resumeReturnNavigation).not.toHaveBeenCalled();
-    expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
-      { serverId: 'remote', userId: 'remote-user' },
-      PresenceStatus.OFFLINE
-    );
     expect(mocks.initSessionChannel).not.toHaveBeenCalled();
 
     const [[getPresenceAPIs]] = mocks.initPresenceTracking.mock.calls as [[() => unknown[]]];
@@ -414,10 +367,9 @@ describe('ChatRoot', () => {
       }
     };
     mocks.remoteCurrentUser.user = remoteUser;
-    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
     render(ChatRoot, {
-      props: { presenceCache, children }
+      props: { children }
     });
 
     await expect.poll(() => mocks.remoteCurrentUser.user?.settings?.timezone).toBe('Europe/Berlin');
@@ -437,10 +389,9 @@ describe('ChatRoot', () => {
           shareTimezone: false
         }
       };
-      const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
       render(ChatRoot, {
-        props: { presenceCache, children }
+        props: { children }
       });
 
       await Promise.resolve();
@@ -460,10 +411,9 @@ describe('ChatRoot', () => {
         shareTimezone: false
       }
     };
-    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
     render(ChatRoot, {
-      props: { presenceCache, children }
+      props: { children }
     });
 
     await vi.waitFor(() => expect(mocks.updateSettings).toHaveBeenCalledOnce());
@@ -479,10 +429,9 @@ describe('ChatRoot', () => {
       id: 'remote-user',
       settings: { timezone: null, timeFormat: TimeFormat.TIME_FORMAT_AUTO }
     };
-    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
     render(ChatRoot, {
-      props: { presenceCache, children }
+      props: { children }
     });
 
     await Promise.resolve();

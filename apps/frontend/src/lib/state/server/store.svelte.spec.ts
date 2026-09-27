@@ -1,3 +1,4 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { resetUserStoresForTests } from './users.svelte';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
@@ -429,6 +430,29 @@ function connectUnavailable() {
   return vi
     .fn<(baseUrl: string) => Promise<PublicServerInfo>>()
     .mockRejectedValue(new Error('connect unavailable'));
+}
+
+/** A realtime presence change of one user. */
+function presenceChanged(userId: string, status: PresenceStatus) {
+  return new RealtimeProjectionUpdate({
+    event: new RealtimeEvent({
+      actorId: userId,
+      event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status }) }
+    })
+  });
+}
+
+/** A users resource update; `replace` marks a complete replacement of the family. */
+function usersResource(users: User[], replace: boolean) {
+  return new RealtimeProjectionUpdate({
+    resource: new RealtimeResourceUpdate({
+      resource: {
+        case: 'users',
+        value: { users: users.map((user) => new DirectoryMember({ user })) }
+      },
+      replace
+    })
+  });
 }
 
 function makeStore(
@@ -1170,24 +1194,70 @@ describe('ServerStateStore room search state', () => {
     store.dispose();
   });
 
-  it('keeps presence current in inactive and newly opened rooms', () => {
+  it('keeps presence for the whole server without a room or mounted component', () => {
     const store = makeStore(new FakeServerConnection([]));
-    const a = store.membersForRoom('a');
-    store.membersForRoom('b');
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
-          actorId: 'U2',
-          event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
-        })
-      })
-    );
-    expect(a.livePresence.get('U2')).toBe(2);
-    expect(store.membersForRoom('c').livePresence.get('U2')).toBe(2);
+    store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.AWAY));
+
+    expect(store.presence.get('U2')).toBe(PresenceStatus.AWAY);
+    const version = store.presence.version;
+    store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.OFFLINE));
+    expect(store.presence.get('U2')).toBe(PresenceStatus.OFFLINE);
+    expect(store.presence.version).toBeGreaterThan(version);
+
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
-    expect(a.livePresence.has('U2')).toBe(false);
-    expect(store.membersForRoom('d').livePresence.has('U2')).toBe(false);
+    expect(store.presence.get('U2')).toBeUndefined();
+    store.dispose();
   });
+
+  it('does not overwrite known presence with users that omit presence', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.AWAY));
+
+    store.realtimeProjectionHandler(
+      usersResource([new User({ id: 'U2', displayName: 'Two' })], false)
+    );
+    expect(store.presence.get('U2')).toBe(PresenceStatus.AWAY);
+
+    store.realtimeProjectionHandler(
+      usersResource(
+        [new User({ id: 'U2', displayName: 'Two', presenceStatus: PresenceStatus.ONLINE })],
+        false
+      )
+    );
+    expect(store.presence.get('U2')).toBe(PresenceStatus.ONLINE);
+    store.dispose();
+  });
+
+  it('replaces all presence with a complete users resource', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.AWAY));
+    store.realtimeProjectionHandler(presenceChanged('U3', PresenceStatus.AWAY));
+
+    store.realtimeProjectionHandler(
+      usersResource(
+        [
+          new User({ id: 'U3', presenceStatus: PresenceStatus.DO_NOT_DISTURB }),
+          new User({ id: 'U4' })
+        ],
+        true
+      )
+    );
+
+    expect(store.presence.get('U2')).toBeUndefined();
+    expect(store.presence.get('U3')).toBe(PresenceStatus.DO_NOT_DISTURB);
+    expect(store.presence.get('U4')).toBeUndefined();
+    store.dispose();
+  });
+
+  it('forgets presence when the server store is disposed', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.AWAY));
+
+    store.dispose();
+
+    expect(store.presence.get('U2')).toBeUndefined();
+  });
+
   it('retains member lists across A to B to A navigation and clears them on reset', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');

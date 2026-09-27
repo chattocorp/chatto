@@ -13,7 +13,6 @@
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import MessageEvent from './MessageEvent.svelte';
   import MessageUserOverlays from './MessageUserOverlays.svelte';
@@ -103,7 +102,6 @@
     canViewPinnedMessages,
     canPinMessages
   }));
-  createPresenceCache();
   provideUserProfiles(() => users);
 
   const messageStore = {

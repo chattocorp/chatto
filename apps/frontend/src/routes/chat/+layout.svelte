@@ -1,6 +1,5 @@
 <script lang="ts">
   import { fullscreenVideo } from '$lib/state/globals.svelte';
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import ChatRoot from './ChatRoot.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -19,13 +18,12 @@
     const id = serverRegistry.originServer?.id;
     return id ? serverRegistry.tryGetStore(id)?.projection.users : undefined;
   });
-  const presenceCache = createPresenceCache();
 </script>
 
 <!-- Keep the viewer's tree through verification and route loads. Only an
      actual identity change resets origin-scoped effects and local UI state. -->
 {#key serverRegistry.originServer?.userId}
-  <ChatRoot {presenceCache}>
+  <ChatRoot>
     {@render children?.()}
   </ChatRoot>
 {/key}

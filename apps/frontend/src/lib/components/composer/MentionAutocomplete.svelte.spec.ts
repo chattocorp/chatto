@@ -5,10 +5,6 @@ import { flushSync } from 'svelte';
 import MentionAutocomplete from './MentionAutocomplete.svelte';
 import type { RoomMember } from '$lib/state/room';
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
-}));
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBio: () => null,
   getLiveTimezone: () => null,

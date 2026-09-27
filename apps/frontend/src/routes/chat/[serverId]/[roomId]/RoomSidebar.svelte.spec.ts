@@ -8,7 +8,7 @@ import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
-import type { PresenceCache } from '$lib/state/presenceCache.svelte';
+import { ServerPresence } from '$lib/state/server/presence.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
@@ -153,6 +153,8 @@ vi.mock(
 );
 
 let server: TestServerScope;
+/** The presence owner of the fixture server store. */
+let presence: ServerPresence;
 
 vi.mock('$lib/api-client/attachments', async (importActual) => ({
   ...(await importActual<typeof import('$lib/api-client/attachments')>()),
@@ -393,10 +395,11 @@ function roomAudioFile(filename: string) {
 describe('RoomSidebar', () => {
   beforeEach(async () => {
     resetUserStoresForTests();
+    presence = new ServerPresence();
     server = createTestServerScope({
       serverId: 'test-server',
       viewer: { id: 'viewer', login: 'viewer' },
-      store: callStore
+      store: { ...callStore, presence }
     });
     document.documentElement.dir = 'ltr';
     await loadLocaleMessages('en-GB');
@@ -1801,15 +1804,11 @@ describe('RoomSidebar', () => {
   });
 
   it('keeps away members present while showing the global away badge', async () => {
-    let presenceCache: PresenceCache | null = null;
     const [user] = [member(1)];
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
-        roomData: roomData([user], 1, false),
-        onPresenceCacheReady: (cache: PresenceCache) => {
-          presenceCache = cache;
-        }
+        roomData: roomData([user], 1, false)
       }
     });
 
@@ -1819,44 +1818,56 @@ describe('RoomSidebar', () => {
       expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     });
 
-    await vi.waitFor(() => {
-      expect(presenceCache).toBeTruthy();
-    });
-    presenceCache!.update({ serverId: 'test-server', userId: user.id }, PresenceStatus.AWAY);
+    presence.set(user.id, PresenceStatus.AWAY);
     await tick();
 
     expect(presenceBadge(container, 'Away')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
 
-    presenceCache!.update({ serverId: 'test-server', userId: user.id }, PresenceStatus.ONLINE);
+    presence.set(user.id, PresenceStatus.ONLINE);
     await tick();
 
     expect(presenceBadge(container, 'Online')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
   });
 
+  it('groups members by the known server presence instead of their member snapshot', async () => {
+    const first = member(1);
+    const second = member(2);
+    presence.set(second.id, PresenceStatus.OFFLINE);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Offline (1)']);
+      expect(renderedMemberTitles(memberGroup(container, 'Online (1)'))).toEqual([
+        'View profile of User 1'
+      ]);
+    });
+  });
+
   it('keeps bots in their section across presence changes', async () => {
-    let presenceCache: PresenceCache | null = null;
     const bot = { ...member(1), isBot: true };
     const human = member(2);
     mockRoomMembers([bot, human]);
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
-        roomData: roomData([], 0, false),
-        onPresenceCacheReady: (cache: PresenceCache) => {
-          presenceCache = cache;
-        }
+        roomData: roomData([], 0, false)
       }
     });
 
     await vi.waitFor(() => {
-      expect(presenceCache).toBeTruthy();
       expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
     });
     expect(presenceBadge(memberGroup(container, 'Bots (1)'), 'Online')).toBeTruthy();
 
-    presenceCache!.update({ serverId: 'test-server', userId: bot.id }, PresenceStatus.OFFLINE);
+    presence.set(bot.id, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping();
 
@@ -1866,12 +1877,12 @@ describe('RoomSidebar', () => {
       q(memberGroup(container, 'Bots (1)'), '[data-testid="room-member-card"]')
     ).not.toHaveClass('opacity-50');
 
-    presenceCache!.update({ serverId: 'test-server', userId: bot.id }, PresenceStatus.AWAY);
+    presence.set(bot.id, PresenceStatus.AWAY);
     await tick();
     expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
     expect(presenceBadge(memberGroup(container, 'Bots (1)'), 'Away')).toBeTruthy();
 
-    presenceCache!.update({ serverId: 'test-server', userId: human.id }, PresenceStatus.OFFLINE);
+    presence.set(human.id, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping();
 
@@ -1882,26 +1893,21 @@ describe('RoomSidebar', () => {
   });
 
   it('shows presence immediately while debouncing member group movement', async () => {
-    let presenceCache: PresenceCache | null = null;
     const first = member(1);
     const second = member(2);
     memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
-        roomData: roomData([], 0, false),
-        onPresenceCacheReady: (cache: PresenceCache) => {
-          presenceCache = cache;
-        }
+        roomData: roomData([], 0, false)
       }
     });
 
     await vi.waitFor(() => {
-      expect(presenceCache).toBeTruthy();
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update({ serverId: 'test-server', userId: first.id }, PresenceStatus.OFFLINE);
+    presence.set(first.id, PresenceStatus.OFFLINE);
     await tick();
 
     expect(presenceBadge(container, 'Offline')).toBeTruthy();
@@ -1909,7 +1915,7 @@ describe('RoomSidebar', () => {
     expect(buttonByText(container, 'Offline (1)')).toBeFalsy();
 
     await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
-    presenceCache!.update({ serverId: 'another-server', userId: first.id }, PresenceStatus.ONLINE);
+    presence.set('unrelated-user', PresenceStatus.ONLINE);
     await tick();
     await waitForPresenceGrouping(200);
 
@@ -1942,30 +1948,25 @@ describe('RoomSidebar', () => {
   });
 
   it('coalesces a burst of presence-driven member group movement', async () => {
-    let presenceCache: PresenceCache | null = null;
     const first = member(1);
     const second = member(2);
     memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
-        roomData: roomData([], 0, false),
-        onPresenceCacheReady: (cache: PresenceCache) => {
-          presenceCache = cache;
-        }
+        roomData: roomData([], 0, false)
       }
     });
 
     await vi.waitFor(() => {
-      expect(presenceCache).toBeTruthy();
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update({ serverId: 'test-server', userId: first.id }, PresenceStatus.OFFLINE);
+    presence.set(first.id, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
 
-    presenceCache!.update({ serverId: 'test-server', userId: second.id }, PresenceStatus.OFFLINE);
+    presence.set(second.id, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping(200);
 
@@ -1978,7 +1979,6 @@ describe('RoomSidebar', () => {
   });
 
   it('moves only the current user between presence groups immediately', async () => {
-    let presenceCache: PresenceCache | null = null;
     const current = member(1);
     const other = member(2);
     memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([current, other]));
@@ -1986,21 +1986,17 @@ describe('RoomSidebar', () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         roomData: roomData([], 0, false),
-        currentUserId: current.id,
-        onPresenceCacheReady: (cache: PresenceCache) => {
-          presenceCache = cache;
-        }
+        currentUserId: current.id
       }
     });
 
     await vi.waitFor(() => {
-      expect(presenceCache).toBeTruthy();
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update({ serverId: 'test-server', userId: other.id }, PresenceStatus.OFFLINE);
+    presence.set(other.id, PresenceStatus.OFFLINE);
     await tick();
-    presenceCache!.update({ serverId: 'test-server', userId: current.id }, PresenceStatus.OFFLINE);
+    presence.set(current.id, PresenceStatus.OFFLINE);
     await tick();
 
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
@@ -2012,7 +2008,6 @@ describe('RoomSidebar', () => {
   });
 
   it('does not postpone group movement for online-like status churn', async () => {
-    let presenceCache: PresenceCache | null = null;
     const first = member(1);
     const second = member(2);
     memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
@@ -2020,23 +2015,19 @@ describe('RoomSidebar', () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         roomData: roomData([], 0, false),
-        currentUserId: second.id,
-        onPresenceCacheReady: (cache: PresenceCache) => {
-          presenceCache = cache;
-        }
+        currentUserId: second.id
       }
     });
 
     await vi.waitFor(() => {
-      expect(presenceCache).toBeTruthy();
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update({ serverId: 'test-server', userId: first.id }, PresenceStatus.OFFLINE);
+    presence.set(first.id, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
 
-    presenceCache!.update({ serverId: 'test-server', userId: second.id }, PresenceStatus.AWAY);
+    presence.set(second.id, PresenceStatus.AWAY);
     await tick();
     await waitForPresenceGrouping(200);
 
