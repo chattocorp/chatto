@@ -41,8 +41,8 @@ A source gives a user Badge attention when all of these are true:
   policy.
 - The user can see the source now, with the same visibility rules as
   occurrences. A direct mention also accepts interaction-scoped read access.
-- The source is after the user's membership start and latest visibility
-  boundary. For a followed thread, it is also after the follow began.
+- The source is after the start of the user's current membership. For a
+  followed thread, it is also after the follow began.
 - The read boundary of the source's room or thread scope does not cover it.
 - The user did not create it. It is not retracted, and it is younger than 90
   days. An echo or historical import is never a source.
@@ -51,20 +51,30 @@ A room query includes the room's threads. The first reply in a thread counts
 for the root author unless the author explicitly unfollowed the thread,
 because posting that reply follows the thread for the author only afterwards.
 
-Read and visibility boundaries remain in `RUNTIME_STATE`. Visibility repair
-records a visibility boundary when a user loses access while Badge sources are
-pending. A later regain of access therefore does not show old attention again.
+Read boundaries remain in `RUNTIME_STATE`. Badge attention does not use the
+visibility boundary. It uses current visibility only, so an unread message
+counts again when the user can read it again. Recording a boundary for every
+user who cannot see a source would reintroduce per-message writes.
+
+The index keeps each list in stream order and drops sources older than 90
+days when it appends to that list. A query scans each list from the newest
+source. It stops at the first source that gives attention, or at the first
+source at or below the membership start, the follow start, or the read
+boundary of the list's scope.
 
 Realtime hints remain content-free:
 
 - For each Badge recipient of a new source, the materializer compares the
   attention without and with the source. It sends a hint only when the source
   turns attention on.
-- A retraction hints the message's possible Badge recipients. A reaction
-  removal hints the message author.
-- A notification policy change compares the actor's room attention before and
-  after the change and hints the changed rooms. A manual follow or unfollow
-  hints the thread.
+- A retraction hints the message's possible Badge recipients whose attention
+  is now off. A reaction removal hints the message author.
+- A notification policy change compares the actor's room attention in the
+  policy scope before and after the change and hints the changed rooms. A
+  manual follow or unfollow hints the thread.
+- A user-scoped visibility change hints the user's rooms. A room-scoped
+  visibility change hints the room's members. Hints never name a room that
+  the user does not belong to or cannot join.
 
 ## Consequences
 
@@ -73,9 +83,14 @@ Realtime hints remain content-free:
 - Badge attention follows current state. Changing a notification policy clears
   or restores attention at once. Unfollowing a thread clears its attention.
   Following a thread shows only replies posted after the follow.
-- `has_unread` evaluates in memory. It walks the newest sources after the
-  applicable boundaries and stops at the first match.
-- The notification decision projection uses more memory for the source index.
-  Its snapshot contract changes, so the first start cold-replays it.
+- After a user regains read access, unread messages from before and during
+  the loss can give attention again.
+- `has_unread` evaluates in memory, in about one microsecond for a room on a
+  production copy.
+- The notification decision projection uses more memory. It keeps one compact
+  record for every message, because a later reply or reaction needs the
+  message's author, plus the sources of the last 90 days. On a production copy
+  the projection grew from about 3 MB to about 12 MB. Its snapshot contract
+  changes, so the first start cold-replays it.
 - Existing `notification_unread_marker.*` keys are no longer read or written.
   They expire through their 90-day TTL.

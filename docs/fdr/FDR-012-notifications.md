@@ -240,9 +240,10 @@ Durable visibility-loss boundaries prevent old queued activity from
 reappearing after a quick regain of room access.
 Actor identity is hydrated from current account data; an unavailable or deleted
 actor does not by itself expose copied profile data or make an otherwise valid
-occurrence invisible. Badge attention is computed from the same current room,
-target, reaction, visibility-loss, and read boundaries, and from the current
-notification policy (ADR-109).
+occurrence invisible. Badge attention is computed from the current room,
+target, reaction, and read state, the current membership start, and the
+current notification policy (ADR-109). It does not use visibility-loss
+boundaries: an unread message counts again when the user can read it again.
 
 **Why:** Source-time eligibility explains why the notification was created, but
 it cannot override present-day privacy and target existence.
