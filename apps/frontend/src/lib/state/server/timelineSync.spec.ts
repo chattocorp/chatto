@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type { TimelineEventView } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { Timestamp } from '@bufbuild/protobuf';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { UserAvatarUserView } from '$lib/render/users';
 import type { RoomStores } from './roomStores.svelte';
 import { TimelineSync, type TimelineSyncOptions } from './timelineSync';
 
@@ -159,6 +162,74 @@ describe('TimelineSync', () => {
     for (const store of [room, other]) {
       expect(store.applyMessageRetraction).toHaveBeenCalledWith('M1', '2026-09-27T12:00:00.000Z');
     }
+  });
+
+  it('shows a post preview with the fields of the event and empty resource fields', () => {
+    const room = fakeTimeline();
+    const thread = fakeTimeline();
+    const actor: UserAvatarUserView = {
+      id: 'U1',
+      login: 'ann',
+      displayName: 'Ann',
+      deleted: false,
+      presenceStatus: PresenceStatus.ONLINE
+    };
+    const { sync } = makeSync(
+      { R1: { messages: room, threads: { ROOT: thread } } },
+      { actor: () => ({ user: actor, deleted: false }) }
+    );
+
+    sync.ingestPost(
+      new RealtimeEvent({
+        id: 'E1',
+        actorId: 'U1',
+        createdAt: Timestamp.fromDate(new Date('2026-09-27T12:00:00.000Z')),
+        event: {
+          case: 'messagePosted',
+          value: new MessagePostedEvent({
+            roomId: 'R1',
+            bodyPlaintext: 'hello',
+            inReplyTo: 'E0',
+            threadRootEventId: 'ROOT',
+            echoOfEventId: 'ECHO',
+            echoFromThreadRootEventId: 'ECHO-ROOT'
+          })
+        }
+      })
+    );
+
+    const expected: TimelineEventView = {
+      id: 'E1',
+      createdAt: '2026-09-27T12:00:00.000Z',
+      actorId: 'U1',
+      actor,
+      actorResolution: undefined,
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: 'R1',
+        body: 'hello',
+        attachments: [],
+        linkPreview: null,
+        reactions: [],
+        updatedAt: null,
+        inReplyTo: 'E0',
+        threadRootEventId: 'ROOT',
+        echoOfEventId: 'ECHO',
+        echoFromThreadRootEventId: 'ECHO-ROOT',
+        channelEchoEventId: null,
+        deletedAt: null,
+        pinned: false,
+        threadExists: false,
+        replyCount: 0,
+        lastReplyAt: null,
+        threadParticipantCount: 0,
+        threadParticipants: [],
+        viewerIsFollowingThread: null,
+        viewerHasUnreadThread: null
+      }
+    };
+    expect(room.ingestEvent).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(thread.ingestEvent).toHaveBeenCalledExactlyOnceWith(expected);
   });
 
   it.each([

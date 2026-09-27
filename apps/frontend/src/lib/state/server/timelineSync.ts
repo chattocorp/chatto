@@ -1,6 +1,8 @@
 import type { MessageResource } from '$lib/api-client/messageResources';
 import type { UserAvatarUserView } from '$lib/render/users';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { messagePostedPayload } from '$lib/api-client/roomTimeline';
+import type { TimelineEventView } from '$lib/render/timelineEvents';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import type { MessagesStore } from '$lib/state/room';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MessageReconciler } from './messageReconciler';
@@ -85,29 +87,18 @@ export class TimelineSync {
       actorId: event.actorId || null,
       actor,
       actorResolution: actorDeleted ? 'deleted' : actor ? undefined : 'loading',
-      event: {
-        kind: TimelineEventKind.MessagePosted,
-        roomId: posted.roomId,
-        body: posted.bodyPlaintext,
-        attachments: [],
-        linkPreview: null,
-        reactions: [],
-        updatedAt: null,
-        inReplyTo: posted.inReplyTo || null,
-        threadRootEventId: posted.threadRootEventId || null,
-        echoOfEventId: posted.echoOfEventId || null,
-        echoFromThreadRootEventId: posted.echoFromThreadRootEventId || null,
-        channelEchoEventId: null,
-        deletedAt: null,
-        pinned: false,
-        threadExists: false,
-        replyCount: 0,
-        lastReplyAt: null,
-        threadParticipantCount: 0,
-        threadParticipants: [],
-        viewerIsFollowingThread: null,
-        viewerHasUnreadThread: null
-      }
+      // The event has only the posted fields. The resource read fills the rest.
+      event: messagePostedPayload(
+        new Message({
+          roomId: posted.roomId,
+          body: posted.bodyPlaintext,
+          inReplyTo: posted.inReplyTo,
+          threadRootEventId: posted.threadRootEventId,
+          echoOfEventId: posted.echoOfEventId,
+          echoFromThreadRootEventId: posted.echoFromThreadRootEventId
+        }),
+        {}
+      )
     };
     for (const store of this.#options.rooms.timelines(posted.roomId)) {
       store.ingestEvent(timelineEvent);
