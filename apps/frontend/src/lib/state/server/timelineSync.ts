@@ -54,10 +54,8 @@ export type TimelineSyncOptions = {
 export class TimelineSync {
   readonly #options: TimelineSyncOptions;
   readonly #reconciler: MessageReconciler;
-  /** Timelines with a window read in progress. */
-  readonly #refreshing = new WeakSet<MessagesStore>();
-  /** Reads that wait for the read in progress of the same timeline. */
-  readonly #pendingRefreshes = new WeakMap<MessagesStore, WindowRefresh[]>();
+  /** Timelines with a window read in progress, and the reads that wait for it. */
+  readonly #windowQueues = new WeakMap<MessagesStore, WindowRefresh[]>();
 
   constructor(options: TimelineSyncOptions) {
     this.#options = options;
@@ -203,25 +201,20 @@ export class TimelineSync {
     minimumCursor: string | undefined
   ): void {
     const generation = this.#options.generation();
-    if (this.#refreshing.has(store)) {
-      const pending = (this.#pendingRefreshes.get(store) ?? []).filter(
-        (request) => request.generation === generation
-      );
+    const waiting = this.#windowQueues.get(store);
+    if (waiting) {
       // Opaque cursors cannot be sorted. Only identical requests can be dropped.
-      if (
-        !pending.some(
-          (request) =>
-            request.anchorEventId === anchorEventId &&
-            request.forward === forward &&
-            request.minimumCursor === minimumCursor
-        )
-      ) {
-        pending.push({ anchorEventId, forward, minimumCursor, generation });
-      }
-      this.#pendingRefreshes.set(store, pending);
+      const duplicate = waiting.some(
+        (request) =>
+          request.generation === generation &&
+          request.anchorEventId === anchorEventId &&
+          request.forward === forward &&
+          request.minimumCursor === minimumCursor
+      );
+      if (!duplicate) waiting.push({ anchorEventId, forward, minimumCursor, generation });
       return;
     }
-    this.#refreshing.add(store);
+    this.#windowQueues.set(store, []);
     const read = store
       .refreshCurrentWindow(
         anchorEventId,
@@ -230,14 +223,14 @@ export class TimelineSync {
         () => generation === this.#options.generation()
       )
       .finally(() => {
-        this.#refreshing.delete(store);
-        const queue = this.#pendingRefreshes
-          .get(store)
-          ?.filter((request) => request.generation === this.#options.generation());
-        const next = queue?.shift();
-        if (queue?.length) this.#pendingRefreshes.set(store, queue);
-        else this.#pendingRefreshes.delete(store);
-        if (next) this.#refreshWindow(store, next.anchorEventId, next.forward, next.minimumCursor);
+        // A reset makes the requests of older generations stale.
+        const [next, ...rest] = (this.#windowQueues.get(store) ?? []).filter(
+          (request) => request.generation === this.#options.generation()
+        );
+        this.#windowQueues.delete(store);
+        if (!next) return;
+        this.#refreshWindow(store, next.anchorEventId, next.forward, next.minimumCursor);
+        this.#windowQueues.get(store)?.push(...rest);
       });
     this.#options.track(read, generation);
   }

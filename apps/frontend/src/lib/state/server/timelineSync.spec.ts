@@ -123,6 +123,21 @@ describe('TimelineSync', () => {
     expect(room.refreshCurrentWindow).toHaveBeenCalledOnce();
   });
 
+  it('does not let a queued read from an older generation hide an identical new one', async () => {
+    let generation = 1;
+    const room = fakeTimeline();
+    const { sync } = makeSync({ R1: { messages: room } }, { generation: () => generation });
+
+    sync.refreshWindows('R1', 'E1');
+    sync.refreshWindows('R1', 'E2');
+    generation = 2;
+    sync.refreshWindows('R1', 'E2');
+    room.reads[0].resolve();
+    await flush();
+
+    expect(room.refreshCurrentWindow.mock.calls.map((call) => call[0])).toEqual(['E1', 'E2']);
+  });
+
   it('gives a failed window read to track with its generation', async () => {
     const room = fakeTimeline();
     const { sync, track } = makeSync({ R1: { messages: room } });
