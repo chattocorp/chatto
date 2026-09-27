@@ -133,6 +133,24 @@ describe('RoomStores', () => {
       expect(store.restoreAfterAccessGrant).toHaveBeenCalledOnce();
     }
     expect(rooms.messages('A')).toBe(messages);
+
+    // The pin marker is device-local, so it is cleared for a room without stores too.
+    rooms.clearMessageAccess('unknown');
+    expect(mocks.clearRoomPinsSeenMarker).toHaveBeenCalledWith('server', 'viewer', 'unknown');
+  });
+
+  it('removes the least recently used room search', async () => {
+    const rooms = makeRooms();
+    const searches = Array.from({ length: 10 }, (_, index) => rooms.search(`R${index + 1}`));
+
+    expect(rooms.search('R1')).toBe(searches[0]);
+    rooms.search('R11');
+    await Promise.resolve();
+
+    expect(rooms.loaded('R2')?.search).toBeUndefined();
+    expect(searches[1].reset).toHaveBeenCalledOnce();
+    expect(rooms.search('R1')).toBe(searches[0]);
+    expect(searches[0].reset).not.toHaveBeenCalled();
   });
 
   it('forgets the plaintext stores of a room but keeps its members and search', () => {

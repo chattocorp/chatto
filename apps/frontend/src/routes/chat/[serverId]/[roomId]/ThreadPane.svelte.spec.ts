@@ -19,10 +19,10 @@ const { mocks } = vi.hoisted(() => {
       followThread: vi.fn(),
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
-      retainMessagesForThread: vi.fn(),
-      releaseMessagesForThread: vi.fn(),
-      nextServerRetainMessagesForThread: vi.fn(),
-      nextServerReleaseMessagesForThread: vi.fn(),
+      retainThread: vi.fn(),
+      releaseThread: vi.fn(),
+      nextServerRetainThread: vi.fn(),
+      nextServerReleaseThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
@@ -225,14 +225,9 @@ describe('ThreadPane', () => {
         notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
         reconcileThreadRead: mocks.reconcileThreadRead,
         rooms: {
-          retainThread:
-            serverId === 'server-2'
-              ? mocks.nextServerRetainMessagesForThread
-              : mocks.retainMessagesForThread,
+          retainThread: serverId === 'server-2' ? mocks.nextServerRetainThread : mocks.retainThread,
           releaseThread:
-            serverId === 'server-2'
-              ? mocks.nextServerReleaseMessagesForThread
-              : mocks.releaseMessagesForThread,
+            serverId === 'server-2' ? mocks.nextServerReleaseThread : mocks.releaseThread,
           thread: () =>
             Object.assign(
               serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
@@ -476,20 +471,12 @@ describe('ThreadPane', () => {
       }
     });
 
-    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
     const mountedStore = mocks.threadStore;
-    expect(mocks.retainMessagesForThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      mountedStore
-    );
+    expect(mocks.retainThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
 
     rendered.unmount();
-    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      mountedStore
-    );
+    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
   });
 
   it('releases decrypted thread history through its owning server store', async () => {
@@ -502,21 +489,17 @@ describe('ThreadPane', () => {
       }
     });
 
-    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
     const firstServerStore = mocks.threadStore;
 
     server.serverId = 'server-2';
 
-    await vi.waitFor(() => expect(mocks.nextServerRetainMessagesForThread).toHaveBeenCalledOnce());
-    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      firstServerStore
-    );
-    expect(mocks.nextServerReleaseMessagesForThread).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.nextServerRetainThread).toHaveBeenCalledOnce());
+    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', firstServerStore);
+    expect(mocks.nextServerReleaseThread).not.toHaveBeenCalled();
 
     rendered.unmount();
-    expect(mocks.nextServerReleaseMessagesForThread).toHaveBeenCalledWith(
+    expect(mocks.nextServerReleaseThread).toHaveBeenCalledWith(
       'room-1',
       'thread-root',
       mocks.nextServerThreadStore

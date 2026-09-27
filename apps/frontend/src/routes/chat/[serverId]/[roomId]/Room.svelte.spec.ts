@@ -54,8 +54,8 @@ const mocks = vi.hoisted(() => ({
     ): { eventId: string; notificationId: string | null } | null => null
   ),
   markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
-  messagesForRoom: vi.fn(),
-  membersForRoom: vi.fn(),
+  roomMessages: vi.fn(),
+  roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
   nextServerRestoreProjectedRoomWindow: vi.fn(),
   projectedMemberIdsForRoom: vi.fn(() => []),
@@ -380,7 +380,7 @@ beforeEach(() => {
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
   // Like the server store, create one timeline per room.
   const messagesByRoom: Record<string, MessagesStore> = Object.create(null);
-  mocks.messagesForRoom.mockImplementation(
+  mocks.roomMessages.mockImplementation(
     (roomId: string) =>
       (messagesByRoom[roomId] ??= new MessagesStore(
         {} as never,
@@ -424,8 +424,8 @@ beforeEach(() => {
       },
       mentionRoles: mocks.mentionRoles,
       rooms: {
-        messages: mocks.messagesForRoom,
-        members: mocks.membersForRoom,
+        messages: mocks.roomMessages,
+        members: mocks.roomMembers,
         files: () => ({ retain: mocks.roomFilesRetain }),
         search: () => ({})
       },
@@ -440,7 +440,7 @@ beforeEach(() => {
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
-  mocks.membersForRoom.mockImplementation((roomId: string) => {
+  mocks.roomMembers.mockImplementation((roomId: string) => {
     let store = membersByRoom[roomId];
     if (!store) {
       store = new RoomMembersStore();

@@ -901,6 +901,54 @@ describe('VoiceCallState', () => {
     expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
   });
 
+  it('plays each call transition event at most once', () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    const decision = vi.spyOn(state, 'callTransitionSoundDecision').mockReturnValue('play');
+
+    state.playTransitionSound('E1', 'join', 'R1', 'call-1', 'other', 'viewer');
+    state.playTransitionSound('E1', 'join', 'R1', 'call-1', 'other', 'viewer');
+    expect(decision).toHaveBeenCalledExactlyOnceWith('join', 'R1', 'call-1', false);
+    expect(soundMocks.playCallSound).toHaveBeenCalledExactlyOnceWith('join');
+
+    // A deferred event plays after the connection, not when it arrives again.
+    decision.mockReturnValue('defer');
+    state.playTransitionSound('E2', 'join', 'R1', 'call-1', 'viewer', 'viewer');
+    decision.mockReturnValue('play');
+    state.playTransitionSound('E2', 'join', 'R1', 'call-1', 'viewer', 'viewer');
+    expect(soundMocks.playCallSound).toHaveBeenCalledOnce();
+
+    // A skipped event can play when it arrives again.
+    decision.mockReturnValue('skip');
+    state.playTransitionSound('E3', 'leave', 'R1', 'call-1', 'other', 'viewer');
+    decision.mockReturnValue('play');
+    state.playTransitionSound('E3', 'leave', 'R1', 'call-1', 'other', 'viewer');
+    expect(soundMocks.playCallSound).toHaveBeenLastCalledWith('leave');
+    expect(soundMocks.playCallSound).toHaveBeenCalledTimes(2);
+
+    decision.mockClear();
+    state.playTransitionSound('E4', 'join', 'R1', 'call-1', null, 'viewer');
+    state.playTransitionSound('E5', 'join', 'R1', 'call-1', 'other', null);
+    expect(decision).not.toHaveBeenCalled();
+
+    state.forgetTransitionSounds();
+    state.playTransitionSound('E1', 'join', 'R1', 'call-1', 'other', 'viewer');
+    expect(soundMocks.playCallSound).toHaveBeenCalledTimes(3);
+  });
+
+  it('remembers the latest 500 call transition events', () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    vi.spyOn(state, 'callTransitionSoundDecision').mockReturnValue('play');
+
+    for (let index = 0; index <= 500; index++) {
+      state.playTransitionSound(`E${index}`, 'join', 'R1', 'call-1', 'other', 'viewer');
+    }
+    soundMocks.playCallSound.mockClear();
+    state.playTransitionSound('E500', 'join', 'R1', 'call-1', 'other', 'viewer');
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+    state.playTransitionSound('E0', 'join', 'R1', 'call-1', 'other', 'viewer');
+    expect(soundMocks.playCallSound).toHaveBeenCalledOnce();
+  });
+
   it('fails before recording join intent when encrypted calls are unsupported', async () => {
     vi.stubGlobal('RTCRtpScriptTransform', undefined);
     vi.stubGlobal('RTCRtpSender', class MockRTCRtpSender {});
