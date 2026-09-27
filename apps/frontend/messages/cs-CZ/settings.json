@@ -522,6 +522,8 @@
       "profile_description": "Změňte, jak se tento robot zobrazuje ostatním členům.",
       "profile_saved": "Profil robota byl aktualizován",
       "profile_save_failed": "Aktualizace profilu robota se nezdařila",
+      "bio_placeholder": "Popište, co tento robot dělá",
+      "bio_description": "Až {max} znaků, zobrazí se v profilu robota.",
       "username_cooldown_notice": "Uživatelské jméno tohoto robota lze znovu změnit za {remaining}.",
       "username_confirm_title": "Změnit uživatelské jméno robota",
       "username_confirm_prompt": "Změnit uživatelské jméno tohoto robota na @{login}?",

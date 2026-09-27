@@ -522,6 +522,8 @@
       "profile_description": "Zmień sposób, w jaki ten bot jest widoczny dla innych członków.",
       "profile_saved": "Profil bota został zaktualizowany",
       "profile_save_failed": "Nie udało się zaktualizować profilu bota",
+      "bio_placeholder": "Opisz, co robi ten bot",
+      "bio_description": "Do {max} znaków, wyświetlane w profilu bota.",
       "username_cooldown_notice": "Nazwę użytkownika tego bota będzie można ponownie zmienić za {remaining}.",
       "username_confirm_title": "Zmień nazwę użytkownika bota",
       "username_confirm_prompt": "Zmienić nazwę użytkownika tego bota na @{login}?",

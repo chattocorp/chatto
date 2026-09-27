@@ -522,6 +522,8 @@
       "profile_description": "Bu botun diğer üyelere nasıl görüneceğini değiştirin.",
       "profile_saved": "Bot profili güncellendi",
       "profile_save_failed": "Bot profili güncellenemedi",
+      "bio_placeholder": "Bu botun ne yaptığını açıklayın",
+      "bio_description": "En fazla {max} karakter, botun profilinde gösterilir.",
       "username_cooldown_notice": "Bu botun kullanıcı adı {remaining} sonra yeniden değiştirilebilir.",
       "username_confirm_title": "Bot kullanıcı adını değiştir",
       "username_confirm_prompt": "Bu botun kullanıcı adı @{login} olarak değiştirilsin mi?",

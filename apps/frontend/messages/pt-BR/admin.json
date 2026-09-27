@@ -134,7 +134,9 @@
       "role_update_failed": "Falha ao atualizar atribuição de função",
       "danger_zone": "Zona de perigo",
       "open_delete_account": "Excluir conta",
-      "delete_account_entry_description": "Exclui definitivamente a conta deste membro. As mensagens ficam ilegíveis. Isso não pode ser desfeito."
+      "delete_account_entry_description": "Exclui definitivamente a conta deste membro. As mensagens ficam ilegíveis. Isso não pode ser desfeito.",
+      "bio_placeholder": "Conte aos outros um pouco sobre este membro",
+      "bio_description": "Até {max} caracteres, exibidos no perfil do membro."
     },
     "member_delete": {
       "title": "Excluir membro",

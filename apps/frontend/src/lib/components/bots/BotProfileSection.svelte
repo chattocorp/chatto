@@ -23,6 +23,7 @@ username field while the cooldown runs.
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
     MAX_BIO_LENGTH,
+    startsLoginCooldown,
     validateAndNormalizeBio,
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin
@@ -82,10 +83,15 @@ username field while the cooldown runs.
       input.displayName = result.normalized;
     }
     if (loginModified) {
-      if (!canChangeLogin) return;
       const result = validateAndNormalizeLogin(login);
       if (!result.valid || result.normalized === undefined) {
         error = result.error ?? m('settings.profile.username.invalid');
+        return;
+      }
+      if (!canChangeLogin && startsLoginCooldown(baseline.login, result.normalized)) {
+        error = m('settings.bots.username_cooldown_notice', {
+          remaining: formatCooldownRemaining(cooldownRemaining)
+        });
         return;
       }
       input.login = result.normalized;
@@ -99,11 +105,20 @@ username field while the cooldown runs.
       input.bio = result.normalized;
     }
 
-    if (input.login !== undefined && !canBypassLoginCooldown) {
+    if (startsCooldown(input)) {
       pendingInput = input;
       return;
     }
     await submit(input);
+  }
+
+  /** True when saving `input` starts the bot's username cooldown for this viewer. */
+  function startsCooldown(input: UpdateUserProfileInput): boolean {
+    return (
+      input.login !== undefined &&
+      !canBypassLoginCooldown &&
+      startsLoginCooldown(baseline.login, input.login)
+    );
   }
 
   async function confirmLoginChange() {
@@ -115,11 +130,10 @@ username field while the cooldown runs.
   async function submit(input: UpdateUserProfileInput) {
     saving = true;
     try {
+      const startedCooldown = startsCooldown(input);
       const updated = await onsave(input);
       if (!updated) return;
-      if (input.login !== undefined && !canBypassLoginCooldown) {
-        localLastLoginChange = new Date();
-      }
+      if (startedCooldown) localLastLoginChange = new Date();
       baseline = { displayName: updated.displayName, login: updated.login, bio: updated.bio ?? '' };
       displayName = baseline.displayName;
       login = baseline.login;
@@ -166,6 +180,8 @@ username field while the cooldown runs.
       bind:value={bio}
       editorKind={userPreferences.composerEditor}
       maxlength={MAX_BIO_LENGTH}
+      placeholder={m('settings.bots.bio_placeholder')}
+      description={m('settings.bots.bio_description', { max: MAX_BIO_LENGTH })}
       disabled={saving}
       oninput={() => (error = null)}
     />

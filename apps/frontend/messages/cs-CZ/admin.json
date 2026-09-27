@@ -134,7 +134,9 @@
       "role_update_failed": "Aktualizace přiřazení role se nezdařila",
       "danger_zone": "Nebezpečná zóna",
       "open_delete_account": "Odstranit účet",
-      "delete_account_entry_description": "Trvale odstraní účet tohoto člena. Jeho zprávy se stanou nečitelnými. Tuto akci nelze vrátit."
+      "delete_account_entry_description": "Trvale odstraní účet tohoto člena. Jeho zprávy se stanou nečitelnými. Tuto akci nelze vrátit.",
+      "bio_placeholder": "Řekněte ostatním něco o tomto členovi",
+      "bio_description": "Až {max} znaků, zobrazí se v profilu člena."
     },
     "member_delete": {
       "title": "Odstranit člena",

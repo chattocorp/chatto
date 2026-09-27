@@ -213,6 +213,8 @@
         bind:value={editBio}
         editorKind={userPreferences.composerEditor}
         maxlength={MAX_BIO_LENGTH}
+        placeholder={m('admin.members.bio_placeholder')}
+        description={m('admin.members.bio_description', { max: MAX_BIO_LENGTH })}
         disabled={savingIdentity}
       />
       {#snippet footer()}

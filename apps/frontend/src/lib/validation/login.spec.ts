@@ -5,6 +5,7 @@ import {
   validateAndNormalizeLogin,
   getLoginChangeCooldownRemaining,
   formatCooldownRemaining,
+  startsLoginCooldown,
   MAX_LOGIN_LENGTH,
   MIN_LOGIN_LENGTH,
   LOGIN_CHANGE_COOLDOWN_MS
@@ -159,7 +160,22 @@ describe('formatCooldownRemaining', () => {
     expect(formatCooldownRemaining(15 * 60 * 1000)).toBe('15 minutes');
   });
 
+  it('formats the duration for the requested locale', () => {
+    expect(formatCooldownRemaining(5 * 24 * 60 * 60 * 1000, 'de-DE')).toBe('5 Tage');
+    expect(formatCooldownRemaining(60 * 1000, 'en-GB')).toBe('1 minute');
+  });
+
   it('formats single minute', () => {
     expect(formatCooldownRemaining(60 * 1000)).toBe('1 minute');
+  });
+});
+
+describe('startsLoginCooldown', () => {
+  it('starts the cooldown for a different login', () => {
+    expect(startsLoginCooldown('helper_bot', 'renamed_bot')).toBe(true);
+  });
+
+  it('does not start the cooldown for a case-only change', () => {
+    expect(startsLoginCooldown('helper_bot', 'Helper_Bot')).toBe(false);
   });
 });

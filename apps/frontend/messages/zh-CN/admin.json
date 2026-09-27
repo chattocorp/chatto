@@ -134,7 +134,9 @@
       "role_update_failed": "更新角色分配失败",
       "danger_zone": "危险区域",
       "open_delete_account": "删除账号",
-      "delete_account_entry_description": "永久删除该成员的账号。其消息将变为无法读取。此操作无法撤消。"
+      "delete_account_entry_description": "永久删除该成员的账号。其消息将变为无法读取。此操作无法撤消。",
+      "bio_placeholder": "向其他人简单介绍一下此成员",
+      "bio_description": "最多 {max} 个字符，显示在成员的个人资料中。"
     },
     "member_delete": {
       "title": "删除成员",

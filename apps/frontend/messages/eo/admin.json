@@ -134,7 +134,9 @@
       "role_update_failed": "Malsukcesis ĝisdatigi rolasignon",
       "danger_zone": "Danĝera zono",
       "open_delete_account": "Forigi konton",
-      "delete_account_entry_description": "Por ĉiam forigas la konton de tiu ĉi membro. Ĝiaj mesaĝoj fariĝas nelegeblaj. Ne eblas revenigi tion."
+      "delete_account_entry_description": "Por ĉiam forigas la konton de tiu ĉi membro. Ĝiaj mesaĝoj fariĝas nelegeblaj. Ne eblas revenigi tion.",
+      "bio_placeholder": "Rakontu al aliaj iomete pri ĉi tiu membro",
+      "bio_description": "Ĝis {max} signoj, montrataj en la profilo de la membro."
     },
     "member_delete": {
       "title": "Forigi membron",

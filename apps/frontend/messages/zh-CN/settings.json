@@ -522,6 +522,8 @@
       "profile_description": "更改此机器人在其他成员面前的显示方式。",
       "profile_saved": "机器人个人资料已更新",
       "profile_save_failed": "更新机器人个人资料失败",
+      "bio_placeholder": "描述此机器人的用途",
+      "bio_description": "最多 {max} 个字符，显示在机器人的个人资料中。",
       "username_cooldown_notice": "此机器人的用户名可在 {remaining} 后再次更改。",
       "username_confirm_title": "更改机器人用户名",
       "username_confirm_prompt": "将此机器人的用户名更改为 @{login}？",

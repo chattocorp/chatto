@@ -522,6 +522,8 @@
       "profile_description": "Muuda, kuidas see bot teistele liikmetele paistab.",
       "profile_saved": "Boti profiil on uuendatud",
       "profile_save_failed": "Boti profiili uuendamine ebaõnnestus",
+      "bio_placeholder": "Kirjelda, mida see bot teeb",
+      "bio_description": "Kuni {max} märki, kuvatakse boti profiilis.",
       "username_cooldown_notice": "Selle boti kasutajanime saab uuesti muuta {remaining} pärast.",
       "username_confirm_title": "Muuda boti kasutajanime",
       "username_confirm_prompt": "Kas muuta selle boti kasutajanimeks @{login}?",

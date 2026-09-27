@@ -134,7 +134,9 @@
       "role_update_failed": "Impossibile aggiornare l'assegnazione del ruolo",
       "danger_zone": "Zona di pericolo",
       "open_delete_account": "Elimina account",
-      "delete_account_entry_description": "Elimina definitivamente l'account di questo membro. I suoi messaggi diventano illeggibili. Questa azione non può essere annullata."
+      "delete_account_entry_description": "Elimina definitivamente l'account di questo membro. I suoi messaggi diventano illeggibili. Questa azione non può essere annullata.",
+      "bio_placeholder": "Racconta agli altri qualcosa su questo membro",
+      "bio_description": "Fino a {max} caratteri, mostrati nel profilo del membro."
     },
     "member_delete": {
       "title": "Elimina membro",

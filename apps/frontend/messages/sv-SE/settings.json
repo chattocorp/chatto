@@ -522,6 +522,8 @@
       "profile_description": "Ändra hur den här boten visas för andra medlemmar.",
       "profile_saved": "Botprofilen har uppdaterats",
       "profile_save_failed": "Det gick inte att uppdatera botprofilen",
+      "bio_placeholder": "Beskriv vad den här boten gör",
+      "bio_description": "Upp till {max} tecken, visas i botens profil.",
       "username_cooldown_notice": "Användarnamnet för den här boten kan ändras igen om {remaining}.",
       "username_confirm_title": "Ändra botens användarnamn",
       "username_confirm_prompt": "Vill du ändra användarnamnet för den här boten till @{login}?",

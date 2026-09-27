@@ -351,6 +351,77 @@ describe('Bot detail page', () => {
     expect(login.disabled).toBe(true);
   });
 
+  it('saves a case-only rename without confirmation or a cooldown lock', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    setInput(login, 'Helper_Bot');
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', { login: 'Helper_Bot' })
+    );
+    expect(document.body.textContent).not.toContain('Change the username of this bot');
+    await vi.waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(login.disabled).toBe(false);
+    expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).toBeNull();
+  });
+
+  it('keeps the started cooldown in the bot cache after a rename', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement,
+      'fresh_name'
+    );
+    buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() => buttonByText(document, 'Change username').click());
+
+    await vi.waitFor(() => {
+      const cached = queryClient.getQueryData<{ lastLoginChange: Date | null }>(
+        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+      );
+      expect(cached?.lastLoginChange).toBeInstanceOf(Date);
+    });
+  });
+
+  it('explains why a username edit cannot be saved when a cooldown starts during the edit', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement,
+      'late_rename'
+    );
+    // Another manager's rename arrives while this form is open.
+    queryClient.setQueryData(
+      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id'),
+      { ...mocks.bot, lastLoginChange: new Date() }
+    );
+    flushSync();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).not.toBeNull()
+    );
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.form-error')?.textContent).toContain(
+        'The username of this bot can change again in'
+      )
+    );
+    expect(api.updateUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('uses bot-specific help text for the bio', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.textContent).toContain('shown on the profile of the bot.');
+    expect(container.textContent).not.toContain('shown on your profile');
+  });
+
   it('locks the username while the bot cooldown is active', async () => {
     mocks.bot.lastLoginChange = new Date();
     const { container } = render(BotDetailPage);

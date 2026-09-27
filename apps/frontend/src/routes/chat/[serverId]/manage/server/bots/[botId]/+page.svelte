@@ -44,6 +44,7 @@
   import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { startsLoginCooldown } from '$lib/validation';
   import { onDestroy } from 'svelte';
 
   const serverScope = useServerScope();
@@ -164,13 +165,19 @@
   async function updateProfile(input: UpdateUserProfileInput): Promise<UserSummary | null> {
     if (!bot) return null;
     const mutationTarget = targetKey;
+    // Account managers bypass the cooldown; other renames start a new one.
+    const startedCooldown =
+      input.login !== undefined &&
+      !canManageAccounts &&
+      startsLoginCooldown(bot.login, input.login);
     const updated = await userAPI().updateUserProfile(bot.id, input);
     if (!isCurrentTarget(mutationTarget) || !bot) return null;
     cacheBot({
       ...bot,
       login: updated.login,
       displayName: updated.displayName,
-      bio: updated.bio ?? null
+      bio: updated.bio ?? null,
+      lastLoginChange: startedCooldown ? new Date() : bot.lastLoginChange
     });
     return updated;
   }

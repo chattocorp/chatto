@@ -522,6 +522,8 @@
       "profile_description": "このボットが他のメンバーにどのように表示されるかを変更します。",
       "profile_saved": "ボットのプロフィールを更新しました",
       "profile_save_failed": "ボットのプロフィールの更新に失敗しました",
+      "bio_placeholder": "このボットの役割を説明してください",
+      "bio_description": "最大 {max} 文字。ボットのプロフィールに表示されます。",
       "username_cooldown_notice": "このボットのユーザー名は {remaining} 後に再び変更できます。",
       "username_confirm_title": "ボットのユーザー名を変更",
       "username_confirm_prompt": "このボットのユーザー名を @{login} に変更しますか？",

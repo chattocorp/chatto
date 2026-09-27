@@ -522,6 +522,8 @@
       "profile_description": "Wijzig hoe deze bot voor andere leden wordt weergegeven.",
       "profile_saved": "Botprofiel bijgewerkt",
       "profile_save_failed": "Kan botprofiel niet bijwerken",
+      "bio_placeholder": "Beschrijf wat deze bot doet",
+      "bio_description": "Maximaal {max} tekens, getoond op het profiel van de bot.",
       "username_cooldown_notice": "De gebruikersnaam van deze bot kan over {remaining} opnieuw worden gewijzigd.",
       "username_confirm_title": "Gebruikersnaam van bot wijzigen",
       "username_confirm_prompt": "De gebruikersnaam van deze bot wijzigen in @{login}?",

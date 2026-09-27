@@ -522,6 +522,8 @@
       "profile_description": "غيّر طريقة ظهور هذا البوت للأعضاء الآخرين.",
       "profile_saved": "تم تحديث الملف الشخصي للبوت",
       "profile_save_failed": "فشل في تحديث الملف الشخصي للبوت",
+      "bio_placeholder": "صف ما يفعله هذا البوت",
+      "bio_description": "حتى {max} حرف، يظهر في الملف الشخصي للبوت.",
       "username_cooldown_notice": "يمكن تغيير اسم المستخدم لهذا البوت مرة أخرى بعد {remaining}.",
       "username_confirm_title": "تغيير اسم مستخدم البوت",
       "username_confirm_prompt": "هل تريد تغيير اسم مستخدم هذا البوت إلى @{login}؟",

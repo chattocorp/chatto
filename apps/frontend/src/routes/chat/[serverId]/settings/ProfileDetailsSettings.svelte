@@ -12,6 +12,7 @@
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
     MAX_BIO_LENGTH,
+    startsLoginCooldown,
     validateAndNormalizeBio,
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin
@@ -127,6 +128,11 @@
   ) {
     const userId = serverScope.store.accountId;
     if (!userId) return;
+    // Case-only renames and account-manager renames do not start the cooldown.
+    const startedCooldown =
+      !!normalizedLogin &&
+      !canBypassLoginCooldown &&
+      startsLoginCooldown(baseline.login, normalizedLogin);
     isSaving = true;
     error = '';
     successMessage = '';
@@ -142,10 +148,7 @@
         displayName: updated.displayName,
         login: updated.login,
         bio: updated.bio ?? '',
-        lastLoginChange:
-          normalizedLogin && !canBypassLoginCooldown
-            ? new Date().toISOString()
-            : user.lastLoginChange
+        lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange
       }));
 
       baseline = {
@@ -157,9 +160,7 @@
       login = baseline.login;
       bio = baseline.bio;
 
-      if (normalizedLogin && !canBypassLoginCooldown) {
-        localLastLoginChange = new Date();
-      }
+      if (startedCooldown) localLastLoginChange = new Date();
 
       successMessage = m('settings.profile.saved');
     } catch (saveError) {

@@ -522,6 +522,8 @@
       "profile_description": "Измените, как этот бот отображается для других участников.",
       "profile_saved": "Профиль бота обновлён",
       "profile_save_failed": "Не удалось обновить профиль бота",
+      "bio_placeholder": "Опишите, что делает этот бот",
+      "bio_description": "До {max} символов, отображается в профиле бота.",
       "username_cooldown_notice": "Имя пользователя этого бота можно будет снова изменить через {remaining}.",
       "username_confirm_title": "Изменить имя пользователя бота",
       "username_confirm_prompt": "Изменить имя пользователя этого бота на @{login}?",

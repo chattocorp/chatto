@@ -522,6 +522,8 @@
       "profile_description": "שנה את האופן שבו הבוט הזה מוצג לחברים אחרים.",
       "profile_saved": "פרופיל הבוט עודכן",
       "profile_save_failed": "עדכון פרופיל הבוט נכשל",
+      "bio_placeholder": "תאר מה הבוט הזה עושה",
+      "bio_description": "עד {max} תווים, מוצג בפרופיל של הבוט.",
       "username_cooldown_notice": "ניתן יהיה לשנות שוב את שם המשתמש של הבוט הזה בעוד {remaining}.",
       "username_confirm_title": "שינוי שם המשתמש של הבוט",
       "username_confirm_prompt": "לשנות את שם המשתמש של הבוט הזה ל-@{login}?",

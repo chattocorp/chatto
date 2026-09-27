@@ -522,6 +522,8 @@
       "profile_description": "Modifiez l'apparence de ce bot pour les autres membres.",
       "profile_saved": "Profil du bot mis à jour",
       "profile_save_failed": "Échec de la mise à jour du profil du bot",
+      "bio_placeholder": "Décrivez ce que fait ce bot",
+      "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du bot.",
       "username_cooldown_notice": "Le nom d'utilisateur de ce bot pourra être modifié de nouveau dans {remaining}.",
       "username_confirm_title": "Modifier le nom d'utilisateur du bot",
       "username_confirm_prompt": "Modifier le nom d'utilisateur de ce bot en @{login}?",

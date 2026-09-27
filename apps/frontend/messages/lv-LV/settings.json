@@ -522,6 +522,8 @@
       "profile_description": "Mainiet, kā šis robots tiek rādīts citiem dalībniekiem.",
       "profile_saved": "Robota profils atjaunināts",
       "profile_save_failed": "Neizdevās atjaunināt robota profilu",
+      "bio_placeholder": "Aprakstiet, ko dara šis robots",
+      "bio_description": "Līdz {max} rakstzīmēm, tiek rādīts robota profilā.",
       "username_cooldown_notice": "Šī robota lietotājvārdu atkal varēs mainīt pēc {remaining}.",
       "username_confirm_title": "Mainīt robota lietotājvārdu",
       "username_confirm_prompt": "Vai mainīt šī robota lietotājvārdu uz @{login}?",

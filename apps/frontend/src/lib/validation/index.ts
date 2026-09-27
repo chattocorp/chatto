@@ -14,6 +14,7 @@ export {
   validateAndNormalizeLogin,
   getLoginChangeCooldownRemaining,
   formatCooldownRemaining,
+  startsLoginCooldown,
   MAX_LOGIN_LENGTH,
   MIN_LOGIN_LENGTH,
   LOGIN_CHANGE_COOLDOWN_MS

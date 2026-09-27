@@ -134,7 +134,9 @@
       "role_update_failed": "Neizdevās atjaunināt lomas piešķiršanu",
       "danger_zone": "Bīstamā zona",
       "open_delete_account": "Dzēst kontu",
-      "delete_account_entry_description": "Pastāvīgi dzēš šī dalībnieka kontu. Viņa ziņojumi kļūst nelasāmi. To nevar atsaukt."
+      "delete_account_entry_description": "Pastāvīgi dzēš šī dalībnieka kontu. Viņa ziņojumi kļūst nelasāmi. To nevar atsaukt.",
+      "bio_placeholder": "Pastāstiet citiem nedaudz par šo dalībnieku",
+      "bio_description": "Līdz {max} rakstzīmēm, tiek rādīts dalībnieka profilā."
     },
     "member_delete": {
       "title": "Dzēst dalībnieku",
