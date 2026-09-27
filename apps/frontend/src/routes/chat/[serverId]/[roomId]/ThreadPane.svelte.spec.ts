@@ -349,8 +349,8 @@ describe('ThreadPane', () => {
   });
 
   it('waits for the viewer to be verified before marking the thread as read', async () => {
-    const viewer = server.currentUser.user;
-    server.currentUser.user = undefined;
+    const viewer = server.currentUser.user!;
+    server.currentUser.invalidateVerification();
     render(ThreadPane, {
       props: {
         roomId: 'room-1',
@@ -362,7 +362,7 @@ describe('ThreadPane', () => {
     await tick();
     expect(mocks.canMarkThreadAsRead?.()).toBe(false);
 
-    server.currentUser.user = viewer;
+    server.currentUser.accept(viewer);
 
     expect(mocks.canMarkThreadAsRead?.()).toBe(true);
   });

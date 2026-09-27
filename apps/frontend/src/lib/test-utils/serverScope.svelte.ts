@@ -11,11 +11,18 @@ import type { ServerStateStore } from '$lib/state/server/store.svelte';
 export type TestServerScopeOptions = {
   /** Server ID of the scope. Default: `'server-1'`. */
   serverId?: string;
-  /** Accepted account, or null for no loaded account. Default: user `viewer-1`. */
+  /**
+   * Accepted and verified account, or null for no loaded account. Default: user
+   * `viewer-1`. To model a pending verification, call
+   * `currentUser.invalidateVerification()`; `currentUser.accept()` verifies again.
+   */
   viewer?: Partial<CurrentUser> | null;
   /** Permission flags over `NO_SERVER_PERMISSIONS`. The result is loaded unless `loaded` is false. */
   permissions?: Partial<ServerPermissions>;
-  /** Server features that `serverInfo.supportsFeature` reports. Default: every feature. */
+  /**
+   * Server features that `serverInfo.supportsFeature` reports. Default: every
+   * feature. A map changes only the listed features; the others stay on.
+   */
   features?: boolean | Partial<Record<ServerFeature, boolean>>;
   /**
    * What `connection.getAPI` returns for every factory. Without it, `getAPI`
@@ -24,12 +31,14 @@ export type TestServerScopeOptions = {
   api?: object;
   /**
    * Extra `store.serverInfo` members, such as `livekitUrl`. Getters are kept.
-   * `supportsFeature` always reads `features`.
+   * `supportsFeature` reads `features`, unless the `store` option replaces the
+   * whole `serverInfo`.
    */
   serverInfo?: object;
   /**
    * Extra store members, such as `navigation` or `projection`. Getters are kept.
    * A function gets the server ID and gives the members for that server's store.
+   * The viewer and permissions are the same for every server's store.
    */
   store?: object | ((serverId: string) => object);
   /** Extra connection members. Getters are kept. */
@@ -63,13 +72,13 @@ export class TestServerScope {
     this.features = options.features ?? true;
     this.currentUser.loading = false;
     if (options.viewer !== null) {
-      this.currentUser.user = {
+      this.currentUser.accept({
         id: 'viewer-1',
         login: 'viewer',
         displayName: 'Viewer',
         settings: null,
         ...options.viewer
-      } as CurrentUser;
+      } as CurrentUser);
     }
 
     this.scope = buildScope(this, options);
@@ -157,7 +166,9 @@ function buildStore(
           : t.projectionViewerId;
       },
       get isAuthenticated() {
-        return t.currentUser.user != null;
+        // Like a cookie session: the loaded account must also be verified.
+        const user = t.currentUser.user;
+        return user != null && t.currentUser.verifiedUserId === user.id;
       },
       get permissions() {
         return t.permissions;

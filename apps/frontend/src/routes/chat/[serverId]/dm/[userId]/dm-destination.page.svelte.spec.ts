@@ -126,7 +126,7 @@ describe('DM destination', () => {
     expect(mocks.goto).toHaveBeenCalledOnce();
   });
 
-  it('waits for the verified viewer before opening a conversation', async () => {
+  it('waits for the account before opening a conversation', async () => {
     const viewer = server.currentUser.user;
     server.currentUser.user = undefined;
     mocks.page.params.userId = 'self';

@@ -87,7 +87,6 @@ const {
     leave: vi.fn()
   },
   roomsState: {
-    currentUserId: 'user-1',
     rooms: [
       {
         id: 'room-1',
@@ -203,7 +202,6 @@ describe('CurrentUserBar', () => {
     voiceCallState.startNativeScreenShare.mockClear();
     voiceCallState.leave.mockClear();
     navigation.goto.mockClear();
-    roomsState.currentUserId = 'user-1';
     roomsState.rooms = [
       {
         id: 'room-1',
@@ -527,10 +525,10 @@ describe('CurrentUserBar', () => {
     const screen = render(CurrentUserBarTestHarness);
     await screen.getByTestId('current-user-presence-menu').click();
     await screen.getByTestId('current-user-clear-status-action').click();
-    server.currentUser.user = { ...server.currentUser.user!, id: 'user-2' };
+    server.currentUser.accept({ ...server.currentUser.user!, id: 'user-2' });
     pending.resolve(null);
     await expect.element(screen.getByTestId('current-user-clear-status-action')).toBeEnabled();
-    expect(server.currentUser.user.customStatus).toEqual(status);
+    expect(server.currentUser.user?.customStatus).toEqual(status);
   });
 
   it('loads the custom status editor only after opening the touch bottom sheet', async () => {

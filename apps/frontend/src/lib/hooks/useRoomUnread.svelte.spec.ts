@@ -143,7 +143,7 @@ describe('useRoomUnread', () => {
   });
 
   it('does not mark a saved room as read before viewer verification', async () => {
-    server.currentUser.user = undefined;
+    server.currentUser.invalidateVerification();
     roomUnread.setRoomUnread('room-1', true);
 
     const rendered = render(Harness, {
