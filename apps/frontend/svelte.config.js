@@ -14,10 +14,26 @@ function appTemplateScriptHashes() {
   );
 }
 
+/**
+ * Returns the version name that SvelteKit writes to `_app/version.json`.
+ *
+ * Release builds set `CHATTO_BUILD_VERSION`. Local builds through mise have
+ * `CHATTO_DEV_WORKSPACE` set; they append the workspace and a build timestamp,
+ * so each rebuild has a new version. Open tabs then detect the update and do a
+ * full reload after a failed navigation. Turbo does not hash
+ * `CHATTO_DEV_WORKSPACE`, so an unchanged build is still restored from its
+ * cache together with its original version.
+ */
 function buildVersionName() {
   if (process.env.CHATTO_BUILD_VERSION) return process.env.CHATTO_BUILD_VERSION;
-  if (process.env.npm_package_version) return process.env.npm_package_version;
 
+  const base = process.env.npm_package_version ?? gitShortHash();
+  const workspace = process.env.CHATTO_DEV_WORKSPACE;
+  if (workspace) return `${base}+${workspace}.${Date.now().toString(36)}`;
+  return base;
+}
+
+function gitShortHash() {
   try {
     return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
   } catch {
