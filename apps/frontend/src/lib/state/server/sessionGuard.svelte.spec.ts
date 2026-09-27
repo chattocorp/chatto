@@ -91,6 +91,18 @@ describe('SessionGuard', () => {
     expect(guard.isCurrent(second)).toBe(false);
   });
 
+  it('ends the session when a removal and the destroy happen in the same tick', () => {
+    // Sign-out removes private data and then destroys the route before a flush.
+    // A $state increment in the teardown would read the old value and do nothing.
+    const { guard, destroy } = withGuard();
+    removeRegisteredAdminQueries('S1');
+    const afterRemoval = guard.snapshot();
+
+    destroy();
+
+    expect(guard.isCurrent(afterRemoval)).toBe(false);
+  });
+
   it('ends a private-data session when the server removes its private or admin queries', () => {
     const { guard, destroy } = withGuard();
     const snapshot = guard.snapshot();
@@ -102,7 +114,7 @@ describe('SessionGuard', () => {
     destroy();
   });
 
-  it('ends a server-session guard only when the complete server session is disposed', () => {
+  it('ends a server-session guard with the server session, not with an admin data removal', () => {
     const { guard, destroy } = withGuard('server-session');
     const snapshot = guard.snapshot();
 

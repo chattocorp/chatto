@@ -13,11 +13,13 @@ export type SessionSnapshot = {
 };
 
 /**
- * Which cache removal ends the session:
- * - `private-data`: the server removes its private or admin query data, for
- *   example at sign-out or when the viewer loses admin rights.
- * - `server-session`: the complete server session is disposed. Account
- *   settings use this, because they stay valid when admin data is removed.
+ * Which cache event ends the session:
+ * - `private-data`: the server removes or rechecks its private or admin query
+ *   data, for example at sign-out, at a reset, or when the viewer's rights
+ *   change.
+ * - `server-session`: the server session ends, or the viewer's permissions are
+ *   rechecked. Account settings use this, because a change of admin data alone
+ *   does not affect them.
  */
 export type SessionFence = 'private-data' | 'server-session';
 
@@ -67,14 +69,20 @@ export class SessionGuard {
     };
   }
 
-  /** Whether a snapshot still belongs to the current session. Reactive in derived values. */
+  /**
+   * Whether a snapshot still belongs to the current session. Derived values
+   * that call it update when the session ends. Do not call it in an effect
+   * teardown: there, the scope can return old values.
+   */
   isCurrent<T extends SessionSnapshot>(snapshot: T | null | undefined): snapshot is T {
+    // Read the mirror only to make derived values depend on the generation.
+    void this.#reactiveGeneration;
     return (
       snapshot != null &&
       this.#scope.isCurrent() &&
       snapshot.serverId === this.#scope.serverId &&
       snapshot.connection.queryScope === this.#scope.connection.queryScope &&
-      snapshot.generation === this.#reactiveGeneration
+      snapshot.generation === this.#generation
     );
   }
 

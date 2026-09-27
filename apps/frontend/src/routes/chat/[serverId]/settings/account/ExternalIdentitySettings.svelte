@@ -36,8 +36,8 @@
   const serverScope = useServerScope();
   // Private identity data and provider links belong to the accepted account only.
   const accountId = $derived(serverScope.store.accountId);
-  // Account settings stay valid when admin data is removed; only the end of the
-  // server session makes their responses stale.
+  // A change of admin data alone does not affect account settings. The end of
+  // the server session, or a recheck of the viewer's permissions, does.
   const session = new SessionGuard(serverScope, 'server-session');
 
   type LinkVariables = SessionSnapshot & {
