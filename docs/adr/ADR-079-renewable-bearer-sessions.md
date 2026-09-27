@@ -53,7 +53,11 @@ has a 90-day renewal window, configured by the existing `auth.token_ttl` /
 `CHATTO_AUTH_TOKEN_TTL`. A successful refresh in the final quarter advances
 the window to the configured lifetime from that refresh. An inactive session
 expires after one complete window. An access token issued near the end of a
-window is clamped to its remaining lifetime.
+window is clamped to its remaining lifetime. Sessions of the built-in loopback
+OAuth client are the exception: they keep a fixed window of at most 24 hours
+from creation, never advance it, and validation shortens a longer stored
+window. See [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) and
+[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 
 ### Runtime-state representation
 
@@ -66,7 +70,8 @@ window is clamped to its remaining lifetime.
   previous refresh-request verifier and rotation time, and authoritative
   fresh-auth metadata. The verifier is a purpose-separated HMAC of the raw
   recovery nonce. Each revision preserves or advances its explicit expiry and
-  sets its per-message TTL to the remaining lifetime.
+  sets its per-message TTL to the remaining lifetime. A loopback-client
+  revision can instead shorten its expiry to the fixed loopback window.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
   generation, and the established typed-credential metadata. Validation
@@ -108,7 +113,8 @@ until a valid response has been persisted. The server rotates as follows:
    current window expiry, OAuth-client policy, and user auth generation.
 2. Increment the generation and record the request-ID verifier and rotation
    time by updating the stable key with its exact JetStream KV revision. If the
-   current window is in its final quarter, advance its expiry. Publish the
+   current window is in its final quarter, advance its expiry, except for a
+   loopback-client session. Publish the
    revision with a per-message TTL equal to the remaining explicit lifetime.
 3. Create the deterministic access-token verifier for the committed generation.
 4. Return the deterministic credential pair.

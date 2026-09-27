@@ -293,11 +293,12 @@ metadata document from that address. To let such a client sign in, set
   when your members need a local client, for example to develop Chatto.
 </Aside>
 
-Chatto accepts only the bundled client's callback path on a local address.
-The local-callback rules above apply. The consent page shows the local
-address, and the member must approve each sign-in. A session of this client
-ends at most 24 hours after sign-in and does not renew. When you disable the setting,
-existing sessions of this client also stop working.
+Chatto accepts the bundled client's callback path on each local address, with
+any port, over HTTP or HTTPS. The path and query must match exactly. As for
+other local callbacks, the consent page shows the local address, and the
+member must approve each sign-in. A session of this client ends at most 24
+hours after sign-in and does not renew. When you disable the setting, existing
+sessions of this client also stop working.
 
 ## Manage OAuth Clients
 

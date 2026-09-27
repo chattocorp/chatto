@@ -236,7 +236,7 @@ domain fact. EVT stores this value. See
 
 **Notification Signal** — Immutable event-shaped notification cause whose protobuf variant owns its exact destination and cause-specific data. Signals live in the bounded `NOTIFICATIONS` event stream rather than permanent `EVT`. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).
 
-**Renewable session** — One human bearer login with short-lived access tokens, a single-use rotating refresh credential, and a session window that advances automatically while the client is active. Its stable `RUNTIME_STATE` record is the revocation authority for every access generation; it is not called a token family in Chatto vocabulary. See [ADR-079](adr/ADR-079-renewable-bearer-sessions.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+**Renewable session** — One human bearer login with short-lived access tokens, a single-use rotating refresh credential, and a session window that advances automatically while the client is active. Sessions of the loopback client keep a fixed window of at most 24 hours instead. Its stable `RUNTIME_STATE` record is the revocation authority for every access generation; it is not called a token family in Chatto vocabulary. See [ADR-079](adr/ADR-079-renewable-bearer-sessions.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

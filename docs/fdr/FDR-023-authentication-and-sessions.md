@@ -60,9 +60,11 @@ providers, and a bootstrap path for first-boot operator setup.
   identity, so the consent page names it "Unverified app on this device",
   shows the callback origin as its identity, and requires consent for each
   authorization. The administrator inventory lists it as "Unverified local
-  app" and does not record members' local callback origins. Its renewable session ends at most 24 hours after sign-in. Refresh does
-  not extend it, and validation shortens a longer stored window. Client policy and PKCE checks still apply, and administrators can
-  block the client. The server records its authorization as a built-in client.
+  app" and does not record members' local callback origins. Its renewable
+  session ends at most 24 hours after sign-in. Refresh does not extend it, and
+  validation shortens a longer stored window. Client policy and PKCE checks
+  still apply, and administrators can block the client. The server records its
+  authorization as a built-in client.
 
 - The standalone welcome page shows an introduction and a Connect to a server
   action. The action opens the Server Directory. The welcome page does not list

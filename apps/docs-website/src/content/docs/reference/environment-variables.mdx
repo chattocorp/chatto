@@ -369,7 +369,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_LOOPBACK_CLIENT_ENABLED" toml="auth.loopback_client_enabled" default="false">
-  Let the Chatto web client sign in to this server when the client runs on a local address of the member's device, for example a development server on `localhost`. The client uses the built-in `chatto://loopback` identity. Its sessions end at most 24 hours after sign-in and do not renew. When you set this to `false`, existing sessions of this client also stop working. Upgrade every serving replica before you enable this setting, and use the same value on every replica. See [OAuth clients](/guides/operations/identity-login/#clients-from-other-origins).
+  Let the Chatto web client sign in to this server when the client runs on a local address of the member's device, for example a development server on `localhost`. The client uses the built-in `chatto://loopback` identity. Its sessions end at most 24 hours after sign-in and do not renew. When you set this to `false`, existing sessions of this client also stop working. Upgrade every serving replica before you enable this setting, and use the same value on every replica. Sign-ins made while replicas use different values can end, and members must then sign in again. See [Clients From Other Origins](/guides/operations/identity-login/#clients-from-other-origins).
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" toml="auth.email_otp.throttling_enabled" default="true">
