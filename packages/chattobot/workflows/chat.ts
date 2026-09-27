@@ -55,6 +55,9 @@ interface ChatSettings {
   web?: WebSettings;
 }
 
+/** Bound the link-choice channel from injected pages; a new user message resets the budget. */
+const MAX_BROWSES_PER_REQUEST = 5;
+
 export const conversation = task(
   async (
     ctx: WorkflowContext<string, string>,
@@ -89,11 +92,17 @@ export const conversation = task(
       delegationReported = true;
     };
     // Open-web content can carry injected instructions. After it arrives, the host refuses
-    // implementation and task steering until the user sends a new message; notification
-    // turns do not clear this guard.
-    let webReadAtVersion: number | undefined;
-    const webContentInTurn = () => webReadAtVersion === requestVersion;
-    const steeringTasks = guardTaskSteering(tasks, webContentInTurn);
+    // implementation and task steering until a new user message reaches the model, as a
+    // turn prompt or as consumed steering. Receipt alone or a notification does not count.
+    let webContentActive = false;
+    let browsesLeft = MAX_BROWSES_PER_REQUEST;
+    const preparedUserPrompts = new Set<string>();
+    const userPromptReachedModel = (prompt: string) => {
+      if (!preparedUserPrompts.delete(prompt)) return;
+      webContentActive = false;
+      browsesLeft = MAX_BROWSES_PER_REQUEST;
+    };
+    const steeringTasks = guardTaskSteering(tasks, () => webContentActive);
     const browsableUrls = createUrlAllowlist();
     const bot = await createAgent({
       // Resolve resources from this package, independent of the host's working directory.
@@ -116,13 +125,13 @@ export const conversation = task(
         docsExtension,
         ...(options.web
           ? [
-              webExtension(
-                options.web,
-                () => {
-                  webReadAtVersion = requestVersion;
+              webExtension(options.web, {
+                onWebContent: () => {
+                  webContentActive = true;
                 },
-                browsableUrls
-              )
+                allowlist: browsableUrls,
+                takeBrowse: () => browsesLeft-- > 0
+              })
             ]
           : []),
         ...(options.investigation
@@ -132,7 +141,7 @@ export const conversation = task(
           ? [
               implementationExtension(ctx, options.implementation, announce, steeringTasks, {
                 plans,
-                webContentInTurn,
+                webContentActive: () => webContentActive,
                 ownerKey,
                 onBlocked: async (summary) => {
                   if (delegationReported) return;
@@ -205,7 +214,17 @@ export const conversation = task(
             await ctx.emit(text);
           }
         },
-        bot,
+        {
+          runOutcome: (runCtx, text, runOptions) => {
+            userPromptReachedModel(text);
+            return bot.runOutcome(runCtx, text, runOptions);
+          },
+          steer: async (text) => {
+            const consumed = await bot.steer(text);
+            if (consumed) userPromptReachedModel(text);
+            return consumed;
+          }
+        },
         prompt,
         {
           async prepareMessage(message, origin) {
@@ -219,7 +238,7 @@ export const conversation = task(
             }
             const thread = await readThread(options.delivery, ctx.signal);
             ctx.signal.throwIfAborted();
-            return JSON.stringify({
+            const prepared = JSON.stringify({
               thread,
               origin,
               recentUserMessages: [...recentUserMessages],
@@ -232,6 +251,8 @@ export const conversation = task(
                 plan
               }))
             });
+            if (origin === 'user') preparedUserPrompts.add(prepared);
+            return prepared;
           },
           timeout: options.timeout ?? 900,
           onBusy: (busy) => {

@@ -122,7 +122,7 @@ test('the browse allowlist keeps exact known URLs and resolves page-relative lin
   expect(allowlist.has('https://example.com/ignored')).toBe(false);
 });
 
-test('browsePage opens only allowlisted URLs and adds links from pages it reads', async () => {
+test('browsePage opens only allowlisted URLs within its budget and adds links from pages it reads', async () => {
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
   const allowlist = createUrlAllowlist();
   allowlist.addFrom('https://example.com/start');
@@ -130,7 +130,12 @@ test('browsePage opens only allowlisted URLs and adds links from pages it reads'
   const request = vi
     .fn<typeof fetch>()
     .mockImplementation(async () => Response.json({ success: true, result: '[Next](/next)' }));
-  const extension = webExtension({ cloudflare }, onWebContent, allowlist, request);
+  let browsesLeft = 2;
+  const extension = webExtension(
+    { cloudflare },
+    { onWebContent, allowlist, takeBrowse: () => browsesLeft-- > 0 },
+    request
+  );
   const factory = typeof extension === 'function' ? extension : extension.factory;
   await factory({
     registerTool(tool) {
@@ -144,6 +149,8 @@ test('browsePage opens only allowlisted URLs and adds links from pages it reads'
   await browse('https://example.com/start');
   expect(onWebContent).toHaveBeenCalledOnce();
   await browse('https://example.com/next');
+  expect(request).toHaveBeenCalledTimes(2);
+  await expect(browse('https://example.com/next')).rejects.toThrow('page limit');
   expect(request).toHaveBeenCalledTimes(2);
 });
 

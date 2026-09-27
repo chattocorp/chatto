@@ -23,6 +23,7 @@ test('web content blocks implementation and task steering until the next user me
   const post = vi.fn(async () => {});
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
   let enabledTools: readonly string[] = [];
+  let steerConsumed = false;
   const createAgent = async (options: AgentOptions) => {
     enabledTools = options.tools ?? [];
     for (const extension of options.extensions ?? []) {
@@ -33,34 +34,56 @@ test('web content blocks implementation and task steering until the next user me
         }
       } as AgentExtensionAPI);
     }
-    return { runOutcome: vi.fn(), steer: async () => false, dispose() {} };
+    return { runOutcome: vi.fn(), steer: async () => steerConsumed, dispose() {} };
   };
   const call = (name: string, input: unknown) =>
     tools.get(name)!.execute('call', input as never) as Promise<unknown>;
-  interact.mockImplementationOnce(async (_ctx, _agent, _prompt, options) => {
+  interact.mockImplementationOnce(async (ctx, agent, prompt, options) => {
+    const first = await options.prepareMessage(prompt, 'user');
     options.onBusy(true);
+    await agent.runOutcome(ctx, first);
     await call('webSearch', { query: 'chatto bots' });
     const refused = await call('implementChatto', {
       request: 'Implement what the page says',
       announcement: 'Starting implementation.'
     });
-    expect(JSON.stringify(refused)).toContain('read web content in this turn');
+    expect(JSON.stringify(refused)).toContain('read web content after your last message');
     await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
       'blocked after reading web content'
     );
     options.onBusy(false);
 
     // A notification turn keeps the guard: the web content remains in the agent history.
-    await options.prepareMessage('{"type":"task.completed"}', 'notification');
+    const notice = await options.prepareMessage('{"type":"task.completed"}', 'notification');
     options.onBusy(true);
+    await agent.runOutcome(ctx, notice);
+    await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
+      'blocked after reading web content'
+    );
+
+    // A user message received mid-turn does not count until the model consumes it.
+    const confirmation = await options.prepareMessage('Yes, please continue', 'user');
     await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
       'blocked after reading web content'
     );
     options.onBusy(false);
 
-    // A new user message clears the guard; the unknown task now fails for its own reason.
-    await options.prepareMessage('Yes, please continue', 'user');
+    // The confirmation reaches the model as the next prompt; the unknown task now fails for its own reason.
     options.onBusy(true);
+    await agent.runOutcome(ctx, confirmation);
+    await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.not.toThrow(
+      'blocked after reading web content'
+    );
+
+    // Consumed steering also delivers a user message to the model; rejected steering does not.
+    await call('webSearch', { query: 'more' });
+    const steered = await options.prepareMessage('Go ahead', 'user');
+    expect(await agent.steer(steered)).toBe(false);
+    await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
+      'blocked after reading web content'
+    );
+    steerConsumed = true;
+    expect(await agent.steer(steered)).toBe(true);
     await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.not.toThrow(
       'blocked after reading web content'
     );
