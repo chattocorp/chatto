@@ -62,6 +62,10 @@ callback, and expanded state for the standard three-dot button. Member entries
 use this button and leave identity text passive. Use `menu.revealOnHover` to
 hide the button until hover or keyboard focus; touch devices keep it visible.
 Use `menu.oncontextmenu` for right-click access from the whole card.
+Every icon control in the `actions` snippet uses `CompactActionButton`, the same
+format as the three-dot button, so all user-card actions share one size and
+hover treatment. Show an active state, such as privileged mode, through the icon
+and its colour. Do not use `icon-action` or a local fill in a user card.
 The identity row cannot shrink below the shared control height. For the current-user card, omit
 the identity button and supply the presence button in `avatar`. Callers own
 profile menus, presence lookup, permissions, audio-level sources, and media
@@ -129,6 +133,7 @@ a side stripe or cast shadow for navigation selection.
 | Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                   |
 | Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes               |
 | Mini icon action directly beside a value    | `mini-icon-action`                                                                     | Adding padding, a background fill, or press scaling          |
+| Icon action inside a text field             | `TextInput` `leading` or `trailing` snippet with a `field-action` button               | A borderless input inside a hand-built frame                 |
 | Global app-header icon                      | `app-header-icon`                                                                      | `icon-action` with compensating margins                      |
 | Durable content container                   | `Panel` or `panel-shell`                                                               | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                          |
@@ -193,6 +198,10 @@ The composer uses this variant for three groups: inline text styles, block
 formats, and lists with indentation. Only the groups have gaps between them. Formatting buttons use `aria-pressed` for the
 shared active fill. Keep an intrinsic-width group inside a horizontal scroller
 when the controls must stay on one row in a narrow pane.
+
+Reply and edit indicators sit above the formatting toolbar and the input
+surface, directly on the room work plane, without a fill. The composer grows
+upwards when they appear, so the input does not move.
 
 Below 560 px of composer content width, the editor uses the full inner width.
 The formatting toggle sits below it at the start of the surface. Attachment,
@@ -428,9 +437,11 @@ Coloured fills retain a matched tonal border. Secondary buttons use a quiet
 share the `control-raised` finish. Header icons stay flat. Do not add
 local gloss, blur, transparency, or extra shadows.
 
-Compact standalone composer actions and participant-card actions use
+Compact standalone composer actions and user-card and participant-card actions use
 `CompactActionButton`. Their backgrounds are transparent at rest and show
 the shared bevel on hover or keyboard focus. Disabled controls remain flat.
+The button ignores caller fill classes; mark a pressed toggle with `aria-pressed`,
+which colours the icon with the action colour.
 
 All message attachment actions pair `attachment-action-button` with `btn-secondary`
 or `btn-danger-secondary` for deletion. The attachment utility sets the square

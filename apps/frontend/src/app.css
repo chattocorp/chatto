@@ -1886,6 +1886,15 @@
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+/* Icon action inside a form field, such as an emoji trigger or a clear button
+ * in TextInput's leading or trailing slot. It shares icon-action feedback at
+ * a 32 px size so it fits within the 40 px field.
+ */
+@utility field-action {
+  @apply inline-flex size-8 shrink-0 cursor-pointer items-center justify-center icon-action-feedback rounded-md;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
 /* Unframed icon-sized action for a subordinate command placed directly beside
  * the text or value it affects. Use icon-action for a standard hit area.
  */

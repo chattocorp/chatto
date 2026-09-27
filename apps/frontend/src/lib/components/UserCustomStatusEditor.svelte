@@ -1,7 +1,7 @@
 <script lang="ts">
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Button, FormField } from '$lib/ui/form';
+  import { Button, FormField, TextInput } from '$lib/ui/form';
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
@@ -335,6 +335,20 @@
   }
 </script>
 
+{#snippet emojiTrigger(emoji: string | null | undefined)}
+  <button
+    type="button"
+    class="field-action"
+    title={m('settings.profile.status.emoji.choose')}
+    aria-label={m('settings.profile.status.emoji.choose')}
+    disabled={isSaving || isClearing}
+    onclick={openEmojiPicker}
+    data-testid="settings-custom-status-emoji-picker"
+  >
+    <span aria-hidden="true">{emoji || '🙂'}</span>
+  </button>
+{/snippet}
+
 {#if compact}
   <form
     class="flex flex-col gap-1 menu-section p-1"
@@ -416,27 +430,22 @@
 
     {#if compactCustomEditorOpen}
       <div class="flex min-w-0 items-center gap-1">
-        <button
-          type="button"
-          class="icon-action shrink-0"
-          title={m('settings.profile.status.emoji.choose')}
-          aria-label={m('settings.profile.status.emoji.choose')}
-          disabled={isSaving || isClearing}
-          onclick={openEmojiPicker}
-          data-testid="settings-custom-status-emoji-picker"
-        >
-          <span aria-hidden="true">{statusEmoji || '🙂'}</span>
-        </button>
-        <input
-          id={statusTextInputId}
-          bind:value={statusText}
-          aria-label={m('settings.profile.status.text.label')}
-          placeholder={m('settings.profile.status.text.placeholder')}
-          disabled={isSaving || isClearing}
-          maxlength={100}
-          class="h-8 input min-w-0 flex-1 rounded-md px-2 py-1 text-sm"
-          data-testid="settings-custom-status-text"
-        />
+        <div class="min-w-0 flex-1">
+          <TextInput
+            id={statusTextInputId}
+            bind:value={statusText}
+            label={m('settings.profile.status.text.label')}
+            labelHidden
+            placeholder={m('settings.profile.status.text.placeholder')}
+            disabled={isSaving || isClearing}
+            maxlength={100}
+            testid="settings-custom-status-text"
+          >
+            {#snippet leading()}
+              {@render emojiTrigger(statusEmoji)}
+            {/snippet}
+          </TextInput>
+        </div>
         <button
           type="submit"
           class="btn-icon-action"
@@ -462,46 +471,36 @@
     data-testid="custom-status-editor"
     onsubmit={saveCustomStatus}
   >
-    <div
-      class={[
-        'flex min-w-0 items-center gap-2 p-2',
-        sheet ? 'menu-section' : 'rounded-md border border-border bg-background'
-      ]}
-    >
-      <button
-        type="button"
-        class="icon-action shrink-0 text-lg"
-        title={m('settings.profile.status.emoji.choose')}
-        aria-label={m('settings.profile.status.emoji.choose')}
-        disabled={isSaving || isClearing}
-        onclick={openEmojiPicker}
-        data-testid="settings-custom-status-emoji-picker"
-      >
-        <span aria-hidden="true">{activeEmoji || '🙂'}</span>
-      </button>
-      <input
+    <div class={sheet ? 'menu-section p-2' : undefined}>
+      <TextInput
         id={statusTextInputId}
         bind:value={statusText}
-        aria-label={m('settings.profile.status.text.label')}
+        label={m('settings.profile.status.text.label')}
+        labelHidden
         placeholder={m('settings.profile.status.text.placeholder')}
         disabled={isSaving || isClearing}
         maxlength={100}
-        class="min-w-0 flex-1 border-0 bg-transparent px-0 py-1 text-base outline-none placeholder:text-muted"
-        data-testid="settings-custom-status-text"
+        testid="settings-custom-status-text"
         oninput={markCustomDraft}
-      />
-      {#if statusText || hasActiveStatus}
-        <button
-          type="button"
-          class="icon-action shrink-0"
-          title={m('settings.profile.status.clear_button')}
-          aria-label={m('settings.profile.status.clear_button')}
-          disabled={isSaving || isClearing}
-          onclick={clearDraftStatus}
-        >
-          <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
-        </button>
-      {/if}
+      >
+        {#snippet leading()}
+          {@render emojiTrigger(activeEmoji)}
+        {/snippet}
+        {#snippet trailing()}
+          {#if statusText || hasActiveStatus}
+            <button
+              type="button"
+              class="field-action"
+              title={m('settings.profile.status.clear_button')}
+              aria-label={m('settings.profile.status.clear_button')}
+              disabled={isSaving || isClearing}
+              onclick={clearDraftStatus}
+            >
+              <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
+            </button>
+          {/if}
+        {/snippet}
+      </TextInput>
     </div>
 
     <div class={sheet ? 'flex flex-col gap-1 menu-section p-1' : 'flex flex-col gap-1.5'}>

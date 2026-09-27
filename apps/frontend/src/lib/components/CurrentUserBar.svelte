@@ -32,7 +32,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { ConfirmDialog, Dialog } from '$lib/ui';
+  import { CompactActionButton, ConfirmDialog, Dialog } from '$lib/ui';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import { toast } from '$lib/ui/toast';
   import MenuItem from '$lib/ui/MenuItem.svelte';
@@ -380,17 +380,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             />
           {/if}
           {#if privilegedMode?.available}
-            <button
-              type="button"
-              class={[
-                'icon-action shrink-0',
-                privilegedMode.active &&
-                  'bg-warning/15 control-raised text-warning not-disabled:hover:bg-warning/25 not-disabled:hover:text-warning focus-visible:bg-warning/15'
-              ]}
-              title={privilegedMode.active
-                ? m('chat.privileged_mode.disable')
-                : m('chat.privileged_mode.enable')}
-              aria-label={privilegedMode.active
+            <CompactActionButton
+              label={privilegedMode.active
                 ? m('chat.privileged_mode.disable')
                 : m('chat.privileged_mode.enable')}
               data-testid="privileged-mode-toggle"
@@ -402,12 +393,14 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             >
               <span
                 class={[
-                  'iconify text-lg',
-                  privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
+                  'iconify',
+                  privilegedMode.active
+                    ? 'icon-[uil--shield-check] text-warning'
+                    : 'icon-[uil--shield]'
                 ]}
                 aria-hidden="true"
               ></span>
-            </button>
+            </CompactActionButton>
           {/if}
         {/snippet}
       </UserCard>

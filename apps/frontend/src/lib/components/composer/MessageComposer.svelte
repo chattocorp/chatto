@@ -272,6 +272,16 @@
     />
   {/if}
 
+  <ComposerModeIndicators
+    inReplyTo={replyState.messageEventId ?? undefined}
+    replyDisplayName={replyState.actorDisplayName || undefined}
+    replyIdentity={replyState.actorIdentity}
+    replyExcerpt={replyState.excerpt || undefined}
+    isEditing={composer.isEditing}
+    oncancelreply={() => replyState.cancelReply()}
+    oncanceledit={() => composer.cancelEdit()}
+  />
+
   {#if userPreferences.composerFormattingToolbarVisible}
     <ComposerFormattingToolbar
       id={formattingToolbarId}
@@ -383,16 +393,6 @@
       onsubmit={() => composer.submit()}
     />
   </div>
-
-  <ComposerModeIndicators
-    inReplyTo={replyState.messageEventId ?? undefined}
-    replyDisplayName={replyState.actorDisplayName || undefined}
-    replyIdentity={replyState.actorIdentity}
-    replyExcerpt={replyState.excerpt || undefined}
-    isEditing={composer.isEditing}
-    oncancelreply={() => replyState.cancelReply()}
-    oncanceledit={() => composer.cancelEdit()}
-  />
 </div>
 
 {#if composer.submission.pendingRoleMentionConfirmation}
