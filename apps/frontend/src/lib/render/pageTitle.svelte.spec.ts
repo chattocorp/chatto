@@ -42,12 +42,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     get servers() {
       return mocks.servers;
     },
-    getServer: (id: string) => mocks.servers.find((server) => server.id === id),
-    getStore: (id: string) => {
-      const store = mocks.stores.get(id);
-      if (!store) throw new Error(`No mocked store for ${id}`);
-      return store;
-    }
+    tryGetStore: (id: string) => mocks.stores.get(id)
   }
 }));
 
@@ -107,6 +102,17 @@ afterEach(() => {
 });
 
 describe('formatPageTitle', () => {
+  it('falls back while registered server stores are unavailable', () => {
+    setServers([
+      { id: 'origin', name: 'Origin', origin: true, count: 5 },
+      { id: 'remote', name: 'Remote', count: 2 }
+    ]);
+    mocks.stores.delete('origin');
+
+    expect(formatPageTitle('Overview')).toBe('(2) Overview · Chatto');
+    expect(formatPageTitle('Appearance', 'app')).toBe('(2) Appearance · Chatto');
+  });
+
   it('uses the origin server name as the base title', () => {
     const { getTitle, cleanup } = createTitleGetter();
 
