@@ -11,8 +11,8 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
 `data-room-group-id`, so tests and callers can find the rows of one group.
 -->
 <script lang="ts" generics="T extends { id: string }">
-  import type { Snippet } from 'svelte';
-  import { Virtualizer } from 'virtua/svelte';
+  import { untrack, type Snippet } from 'svelte';
+  import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import RoomGroupSectionHeader from './RoomGroupSectionHeader.svelte';
   import { loadCollapsed, saveCollapsed } from './roomGroupCollapse';
   import {
@@ -20,6 +20,11 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
     type GroupedListItem,
     type VirtualListGroup
   } from './groupedListItems';
+  import {
+    captureScrollAnchors,
+    restoreScrollAnchor,
+    type ScrollAnchor
+  } from './groupedListScrollAnchor';
 
   interface Props {
     /** Groups in display order. Empty groups are the caller's choice to omit. */
@@ -45,11 +50,35 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
       { separateFirst }
     )
   );
+
+  let virtualizer = $state<VirtualizerHandle>();
+  // Entries as last rendered, and the anchors visible just before `entries` changed.
+  let renderedEntries: GroupedListItem<T>[] = [];
+  let anchors: ScrollAnchor[] = [];
+
+  // Keep the visible entries in place when entries above them are inserted, removed, or
+  // moved to another group, as browser scroll anchoring did for the stacked sections.
+  $effect.pre(() => {
+    void entries;
+    untrack(() => {
+      anchors = virtualizer ? captureScrollAnchors(virtualizer, renderedEntries) : [];
+    });
+  });
+
+  $effect(() => {
+    const next = entries;
+    untrack(() => {
+      if (virtualizer) restoreScrollAnchor(virtualizer, next, anchors);
+      renderedEntries = next;
+      anchors = [];
+    });
+  });
 </script>
 
 <!-- A flex parent must not shrink the virtualizer below its full scroll height. -->
 <div class="shrink-0">
   <Virtualizer
+    bind:this={virtualizer}
     data={entries}
     getKey={(entry, index) => entry?.key ?? `__ix_${index}`}
     {scrollRef}
