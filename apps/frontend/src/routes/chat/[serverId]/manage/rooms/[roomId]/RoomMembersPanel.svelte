@@ -36,7 +36,6 @@
   import { m } from '$lib/i18n/messages';
 
   let {
-    serverId,
     roomId,
     roomName,
     isUniversal,
@@ -44,7 +43,6 @@
     canManageMembers,
     scrollRoot
   }: {
-    serverId: string;
     roomId: string;
     roomName: string;
     isUniversal: boolean;
@@ -70,7 +68,7 @@
   const membersQuery = createInfiniteQuery(
     () => {
       const connection = serverScope.connection;
-      const targetServerId = serverId;
+      const targetServerId = serverScope.serverId;
       const targetRoomId = roomId;
       return {
         queryKey: directoryQueryKeys.roomMembers(targetServerId, connection, targetRoomId),
@@ -93,7 +91,7 @@
   const eligibleMembersQuery = createQuery(
     () => {
       const connection = serverScope.connection;
-      const targetServerId = serverId;
+      const targetServerId = serverScope.serverId;
       const targetRoomId = roomId;
       const search = activeDirectorySearch;
       return {
@@ -184,11 +182,11 @@
   useProjectionEvent((event) => {
     if (event.resource?.case === 'rooms') {
       if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
-        void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
+        void invalidateRoomMemberQueries(serverScope.serverId, serverScope.connection, roomId);
       } else {
         session.invalidate();
         clearLocalState();
-        purgeRoomMemberQueries(serverId, serverScope.connection, roomId);
+        purgeRoomMemberQueries(serverScope.serverId, serverScope.connection, roomId);
       }
       return;
     }

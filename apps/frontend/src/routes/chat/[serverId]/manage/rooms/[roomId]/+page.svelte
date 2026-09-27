@@ -251,7 +251,6 @@
         {#if room && supportsMemberManagement}
           {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
             <RoomMembersPanel
-              serverId={activeServerId}
               {roomId}
               roomName={room.name}
               isUniversal={room.isUniversal}
