@@ -117,7 +117,8 @@
         "reply": "Reply in threads",
         "manage_messages": "Manage messages"
       },
-      "owned_by": "Owned by"
+      "owned_by": "Owned by",
+      "open_card": "Open profile card of {name}"
     }
   }
 }

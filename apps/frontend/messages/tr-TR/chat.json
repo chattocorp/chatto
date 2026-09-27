@@ -117,7 +117,8 @@
         "reply": "Konularda yanıt ver",
         "manage_messages": "Mesajları yönet"
       },
-      "owned_by": "Sahibi"
+      "owned_by": "Sahibi",
+      "open_card": "{name} profil kartını aç"
     }
   }
 }

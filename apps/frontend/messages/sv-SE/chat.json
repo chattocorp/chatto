@@ -117,7 +117,8 @@
         "reply": "Svara i trådar",
         "manage_messages": "Hantera meddelanden"
       },
-      "owned_by": "Ägs av"
+      "owned_by": "Ägs av",
+      "open_card": "Öppna profilkortet för {name}"
     }
   }
 }

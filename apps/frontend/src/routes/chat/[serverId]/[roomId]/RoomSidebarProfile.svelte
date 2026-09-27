@@ -8,7 +8,6 @@ component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
-  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
@@ -25,7 +24,7 @@ fields as realtime changes arrive.
   import { queryClient } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
+  import { mapOptionalUserSummary, mapUserPresenceView } from '$lib/api-client/userSummary';
   import {
     getLiveBio,
     getLiveCustomStatus,
@@ -70,9 +69,8 @@ fields as realtime changes arrive.
     () => queryClient
   );
 
-  const baseUser = $derived(
-    mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user)
-  );
+  const projectionUser = $derived(serverScope.store.projection.users.get(userId)?.user);
+  const baseUser = $derived(mapOptionalUserSummary(projectionUser));
   const loading = $derived(!baseUser && userQuery.isPending);
   const notFound = $derived(!!userId && !loading && !baseUser);
   const displayName = $derived(
@@ -84,7 +82,10 @@ fields as realtime changes arrive.
     baseUser ? getLiveTimezone(baseUser.id, baseUser.timezone ?? null) : null
   );
   const customStatus = $derived(baseUser ? getLiveCustomStatus(baseUser.id, null) : null);
-  const presence = $derived(serverScope.store.presence.get(userId) ?? PresenceStatus.OFFLINE);
+  // Observed presence wins; without it, use the profile's own snapshot value.
+  const presence = $derived(
+    serverScope.store.presence.get(userId) ?? mapUserPresenceView(projectionUser).presenceStatus
+  );
   /** The profile user as the avatar and the shared user menu expect it. */
   const menuUser = $derived(
     baseUser ? { ...baseUser, bio, timezone, presenceStatus: presence, customStatus } : null
@@ -111,23 +112,20 @@ fields as realtime changes arrive.
   {:else if notFound || !baseUser || !menuUser}
     <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
   {:else}
-    <div {@attach baseUser.deleted ? undefined : profileMenu.trigger(() => baseUser.id)}>
+    <h2 class="sr-only">{formatAccountName(displayName, baseUser)}</h2>
+    <div {@attach profileMenu.trigger(() => userId)}>
       <UserCard
         variant="card"
         name={displayName}
         identity={baseUser}
         username={login}
         testId="profile-user-card"
-        menu={baseUser.deleted
-          ? undefined
-          : {
-              label: m('room.sidebar.view_profile', {
-                name: formatAccountName(displayName, baseUser)
-              }),
-              onclick: (event) => profileMenu.toggle(baseUser.id, event),
-              expanded: profileMenu.target === baseUser.id,
-              testId: 'profile-user-menu-button'
-            }}
+        menu={{
+          label: m('chat.profile.open_card', { name: formatAccountName(displayName, baseUser) }),
+          onclick: (event) => profileMenu.toggle(userId, event),
+          expanded: profileMenu.target === userId,
+          testId: 'profile-user-menu-button'
+        }}
       >
         {#snippet avatar()}
           <UserAvatar user={menuUser} {presence} size="sm" showPresence />

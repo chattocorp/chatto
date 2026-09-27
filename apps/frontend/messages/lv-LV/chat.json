@@ -119,7 +119,8 @@
         "reply": "Atbildēt pavedienos",
         "manage_messages": "Pārvaldīt ziņojumus"
       },
-      "owned_by": "Īpašnieks"
+      "owned_by": "Īpašnieks",
+      "open_card": "Atvērt lietotāja {name} profila karti"
     }
   }
 }

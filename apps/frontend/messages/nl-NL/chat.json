@@ -117,7 +117,8 @@
         "reply": "Antwoorden in threads",
         "manage_messages": "Berichten beheren"
       },
-      "owned_by": "Eigenaar"
+      "owned_by": "Eigenaar",
+      "open_card": "Profielkaart van {name} openen"
     }
   }
 }

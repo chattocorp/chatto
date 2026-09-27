@@ -121,7 +121,8 @@
         "reply": "Odpowiadać w wątkach",
         "manage_messages": "Zarządzać wiadomościami"
       },
-      "owned_by": "Właściciel"
+      "owned_by": "Właściciel",
+      "open_card": "Otwórz kartę profilu użytkownika {name}"
     }
   }
 }

@@ -117,7 +117,8 @@
         "reply": "Odpovídat ve vláknech",
         "manage_messages": "Spravovat zprávy"
       },
-      "owned_by": "Vlastník"
+      "owned_by": "Vlastník",
+      "open_card": "Otevřít profilovou kartu uživatele {name}"
     }
   }
 }

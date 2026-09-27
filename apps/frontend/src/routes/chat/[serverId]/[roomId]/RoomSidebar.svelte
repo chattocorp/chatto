@@ -444,11 +444,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
   </PaneHeader>
 
   {#if activeProfileUserId}
-    <RoomSidebarProfile
-      userId={activeProfileUserId}
-      onSendMessage={canStartDMs ? (userId) => startDMWith(activeServerId, userId) : undefined}
-      {onOpenProfile}
-    />
+    <!-- A new profile gets a fresh view, so no open menu carries over to it. -->
+    {#key activeProfileUserId}
+      <RoomSidebarProfile
+        userId={activeProfileUserId}
+        onSendMessage={canStartDMs ? (userId) => startDMWith(activeServerId, userId) : undefined}
+        {onOpenProfile}
+      />
+    {/key}
   {:else if activePanel === 'members'}
     <div class="flex min-h-0 flex-1 flex-col">
       <ScrollFader

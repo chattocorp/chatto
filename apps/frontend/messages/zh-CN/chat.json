@@ -117,7 +117,8 @@
         "reply": "在线程中回复",
         "manage_messages": "管理消息"
       },
-      "owned_by": "所有者"
+      "owned_by": "所有者",
+      "open_card": "打开 {name} 的个人资料卡"
     }
   }
 }

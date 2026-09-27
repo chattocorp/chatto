@@ -207,6 +207,23 @@ describe('RoomSidebarProfile', () => {
     const card = q(container, '[data-testid="profile-user-card"]');
     await expect.element(card).toHaveTextContent('Alice Example');
     await expect.element(card).toHaveTextContent('@alice');
+    await expect
+      .element(page.getByRole('heading', { level: 2, name: 'Alice Example' }))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="profile-user-menu-button"]'))
+      .toHaveAccessibleName('Open profile card of Alice Example');
+  });
+
+  it('opens the shared user menu on right-click of the card', async () => {
+    userStore().set(user.id, userProfileFixture(user));
+    const { container } = renderProfile();
+
+    const card = q(container, '[data-testid="profile-user-card"]');
+    await expect.element(card).toBeInTheDocument();
+    card!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    await expect.element(page.getByRole('dialog', { name: 'User profile' })).toBeVisible();
   });
 
   it('opens the shared user menu without a view-profile action', async () => {

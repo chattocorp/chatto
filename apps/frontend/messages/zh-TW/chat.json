@@ -117,7 +117,8 @@
         "reply": "在討論串中回覆",
         "manage_messages": "管理訊息"
       },
-      "owned_by": "擁有者"
+      "owned_by": "擁有者",
+      "open_card": "開啟 {name} 的個人資料卡"
     }
   }
 }

@@ -117,7 +117,8 @@
         "reply": "Respondi en fadenoj",
         "manage_messages": "Administri mesaĝojn"
       },
-      "owned_by": "Posedanto"
+      "owned_by": "Posedanto",
+      "open_card": "Malfermi la profilkarton de {name}"
     }
   }
 }

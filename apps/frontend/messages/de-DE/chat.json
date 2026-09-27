@@ -117,7 +117,8 @@
         "reply": "In Threads antworten",
         "manage_messages": "Nachrichten verwalten"
       },
-      "owned_by": "Gehört"
+      "owned_by": "Gehört",
+      "open_card": "Profilkarte von {name} öffnen"
     }
   }
 }

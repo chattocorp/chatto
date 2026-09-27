@@ -117,7 +117,8 @@
         "reply": "Responder em tópicos",
         "manage_messages": "Gerir mensagens"
       },
-      "owned_by": "Proprietário"
+      "owned_by": "Proprietário",
+      "open_card": "Abrir o cartão de perfil de {name}"
     }
   }
 }

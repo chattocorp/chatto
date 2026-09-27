@@ -117,7 +117,8 @@
         "reply": "Répondre dans les fils",
         "manage_messages": "Gérer les messages"
       },
-      "owned_by": "Propriétaire"
+      "owned_by": "Propriétaire",
+      "open_card": "Ouvrir la carte de profil de {name}"
     }
   }
 }
