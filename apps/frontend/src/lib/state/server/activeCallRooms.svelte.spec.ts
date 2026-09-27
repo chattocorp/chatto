@@ -47,14 +47,12 @@ describe('ActiveCallRoomsState', () => {
     expect(state.has('R1')).toBe(true);
     expect(state.getCallId('R1')).toBe('call-1');
     expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U1', 'U2']);
-    expect(state.findParticipantCall('U2')).toEqual({ roomId: 'R1', callId: 'call-1' });
 
     calls = [call('R2', 'call-2', ['U3'])];
 
     expect(state.has('R1')).toBe(false);
     expect(state.getParticipants('R1')).toEqual([]);
-    expect(state.findParticipantCall('U2')).toBeNull();
-    expect(state.findParticipantCall('U3')).toEqual({ roomId: 'R2', callId: 'call-2' });
+    expect(state.getParticipants('R2').map(({ userId }) => userId)).toEqual(['U3']);
 
     calls = [];
 

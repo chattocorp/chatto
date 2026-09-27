@@ -48,18 +48,22 @@ export class ServerInfoState {
     return this.#getProjectedState()?.motd ?? null;
   }
 
+  /** Whether the server sends Web Push notifications. */
   get pushNotificationsEnabled(): boolean {
     return this.#runtime?.pushNotificationsEnabled ?? false;
   }
 
+  /** Public VAPID key for Web Push subscriptions. */
   get vapidPublicKey(): string | null {
     return this.#runtime?.vapidPublicKey ?? null;
   }
 
+  /** LiveKit URL for voice and video calls, or null when calls are not set up. */
   get livekitUrl(): string | null {
     return this.#runtime?.livekitUrl ?? null;
   }
 
+  /** Whether the server accepts video uploads for processing. */
   get videoProcessingEnabled(): boolean {
     return this.#runtime?.videoProcessingEnabled ?? false;
   }

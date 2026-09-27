@@ -66,16 +66,6 @@ export class ActiveCallRoomsState {
     return this.#serverRooms[roomId]?.callId ?? null;
   }
 
-  /** Locate a projected participant before applying the next replacement. */
-  findParticipantCall(userId: string): { roomId: string; callId: string | null } | null {
-    for (const [roomId, snapshot] of Object.entries(this.#serverRooms)) {
-      if (snapshot.participants.some((participant) => participant.userId === userId)) {
-        return { roomId, callId: snapshot.callId };
-      }
-    }
-    return null;
-  }
-
   /**
    * Return a user's call presence for a room.
    *

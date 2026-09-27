@@ -140,7 +140,8 @@ export class ServerProjectionStore {
       next.participants = next.participants.filter(
         (participant) => participant.user?.id !== userId
       );
-      return next.participants.length > 0 ? [next] : [];
+      // As before, a call ends locally when no identified participant remains.
+      return next.participants.some((participant) => participant.user?.id) ? [next] : [];
     });
   }
 

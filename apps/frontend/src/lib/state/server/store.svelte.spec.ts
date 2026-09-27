@@ -11,11 +11,20 @@ import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_typ
 import { messageToTimelineEvent } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
-import { GetMotdResponse } from '@chatto/api-types/api/v1/server_state_pb';
+import {
+  GetMotdResponse,
+  GetRuntimeConfigResponse,
+  ServerRuntimeConfig
+} from '@chatto/api-types/api/v1/server_state_pb';
+import {
+  ActiveCall,
+  CallParticipant,
+  ListActiveCallsResponse
+} from '@chatto/api-types/api/v1/voice_calls_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { Room, RoomKind, PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, RoomKind, PinnedMessage, RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   ListRoomsResponse,
   ListRoomGroupsResponse,
@@ -699,6 +708,43 @@ describe('ServerStateStore viewer', () => {
     expect(store.currentUser.verifiedUserId).toBeNull();
     expect(store.accountId).toBe('U1');
     expect(store.viewerId).toBe('U1');
+  });
+});
+
+describe('ServerStateStore projected server state', () => {
+  it('reads runtime settings and active calls from realtime resources', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const publish = (resource: RealtimeResourceUpdate['resource']) =>
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({ resource: new RealtimeResourceUpdate({ resource }) })
+      );
+
+    publish({
+      case: 'runtimeConfig',
+      value: new GetRuntimeConfigResponse({
+        runtime: new ServerRuntimeConfig({ livekitUrl: 'wss://livekit.example.test' })
+      })
+    });
+    publish({
+      case: 'activeCalls',
+      value: new ListActiveCallsResponse({
+        calls: [
+          new ActiveCall({
+            room: new RoomSummary({ id: 'R1' }),
+            callId: 'call-1',
+            participants: [new CallParticipant({ user: new User({ id: 'U1' }) })]
+          })
+        ]
+      })
+    });
+
+    expect(store.serverInfo.livekitUrl).toBe('wss://livekit.example.test');
+    expect(store.activeCallRooms.has('R1')).toBe(true);
+    expect(store.activeCallRooms.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U1']);
+
+    publish({ case: 'activeCalls', value: new ListActiveCallsResponse({ calls: [] }) });
+
+    expect(store.activeCallRooms.has('R1')).toBe(false);
   });
 });
 
