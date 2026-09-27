@@ -24,6 +24,7 @@ test('web content blocks implementation and task steering until the next user me
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
   let enabledTools: readonly string[] = [];
   let steerConsumed = false;
+  let duringThreadRead: (() => Promise<unknown>) | undefined;
   const createAgent = async (options: AgentOptions) => {
     enabledTools = options.tools ?? [];
     for (const extension of options.extensions ?? []) {
@@ -85,6 +86,16 @@ test('web content blocks implementation and task steering until the next user me
     );
     steerConsumed = false;
 
+    // Web content read while a message is being prepared is newer than that message.
+    duringThreadRead = () => call('webSearch', { query: 'during preparation' });
+    const racing = await options.prepareMessage('Quick follow-up', 'user');
+    steerConsumed = true;
+    expect(await agent.steer(racing)).toBe(true);
+    await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
+      'blocked after reading web content'
+    );
+    steerConsumed = false;
+
     // Consumed steering after the read delivers a confirmation; rejected steering does not.
     const steered = await options.prepareMessage('Go ahead', 'user');
     expect(await agent.steer(steered)).toBe(false);
@@ -103,7 +114,11 @@ test('web content blocks implementation and task steering until the next user me
     acknowledge: async () => {},
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => {
+      await duringThreadRead?.();
+      duringThreadRead = undefined;
+      return [];
+    },
     timeout: 0,
     createAgent,
     implementation: { directory: '/unused', repository: 'example/chatto' },

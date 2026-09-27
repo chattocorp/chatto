@@ -183,8 +183,8 @@ that try to control the agent. The host applies these limits:
   in `webSearch` results, and at most 50 links from the most recently read page.
   Injected text therefore cannot add conversation data to a URL. A hostile page
   can still tell the agent which of its links to open. Each user message allows
-  at most 5 searches and 5 page reads, so this channel can reveal at most about
-  28 bits for each user message, for example a short code.
+  at most 5 searches and 5 page reads. This limits the channel to a few dozen
+  bits for each user message, for example a short code, but does not close it.
 - After the agent reads web content, the host refuses `implementChatto`,
   `askImplementation`, and `task_send` until a user message sent after that
   content reaches the agent. Task notifications and earlier messages do not

@@ -235,6 +235,8 @@ export const conversation = task(
         prompt,
         {
           async prepareMessage(message, origin) {
+            // Capture before any await: web content read while preparing is newer than this message.
+            const seenSeq = webContentSeq;
             options.setReplyContext(message, origin);
             latestOrigin = origin;
             if (origin === 'user') {
@@ -258,7 +260,7 @@ export const conversation = task(
                 plan
               }))
             });
-            if (origin === 'user') preparedUserPrompts.set(prepared, webContentSeq);
+            if (origin === 'user') preparedUserPrompts.set(prepared, seenSeq);
             return prepared;
           },
           timeout: options.timeout ?? 900,
