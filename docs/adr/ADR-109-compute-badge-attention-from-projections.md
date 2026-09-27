@@ -67,16 +67,17 @@ Realtime hints remain content-free:
 - For each Badge recipient of a new source, the materializer compares the
   attention without and with the source. It sends a hint only when the source
   turns attention on.
-- A retraction hints the users who can see the room, for whom the message was
-  still unread, and who now have no attention in its scope. A reaction
-  removal hints the message author if the author can see the room.
+- A retraction compares each possible recipient's attention with the message
+  counted as not retracted against the current attention. It hints the users
+  whose attention ended. A reaction removal hints the message author if the
+  author can see the room.
 - A notification policy change compares the actor's room attention in the
   policy scope before and after the change and hints the changed rooms. A
   manual follow or unfollow hints the thread.
 - A user-scoped visibility change hints the user's rooms. A room-scoped
   visibility change hints the room's members. Server-wide and room-group-wide
   changes send no hints; clients converge when they next read their rooms.
-  Hints never name a room that the user cannot see, belong to, or join.
+  Hints go only to users who belong to the room or can join it.
 
 ## Consequences
 
