@@ -59,10 +59,14 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 	}
 	// Reactions are coverable only through the local reaction projection's
 	// applied horizon, not merely because a newer fact exists in EVT but has not
-	// yet become observable to this read operation.
+	// yet become observable to this read operation. The boundary only covers
+	// reactions in this room, so the room's own applied horizon covers the same
+	// reactions as the stream-wide one. Unlike the stream-wide horizon, it does
+	// not change when only other rooms change, so an unchanged boundary is not
+	// rewritten.
 	next := notificationReadBoundary{
 		targetSequence:   entry.StreamSeq,
-		observedSequence: m.core.roomModel.reactions.Projector().Status().LastSeq,
+		observedSequence: m.core.roomModel.reactions.Projection().RoomSequence(roomID),
 	}
 	if next.observedSequence < next.targetSequence {
 		next.observedSequence = next.targetSequence
