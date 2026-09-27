@@ -319,11 +319,11 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	}
 	assertStableAssetURLTicket(t, core, stable, nil, before)
 
-	if got := service.GetStableAttachmentURL("", "U-url"); got != "" {
-		t.Fatalf("GetStableAttachmentURL with empty asset id = %q, want empty", got)
+	if got := service.GetStableAttachmentAssetURL("", "U-url").URL; got != "" {
+		t.Fatalf("GetStableAttachmentAssetURL with empty asset id = %q, want empty", got)
 	}
-	if got := service.GetStableAttachmentURL("A-url", ""); got != "" {
-		t.Fatalf("GetStableAttachmentURL with empty user id = %q, want empty", got)
+	if got := service.GetStableAttachmentAssetURL("A-url", "").URL; got != "" {
+		t.Fatalf("GetStableAttachmentAssetURL with empty user id = %q, want empty", got)
 	}
 
 	transformed := service.GetStableTransformedAttachmentAssetURL("A-url", "U-url", 128, 96, "contain")
@@ -341,8 +341,8 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 		Height: 96,
 		Fit:    "contain",
 	}, before)
-	if got := service.GetStableTransformedAttachmentURL("", "U-url", 128, 96, "contain"); got != "" {
-		t.Fatalf("GetStableTransformedAttachmentURL with empty asset id = %q, want empty", got)
+	if got := service.GetStableTransformedAttachmentAssetURL("", "U-url", 128, 96, "contain").URL; got != "" {
+		t.Fatalf("GetStableTransformedAttachmentAssetURL with empty asset id = %q, want empty", got)
 	}
 
 	hls := service.GetStableHLSMasterPlaylistAssetURL("A-url", "U-url")
@@ -437,28 +437,6 @@ func assertStableAssetURLTicket(t *testing.T, core *ChattoCore, stable StableAss
 	minimumTTL := AssetAccessTicketTTL - assetAccessTicketIssueBucket
 	if ttl < minimumTTL || ttl > AssetAccessTicketTTL+2*time.Second {
 		t.Fatalf("stable URL ticket TTL = %v, want between %v and %v", ttl, minimumTTL, AssetAccessTicketTTL)
-	}
-}
-
-func TestMediaModelAssetURLs(t *testing.T) {
-	core, _ := setupTestCore(t)
-	service := core.mediaModel
-
-	rawURL := service.GetStableAttachmentURL("A-url", "U-url")
-	if !strings.HasPrefix(rawURL, "/assets/files/A-url?access=") {
-		t.Fatalf("GetStableAttachmentURL = %q, want stable asset URL", rawURL)
-	}
-
-	transformed := service.GetStableTransformedAttachmentURL("A-url", "U-url", 64, 48, "cover")
-	if !strings.HasPrefix(transformed, "/assets/files/A-url/image/64x48/cover?access=") {
-		t.Fatalf("GetStableTransformedAttachmentURL = %q, want stable transform URL", transformed)
-	}
-	serverAsset := service.GetTransformedServerAssetURL("server.logo", 80, 80, "cover")
-	if !strings.HasPrefix(serverAsset, "/assets/server/server.logo/t/") {
-		t.Fatalf("GetTransformedServerAssetURL = %q, want signed server asset URL", serverAsset)
-	}
-	if got := service.GetStableAttachmentURL("", "U-url"); got != "" {
-		t.Fatalf("GetStableAttachmentURL with empty asset id = %q, want empty", got)
 	}
 }
 

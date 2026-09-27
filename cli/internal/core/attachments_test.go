@@ -607,8 +607,9 @@ func TestChattoCore_AssetURLsAreServerRelative(t *testing.T) {
 		url    string
 		prefix string
 	}{
-		"attachment":             {core.mediaModel.GetStableAttachmentURL("attachment456", "Uviewer"), "/assets/files/attachment456?access="},
-		"transformed attachment": {core.mediaModel.GetStableTransformedAttachmentURL("attachment456", "Uviewer", 200, 150, "contain"), "/assets/files/attachment456/image/200x150/contain?access="},
+		"attachment":             {core.mediaModel.GetStableAttachmentAssetURL("attachment456", "Uviewer").URL, "/assets/files/attachment456?access="},
+		"transformed attachment": {core.mediaModel.GetStableTransformedAttachmentAssetURL("attachment456", "Uviewer", 200, 150, "contain").URL, "/assets/files/attachment456/image/200x150/contain?access="},
+		"HLS master playlist":    {core.mediaModel.GetStableHLSMasterPlaylistAssetURL("attachment456", "Uviewer").URL, "/assets/hls/attachment456/master.m3u8?access="},
 		"transformed server":     {core.GetTransformedServerAssetURL("avatar-key", 100, 100, "cover"), "/assets/server/avatar-key/t/"},
 	}
 	for name, tt := range tests {
@@ -684,7 +685,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 2. Verify stable access-ticket URL generation
-	url := core.mediaModel.GetStableAttachmentURL(attachment.Id, SystemActorID)
+	url := core.mediaModel.GetStableAttachmentAssetURL(attachment.Id, SystemActorID).URL
 	if url == "" {
 		t.Error("URL generation failed")
 	}

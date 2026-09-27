@@ -750,16 +750,11 @@ const assetAccessTicketIssueBucket = time.Hour
 // short-lived S3 URL only for cases where proxying the bytes would be costly.
 const S3AssetRedirectTTL = 5 * time.Minute
 
-// GetStableAttachmentURL returns the canonical URL for an asset binary. The
-// path identifies the asset; the asset-scoped access ticket authorizes the
-// viewer so browsers and standalone clients can load the URL directly from the
-// owning host without custom headers.
-func (c *MediaModel) GetStableAttachmentURL(assetID, userID string) string {
-	return c.GetStableAttachmentAssetURL(assetID, userID).URL
-}
-
 // GetStableAttachmentAssetURL returns the canonical URL for an asset binary
-// together with the exact expiry embedded in its access ticket.
+// together with the exact expiry embedded in its access ticket. The path
+// identifies the asset; the asset-scoped access ticket authorizes the viewer so
+// browsers and standalone clients can load the URL directly from the owning
+// host without custom headers.
 func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
@@ -793,16 +788,10 @@ func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) 
 	return StableAssetURL{URL: path, ExpiresAt: expiresAt}
 }
 
-// GetStableTransformedAttachmentURL returns the canonical URL for a derived
-// image form factor. The dimensions are visible in the URL; authorization is a
-// scoped access ticket.
-func (c *MediaModel) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
-	return c.GetStableTransformedAttachmentAssetURL(assetID, userID, width, height, fit).URL
-}
-
 // GetStableTransformedAttachmentAssetURL returns the canonical URL for a
 // derived image form factor together with the exact expiry embedded in its
-// access ticket.
+// access ticket. The dimensions are visible in the URL; authorization is a
+// scoped access ticket.
 func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
