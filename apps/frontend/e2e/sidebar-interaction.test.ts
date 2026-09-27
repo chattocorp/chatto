@@ -81,20 +81,27 @@ for (const touch of [false, true]) {
               const link = chatPage.getRoomLink(destination.name);
               await expect(link).toBeVisible();
               const handle = link.getByTestId('room-drag-handle');
-              if (admin) {
-                if (!touch) await link.hover();
+              if (admin && !touch) {
+                await link.hover();
                 await expect(handle).toHaveCSS('opacity', '1');
-                // A click/tap presses and releases without a drag. It must not navigate.
+                // A click presses and releases without a drag. It must not navigate.
                 await activate(handle);
                 await expectRoom(current);
                 await expect(page.locator('#dnd-action-dragged-el')).toHaveCount(0);
               } else {
+                // Touch-only devices get no sidebar drag handles, so a touch on the
+                // leading icon scrolls or navigates like the rest of the row.
                 await expect(handle).toHaveCount(0);
               }
 
-              // Target the name explicitly: the leading icon can be a drag handle.
+              // With a mouse, the leading icon can be a drag handle; target the name.
+              // With touch, target the leading icon to prove that it navigates.
               // Never retry this action; only the resulting state assertions may poll.
-              await activate(link.getByText(destination.name, { exact: true }));
+              await activate(
+                touch
+                  ? link.locator('.sidebar-icon').first()
+                  : link.getByText(destination.name, { exact: true })
+              );
               await expectRoom(destination);
               await expect(link).toHaveAttribute('aria-current', 'page');
               await expect(page.locator('#dnd-action-dragged-el')).toHaveCount(0);

@@ -171,7 +171,8 @@
 /* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
    Usage: pointer-fine:select-text - enables selection only on desktop */
 @custom-variant pointer-fine (@media (pointer: fine));
-/* Hover affordances should follow input capability, not viewport width. */
+/* Hover affordances should follow input capability, not viewport width.
+ * Keep this query in sync with HOVER_POINTER_QUERY in utils/inputMediaQueries.ts. */
 @custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
 /* Keep these queries in sync with utils/inputMediaQueries.ts. Width still owns
  * content fitting; only narrow touch-capable windows use mobile presentation. */
