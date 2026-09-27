@@ -46,9 +46,9 @@ type notificationUnreadMarkerEntry struct {
 
 // notificationBoundaryIndex maintains the process-local mirror of notification
 // visibility boundaries, read boundaries, and Badge markers in RUNTIME_STATE.
-// The KV bucket remains authoritative; one filtered watcher supplies the
-// initial latest-value snapshot and every later update from local or remote
-// replicas.
+// The KV bucket remains authoritative; one single-filter watcher per key
+// family, merged by watchKeyFilters, supplies the initial latest-value
+// snapshot and every later update from local or remote replicas.
 type notificationBoundaryIndex struct {
 	kv     jetstream.KeyValue
 	logger *log.Logger

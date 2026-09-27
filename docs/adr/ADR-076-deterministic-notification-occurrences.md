@@ -186,7 +186,8 @@ Room/thread read reconciliation, visibility-loss boundaries, and Badge output
 remain bounded latest-value records in `RUNTIME_STATE`. The boundary records
 are cross-stream coordination state, not notification history. A Badge record
 stores only the latest source needed to compute neutral unread attention. One
-process-wide filtered KV watcher indexes all three families; successful local
+process-wide index watches the three families, with one single-filter KV
+watcher for each family; successful local
 writes wait for their exact KV
 revision to enter that index before dependent work continues. Badge marker
 keys use bounded concurrent OCC writes and one collective applied-revision

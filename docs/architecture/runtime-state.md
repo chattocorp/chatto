@@ -125,19 +125,19 @@ also remain in `EVT`. Only their optional, approximate last-use telemetry is in
 `RUNTIME_STATE`.
 
 `ReadStateModel` mirrors both `read.*` key families through one KV watcher
-with the single filter `read.>` per Chatto process. The initial latest-value watch delivery is a startup
-readiness barrier; subsequent local and remote revisions update the same
-in-memory index. Request and realtime reconciliation reads use that index
+with the single filter `read.>` per Chatto process. The initial latest-value
+watch delivery is a startup readiness barrier; subsequent local and remote
+revisions update the same in-memory index. Request and realtime reconciliation reads use that index
 instead of issuing one KV `Get` per room/thread. `RUNTIME_STATE` remains the
 authority: writes use KV OCC and wait for their returned revision to reach the
 local index when read-your-writes is required. Create-only membership
 initialization cannot replace a marker concurrently advanced by the user or
 another replica.
 
-`RUNTIME_STATE` has high write churn, so its stream has many sparse message
+`RUNTIME_STATE` receives many writes, so its stream has many sparse message
 blocks. JetStream serves a single-filter watcher from its per-subject index. A
-watcher with more than one filter scans every message block. Therefore, process
-watchers on `RUNTIME_STATE` use one filter for each watcher. When an index needs
+watcher with more than one filter scans every message block. Therefore, each
+process-wide watcher on `RUNTIME_STATE` uses only one filter. When an index needs
 more than one key family, it merges one single-filter watcher for each family.
 The merged initial-snapshot marker arrives after every family has delivered its
 initial values.
