@@ -48,10 +48,19 @@ func (kv *recordingWatchKV) WatchFiltered(ctx context.Context, keys []string, op
 
 type channelKeyWatcher struct {
 	updates chan jetstream.KeyValueEntry
+	stopped chan struct{}
+	once    sync.Once
+}
+
+func newChannelKeyWatcher(buffer int) *channelKeyWatcher {
+	return &channelKeyWatcher{updates: make(chan jetstream.KeyValueEntry, buffer), stopped: make(chan struct{})}
 }
 
 func (w *channelKeyWatcher) Updates() <-chan jetstream.KeyValueEntry { return w.updates }
-func (w *channelKeyWatcher) Stop() error                             { return nil }
+func (w *channelKeyWatcher) Stop() error {
+	w.once.Do(func() { close(w.stopped) })
+	return nil
+}
 
 func receiveKeyWatcherEntry(t *testing.T, watcher jetstream.KeyWatcher) (jetstream.KeyValueEntry, bool) {
 	t.Helper()
@@ -116,7 +125,7 @@ func TestWatchKeyFiltersUsesOneSingleFilterWatcherPerFilter(t *testing.T) {
 
 func TestWatchKeyFiltersSendsInitialMarkerOnlyAfterEverySource(t *testing.T) {
 	ctx := testContext(t)
-	slow := &channelKeyWatcher{updates: make(chan jetstream.KeyValueEntry, 1)}
+	slow := newChannelKeyWatcher(1)
 	kv := &recordingWatchKV{KeyValue: newFilteredWatchTestKV(t), override: map[string]jetstream.KeyWatcher{"slow.>": slow}}
 	if _, err := kv.Put(ctx, "fast.one", []byte("fast")); err != nil {
 		t.Fatal(err)
@@ -147,8 +156,9 @@ func TestWatchKeyFiltersSendsInitialMarkerOnlyAfterEverySource(t *testing.T) {
 
 func TestWatchKeyFiltersClosesWhenAnySourceCloses(t *testing.T) {
 	ctx := testContext(t)
-	closing := &channelKeyWatcher{updates: make(chan jetstream.KeyValueEntry)}
-	kv := &recordingWatchKV{KeyValue: newFilteredWatchTestKV(t), override: map[string]jetstream.KeyWatcher{"closing.>": closing}}
+	closing := newChannelKeyWatcher(0)
+	open := newChannelKeyWatcher(0)
+	kv := &recordingWatchKV{KeyValue: newFilteredWatchTestKV(t), override: map[string]jetstream.KeyWatcher{"closing.>": closing, "open.>": open}}
 
 	watcher, err := watchKeyFilters(ctx, kv, []string{"open.>", "closing.>"})
 	if err != nil {
@@ -157,14 +167,31 @@ func TestWatchKeyFiltersClosesWhenAnySourceCloses(t *testing.T) {
 	defer func() { _ = watcher.Stop() }()
 
 	close(closing.updates)
-	for {
-		entry, ok := receiveKeyWatcherEntry(t, watcher)
-		if !ok {
-			return
-		}
-		if entry != nil {
-			t.Fatalf("unexpected entry %v", entry.Key())
-		}
+	if _, ok := receiveKeyWatcherEntry(t, watcher); ok {
+		t.Fatal("merged watcher stayed open after a source closed")
+	}
+	select {
+	case <-open.stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the remaining source was not stopped")
+	}
+}
+
+func TestWatchKeyFiltersRejectsEmptyFilters(t *testing.T) {
+	if _, err := watchKeyFilters(testContext(t), newFilteredWatchTestKV(t), nil); err == nil {
+		t.Fatal("watchKeyFilters accepted an empty filter list")
+	}
+}
+
+func TestWatchKeyFiltersKeepsCallerSlice(t *testing.T) {
+	filters := []string{"single.>"}
+	watcher, err := watchKeyFilters(testContext(t), newFilteredWatchTestKV(t), filters)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = watcher.Stop() }()
+	if filters[0] != "single.>" {
+		t.Fatalf("caller filter changed to %q", filters[0])
 	}
 }
 

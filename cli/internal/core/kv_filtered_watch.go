@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -25,9 +26,18 @@ import (
 //     disjoint keys.
 //   - Updates closes when any source closes, so callers detect a stopped
 //     watcher and restart the complete set.
+//
+// With the UpdatesOnly option, JetStream sends no initial-snapshot marker, so
+// the merged watcher sends none either. At least one filter is required;
+// JetStream would treat an empty filter list as "all keys".
 func watchKeyFilters(ctx context.Context, kv jetstream.KeyValue, filters []string, opts ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
+	if len(filters) == 0 {
+		return nil, errors.New("watch key filters: at least one filter is required")
+	}
 	if len(filters) == 1 {
-		return kv.WatchFiltered(ctx, filters, opts...)
+		// WatchFiltered rewrites its key slice in place; keep the caller's
+		// slice unchanged.
+		return kv.WatchFiltered(ctx, slices.Clone(filters), opts...)
 	}
 	merged := &mergedKeyWatcher{
 		updates: make(chan jetstream.KeyValueEntry, 256),
