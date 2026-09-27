@@ -329,6 +329,11 @@ Do not generate playground links for code written into this repository.
 - Keep debounce assertions independent of browser-suite scheduling: use fake
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.
+- A test that depends on the current date, the time of day, or a time zone must
+  set a fixed clock: `vi.useFakeTimers({ toFake: ['Date'] })` and
+  `vi.setSystemTime(...)`, restored with `vi.useRealTimers()`. Select a time
+  far from local midnight. Near a change to or from daylight saving time, 24
+  hours earlier can be a different number of calendar days earlier.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
 - A cold `page.goto` or `page.reload` starts without a resume cursor and loads
   fresh data from the server. To test resume or catch-up behavior, keep the
