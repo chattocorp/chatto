@@ -31,6 +31,12 @@ type RoomEntry = {
   disposeMembers?: () => void;
 };
 
+/** The part of {@link RoomStores} that components use: the store accessors. */
+export type RoomStoreAccess = Pick<
+  RoomStores,
+  'messages' | 'thread' | 'retainThread' | 'releaseThread' | 'files' | 'pins' | 'search' | 'members'
+>;
+
 /** What {@link RoomStores} needs from its server. */
 export type RoomStoresOptions = {
   serverId: string;
