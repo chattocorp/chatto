@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -92,7 +92,7 @@ even if its durable consumer remains retained.
 - `role.manage` — configures roles and role permission decisions, including scoped room and room-group matrices without granting general room-management authority.
 - `role.assign` — gates user role assignment and revocation; non-owner assignments remain bounded by the actor's own scoped authority.
 - `room.manage` — gates general room and room-group settings at the effective resource scope; server-scope grants also gate global room-group creation and ordering.
-- `user.manage-accounts` — gates user creation, cross-user identity edits, password resets, verified-email attachment, and login-cooldown resets.
+- `user.manage-accounts` — gates user creation, cross-user identity edits of humans, password resets, verified-email attachment, and login-cooldown resets.
 
 These administrative permissions and owner-only diagnostics require active
 privileged mode for a human session. The server configuration entry remains

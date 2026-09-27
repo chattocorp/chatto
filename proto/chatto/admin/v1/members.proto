@@ -29,7 +29,7 @@ message AdminMember {
   repeated string verified_emails = 9;
   // Whether the caller may delete this account.
   bool viewer_can_delete_account = 10;
-  // Last self-service username change, when visible and known.
+  // Start of the current username-change cooldown, when visible and known.
   google.protobuf.Timestamp last_login_change = 11;
   // Public identity fields for this user.
   chatto.api.v1.User user = 12;

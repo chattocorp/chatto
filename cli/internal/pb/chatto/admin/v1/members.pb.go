@@ -40,7 +40,7 @@ type AdminMember struct {
 	VerifiedEmails []string `protobuf:"bytes,9,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
 	// Whether the caller may delete this account.
 	ViewerCanDeleteAccount bool `protobuf:"varint,10,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
-	// Last self-service username change, when visible and known.
+	// Start of the current username-change cooldown, when visible and known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
 	// Public identity fields for this user.
 	User *v1.User `protobuf:"bytes,12,opt,name=user,proto3" json:"user,omitempty"`

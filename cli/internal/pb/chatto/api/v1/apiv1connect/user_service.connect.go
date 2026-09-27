@@ -66,13 +66,13 @@ type UserServiceClient interface {
 	// update themselves. Updating another human requires user.manage-accounts.
 	// A human who updates a bot needs ownership of the bot,
 	// user.manage-accounts, or bot.manage. A bot cannot target another account.
-	// A login change starts the target's username-change cooldown and returns
-	// FAILED_PRECONDITION while the cooldown is active. This also applies when
-	// a bot owner or bot manager changes a bot's login. A caller with
-	// user.manage-accounts bypasses the cooldown and does not start it. A
-	// case-only change does not check or start the cooldown. Unknown or deleted targets return
-	// NOT_FOUND. An invalid ID or a request without a selected field returns
-	// INVALID_ARGUMENT.
+	// A login change returns FAILED_PRECONDITION while the target's
+	// username-change cooldown is active. A successful login change starts a
+	// new cooldown. This also applies when a bot owner or bot manager changes a
+	// bot's login. A caller with user.manage-accounts bypasses the cooldown and
+	// does not start it. A case-only change does not check or start the
+	// cooldown. Unknown or deleted targets return NOT_FOUND. An invalid ID or a
+	// request without a selected field returns INVALID_ARGUMENT.
 	UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error)
 	// Uploads and sets an avatar for the target user. Users can update
 	// themselves. Updating another human requires user.manage-accounts.
@@ -193,13 +193,13 @@ type UserServiceHandler interface {
 	// update themselves. Updating another human requires user.manage-accounts.
 	// A human who updates a bot needs ownership of the bot,
 	// user.manage-accounts, or bot.manage. A bot cannot target another account.
-	// A login change starts the target's username-change cooldown and returns
-	// FAILED_PRECONDITION while the cooldown is active. This also applies when
-	// a bot owner or bot manager changes a bot's login. A caller with
-	// user.manage-accounts bypasses the cooldown and does not start it. A
-	// case-only change does not check or start the cooldown. Unknown or deleted targets return
-	// NOT_FOUND. An invalid ID or a request without a selected field returns
-	// INVALID_ARGUMENT.
+	// A login change returns FAILED_PRECONDITION while the target's
+	// username-change cooldown is active. A successful login change starts a
+	// new cooldown. This also applies when a bot owner or bot manager changes a
+	// bot's login. A caller with user.manage-accounts bypasses the cooldown and
+	// does not start it. A case-only change does not check or start the
+	// cooldown. Unknown or deleted targets return NOT_FOUND. An invalid ID or a
+	// request without a selected field returns INVALID_ARGUMENT.
 	UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error)
 	// Uploads and sets an avatar for the target user. Users can update
 	// themselves. Updating another human requires user.manage-accounts.

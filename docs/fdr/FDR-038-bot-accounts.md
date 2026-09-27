@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-26
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -72,9 +72,9 @@ exercise more authority than its human owner currently possesses.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
   bots. Selecting a bot opens its detail page. The page edits the login,
   display name, and bio, and manages the avatar, API keys, deletion, metadata,
-  and permissions. An account manager who does not manage bots can
-  see all bots and can manage their profiles and avatars, but cannot manage
-  their credentials or lifecycle.
+  and permissions. An account manager who does not manage bots can see all
+  bots and manage their profiles and avatars. The account manager cannot
+  manage their credentials or lifecycle.
   Bot custom-status and personal-settings management are not supported.
 - The user context menu of a bot shows **Manage bot** to its owner, to a human
   with `bot.manage`, and to a human with `user.manage-accounts`. The item
@@ -229,7 +229,9 @@ exercise more authority than its human owner currently possesses.
   `user.manage-accounts` can change a bot's login, display name, and bio, and
   can upload or delete its avatar. A login change by the owner or a human with
   `bot.manage` checks and starts the 30-day username cooldown of the bot. A
-  human with `user.manage-accounts` bypasses the cooldown. The bot detail page
+  human with `user.manage-accounts` bypasses the cooldown. A case-only change
+  does not check or start it. The owner and bot managers can see the start of
+  the cooldown through `BotService`, without `admin.view-users`. The bot detail page
   asks for confirmation before a login change that starts the cooldown, and it
   locks the username field while the cooldown runs. `Bot.last_login_change`
   reports the start of the cooldown. A bot cannot target another account.

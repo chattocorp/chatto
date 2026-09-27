@@ -55,7 +55,7 @@ export class AdminMember extends Message<AdminMember> {
   viewerCanDeleteAccount = false;
 
   /**
-   * Last self-service username change, when visible and known.
+   * Start of the current username-change cooldown, when visible and known.
    *
    * @generated from field: google.protobuf.Timestamp last_login_change = 11;
    */
