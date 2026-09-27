@@ -388,14 +388,16 @@ touch screens.
       </Button>
     {/if}
   {/snippet}
-</FormDialog>
 
-{#if emojiPickerAnchor}
-  <ContextMenu anchor={emojiPickerAnchor} onclose={() => (emojiPickerAnchor = null)}>
-    <EmojiPicker
-      serverId={config.serverId}
-      onSelect={handleEmojiSelect}
-      onClose={() => (emojiPickerAnchor = null)}
-    />
-  </ContextMenu>
-{/if}
+  {#snippet overlays()}
+    {#if emojiPickerAnchor}
+      <ContextMenu anchor={emojiPickerAnchor} onclose={() => (emojiPickerAnchor = null)}>
+        <EmojiPicker
+          serverId={config.serverId}
+          onSelect={handleEmojiSelect}
+          onClose={() => (emojiPickerAnchor = null)}
+        />
+      </ContextMenu>
+    {/if}
+  {/snippet}
+</FormDialog>

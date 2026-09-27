@@ -84,6 +84,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
           <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each searchResults as result (result.name)}
               <button
+                type="button"
                 class="flex min-h-11 cursor-pointer items-center justify-center rounded text-xl hover:bg-surface active:bg-surface compact-input:min-h-8 compact-input:text-base"
                 onclick={() => selectEmoji(result.emoji)}
                 title={result.name}
@@ -103,6 +104,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
           <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each recent as emoji (emoji)}
               <button
+                type="button"
                 class="flex min-h-11 cursor-pointer items-center justify-center rounded text-xl hover:bg-surface active:bg-surface compact-input:min-h-8 compact-input:text-base"
                 onclick={() => selectEmoji(emoji)}
               >
@@ -120,6 +122,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
           <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each cat.emojis as entry (entry.name)}
               <button
+                type="button"
                 class="flex min-h-11 cursor-pointer items-center justify-center rounded text-xl hover:bg-surface active:bg-surface compact-input:min-h-8 compact-input:text-base"
                 onclick={() => selectEmoji(entry.emoji)}
                 title={entry.name}

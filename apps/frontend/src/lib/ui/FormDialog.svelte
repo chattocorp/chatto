@@ -38,6 +38,7 @@ The submit button's color follows `submitTone` (`action` by default; use
     children,
     description,
     secondaryActions,
+    overlays,
     visible = $bindable(false),
     title,
     titleContent,
@@ -62,6 +63,12 @@ The submit button's color follows `submitTone` (`action` by default; use
      * record being edited. Use ordinary `type="button"` buttons.
      */
     secondaryActions?: Snippet;
+    /**
+     * Floating content that belongs to the dialog but must stay outside its
+     * form, such as a picker popover whose buttons would otherwise submit it.
+     * It renders inside the modal, so it stays interactive.
+     */
+    overlays?: Snippet;
     visible?: boolean;
     title: string;
     /** Rich visual title; title remains the plain-text fallback. */
@@ -131,6 +138,7 @@ The submit button's color follows `submitTone` (`action` by default; use
       <FormError {error} />
     {/if}
   </form>
+  {@render overlays?.()}
 
   {#snippet dismissAction()}
     <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>

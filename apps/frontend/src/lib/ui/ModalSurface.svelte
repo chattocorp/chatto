@@ -50,9 +50,15 @@ the handle claims drag gestures; content retains native scrolling.
     }
   }
 
+  // Set when the owner unmounts this surface. Closing a detached dialog still
+  // queues a native close event; it must not report a user close to the owner.
+  let destroyed = false;
+
   function lifetime(node: HTMLDialogElement) {
     dialogEl = node;
+    destroyed = false;
     return () => {
+      destroyed = true;
       clearTimeout(closeTimer);
       node.close();
       restoreFocus();
@@ -117,6 +123,7 @@ the handle claims drag gestures; content retains native scrolling.
 
   function nativeClose() {
     clearTimeout(closeTimer);
+    if (destroyed) return;
     visible = false;
     closing = false;
     dragging = false;
