@@ -3,6 +3,46 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.9](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.8...v0.5.0-beta.9) (2026-09-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** let bot owners edit bot profiles through UserService.UpdateUserProfile ([#2640](https://github.com/chattocorp/chatto/issues/2640))
+
+### Features
+
+* **api:** let bot owners edit bot profiles through UserService.UpdateUserProfile ([#2640](https://github.com/chattocorp/chatto/issues/2640)) ([7f382a4](https://github.com/chattocorp/chatto/commit/7f382a41a7b0fb20c377c8d2aa605fb2fcb6ce00))
+* **auth:** let loopback frontends sign in to remote servers ([#2683](https://github.com/chattocorp/chatto/issues/2683)) ([73ffc84](https://github.com/chattocorp/chatto/commit/73ffc840fc8342683cd01ace3da7e9b1e5d3c73d))
+* **frontend:** extend form primitives for the remaining raw controls ([#2689](https://github.com/chattocorp/chatto/issues/2689)) ([2e25173](https://github.com/chattocorp/chatto/commit/2e25173ec65cd3f74d29429d41c8e258d21e0a7c))
+* **frontend:** rank thread participants first in mention autocomplete ([#2692](https://github.com/chattocorp/chatto/issues/2692)) ([8bf5fae](https://github.com/chattocorp/chatto/commit/8bf5fae7505fda47bcbc93628f5eb69b91c09bf6))
+* **frontend:** show attachment descriptions on hover ([#2680](https://github.com/chattocorp/chatto/issues/2680)) ([cc16b0b](https://github.com/chattocorp/chatto/commit/cc16b0b08075cd3281d894877e85bc15a6959a95))
+* **frontend:** use the user card and its menu in the profile tab header ([#2697](https://github.com/chattocorp/chatto/issues/2697)) ([0600ecd](https://github.com/chattocorp/chatto/commit/0600ecd39d6a2779b62cd7cd1955467f8a52b43e))
+* **frontend:** virtualize the room member and file lists ([#2701](https://github.com/chattocorp/chatto/issues/2701)) ([626158b](https://github.com/chattocorp/chatto/commit/626158b66e588b876d824e1ed62780b54b8d2d32))
+
+
+### Bug Fixes
+
+* **email:** warn on insecure SMTP transport and redact addresses from errors ([#2660](https://github.com/chattocorp/chatto/issues/2660)) ([73a8949](https://github.com/chattocorp/chatto/commit/73a8949c2a55693b5b941f01a44a4554e4415c06))
+* **frontend:** allow image zoom up to 1600% ([#2679](https://github.com/chattocorp/chatto/issues/2679)) ([44c644b](https://github.com/chattocorp/chatto/commit/44c644b8a37b4e793969da1d42f8e4037ec774ce))
+* **frontend:** allow scroll chaining from message previews ([#2682](https://github.com/chattocorp/chatto/issues/2682)) ([5617f64](https://github.com/chattocorp/chatto/commit/5617f64f5965da18f2dd5771f9f8c74a7bf456c5))
+* **frontend:** give each local build a unique version name ([#2681](https://github.com/chattocorp/chatto/issues/2681)) ([6b04c69](https://github.com/chattocorp/chatto/commit/6b04c696da9b102adcc2798d91f9b180bc9faa60))
+* **frontend:** keep presence that changes during a user read ([#2677](https://github.com/chattocorp/chatto/issues/2677)) ([c2894d7](https://github.com/chattocorp/chatto/commit/c2894d713eddad0d58e32d839c07656b6efb5bde))
+* **frontend:** let touch devices scroll the sidebar over room icons ([#2698](https://github.com/chattocorp/chatto/issues/2698)) ([3066b0d](https://github.com/chattocorp/chatto/commit/3066b0d2737643f755b42367c6b1d825f381cb9d))
+* **frontend:** make DataTable rows keyboard-accessible ([#2678](https://github.com/chattocorp/chatto/issues/2678)) ([b518330](https://github.com/chattocorp/chatto/commit/b518330abf4968ed63b709c3098dfd9c00313f12))
+* **frontend:** restore Markdown editor Tab focus navigation ([#2657](https://github.com/chattocorp/chatto/issues/2657)) ([d9fda16](https://github.com/chattocorp/chatto/commit/d9fda1687472fd3ff9eb57a0e277298cbeb2230e))
+* **frontend:** share user menus and enable current-user context menu ([#2652](https://github.com/chattocorp/chatto/issues/2652)) ([169c452](https://github.com/chattocorp/chatto/commit/169c4523218cd5211b1f9f789990bbe2001aee8f))
+* **frontend:** simplify and clarify page titles ([#2658](https://github.com/chattocorp/chatto/issues/2658)) ([4c4edde](https://github.com/chattocorp/chatto/commit/4c4edde11bb637427e6081e6f448311f2d7642e5))
+* **frontend:** tighten account badge spacing ([#2653](https://github.com/chattocorp/chatto/issues/2653)) ([19a3a77](https://github.com/chattocorp/chatto/commit/19a3a77bc23a5cda59caac440b5dcf888536f675))
+
+
+### Performance Improvements
+
+* **core:** check notification visibility without a stream read per occurrence ([#2655](https://github.com/chattocorp/chatto/issues/2655)) ([4901454](https://github.com/chattocorp/chatto/commit/4901454912a0444328022714402b9c8dee6e4590))
+* **core:** intern thread and reaction projection IDs as compact handles ([#2687](https://github.com/chattocorp/chatto/issues/2687)) ([a8b1440](https://github.com/chattocorp/chatto/commit/a8b1440a5639cd76b6ce257715db21dc7fa6fd0b))
+* **core:** start in under two seconds by avoiding multi-filter RUNTIME_STATE watchers ([#2691](https://github.com/chattocorp/chatto/issues/2691)) ([90d390b](https://github.com/chattocorp/chatto/commit/90d390beb98024fb4856b1e31f80e89bd706ca88))
+* **core:** stop rewriting unchanged read boundaries ([#2695](https://github.com/chattocorp/chatto/issues/2695)) ([3202649](https://github.com/chattocorp/chatto/commit/32026494dd01037f91efacae00a6ca57d457bd89))
+
 ## [0.5.0-beta.8](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.7...v0.5.0-beta.8) (2026-09-26)
 
 
