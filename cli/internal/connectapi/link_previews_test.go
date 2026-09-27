@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,4 +56,31 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 	require.NotNil(t, preview.GetSocialPost().GetQuotedPost())
 	assert.Equal(t, "Quoted words.", preview.GetSocialPost().GetQuotedPost().GetText())
 	assert.Equal(t, "https://bsky.app/profile/quoted.example/post/quoted", preview.GetSocialPost().GetQuotedPost().GetUrl())
+}
+
+func TestAPILinkPreviewImageURLsUseRequestOrigin(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	image := &evtv1.AssetRecord{Id: "Apreviewimage01", Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "Apreviewimage01"}}}
+	preview := &evtv1.LinkPreview{
+		Url:        "https://example.com/story",
+		ImageAsset: image,
+		SocialPost: &evtv1.SocialPostPreview{
+			Author: &evtv1.SocialPostAuthor{Handle: "author.example", AvatarAsset: image},
+		},
+	}
+	ctx := WithRequestBaseURL(context.Background(), "https://alias.example")
+
+	env.api.config.Webserver.URL = "https://chat.example"
+	mapped := apiLinkPreview(ctx, env.api, preview)
+	assert.True(t, strings.HasPrefix(mapped.GetImageUrl(), "https://alias.example/assets/server/"), "image URL = %q", mapped.GetImageUrl())
+	avatarURL := mapped.GetSocialPost().GetAuthor().GetAvatarUrl()
+	assert.True(t, strings.HasPrefix(avatarURL, "https://alias.example/assets/server/"), "author avatar URL = %q", avatarURL)
+
+	// Without webserver.url, the direct request origin can have the wrong
+	// scheme behind a TLS-terminating proxy, so the paths stay relative.
+	env.api.config.Webserver.URL = ""
+	mapped = apiLinkPreview(ctx, env.api, preview)
+	assert.True(t, strings.HasPrefix(mapped.GetImageUrl(), "/assets/server/"), "image URL = %q", mapped.GetImageUrl())
+	avatarURL = mapped.GetSocialPost().GetAuthor().GetAvatarUrl()
+	assert.True(t, strings.HasPrefix(avatarURL, "/assets/server/"), "author avatar URL = %q", avatarURL)
 }

@@ -235,15 +235,18 @@ func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMeta
 	return metadata
 }
 
+// absolutizeAssetURL converts a server-relative avatar or server branding URL
+// to an absolute URL with absolutizeServerURL. These URLs are absolute even
+// without webserver.url, because clients and neighbor servers use them as is.
 func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
 	return a.absolutizeServerURL(ctx, assetURL)
 }
 
-// absolutizeMediaURL converts a server-relative attachment or link-preview
-// URL to an absolute URL like absolutizeAssetURL. Without webserver.url, it
-// keeps the server-relative path: the direct request scheme can be wrong behind
-// a TLS-terminating proxy, and media players reject mixed content. Clients
-// resolve relative asset URLs against the server that issued them.
+// absolutizeMediaURL converts a server-relative attachment, HLS, or
+// link-preview URL to an absolute URL like absolutizeAssetURL. Without
+// webserver.url, it keeps the server-relative path, as these URLs were before
+// core stopped adding an origin. The direct request scheme can be wrong behind
+// a TLS-terminating proxy, and media players reject mixed content.
 func (a *API) absolutizeMediaURL(ctx context.Context, mediaURL string) string {
 	if a.config.Webserver.URL == "" {
 		return mediaURL

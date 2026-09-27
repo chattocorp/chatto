@@ -397,10 +397,10 @@ authority for authenticated feature access.
 Absolute URLs in API responses use the public origin of the request. When the
 request host matches `webserver.url` or an exact `webserver.allowed_origins`
 entry, that configured origin applies. Other hosts get `webserver.url`. Without
-it, the HTTP edge uses only the direct request TLS state and host; forwarded
-protocol headers are not implicitly trusted. `webserver.trusted_proxies`
-affects client IP attribution and realtime same-origin comparison, not public
-URL authority. Core returns server-relative asset URLs. The API layer makes
+it, the HTTP edge uses only the direct request TLS state and host. The HTTP
+edge does not trust forwarded protocol headers. `webserver.trusted_proxies`
+controls client IP attribution and realtime same-origin comparison. It does not
+control public URLs. Core returns server-relative asset URLs. The API layer makes
 them absolute for each request, so asset URLs use the same origin as the other
 URLs in the response. Without `webserver.url`, attachment and link-preview URLs
 stay server-relative. Call participant metadata always uses the `webserver.url`
