@@ -145,14 +145,14 @@ test('shutdown interrupts active source runs and flushes source metadata to hist
       else ctx.signal.addEventListener('abort', () => resolve(), { once: true });
     });
   });
-  const run = await original.start('chatto', workflow, undefined, 'source');
+  const run = await original.start('messages', workflow, undefined, 'source');
   await original.close();
   expect((await original.get(run.id))?.status).toBe('interrupted');
   const restored = new RunStore(original.directory);
   await restored.init();
   expect(await restored.get(run.id)).toMatchObject({
     source: 'source',
-    sourceName: 'chatto',
+    sourceName: 'messages',
     status: 'interrupted'
   });
 });

@@ -176,12 +176,9 @@ The test does not need agent-provider credentials.
 Use `mise build-runling` after source changes before running a workspace
 consumer. `mise dev` builds Runling before it starts the Chatto bot.
 
-To run the bundled demos, copy `.env.example` to `.env` inside
-`packages/runling/`, set the values for the demo, and run
-`mise x -- pnpm --dir packages/runling dev` from the monorepo root.
-The planning and coordinator demos require `CHATTO_WORKING_COPY` to name an
-absolute path to a dedicated Chatto checkout. Restart the server after changing
-`.env`. See the [planning demo](examples/chatto-plan-demo.md) for checkout rules.
+To run the bundled demos, run `mise x -- pnpm --dir packages/runling dev` from
+the monorepo root. Demos that use agents need model-provider credentials in Pi
+or in `packages/runling/.env`. Restart the server after changing `.env`.
 
 Runling has its own entry in the root release-please configuration and
 manifest. Its imported version is 0.7.0, from upstream commit

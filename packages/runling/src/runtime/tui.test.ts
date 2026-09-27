@@ -220,18 +220,20 @@ test('wraps and Markdown-renders the final summary when details are present', ()
     durationMs: 1_000,
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     output: {
-      summary: 'Chatto **deliberately** keeps servers independent, according to the documentation.',
+      summary:
+        'Runling **deliberately** keeps servers independent, according to the documentation.',
       details: 'Supporting details.'
     },
     result: {
-      summary: 'Chatto **deliberately** keeps servers independent, according to the documentation.',
+      summary:
+        'Runling **deliberately** keeps servers independent, according to the documentation.',
       details: 'Supporting details.'
     }
   });
 
   const output = stripVTControlCharacters(dashboard.render(40).join('\n'));
   expect(output).toContain(
-    '\nChatto deliberately keeps servers\nindependent, according to the\ndocumentation.\n'
+    '\nRunling deliberately keeps servers\nindependent, according to the\ndocumentation.\n'
   );
   expect(output).toContain('deliberately');
   expect(output).toContain('documentation.');

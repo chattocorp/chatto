@@ -462,9 +462,6 @@ importers:
         specifier: ^7.29.1
         version: 7.29.1
     devDependencies:
-      '@chatto/client':
-        specifier: workspace:*
-        version: link:../chatto-client
       '@fontsource-variable/plus-jakarta-sans':
         specifier: ^5.3.0
         version: 5.3.0

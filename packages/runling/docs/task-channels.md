@@ -84,8 +84,7 @@ For standalone use, `createChannel<T>({ capacity, signal })` exposes `send`,
 `close`, `fail`, and async iteration. Channels use no Node-specific imports and
 hold data only in memory.
 
-See the [task channel example](../examples/channel-demo.md) and
-[Chatto coordinator example](../examples/chatto-coordinator-demo.md).
+See the [task channel example](../examples/channel-demo.md).
 
 ## State in the run inspector
 

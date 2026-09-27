@@ -29,4 +29,4 @@ text messages while the interaction runs. This callback excludes reasoning and
 tool output. It is synchronous; callers that start asynchronous sends must handle
 and await those sends themselves.
 
-See the [Chatto plan example](../examples/chatto-plan-demo.md).
+See [agent connections](agents.md) to steer an agent from a task inbox.

@@ -78,8 +78,7 @@ the original message order.
 
 `onDelivery` reports whether the agent consumed a message. Idle, rejected, or
 unsupported steering reports `false`. The sender must retain or reroute missed
-messages; the connection does not retry them. The Chatto coordinator retains a
-copy of every user message.
+messages; the connection does not retry them.
 
 Text callbacks run in order. A turn waits for queued text before returning,
 including when the agent fails. Callback or input failure cancels the connection

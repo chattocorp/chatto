@@ -8,7 +8,7 @@ For agents, [`connectAgent`](agents.md) forwards inbox messages to the active
 interaction. Its delivery callback distinguishes queueing from consumption.
 The sender must retain or reroute messages the agent did not consume.
 
-See the [Chatto coordinator example](../examples/chatto-coordinator-demo.md).
+See the [task channel example](../examples/channel-demo.md).
 
 This replaces `ctx.messages` and `createMessageChannel()`. Callers must migrate
 to explicit task channels; `send()` now confirms queue acceptance, not consumption.

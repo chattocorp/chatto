@@ -1,5 +1,10 @@
 import { expect, test, vi } from 'vitest';
-import { createChannel, createWorkflowContext, emptyTokenUsage } from '../index.ts';
+import {
+  createChannel,
+  createWorkflowContext,
+  emptyTokenUsage,
+  type AgentResult
+} from '../index.ts';
 import { runAgentConversation } from './conversation.ts';
 
 const result = (summary = 'Hello') => ({
@@ -66,7 +71,7 @@ function fixture() {
   const emit = vi.fn(async (_text: string) => {});
   const ctx = { ...root, inbox, emit };
   const agent = {
-    runOutcome: vi.fn(async (_ctx, _prompt: string, options?) => {
+    runOutcome: vi.fn(async (_ctx, _prompt: string, options?): Promise<AgentResult> => {
       options?.onText?.('Hello');
       return result();
     }),
@@ -105,6 +110,21 @@ test('busy input is steered and is not replayed after consumption', async () => 
   done.resolve(result());
   await run;
   expect(f.agent.runOutcome).toHaveBeenCalledOnce();
+});
+
+test('an unsuccessful turn fails the conversation with its summary', async () => {
+  const f = fixture();
+  f.agent.runOutcome.mockResolvedValueOnce({
+    outcome: 'failed',
+    summary: 'Provider unavailable',
+    usage: emptyTokenUsage()
+  });
+  const busy = vi.fn();
+  await expect(
+    runAgentConversation(f.ctx, f.agent, 'Hello', { timeout: 1, onBusy: busy })
+  ).rejects.toThrow('Provider unavailable');
+  expect(f.agent.runOutcome).toHaveBeenCalledOnce();
+  expect(busy.mock.calls).toEqual([[true], [false]]);
 });
 
 test('an inbox failure interrupts an idle conversation immediately', async () => {

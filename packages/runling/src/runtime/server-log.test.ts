@@ -24,12 +24,12 @@ describe('server logging', () => {
     setup();
     const output = vi.spyOn(console, 'info').mockImplementation(() => {});
     serverLog('info', 'run.started', {
-      workflow: 'ChattoBot',
+      workflow: 'Support bot',
       runId: 'uuid',
       runReference: 'brave-otters-4821'
     });
     expect(stripVTControlCharacters(output.mock.calls[0]![0])).toContain(
-      '[brave-otters-4821] ● Started ChattoBot'
+      '[brave-otters-4821] ● Started Support bot'
     );
     expect(JSON.parse(readFileSync(serverLogPath(), 'utf8'))).toMatchObject({
       runId: 'uuid',
