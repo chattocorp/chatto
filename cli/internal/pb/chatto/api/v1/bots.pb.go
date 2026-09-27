@@ -100,6 +100,7 @@ type Bot struct {
 	// Time of the last username change that started the 30-day username
 	// cooldown. Absent when no cooldown was started. The bot, its owner, and
 	// bot managers cannot change the username again until the cooldown ends.
+	// A caller with user.manage-accounts can change it at any time.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache

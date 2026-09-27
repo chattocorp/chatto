@@ -986,7 +986,7 @@ them.
 | `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
 | `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
-| `last_login_change` | `google.protobuf.Timestamp` | Time of the last username change that started the 30-day username cooldown. Absent when no cooldown was started. The bot, its owner, and bot managers cannot change the username again until the cooldown ends. |
+| `last_login_change` | `google.protobuf.Timestamp` | Time of the last username change that started the 30-day username cooldown. Absent when no cooldown was started. The bot, its owner, and bot managers cannot change the username again until the cooldown ends. A caller with user.manage-accounts can change it at any time. |
 
 <a id="chatto-api-v1-BotApiKey"></a>
 

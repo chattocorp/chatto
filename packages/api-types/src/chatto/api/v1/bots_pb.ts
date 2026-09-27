@@ -103,6 +103,7 @@ export class Bot extends Message<Bot> {
    * Time of the last username change that started the 30-day username
    * cooldown. Absent when no cooldown was started. The bot, its owner, and
    * bot managers cannot change the username again until the cooldown ends.
+   * A caller with user.manage-accounts can change it at any time.
    *
    * @generated from field: google.protobuf.Timestamp last_login_change = 8;
    */
