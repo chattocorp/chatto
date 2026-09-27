@@ -79,7 +79,6 @@ describe('RoomStores', () => {
     expect(rooms.loaded('missing')).toBeUndefined();
     expect(rooms.timelines('A')).toEqual([roomA, threadA]);
     expect(rooms.timelines('missing')).toEqual([]);
-    expect(rooms.threads()).toEqual([threadA, threadB]);
     expect(rooms.timelines()).toEqual([roomA, threadA, threadB]);
     expect(rooms.all('messages')).toEqual([roomA]);
     // A search alone does not hold plaintext that a permission change can revoke.

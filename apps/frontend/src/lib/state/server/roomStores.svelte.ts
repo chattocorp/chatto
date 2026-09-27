@@ -6,9 +6,9 @@ import type { ServerPresence } from './presence.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 
 /** Per-room searches kept at the same time. The least recently used one goes first. */
-export const MAX_RETAINED_ROOM_SEARCHES = 10;
+const MAX_RETAINED_ROOM_SEARCHES = 10;
 
-/** The stores of one room that exist. A missing field has no store yet. */
+/** The stores of one room that exist. A missing field has no store yet, or no longer. */
 export type LoadedRoomStores = {
   readonly messages?: MessagesStore;
   readonly files?: RoomFilesStore;
@@ -55,9 +55,10 @@ export type RoomStoresOptions = {
  * pins, members, and per-room message search.
  *
  * Each accessor creates its store on first use and then returns the same
- * store. A store stays until the room's message access is cleared with
- * `forget`, or until the registry is disposed. Per-room searches are
- * limited to {@link MAX_RETAINED_ROOM_SEARCHES}.
+ * store until the registry is disposed, with two exceptions. Clearing a
+ * room's message access with `forget` removes its timelines, file list, and
+ * pin list. Only {@link MAX_RETAINED_ROOM_SEARCHES} per-room searches stay;
+ * a new search removes the least recently used one.
  *
  * The registry is not reactive on purpose. The stores are reactive, and a
  * selector can create a store while Svelte evaluates a derived value.
@@ -84,7 +85,7 @@ export class RoomStores {
     return this.#rooms[roomId];
   }
 
-  /** Every room with at least one store, and the stores that exist for it. */
+  /** The rooms that this registry knows, and the stores that exist for each. A room can have none. */
   entries(): [roomId: string, stores: LoadedRoomStores][] {
     return Object.entries(this.#rooms);
   }
@@ -92,11 +93,6 @@ export class RoomStores {
   /** Every store of one kind that exists, in all rooms. */
   all<K extends StoreKind>(kind: K): NonNullable<RoomEntry[K]>[] {
     return Object.values(this.#rooms).flatMap((entry) => (entry[kind] ? [entry[kind]] : []));
-  }
-
-  /** The thread timelines that exist for one room, or for all rooms. */
-  threads(roomId?: string): MessagesStore[] {
-    return this.#select(roomId).flatMap((entry) => Object.values(entry.threads));
   }
 
   /** The room and thread timelines that exist for one room, or for all rooms. */
