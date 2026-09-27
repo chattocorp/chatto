@@ -131,3 +131,22 @@ func TestChattoCore_LoopbackClientClampsLongerStoredWindow(t *testing.T) {
 		t.Fatalf("validateRenewableSession after the loopback deadline = %v, want ErrRefreshTokenNotFound", err)
 	}
 }
+
+func TestChattoCore_LoopbackClientUsesShorterConfiguredWindow(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	chattoCore.config.AuthLoopbackClientEnabled = true
+	chattoCore.config.AuthTokenTTL = time.Hour
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "loopback-short-user", "Loopback User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	before := time.Now()
+	credentials, err := chattoCore.CreateOAuthBearerSessionForClient(ctx, user.Id, config.ChattoLoopbackClientID, mustCurrentAuthGeneration(t, chattoCore, user.Id))
+	if err != nil {
+		t.Fatalf("CreateOAuthBearerSessionForClient: %v", err)
+	}
+	if credentials.SessionExpiresAt.After(time.Now().Add(time.Hour)) || credentials.SessionExpiresAt.Before(before.Add(time.Hour)) {
+		t.Fatalf("loopback session expiry = %v, want the shorter token_ttl window", credentials.SessionExpiresAt)
+	}
+}
