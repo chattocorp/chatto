@@ -86,6 +86,11 @@ func matchesAnyLoopbackOriginRedirectURI(registered, candidate string) bool {
 		!isLoopbackOAuthRedirectHost(candidateURL.Hostname()) {
 		return false
 	}
+	if port := candidateURL.Port(); port != "" {
+		if number, err := strconv.Atoi(port); err != nil || number < 1 || number > 65535 {
+			return false
+		}
+	}
 	return registeredURL.EscapedPath() == candidateURL.EscapedPath() &&
 		registeredURL.RawQuery == candidateURL.RawQuery &&
 		registeredURL.ForceQuery == candidateURL.ForceQuery

@@ -256,6 +256,14 @@ func TestBuiltInLoopbackClientAcceptsPopupCallbackOnAnyLoopbackOrigin(t *testing
 		{name: "userinfo", candidate: "http://user@localhost:4001/servers/callback?mode=popup"},
 		{name: "fragment", candidate: "http://localhost:4001/servers/callback?mode=popup#x"},
 		{name: "custom scheme", candidate: "chatto://localhost/servers/callback?mode=popup"},
+		{name: "uppercase host", candidate: "HTTP://LOCALHOST:4001/servers/callback?mode=popup", want: true},
+		{name: "trailing dot", candidate: "http://localhost.:4001/servers/callback?mode=popup"},
+		{name: "IPv4-mapped IPv6", candidate: "http://[::ffff:127.0.0.1]:4001/servers/callback?mode=popup"},
+		{name: "unspecified address", candidate: "http://0.0.0.0:4001/servers/callback?mode=popup"},
+		{name: "percent-encoded host", candidate: "http://%6cocalhost:4001/servers/callback?mode=popup"},
+		{name: "encoded path", candidate: "http://localhost:4001/servers/%63allback?mode=popup"},
+		{name: "port out of range", candidate: "http://localhost:99999/servers/callback?mode=popup"},
+		{name: "port zero", candidate: "http://localhost:0/servers/callback?mode=popup"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
