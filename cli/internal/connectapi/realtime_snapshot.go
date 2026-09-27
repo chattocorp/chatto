@@ -281,7 +281,7 @@ func (a *API) realtimeSnapshotUser(ctx context.Context, content *core.HydratedUs
 			return nil, fmt.Errorf("unknown avatar asset type")
 		}
 		avatarURL := a.core.GetTransformedServerAssetURL(assetKey, 96, 96, "cover")
-		avatarURL = a.absolutizeAssetURL(ctx, avatarURL)
+		avatarURL = a.absolutizeServerURL(ctx, avatarURL)
 		summary.AvatarUrl = &avatarURL
 	}
 	return summary, nil

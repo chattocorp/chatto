@@ -197,7 +197,7 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 				return nil, err
 			}
 		} else if u != "" {
-			profile.BannerUrl = stringPtr(a.absolutizeAssetURL(ctx, u))
+			profile.BannerUrl = stringPtr(a.absolutizeServerURL(ctx, u))
 		}
 		lw, lh := 256, 256
 		if u, err := a.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err != nil {
@@ -205,7 +205,7 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 				return nil, err
 			}
 		} else if u != "" {
-			profile.LogoUrl = stringPtr(a.absolutizeAssetURL(ctx, u))
+			profile.LogoUrl = stringPtr(a.absolutizeServerURL(ctx, u))
 		}
 	}
 
@@ -235,15 +235,8 @@ func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMeta
 	return metadata
 }
 
-// absolutizeAssetURL converts a server-relative avatar or server branding URL
-// to an absolute URL with absolutizeServerURL. These URLs are absolute even
-// without webserver.url, because clients and neighbor servers use them as is.
-func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
-	return a.absolutizeServerURL(ctx, assetURL)
-}
-
 // absolutizeMediaURL converts a server-relative attachment, HLS, or
-// link-preview URL to an absolute URL like absolutizeAssetURL. Without
+// link-preview URL to an absolute URL like absolutizeServerURL. Without
 // webserver.url, it keeps the server-relative path, as these URLs were before
 // core stopped adding an origin. The direct request scheme can be wrong behind
 // a TLS-terminating proxy, and media players reject mixed content.
@@ -251,13 +244,14 @@ func (a *API) absolutizeMediaURL(ctx context.Context, mediaURL string) string {
 	if a.config.Webserver.URL == "" {
 		return mediaURL
 	}
-	return a.absolutizeAssetURL(ctx, mediaURL)
+	return a.absolutizeServerURL(ctx, mediaURL)
 }
 
 // absolutizeServerURL converts a server-relative path to an absolute URL. It
 // prefers the request base URL, so a client that uses a configured hostname
 // alias receives URLs on that alias. Without a request base URL, it uses
-// webserver.url.
+// webserver.url. Avatars and server branding use it, so they are absolute even
+// without webserver.url; clients and neighbor servers use them as is.
 func (a *API) absolutizeServerURL(ctx context.Context, value string) string {
 	if value == "" || strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
 		return value

@@ -162,7 +162,7 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	}
 }
 
-func TestAbsolutizeAssetURL(t *testing.T) {
+func TestAbsolutizeServerURL(t *testing.T) {
 	t.Run("uses the request base URL first", func(t *testing.T) {
 		// The HTTP edge sets the base URL to the configured origin that the
 		// client called, such as a hostname alias.
@@ -171,8 +171,8 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 		}, "test")
 		ctx := WithRequestBaseURL(context.Background(), "https://alias.example.com")
 
-		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://alias.example.com/assets/logo.png"; got != want {
-			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		if got, want := api.absolutizeServerURL(ctx, "/assets/logo.png"), "https://alias.example.com/assets/logo.png"; got != want {
+			t.Fatalf("absolutizeServerURL = %q, want %q", got, want)
 		}
 	})
 
@@ -181,8 +181,8 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 			Webserver: config.WebserverConfig{URL: "https://configured.example.com/chatto"},
 		}, "test")
 
-		if got, want := api.absolutizeAssetURL(context.Background(), "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
-			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		if got, want := api.absolutizeServerURL(context.Background(), "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
+			t.Fatalf("absolutizeServerURL = %q, want %q", got, want)
 		}
 	})
 
@@ -190,8 +190,8 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 		api := New(nil, config.ChattoConfig{}, "test")
 		ctx := WithRequestBaseURL(context.Background(), "https://remote.example.com")
 
-		if got, want := api.absolutizeAssetURL(ctx, "https://cdn.example.com/logo.png"), "https://cdn.example.com/logo.png"; got != want {
-			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		if got, want := api.absolutizeServerURL(ctx, "https://cdn.example.com/logo.png"), "https://cdn.example.com/logo.png"; got != want {
+			t.Fatalf("absolutizeServerURL = %q, want %q", got, want)
 		}
 	})
 }

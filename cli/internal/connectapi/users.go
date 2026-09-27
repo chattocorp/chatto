@@ -55,7 +55,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, av
 		return nil, err
 	}
 	if avatarURL != "" {
-		summary.AvatarUrl = stringPtr(api.absolutizeAssetURL(ctx, avatarURL))
+		summary.AvatarUrl = stringPtr(api.absolutizeServerURL(ctx, avatarURL))
 	}
 	return summary, nil
 }
