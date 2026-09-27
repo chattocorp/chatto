@@ -1,5 +1,6 @@
 <script lang="ts">
   import CallDeviceSettings from '$lib/components/settings/CallDeviceSettings.svelte';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   const scope = useServerScope();
 </script>
@@ -18,5 +19,7 @@
             ? scope.store.voiceCall.setAudioOutputDevice(id)
             : scope.store.voiceCall.setVideoDevice(id)}
     />
+  {:else}
+    <PageTitle />
   {/if}
 {/key}

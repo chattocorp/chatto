@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
 
   let { children } = $props();
   const scope = useServerScope();
@@ -9,4 +10,6 @@
      Refreshing that data keeps the mounted forms and their edits intact. -->
 {#if scope.store.currentUser.user}
   {@render children?.()}
+{:else}
+  <PageTitle />
 {/if}

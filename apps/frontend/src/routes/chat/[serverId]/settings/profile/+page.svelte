@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -8,6 +9,8 @@
 
   const serverScope = useServerScope();
 </script>
+
+<PageTitle title={m('settings.profile.title')} />
 
 <PaneHeader
   title={m('settings.profile.title')}

@@ -83,3 +83,5 @@ describe('management route admission', () => {
     expect(container.querySelector('[data-testid="filter"]')).toBeNull();
   });
 });
+// Title composition has separate coverage; these fixtures model permissions only.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageTitle from '$lib/ui/PageTitle.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
@@ -24,6 +25,8 @@
     return serverScope.connection.getAPI(createAccountAPI);
   }
 </script>
+
+<PageTitle title={m('settings.account.title')} />
 
 <PaneHeader
   title={m('settings.account.title')}

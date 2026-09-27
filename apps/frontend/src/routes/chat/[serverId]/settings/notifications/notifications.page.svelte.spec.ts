@@ -660,3 +660,5 @@ describe('Notification settings page', () => {
     expect(container.textContent).toContain('100%');
   });
 });
+// Title composition has separate coverage; these fixtures model notification preferences only.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
