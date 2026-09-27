@@ -1,4 +1,5 @@
 /** Opt-in open-web search (Tavily) and page reading (Cloudflare Browser Run). */
+import { setTimeout } from 'node:timers/promises';
 import { Type } from 'runling';
 import { defineAgentExtension } from 'runling/agents';
 import { ConfigurationError, setting } from './settings.ts';
@@ -68,7 +69,20 @@ async function boundedJson(response: Response, signal: AbortSignal): Promise<unk
   }
 }
 
-/** Send one JSON request. Errors name the service and status only, never credentials or content. */
+/** Longest wait for a rate-limited request. Cloudflare's free plan allows one read every 10 seconds. */
+const MAX_RETRY_WAIT_MS = 10_000;
+
+/** Parse `Retry-After` seconds or an HTTP date, bounded to `MAX_RETRY_WAIT_MS`. */
+function retryDelay(response: Response): number {
+  const value = response.headers.get('retry-after')?.trim();
+  const seconds = value && /^\d+(\.\d+)?$/.test(value) ? Number(value) * 1000 : undefined;
+  const date = value && seconds === undefined ? Date.parse(value) - Date.now() : undefined;
+  const delay = seconds ?? (date !== undefined && !Number.isNaN(date) ? date : MAX_RETRY_WAIT_MS);
+  return Math.min(Math.max(delay, 0), MAX_RETRY_WAIT_MS);
+}
+
+/** Send one JSON request, retrying once after a rate-limit response. Errors name the service
+ * and status only, never credentials or content. */
 async function postJson(
   service: string,
   url: string,
@@ -79,23 +93,38 @@ async function postJson(
   request: typeof fetch
 ): Promise<unknown> {
   const bounded = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]);
-  let response: Response;
-  try {
-    response = await request(url, {
-      method: 'POST',
-      redirect: 'error',
-      signal: bounded,
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  } catch {
-    throw new Error(`${service} request failed or was cancelled`);
+  for (let attempt = 0; ; attempt++) {
+    let response: Response;
+    try {
+      response = await request(url, {
+        method: 'POST',
+        redirect: 'error',
+        signal: bounded,
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } catch {
+      throw new Error(`${service} request failed or was cancelled`);
+    }
+    if (response.status === 429 && attempt === 0) {
+      await response.body?.cancel();
+      try {
+        await setTimeout(retryDelay(response), undefined, { signal: bounded });
+      } catch {
+        throw new Error(`${service} request failed or was cancelled`);
+      }
+      continue;
+    }
+    if (response.status === 429) {
+      await response.body?.cancel();
+      throw new Error(`${service} is rate limited (status 429). Try again later.`);
+    }
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(`${service} request failed with status ${response.status}`);
+    }
+    return boundedJson(response, bounded);
   }
-  if (!response.ok) {
-    await response.body?.cancel();
-    throw new Error(`${service} request failed with status ${response.status}`);
-  }
-  return boundedJson(response, bounded);
 }
 
 const isHttpUrl = (value: unknown): value is string =>

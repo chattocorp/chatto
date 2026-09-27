@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { AWESOME_CHATTO_HOME, DEV_DOCS_HOME, fetchDocsPage } from './docs.ts';
+import { AWESOME_CHATTO_HOME, DEV_DOCS_HOME, createPageCache, fetchDocsPage } from './docs.ts';
 
 const html = (body: string) =>
   new Response(`<html><head><title>Chatto guide</title></head><body>${body}</body></html>`, {
@@ -165,4 +165,24 @@ test('reads the Awesome Chatto list as Markdown and lists only allowed links', a
   await expect(fetchDocsPage(AWESOME_CHATTO_HOME, undefined, request)).rejects.toThrow(
     'unexpected format'
   );
+});
+
+test('the page cache reuses successful reads until they expire', async () => {
+  let time = 0;
+  const page = (url: string) => ({ url, title: 'T', text: 'x', truncated: false, links: [] });
+  const fetchPage = vi
+    .fn(async (url: string) => page(url))
+    .mockRejectedValueOnce(new Error('unavailable'));
+  const read = createPageCache(fetchPage, { ttlMs: 100, maxEntries: 2, now: () => time });
+  await expect(read('a')).rejects.toThrow('unavailable');
+  await read('a');
+  await read('a');
+  expect(fetchPage).toHaveBeenCalledTimes(2);
+  time = 150;
+  await read('a');
+  expect(fetchPage).toHaveBeenCalledTimes(3);
+  await read('b');
+  await read('c');
+  await read('a');
+  expect(fetchPage).toHaveBeenCalledTimes(6);
 });

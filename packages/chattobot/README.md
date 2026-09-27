@@ -141,7 +141,10 @@ references and follow their links:
   unofficial third-party projects. The agent cannot open the linked projects.
 
 The agent is instructed to search both the documentation and the Awesome Chatto
-list before it answers any Chatto question. It cites pages it reads, says which
+list before it answers questions about Chatto features, setup, or behavior. It
+skips them when the conversation already contains the answer or the question is
+about a specific release, pull request, or issue. The bot keeps each successfully
+read reference page in memory for one hour. It cites pages it reads, says which
 documentation version it used, and says when the references do not answer a question. Published
 documentation can differ from the connected server version.
 The tool permits only those HTTPS locations, including redirects. It rejects URL
@@ -188,6 +191,11 @@ these limits:
   cannot make it add conversation data to a URL. Cloudflare loads each page in a browser on
   its network and returns up to 30,000 characters of Markdown. Target sites see
   Cloudflare, not the bot host, and the tool cannot reach private network addresses.
+
+If Tavily or Cloudflare rejects a request with a rate limit, the bot waits for
+the time in `Retry-After`, at most 10 seconds, and tries once more. The Cloudflare
+Workers Free plan allows one page read every 10 seconds, so research with several
+page reads is slow on that plan.
 
 The investigation and implementation workers have no web access.
 

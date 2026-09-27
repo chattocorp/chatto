@@ -179,3 +179,36 @@ test('web tools enforce the allowlist and request budget', async () => {
   await expect(browse('https://found.example/')).rejects.toThrow('page limit');
   expect(request).toHaveBeenCalledTimes(3);
 });
+
+test('retries once after a rate limit and then reports it', async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'retry-after': '0' } }))
+    .mockResolvedValueOnce(Response.json({ success: true, result: '# Page' }));
+  expect((await browseWeb(cloudflare, 'https://example.com/', undefined, request)).text).toBe(
+    '# Page'
+  );
+  expect(request).toHaveBeenCalledTimes(2);
+
+  request
+    .mockReset()
+    .mockImplementation(
+      async () => new Response(null, { status: 429, headers: { 'retry-after': '0' } })
+    );
+  await expect(browseWeb(cloudflare, 'https://example.com/', undefined, request)).rejects.toThrow(
+    'Browser Run is rate limited (status 429)'
+  );
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+test('a rate-limit wait stops on cancellation', async () => {
+  const controller = new AbortController();
+  const request = vi.fn<typeof fetch>(async () => {
+    setTimeout(() => controller.abort(), 5);
+    return new Response(null, { status: 429, headers: { 'retry-after': '30' } });
+  });
+  await expect(searchWeb('tvly-key', 'q', {}, controller.signal, request)).rejects.toThrow(
+    'Web search request failed or was cancelled'
+  );
+  expect(request).toHaveBeenCalledOnce();
+});
