@@ -573,16 +573,15 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *ev
 }
 
 // publishBadgeAudienceInvalidations hints the users whose Badge attention a
-// retracted message could have given. A user is hinted only when the message
-// was still unread for them and they now have no attention in its scope, so
-// their public state changed.
+// retracted message ended: they had attention in its scope while the message
+// counted as not retracted and have none now.
 func (m *NotificationMaterializer) publishBadgeAudienceInvalidations(ctx context.Context, messageEventID, actorID string) {
 	decisions := m.decisions.Projection()
 	var roomID, threadRootEventID string
-	var sequence uint64
+	var message uint32
 	var userIDs []string
 	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
-		roomID, threadRootEventID, sequence, userIDs = snapshot.badgeAudience(messageEventID)
+		roomID, threadRootEventID, message, userIDs = snapshot.badgeAudience(messageEventID)
 		return nil
 	})
 	queries := make([]badgeQuery, 0, len(userIDs))
@@ -596,7 +595,9 @@ func (m *NotificationMaterializer) publishBadgeAudienceInvalidations(ctx context
 	var invalidations []notificationUnreadInvalidation
 	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
 		for _, query := range queries {
-			if snapshot.badgeSourceUnread(query, sequence) && !snapshot.hasBadgeAttention(query) {
+			live := query
+			live.unretracted = message
+			if snapshot.hasBadgeAttention(live) && !snapshot.hasBadgeAttention(query) {
 				invalidations = append(invalidations, notificationUnreadInvalidation{
 					userID: query.userID, actorID: actorID, roomID: roomID, threadRootEventID: threadRootEventID,
 				})

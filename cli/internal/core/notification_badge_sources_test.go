@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -363,5 +364,35 @@ func TestBadgeSweepDropsExpiredSourcesOfQuietThreads(t *testing.T) {
 	})
 	if replies != 0 || scopes != 0 {
 		t.Fatalf("after a sweep: %d reply lists and %d targeted scopes, want the expired thread dropped", replies, scopes)
+	}
+}
+
+func TestBadgeUnretractedQueryCountsTheRetractedMessage(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.setMode("U1", &evtv1.NotificationDeliveryModes{Reactions: badgeMode})
+	f.post("MINE", "U1", "")
+	f.read["U1/"] = notificationReadBoundary{targetSequence: f.seq, observedSequence: f.seq}
+	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "MINE", Emoji: "tada"}}})
+	f.apply(&evtv1.Event{Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "R1", EventId: "MINE"}}})
+	if f.unread("U1", "") {
+		t.Fatal("a reaction on a retracted message gave Badge attention")
+	}
+	var live bool
+	_ = f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		_, _, message, users := snapshot.badgeAudience("MINE")
+		if !slices.Contains(users, "U1") {
+			t.Fatalf("audience %v omits the reacted message's author", users)
+		}
+		live = snapshot.hasBadgeAttention(badgeQuery{
+			userID: "U1", roomID: "R1", now: time.Now(), unretracted: message,
+			readBoundary: func(thread string) (notificationReadBoundary, bool) {
+				boundary, ok := f.read["U1/"+thread]
+				return boundary, ok
+			},
+		})
+		return nil
+	})
+	if !live {
+		t.Fatal("attention with the message counted as live is off, so the retraction would send no hint")
 	}
 }

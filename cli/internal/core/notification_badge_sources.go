@@ -553,6 +553,10 @@ type badgeQuery struct {
 	// readBoundary returns the user's read boundary for a scope of the room.
 	// It must not block, because the decision projection lock is held.
 	readBoundary func(threadRootEventID string) (notificationReadBoundary, bool)
+	// unretracted names a message handle that counts as not retracted. A
+	// retraction compares attention with and without it to find the users
+	// whose state changed.
+	unretracted uint32
 }
 
 // hasBadgeAttention reports whether a current source gives the user Badge
@@ -627,7 +631,7 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 			if message.seq <= floor || message.createdAt <= expired {
 				return false
 			}
-			if !excluded(message.seq) && !message.retracted && message.actor != user {
+			if !excluded(message.seq) && (!message.retracted || list[i] == q.unretracted) && message.actor != user {
 				return true
 			}
 		}
@@ -669,7 +673,7 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 				continue
 			}
 			message, exists := b.messages[source.message]
-			if !exists || message.retracted {
+			if !exists || (message.retracted && source.message != q.unretracted) {
 				continue
 			}
 			if !broad && source.kind != badgeSourceDirectMention {
@@ -734,13 +738,12 @@ func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room uint32, u
 }
 
 // badgeAudience returns the users whose Badge attention a message could have
-// given, with the message's scope and sequence: room members for a root
+// given, with the message's scope and handle: room members for a root
 // message; for a thread reply, the thread's followers and root author; and the
-// users addressed by a targeted source of the message, including reaction
-// recipients. Only users who can currently see the room are returned, so the
-// result never names a room to a user outside it. The message's actor is
-// excluded, because their own message never gives them attention.
-func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, sequence uint64, userIDs []string) {
+// users addressed by a targeted source of the message, including the author
+// for reactions on it. Only users who can currently see the room are returned,
+// so the result never names a room to a user outside it.
+func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, message uint32, userIDs []string) {
 	b := s.badges
 	message, ok := b.ids.lookup(messageEventID)
 	if !ok {
@@ -750,7 +753,7 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 	if !exists {
 		return "", "", 0, nil
 	}
-	roomID, threadRootEventID, sequence = b.ids.id(record.room), b.ids.id(record.thread), record.seq
+	roomID, threadRootEventID = b.ids.id(record.room), b.ids.id(record.thread)
 	users := make(map[string]struct{})
 	if record.thread == 0 {
 		for _, userID := range s.roomMemberIDs(roomID) {
@@ -771,36 +774,19 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 			}
 		}
 	}
-	delete(users, b.ids.id(record.actor))
 	visible := make([]string, 0, len(users))
 	for _, userID := range sortedMapKeys(users) {
 		if s.badgeRoomVisible(userID, roomID) {
 			visible = append(visible, userID)
 		}
 	}
-	return roomID, threadRootEventID, sequence, visible
+	return roomID, threadRootEventID, message, visible
 }
 
 // badgeRoomVisible reports whether the user can currently see messages in the
 // room, with broad or interaction-scoped read access.
 func (s *notificationDecisionSnapshot) badgeRoomVisible(userID, roomID string) bool {
 	return s.notificationVisibilityExists(userID, roomID) || s.notificationInteractionVisibilityExists(userID, roomID)
-}
-
-// badgeSourceUnread reports whether a source at sequence could still give the
-// user attention: it is after the start of the user's membership and after
-// the read boundary of the query's scope.
-func (s *notificationDecisionSnapshot) badgeSourceUnread(q badgeQuery, sequence uint64) bool {
-	b := s.badges
-	user, _ := b.ids.lookup(q.userID)
-	room, _ := b.ids.lookup(q.roomID)
-	floor := s.badgeMembershipStart(user, room, q.userID, q.roomID)
-	if q.readBoundary != nil {
-		if boundary, ok := q.readBoundary(q.threadRootEventID); ok {
-			floor = max(floor, boundary.targetSequence)
-		}
-	}
-	return sequence > floor
 }
 
 // badgeRoomsForUser lists the rooms where the user is an explicit member, plus
