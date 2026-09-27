@@ -118,7 +118,7 @@ test.describe('Server Admin Members', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
 
-      // Click the row; its row link covers the whole row.
+      // Click the row; DataTable forwards the click to the row link.
       await page.getByRole('row').filter({ hasText: admin.login }).click();
 
       // Should navigate to member details page

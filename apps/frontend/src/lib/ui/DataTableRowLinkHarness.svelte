@@ -1,7 +1,9 @@
 <!--
 @component
 Test harness for DataTable row links: three rows, each with a row link, passive
-text, and an independent button. Link and button clicks are reported through
+text, a passive element whose Svelte handler cancels the click, and an
+independent button. Rows do not use the hover fill, so the focus highlight is
+independent of the pointer position. Link and button clicks are reported through
 callbacks instead of navigating.
 -->
 <script lang="ts">
@@ -24,7 +26,7 @@ callbacks instead of navigating.
   ];
 </script>
 
-<DataTable {items} columns={3}>
+<DataTable {items} columns={3} hoverable={false}>
   {#snippet header()}
     <th class="table-header-cell">Name</th>
     <th class="table-header-cell">Note</th>
@@ -47,6 +49,12 @@ callbacks instead of navigating.
     </td>
     <td class="px-4 py-3 select-text" data-testid={`note-${item.id}`}>Note for {item.name}</td>
     <td class="px-4 py-3">
+      <span
+        data-testid={`handled-${item.id}`}
+        onclick={(event) => event.preventDefault()}
+        onkeydown={() => {}}
+        role="presentation">(handled)</span
+      >
       <button type="button" data-testid={`copy-${item.id}`} onclick={() => oncopy(item.id)}
         >Copy</button
       >

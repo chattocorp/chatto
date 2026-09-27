@@ -48,6 +48,23 @@ describe('DataTable row links', () => {
     expect(onnavigate).not.toHaveBeenCalled();
   });
 
+  it('respects Svelte handlers inside the row that cancel the click', async () => {
+    const { q, onnavigate } = renderTable();
+
+    await userEvent.click(q('handled-1'));
+
+    expect(onnavigate).not.toHaveBeenCalled();
+  });
+
+  it('prevents middle-click autoscroll on a linked row', () => {
+    const { q } = renderTable();
+    const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 1 });
+
+    q('note-1').dispatchEvent(press);
+
+    expect(press.defaultPrevented).toBe(true);
+  });
+
   it('opens the row link in a new tab for modified and middle clicks', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     const { q, onnavigate } = renderTable();
