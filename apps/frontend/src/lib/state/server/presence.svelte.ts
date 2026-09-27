@@ -10,7 +10,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
  */
 export class ServerPresence {
   #statuses = new SvelteMap<string, PresenceStatus>();
-  /** The version of the latest change for each user, for the preview fence. */
+  /** The version of the latest change for each user, for the read fence. */
   #changedAt = new SvelteMap<string, number>();
 
   #version = $state(0);
@@ -36,8 +36,9 @@ export class ServerPresence {
   /**
    * Apply the presence of a user resource. A complete replacement first
    * forgets every user; a partial one only updates the listed users. Give
-   * `readVersion` for a resource that this client read itself: a change that
-   * arrived while that read was in flight then takes precedence.
+   * `readVersion` for a partial resource that this client read itself: a change
+   * that arrived while that read was in flight then takes precedence. A
+   * complete replacement forgets those changes first, so the fence has no effect.
    */
   applySnapshot(
     statuses: Iterable<readonly [string, PresenceStatus]>,
