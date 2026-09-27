@@ -1,51 +1,108 @@
 import '../../app.css';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from '@vitest/browser/context';
 import DataTableRowLinkHarness from './DataTableRowLinkHarness.svelte';
 
-function renderLinkedTable(linked = true) {
-  return render(DataTableRowLinkHarness, { props: { linked } });
+function renderTable(linked = true) {
+  const onnavigate = vi.fn();
+  const oncopy = vi.fn();
+  const view = render(DataTableRowLinkHarness, { props: { linked, onnavigate, oncopy } });
+  const q = (testid: string) =>
+    view.container.querySelector<HTMLElement>(`[data-testid="${testid}"]`)!;
+  return { ...view, onnavigate, oncopy, q };
 }
 
-function centreOf(element: Element) {
-  const rect = element.getBoundingClientRect();
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+function click(element: Element, init: MouseEventInit = {}) {
+  element.dispatchEvent(
+    new MouseEvent(init.button === 1 ? 'auxclick' : 'click', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      ...init
+    })
+  );
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.getSelection()?.removeAllRanges();
+});
 
 describe('DataTable row links', () => {
-  it('makes the whole row a pointer target for its row link', () => {
-    const { container } = renderLinkedTable();
-    const row = container.querySelector('tbody tr')!;
-    const note = container.querySelector('[data-testid="note"]')!;
-    const { x, y } = centreOf(note);
+  it('activates the link of the clicked row from a passive cell', async () => {
+    const { q, onnavigate } = renderTable();
 
-    expect(getComputedStyle(row).cursor).toBe('pointer');
-    expect(document.elementFromPoint(x, y)).toBe(container.querySelector('.data-table-row-link'));
+    await userEvent.click(q('note-2'));
+
+    expect(onnavigate).toHaveBeenCalledTimes(1);
+    expect(onnavigate).toHaveBeenCalledWith('2');
   });
 
-  it('keeps other controls in the row above the row link', () => {
-    const { container } = renderLinkedTable();
-    const copy = container.querySelector('[data-testid="copy"]')!;
-    const { x, y } = centreOf(copy);
+  it('lets other controls in the row handle their own clicks', async () => {
+    const { q, onnavigate, oncopy } = renderTable();
 
-    expect(document.elementFromPoint(x, y)).toBe(copy);
+    await userEvent.click(q('copy-3'));
+
+    expect(oncopy).toHaveBeenCalledWith('3');
+    expect(onnavigate).not.toHaveBeenCalled();
   });
 
-  it('reaches the row link with the keyboard', async () => {
-    const { container } = renderLinkedTable();
+  it('opens the row link in a new tab for modified and middle clicks', () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { q, onnavigate } = renderTable();
+
+    click(q('note-1'), { ctrlKey: true });
+    click(q('note-2'), { button: 1 });
+
+    expect(open).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/#member-1$/),
+      '_blank',
+      'noopener'
+    );
+    expect(open).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/#member-2$/),
+      '_blank',
+      'noopener'
+    );
+    expect(onnavigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps a text selection instead of navigating', () => {
+    const { q, onnavigate } = renderTable();
+    const note = q('note-1');
+    const range = document.createRange();
+    range.selectNodeContents(note);
+    window.getSelection()!.addRange(range);
+
+    click(note);
+
+    expect(onnavigate).not.toHaveBeenCalled();
+  });
+
+  it('reaches the row link with the keyboard and highlights its row', async () => {
+    const { container } = renderTable();
     const link = container.querySelector<HTMLAnchorElement>('.data-table-row-link')!;
+    const row = link.closest('tr')!;
+    const restingBackground = getComputedStyle(row).backgroundColor;
 
     await userEvent.tab();
 
     expect(document.activeElement).toBe(link);
-    expect(link.getAttribute('href')).toBe('#member-1');
+    expect(getComputedStyle(row).backgroundColor).not.toBe(restingBackground);
   });
 
-  it('leaves rows without a row link passive', () => {
-    const { container } = renderLinkedTable(false);
-    const row = container.querySelector('tbody tr')!;
+  it('marks only linked rows as pointer targets', () => {
+    const linked = renderTable(true);
+    expect(getComputedStyle(linked.q('note-1').closest('tr')!).cursor).toBe('pointer');
+    linked.unmount();
 
-    expect(getComputedStyle(row).cursor).not.toBe('pointer');
+    const passive = renderTable(false);
+    const note = passive.q('note-1');
+    expect(getComputedStyle(note.closest('tr')!).cursor).not.toBe('pointer');
+    click(note);
+    expect(passive.onnavigate).not.toHaveBeenCalled();
   });
 });

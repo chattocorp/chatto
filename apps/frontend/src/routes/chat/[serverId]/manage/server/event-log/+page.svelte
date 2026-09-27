@@ -345,12 +345,12 @@
             <th class="table-header-cell">{m('admin.event_log.actor')}</th>
           {/snippet}
           {#snippet row(entry)}
-            <td class="px-4 py-3 font-mono text-sm text-muted">{entry.sequence}</td>
+            <td class="px-4 py-3 font-mono text-sm text-muted">
+              <a class="data-table-row-link" href={entryHref(entry)}>{entry.sequence}</a>
+            </td>
             <td class="px-4 py-3 text-sm">{formatTimestamp(entry.createdAt)}</td>
             <td class="px-4 py-3">
-              <a class="data-table-row-link" href={entryHref(entry)}>
-                <Pill tone="action">{entry.eventType || '—'}</Pill>
-              </a>
+              <Pill tone="action">{entry.eventType || '—'}</Pill>
             </td>
             <td class="px-4 py-3 font-mono text-xs">
               {#if entry.aggregateType}

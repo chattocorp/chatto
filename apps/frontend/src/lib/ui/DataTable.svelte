@@ -6,10 +6,10 @@ this component provides the viewport, empty state, grouping, and optional
 incremental loading.
 
 To make a row navigable, render a real link with the `data-table-row-link`
-class in the row's primary cell. The link covers the whole row for pointer
-input, stays a single keyboard stop, and names the row for assistive
-technology. Other links and buttons in the row stay above it and remain
-independently operable.
+class in a cell that uniquely identifies the record, usually its name. The
+link stays the row's single keyboard stop and names the row for assistive
+technology. Plain clicks elsewhere in the row activate it, while other links,
+buttons, and context menus in the row keep their own behaviour.
 -->
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
@@ -17,6 +17,7 @@ independently operable.
   import ScrollFader from './ScrollFader.svelte';
   import { m } from '$lib/i18n/messages';
   import LoadingFog from './LoadingFog.svelte';
+  import { forwardRowClicks } from './dataTableRowLinks';
 
   let {
     items,
@@ -163,7 +164,7 @@ independently operable.
         {@render header()}
       </tr>
     </thead>
-    <tbody class="bg-background">
+    <tbody class="bg-background" {@attach forwardRowClicks}>
       {#each items as item, index (keyFn(item, index))}
         {#if shouldRenderGroup(item, index)}
           <tr class="border-b border-border bg-surface/80">

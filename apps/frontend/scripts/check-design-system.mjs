@@ -125,8 +125,9 @@ const checks = [
   },
   {
     description:
-      'clickable table row is mouse-only; put a data-table-row-link on a real link in the primary cell',
-    pattern: /<tr\b[^>]*\bonclick\b/g
+      'clickable table row or cell; put a data-table-row-link on a real link in the row instead',
+    pattern:
+      /<(?:tr|td)\b[^>]*\bon(?:click|auxclick|dblclick|keydown|pointerdown|pointerup|mousedown|mouseup)\b/g
   },
   {
     description: 'retired color token; use action or neutral-action',

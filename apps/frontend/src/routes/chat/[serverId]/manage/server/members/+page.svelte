@@ -172,7 +172,7 @@
                     userId: user.id
                   })}
                 >
-                  <AccountName name={user.displayName} identity={user} />
+                  <AccountName name={user.displayName || user.login} identity={user} />
                 </a>
               </div>
             </td>
