@@ -31,7 +31,12 @@ function buildVersionName() {
   const base = process.env.npm_package_version ?? gitShortHash();
   const workspace = process.env.CHATTO_DEV_WORKSPACE;
   const buildId = process.env.CHATTO_DEV_BUILD_ID;
-  if (workspace && buildId) return `${base}+${workspace}.${Number(buildId).toString(36)}`;
+  if (workspace && buildId) {
+    // The ID format depends on how the task renders it; a short hash keeps the
+    // version name compact and free of characters such as spaces or colons.
+    const token = createHash('sha256').update(buildId).digest('hex').slice(0, 8);
+    return `${base}+${workspace}.${token}`;
+  }
   return base;
 }
 
