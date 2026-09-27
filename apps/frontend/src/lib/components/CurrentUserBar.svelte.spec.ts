@@ -144,6 +144,9 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', async () => {
   const { fromStore, writable } = await import('svelte/store');
+  const { CurrentUserState } = await import('$lib/auth/currentUser.svelte');
+  // The plain account mock uses the real same-account update rule.
+  Object.assign(currentUserState, { update: CurrentUserState.prototype.update });
   const user = fromStore(writable(currentUserState.user));
   Object.defineProperty(currentUserState, 'user', {
     get: () => user.current,

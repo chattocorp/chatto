@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import ProfilePage from './+page.svelte';
+import { CurrentUserState } from '$lib/auth/currentUser.svelte';
+import type { CurrentUser } from '$lib/api-client/viewer';
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
@@ -14,18 +16,7 @@ const mocks = vi.hoisted(() => ({
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn(),
   supportsUserAvatars: true,
-  currentUser: {
-    user: {
-      id: 'user-1',
-      login: 'alice',
-      displayName: 'Alice',
-      avatarUrl: null,
-      bio: null,
-      viewerCanDeleteAccount: true,
-      lastLoginChange: null as string | null
-    },
-    loading: false
-  },
+  currentUser: null as unknown as import('$lib/auth/currentUser.svelte').CurrentUserState,
   permissions: {
     canAdminManageAccounts: false
   }
@@ -104,6 +95,8 @@ async function pasteBio(container: HTMLElement, text: string) {
 describe('Profile settings page', () => {
   beforeEach(() => {
     userPreferences.composerEditor = 'markdown';
+    mocks.currentUser = new CurrentUserState();
+    mocks.currentUser.loading = false;
     mocks.currentUser.user = {
       id: 'user-1',
       login: 'alice',
@@ -112,7 +105,7 @@ describe('Profile settings page', () => {
       bio: null,
       viewerCanDeleteAccount: true,
       lastLoginChange: null
-    };
+    } as CurrentUser;
     mocks.query.mockReset();
     mocks.permissions.canAdminManageAccounts = false;
     mocks.supportsUserAvatars = true;
@@ -324,7 +317,7 @@ describe('Profile settings page', () => {
   });
 
   it('keeps the username cooldown for a regular user', async () => {
-    mocks.currentUser.user.lastLoginChange = new Date().toISOString();
+    mocks.currentUser.user!.lastLoginChange = new Date().toISOString();
     const { container } = render(ProfilePage);
     await settle();
 
@@ -337,7 +330,7 @@ describe('Profile settings page', () => {
 
   it('lets an account manager bypass their own username cooldown', async () => {
     const lastLoginChange = new Date().toISOString();
-    mocks.currentUser.user.lastLoginChange = lastLoginChange;
+    mocks.currentUser.user!.lastLoginChange = lastLoginChange;
     mocks.permissions.canAdminManageAccounts = true;
     const { container } = render(ProfilePage);
     await settle();
@@ -371,7 +364,7 @@ describe('Profile settings page', () => {
         bio: undefined
       });
     });
-    expect(mocks.currentUser.user.lastLoginChange).toBe(lastLoginChange);
+    expect(mocks.currentUser.user!.lastLoginChange).toBe(lastLoginChange);
   });
 
   it('uploads an avatar through the targeted user API', async () => {

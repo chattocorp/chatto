@@ -96,6 +96,7 @@
 
     isSaving = true;
     error = '';
+    const userId = serverScope.store.accountId;
 
     try {
       const input: UpdateSettingsInput = {};
@@ -110,12 +111,7 @@
       }
       const settings = await accountAPI().updateSettings(input);
       if (!serverScope.isCurrent()) return;
-      if (currentUser.user) {
-        currentUser.user = {
-          ...currentUser.user,
-          settings
-        };
-      }
+      currentUser.update(userId, () => ({ settings }));
 
       toast.success(m('settings.preferences.saved'));
     } catch (err) {

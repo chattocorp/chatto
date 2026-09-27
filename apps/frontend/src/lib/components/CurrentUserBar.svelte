@@ -209,9 +209,7 @@ sidebar. Shows the avatar with presence and the live display name.
     clearingCustomStatus = true;
     try {
       const customStatus = await deleteCustomStatus(config);
-      if (store.currentUser.user && store.accountId === userId) {
-        store.currentUser.user = { ...store.currentUser.user, customStatus };
-      }
+      store.currentUser.update(userId, () => ({ customStatus }));
       if (activeServerId === serverId && activeServerUser?.id === userId) {
         if (statusMenuAnchor === menuAnchor) statusMenuAnchor = null;
         toast.success(m('settings.profile.status.cleared'));
@@ -227,11 +225,7 @@ sidebar. Shows the avatar with presence and the live display name.
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
     const store = activeStore;
-    if (!store.currentUser.user) return;
-    store.currentUser.user = {
-      ...store.currentUser.user,
-      customStatus: status
-    };
+    store.currentUser.update(store.accountId, () => ({ customStatus: status }));
   }
 
   function openActiveCallRoom(): void {

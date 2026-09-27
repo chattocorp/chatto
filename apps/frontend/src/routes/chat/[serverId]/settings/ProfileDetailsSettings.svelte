@@ -120,6 +120,7 @@
     isSaving = true;
     error = '';
     successMessage = '';
+    const userId = serverScope.store.accountId;
 
     try {
       const updated = await getAccountAPI().updateProfile({
@@ -128,19 +129,15 @@
         bio: normalizedBio
       });
 
-      if (currentUser.user) {
-        const lastLoginChange =
+      currentUser.update(userId, (user) => ({
+        displayName: updated.displayName,
+        login: updated.login,
+        bio: updated.bio ?? '',
+        lastLoginChange:
           normalizedLogin && !canBypassLoginCooldown
             ? new Date().toISOString()
-            : currentUser.user.lastLoginChange;
-        currentUser.user = {
-          ...currentUser.user,
-          displayName: updated.displayName,
-          login: updated.login,
-          bio: updated.bio ?? '',
-          lastLoginChange
-        };
-      }
+            : user.lastLoginChange
+      }));
 
       displayName = updated.displayName;
       login = updated.login;

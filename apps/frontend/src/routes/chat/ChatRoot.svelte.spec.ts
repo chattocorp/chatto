@@ -216,6 +216,9 @@ vi.mock('$lib/components/WelcomeBanner.svelte', async () => ({
 
 import ChatRoot from './ChatRoot.svelte';
 
+// The plain account mock uses the real same-account update rule.
+Object.assign(mocks.remoteCurrentUser, { update: CurrentUserState.prototype.update });
+
 const originUser: CurrentUser = {
   id: 'origin-user',
   login: 'alice',

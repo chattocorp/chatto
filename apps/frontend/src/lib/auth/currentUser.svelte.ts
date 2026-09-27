@@ -77,6 +77,24 @@ export class CurrentUserState {
     this.loading = false;
   }
 
+  /**
+   * Apply a local change to the account data, but only while `userId` is still
+   * the loaded account. A response for an earlier account then cannot change the
+   * current one. `change` returns the fields to replace, or null to keep the data.
+   * Returns whether the data changed.
+   */
+  update(
+    userId: string | null,
+    change: (user: CurrentUser) => Partial<CurrentUser> | null
+  ): boolean {
+    const user = this.user;
+    if (!userId || user?.id !== userId) return false;
+    const fields = change(user);
+    if (!fields) return false;
+    this.user = { ...user, ...fields };
+    return true;
+  }
+
   /** Clear account data and fence requests from a retired session or store. */
   reset(): void {
     this.invalidateVerification();

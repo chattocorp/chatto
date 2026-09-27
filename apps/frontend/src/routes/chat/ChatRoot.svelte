@@ -98,13 +98,9 @@
     if (!status?.expiresAt) return;
 
     return scheduleCustomStatusExpiry(status, () => {
-      if (
-        store?.accountId === userId &&
-        currentUser?.user &&
-        currentUser.user.customStatus?.expiresAt === status.expiresAt
-      ) {
-        currentUser.user = { ...currentUser.user, customStatus: null };
-      }
+      currentUser?.update(userId, (user) =>
+        user.customStatus?.expiresAt === status.expiresAt ? { customStatus: null } : null
+      );
     });
   });
 
@@ -156,16 +152,11 @@
       void api
         .updateSettings({ timezone: zone })
         .then((settings) => {
-          const currentUser = store.currentUser;
-          if (!currentUser.user || store.accountId !== userId) return;
-          if (!currentUser.user.settings) {
-            currentUser.user = { ...currentUser.user, settings };
-          } else if (currentUser.user.settings.timezone == null) {
-            currentUser.user = {
-              ...currentUser.user,
-              settings: { ...currentUser.user.settings, timezone: settings.timezone ?? null }
-            };
-          }
+          store.currentUser.update(userId, (user) => {
+            if (!user.settings) return { settings };
+            if (user.settings.timezone != null) return null;
+            return { settings: { ...user.settings, timezone: settings.timezone ?? null } };
+          });
         })
         .catch(() => {
           // Reporting is best-effort; the absence simply keeps the profile
