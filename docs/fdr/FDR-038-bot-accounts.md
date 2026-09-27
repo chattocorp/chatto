@@ -76,6 +76,10 @@ exercise more authority than its human owner currently possesses.
   see all bots and can manage their profiles and avatars, but cannot manage
   their credentials or lifecycle.
   Bot custom-status and personal-settings management are not supported.
+- The user context menu of a bot shows **Manage bot** to its owner, to a human
+  with `bot.manage`, and to a human with `user.manage-accounts`. The item
+  opens the detail page of the bot. The client finds the owner from the public
+  `User.bot` reference.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission

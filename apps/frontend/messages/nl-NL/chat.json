@@ -48,6 +48,7 @@
       "send_message": "Bericht verzenden",
       "view_profile": "Profiel bekijken",
       "profile_requires_direct_message": "Een direct bericht is nodig om dit profiel te bekijken.",
+      "manage_bot": "Bot beheren",
       "view_in_admin": "Bekijken in serverbeheer",
       "copy_user_id": "Gebruikers-ID kopiëren"
     },

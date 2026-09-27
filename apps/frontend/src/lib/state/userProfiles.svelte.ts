@@ -93,6 +93,17 @@ export function getLiveBio(userId: string, fallback: string | null): string | nu
 }
 
 /**
+ * Get the live human owner of an active bot if available, otherwise return
+ * fallback. Returns null for deleted accounts and for loaded non-bot users.
+ */
+export function getLiveBotOwnerUserId(userId: string, fallback: string | null): string | null {
+  const store = getUsers()();
+  if (store?.isDeleted(userId)) return null;
+  const user = store?.get(userId)?.user;
+  return user ? (user.bot?.ownerUserId ?? null) : fallback;
+}
+
+/**
  * Get the live public time zone if available, otherwise return fallback.
  */
 export function getLiveTimezone(userId: string, fallback: string | null): string | null {

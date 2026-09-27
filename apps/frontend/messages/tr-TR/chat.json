@@ -48,6 +48,7 @@
       "send_message": "Mesaj Gönder",
       "view_profile": "Profili görüntüle",
       "profile_requires_direct_message": "Bu profili görüntülemek için doğrudan mesaj gerekir.",
+      "manage_bot": "Botu yönet",
       "view_in_admin": "Sunucu yönetiminde görüntüle",
       "copy_user_id": "Kullanıcı kimliğini kopyala"
     },
