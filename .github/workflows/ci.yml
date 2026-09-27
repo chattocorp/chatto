@@ -612,7 +612,7 @@ jobs:
         if: needs.changes.outputs.chatto == 'true'
         run: |
           mise build-e2e-server
-          mise build-runling
+          mise build-runling-bot
 
       - name: Run E2E tests
         if: needs.changes.outputs.chatto == 'true'

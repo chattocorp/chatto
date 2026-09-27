@@ -243,6 +243,11 @@ description = "Build the Runling runtime and web console"
 depends = ["setup-frontend"]
 run = "pnpm turbo run build --filter=runling"
 
+[tasks.build-runling-bot]
+description = "Build Runling and the Chatto client for the Runling webhook bot example"
+depends = ["setup-frontend"]
+run = "pnpm turbo run build --filter=@chatto/runling-bot^..."
+
 [tasks.build-chatto-client]
 description = "Build the framework-neutral Chatto integration client"
 depends = ["setup-frontend"]
@@ -403,7 +408,7 @@ run = "pnpm dev"
 [tasks.dev]
 description = "Build and run Chatto, Authling, Runling, Mailpit, and LiveKit"
 # Setup is fast when nothing changed, so a fresh checkout needs only `mise dev`.
-depends = ["setup", "build-dev-cli", "build-runling"]
+depends = ["setup", "build-dev-cli", "build-runling-bot"]
 run = '''
 CONDUCTOR_WORKSPACE_PATH="$PWD" tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"
 exec "$PWD/tools/dev-supervisor.sh" mise run --jobs 5 --output prefix \
@@ -800,7 +805,7 @@ run = "tools/test-desktop-macos-capture.sh"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["setup-frontend", "build-e2e-server", "build-runling"]
+depends = ["setup-frontend", "build-e2e-server", "build-runling-bot"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test"
 
