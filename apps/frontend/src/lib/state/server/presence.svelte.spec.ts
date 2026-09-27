@@ -40,11 +40,29 @@ describe('ServerPresence', () => {
     const readVersion = presence.version;
 
     presence.set('U1', PresenceStatus.OFFLINE);
-    presence.applyPreview('U1', PresenceStatus.ONLINE, readVersion);
-    presence.applyPreview('U2', PresenceStatus.ONLINE, readVersion);
+    presence.applyRead('U1', PresenceStatus.ONLINE, readVersion);
+    presence.applyRead('U2', PresenceStatus.ONLINE, readVersion);
 
     expect(presence.get('U1')).toBe(PresenceStatus.OFFLINE);
     expect(presence.get('U2')).toBe(PresenceStatus.ONLINE);
+  });
+
+  it('fences a snapshot that this client read against newer changes', () => {
+    const presence = new ServerPresence();
+    const readVersion = presence.version;
+    presence.set('U1', PresenceStatus.OFFLINE);
+
+    presence.applySnapshot(
+      [
+        ['U1', PresenceStatus.ONLINE],
+        ['U2', PresenceStatus.AWAY]
+      ],
+      false,
+      readVersion
+    );
+
+    expect(presence.get('U1')).toBe(PresenceStatus.OFFLINE);
+    expect(presence.get('U2')).toBe(PresenceStatus.AWAY);
   });
 
   it('forgets everything on clear and reports the change', () => {

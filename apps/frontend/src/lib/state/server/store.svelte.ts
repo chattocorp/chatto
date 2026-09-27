@@ -483,6 +483,7 @@ export class ServerStateStore {
         return member ? [[id, member] as const] : [];
       })
     );
+    const presenceReadVersion = this.presence.version;
     const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
     this.requireCurrentRealtimeProjection(generation);
     const returnedUserIds = new SvelteSet(
@@ -495,7 +496,7 @@ export class ServerStateStore {
       )
     );
     for (const resource of userResources) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }), presenceReadVersion);
     }
     for (const [userId, member] of requestedCachedUsers) {
       if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
@@ -829,7 +830,14 @@ export class ServerStateStore {
     delete this.#threadMessageRefCounts[key];
   }
 
-  private ingestProjectionEvent(update: RealtimeProjectionUpdate): void {
+  /**
+   * Apply one projection update. `presenceReadVersion` marks a user resource
+   * that this client read itself; see {@link ServerPresence.applySnapshot}.
+   */
+  private ingestProjectionEvent(
+    update: RealtimeProjectionUpdate,
+    presenceReadVersion?: number
+  ): void {
     if (
       update.event &&
       affectsViewerPermissions(
@@ -908,7 +916,8 @@ export class ServerStateStore {
             resource.value.users.flatMap((member) =>
               member.user?.id ? [[member.user.id, member.user.presenceStatus] as const] : []
             ),
-            update.replaceResource
+            update.replaceResource,
+            presenceReadVersion
           );
           const members = resource.value.users.map(mapDirectoryMember);
           for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
@@ -1214,10 +1223,11 @@ export class ServerStateStore {
     this.requireCurrentRealtimeProjection(generation);
     const userIds = [...this.projection.rooms.values()].flatMap((room) => room.memberUserIds);
     const missingIds = userIds.filter((userId) => !this.projection.users.has(userId));
+    const presenceReadVersion = this.presence.version;
     const resources = await this.#realtimeResources.readUsers(missingIds, minimumCursor);
     this.requireCurrentRealtimeProjection(generation);
     for (const resource of resources) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }), presenceReadVersion);
     }
   }
 
@@ -1243,10 +1253,14 @@ export class ServerStateStore {
         const readGeneration = this.#pendingUserRefreshGeneration;
         this.#pendingUserRefreshCursor = undefined;
         failedGeneration = readGeneration;
+        const presenceReadVersion = this.presence.version;
         const resources = await this.#realtimeResources.readUsers(ids, cursor);
         this.requireCurrentRealtimeProjection(readGeneration);
         for (const resource of resources) {
-          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+          this.publishProjectionUpdate(
+            new RealtimeProjectionUpdate({ resource }),
+            presenceReadVersion
+          );
         }
       }
     })()
@@ -1261,8 +1275,15 @@ export class ServerStateStore {
       });
   }
 
-  /** Apply a refreshed resource and notify every consumer of the server bus. */
-  private publishProjectionUpdate(update: RealtimeProjectionUpdate): void {
+  /**
+   * Apply a resource that this client read and notify every consumer of the
+   * server bus. Give the presence version from before a user read, so a
+   * presence change that arrived during the read is kept.
+   */
+  private publishProjectionUpdate(
+    update: RealtimeProjectionUpdate,
+    presenceReadVersion?: number
+  ): void {
     // Filter before both the local reducer and bus consumers see the response.
     // This covers profile refreshes, DM hydration, and catch-up user batches.
     if (update.resource?.case === 'users' && this.#deletedRealtimeUserIds.size > 0) {
@@ -1280,7 +1301,7 @@ export class ServerStateStore {
         })
       });
     }
-    this.ingestProjectionEvent(update);
+    this.ingestProjectionEvent(update, presenceReadVersion);
     eventBusManager.getBus(this.serverId)?.notify(update);
   }
 

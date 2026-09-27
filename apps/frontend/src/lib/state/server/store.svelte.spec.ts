@@ -2413,6 +2413,60 @@ describe('ServerStateStore unified realtime resources', () => {
     }
   );
 
+  it.each(['profile', 'dm', 'catch-up'] as const)(
+    'keeps presence that changed during a late %s user read',
+    async (path) => {
+      const response = deferred<RealtimeResourceUpdate[]>();
+      apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
+      const store = makeStore(new FakeServerConnection([]));
+      const member = (id: string, presenceStatus: PresenceStatus) =>
+        new DirectoryMember({ user: new User({ id, presenceStatus }) });
+      let completion: Promise<void> | undefined;
+      if (path === 'catch-up') {
+        store.projection.users.set('U2', member('U2', PresenceStatus.ONLINE));
+        completion = store.completeRealtimeCatchUp('before-change');
+      } else if (path === 'dm') {
+        apiMocks.readRealtimeResource.mockResolvedValueOnce([
+          roomResource([
+            new RoomWithViewerState({ room: new Room({ id: 'DM1' }), memberUserIds: ['U2', 'U3'] })
+          ])
+        ]);
+        store.realtimeProjectionHandler(userLeftRoom('R1', 'U3'));
+      } else {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            event: new RealtimeEvent({
+              event: {
+                case: 'userProfileChanged',
+                value: new UserProfileChangedEvent({ userId: 'U2' })
+              }
+            })
+          })
+        );
+      }
+      await vi.waitFor(() => expect(apiMocks.readRealtimeUsers).toHaveBeenCalledTimes(1));
+
+      // U2 goes offline while the read that still says Online is in flight.
+      store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.OFFLINE));
+      response.resolve([
+        new RealtimeResourceUpdate({
+          resource: {
+            case: 'users',
+            value: {
+              users: [member('U2', PresenceStatus.ONLINE), member('U3', PresenceStatus.AWAY)]
+            }
+          },
+          replace: false
+        })
+      ]);
+      await completion;
+      await flushPromises(20);
+
+      expect(store.presence.get('U2')).toBe(PresenceStatus.OFFLINE);
+      expect(store.presence.get('U3')).toBe(PresenceStatus.AWAY);
+    }
+  );
+
   it.each(['room', 'thread'] as const)(
     'batches edits and reactions across the loaded %s window',
     async (scope) => {

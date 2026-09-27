@@ -446,7 +446,7 @@ export class RoomMembersStore {
         // A realtime change received during this request takes precedence.
         for (const id of ids) {
           this.#previewIds.add(id);
-          this.#presence?.applyPreview(id, status, presenceVersion);
+          this.#presence?.applyRead(id, status, presenceVersion);
         }
         this.#memberIds = appendPageIds(this.#memberIds, ids);
         if (ids.length > 0) {

@@ -419,7 +419,8 @@ also while the server is not on screen. A partial user read without a presence
 value does not change a known value. A complete replacement, such as the
 snapshot, which never carries presence, removes all values until catch-up reads
 the users again. Presence dots and the member list read this map. Catch-up
-refreshes profiles and presence for retained members.
+refreshes profiles and presence for retained members. A user read that this
+client starts does not replace a presence change that arrived during the read.
 An event during offset pagination restarts
 the membership read with the event's minimum cursor. Recovery resets and room
 access loss clear retained membership. Universal-room eligibility changes require
