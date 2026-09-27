@@ -730,7 +730,9 @@ describe('RoomMembersStore', () => {
     expect(store.hasLoadedAll).toBe(true);
     expect(store.totalCount).toBe(0);
     store.ensureLoaded();
+    await store.refresh({ reauthorize: true });
     expect(fakeAPI.listRoomMembers).not.toHaveBeenCalled();
+    expect(fakeAPI.listOnlineRoomMembers).not.toHaveBeenCalled();
 
     projected = null;
     await store.loadInitial();

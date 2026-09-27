@@ -230,7 +230,8 @@ export class RoomMembersStore {
   }
 
   async loadInitial(): Promise<void> {
-    if (!this.roomId || !this.api) return;
+    // The projection has the complete membership, so a server read adds nothing.
+    if (!this.roomId || !this.api || this.#projected !== null) return;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = true;
     this.#fullScanFinished = false;
@@ -262,7 +263,7 @@ export class RoomMembersStore {
     reauthorize?: boolean;
     minimumCursor?: string;
   } = {}): Promise<void> {
-    if (!this.roomId || !this.api) return;
+    if (!this.roomId || !this.api || this.#projected !== null) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = !this.#hasFirstPage;
