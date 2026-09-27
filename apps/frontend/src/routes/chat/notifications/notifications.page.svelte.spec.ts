@@ -176,6 +176,7 @@ describe('notifications page', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -856,6 +857,8 @@ describe('notifications page', () => {
   });
 
   it('groups rows by date in the viewer timezone', async () => {
+    // Keep the 24-hour fixture interval away from daylight-saving changes.
+    vi.setSystemTime(new Date('2026-07-15T12:00:00Z'));
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1_000);
     const older = new Date(now);
