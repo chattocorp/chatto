@@ -255,6 +255,13 @@ describe('remote server OAuth popup', () => {
     }
   );
 
+  it('treats an unparsable server URL as a server that is not local', async () => {
+    const { oauthClientIdForLocation } = await import('./reauth');
+    expect(oauthClientIdForLocation(new URL('http://localhost:4000'), 'not a url')).toBe(
+      'chatto://loopback'
+    );
+  });
+
   it('uses the origin CIMD identity on a public origin', async () => {
     const { oauthClientIdForLocation } = await import('./reauth');
     expect(
