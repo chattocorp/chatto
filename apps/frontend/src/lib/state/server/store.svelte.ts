@@ -4,7 +4,7 @@
  */
 
 import { CallPreferencesState } from './callPreferences.svelte';
-import { TimelineSync, type LocalMessageMutation } from './timelineSync.svelte';
+import { TimelineSync, type LocalMessageMutation } from './timelineSync';
 import { createMessageResourcesAPI } from '$lib/api-client/messageResources';
 import { refreshPresencePreference } from '$lib/presenceTracking';
 import { affectsViewerPermissions } from './permissionEvents';
@@ -116,8 +116,6 @@ function viewerAuthorizationLost(
       .map((grant) => `permission:${grant.permission}`)
   ].some((grant) => !currentGrants.has(grant));
 }
-
-export type { LocalMessageMutation };
 
 export class ServerStateStore {
   readonly serverId: string;
@@ -1277,21 +1275,11 @@ export class ServerStateStore {
         return;
       case 'voiceCallEnded':
         this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
-        this.#timelines.refreshWindows(
-          payload.value.roomId,
-          event.id || null,
-          event.id || null,
-          true
-        );
+        this.#timelines.refreshWindows(payload.value.roomId, event.id || null, true);
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallStarted':
-        this.#timelines.refreshWindows(
-          payload.value.roomId,
-          event.id || null,
-          event.id || null,
-          true
-        );
+        this.#timelines.refreshWindows(payload.value.roomId, event.id || null, true);
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'notificationOccurrencesChanged':

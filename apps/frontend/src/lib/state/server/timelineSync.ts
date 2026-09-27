@@ -1,4 +1,3 @@
-import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 import type { MessageResource } from '$lib/api-client/messageResources';
 import type { UserAvatarUserView } from '$lib/render/users';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
@@ -32,8 +31,9 @@ export type TimelineSyncOptions = {
   /** The cursor of the event that is being applied. Reads for it must reach this cursor. */
   eventCursor: () => string | undefined;
   /**
-   * Keep the realtime cursor behind a read until it settles. The server store
-   * reports a failure only when the read belongs to the current generation.
+   * Keep the realtime cursor behind a read until it settles. The read can
+   * reject; `track` must handle the failure. The server store reports it only
+   * when the read belongs to the current generation.
    */
   track: (read: Promise<unknown>, generation: number) => void;
   /** The author of a posted message: a profile, or none while it loads or after deletion. */
@@ -46,8 +46,8 @@ export type TimelineSyncOptions = {
  *
  * A message change reads the affected messages once for all loaded views of
  * the room. A room or membership change reloads the window that each loaded
- * timeline shows. Every read goes to `track`, so the realtime cursor does not
- * move past an event before its reads are complete.
+ * timeline shows. Every read for a realtime event goes to `track`, so the
+ * realtime cursor does not move past the event before its reads are complete.
  */
 export class TimelineSync {
   readonly #options: TimelineSyncOptions;
@@ -81,7 +81,7 @@ export class TimelineSync {
       : { user: null, deleted: false };
     const timelineEvent: TimelineEventView = {
       id: event.id,
-      createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
+      createdAt: event.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
       actorId: event.actorId || null,
       actor,
       actorResolution: actorDeleted ? 'deleted' : actor ? undefined : 'loading',
@@ -116,16 +116,10 @@ export class TimelineSync {
 
   /**
    * Reload the window of each loaded timeline of a room, or of all rooms when
-   * `roomId` is empty. Room timelines use `roomAnchorEventId` and
-   * `roomForward`; thread timelines use `anchorEventId` and `threadForward`.
+   * `roomId` is empty, around `anchorEventId`. With `roomForward`, room
+   * timelines read forward from the anchor; thread timelines always read back.
    */
-  refreshWindows(
-    roomId: string,
-    anchorEventId: string | null,
-    roomAnchorEventId: string | null = anchorEventId,
-    roomForward = false,
-    threadForward = false
-  ): void {
+  refreshWindows(roomId: string, anchorEventId: string | null, roomForward = false): void {
     const minimumCursor = this.#options.eventCursor();
     const refresh = (store: MessagesStore, anchor: string | null, forward: boolean) => {
       const visibleAnchor = anchor
@@ -135,8 +129,8 @@ export class TimelineSync {
     };
     for (const [candidateRoomId, room] of this.#options.rooms.entries()) {
       if (roomId && candidateRoomId !== roomId) continue;
-      if (room.messages) refresh(room.messages, roomAnchorEventId, roomForward);
-      for (const store of Object.values(room.threads)) refresh(store, anchorEventId, threadForward);
+      if (room.messages) refresh(room.messages, anchorEventId, roomForward);
+      for (const store of Object.values(room.threads)) refresh(store, anchorEventId, false);
     }
   }
 
@@ -150,7 +144,7 @@ export class TimelineSync {
     const stores = rooms.timelines(roomId);
     const { files, pins } = rooms.loaded(roomId) ?? {};
     if (!stores.length && !files && !pins) return;
-    const ids = new SvelteSet([id, ...stores.flatMap((store) => store.relatedMessageIds(id))]);
+    const ids = new Set([id, ...stores.flatMap((store) => store.relatedMessageIds(id))]);
     for (const related of files?.relatedMessageIds(id) ?? []) ids.add(related);
     if (threadRootEventId) ids.add(threadRootEventId);
     const generation = this.#options.generation();

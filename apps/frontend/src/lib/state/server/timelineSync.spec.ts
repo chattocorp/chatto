@@ -3,7 +3,7 @@ import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import type { RoomStores } from './roomStores.svelte';
-import { TimelineSync, type TimelineSyncOptions } from './timelineSync.svelte';
+import { TimelineSync, type TimelineSyncOptions } from './timelineSync';
 
 function deferred() {
   let resolve!: () => void;
@@ -133,7 +133,7 @@ describe('TimelineSync', () => {
     expect(generation).toBe(1);
   });
 
-  it('uses the room anchor for room timelines and refreshes every room without a room ID', () => {
+  it('reads room timelines forward on request and refreshes every room without a room ID', () => {
     const room = fakeTimeline();
     const thread = fakeTimeline();
     const other = fakeTimeline();
@@ -142,10 +142,10 @@ describe('TimelineSync', () => {
       R2: { messages: other }
     });
 
-    sync.refreshWindows('', 'E-THREAD', 'E-ROOM', true, false);
+    sync.refreshWindows('', 'E1', true);
 
-    expect(room.refreshCurrentWindow.mock.calls[0].slice(0, 2)).toEqual(['E-ROOM', true]);
-    expect(thread.refreshCurrentWindow.mock.calls[0].slice(0, 2)).toEqual(['E-THREAD', false]);
+    expect(room.refreshCurrentWindow.mock.calls[0].slice(0, 2)).toEqual(['E1', true]);
+    expect(thread.refreshCurrentWindow.mock.calls[0].slice(0, 2)).toEqual(['E1', false]);
     expect(other.refreshCurrentWindow).toHaveBeenCalledOnce();
   });
 

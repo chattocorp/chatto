@@ -120,7 +120,7 @@ timeline row from the event ID, actor, time, reply references, and plaintext
 body. Values that belong only to the complete message resource start empty.
 These values include attachments, link previews, reactions, pin state, thread
 counts, thread participants, and the timeline cursor. The server-scoped
-[`TimelineSync`](../../apps/frontend/src/lib/state/server/timelineSync.svelte.ts)
+[`TimelineSync`](../../apps/frontend/src/lib/state/server/timelineSync.ts)
 keeps the loaded timelines, files, and pins current. Its
 [`MessageReconciler`](../../apps/frontend/src/lib/state/server/messageReconciler.ts)
 collects affected message IDs for 10 milliseconds, then reads at most 100 IDs
