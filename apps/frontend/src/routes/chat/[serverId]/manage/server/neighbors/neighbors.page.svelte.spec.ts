@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import type { NeighborhoodServer } from '$lib/api-client/server';
 import type { Neighbor } from '$lib/api-client/neighbors';
 import { queryClient } from '$lib/query/client';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -13,22 +14,13 @@ const mocks = vi.hoisted(() => ({
   listNeighborhoodServers: vi.fn()
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    connection: {
-      queryScope: 'neighbors-test',
-      connectBaseUrl: 'https://self.example/api/connect',
-      getAPI: () => ({
-        list: mocks.list,
-        create: mocks.create,
-        update: mocks.update,
-        delete: mocks.delete
-      })
-    },
-    isCurrent: () => true
-  })
-}));
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/api-client/server', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/api-client/server')>();
@@ -74,6 +66,11 @@ describe('Neighbor management page', () => {
   beforeEach(() => {
     queryClient.clear();
     vi.clearAllMocks();
+    createTestServerScope({
+      serverId: 'origin',
+      api: { list: mocks.list, create: mocks.create, update: mocks.update, delete: mocks.delete },
+      connection: { connectBaseUrl: 'https://self.example/api/connect' }
+    });
     mocks.list.mockResolvedValue([]);
     mocks.create.mockImplementation(async (origin: string) => neighbor(origin));
     mocks.update.mockImplementation(async (_current: Neighbor, origin: string) => neighbor(origin));

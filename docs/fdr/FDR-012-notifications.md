@@ -34,6 +34,10 @@ targets, unread counts, read state, or deletion semantics.
   shows their total count. Ambient notifications do not contribute to either
   indicator. Reading the last Important notification clears both indicators,
   even if Ambient notifications remain unread.
+- Page titles use `Page · Server`, with the current route's server name once.
+  App-wide pages and app preferences use `Page · Chatto`, including preferences
+  opened from server settings. Public authentication pages use the origin server
+  name. The Important count is a prefix, for example `(3) #general · Chatto HQ`.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
 - Rows use concise, full localized sentences without message previews.

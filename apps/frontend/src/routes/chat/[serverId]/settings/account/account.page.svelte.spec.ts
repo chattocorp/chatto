@@ -4,6 +4,7 @@ import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { settingsQueryKeys } from '$lib/query/settings';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import AccountPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -13,30 +14,19 @@ const mocks = vi.hoisted(() => ({
   setPrimaryEmail: vi.fn(),
   beforeNavigate: vi.fn(),
   goto: vi.fn(),
-  toastSuccess: vi.fn(),
-  scopeCurrent: true,
-  currentUser: {
-    user: {
-      id: 'U123abcetc.',
-      login: 'alice',
-      displayName: 'Alice',
-      hasPassword: true,
-      viewerCanDeleteAccount: false
-    },
-    loading: false,
-    load: vi.fn()
-  }
+  toastSuccess: vi.fn()
 }));
 
-const connection = {
-  queryScope: 'account-settings-test',
-  getAPI: () => ({
-    list: mocks.listExternalIdentities,
-    listVerifiedEmails: mocks.listVerifiedEmails,
-    requestEmailVerification: mocks.requestEmailVerification,
-    setPrimaryEmail: mocks.setPrimaryEmail
-  })
+const api = {
+  list: mocks.listExternalIdentities,
+  listVerifiedEmails: mocks.listVerifiedEmails,
+  requestEmailVerification: mocks.requestEmailVerification,
+  setPrimaryEmail: mocks.setPrimaryEmail
 };
+let server: TestServerScope;
+
+// Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
@@ -44,22 +34,10 @@ vi.mock('$app/navigation', async (importOriginal) => ({
   goto: mocks.goto
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {
-      currentUser: mocks.currentUser,
-      get viewerId() {
-        return mocks.currentUser.user?.id ?? null;
-      },
-      get accountId() {
-        return mocks.currentUser.user?.id ?? null;
-      }
-    },
-    connection,
-    isCurrent: () => mocks.scopeCurrent
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/ui/toast/toastState.svelte', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/ui/toast/toastState.svelte')>()),
@@ -86,14 +64,17 @@ describe('Account settings page', () => {
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
     mocks.toastSuccess.mockReset();
-    mocks.scopeCurrent = true;
-    mocks.currentUser.user = {
-      id: 'U123abcetc.',
-      login: 'alice',
-      displayName: 'Alice',
-      hasPassword: true,
-      viewerCanDeleteAccount: false
-    };
+    server = createTestServerScope({
+      serverId: 'origin',
+      api,
+      viewer: {
+        id: 'U123abcetc.',
+        login: 'alice',
+        displayName: 'Alice',
+        hasPassword: true,
+        viewerCanDeleteAccount: false
+      }
+    });
     queryClient.clear();
   });
 
@@ -150,12 +131,11 @@ describe('Account settings page', () => {
     await expect.element(aliceView.getByText('alice.private@example.com')).toBeVisible();
     aliceView.unmount();
 
-    mocks.currentUser.user = {
+    server.currentUser.user = {
+      ...server.currentUser.user!,
       id: 'U456defetc.',
       login: 'bob',
-      displayName: 'Bob',
-      hasPassword: true,
-      viewerCanDeleteAccount: false
+      displayName: 'Bob'
     };
     const bobView = render(AccountPage);
     await settle();
@@ -189,10 +169,10 @@ describe('Account settings page', () => {
       'alice.secondary@example.com'
     );
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.membersRoot('origin', connection)
+      queryKey: adminQueryKeys.membersRoot('origin', server.scope.connection)
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
+      queryKey: adminQueryKeys.member('origin', server.scope.connection, 'U123abcetc.'),
       exact: true
     });
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
@@ -224,11 +204,11 @@ describe('Account settings page', () => {
 
     expect(
       queryClient.getQueryData(
-        settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
+        settingsQueryKeys.verifiedEmails('origin', server.scope.connection, 'U123abcetc.')
       )
     ).toEqual(changed);
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: adminQueryKeys.membersRoot('origin', connection)
+      queryKey: adminQueryKeys.membersRoot('origin', server.scope.connection)
     });
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
@@ -278,7 +258,7 @@ describe('Account settings page', () => {
     await getByRole('button', { name: 'Send verification code' }).click();
 
     expect(mocks.requestEmailVerification).toHaveBeenCalledOnce();
-    mocks.scopeCurrent = false;
+    server.current = false;
     resolveRequest();
     await settle();
 

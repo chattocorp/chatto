@@ -155,7 +155,7 @@
   }
 </script>
 
-<PageTitle title={m('settings.account.email.code_label')} />
+<PageTitle title={m('settings.account.email.verify')} />
 
 <div class="pane-page">
   <PaneHeader

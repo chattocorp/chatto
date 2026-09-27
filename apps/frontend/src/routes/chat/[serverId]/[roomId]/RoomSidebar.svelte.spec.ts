@@ -12,6 +12,7 @@ import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
 import {
@@ -24,7 +25,6 @@ import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { PRESENCE_GROUPING_DEBOUNCE_MS } from './RoomSidebar.svelte';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
-const queryMock = vi.hoisted(() => vi.fn());
 const memberDirectoryMocks = vi.hoisted(() => ({
   listRoomMembers: vi.fn()
 }));
@@ -39,13 +39,6 @@ vi.mock('$app/navigation', () => ({
   replaceState: vi.fn()
 }));
 const callStore = vi.hoisted(() => ({
-  permissions: {
-    loaded: true,
-    canStartDMs: false
-  },
-  currentUser: {
-    user: { id: 'viewer', login: 'viewer' }
-  },
   voiceCall: {
     permissionsFor: () => ({
       start: true,
@@ -119,9 +112,6 @@ const callStore = vi.hoisted(() => ({
     getParticipants: vi.fn(() => callStore.activeCallRooms.participants),
     getParticipantCallPresenceInAnyRoom: vi.fn((_userId: string): 'voice' | 'video' | null => null)
   },
-  rooms: {
-    currentUserId: 'viewer'
-  },
   handleVoiceCallJoinFailed: vi.fn()
 }));
 
@@ -157,36 +147,12 @@ class MockIntersectionObserver {
   }
 }
 
-vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
-  return {
-    useServerScope: () => ({
-      serverId: 'test-server',
-      connection: {
-        serverId: 'test-server',
-        connectBaseUrl: 'https://chat.example.test/api/connect',
-        bearerToken: 'test-token',
-        isConnected: true,
-        showConnectionLostBanner: false,
-        getAPI: (factory: (config: never) => unknown) => factory({} as never),
-        client: {
-          query: (...args: unknown[]) => {
-            const result = queryMock(...args);
-            return Object.assign(result, {
-              toPromise: () => result
-            });
-          },
-          mutation: vi.fn(),
-          subscription: vi.fn()
-        }
-      },
-      get store() {
-        return serverRegistry.getStore('test-server');
-      },
-      isCurrent: () => true
-    })
-  };
-});
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/attachments', async (importActual) => ({
   ...(await importActual<typeof import('$lib/api-client/attachments')>()),
@@ -201,7 +167,7 @@ vi.mock('$lib/api-client/memberDirectory', async (importActual) => ({
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: async (...args: unknown[]) => {
       const result = await memberDirectoryMocks.listRoomMembers(...args);
-      const users = getUserStore('test-server');
+      const users = getUserStore('test-server', server.scope.connection.queryScope);
       for (const member of result.members) users.set(member.id, userProfileFixture(member));
       return result;
     }
@@ -214,8 +180,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => callStore,
-    tryGetStore: () => callStore,
+    getStore: () => server.scope.store,
+    tryGetStore: () => server.scope.store,
     getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
   }
 }));
@@ -427,10 +393,14 @@ function roomAudioFile(filename: string) {
 describe('RoomSidebar', () => {
   beforeEach(async () => {
     resetUserStoresForTests();
+    server = createTestServerScope({
+      serverId: 'test-server',
+      viewer: { id: 'viewer', login: 'viewer' },
+      store: callStore
+    });
     document.documentElement.dir = 'ltr';
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-    queryMock.mockReset();
     memberDirectoryMocks.listRoomMembers.mockReset();
     attachmentMocks.listRoomAttachments.mockReset();
     attachmentMocks.pushState.mockReset();
@@ -442,18 +412,6 @@ describe('RoomSidebar', () => {
       hasMore: false
     });
     attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map());
-    queryMock.mockResolvedValue({
-      data: {
-        room: {
-          members: {
-            users: [member(1)],
-            totalCount: 1,
-            hasMore: false
-          }
-        }
-      },
-      error: null
-    });
     localStorage.clear();
     MockIntersectionObserver.instances = [];
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
@@ -488,7 +446,6 @@ describe('RoomSidebar', () => {
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockClear();
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockReturnValue(null);
     callStore.handleVoiceCallJoinFailed.mockClear();
-    callStore.permissions.canStartDMs = false;
   });
 
   it('shows search availability and recovers through the sidebar retry action', async () => {
@@ -787,7 +744,7 @@ describe('RoomSidebar', () => {
       ]);
     });
 
-    getUserStore('test-server').set(
+    getUserStore('test-server', server.scope.connection.queryScope).set(
       'user-1',
       userProfileFixture({
         id: 'user-1',
@@ -843,7 +800,7 @@ describe('RoomSidebar', () => {
   });
 
   it('shows the direct-message action when the scoped server grants it', async () => {
-    callStore.permissions.canStartDMs = true;
+    server.permissions.canStartDMs = true;
     const { container } = render(RoomSidebarTestHarness, {
       props: { roomData: roomData([], 0, false) }
     });
@@ -864,7 +821,7 @@ describe('RoomSidebar', () => {
   });
 
   it('opens a member context menu by right-clicking the passive identity', async () => {
-    callStore.permissions.canStartDMs = true;
+    server.permissions.canStartDMs = true;
     const { container } = render(RoomSidebarTestHarness, {
       props: { roomData: roomData([], 0, false) }
     });

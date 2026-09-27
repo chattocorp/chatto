@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -83,13 +84,14 @@ func (m *JMAPMailer) SendContext(ctx context.Context, msg Message) error {
 		return ErrEmailDisabled
 	}
 
+	// Address parse errors can repeat the address, so do not wrap them.
 	from, err := mail.ParseAddress(m.config.From)
 	if err != nil {
-		return fmt.Errorf("invalid JMAP from address: %w", err)
+		return errors.New("invalid JMAP from address")
 	}
 	to, err := mail.ParseAddress(msg.To)
 	if err != nil {
-		return fmt.Errorf("invalid JMAP recipient address: %w", err)
+		return errors.New("invalid JMAP recipient address")
 	}
 
 	session, err := m.getSession(ctx)

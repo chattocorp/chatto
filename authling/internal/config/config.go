@@ -163,6 +163,26 @@ func (c SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
 	return policy
 }
 
+// InsecureTransportSettings returns the names of enabled SMTP settings that
+// reduce transport security. Opportunistic TLS permits plaintext fallback, and
+// skipped certificate verification permits interception. Both can expose
+// verification and password-reset codes on the network. The result contains
+// only configuration key names, so callers may log it. It is empty when SMTP
+// is disabled.
+func (c SMTPConfig) InsecureTransportSettings() []string {
+	if !c.Enabled {
+		return nil
+	}
+	var settings []string
+	if c.TLSPolicyOrDefault() == SMTPTLSOpportunistic {
+		settings = append(settings, "smtp.tls=opportunistic")
+	}
+	if c.TLSSkipVerify {
+		settings = append(settings, "smtp.tls_skip_verify=true")
+	}
+	return settings
+}
+
 // HTTPConfig controls Authling's public HTTP listener.
 type HTTPConfig struct {
 	BindAddress string `toml:"bind_address" env:"AUTHLING_HTTP_BIND_ADDRESS"`

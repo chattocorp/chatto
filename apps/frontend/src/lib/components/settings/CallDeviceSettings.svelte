@@ -3,7 +3,7 @@
   import MicrophoneProcessing from './MicrophoneProcessing.svelte';
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { Hint, PaneContent, PaneHeader } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
   import { Button, Checkbox, Select } from '$lib/ui/form';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
@@ -122,8 +122,6 @@
     if (alive && discoveryFailed) deviceError = true;
   }
 </script>
-
-<PageTitle title={m('voice.preferences.title')} />
 
 <div class="pane-page">
   <PaneHeader title={m('voice.preferences.title')} subtitle={m('voice.preferences.scope')} />

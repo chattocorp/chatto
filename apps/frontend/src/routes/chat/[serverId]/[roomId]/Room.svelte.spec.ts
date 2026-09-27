@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
-import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
@@ -14,89 +13,58 @@ import { MessagesStore, RoomMembersStore } from '$lib/state/room';
 import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
-const { mocks } = vi.hoisted(() => {
-  const queryData = {
-    server: { roles: [] },
-    room: {
-      events: {
-        events: [],
-        startCursor: null,
-        endCursor: null,
-        hasOlder: false,
-        hasNewer: false
-      },
-      members: {
-        users: [],
-        totalCount: 0,
-        hasMore: false
-      }
-    }
-  };
-
-  return {
-    mocks: {
-      goto: vi.fn(),
-      pushState: vi.fn(),
-      replaceState: vi.fn(),
-      pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
-      pageState: {} as App.PageState,
-      markRoomAsRead: vi.fn(),
-      clearUnreadMarker: vi.fn(),
-      unreadMarkerEventId: null as string | null,
-      projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
-      resetTypingDebounce: vi.fn(),
-      query: vi.fn(() => ({
-        toPromise: vi.fn().mockResolvedValue({ data: queryData, error: null })
-      })),
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn().mockResolvedValue({ data: {}, error: null })
-      })),
-      subscription: vi.fn(),
-      timeline: {
-        getRoomEvents: vi.fn(),
-        getRoomEventsAround: vi.fn(),
-        getMessage: vi.fn(),
-        getThreadEvents: vi.fn(),
-        getThreadEventsAround: vi.fn()
-      },
-      roomFilesRetain: vi.fn(),
-      messageSearchSupported: false,
-      livekitUrl: null as string | null,
-      roomKind: 1,
-      dmParticipantIds: ['test-user', 'user-1'] as string[],
-      threadingMode: 3,
-      canReadMessages: true as boolean | null,
-      canPostMessage: true,
-      hasLimitedMessageAccess: false,
-      canPostInThread: true,
-      getAppUiState: vi.fn(),
-      activeCallRoomIds: new Set<string>(),
-      joinedCallRoomIds: new Set<string>(),
-      threadPaneModuleLoaded: vi.fn(),
-      roomSidebarModuleLoaded: vi.fn(),
-      pendingHighlightConsume: vi.fn(
-        (
-          _roomId: string,
-          _threadRootId: string | null
-        ): { eventId: string; notificationId: string | null } | null => null
-      ),
-      markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
-      messagesForRoom: vi.fn(),
-      membersForRoom: vi.fn(),
-      restoreProjectedRoomWindow: vi.fn(),
-      nextServerRestoreProjectedRoomWindow: vi.fn(),
-      projectedMemberIdsForRoom: vi.fn(() => []),
-      hasCompleteProjectedRoomMembership: vi.fn(() => true),
-      mentionRoles: {
-        roles: [],
-        refresh: vi.fn().mockResolvedValue(true)
-      }
-    }
-  };
-});
-
-const scopeState = new SvelteMap([['serverId', 'server-1']]);
+const mocks = vi.hoisted(() => ({
+  goto: vi.fn(),
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+  pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
+  pageState: {} as App.PageState,
+  markRoomAsRead: vi.fn(),
+  clearUnreadMarker: vi.fn(),
+  unreadMarkerEventId: null as string | null,
+  projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
+  resetTypingDebounce: vi.fn(),
+  timeline: {
+    getRoomEvents: vi.fn(),
+    getRoomEventsAround: vi.fn(),
+    getMessage: vi.fn(),
+    getThreadEvents: vi.fn(),
+    getThreadEventsAround: vi.fn()
+  },
+  roomFilesRetain: vi.fn(),
+  livekitUrl: null as string | null,
+  roomKind: 1,
+  dmParticipantIds: ['test-user', 'user-1'] as string[],
+  threadingMode: 3,
+  canReadMessages: true as boolean | null,
+  canPostMessage: true,
+  hasLimitedMessageAccess: false,
+  canPostInThread: true,
+  getAppUiState: vi.fn(),
+  activeCallRoomIds: new Set<string>(),
+  joinedCallRoomIds: new Set<string>(),
+  threadPaneModuleLoaded: vi.fn(),
+  roomSidebarModuleLoaded: vi.fn(),
+  pendingHighlightConsume: vi.fn(
+    (
+      _roomId: string,
+      _threadRootId: string | null
+    ): { eventId: string; notificationId: string | null } | null => null
+  ),
+  markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
+  messagesForRoom: vi.fn(),
+  membersForRoom: vi.fn(),
+  restoreProjectedRoomWindow: vi.fn(),
+  nextServerRestoreProjectedRoomWindow: vi.fn(),
+  projectedMemberIdsForRoom: vi.fn(() => []),
+  hasCompleteProjectedRoomMembership: vi.fn(() => true),
+  mentionRoles: {
+    roles: [],
+    refresh: vi.fn().mockResolvedValue(true)
+  }
+}));
 
 vi.mock('$app/state', () => ({
   page: {
@@ -198,33 +166,12 @@ vi.mock('$lib/hooks', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
-  return {
-    useServerScope: () => ({
-      get serverId() {
-        return scopeState.get('serverId')!;
-      },
-      connection: {
-        isConnected: true,
-        showConnectionLostBanner: false,
-        serverId: 'server-1',
-        connectBaseUrl: 'http://localhost/api/connect',
-        bearerToken: null,
-        getAPI: (factory: (config: never) => unknown) => factory({} as never),
-        client: {
-          query: mocks.query,
-          mutation: mocks.mutation,
-          subscription: mocks.subscription
-        }
-      },
-      get store() {
-        return serverRegistry.getStore(scopeState.get('serverId')!);
-      },
-      isCurrent: () => true
-    })
-  };
-});
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
@@ -236,50 +183,7 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: (serverId: string) => ({
-      realtimeSync: { isRecoveringSnapshot: false },
-      currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
-      viewerId: 'test-user',
-      accountId: 'test-user',
-      serverInfo: {
-        livekitUrl: mocks.livekitUrl,
-        videoProcessingEnabled: false,
-        maxUploadSize: 25 * 1024 * 1024,
-        maxVideoUploadSize: 25 * 1024 * 1024,
-        supportsFeature: (feature: string) =>
-          feature === 'messageSearch' && mocks.messageSearchSupported
-      },
-      messageSearch: {
-        statusLoading: false,
-        statusError: false,
-        statusLoaded: true,
-        status: { state: MessageSearchState.READY },
-        ensureStatus: vi.fn()
-      },
-      pendingHighlights: {
-        consume: mocks.pendingHighlightConsume
-      },
-      notifications: {
-        markOccurrenceRead: mocks.markOccurrenceRead
-      },
-      activeCallRooms: {
-        has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId))
-      },
-      voiceCall: {
-        isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
-      },
-      mentionRoles: mocks.mentionRoles,
-      messagesForRoom: mocks.messagesForRoom,
-      membersForRoom: mocks.membersForRoom,
-      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
-      messageSearchForRoom: () => ({}),
-      restoreProjectedRoomWindow:
-        serverId === 'server-2'
-          ? mocks.nextServerRestoreProjectedRoomWindow
-          : mocks.restoreProjectedRoomWindow,
-      projectedMemberIdsForRoom: mocks.projectedMemberIdsForRoom,
-      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
-    }),
+    getStore: () => server.scope.store,
     originServer: { id: 'server-1', url: 'https://chat.example.test' },
     getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
   }
@@ -486,7 +390,51 @@ beforeEach(() => {
       ))
   );
   mocks.livekitUrl = null;
-  mocks.messageSearchSupported = false;
+  server = createTestServerScope({
+    viewer: { id: 'test-user', login: 'testuser' },
+    features: false,
+    serverInfo: {
+      get livekitUrl() {
+        return mocks.livekitUrl;
+      },
+      videoProcessingEnabled: false,
+      maxUploadSize: 25 * 1024 * 1024,
+      maxVideoUploadSize: 25 * 1024 * 1024
+    },
+    store: (serverId) => ({
+      realtimeSync: { isRecoveringSnapshot: false },
+      messageSearch: {
+        statusLoading: false,
+        statusError: false,
+        statusLoaded: true,
+        status: { state: MessageSearchState.READY },
+        ensureStatus: vi.fn()
+      },
+      pendingHighlights: {
+        consume: mocks.pendingHighlightConsume
+      },
+      notifications: {
+        markOccurrenceRead: mocks.markOccurrenceRead
+      },
+      activeCallRooms: {
+        has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId))
+      },
+      voiceCall: {
+        isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
+      },
+      mentionRoles: mocks.mentionRoles,
+      messagesForRoom: mocks.messagesForRoom,
+      membersForRoom: mocks.membersForRoom,
+      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
+      messageSearchForRoom: () => ({}),
+      restoreProjectedRoomWindow:
+        serverId === 'server-2'
+          ? mocks.nextServerRestoreProjectedRoomWindow
+          : mocks.restoreProjectedRoomWindow,
+      projectedMemberIdsForRoom: mocks.projectedMemberIdsForRoom,
+      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
+    })
+  });
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
@@ -517,7 +465,6 @@ beforeEach(() => {
   mocks.getAppUiState.mockReturnValue(appUi);
   mocks.activeCallRoomIds.clear();
   mocks.joinedCallRoomIds.clear();
-  scopeState.set('serverId', 'server-1');
   stubMatchMedia(true);
 });
 
@@ -566,7 +513,7 @@ describe('Room interaction bundles', () => {
 
     await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
 
-    scopeState.set('serverId', 'server-2');
+    server.serverId = 'server-2';
 
     await vi.waitFor(() =>
       expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledOnce()
@@ -806,7 +753,7 @@ describe('Room interaction bundles', () => {
   });
 
   it('opens the desktop room search sidebar with Cmd+/', async () => {
-    mocks.messageSearchSupported = true;
+    server.features = { messageSearch: true, pinnedMessages: false };
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const event = new KeyboardEvent('keydown', {
       key: '/',
@@ -825,7 +772,7 @@ describe('Room interaction bundles', () => {
   });
 
   it('opens the mobile room search sidebar with Ctrl+/', async () => {
-    mocks.messageSearchSupported = true;
+    server.features = { messageSearch: true, pinnedMessages: false };
     stubMatchMedia(false);
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const event = new KeyboardEvent('keydown', {

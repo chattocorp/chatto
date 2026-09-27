@@ -47,7 +47,7 @@ describe('buildRoomPresentation', () => {
     expect(build(roomData())).toEqual({
       title: '# general',
       description: 'Room description',
-      pageTitle: '#general - Test Space'
+      pageTitle: '#general'
     });
   });
 
@@ -68,7 +68,7 @@ describe('buildRoomPresentation', () => {
     expect(build(room)).toEqual({
       title: '# general',
       description: undefined,
-      pageTitle: '# general'
+      pageTitle: '#general'
     });
   });
 

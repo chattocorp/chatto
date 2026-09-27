@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import ServerSettings from './ServerSettings.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -14,8 +15,7 @@ const { mocks } = vi.hoisted(() => ({
     deleteServerLogo: vi.fn(),
     uploadServerBanner: vi.fn(),
     deleteServerBanner: vi.fn(),
-    goto: vi.fn(),
-    scopeCurrent: true
+    goto: vi.fn()
   }
 }));
 
@@ -24,30 +24,19 @@ vi.mock('$app/navigation', async (importOriginal) => ({
   goto: mocks.goto
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {},
-    connection: {
-      serverId: 'origin',
-      queryScope: 'server-settings-test',
-      apiConfig: {
-        baseUrl: 'https://chat.example.test/api/connect',
-        bearerToken: 'token'
-      },
-      connectBaseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    },
-    isCurrent: () => mocks.scopeCurrent
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/api-client/serverState', () => mocks);
+
+let server: TestServerScope;
 
 beforeEach(() => {
   queryClient.clear();
   vi.clearAllMocks();
-  mocks.scopeCurrent = true;
+  server = createTestServerScope({ serverId: 'origin' });
   mocks.getAuthenticatedServerState.mockResolvedValue({
     name: 'Example server',
     description: 'Original description',
@@ -101,10 +90,7 @@ describe('ServerSettings', () => {
     await renderSettings();
 
     expect(mocks.getAuthenticatedServerState).toHaveBeenCalledWith(
-      {
-        baseUrl: 'https://chat.example.test/api/connect',
-        bearerToken: 'token'
-      },
+      server.scope.connection.apiConfig,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
@@ -158,9 +144,7 @@ describe('ServerSettings', () => {
   });
 
   it('replaces the exact cached snapshot after a successful save', async () => {
-    const queryKey = adminQueryKeys.serverSettings('origin', {
-      queryScope: 'server-settings-test'
-    });
+    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
     const { container } = await renderSettings();
     inputDescription(
       container.querySelector<HTMLTextAreaElement>('#description')!,
@@ -217,9 +201,7 @@ describe('ServerSettings', () => {
   });
 
   it('updates the cached logo after an upload mutation', async () => {
-    const queryKey = adminQueryKeys.serverSettings('origin', {
-      queryScope: 'server-settings-test'
-    });
+    const queryKey = adminQueryKeys.serverSettings('origin', server.scope.connection);
     const { container } = await renderSettings();
     const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     const transfer = new DataTransfer();
@@ -240,18 +222,15 @@ describe('ServerSettings', () => {
     const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
     inputDescription(textarea, 'Unsaved draft');
 
-    queryClient.setQueryData(
-      adminQueryKeys.serverSettings('origin', { queryScope: 'server-settings-test' }),
-      {
-        name: 'Renamed elsewhere',
-        description: 'Remote description',
-        motd: '',
-        welcomeMessage: '',
-        logoUrl: null,
-        bannerUrl: null,
-        viewerCanManageServer: true
-      }
-    );
+    queryClient.setQueryData(adminQueryKeys.serverSettings('origin', server.scope.connection), {
+      name: 'Renamed elsewhere',
+      description: 'Remote description',
+      motd: '',
+      welcomeMessage: '',
+      logoUrl: null,
+      bannerUrl: null,
+      viewerCanManageServer: true
+    });
     flushSync();
 
     expect(container.querySelector<HTMLInputElement>('#name')?.value).toBe('Renamed elsewhere');
@@ -287,9 +266,7 @@ describe('ServerSettings', () => {
     await Promise.resolve();
 
     expect(
-      queryClient.getQueryData(
-        adminQueryKeys.serverSettings('origin', { queryScope: 'server-settings-test' })
-      )
+      queryClient.getQueryData(adminQueryKeys.serverSettings('origin', server.scope.connection))
     ).toBeUndefined();
   });
 
@@ -345,7 +322,7 @@ describe('ServerSettings', () => {
     render(ServerSettings);
     await vi.waitFor(() => expect(mocks.getAuthenticatedServerState).toHaveBeenCalledOnce());
 
-    mocks.scopeCurrent = false;
+    server.current = false;
     resolveState({ viewerCanManageServer: false, name: 'Old server' });
     await new Promise((resolve) => setTimeout(resolve, 0));
 

@@ -19,7 +19,7 @@
   }
 </script>
 
-<PageTitle title={m('settings.preferences.language.title')} />
+<PageTitle title={m('settings.preferences.language.title')} scope="app" />
 
 <div class="pane-page">
   <PaneHeader

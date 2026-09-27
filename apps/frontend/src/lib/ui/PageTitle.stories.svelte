@@ -16,3 +16,8 @@
     <p class="mt-2 text-muted">This mountable helper updates the browser document title.</p>
   </div>
 </Story>
+
+<Story name="App preference" asChild>
+  <PageTitle title="Appearance" scope="app" />
+  <p>This preference uses the Chatto product name, including within a server route.</p>
+</Story>

@@ -33,6 +33,26 @@ func (c *SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
 	return policy
 }
 
+// InsecureTransportSettings returns the names of enabled SMTP settings that
+// reduce transport security. Opportunistic TLS permits plaintext fallback, and
+// skipped certificate verification permits interception. Both can expose
+// password-reset links and verification codes on the network. The result
+// contains only configuration key names, so callers may log it. It is empty
+// when SMTP is disabled.
+func (c *SMTPConfig) InsecureTransportSettings() []string {
+	if !c.Enabled {
+		return nil
+	}
+	var settings []string
+	if c.TLSPolicyOrDefault() == SMTPTLSOpportunistic {
+		settings = append(settings, "smtp.tls=opportunistic")
+	}
+	if c.TLSSkipVerify {
+		settings = append(settings, "smtp.tls_skip_verify=true")
+	}
+	return settings
+}
+
 // SMTPConfig contains settings for sending transactional emails.
 type SMTPConfig struct {
 	Enabled       bool          `toml:"enabled" env:"CHATTO_SMTP_ENABLED" comment:"Enable SMTP for sending transactional emails (verification, password reset, etc.)."`

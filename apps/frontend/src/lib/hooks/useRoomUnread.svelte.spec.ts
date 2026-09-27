@@ -3,38 +3,22 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import Harness from './UseRoomUnreadHarness.svelte';
 
-const { mocks } = vi.hoisted(() => ({
-  mocks: {
-    markRoomAsRead: vi.fn(),
-    roomUnread: null as RoomUnreadStore | null,
-    authenticated: true
-  }
-}));
+const mocks = vi.hoisted(() => ({ markRoomAsRead: vi.fn() }));
 
 vi.mock('$lib/api-client/readState', () => ({
   createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    store: {
-      get isAuthenticated() {
-        return mocks.authenticated;
-      },
-      get roomUnread() {
-        return mocks.roomUnread;
-      }
-    },
-    connection: {
-      serverId: 'server-1',
-      connectBaseUrl: '/api/connect',
-      bearerToken: 'token',
-      getAPI: (factory: (config: never) => unknown) => factory({} as never)
-    }
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
+let roomUnread: RoomUnreadStore;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -59,8 +43,8 @@ function setPresent(): void {
 
 describe('useRoomUnread', () => {
   beforeEach(() => {
-    mocks.roomUnread = new RoomUnreadStore();
-    mocks.authenticated = true;
+    roomUnread = new RoomUnreadStore();
+    server = createTestServerScope({ store: { roomUnread } });
     mocks.markRoomAsRead.mockReset();
     setPresent();
   });
@@ -73,7 +57,7 @@ describe('useRoomUnread', () => {
   it('rolls back the optimistic read when the RPC fails', async () => {
     const request = deferred<never>();
     mocks.markRoomAsRead.mockReturnValue(request.promise);
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    roomUnread.setRoomUnread('room-1', true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const rendered = render(Harness, {
@@ -82,10 +66,10 @@ describe('useRoomUnread', () => {
     flushSync();
 
     await vi.waitFor(() => expect(mocks.markRoomAsRead).toHaveBeenCalledOnce());
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(false);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(false);
 
     request.reject(new Error('network down'));
-    await vi.waitFor(() => expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true));
+    await vi.waitFor(() => expect(roomUnread.roomIsUnread('room-1')).toBe(true));
     rendered.unmount();
   });
 
@@ -100,7 +84,7 @@ describe('useRoomUnread', () => {
           });
         })
     );
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    roomUnread.setRoomUnread('room-1', true);
 
     const rendered = render(Harness, {
       props: { roomId: 'room-1', onReady: () => {} }
@@ -109,12 +93,12 @@ describe('useRoomUnread', () => {
 
     await vi.waitFor(() => expect(mocks.markRoomAsRead).toHaveBeenCalledOnce());
     expect(requestSignal?.aborted).toBe(false);
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(false);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(false);
 
     rendered.unmount();
 
     await vi.waitFor(() => expect(requestSignal?.aborted).toBe(true));
-    await vi.waitFor(() => expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true));
+    await vi.waitFor(() => expect(roomUnread.roomIsUnread('room-1')).toBe(true));
   });
 
   it('retries a failed room read and clears the unread overlay after success', async () => {
@@ -125,7 +109,7 @@ describe('useRoomUnread', () => {
         lastReadAt: '2026-07-10T20:00:00.000Z',
         previousLastReadAt: null
       });
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    roomUnread.setRoomUnread('room-1', true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const rendered = render(Harness, {
@@ -135,17 +119,17 @@ describe('useRoomUnread', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
     await vi.advanceTimersByTimeAsync(500);
     flushSync();
 
     expect(mocks.markRoomAsRead).toHaveBeenCalledTimes(2);
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(false);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(false);
     rendered.unmount();
   });
 
   it('does not update read state without permission to read messages', async () => {
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    roomUnread.setRoomUnread('room-1', true);
 
     const rendered = render(Harness, {
       props: { roomId: 'room-1', canReadMessages: false, onReady: () => {} }
@@ -154,13 +138,13 @@ describe('useRoomUnread', () => {
     await Promise.resolve();
 
     expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
     rendered.unmount();
   });
 
   it('does not mark a saved room as read before viewer verification', async () => {
-    mocks.authenticated = false;
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    server.currentUser.invalidateVerification();
+    roomUnread.setRoomUnread('room-1', true);
 
     const rendered = render(Harness, {
       props: { roomId: 'room-1', onReady: () => {} }
@@ -169,14 +153,14 @@ describe('useRoomUnread', () => {
     await Promise.resolve();
 
     expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
     rendered.unmount();
   });
 
   it('preserves a newer unread message when the earlier read succeeds', async () => {
     const request = deferred<{ lastReadAt: string; previousLastReadAt: null }>();
     mocks.markRoomAsRead.mockReturnValue(request.promise);
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    roomUnread.setRoomUnread('room-1', true);
 
     const rendered = render(Harness, {
       props: { roomId: 'room-1', onReady: () => {} }
@@ -184,13 +168,13 @@ describe('useRoomUnread', () => {
     flushSync();
 
     await vi.waitFor(() => expect(mocks.markRoomAsRead).toHaveBeenCalledOnce());
-    mocks.roomUnread!.setRoomUnread('room-1', true);
+    roomUnread.setRoomUnread('room-1', true);
     request.resolve({ lastReadAt: '2026-07-10T20:00:00.000Z', previousLastReadAt: null });
     await request.promise;
     await Promise.resolve();
     flushSync();
 
-    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
     rendered.unmount();
   });
 });

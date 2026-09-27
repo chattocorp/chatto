@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
-import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
 import { THREAD_PANE_MAX_WIDTH } from '$lib/storage/threadPaneWidth';
 import { getToasts, toast } from '$lib/ui/toast';
 import ThreadPane from './ThreadPane.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
 
 const { mocks } = vi.hoisted(() => {
@@ -58,8 +58,7 @@ const { mocks } = vi.hoisted(() => {
   };
 });
 
-const scopeState = new SvelteMap([['serverId', 'server-1']]);
-const authState = new SvelteMap([['authenticated', true]]);
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/readState', () => ({
   createReadStateAPI: () => ({
@@ -105,62 +104,13 @@ vi.mock('$lib/hooks', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
-  return {
-    useServerScope: () => ({
-      get serverId() {
-        return scopeState.get('serverId')!;
-      },
-      connection: {
-        serverId: 'server-1',
-        connectBaseUrl: 'http://localhost/api/connect',
-        bearerToken: null,
-        getAPI: (factory: (config: never) => unknown) => factory({} as never)
-      },
-      get store() {
-        return serverRegistry.getStore(scopeState.get('serverId')!);
-      },
-      isCurrent: () => true
-    })
-  };
-});
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: (serverId: string) => ({
-      currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
-      get isAuthenticated() {
-        return authState.get('authenticated')!;
-      },
-      viewerId: 'test-user',
-      accountId: 'test-user',
-      readViews: { register: mocks.registerReadView },
-      notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
-      reconcileThreadRead: mocks.reconcileThreadRead,
-      retainMessagesForThread:
-        serverId === 'server-2'
-          ? mocks.nextServerRetainMessagesForThread
-          : mocks.retainMessagesForThread,
-      releaseMessagesForThread:
-        serverId === 'server-2'
-          ? mocks.nextServerReleaseMessagesForThread
-          : mocks.releaseMessagesForThread,
-      messagesForThread: () =>
-        Object.assign(serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!, {
-          isLoadingMore: false,
-          hasReachedStart: true,
-          setThread: mocks.setThread,
-          dispose: mocks.disposeMessagesStore,
-          ingestEvent: mocks.ingestEvent,
-          refreshCurrentWindow: mocks.refreshCurrentWindow,
-          jumpToMessage: mocks.storeJumpToMessage,
-          restoreLatestWindow: mocks.restoreLatestWindow,
-          setThreadRootFollowState: mocks.setThreadRootFollowState,
-          loadMore: mocks.loadMore
-        })
-    })
-  }
+  serverRegistry: { getStore: () => server.scope.store }
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -268,7 +218,38 @@ describe('ThreadPane', () => {
         return true;
       }
     );
-    scopeState.set('serverId', 'server-1');
+    server = createTestServerScope({
+      viewer: { id: 'test-user', login: 'testuser' },
+      store: (serverId) => ({
+        readViews: { register: mocks.registerReadView },
+        notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
+        reconcileThreadRead: mocks.reconcileThreadRead,
+        retainMessagesForThread:
+          serverId === 'server-2'
+            ? mocks.nextServerRetainMessagesForThread
+            : mocks.retainMessagesForThread,
+        releaseMessagesForThread:
+          serverId === 'server-2'
+            ? mocks.nextServerReleaseMessagesForThread
+            : mocks.releaseMessagesForThread,
+        messagesForThread: () =>
+          Object.assign(
+            serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
+            {
+              isLoadingMore: false,
+              hasReachedStart: true,
+              setThread: mocks.setThread,
+              dispose: mocks.disposeMessagesStore,
+              ingestEvent: mocks.ingestEvent,
+              refreshCurrentWindow: mocks.refreshCurrentWindow,
+              jumpToMessage: mocks.storeJumpToMessage,
+              restoreLatestWindow: mocks.restoreLatestWindow,
+              setThreadRootFollowState: mocks.setThreadRootFollowState,
+              loadMore: mocks.loadMore
+            }
+          )
+      })
+    });
     mocks.appState.isPresent = true;
     mocks.unreadMarkerEventId = null;
     mocks.editingEventId = null;
@@ -368,25 +349,22 @@ describe('ThreadPane', () => {
   });
 
   it('waits for the viewer to be verified before marking the thread as read', async () => {
-    authState.set('authenticated', false);
-    try {
-      render(ThreadPane, {
-        props: {
-          roomId: 'room-1',
-          roomName: 'General',
-          threadRootEventId: 'thread-root',
-          onClose: mocks.onClose
-        }
-      });
-      await tick();
-      expect(mocks.canMarkThreadAsRead?.()).toBe(false);
+    const viewer = server.currentUser.user!;
+    server.currentUser.invalidateVerification();
+    render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+    await tick();
+    expect(mocks.canMarkThreadAsRead?.()).toBe(false);
 
-      authState.set('authenticated', true);
+    server.currentUser.accept(viewer);
 
-      expect(mocks.canMarkThreadAsRead?.()).toBe(true);
-    } finally {
-      authState.set('authenticated', true);
-    }
+    expect(mocks.canMarkThreadAsRead?.()).toBe(true);
   });
 
   it.each([null, '2026-07-04T13:00:00Z'])(
@@ -525,7 +503,7 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
     const firstServerStore = mocks.threadStore;
 
-    scopeState.set('serverId', 'server-2');
+    server.serverId = 'server-2';
 
     await vi.waitFor(() => expect(mocks.nextServerRetainMessagesForThread).toHaveBeenCalledOnce());
     expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(

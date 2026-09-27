@@ -128,6 +128,11 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	if mockMailer != nil {
 		logger.Warn("TEST ENDPOINTS ENABLED - This build includes security-bypassing endpoints. DO NOT use in production!")
 	}
+	if cfg.Config.Email.TransportOrDefault() == config.EmailTransportSMTP {
+		if settings := cfg.Config.SMTP.InsecureTransportSettings(); len(settings) > 0 {
+			logger.Warn("Insecure SMTP transport configured; password-reset links and verification codes can be intercepted on the network", "settings", strings.Join(settings, ", "))
+		}
+	}
 
 	// Create Gin router with Recovery middleware, and optionally Logger
 	router := gin.New()

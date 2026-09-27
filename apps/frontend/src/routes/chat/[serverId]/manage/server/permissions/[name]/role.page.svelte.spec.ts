@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import type { RoleDetails, RoleMemberPage, ServerRole } from '$lib/api-client/roles';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -34,22 +35,10 @@ vi.mock('$app/paths', () => ({
     )
 }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {},
-    connection: {
-      queryScope: 'role-page-test',
-      getAPI: () => ({
-        getRole: mocks.getRole,
-        listMembers: mocks.listMembers,
-        updateRole: mocks.updateRole,
-        deleteRole: mocks.deleteRole
-      })
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 vi.mock('$lib/api-client/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/components/admin', async () => ({
   UserList: (await import('./RolePageUserListMock.svelte')).default
@@ -76,6 +65,7 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 let activeRoleName = $state('role-a');
+let server: TestServerScope;
 
 import RolePage from './+page.svelte';
 
@@ -121,6 +111,15 @@ describe('role management page identity', () => {
     queryClient.clear();
     vi.clearAllMocks();
     activeRoleName = 'role-a';
+    server = createTestServerScope({
+      serverId: 'origin',
+      api: {
+        getRole: mocks.getRole,
+        listMembers: mocks.listMembers,
+        updateRole: mocks.updateRole,
+        deleteRole: mocks.deleteRole
+      }
+    });
     mocks.listMembers.mockImplementation((name: string) =>
       Promise.resolve({
         users: [
@@ -231,7 +230,7 @@ describe('role management page identity', () => {
   });
 
   it('reuses a fresh cached role snapshot after remounting', async () => {
-    const connection = { queryScope: 'role-page-test' };
+    const connection = server.scope.connection;
     queryClient.setQueryData(
       adminQueryKeys.role('origin', connection, 'role-a'),
       details('role-a', 'Cached Role', 'Cached description')
@@ -254,7 +253,7 @@ describe('role management page identity', () => {
   });
 
   it('invalidates the cached permission tier after role metadata changes', async () => {
-    const connection = { queryScope: 'role-page-test' };
+    const connection = server.scope.connection;
     const tierKey = adminQueryKeys.permissionTiers('origin', connection);
     queryClient.setQueryData(tierKey, { roles: [] });
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Original description'));
@@ -318,7 +317,7 @@ describe('role management page identity', () => {
   });
 
   it('removes a deleted role query and invalidates its derived caches', async () => {
-    const connection = { queryScope: 'role-page-test' };
+    const connection = server.scope.connection;
     const tierKey = adminQueryKeys.permissionTiers('origin', connection);
     const roleKey = adminQueryKeys.rolePermissions('origin', connection, 'role-a');
     const roleDetailsKey = adminQueryKeys.role('origin', connection, 'role-a');

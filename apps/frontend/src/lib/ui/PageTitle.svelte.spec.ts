@@ -1,46 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
-import { titleState } from '$lib/state/globals.svelte';
 import PageTitle from './PageTitle.svelte';
 
-beforeEach(() => {
-  titleState.clearPageTitle();
-});
+vi.mock('$lib/render/pageTitle', () => ({
+  formatPageTitle: (title = '', scope = 'route') => {
+    const name = scope === 'app' ? 'Chatto' : 'Test Server';
+    return title ? `${title} · ${name}` : name;
+  }
+}));
 
 afterEach(() => {
-  titleState.clearPageTitle();
+  document.title = '';
 });
 
 describe('PageTitle', () => {
-  it('sets the global page title while mounted', () => {
+  it('renders a title and updates it when props change', async () => {
     const rendered = render(PageTitle, { props: { title: 'Overview' } });
     flushSync();
+    expect(document.title).toBe('Overview · Test Server');
 
-    expect(titleState.pageTitle).toBe('Overview');
-
+    await rendered.rerender({ title: 'Appearance', scope: 'app' });
+    expect(document.title).toBe('Appearance · Chatto');
+    expect(document.head.querySelectorAll('title')).toHaveLength(1);
     rendered.unmount();
   });
 
-  it('updates the global page title when the prop changes', async () => {
-    const rendered = render(PageTitle, { props: { title: 'Overview' } });
+  it('renders the fallback when no page title is supplied', () => {
+    const rendered = render(PageTitle);
     flushSync();
-
-    await rendered.rerender({ title: '#general - Test Space' });
-    flushSync();
-
-    expect(titleState.pageTitle).toBe('#general - Test Space');
-
+    expect(document.title).toBe('Test Server');
     rendered.unmount();
-  });
-
-  it('clears the global page title on unmount', () => {
-    const rendered = render(PageTitle, { props: { title: 'Overview' } });
-    flushSync();
-
-    rendered.unmount();
-    flushSync();
-
-    expect(titleState.pageTitle).toBeNull();
   });
 });
