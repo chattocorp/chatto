@@ -40,8 +40,8 @@ HTTPS loopback origin, with any port. Any local process can present it, so it
 is off by default and a server accepts it only with
 `auth.loopback_client_enabled`. The local-callback rules below apply: the
 server shows the callback origin and requires consent for each authorization.
-The consent page uses a name that does not endorse the client, and the client's sessions end at
-most 24 hours after sign-in without renewal.
+The consent page uses a name that does not endorse the client. The client's
+sessions end at most 24 hours after sign-in and do not renew.
 
 The bundled frontend publishes its CIMD document for the canonical
 `webserver.url` origin and each exact `webserver.allowed_origins` entry. The

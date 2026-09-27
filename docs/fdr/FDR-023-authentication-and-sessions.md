@@ -46,9 +46,9 @@ providers, and a bootstrap path for first-boot operator setup.
   as a built-in client. Older servers without this registration cannot
   authorize the official mobile client.
 
-- **Loopback browser client** — when the bundled frontend runs on a loopback
-  origin (`localhost`, a `.localhost` name, `127.0.0.1`, or `[::1]`) and signs
-  in to a server that is not local, it uses the fixed OAuth identity
+- **Loopback browser client** — the bundled frontend can run on a loopback
+  origin: `localhost`, a `.localhost` name, `127.0.0.1`, or `[::1]`. When it
+  signs in to a server that is not local, it uses the fixed OAuth identity
   `chatto://loopback`. That server cannot retrieve a CIMD document from the
   user's device. For a local server, the frontend keeps its origin CIMD
   identity. The server accepts the loopback client only when
