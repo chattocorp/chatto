@@ -1,6 +1,8 @@
 import { createChattoClient, type RealtimeCheckpoint } from '@chatto/client';
 import { createBotClient, type AddressedMessage } from '@chatto/bot-client';
-import { threadLocation } from '../thread.ts';
+import { createThreadReader } from '../thread.ts';
+import { createEyesReaction } from '../reaction.ts';
+import { ConfigurationError, setting } from '../settings.ts';
 import type { EventSource } from 'runling/web';
 import { log } from 'runling';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -36,14 +38,34 @@ export function messageDelivery(message: AddressedMessage, botId: string): Deliv
   };
 }
 
+/** Read and validate this source generation's settings before contacting any service.
+ * Runling does not log source failure messages, so configuration errors are logged here.
+ * Their messages name settings, never their values. */
+function sourceSettings() {
+  try {
+    const serverUrl = setting('CHATTO_URL');
+    const apiKey = setting('CHATTO_API_KEY');
+    if (!serverUrl || !apiKey) throw new ConfigurationError('Set CHATTO_URL and CHATTO_API_KEY');
+    const implementation = implementationSettings();
+    return {
+      serverUrl,
+      apiKey,
+      // Match the server-authenticated actor ID, never a display name or user-supplied message field.
+      allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
+      model: setting('CHATTO_AGENT_MODEL'),
+      investigation: investigationSettings(implementation),
+      implementation
+    };
+  } catch (error) {
+    if (error instanceof ConfigurationError)
+      console.error(`ChattoBot configuration error: ${error.message}`);
+    throw error;
+  }
+}
+
 /** Outbound-only bot source. Conversation state survives reloads for the same bot identity. */
 export const chattoSource: EventSource = async (ctx) => {
-  const serverUrl = process.env.CHATTO_URL;
-  const apiKey = process.env.CHATTO_API_KEY;
-  // Capture policy for this source generation. Match the server-authenticated
-  // actor ID, never a display name or user-supplied message field.
-  const allowedUserId = process.env.CHATTO_ALLOWED_USER_ID?.trim() || undefined;
-  if (!serverUrl || !apiKey) throw new Error('Set CHATTO_URL and CHATTO_API_KEY');
+  const { serverUrl, apiKey, allowedUserId, ...settings } = sourceSettings();
   const client = createChattoClient({ serverUrl, apiKey });
   const botClient = await createBotClient(client, { signal: ctx.signal });
   const botId = botClient.viewerId;
@@ -58,15 +80,12 @@ export const chattoSource: EventSource = async (ctx) => {
   }
   // Active runs keep this generation's client even if a reload changes credentials.
   const bot = createChattoBot({
+    ...settings,
     state: session.conversations,
-    model: process.env.CHATTO_AGENT_MODEL,
-    investigation: investigationSettings(),
-    implementation: implementationSettings(),
     post: client.postMessage,
     typing: client.refreshTyping,
-    readThread: (delivery, signal) => botClient.readThread(threadLocation(delivery), signal),
-    acknowledge: (delivery, signal) =>
-      client.addReaction(delivery.room_id, delivery.message.id, 'eyes', signal)
+    readThread: createThreadReader(client, botId),
+    acknowledge: createEyesReaction(client)
   });
   await client.consumeRealtime({
     signal: ctx.signal,

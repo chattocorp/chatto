@@ -61,7 +61,10 @@ source and console. Without `--watch`, restart to load code or configuration cha
    the bot needs permission to read the thread and `message.post-in-thread`.
 
 The server loads `.env` from this project directory. Restart it after changing
-credentials. The API key authenticates the realtime connection.
+credentials. The API key authenticates the realtime connection. Empty settings
+count as unset. The bot checks its settings before it connects. If a setting is
+missing or invalid, the terminal shows a `ChattoBot configuration error` that names
+the setting, and the bot stays stopped until you correct it and restart.
 The web console is available at `http://localhost:5173`.
 
 To restrict the bot to one user, set `CHATTO_ALLOWED_USER_ID` in `.env` to that
@@ -145,7 +148,10 @@ CHATTO_INVESTIGATION_MODEL=openai-codex/gpt-5.6-sol
 ```
 
 The directory must be a local Git checkout. The ref must exist locally; the bot
-does not fetch updates. If omitted, the ref defaults to `HEAD`. Uncommitted changes
+does not fetch updates for investigations. If omitted or empty, the ref defaults to
+`HEAD`. When implementation is enabled, investigations use the implementation base
+branch on origin instead, for example `origin/main`, so plans and changes start
+from the same branch. Uncommitted changes
 in the supplied checkout are not included. Configure the selected model's
 credentials in Pi or the host environment, then restart ChattoBot and start a new
 conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent.
@@ -280,7 +286,7 @@ CHATTO_IMPLEMENTATION_MODEL=openai-codex/gpt-5.6-sol
 
 `CHATTO_IMPLEMENTATION_REPOSITORY` enables this capability. Without it, the bot
 can only investigate and propose changes. Implementation uses `CHATTO_SOURCE_REF`
-as its base branch, or `main` when unset. It accepts `main`, `origin/main`, and
+as its base branch, or `main` when it is unset or empty. It accepts `main`, `origin/main`, and
 `refs/remotes/origin/main`. When implementation is enabled, `CHATTO_SOURCE_REF`
 must name a branch that exists on origin, rather than a tag or commit.
 The model shown above is the default.

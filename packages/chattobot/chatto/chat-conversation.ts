@@ -4,8 +4,6 @@ import { runConversationTask, type ConversationActivityHandler } from './convers
 import type { ChattoTyping } from '@chatto/client';
 import {
   createChattoRouter,
-  configuredChattoClient,
-  postToChatto,
   type ChattoPost,
   type Delivery,
   type ConversationState
@@ -29,8 +27,8 @@ export function chattoConversation<Settings>({
   task,
   settings,
   acknowledge,
-  post = postToChatto,
-  typing = (destination, signal) => configuredChattoClient().refreshTyping(destination, signal),
+  post,
+  typing,
   state
 }: {
   name: string;
@@ -41,8 +39,8 @@ export function chattoConversation<Settings>({
   ) => Promise<string>;
   settings: Settings;
   acknowledge: (delivery: Delivery, signal: AbortSignal) => Promise<void>;
-  post?: ChattoPost;
-  typing?: ChattoTyping;
+  post: ChattoPost;
+  typing: ChattoTyping;
   state?: ConversationState;
 }) {
   return createChattoRouter({

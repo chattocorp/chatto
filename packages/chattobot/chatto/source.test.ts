@@ -190,6 +190,7 @@ test('passes implementation configuration through the realtime source and captur
     baseBranch: 'main',
     model: 'test/worker'
   });
+  expect(original.investigation?.baseRef).toBe('origin/main');
   vi.stubEnv('CHATTO_SOURCE_REF', 'next');
   await chattoSource(ctx);
   expect(mocks.bot.mock.calls[1]![0]!.implementation?.baseBranch).toBe('next');
@@ -270,4 +271,23 @@ test.each(['recover', 'exhaust', 'abort', 'other'])('registration retry: %s', as
   if (mode === 'recover') await expect(result).resolves.toBeUndefined();
   else await expect(result).rejects.toBeInstanceOf(Error);
   expect(dispatch).toHaveBeenCalledTimes(mode === 'recover' ? 2 : mode === 'exhaust' ? 3 : 1);
+});
+
+test('reports invalid settings before contacting the server', async () => {
+  vi.stubEnv('CHATTO_URL', 'https://chat.example');
+  vi.stubEnv('CHATTO_API_KEY', 'key');
+  vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', 'example/chatto');
+  vi.stubEnv('CHATTO_SOURCE_DIRECTORY', '');
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const ctx: EventSourceContext = {
+    signal: new AbortController().signal,
+    state: new Map(),
+    dispatch: vi.fn()
+  };
+  await expect(chattoSource(ctx)).rejects.toThrow('requires CHATTO_SOURCE_DIRECTORY');
+  expect(error).toHaveBeenCalledWith(
+    'ChattoBot configuration error: CHATTO_IMPLEMENTATION_REPOSITORY requires CHATTO_SOURCE_DIRECTORY'
+  );
+  expect(mocks.rpc).not.toHaveBeenCalled();
+  expect(mocks.bot).not.toHaveBeenCalled();
 });

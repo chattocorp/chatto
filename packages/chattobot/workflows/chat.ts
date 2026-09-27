@@ -11,22 +11,18 @@ import {
   type RunlingAgent
 } from 'runling/agents';
 import { chattoConversation, type ConversationOptions } from '../chatto/chat-conversation.ts';
-import type { ChattoPost, ConversationState } from '../chatto/routing.ts';
+import {
+  deliveryConversationKey,
+  type ChattoPost,
+  type ConversationState
+} from '../chatto/routing.ts';
 import type { ChattoTyping } from '@chatto/client';
-import { readChattoThread, type ReadThread } from '../thread.ts';
-import { acknowledgeChatto, type Acknowledge } from '../reaction.ts';
+import type { ReadThread } from '../thread.ts';
+import type { Acknowledge } from '../reaction.ts';
 import { DOCS_HOME, docsExtension } from '../docs.ts';
-import {
-  investigationExtension,
-  investigationSettings,
-  type InvestigationSettings
-} from './investigate.ts';
+import { investigationExtension, type InvestigationSettings } from './investigate.ts';
 import { responsePolicy } from './response-policy.ts';
-import {
-  implementationExtension,
-  implementationSettings,
-  type ImplementationSettings
-} from './implement.ts';
+import { implementationExtension, type ImplementationSettings } from './implement.ts';
 import type { InvestigationPlans } from './plan.ts';
 import { taskContext, taskNotification, userFacingTaskNotifications } from './task-context.ts';
 
@@ -38,7 +34,8 @@ interface ChatSettings {
   model?: string;
   timeout?: number;
   createAgent?: ChattoAgentFactory;
-  readThread?: ReadThread;
+  /** Read the complete thread before each turn. The host binds it to its Chatto connection. */
+  readThread: ReadThread;
   investigation?: InvestigationSettings;
   implementation?: ImplementationSettings;
 }
@@ -57,15 +54,10 @@ export const conversation = task(
       progressIntervalMs: 120_000
     });
     const plans: InvestigationPlans = new Map();
+    // Retained implementation metadata stores this hash to restrict resumption
+    // to the conversation that started the work. Keep its input stable.
     const ownerKey = createHash('sha256')
-      .update(
-        JSON.stringify([
-          options.delivery.bot_id,
-          options.delivery.room_id,
-          options.delivery.thread_root_id ?? options.delivery.message.id,
-          options.delivery.message.author_id
-        ])
-      )
+      .update(deliveryConversationKey(options.delivery))
       .digest('hex');
     let requestVersion = 0;
     let latestOrigin: 'user' | 'notification' = 'user';
@@ -148,7 +140,7 @@ export const conversation = task(
     });
 
     try {
-      const readThread = options.readThread ?? readChattoThread;
+      const readThread = options.readThread;
       const recentUserMessages: string[] = [];
       return await runAgentConversation(
         {
@@ -214,18 +206,19 @@ export const conversation = task(
   }
 );
 
+/** Build the ChattoBot router. The host supplies all Chatto transport callbacks. */
 export function createChattoBot({
   post,
   typing,
   state,
-  acknowledge = acknowledgeChatto,
+  acknowledge,
   ...settings
 }: ChatSettings & {
-  post?: ChattoPost;
-  typing?: ChattoTyping;
-  acknowledge?: Acknowledge;
+  post: ChattoPost;
+  typing: ChattoTyping;
+  acknowledge: Acknowledge;
   state?: ConversationState;
-} = {}) {
+}) {
   return chattoConversation({
     name: 'ChattoBot',
     acknowledge,
@@ -236,9 +229,3 @@ export function createChattoBot({
     state
   });
 }
-
-export default createChattoBot({
-  model: process.env.CHATTO_AGENT_MODEL,
-  investigation: investigationSettings(),
-  implementation: implementationSettings()
-});
