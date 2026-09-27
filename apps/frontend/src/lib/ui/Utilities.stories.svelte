@@ -339,7 +339,7 @@
     docs: {
       description: {
         story:
-          '`icon-action` uses soft corners and a faint neutral hover tint over its parent surface. Keyboard focus keeps a clear outline. Header icons share this feedback. A selected pane-header icon uses the action fill of the current sidebar item.'
+          '`icon-action` uses soft corners and a faint neutral hover tint over its parent surface. Keyboard focus keeps a clear outline. Add `icon-action-danger` for a destructive action that turns the danger colour on hover and focus. Header icons share this feedback. A selected pane-header icon uses the action fill of the current sidebar item.'
       }
     }
   }}
@@ -361,6 +361,9 @@
       </button>
       <button type="button" class="icon-action" aria-label="Clear" disabled>
         <span class="iconify icon-[uil--times] text-xl" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="icon-action icon-action-danger" aria-label="Delete">
+        <span class="iconify icon-[uil--trash-alt] text-xl" aria-hidden="true"></span>
       </button>
       <button
         type="button"

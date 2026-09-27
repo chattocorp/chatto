@@ -6,8 +6,10 @@
   let {
     label,
     id,
+    name,
     testid,
     type = 'text',
+    element = $bindable(),
     value = $bindable(''),
     placeholder,
     error,
@@ -28,8 +30,12 @@
   }: {
     label: string;
     id?: string;
+    /** Form field name, for native form submission and form-level lookups. */
+    name?: string;
     testid?: string;
-    type?: 'text' | 'email' | 'password' | 'url' | 'tel';
+    type?: 'text' | 'email' | 'password' | 'url' | 'tel' | 'datetime-local';
+    /** The rendered input element, for callers that manage focus or selection. */
+    element?: HTMLInputElement;
     value?: string;
     placeholder?: string;
     error?: string;
@@ -76,7 +82,9 @@
     <!-- Autofocus is opt-in through the autofocus prop; it defaults to false. -->
     <!-- svelte-ignore a11y_autofocus -->
     <input
+      bind:this={element}
       {id}
+      {name}
       data-testid={testid}
       {type}
       bind:value

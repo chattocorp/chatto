@@ -1,7 +1,7 @@
 <script lang="ts">
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Button, FormField, TextInput } from '$lib/ui/form';
+  import { Button, Select, TextInput } from '$lib/ui/form';
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
@@ -446,18 +446,18 @@
             {/snippet}
           </TextInput>
         </div>
-        <button
+        <Button
           type="submit"
-          class="btn-icon-action"
+          size="icon"
+          label={m('settings.profile.status.save_button')}
           title={m('settings.profile.status.save_button')}
-          aria-label={m('settings.profile.status.save_button')}
           disabled={!isModified || isSaving}
         >
           <span
             class={['iconify', isSaving ? 'icon-[uil--spinner] animate-spin' : 'icon-[uil--check]']}
             aria-hidden="true"
           ></span>
-        </button>
+        </Button>
       </div>
     {/if}
 
@@ -529,37 +529,30 @@
     </div>
 
     <div class={sheet ? 'menu-section p-2' : ''}>
-      <FormField id={expiresAtInputId} label={m('settings.profile.status.expires_at.label')}>
-        <select
-          id={expiresAtInputId}
-          bind:value={expiryPreset}
-          disabled={isSaving || isClearing}
-          class="input"
-          data-testid="settings-custom-status-expiry-preset"
-          onchange={updateExpiryFromPreset}
-        >
-          {#each expiryOptions as option (option.value)}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
-      </FormField>
+      <Select
+        id={expiresAtInputId}
+        label={m('settings.profile.status.expires_at.label')}
+        value={expiryPreset}
+        options={expiryOptions}
+        disabled={isSaving || isClearing}
+        testid="settings-custom-status-expiry-preset"
+        onValueChange={(preset) => {
+          expiryPreset = preset as ExpiryPreset;
+          updateExpiryFromPreset();
+        }}
+      />
     </div>
 
     {#if expiryPreset === 'custom'}
       <div class={sheet ? 'menu-section p-2' : ''}>
-        <FormField
+        <TextInput
           id={`${expiresAtInputId}-custom`}
+          type="datetime-local"
           label={m('settings.profile.status.expiry.custom_date')}
-        >
-          <input
-            id={`${expiresAtInputId}-custom`}
-            type="datetime-local"
-            bind:value={statusExpiresAt}
-            disabled={isSaving || isClearing}
-            class="input"
-            data-testid="settings-custom-status-expires-at"
-          />
-        </FormField>
+          bind:value={statusExpiresAt}
+          disabled={isSaving || isClearing}
+          testid="settings-custom-status-expires-at"
+        />
       </div>
     {/if}
 

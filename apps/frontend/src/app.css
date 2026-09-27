@@ -1334,8 +1334,9 @@
   @apply min-h-12 px-5 py-2.5 font-semibold;
 }
 
-@utility btn-icon-action {
-  @apply btn-action h-10 w-10 shrink-0 rounded-md p-0 text-sm;
+/* Square icon-only size for Button size="icon"; the variant supplies the tone. */
+@utility btn-icon {
+  @apply h-10 w-10 shrink-0 justify-center rounded-md p-0;
 }
 
 /* Form input utilities */
@@ -1912,6 +1913,18 @@
 
 @utility user-card-toggle-active {
   @apply bg-warning/15 control-raised text-warning hover:bg-warning/25 hover:text-warning;
+}
+
+/* Destructive tone for icon-action and field-action. Hover and keyboard focus
+ * show the danger colour instead of the neutral emphasis. Scoping the rule to
+ * the base utilities gives it a higher specificity than their shared hover
+ * colour, independent of rule order.
+ */
+@utility icon-action-danger {
+  &:is(.icon-action, .field-action):not(:disabled):hover,
+  &:is(.icon-action, .field-action):focus-visible {
+    color: var(--color-danger);
+  }
 }
 
 /* Icon action inside a form field, such as an emoji trigger or a clear button

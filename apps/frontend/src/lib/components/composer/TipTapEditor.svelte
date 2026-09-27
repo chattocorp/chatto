@@ -590,7 +590,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
           }}
           onblur={applyLinkHref}
-          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-emphasized px-2 text-xs text-text transition-[background-color,border-color] feedback-quick outline-none hover:bg-surface-strong focus:border-action disabled:cursor-not-allowed disabled:opacity-50"
+          class="input w-48 min-w-0 px-2 text-xs"
         />
         <button
           type="button"

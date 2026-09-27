@@ -34,11 +34,9 @@ const knownDrift = {
   // Join/Leave status buttons and scope labels: #2667
   roomDirectoryActions: new Set(['src/lib/RoomDirectory.svelte']),
   // Lazy-bundle retry buttons avoid the form barrel in room chunks: #2664
-  // Status editor controls: #2666
   buttonRecipes: new Set([
     'src/lib/RoomDirectory.svelte',
     'src/lib/components/CurrentUserBar.svelte',
-    'src/lib/components/UserCustomStatusEditor.svelte',
     'src/lib/components/users/UserMenu.svelte',
     'src/lib/components/voice/VoiceCallPanel.svelte',
     'src/routes/chat/[serverId]/[roomId]/MessageAttachments.svelte',
@@ -46,11 +44,6 @@ const knownDrift = {
     'src/routes/chat/[serverId]/[roomId]/MessageUserOverlays.svelte',
     'src/routes/chat/[serverId]/[roomId]/Room.svelte',
     'src/routes/chat/[serverId]/[roomId]/RoomSidebarPane.svelte'
-  ]),
-  // Select needs hidden labels and pending-row semantics: #2665
-  rawSelects: new Set([
-    'src/lib/components/UserCustomStatusEditor.svelte',
-    'src/routes/chat/[serverId]/manage/server/security/+page.svelte'
   ])
 };
 
@@ -110,7 +103,7 @@ const checks = [
     // Attachment actions pair their square geometry with a btn tone by design.
     skipLine: /attachment-action-button/,
     pattern:
-      /(?<![\w-])btn(?:-(?:action|neutral|secondary|ghost|warning|danger|danger-secondary|danger-ghost|icon-action|sm|lg|xs))?(?![\w-])/g
+      /(?<![\w-])btn(?:-(?:action|neutral|secondary|ghost|warning|danger|danger-secondary|danger-ghost|icon|sm|lg|xs))?(?![\w-])/g
   },
   {
     description: 'raw select or textarea; use Select or TextArea from $lib/ui/form',
@@ -118,8 +111,7 @@ const checks = [
     allow: new Set([
       // The code-block language picker is an invisible native select over
       // editor chrome; the Select field treatment does not apply.
-      'src/lib/components/composer/TipTapEditor.svelte',
-      ...knownDrift.rawSelects
+      'src/lib/components/composer/TipTapEditor.svelte'
     ]),
     pattern: /<(?:select|textarea)\b/g
   },

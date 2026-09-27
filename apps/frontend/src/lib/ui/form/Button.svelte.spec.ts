@@ -22,4 +22,18 @@ describe('Button', () => {
     await expect.element(content).toHaveClass('gap-2');
     await expect.element(content).toHaveClass('[&>.iconify]:shrink-0');
   });
+
+  it('renders a square icon-only button named by its label', async () => {
+    const screen = render(Button, {
+      props: {
+        size: 'icon',
+        label: 'Save status',
+        children: testSnippet('<span class="iconify icon-[uil--check]" aria-hidden="true"></span>')
+      }
+    });
+    const button = screen.getByRole('button', { name: 'Save status' });
+
+    await expect.element(button).toHaveClass('btn-icon');
+    await expect.element(button).toHaveClass('rounded-md');
+  });
 });

@@ -615,7 +615,7 @@
                       {#snippet actions()}
                         <button
                           type="button"
-                          class="icon-action hover:text-danger focus-visible:text-danger"
+                          class="icon-action icon-action-danger"
                           disabled={mutationPending}
                           aria-label={m('common.delete')}
                           title={m('common.delete')}

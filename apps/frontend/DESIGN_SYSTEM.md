@@ -118,35 +118,42 @@ a side stripe or cast shadow for navigation selection.
 
 ## Choosing A Primitive
 
-| Need                                        | Use                                                                                    | Avoid                                                        |
-| ------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Committed text action or button-like link   | `Button` from `$lib/ui/form`                                                           | Rebuilding `btn-*` recipes in feature code                   |
-| Form field                                  | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField`             | Raw controls unless the interaction is genuinely specialized |
-| Short, visible settings choice list         | `ChoiceRow` inside a `radiogroup`                                                      | Repeating indicator and selected-state markup                |
-| Compact choice from a long or variable list | `Select`                                                                               | Expanding every device or option into a separate row         |
-| Compact one-of-many mode                    | `SegmentedControl`                                                                     | Separate buttons or independently styled chips               |
-| Selectable non-table collection             | `selectable-list` and `selectable-list-item`                                           | Feature-local hover recipes                                  |
-| Newest-first activity record                | `ActivityListRow` inside `selectable-list`                                             | Repeating row, unread, pending, and action-shell recipes     |
-| Modal form                                  | `FormDialog`                                                                           | A dialog containing an unrelated hand-rolled form footer     |
-| Confirmation                                | `ConfirmDialog`                                                                        | A custom destructive modal                                   |
-| General dialog                              | `Dialog`; `BottomSheet` for touch-specific presentation                                | Fixed-position modal shells                                  |
-| Floating menu or tooltip                    | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                                     | Hand-written fixed positioning and z-index                   |
-| Context-menu command                        | `MenuItem` inside `MenuSection`                                                        | `sidebar-item` or repeated icon and state markup             |
-| Standard pane page                          | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections                  | Hand-rolled page widths, scrolling, and section cards        |
-| Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                   |
-| Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes               |
-| Mini icon action directly beside a value    | `mini-icon-action`                                                                     | Adding padding, a background fill, or press scaling          |
-| Icon action inside a text field             | `TextInput` `leading` or `trailing` snippet with a `field-action` button               | A borderless input inside a hand-built frame                 |
-| Global app-header icon                      | `app-header-icon`                                                                      | `icon-action` with compensating margins                      |
-| Durable content container                   | `Panel` or `panel-shell`                                                               | Ad hoc card borders, radius, and elevation                   |
-| Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                          |
-| Status or scope label                       | `Pill`; `ToggleChip` when independently interactive                                    | One-off colored badges                                       |
-| Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                     |
-| Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically         |
-| Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                          |
-| Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                              |
-| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                   |
-| Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                               |
+| Need                                        | Use                                                                                    | Avoid                                                         |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Committed text action or button-like link   | `Button` from `$lib/ui/form`                                                           | Rebuilding `btn-*` recipes in feature code                    |
+| Form field                                  | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField`             | Raw controls unless the interaction is genuinely specialized  |
+| Short, visible settings choice list         | `ChoiceRow` inside a `radiogroup`                                                      | Repeating indicator and selected-state markup                 |
+| Compact choice from a long or variable list | `Select`                                                                               | Expanding every device or option into a separate row          |
+| Compact one-of-many mode                    | `SegmentedControl`                                                                     | Separate buttons or independently styled chips                |
+| Selectable non-table collection             | `selectable-list` and `selectable-list-item`                                           | Feature-local hover recipes                                   |
+| Newest-first activity record                | `ActivityListRow` inside `selectable-list`                                             | Repeating row, unread, pending, and action-shell recipes      |
+| Modal form                                  | `FormDialog`                                                                           | A dialog containing an unrelated hand-rolled form footer      |
+| Confirmation                                | `ConfirmDialog`                                                                        | A custom destructive modal                                    |
+| General dialog                              | `Dialog`; `BottomSheet` for touch-specific presentation                                | Fixed-position modal shells                                   |
+| Floating menu or tooltip                    | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                                     | Hand-written fixed positioning and z-index                    |
+| Context-menu command                        | `MenuItem` inside `MenuSection`                                                        | `sidebar-item` or repeated icon and state markup              |
+| Standard pane page                          | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections                  | Hand-rolled page widths, scrolling, and section cards         |
+| Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                    |
+| Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes                |
+| Destructive inline icon action              | `icon-action icon-action-danger`                                                       | A local `hover:text-danger`, which the shared hover overrides |
+| Icon-only committed action                  | `Button size="icon"` with `label`                                                      | `btn-*` recipes on a raw square button                        |
+| Mini icon action directly beside a value    | `mini-icon-action`                                                                     | Adding padding, a background fill, or press scaling           |
+| Icon action inside a text field             | `TextInput` `leading` or `trailing` snippet with a `field-action` button               | A borderless input inside a hand-built frame                  |
+| Global app-header icon                      | `app-header-icon`                                                                      | `icon-action` with compensating margins                       |
+| Durable content container                   | `Panel` or `panel-shell`                                                               | Ad hoc card borders, radius, and elevation                    |
+| Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                           |
+| Status or scope label                       | `Pill`; `ToggleChip` when independently interactive                                    | One-off colored badges                                        |
+| Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                      |
+| Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically          |
+| Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                           |
+| Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
+| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
+| Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
+
+`TextInput` and `Select` accept `labelHidden` when the surrounding context
+already names the control, for example a policy column in a table row. The
+label stays available to assistive technology. `TextInput` also supports the
+`datetime-local` type for date and time entry.
 
 `Select` uses a native control and plain-text options. The shared
 `select-control` utility styles the picker where `appearance: base-select`
@@ -918,6 +925,7 @@ to the standard primitives unless their purpose changes.
 | Server identity and theme samples   | Generated server-logo gradients, accent swatches, and surface-tone samples show fixed colours on purpose.                                                                 |
 | Wordmark easter egg                 | `SimulatedChattoWordmark` is a canvas game with its own palette and physical coordinates.                                                                                 |
 | Specialized text entry              | `QuickSwitcher`, `EmojiPicker`, and `ChatSearchInput` keep raw search inputs. Accent and tone pickers keep visually hidden radios behind their swatches.                  |
+| Time zone suggestions               | The composer timestamp picker keeps a native `<datalist>` for time zones. `Combobox` would open a second floating layer above the context menu.                           |
 | Rich-text editor chrome             | `TipTapEditor` keeps its invisible code-language `<select>`, measured corner positioning, and scoped ProseMirror styles.                                                  |
 | Chat hover bars and quick reactions | `MessageHoverBar` and `MessageActionMenu` keep compact native buttons at 28 px for dense desktop hover actions.                                                           |
 | Attachment actions                  | `attachment-action-button` pairs with a `btn-*` tone by design.                                                                                                           |

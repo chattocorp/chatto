@@ -224,17 +224,30 @@
     docs: {
       description: {
         story:
-          'Icon-only buttons require an accessible label. Add a matching title when a concise hover hint is useful.'
+          'Icon-only buttons require an accessible label. Add a matching title when a concise hover hint is useful. Use `size="icon"` for a square 40 px button beside a field; `size="sm"` keeps a compact row action.'
       }
     }
   }}
 >
-  <div class="flex items-center gap-2">
-    <Button variant="secondary" size="sm" label="Mark read" title="Mark read">
-      <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
-    </Button>
-    <Button variant="danger-secondary" size="sm" label="Delete" title="Delete">
-      <span class="iconify icon-[uil--trash-alt]" aria-hidden="true"></span>
-    </Button>
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+      <Button variant="secondary" size="sm" label="Mark read" title="Mark read">
+        <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
+      </Button>
+      <Button variant="danger-secondary" size="sm" label="Delete" title="Delete">
+        <span class="iconify icon-[uil--trash-alt]" aria-hidden="true"></span>
+      </Button>
+    </div>
+    <div class="flex items-center gap-2">
+      <Button size="icon" label="Save status" title="Save status">
+        <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
+      </Button>
+      <Button size="icon" variant="secondary" label="Refresh" title="Refresh">
+        <span class="iconify icon-[uil--redo]" aria-hidden="true"></span>
+      </Button>
+      <Button size="icon" label="Save status" disabled>
+        <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
+      </Button>
+    </div>
   </div>
 </Story>

@@ -15,7 +15,7 @@
   import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { TextArea, Button } from '$lib/ui/form';
+  import { TextArea, Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
@@ -228,20 +228,15 @@
     });
   }
 
-  function updateOAuthClientPolicy(client: OAuthClient, event: Event) {
-    const select = event.currentTarget as HTMLSelectElement;
-    const policy = select.value;
-    if (client.policy === 'unknown') {
-      select.value = client.policy;
-      return;
-    }
-    if (policy === client.policy || !isEditableOAuthClientPolicy(policy)) {
-      return;
-    }
+  /**
+   * Saves a policy chosen in the row's Select. Select keeps the last
+   * server-confirmed policy visible until this promise settles, and restores
+   * it when the save fails.
+   */
+  async function updateOAuthClientPolicy(client: OAuthClient, policy: string) {
+    if (client.policy === 'unknown') return;
+    if (policy === client.policy || !isEditableOAuthClientPolicy(policy)) return;
 
-    // Keep displaying the last server-confirmed security policy until the
-    // mutation succeeds and the authoritative list has been refreshed.
-    select.value = client.policy;
     const variables = {
       serverId: serverScope.serverId,
       connection: serverScope.connection,
@@ -253,7 +248,18 @@
     if (pendingOAuthClientPolicies.has(mutationKey)) return;
 
     pendingOAuthClientPolicies.add(mutationKey);
-    oauthClientPolicyMutation.mutate(variables);
+    await oauthClientPolicyMutation.mutateAsync(variables);
+  }
+
+  function oauthClientPolicyOptions(client: OAuthClient) {
+    return [
+      ...(client.policy === 'unknown'
+        ? [{ value: 'unknown', label: `${m('admin.common.unknown')} (${client.policyCode})` }]
+        : []),
+      { value: 'default', label: m('admin.security.oauth_clients.policy_default') },
+      { value: 'trusted', label: m('admin.security.oauth_clients.policy_trusted') },
+      { value: 'blocked', label: m('admin.security.oauth_clients.policy_blocked') }
+    ];
   }
 
   function isEditableOAuthClientPolicy(value: string): value is EditableOAuthClientPolicyName {
@@ -372,28 +378,18 @@
                 {formatTimestamp(client.lastAuthorizationAt)}
               </td>
               <td class="min-w-44 px-4 py-3 align-top">
-                <select
-                  class="input"
+                <Select
+                  id={`oauth-client-policy-${client.clientId}`}
                   name="oauth-client-policy"
-                  value={client.policy}
-                  aria-label={m('admin.security.oauth_clients.policy_for', {
+                  label={m('admin.security.oauth_clients.policy_for', {
                     client: client.clientName || client.clientId
                   })}
+                  labelHidden
+                  value={client.policy}
+                  options={oauthClientPolicyOptions(client)}
                   disabled={client.policy === 'unknown' || policySaving(client)}
-                  onchange={(event) => updateOAuthClientPolicy(client, event)}
-                >
-                  {#if client.policy === 'unknown'}
-                    <option value="unknown">
-                      {m('admin.common.unknown')} ({client.policyCode})
-                    </option>
-                  {/if}
-                  <option value="default">{m('admin.security.oauth_clients.policy_default')}</option
-                  >
-                  <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option
-                  >
-                  <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option
-                  >
-                </select>
+                  onValueChange={(policy) => updateOAuthClientPolicy(client, policy)}
+                />
               </td>
             {/snippet}
           </DataTable>

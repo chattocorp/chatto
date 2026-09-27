@@ -12,6 +12,17 @@ const options = [
 const props = { id: 'device', label: 'Device', options, value: 'first' };
 
 describe('Select', () => {
+  it('keeps a hidden label as the accessible name and forwards name and test ID', async () => {
+    const screen = render(Select, {
+      props: { ...props, labelHidden: true, name: 'device-choice', testid: 'device-select' }
+    });
+    const select = screen.getByRole('combobox', { name: 'Device' });
+
+    await expect.element(select).toHaveAttribute('name', 'device-choice');
+    await expect.element(select).toHaveAttribute('data-testid', 'device-select');
+    await expect.element(screen.getByText('Device', { exact: true })).toHaveClass('sr-only');
+  });
+
   it('updates a bound value through native selection', async () => {
     const screen = render(SelectTestHarness);
     await screen.getByRole('combobox').selectOptions('second');

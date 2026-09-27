@@ -10,7 +10,10 @@
 
   let {
     label,
+    labelHidden = false,
     id,
+    name,
+    testid,
     value = $bindable(''),
     options,
     placeholder,
@@ -21,7 +24,12 @@
     onValueChange
   }: {
     label: string;
+    /** Keep the label available to assistive technology without displaying it. */
+    labelHidden?: boolean;
     id: string;
+    /** Form field name, for native form submission and form-level lookups. */
+    name?: string;
+    testid?: string;
     value?: string;
     options: Option[];
     placeholder?: string;
@@ -79,9 +87,11 @@
   }
 </script>
 
-<FormField {label} {id} {error} {description} {required}>
+<FormField {label} {id} {error} {description} {required} {labelHidden}>
   <select
     {id}
+    {name}
+    data-testid={testid}
     {value}
     onchange={change}
     {required}

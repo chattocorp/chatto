@@ -21,7 +21,8 @@
     type?: 'button' | 'submit' | 'reset';
     variant?:
       'action' | 'neutral' | 'secondary' | 'ghost' | 'warning' | 'danger' | 'danger-secondary';
-    size?: 'sm' | 'md' | 'lg';
+    /** `icon` is a square 40 px control for a single icon; pass `label` as its accessible name. */
+    size?: 'sm' | 'md' | 'lg' | 'icon';
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
@@ -55,7 +56,8 @@
   const sizeClasses = {
     sm: 'btn-sm',
     md: '',
-    lg: 'btn-lg'
+    lg: 'btn-lg',
+    icon: 'btn-icon'
   };
 
   function handleClick(e: MouseEvent) {
