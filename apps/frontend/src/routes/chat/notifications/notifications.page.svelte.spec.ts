@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -856,6 +856,13 @@ describe('notifications page', () => {
   });
 
   it('groups rows by date in the viewer timezone', async () => {
+    // Fix the clock at midday in Auckland. Near local midnight on a daylight
+    // saving day, 24 hours earlier can be two calendar days earlier.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-06-15T00:00:00Z'));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1_000);
     const older = new Date(now);
