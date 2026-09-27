@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -26,6 +27,9 @@ import (
 const (
 	notificationPhysicalDeleteRetry = time.Minute
 	notificationLifecycleBatchSize  = 100
+	// notificationVisibilityChunkSize bounds how long one visibility check
+	// holds the content-view barrier, which also blocks event application.
+	notificationVisibilityChunkSize = 256
 )
 
 type CreateNotificationOccurrenceInput struct {
@@ -865,6 +869,10 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	return len(matches), nil
 }
 
+// VisibleOccurrences returns the occurrences whose target messages
+// recipientID can currently read, in input order. It waits once for the
+// current authorization inputs and then checks the occurrences in chunks, each
+// under one content-view barrier. Callers delete occurrences that it omits.
 func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*notificationv1.NotificationOccurrence) ([]*notificationv1.NotificationOccurrence, error) {
 	if len(occurrences) == 0 {
 		return nil, nil
@@ -910,43 +918,20 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	} else if err != nil {
 		return nil, err
 	}
-	visibleIDs := make(map[string]struct{}, len(occurrences))
-	pending := occurrences
-	for len(pending) > 0 {
-		// Thread relationships must include every target message. One wait for
-		// the newest target covers all older targets. A wait per occurrence
-		// costs one stream round trip each and made long lists slow.
-		var newestTarget events.StreamPosition
-		for _, occurrence := range pending {
-			entry, ok := m.notificationTargetEntry(recipientID, occurrence)
-			if ok && entry.StreamSeq > newestTarget.Seq {
-				newestTarget = events.SubjectPosition(evtstream.RoomAggregate(entry.RoomID).Subject(entry.EventType), entry.StreamSeq)
-			}
-		}
-		if err := m.core.roomModel.waitForThreads(ctx, newestTarget); err != nil {
-			return nil, fmt.Errorf("wait for notification message relationships: %w", err)
-		}
-		// One content-view barrier covers the in-memory checks. A barrier per
-		// authorization call serializes with event application and with other
-		// readers once per occurrence.
-		var late []*notificationv1.NotificationOccurrence
+	visible := make([]*notificationv1.NotificationOccurrence, 0, len(occurrences))
+	for chunk := range slices.Chunk(occurrences, notificationVisibilityChunkSize) {
+		// Threads, the timeline, and authorization state are components of one
+		// content view, so a barrier sees thread relationships for every
+		// timeline entry that it sees. One barrier per chunk also avoids two
+		// barriers per occurrence, which serialize with event application.
 		err := m.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
-			for _, occurrence := range pending {
-				entry, ok := m.notificationTargetEntry(recipientID, occurrence)
-				if !ok {
-					continue
-				}
-				if entry.StreamSeq > newestTarget.Seq {
-					// The timeline added this target after the wait above.
-					late = append(late, occurrence)
-					continue
-				}
+			for _, occurrence := range chunk {
 				allowed, err := m.targetVisibleFromCurrentProjections(readCtx, recipientID, occurrence)
 				if err != nil {
 					return err
 				}
 				if allowed {
-					visibleIDs[occurrence.GetId()] = struct{}{}
+					visible = append(visible, occurrence)
 				}
 			}
 			return nil
@@ -954,40 +939,25 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 		if err != nil {
 			return nil, err
 		}
-		pending = late
-	}
-	visible := make([]*notificationv1.NotificationOccurrence, 0, len(visibleIDs))
-	for _, occurrence := range occurrences {
-		if _, ok := visibleIDs[occurrence.GetId()]; ok {
-			visible = append(visible, occurrence)
-		}
 	}
 	return visible, nil
 }
 
-// notificationTargetEntry returns the timeline entry of the message that an
-// occurrence addressed to recipientID targets.
-func (m *NotificationOccurrenceModel) notificationTargetEntry(recipientID string, occurrence *notificationv1.NotificationOccurrence) (*TimelineEntry, bool) {
+// targetVisibleFromCurrentProjections checks one occurrence against in-memory
+// projections only. The caller must confirm that the recipient exists and hold
+// the content-view barrier.
+func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil || occurrence.GetRecipientId() != recipientID {
-		return nil, false
+		return false, nil
 	}
 	message := notificationSignalMessage(occurrence.GetSignal())
 	if message == nil || message.GetRoomId() == "" {
-		return nil, false
+		return false, nil
 	}
 	entry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
 	if !ok || entry == nil || entry.RoomID != message.GetRoomId() {
-		return nil, false
+		return false, nil
 	}
-	return entry, true
-}
-
-// targetVisibleFromCurrentProjections checks one occurrence against in-memory
-// projections only. The caller must confirm that the recipient exists and that
-// notificationTargetEntry finds the target, wait for the thread projection
-// through that target, and hold the content-view barrier.
-func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
-	message := notificationSignalMessage(occurrence.GetSignal())
 	room, err := m.core.FindRoomByID(ctx, message.GetRoomId())
 	if errors.Is(err, ErrNotFound) {
 		return false, nil
