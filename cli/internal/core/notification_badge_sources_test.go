@@ -296,3 +296,46 @@ func BenchmarkBadgeAttentionFromStore(b *testing.B) {
 		})
 	}
 }
+
+func TestBadgeRepeatedJoinKeepsTheMembershipStart(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.post("AFTER-JOIN", "U2", "")
+	f.apply(&evtv1.Event{ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}})
+	if !f.unread("U1", "") {
+		t.Fatal("a repeated join hid a message posted during the membership")
+	}
+}
+
+func TestBadgeIgnoresSourcesWithoutCreationTime(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.seq++
+	if err := f.p.Apply(&evtv1.Event{Id: "UNDATED", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", AuthorId: "U2"}}}, f.seq); err != nil {
+		t.Fatal(err)
+	}
+	if f.unread("U1", "") {
+		t.Fatal("a message without a creation time gave Badge attention")
+	}
+}
+
+func TestBadgeListsDropExpiredSources(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.setMode("U1", &evtv1.NotificationDeliveryModes{Reactions: badgeMode})
+	old := timestamppb.New(time.Now().Add(-notificationTTL - time.Hour))
+	f.apply(&evtv1.Event{Id: "OLD", ActorId: "U1", CreatedAt: old, Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", AuthorId: "U1"}}})
+	f.apply(&evtv1.Event{Id: "OLD-REACT", ActorId: "U2", CreatedAt: old, Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "OLD", Emoji: "tada"}}})
+	f.post("NEW", "U2", "")
+	f.apply(&evtv1.Event{Id: "NEW-REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "OLD", Emoji: "star"}}})
+	var roots, targeted, reactions int
+	_ = f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		b := snapshot.badges
+		room, _ := b.ids.lookup("R1")
+		user, _ := b.ids.lookup("U1")
+		roots = len(b.rooms[room].roots)
+		targeted = len(b.rooms[room].targeted[user][0])
+		reactions = len(b.reactions)
+		return nil
+	})
+	if roots != 1 || targeted != 1 || reactions != 1 {
+		t.Fatalf("roots=%d targeted=%d reactions=%d, want expired sources dropped (1, 1, 1)", roots, targeted, reactions)
+	}
+}

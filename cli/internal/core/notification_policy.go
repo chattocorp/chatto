@@ -404,7 +404,7 @@ func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, 
 // state changed receive an invalidation.
 func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Context, actorID string, scope NotificationPolicyScope, patch *evtv1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
 	var policy *NotificationPolicy
-	err := s.core.withBadgeRoomHints(ctx, actorID, func() error {
+	err := s.core.withBadgeRoomHints(ctx, actorID, scope, func() error {
 		var err error
 		policy, err = s.updateScopedNotificationPolicy(ctx, actorID, scope, patch, mask)
 		return err

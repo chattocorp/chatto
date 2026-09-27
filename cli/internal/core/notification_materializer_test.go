@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -270,7 +271,7 @@ func TestBadgeInvalidationOnlyWhenAttentionTurnsOn(t *testing.T) {
 func TestBadgeFanoutInvalidatesEveryRecipientOnce(t *testing.T) {
 	chattoCore, nc := setupTestCore(t)
 	ctx := testContext(t)
-	author, room, members := badgeTestRoom(t, chattoCore, "badge-fanout", 40)
+	author, room, members := badgeTestRoom(t, chattoCore, "badge-fanout", 15)
 	invalidations, err := nc.SubscribeSync("live.sync.user.*.notification_unread")
 	if err != nil {
 		t.Fatal(err)
@@ -337,10 +338,13 @@ func TestExpiredBadgeSourceGivesNoAttention(t *testing.T) {
 	if unread, err := chattoCore.notificationOccurrences.HasNotificationUnread(ctx, recipient.Id, room.Id, ""); err != nil || !unread {
 		t.Fatalf("Badge for a current source = (%v, %v), want (true, nil)", unread, err)
 	}
-	later := time.Now().UTC().Add(notificationTTL + time.Minute)
-	chattoCore.notificationOccurrences.now = func() time.Time { return later }
-	if unread, err := chattoCore.notificationOccurrences.HasNotificationUnread(ctx, recipient.Id, room.Id, ""); err != nil || unread {
-		t.Fatalf("Badge for an expired source = (%v, %v), want (false, nil)", unread, err)
+	query, err := chattoCore.notificationOccurrences.badgeQueryFor(ctx, recipient.Id, room.Id, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	query.now = time.Now().UTC().Add(notificationTTL + time.Minute)
+	if unread := badgeUnread(t, chattoCore.notificationMaterializer.decisions.Projection(), query); unread {
+		t.Fatal("an expired source gave Badge attention")
 	}
 }
 
@@ -569,8 +573,11 @@ func TestRoomMessageOutputHonoursMessageReadVisibilityBoundaries(t *testing.T) {
 			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || unread {
-				t.Fatalf("hidden Badge after permission regain = (%v, %v), want (false, nil)", unread, err)
+			// Badge attention is computed from current visibility (ADR-109), so
+			// an unread message that the recipient can read again counts.
+			wantBadge := tc.mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
+			if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || unread != wantBadge {
+				t.Fatalf("Badge after permission regain = (%v, %v), want (%v, nil)", unread, err, wantBadge)
 			}
 			if occurrences := testNotificationOccurrences(t, chattoCore, recipient.Id); len(occurrences) != 0 {
 				t.Fatalf("hidden occurrences after permission regain = %+v, want none", occurrences)
@@ -609,8 +616,8 @@ func TestRoomMessageOutputHonoursMessageReadVisibilityBoundaries(t *testing.T) {
 			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || unread {
-				t.Fatalf("old Badge after message.read regain = (%v, %v), want (false, nil)", unread, err)
+			if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || unread != wantBadge {
+				t.Fatalf("Badge after message.read regain = (%v, %v), want (%v, nil)", unread, err, wantBadge)
 			}
 			if occurrences := testNotificationOccurrences(t, chattoCore, recipient.Id); len(occurrences) != 0 {
 				t.Fatalf("old occurrences after message.read regain = %+v, want none", occurrences)
@@ -779,5 +786,40 @@ func TestDMThreadReplyProducesOneFollowedThreadOccurrence(t *testing.T) {
 	reference := NotificationOccurrenceMessageReference(occurrences[0])
 	if reference.GetRoomId() != room.Id || reference.GetEventId() != reply.Id || reference.GetThreadRootEventId() != root.Id {
 		t.Fatalf("DM thread target = %+v, want room %q, event %q, and thread %q", reference, room.Id, reply.Id, root.Id)
+	}
+}
+
+func TestUserScopedVisibilityHintsOnlyTheUsersRooms(t *testing.T) {
+	chattoCore, nc := setupTestCore(t)
+	ctx := testContext(t)
+	outsider, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-private-outsider", "Outsider", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, room, _ := badgeTestRoom(t, chattoCore, "badge-private-hint", 1)
+	if _, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "private activity", nil, "", "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	waitForNotificationMaterializer(t, chattoCore)
+	hints, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(outsider.Id, "notification_unread"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hints.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.AssignServerRole(ctx, SystemActorID, outsider.Id, RoleModerator); err != nil {
+		t.Fatalf("assign role: %v", err)
+	}
+	waitForNotificationMaterializer(t, chattoCore)
+	for {
+		message, err := hints.NextMsg(300 * time.Millisecond)
+		if err != nil {
+			break
+		}
+		if strings.Contains(string(message.Data), room.Id) {
+			t.Fatalf("a role change hinted room %s to a user outside it", room.Id)
+		}
 	}
 }

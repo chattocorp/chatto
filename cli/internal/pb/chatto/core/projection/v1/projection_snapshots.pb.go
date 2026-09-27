@@ -1410,7 +1410,8 @@ func (x *NotificationDecisionProjectionSnapshot) GetBadgeSources() *Notification
 type NotificationBadgeSourcesSnapshot struct {
 	state    protoimpl.MessageState              `protogen:"open.v1"`
 	Messages []*NotificationBadgeMessageSnapshot `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	// Targeted sources in stream order.
+	// Targeted sources, grouped by room, user, and scope, in stream order
+	// within each group.
 	Targets     []*NotificationBadgeTargetSnapshot `protobuf:"bytes,2,rep,name=targets,proto3" json:"targets,omitempty"`
 	Memberships []*NotificationBadgeSinceSnapshot  `protobuf:"bytes,3,rep,name=memberships,proto3" json:"memberships,omitempty"`
 	// Account creation sequences; room_id is empty.

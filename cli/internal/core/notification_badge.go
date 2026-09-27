@@ -9,31 +9,27 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-// badgeQueryFor prepares a Badge query with the user's current visibility and
-// read boundaries from the process-local boundary index.
+// badgeQueryFor prepares a Badge query that reads the user's read boundaries
+// from the process-local boundary index. It waits for the index's initial sync
+// here, because the query itself runs under the decision projection lock and
+// must not block.
 func (m *NotificationOccurrenceModel) badgeQueryFor(ctx context.Context, userID, roomID, threadRootEventID string) (badgeQuery, error) {
 	boundaries := m.core.notificationBoundaries
-	visibility, exists, err := boundaries.visibilityBoundary(ctx, userID, roomID)
-	if err != nil {
-		return badgeQuery{}, fmt.Errorf("read notification visibility boundary: %w", err)
-	}
-	if !exists {
-		visibility = 0
+	if err := boundaries.waitReady(ctx); err != nil {
+		return badgeQuery{}, fmt.Errorf("wait for notification boundaries: %w", err)
 	}
 	return badgeQuery{
 		userID: userID, roomID: roomID, threadRootEventID: threadRootEventID,
-		now: m.now().UTC(), visibilityBoundary: visibility,
+		now: m.now().UTC(),
 		readBoundary: func(threadRootEventID string) (notificationReadBoundary, bool) {
-			// The index is synced; visibilityBoundary above waited for it.
-			boundary, exists, _ := boundaries.readBoundary(ctx, userID, roomID, threadRootEventID)
-			return boundary, exists
+			return boundaries.readBoundaryNow(userID, roomID, threadRootEventID)
 		},
 	}, nil
 }
 
 // HasNotificationUnread reports whether a room or exact thread has Badge
-// attention. It is computed from current projected state and the user's
-// visibility and read boundaries; no per-user Badge state is stored. An empty
+// attention. It is computed from current projected state and the user's read
+// boundaries; no per-user Badge state is stored. An empty
 // thread root includes every thread of the room.
 func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context, userID, roomID, threadRootEventID string) (bool, error) {
 	query, err := m.badgeQueryFor(ctx, userID, roomID, threadRootEventID)
@@ -92,12 +88,25 @@ func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context,
 }
 
 // badgeRoomStates evaluates the user's room-level Badge attention in every
-// room where they are an explicit or universal member.
-func (c *ChattoCore) badgeRoomStates(ctx context.Context, userID string) (map[string]bool, error) {
+// room of the notification policy scope where the user is an explicit or
+// universal member.
+func (c *ChattoCore) badgeRoomStates(ctx context.Context, userID string, scope NotificationPolicyScope) (map[string]bool, error) {
 	var roomIDs []string
 	decisions := c.notificationMaterializer.decisions.Projection()
 	if err := decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
-		roomIDs = snapshot.badgeRoomsForUser(userID)
+		for _, roomID := range snapshot.badgeRoomsForUser(userID) {
+			switch scope.Kind {
+			case NotificationPolicyScopeRoom:
+				if roomID != scope.ID {
+					continue
+				}
+			case NotificationPolicyScopeRoomGroup:
+				if snapshot.groups.Groups.GroupForRoom(roomID) != scope.ID {
+					continue
+				}
+			}
+			roomIDs = append(roomIDs, roomID)
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -122,12 +131,12 @@ func (c *ChattoCore) badgeRoomStates(ctx context.Context, userID string) (map[st
 	return states, nil
 }
 
-// withBadgeRoomHints runs change, which alters inputs of the user's Badge
-// attention such as notification policy, and then hints every room whose
-// attention changed. Hints are best effort: a failure to compare states is
-// logged, because clients also re-read state on reconnect.
-func (c *ChattoCore) withBadgeRoomHints(ctx context.Context, userID string, change func() error) error {
-	before, beforeErr := c.badgeRoomStates(ctx, userID)
+// withBadgeRoomHints runs change, which alters the user's notification policy
+// in scope, and then hints every room of the scope whose Badge attention
+// changed. Hints are best effort: a failure to compare states is logged,
+// because clients also re-read state on reconnect.
+func (c *ChattoCore) withBadgeRoomHints(ctx context.Context, userID string, scope NotificationPolicyScope, change func() error) error {
+	before, beforeErr := c.badgeRoomStates(ctx, userID, scope)
 	if err := change(); err != nil {
 		return err
 	}
@@ -139,7 +148,7 @@ func (c *ChattoCore) withBadgeRoomHints(ctx context.Context, userID string, chan
 		c.logger.Warn("Failed to wait for notification decisions after a change", "error", err)
 		return nil
 	}
-	after, err := c.badgeRoomStates(ctx, userID)
+	after, err := c.badgeRoomStates(ctx, userID, scope)
 	if err != nil {
 		c.logger.Warn("Failed to read Badge state after a change", "error", err)
 		return nil

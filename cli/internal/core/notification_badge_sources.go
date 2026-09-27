@@ -11,9 +11,40 @@ import (
 	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
-// badgeSourceKind identifies the notification cause of one targeted Badge
-// source. Root messages and followed-thread replies are not targeted; they are
-// found through the room's root and reply lists.
+// badgeCause is one notification cause that can resolve to Badge.
+type badgeCause uint8
+
+const (
+	badgeCauseRoomMessage badgeCause = iota
+	badgeCauseDirectMessage
+	badgeCauseFollowedThread
+	badgeCauseDirectMention
+	badgeCauseRoleMention
+	badgeCauseHereMention
+	badgeCauseAllMention
+	badgeCauseReply
+	badgeCauseReaction
+	badgeCauseCount
+)
+
+// badgeCauseSignals holds one content-free signal per cause. The delivery-mode
+// lookup only inspects the signal variant, so these values avoid allocating a
+// signal for every evaluated source.
+var badgeCauseSignals = [badgeCauseCount]*notificationv1.NotificationSignal{
+	badgeCauseRoomMessage:    {Kind: &notificationv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &notificationv1.RoomMessageReceived{}}},
+	badgeCauseDirectMessage:  {Kind: &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{}}},
+	badgeCauseFollowedThread: {Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{}}},
+	badgeCauseDirectMention:  {Kind: &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{}}},
+	badgeCauseRoleMention:    {Kind: &notificationv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &notificationv1.RoleMentionReceived{}}},
+	badgeCauseHereMention:    {Kind: &notificationv1.NotificationSignal_HereMentionReceived{HereMentionReceived: &notificationv1.HereMentionReceived{}}},
+	badgeCauseAllMention:     {Kind: &notificationv1.NotificationSignal_AllMentionReceived{AllMentionReceived: &notificationv1.AllMentionReceived{}}},
+	badgeCauseReply:          {Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{}}},
+	badgeCauseReaction:       {Kind: &notificationv1.NotificationSignal_ReactionReceived{ReactionReceived: &notificationv1.ReactionReceived{}}},
+}
+
+// badgeSourceKind identifies the cause of one targeted Badge source. Root
+// messages and followed-thread replies are not targeted; they are found
+// through the room's root and reply lists.
 type badgeSourceKind uint8
 
 const (
@@ -30,24 +61,26 @@ const (
 	badgeSourceFirstThreadReply
 )
 
-// badgeCauseSignals holds one content-free signal per cause. The delivery-mode
-// lookup only inspects the signal variant, so these values avoid allocating a
-// signal for every evaluated source.
-var badgeCauseSignals = map[badgeSourceKind]*notificationv1.NotificationSignal{
-	badgeSourceDirectMention:    {Kind: &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{}}},
-	badgeSourceRoleMention:      {Kind: &notificationv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &notificationv1.RoleMentionReceived{}}},
-	badgeSourceHereMention:      {Kind: &notificationv1.NotificationSignal_HereMentionReceived{HereMentionReceived: &notificationv1.HereMentionReceived{}}},
-	badgeSourceAllMention:       {Kind: &notificationv1.NotificationSignal_AllMentionReceived{AllMentionReceived: &notificationv1.AllMentionReceived{}}},
-	badgeSourceReply:            {Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{}}},
-	badgeSourceReaction:         {Kind: &notificationv1.NotificationSignal_ReactionReceived{ReactionReceived: &notificationv1.ReactionReceived{}}},
-	badgeSourceFirstThreadReply: badgeFollowedThreadSignal,
+func (kind badgeSourceKind) cause() (badgeCause, bool) {
+	switch kind {
+	case badgeSourceDirectMention:
+		return badgeCauseDirectMention, true
+	case badgeSourceRoleMention:
+		return badgeCauseRoleMention, true
+	case badgeSourceHereMention:
+		return badgeCauseHereMention, true
+	case badgeSourceAllMention:
+		return badgeCauseAllMention, true
+	case badgeSourceReply:
+		return badgeCauseReply, true
+	case badgeSourceReaction:
+		return badgeCauseReaction, true
+	case badgeSourceFirstThreadReply:
+		return badgeCauseFollowedThread, true
+	default:
+		return 0, false
+	}
 }
-
-var (
-	badgeRoomMessageSignal    = &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &notificationv1.RoomMessageReceived{}}}
-	badgeDirectMessageSignal  = &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{}}}
-	badgeFollowedThreadSignal = &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{}}}
-)
 
 func badgeSourceKindForMention(mention *evtv1.MessageMention) badgeSourceKind {
 	switch mention.GetCause().(type) {
@@ -67,7 +100,7 @@ func badgeSourceKindForMention(mention *evtv1.MessageMention) badgeSourceKind {
 // badgeMessage is one indexed message post. IDs are ID-table handles.
 type badgeMessage struct {
 	seq uint64
-	// createdAt is the post's Unix time in nanoseconds, or zero when unknown.
+	// createdAt is the post's Unix time in nanoseconds.
 	createdAt int64
 	room      uint32
 	// thread is the thread root handle, or zero for a root message.
@@ -78,12 +111,14 @@ type badgeMessage struct {
 	// author receives replies to, and reactions on, this message.
 	author    uint32
 	retracted bool
-	// source is false for echoes and historical imports, which are never Badge
-	// sources. They stay indexed as reply parents and reaction targets.
+	// source is false for echoes, historical imports, and posts without a
+	// creation time, which are never Badge sources. They stay indexed as
+	// reply parents and reaction targets.
 	source bool
 }
 
-// badgeTargetedSource is one source addressed to one user.
+// badgeTargetedSource is one source addressed to one user. Its scope is the
+// thread of its message.
 type badgeTargetedSource struct {
 	seq       uint64
 	createdAt int64
@@ -95,16 +130,26 @@ type badgeTargetedSource struct {
 	kind    badgeSourceKind
 }
 
-// badgeRoomSources holds one room's Badge sources in stream order.
+// badgeRoomSources holds one room's Badge sources. Every list is in stream
+// order and holds only sources younger than notificationTTL at the time of the
+// latest append.
 type badgeRoomSources struct {
-	roots    []uint32
-	replies  map[uint32][]uint32
-	targeted map[uint32][]badgeTargetedSource
+	roots   []uint32
+	replies map[uint32][]uint32
+	// targeted maps a user to their sources per scope: zero for the room, or
+	// a thread root handle.
+	targeted map[uint32]map[uint32][]badgeTargetedSource
 }
 
 type badgeMembershipKey struct {
 	user uint32
 	room uint32
+}
+
+type badgeReactionKey struct {
+	message uint32
+	reactor uint32
+	emoji   uint32
 }
 
 // notificationBadgeSources indexes every fact that can give a user Badge
@@ -115,15 +160,18 @@ type notificationBadgeSources struct {
 	ids      projectionIDTable
 	messages map[uint32]badgeMessage
 	rooms    map[uint32]*badgeRoomSources
+	// reactions holds the current indexed reactions. The reaction projection
+	// keeps the first of repeated adds; so does the index.
+	reactions map[badgeReactionKey]struct{}
 	// memberSince holds the sequence of each current explicit membership's
-	// latest join. Sources at or before it predate the membership.
+	// first join. Sources at or before it predate the membership.
 	memberSince map[badgeMembershipKey]uint64
 	// accountSince and universalSince bound implicit universal-room
 	// membership: it starts when both the account and universal access exist.
 	accountSince   map[uint32]uint64
 	universalSince map[uint32]uint64
 	// follows maps a (user, room) pair to the threads that the user currently
-	// follows there, with the sequence of the latest follow.
+	// follows there, with the sequence of the follow.
 	follows map[badgeMembershipKey]map[uint32]uint64
 }
 
@@ -132,6 +180,7 @@ func newNotificationBadgeSources() *notificationBadgeSources {
 		ids:            newProjectionIDTable(),
 		messages:       make(map[uint32]badgeMessage),
 		rooms:          make(map[uint32]*badgeRoomSources),
+		reactions:      make(map[badgeReactionKey]struct{}),
 		memberSince:    make(map[badgeMembershipKey]uint64),
 		accountSince:   make(map[uint32]uint64),
 		universalSince: make(map[uint32]uint64),
@@ -142,7 +191,7 @@ func newNotificationBadgeSources() *notificationBadgeSources {
 func (b *notificationBadgeSources) room(room uint32) *badgeRoomSources {
 	sources := b.rooms[room]
 	if sources == nil {
-		sources = &badgeRoomSources{replies: make(map[uint32][]uint32), targeted: make(map[uint32][]badgeTargetedSource)}
+		sources = &badgeRoomSources{replies: make(map[uint32][]uint32), targeted: make(map[uint32]map[uint32][]badgeTargetedSource)}
 		b.rooms[room] = sources
 	}
 	return sources
@@ -153,6 +202,43 @@ func eventCreatedNanosOrZero(event *evtv1.Event) int64 {
 		return created.AsTime().UnixNano()
 	}
 	return 0
+}
+
+// expiredBefore returns the creation time at or before which a source is
+// older than notificationTTL relative to now.
+func expiredBefore(now int64) int64 {
+	return now - int64(notificationTTL)
+}
+
+// appendMessage appends a message handle and drops expired handles from the
+// front of the list.
+func (b *notificationBadgeSources) appendMessage(list []uint32, message uint32, createdAt int64) []uint32 {
+	cutoff := expiredBefore(createdAt)
+	drop := 0
+	for drop < len(list) && b.messages[list[drop]].createdAt <= cutoff {
+		drop++
+	}
+	return append(list[drop:], message)
+}
+
+// addTargeted appends a targeted source and drops expired sources from the
+// front of the list, forgetting the reactions among them.
+func (b *notificationBadgeSources) addTargeted(sources *badgeRoomSources, user, scope uint32, source badgeTargetedSource) {
+	scopes := sources.targeted[user]
+	if scopes == nil {
+		scopes = make(map[uint32][]badgeTargetedSource)
+		sources.targeted[user] = scopes
+	}
+	list := scopes[scope]
+	cutoff := expiredBefore(source.createdAt)
+	drop := 0
+	for drop < len(list) && list[drop].createdAt <= cutoff {
+		if expired := list[drop]; expired.kind == badgeSourceReaction {
+			delete(b.reactions, badgeReactionKey{message: expired.message, reactor: expired.reactor, emoji: expired.emoji})
+		}
+		drop++
+	}
+	scopes[scope] = append(list[drop:], source)
 }
 
 // apply indexes one decision-projection fact. replyCount is the thread's reply
@@ -174,14 +260,15 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64, replyCo
 		b.applyReactionRemoved(event.GetActorId(), payload.ReactionRemoved)
 	case *evtv1.Event_UserJoinedRoom:
 		if event.GetActorId() != "" && payload.UserJoinedRoom.GetRoomId() != "" {
-			b.memberSince[badgeMembershipKey{user: b.ids.intern(event.GetActorId()), room: b.ids.intern(payload.UserJoinedRoom.GetRoomId())}] = seq
+			key := badgeMembershipKey{user: b.ids.intern(event.GetActorId()), room: b.ids.intern(payload.UserJoinedRoom.GetRoomId())}
+			if _, member := b.memberSince[key]; !member {
+				b.memberSince[key] = seq
+			}
 		}
 	case *evtv1.Event_UserLeftRoom:
 		b.endMembership(event.GetActorId(), payload.UserLeftRoom.GetRoomId())
 	case *evtv1.Event_RoomMemberBanned:
 		b.endMembership(payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId())
-	case *evtv1.Event_RoomMemberRemoved:
-		b.endMembership(payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId())
 	case *evtv1.Event_RoomUniversalChanged:
 		if roomID := payload.RoomUniversalChanged.GetRoomId(); roomID != "" {
 			room := b.ids.intern(roomID)
@@ -199,8 +286,7 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64, replyCo
 		}
 	case *evtv1.Event_RoomDeleted:
 		if room, ok := b.ids.lookup(payload.RoomDeleted.GetRoomId()); ok {
-			delete(b.rooms, room)
-			delete(b.universalSince, room)
+			b.deleteRoom(room)
 		}
 	case *evtv1.Event_UserAccountCreated:
 		if userID := payload.UserAccountCreated.GetUserId(); userID != "" {
@@ -208,7 +294,7 @@ func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64, replyCo
 		}
 	case *evtv1.Event_UserAccountDeleted:
 		if user, ok := b.ids.lookup(payload.UserAccountDeleted.GetUserId()); ok {
-			delete(b.accountSince, user)
+			b.deleteUser(user)
 		}
 	case *evtv1.Event_ThreadFollowed:
 		follow := payload.ThreadFollowed
@@ -249,6 +335,52 @@ func (b *notificationBadgeSources) endMembership(userID, roomID string) {
 	}
 }
 
+// deleteRoom drops every indexed fact of a deleted room. Interned IDs stay in
+// the append-only table.
+func (b *notificationBadgeSources) deleteRoom(room uint32) {
+	delete(b.rooms, room)
+	delete(b.universalSince, room)
+	for message, record := range b.messages {
+		if record.room == room {
+			delete(b.messages, message)
+		}
+	}
+	for key := range b.reactions {
+		if _, exists := b.messages[key.message]; !exists {
+			delete(b.reactions, key)
+		}
+	}
+	for key := range b.memberSince {
+		if key.room == room {
+			delete(b.memberSince, key)
+		}
+	}
+	for key := range b.follows {
+		if key.room == room {
+			delete(b.follows, key)
+		}
+	}
+}
+
+// deleteUser drops the state of a deleted account. Its messages stay indexed
+// as roots, replies, and reply parents for other users.
+func (b *notificationBadgeSources) deleteUser(user uint32) {
+	delete(b.accountSince, user)
+	for _, sources := range b.rooms {
+		delete(sources.targeted, user)
+	}
+	for key := range b.memberSince {
+		if key.user == user {
+			delete(b.memberSince, key)
+		}
+	}
+	for key := range b.follows {
+		if key.user == user {
+			delete(b.follows, key)
+		}
+	}
+}
+
 func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted *evtv1.MessagePostedEvent, seq uint64, replyCount uint64) {
 	if event.GetId() == "" || posted.GetRoomId() == "" {
 		return
@@ -264,20 +396,20 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 		thread:    b.ids.intern(posted.GetInThread()),
 		actor:     b.ids.intern(event.GetActorId()),
 		author:    b.ids.intern(messageAuthorID(event)),
-		source:    posted.GetEchoOfEventId() == "" && !posted.GetHistoricalImport(),
 	}
+	record.source = record.createdAt != 0 && posted.GetEchoOfEventId() == "" && !posted.GetHistoricalImport()
 	b.messages[message] = record
 	if !record.source {
 		return
 	}
 	sources := b.room(record.room)
 	if record.thread == 0 {
-		sources.roots = append(sources.roots, message)
+		sources.roots = b.appendMessage(sources.roots, message, record.createdAt)
 	} else {
-		sources.replies[record.thread] = append(sources.replies[record.thread], message)
+		sources.replies[record.thread] = b.appendMessage(sources.replies[record.thread], message, record.createdAt)
 		if replyCount == 1 {
 			if root, exists := b.messages[record.thread]; exists && root.author != 0 && root.author != record.actor {
-				sources.addTargeted(root.author, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: badgeSourceFirstThreadReply})
+				b.addTargeted(sources, root.author, record.thread, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: badgeSourceFirstThreadReply})
 			}
 		}
 	}
@@ -286,24 +418,21 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 		if kind == 0 || mention.GetUserId() == "" || mention.GetUserId() == event.GetActorId() {
 			continue
 		}
-		sources.addTargeted(b.ids.intern(mention.GetUserId()), badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: kind})
+		b.addTargeted(sources, b.ids.intern(mention.GetUserId()), record.thread, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: kind})
 	}
 	if parentID := posted.GetInReplyTo(); parentID != "" {
 		if parent, ok := b.ids.lookup(parentID); ok {
 			if parentRecord, exists := b.messages[parent]; exists && parentRecord.author != 0 && parentRecord.author != record.actor {
-				sources.addTargeted(parentRecord.author, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: badgeSourceReply})
+				b.addTargeted(sources, parentRecord.author, record.thread, badgeTargetedSource{seq: seq, createdAt: record.createdAt, message: message, kind: badgeSourceReply})
 			}
 		}
 	}
 }
 
-func (s *badgeRoomSources) addTargeted(user uint32, source badgeTargetedSource) {
-	s.targeted[user] = append(s.targeted[user], source)
-}
-
 func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, seq uint64) {
 	target, ok := b.ids.lookup(reaction.GetMessageEventId())
-	if !ok || reaction.GetEmoji() == "" || event.GetActorId() == "" {
+	createdAt := eventCreatedNanosOrZero(event)
+	if !ok || reaction.GetEmoji() == "" || event.GetActorId() == "" || createdAt == 0 {
 		return
 	}
 	record, exists := b.messages[target]
@@ -314,17 +443,13 @@ func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reacti
 	if reactor == record.author {
 		return
 	}
-	emoji := b.ids.intern(reaction.GetEmoji())
-	sources := b.room(record.room)
-	// The reaction projection keeps the first of repeated adds; so does the
-	// index, so a later removal drops exactly the reaction that is current.
-	for _, existing := range sources.targeted[record.author] {
-		if existing.kind == badgeSourceReaction && existing.message == target && existing.reactor == reactor && existing.emoji == emoji {
-			return
-		}
+	key := badgeReactionKey{message: target, reactor: reactor, emoji: b.ids.intern(reaction.GetEmoji())}
+	if _, exists := b.reactions[key]; exists {
+		return
 	}
-	sources.addTargeted(record.author, badgeTargetedSource{
-		seq: seq, createdAt: eventCreatedNanosOrZero(event), message: target, reactor: reactor, emoji: emoji, kind: badgeSourceReaction,
+	b.reactions[key] = struct{}{}
+	b.addTargeted(b.room(record.room), record.author, record.thread, badgeTargetedSource{
+		seq: seq, createdAt: createdAt, message: target, reactor: reactor, emoji: key.emoji, kind: badgeSourceReaction,
 	})
 }
 
@@ -335,21 +460,20 @@ func (b *notificationBadgeSources) applyReactionRemoved(reactorID string, reacti
 	if !targetKnown || !reactorKnown || !emojiKnown {
 		return
 	}
-	record, exists := b.messages[target]
-	if !exists {
+	key := badgeReactionKey{message: target, reactor: reactor, emoji: emoji}
+	if _, exists := b.reactions[key]; !exists {
 		return
 	}
+	delete(b.reactions, key)
+	record := b.messages[target]
 	sources := b.rooms[record.room]
-	if sources == nil {
+	if sources == nil || sources.targeted[record.author] == nil {
 		return
 	}
-	list := sources.targeted[record.author]
-	for i, existing := range list {
-		if existing.kind == badgeSourceReaction && existing.message == target && existing.reactor == reactor && existing.emoji == emoji {
-			sources.targeted[record.author] = append(list[:i:i], list[i+1:]...)
-			return
-		}
-	}
+	scopes := sources.targeted[record.author]
+	scopes[record.thread] = slices.DeleteFunc(scopes[record.thread], func(source badgeTargetedSource) bool {
+		return source.kind == badgeSourceReaction && source.message == target && source.reactor == reactor && source.emoji == emoji
+	})
 }
 
 // badgeQuery asks whether a user has Badge attention in one room or thread.
@@ -364,37 +488,37 @@ type badgeQuery struct {
 	// on.
 	before uint64
 	now    time.Time
-	// visibilityBoundary is the latest recorded visibility loss, or zero.
-	visibilityBoundary uint64
 	// readBoundary returns the user's read boundary for a scope of the room.
+	// It must not block, because the decision projection lock is held.
 	readBoundary func(threadRootEventID string) (notificationReadBoundary, bool)
-	// ignoreVisibility evaluates as if the user could see the room. Visibility
-	// repair uses it to find sources that could give attention again after
-	// access returns.
-	ignoreVisibility bool
 }
 
 // hasBadgeAttention reports whether a current source gives the user Badge
 // attention. A source counts only when all of these hold:
 //   - its cause resolves to Badge under the user's current notification policy;
 //   - the user can currently see it;
-//   - it follows the user's membership start and latest visibility loss;
+//   - it is after the start of the user's current membership, and for a
+//     followed thread after the follow;
 //   - the read boundary of its scope does not cover it;
 //   - it is not the user's own, not retracted, and younger than notificationTTL.
+//
+// Each list is scanned from its newest source and stops at the first
+// qualifying source or at the first source that a bound excludes.
 func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	b := s.badges
 	if _, active := s.activeUsers[q.userID]; !active {
 		return false
 	}
 	room, roomKnown := b.ids.lookup(q.roomID)
-	if !roomKnown {
+	sources := b.rooms[room]
+	if !roomKnown || sources == nil {
 		return false
 	}
 	kind, exists := s.roomKind(q.roomID)
 	if !exists {
 		return false
 	}
-	broad := q.ignoreVisibility || s.notificationVisibilityExists(q.userID, q.roomID)
+	broad := s.notificationVisibilityExists(q.userID, q.roomID)
 	interaction := !broad && s.notificationInteractionVisibilityExists(q.userID, q.roomID)
 	if !broad && !interaction {
 		return false
@@ -411,110 +535,121 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	includes := func(thread uint32) bool {
 		return q.threadRootEventID == "" || thread == scopeThread
 	}
-	lower := max(q.visibilityBoundary, s.badgeMembershipStart(user, room, q.userID, q.roomID))
-	expired := q.now.Add(-notificationTTL).UnixNano()
-	isExpired := func(createdAt int64) bool { return createdAt != 0 && createdAt <= expired }
-	excluded := func(seq uint64) bool { return q.before != 0 && seq >= q.before }
-	badge := func(signal *notificationv1.NotificationSignal) bool {
-		return s.effectiveNotificationMode(q.userID, q.roomID, signal) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
+	lower := s.badgeMembershipStart(user, room, q.userID, q.roomID)
+	expired := expiredBefore(q.now.UnixNano())
+	var modes badgeModeCache
+	badge := func(cause badgeCause) bool {
+		return modes.badge(s, q.userID, q.roomID, cause)
 	}
-	readTarget := func(thread uint32) (notificationReadBoundary, bool) {
+	readBoundary := func(thread uint32) (notificationReadBoundary, bool) {
 		if q.readBoundary == nil {
 			return notificationReadBoundary{}, false
 		}
 		return q.readBoundary(b.ids.id(thread))
 	}
-	sources := b.rooms[room]
-	if sources == nil {
+	// floor returns the highest sequence at or below which a scope's messages
+	// do not count.
+	floor := func(thread uint32, since uint64) uint64 {
+		result := max(lower, since)
+		if boundary, ok := readBoundary(thread); ok {
+			result = max(result, boundary.targetSequence)
+		}
+		return result
+	}
+	excluded := func(seq uint64) bool { return q.before != 0 && seq >= q.before }
+	// newestMessage reports whether a message list has a qualifying message
+	// above the floor.
+	newestMessage := func(list []uint32, floor uint64) bool {
+		for i := len(list) - 1; i >= 0; i-- {
+			message := b.messages[list[i]]
+			if message.seq <= floor || message.createdAt <= expired {
+				return false
+			}
+			if !excluded(message.seq) && !message.retracted && message.actor != user {
+				return true
+			}
+		}
 		return false
 	}
 
 	// Root activity: every root message by another member.
-	rootSignal := badgeRoomMessageSignal
+	rootCause := badgeCauseRoomMessage
 	if kind == KindDM {
-		rootSignal = badgeDirectMessageSignal
+		rootCause = badgeCauseDirectMessage
 	}
-	if includes(0) && broad && badge(rootSignal) {
-		floor := lower
-		if boundary, ok := readTarget(0); ok {
-			floor = max(floor, boundary.targetSequence)
+	if includes(0) && broad && badge(rootCause) && newestMessage(sources.roots, floor(0, 0)) {
+		return true
+	}
+
+	// Sources addressed to this user: mentions, replies, reactions, and the
+	// first reply in a thread that the user started.
+	for thread, targeted := range sources.targeted[user] {
+		if !includes(thread) || len(targeted) == 0 {
+			continue
 		}
-		for i := len(sources.roots) - 1; i >= 0; i-- {
-			message := b.messages[sources.roots[i]]
-			if message.seq <= floor || isExpired(message.createdAt) {
+		boundary, hasBoundary := readBoundary(thread)
+		// A reaction is covered when its target and the reaction are within
+		// the read boundary. A reaction at or below the boundary's target
+		// sequence meets both conditions, so every kind can stop there.
+		stop := lower
+		if hasBoundary {
+			stop = max(stop, boundary.targetSequence)
+		}
+		for i := len(targeted) - 1; i >= 0; i-- {
+			source := targeted[i]
+			if source.seq <= stop || source.createdAt <= expired {
 				break
 			}
-			if excluded(message.seq) || message.retracted || message.actor == user {
+			if excluded(source.seq) {
+				continue
+			}
+			message, exists := b.messages[source.message]
+			if !exists || message.retracted {
+				continue
+			}
+			if !broad && source.kind != badgeSourceDirectMention {
+				continue
+			}
+			if source.kind == badgeSourceFirstThreadReply && s.threadFollowState(q.userID, q.roomID, b.ids.id(thread)) == ThreadFollowStateUnfollowed {
+				continue
+			}
+			if cause, ok := source.kind.cause(); !ok || !badge(cause) {
+				continue
+			}
+			if source.kind == badgeSourceReaction && hasBoundary && message.seq <= boundary.targetSequence && source.seq <= boundary.observedSequence {
 				continue
 			}
 			return true
 		}
 	}
 
-	// Sources addressed to this user: mentions, replies, reactions, and the
-	// first reply in a thread that the user started.
-	targeted := sources.targeted[user]
-	for i := len(targeted) - 1; i >= 0 && user != 0; i-- {
-		source := targeted[i]
-		if source.seq <= lower || isExpired(source.createdAt) {
-			break
-		}
-		if excluded(source.seq) {
-			continue
-		}
-		message, exists := b.messages[source.message]
-		if !exists || message.retracted || !includes(message.thread) {
-			continue
-		}
-		if source.kind == badgeSourceDirectMention {
-			if !broad && !interaction {
-				continue
-			}
-		} else if !broad {
-			continue
-		}
-		if source.kind == badgeSourceFirstThreadReply && s.threadFollowState(q.userID, q.roomID, b.ids.id(message.thread)) == ThreadFollowStateUnfollowed {
-			continue
-		}
-		if !badge(badgeCauseSignals[source.kind]) {
-			continue
-		}
-		if boundary, ok := readTarget(message.thread); ok {
-			if source.kind == badgeSourceReaction {
-				if message.seq <= boundary.targetSequence && source.seq <= boundary.observedSequence {
-					continue
-				}
-			} else if source.seq <= boundary.targetSequence {
-				continue
-			}
-		}
-		return true
-	}
-
 	// Activity in threads that the user follows, after the follow began.
-	if broad && user != 0 && badge(badgeFollowedThreadSignal) {
+	if broad && user != 0 && badge(badgeCauseFollowedThread) {
 		for thread, since := range b.follows[badgeMembershipKey{user: user, room: room}] {
-			if !includes(thread) {
+			replies := sources.replies[thread]
+			if !includes(thread) || len(replies) == 0 || b.messages[replies[len(replies)-1]].seq <= max(lower, since) {
 				continue
 			}
-			floor := max(lower, since)
-			if boundary, ok := readTarget(thread); ok {
-				floor = max(floor, boundary.targetSequence)
-			}
-			replies := sources.replies[thread]
-			for i := len(replies) - 1; i >= 0; i-- {
-				message := b.messages[replies[i]]
-				if message.seq <= floor || isExpired(message.createdAt) {
-					break
-				}
-				if excluded(message.seq) || message.retracted || message.actor == user {
-					continue
-				}
+			if newestMessage(replies, floor(thread, since)) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// badgeModeCache resolves each cause's delivery mode at most once per query.
+type badgeModeCache struct {
+	known [badgeCauseCount]bool
+	value [badgeCauseCount]bool
+}
+
+func (c *badgeModeCache) badge(s *notificationDecisionSnapshot, userID, roomID string, cause badgeCause) bool {
+	if !c.known[cause] {
+		c.known[cause] = true
+		c.value[cause] = s.effectiveNotificationMode(userID, roomID, badgeCauseSignals[cause]) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
+	}
+	return c.value[cause]
 }
 
 // badgeMembershipStart returns the sequence at which the user's current
@@ -530,8 +665,85 @@ func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room uint32, u
 	return max(b.accountSince[user], b.universalSince[room])
 }
 
-// snapshot encodes the index. Messages and targeted sources keep stream order
-// so restore rebuilds the same ordered lists.
+// badgeAudience returns the users whose Badge attention a message can affect,
+// with the message's scope: room members for a root message; for a thread
+// reply, the thread's followers and root author. Users addressed by a targeted
+// source of the message, including reaction recipients, are included too.
+func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, userIDs []string) {
+	b := s.badges
+	message, ok := b.ids.lookup(messageEventID)
+	if !ok {
+		return "", "", nil
+	}
+	record, exists := b.messages[message]
+	if !exists {
+		return "", "", nil
+	}
+	roomID, threadRootEventID = b.ids.id(record.room), b.ids.id(record.thread)
+	users := make(map[string]struct{})
+	if record.thread == 0 {
+		for _, userID := range s.roomMemberIDs(roomID) {
+			users[userID] = struct{}{}
+		}
+	} else {
+		for _, userID := range s.threadFollowerIDs(roomID, threadRootEventID) {
+			users[userID] = struct{}{}
+		}
+		if root, exists := b.messages[record.thread]; exists && root.author != 0 {
+			users[b.ids.id(root.author)] = struct{}{}
+		}
+	}
+	if sources := b.rooms[record.room]; sources != nil {
+		for user, scopes := range sources.targeted {
+			if slices.ContainsFunc(scopes[record.thread], func(source badgeTargetedSource) bool { return source.message == message }) {
+				users[b.ids.id(user)] = struct{}{}
+			}
+		}
+	}
+	return roomID, threadRootEventID, sortedMapKeys(users)
+}
+
+// badgeRoomsForUser lists the rooms where the user is an explicit member, plus
+// the universal channel rooms that the user can currently join.
+func (s *notificationDecisionSnapshot) badgeRoomsForUser(userID string) []string {
+	rooms := make(map[string]struct{})
+	for _, roomID := range s.rooms.Membership.Rooms(userID) {
+		rooms[roomID] = struct{}{}
+	}
+	for _, room := range s.rooms.Catalog.AllByKind(evtv1.RoomKind_ROOM_KIND_CHANNEL) {
+		if room.GetUniversal() && s.membershipExists(userID, room.GetId()) {
+			rooms[room.GetId()] = struct{}{}
+		}
+	}
+	return sortedMapKeys(rooms)
+}
+
+// estimatedBytes approximates the retained size of the index.
+func (b *notificationBadgeSources) estimatedBytes() int64 {
+	bytes := b.ids.estimatedBytes()
+	bytes += int64(len(b.messages)) * (projectionCompactMapEntryOverhead + 44)
+	bytes += int64(len(b.reactions)) * (projectionCompactMapEntryOverhead + 12)
+	bytes += int64(len(b.memberSince)+len(b.accountSince)+len(b.universalSince)) * (projectionCompactMapEntryOverhead + 16)
+	for _, sources := range b.rooms {
+		bytes += int64(len(sources.roots)) * 4
+		for _, replies := range sources.replies {
+			bytes += projectionCompactMapEntryOverhead + projectionSliceEntryOverhead + int64(len(replies))*4
+		}
+		for _, scopes := range sources.targeted {
+			for _, targeted := range scopes {
+				bytes += projectionCompactMapEntryOverhead + projectionSliceEntryOverhead + int64(len(targeted))*40
+			}
+		}
+	}
+	for _, threads := range b.follows {
+		bytes += projectionCompactMapEntryOverhead + int64(len(threads))*(projectionCompactMapEntryOverhead+12)
+	}
+	return bytes
+}
+
+// snapshot encodes the index. Messages are in stream order and targeted
+// sources are in stream order within each user, room, and scope, so restore
+// rebuilds the same ordered lists.
 func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSourcesSnapshot {
 	snapshot := &projectionv1.NotificationBadgeSourcesSnapshot{}
 	messages := make([]uint32, 0, len(b.messages))
@@ -550,12 +762,14 @@ func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSou
 	for _, room := range sortedHandleKeys(&b.ids, b.rooms) {
 		sources := b.rooms[room]
 		for _, user := range sortedHandleKeys(&b.ids, sources.targeted) {
-			for _, source := range sources.targeted[user] {
-				snapshot.Targets = append(snapshot.Targets, &projectionv1.NotificationBadgeTargetSnapshot{
-					UserId: b.ids.id(user), RoomId: b.ids.id(room), MessageEventId: b.ids.id(source.message),
-					Kind: uint32(source.kind), Sequence: source.seq, CreatedAtUnixNanos: source.createdAt,
-					ReactorId: b.ids.id(source.reactor), Emoji: b.ids.id(source.emoji),
-				})
+			for _, thread := range sortedHandleKeys(&b.ids, sources.targeted[user]) {
+				for _, source := range sources.targeted[user][thread] {
+					snapshot.Targets = append(snapshot.Targets, &projectionv1.NotificationBadgeTargetSnapshot{
+						UserId: b.ids.id(user), RoomId: b.ids.id(room), MessageEventId: b.ids.id(source.message),
+						Kind: uint32(source.kind), Sequence: source.seq, CreatedAtUnixNanos: source.createdAt,
+						ReactorId: b.ids.id(source.reactor), Emoji: b.ids.id(source.emoji),
+					})
+				}
 			}
 		}
 	}
@@ -619,20 +833,26 @@ func restoreNotificationBadgeSources(snapshot *projectionv1.NotificationBadgeSou
 		}
 		sources := b.room(record.room)
 		if record.thread == 0 {
-			sources.roots = append(sources.roots, message)
+			sources.roots = b.appendMessage(sources.roots, message, record.createdAt)
 		} else {
-			sources.replies[record.thread] = append(sources.replies[record.thread], message)
+			sources.replies[record.thread] = b.appendMessage(sources.replies[record.thread], message, record.createdAt)
 		}
 	}
 	for _, row := range snapshot.GetTargets() {
 		kind := badgeSourceKind(row.GetKind())
-		if row.GetUserId() == "" || row.GetRoomId() == "" || row.GetMessageEventId() == "" || badgeCauseSignals[kind] == nil {
+		message, known := b.ids.lookup(row.GetMessageEventId())
+		record, exists := b.messages[message]
+		if _, valid := kind.cause(); !valid || row.GetUserId() == "" || row.GetRoomId() == "" || !known || !exists {
 			return nil, fmt.Errorf("notification badge snapshot has an invalid targeted source")
 		}
-		b.room(b.ids.intern(row.GetRoomId())).addTargeted(b.ids.intern(row.GetUserId()), badgeTargetedSource{
-			seq: row.GetSequence(), createdAt: row.GetCreatedAtUnixNanos(), message: b.ids.intern(row.GetMessageEventId()),
+		source := badgeTargetedSource{
+			seq: row.GetSequence(), createdAt: row.GetCreatedAtUnixNanos(), message: message,
 			reactor: b.ids.intern(row.GetReactorId()), emoji: b.ids.intern(row.GetEmoji()), kind: kind,
-		})
+		}
+		if kind == badgeSourceReaction {
+			b.reactions[badgeReactionKey{message: message, reactor: source.reactor, emoji: source.emoji}] = struct{}{}
+		}
+		b.addTargeted(b.room(b.ids.intern(row.GetRoomId())), b.ids.intern(row.GetUserId()), record.thread, source)
 	}
 	for _, row := range snapshot.GetMemberships() {
 		if row.GetUserId() == "" || row.GetRoomId() == "" {
@@ -663,119 +883,4 @@ func restoreNotificationBadgeSources(snapshot *projectionv1.NotificationBadgeSou
 		b.follows[key][b.ids.intern(row.GetThreadRootEventId())] = row.GetSequence()
 	}
 	return b, nil
-}
-
-// badgeAudience returns the users whose Badge attention a message can affect,
-// with the message's scope: room members for a root message; for a thread
-// reply, the thread's followers and root author. Users addressed by a targeted
-// source of the message, including reaction recipients, are included too.
-// Callers use it to send invalidations when a message stops being a source.
-func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, userIDs []string) {
-	b := s.badges
-	message, ok := b.ids.lookup(messageEventID)
-	if !ok {
-		return "", "", nil
-	}
-	record, exists := b.messages[message]
-	if !exists {
-		return "", "", nil
-	}
-	roomID, threadRootEventID = b.ids.id(record.room), b.ids.id(record.thread)
-	users := make(map[string]struct{})
-	if record.thread == 0 {
-		for _, userID := range s.roomMemberIDs(roomID) {
-			users[userID] = struct{}{}
-		}
-	} else {
-		for _, userID := range s.threadFollowerIDs(roomID, threadRootEventID) {
-			users[userID] = struct{}{}
-		}
-		if root, exists := b.messages[record.thread]; exists && root.author != 0 {
-			users[b.ids.id(root.author)] = struct{}{}
-		}
-	}
-	if sources := b.rooms[record.room]; sources != nil {
-		for user, targeted := range sources.targeted {
-			for _, source := range targeted {
-				if source.message == message {
-					users[b.ids.id(user)] = struct{}{}
-					break
-				}
-			}
-		}
-	}
-	return roomID, threadRootEventID, sortedMapKeys(users)
-}
-
-// badgeCandidatePairs lists the (user, room) pairs that visibility repair must
-// check. An empty user or room ID selects every user or every room that has
-// Badge sources.
-func (s *notificationDecisionSnapshot) badgeCandidatePairs(userID, roomID string) []badgeUserRoom {
-	b := s.badges
-	var rooms []string
-	if roomID != "" {
-		if room, ok := b.ids.lookup(roomID); ok && b.rooms[room] != nil {
-			rooms = []string{roomID}
-		}
-	} else {
-		for room := range b.rooms {
-			rooms = append(rooms, b.ids.id(room))
-		}
-	}
-	var pairs []badgeUserRoom
-	for _, candidateRoom := range rooms {
-		users := make(map[string]struct{})
-		if userID != "" {
-			users[userID] = struct{}{}
-		} else {
-			for _, member := range s.rooms.Membership.Members(candidateRoom) {
-				users[member] = struct{}{}
-			}
-			if room, exists := s.rooms.Catalog.Get(candidateRoom); exists && room.GetUniversal() {
-				for active := range s.activeUsers {
-					users[active] = struct{}{}
-				}
-			}
-		}
-		for _, user := range sortedMapKeys(users) {
-			pairs = append(pairs, badgeUserRoom{userID: user, roomID: candidateRoom})
-		}
-	}
-	return pairs
-}
-
-// badgeRoomsForUser lists the rooms where the user is an explicit member, plus
-// every universal channel room.
-func (s *notificationDecisionSnapshot) badgeRoomsForUser(userID string) []string {
-	rooms := make(map[string]struct{})
-	for _, roomID := range s.rooms.Membership.Rooms(userID) {
-		rooms[roomID] = struct{}{}
-	}
-	for _, room := range s.rooms.Catalog.AllByKind(evtv1.RoomKind_ROOM_KIND_CHANNEL) {
-		if room.GetUniversal() && s.membershipExists(userID, room.GetId()) {
-			rooms[room.GetId()] = struct{}{}
-		}
-	}
-	return sortedMapKeys(rooms)
-}
-
-// badgeHiddenCandidates lists the current room members, explicit or
-// universal, who cannot see the room's messages now: they lack both broad and
-// interaction-scoped read access. The actor is excluded, because their own
-// source never gives them attention.
-func (s *notificationDecisionSnapshot) badgeHiddenCandidates(roomID, actorID string) []string {
-	var hidden []string
-	for _, userID := range s.roomMemberIDs(roomID) {
-		if userID == actorID {
-			continue
-		}
-		if _, active := s.activeUsers[userID]; !active {
-			continue
-		}
-		if s.notificationVisibilityExists(userID, roomID) || s.notificationInteractionVisibilityExists(userID, roomID) {
-			continue
-		}
-		hidden = append(hidden, userID)
-	}
-	return hidden
 }

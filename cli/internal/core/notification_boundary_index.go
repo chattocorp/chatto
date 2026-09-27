@@ -263,6 +263,17 @@ func (i *notificationBoundaryIndex) visibilityBoundary(ctx context.Context, user
 	return entry.sequence, exists && !entry.deleted, nil
 }
 
+// readBoundaryNow returns the indexed read boundary without waiting for the
+// initial sync. Callers wait once with waitReady before they take other locks,
+// because this lookup can run while the notification decision projection's
+// lock is held.
+func (i *notificationBoundaryIndex) readBoundaryNow(userID, roomID, threadRootEventID string) (notificationReadBoundary, bool) {
+	i.mu.RLock()
+	entry, exists := i.read[notificationReadBoundaryKey(userID, roomID, threadRootEventID)]
+	i.mu.RUnlock()
+	return entry.boundary, exists && !entry.deleted
+}
+
 func (i *notificationBoundaryIndex) readBoundary(ctx context.Context, userID, roomID, threadRootEventID string) (notificationReadBoundary, bool, error) {
 	if err := i.waitReady(ctx); err != nil {
 		return notificationReadBoundary{}, false, err

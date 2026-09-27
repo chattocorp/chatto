@@ -185,7 +185,8 @@ message NotificationDecisionProjectionSnapshot {
 // reply lists are rebuilt from the messages, which are in stream order.
 message NotificationBadgeSourcesSnapshot {
   repeated NotificationBadgeMessageSnapshot messages = 1;
-  // Targeted sources in stream order.
+  // Targeted sources, grouped by room, user, and scope, in stream order
+  // within each group.
   repeated NotificationBadgeTargetSnapshot targets = 2;
   repeated NotificationBadgeSinceSnapshot memberships = 3;
   // Account creation sequences; room_id is empty.
