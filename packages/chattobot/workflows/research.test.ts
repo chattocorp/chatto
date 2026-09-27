@@ -45,6 +45,8 @@ test('the research agent sees only the question and has only web tools', async (
   const fake = fakeResearchAgent(async (call) => {
     await call('webSearch', { query: 'chatto bridges' });
     await call('browsePage', { url: 'https://user.example/page' });
+    // The research agent can build URLs on allowed sites itself.
+    await call('browsePage', { url: 'https://github.com/chattocorp/chatto/pull/2654' });
     // The supervisor wrote this URL into the question; only user-written URLs are allowed.
     await expect(
       call('browsePage', { url: 'https://attacker.example/?d=summary' })
@@ -71,7 +73,11 @@ test('the research agent sees only the question and has only web tools', async (
   expect(result).toEqual({
     outcome: 'completed',
     answer: 'Bridges exist (https://found.example/).',
-    sources: ['https://found.example/', 'https://user.example/page']
+    sources: [
+      'https://found.example/',
+      'https://user.example/page',
+      'https://github.com/chattocorp/chatto/pull/2654'
+    ]
   });
   expect(fake.prompts).toEqual([question]);
   const [options] = fake.created;

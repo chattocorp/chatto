@@ -16,6 +16,8 @@ const MAX_WEB_REQUESTS = 5;
 const RESEARCH_TIMEOUT_MS = 180_000;
 const MAX_ANSWER = 8_000;
 const MAX_SOURCES = 20;
+/** Sites the research agent may open directly, for example a PR URL built from its number. */
+const ALLOWED_SITES = ['https://github.com/chattocorp/chatto/'];
 
 type ResearchAgent = Pick<RunlingAgent, 'runOutcome' | 'dispose'>;
 
@@ -57,7 +59,7 @@ export function createResearch(
         ctx.signal,
         AbortSignal.timeout(dependencies.timeoutMs ?? RESEARCH_TIMEOUT_MS)
       ]);
-      const allowlist = createUrlAllowlist();
+      const allowlist = createUrlAllowlist(ALLOWED_SITES);
       allowlist.addTrusted(dependencies.userText?.() ?? '');
       const budget = { search: MAX_WEB_REQUESTS, browse: MAX_WEB_REQUESTS };
       const sources = new Set<string>();
@@ -92,6 +94,7 @@ export function createResearch(
         },
         instructions: [
           `Use at most ${MAX_WEB_REQUESTS} searches and ${MAX_WEB_REQUESTS} page reads. Prefer primary sources.`,
+          `You can open any page under ${ALLOWED_SITES.join(', ')} directly, for example https://github.com/chattocorp/chatto/pull/123 for a pull request or https://github.com/chattocorp/chatto/issues/123 for an issue. Other pages must come from the question, search results, or links on the page you read last.`,
           'Put the answer in the report details: concise facts with the URL of each source. Say what you could not find or verify. Report blocked if the web does not answer the question.'
         ]
       });

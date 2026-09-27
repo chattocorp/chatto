@@ -182,7 +182,8 @@ these limits:
   minutes. It returns an answer and the source URLs. The chat agent can start at
   most 3 research requests for each user message.
 - `browsePage` opens only URLs from the conversation owner's recent messages,
-  `webSearch` results, and at most 50 links from the page it read last. URLs that
+  `webSearch` results, at most 50 links from the page it read last, and any page
+  under `https://github.com/chattocorp/chatto/`, such as a pull request or issue. URLs that
   the chat agent writes into the question cannot be opened, so injected text
   cannot make it add conversation data to a URL. Cloudflare loads each page in a browser on
   its network and returns up to 30,000 characters of Markdown. Target sites see
