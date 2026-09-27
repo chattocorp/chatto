@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"slices"
 	"unsafe"
 
 	"google.golang.org/protobuf/proto"
@@ -577,9 +576,10 @@ func (p *ReactionProjection) adminProjectionEstimate() (int64, int64, []Projecti
 		bytes += projectionCompactMapEntryOverhead + 4 + projectionSliceEntryOverhead
 		active += int64(len(reactions))
 		bytes += int64(cap(reactions)) * int64(unsafe.Sizeof(reactionProjectionEntry{}))
-		// Count each emoji at its first occurrence; reaction lists are short.
+		// Reactions are sorted by emoji, so each emoji change starts a group.
 		for i, reaction := range reactions {
-			if !slices.ContainsFunc(reactions[:i], func(earlier reactionProjectionEntry) bool { return earlier.emoji == reaction.emoji }) {
+			bytes += int64(len(reaction.source))
+			if i == 0 || reactions[i-1].emoji != reaction.emoji {
 				emojiGroups++
 			}
 		}

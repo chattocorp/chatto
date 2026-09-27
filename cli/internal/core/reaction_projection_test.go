@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -303,6 +304,43 @@ func messagePostedProjectionEvent(id, echoOfEventID string) *evtv1.Event {
 				EchoOfEventId: echoOfEventID,
 			},
 		},
+	}
+}
+
+func TestReactionProjection_ToggleDoesNotGrowIDTable(t *testing.T) {
+	p := NewReactionProjection()
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("ADD-0", "M1", "U1", "heart", 1))
+	applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent("REMOVE-0", "M1", "U1", "heart"))
+	interned := p.ids.len()
+
+	for i := 1; i <= 10; i++ {
+		applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent(fmt.Sprintf("ADD-%d", i), "M1", "U1", "heart", i))
+		applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent(fmt.Sprintf("REMOVE-%d", i), "M1", "U1", "heart"))
+	}
+
+	if got := p.ids.len(); got != interned {
+		t.Fatalf("interned IDs after toggles = %d, want %d", got, interned)
+	}
+}
+
+func TestReactionProjection_KeepsReactionsSortedAcrossRemoval(t *testing.T) {
+	p := NewReactionProjection()
+	for i, reaction := range []struct{ user, emoji string }{
+		{"U3", "tada"}, {"U1", "heart"}, {"U2", "tada"}, {"U2", "heart"}, {"U1", "tada"},
+	} {
+		applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent(fmt.Sprintf("E%d", i), "M1", reaction.user, reaction.emoji, i+1))
+	}
+	applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent("REMOVE", "M1", "U2", "tada"))
+
+	summaries := p.Reactions("M1")
+	if len(summaries) != 2 || summaries[0].Emoji != "tada" || summaries[1].Emoji != "heart" {
+		t.Fatalf("summaries = %+v, want tada then heart", summaries)
+	}
+	if got := summaries[0].UserIDs; len(got) != 2 || got[0] != "U1" || got[1] != "U3" {
+		t.Fatalf("tada users = %v, want [U1 U3]", got)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "heart", "U2"); !got.Exists || got.UserReactionCount != 1 || got.SourceEventID != "E3" {
+		t.Fatalf("U2 heart snapshot = %+v, want existing E3 with one reaction", got)
 	}
 }
 

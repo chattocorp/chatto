@@ -33,7 +33,7 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 				row.Emojis = append(row.Emojis, group)
 			}
 			group.Users = append(group.Users, &projectionv1.UserReactionSnapshot{
-				UserId: p.ids.id(reaction.user), AddedAtNanos: reaction.addedAtNanos, SourceEventId: p.ids.id(reaction.source),
+				UserId: p.ids.id(reaction.user), AddedAtNanos: reaction.addedAtNanos, SourceEventId: reaction.source,
 			})
 		}
 		snapshot.Messages = append(snapshot.Messages, row)
@@ -101,14 +101,16 @@ func (p *ReactionProjection) Restore(data []byte) error {
 				if user.GetUserId() == "" {
 					return fmt.Errorf("reaction snapshot has empty user ID")
 				}
-				userHandle := restored.ids.intern(user.GetUserId())
-				if reactionIndex(reactions, emoji, userHandle) >= 0 {
-					return fmt.Errorf("reaction snapshot repeats user")
-				}
 				reactions = append(reactions, reactionProjectionEntry{
-					addedAtNanos: user.GetAddedAtNanos(), emoji: emoji, user: userHandle,
-					source: restored.ids.intern(user.GetSourceEventId()),
+					addedAtNanos: user.GetAddedAtNanos(), source: user.GetSourceEventId(),
+					emoji: emoji, user: restored.ids.intern(user.GetUserId()),
 				})
+			}
+		}
+		slices.SortFunc(reactions, compareReactions)
+		for i := 1; i < len(reactions); i++ {
+			if compareReactions(reactions[i-1], reactions[i]) == 0 {
+				return fmt.Errorf("reaction snapshot repeats user")
 			}
 		}
 		if len(reactions) > 0 {
@@ -143,7 +145,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		}
 	}
 	for _, row := range snapshot.GetMessageRooms() {
-		restored.setMessageRoomLocked(restored.ids.intern(row.GetKey()), restored.ids.intern(row.GetValue()))
+		restored.messageRooms.set(restored.ids.intern(row.GetKey()), restored.ids.intern(row.GetValue()))
 	}
 	for _, row := range snapshot.GetEchoOriginals() {
 		restored.echoOriginal[restored.ids.intern(row.GetKey())] = restored.ids.intern(row.GetValue())
