@@ -447,6 +447,8 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 		}, nil
 	case "reactions":
 		return []projectionBenchmarkTarget{newTarget(NewReactionProjection())}, nil
+	case "notification_decisions":
+		return []projectionBenchmarkTarget{newTarget(NewNotificationDecisionProjection())}, nil
 	case "assets":
 		return []projectionBenchmarkTarget{newTarget(NewAssetProjection())}, nil
 	case "rbac":
