@@ -68,7 +68,8 @@
     createThreadRequired = false,
     createThreadDefault = false,
     getRecentThreadRootCandidate = () => null,
-    threadsEncouraged = false
+    threadsEncouraged = false,
+    mentionPriorityUserIds
   }: MessageComposerProps = $props();
 
   const clock = new SvelteDate();
@@ -166,6 +167,7 @@
     },
     context: composerContext,
     getMembers: () => membersStore().members,
+    getMentionPriorityUserIds: () => mentionPriorityUserIds,
     get membersStore() {
       return membersStore();
     },
@@ -316,6 +318,7 @@
         query={composer.autocomplete.mention.query}
         members={composer.mentionCandidates}
         roles={composer.mentionRoles}
+        prioritizedUserIds={composer.mentionPriorityUserIds}
         onSelect={(login, viaTab) => composer.autocomplete.selectMention(login, viaTab)}
         onClose={() => composer.autocomplete.closeMention()}
       />

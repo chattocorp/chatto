@@ -73,6 +73,8 @@ export type MessageComposerProps = {
   createThreadRequired?: boolean;
   createThreadDefault?: boolean;
   threadsEncouraged?: boolean;
+  /** Users that rank first in @mention autocomplete, such as thread participants. */
+  mentionPriorityUserIds?: ReadonlySet<string>;
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
 };
@@ -98,6 +100,7 @@ type MessageComposerDependencies = {
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
   getMembers: () => RoomMember[];
+  getMentionPriorityUserIds: () => ReadonlySet<string> | undefined;
   membersStore: RoomMembersStore;
   mentionRolesStore: MentionRolesStore;
   serverInfo: ServerInfoState;
@@ -160,7 +163,8 @@ export class MessageComposerState {
     this.autocomplete = new AutocompleteState(
       () => this.editorApi,
       () => this.mentionCandidates,
-      () => this.mentionRoles
+      () => this.mentionRoles,
+      () => this.mentionPriorityUserIds
     );
     this.submission = new ComposerSubmissionState({
       getAPI: dependencies.getMessageAPI,
@@ -195,6 +199,10 @@ export class MessageComposerState {
 
   get mentionRoles(): MentionRole[] {
     return this.#dependencies.mentionRolesStore.roles;
+  }
+
+  get mentionPriorityUserIds(): ReadonlySet<string> | undefined {
+    return this.#dependencies.getMentionPriorityUserIds();
   }
 
   get mentionCandidates(): RoomMember[] {

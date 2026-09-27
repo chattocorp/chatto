@@ -147,6 +147,22 @@ describe('AutocompleteState', () => {
     expect(fakeEditor.getText()).toBe('@alicia ');
   });
 
+  it('completes prioritized users first on Tab', () => {
+    const fakeEditor = editor('@ali');
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => [member('alice'), member('alicia')],
+      () => [],
+      () => new Set(['user_alicia'])
+    );
+
+    expect(state.handleTabCompletion(tabEvent())).toBe(true);
+    expect(fakeEditor.getText()).toBe('@alicia ');
+
+    expect(state.handleTabCompletion(tabEvent())).toBe(true);
+    expect(fakeEditor.getText()).toBe('@alice ');
+  });
+
   it('excludes deleted members from mention Tab completion', () => {
     const fakeEditor = editor('@deleted');
     const state = new AutocompleteState(

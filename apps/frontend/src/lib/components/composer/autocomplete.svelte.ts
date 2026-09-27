@@ -1,7 +1,7 @@
 import type { RoomMember } from '$lib/state/room';
-import { fuzzyMatch } from '$lib/fuzzyMatch';
 import { searchEmojis } from '$lib/emoji';
 import type { ComposerEditorApi } from './editorTypes';
+import { rankMentionCandidates } from './mentionRanking';
 
 export type MentionRole = {
   name: string;
@@ -37,7 +37,9 @@ export class AutocompleteState {
   constructor(
     private readonly getEditorApi: () => ComposerEditorApi | null,
     private readonly getMembers: () => RoomMember[],
-    private readonly getRoles: () => MentionRole[] = () => []
+    private readonly getRoles: () => MentionRole[] = () => [],
+    /** Users that rank first among matches, such as thread participants. */
+    private readonly getPrioritizedUserIds?: () => ReadonlySet<string> | undefined
   ) {}
 
   reset(): void {
@@ -172,39 +174,12 @@ export class AutocompleteState {
   }
 
   private findMatchingMentions(partial: string): string[] {
-    const scored: { handle: string; score: number; priority: number }[] = [];
-
-    for (const m of this.getMembers()) {
-      if (m.deleted || !m.login) continue;
-
-      const loginScore = fuzzyMatch(partial, m.login);
-      const displayScore = fuzzyMatch(partial, m.displayName);
-      const bestScore = Math.max(loginScore ?? -1, displayScore ?? -1);
-
-      if (bestScore > 0) {
-        scored.push({ handle: m.login, score: bestScore, priority: 0 });
-      }
-    }
-
-    for (const target of ['all', 'here']) {
-      const score = fuzzyMatch(partial, target);
-      if (score && score > 0) {
-        scored.push({ handle: target, score, priority: 1 });
-      }
-    }
-
-    for (const role of this.getRoles()) {
-      if (!role.pingable || role.name === 'everyone') continue;
-      const score = fuzzyMatch(partial, role.name);
-      if (score && score > 0) {
-        scored.push({ handle: role.name, score, priority: 2 });
-      }
-    }
-
-    scored.sort(
-      (a, b) => a.priority - b.priority || b.score - a.score || a.handle.localeCompare(b.handle)
-    );
-    return scored.map((s) => s.handle);
+    return rankMentionCandidates(
+      partial,
+      this.getMembers(),
+      this.getRoles(),
+      this.getPrioritizedUserIds?.()
+    ).map((result) => result.handle);
   }
 
   private getEmojiPartialAtCursor(): { query: string; start: number } | null {

@@ -7,71 +7,35 @@ Shows matching room members when typing @username in chat input.
 **Props:**
 - `query` - Current search query (without the leading @)
 - `members` - Room members to search through
+- `roles` - Mentionable roles
+- `prioritizedUserIds` - Users that rank first among matches, such as thread participants
 - `onSelect` - Callback when a member is selected (receives login and whether Tab was used)
 - `onClose` - Callback to close the popup
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import type { RoomMember } from '$lib/state/room';
-  import { fuzzyMatch } from '$lib/fuzzyMatch';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
   import type { MentionRole } from './autocomplete.svelte';
+  import { rankMentionCandidates, type MentionResult } from './mentionRanking';
   import { m } from '$lib/i18n/messages';
-
-  type MentionResult =
-    | { type: 'user'; handle: string; member: RoomMember; score: number; priority: number }
-    | { type: 'virtual'; handle: 'all' | 'here'; label: string; score: number; priority: number }
-    | { type: 'role'; handle: string; role: MentionRole; score: number; priority: number };
 
   type Props = {
     query: string;
     members: RoomMember[];
     roles?: MentionRole[];
+    /** Users that rank first among matches, such as thread participants. */
+    prioritizedUserIds?: ReadonlySet<string>;
     onSelect: (handle: string, viaTab: boolean) => void;
     onClose: () => void;
   };
 
-  let { query, members, roles = [], onSelect, onClose }: Props = $props();
+  let { query, members, roles = [], prioritizedUserIds, onSelect, onClose }: Props = $props();
 
-  let results = $derived.by(() => {
-    const scored: MentionResult[] = [];
-
-    for (const m of members) {
-      if (m.deleted || !m.login) continue;
-
-      const loginScore = fuzzyMatch(query, m.login);
-      const displayScore = fuzzyMatch(query, m.displayName);
-      const bestScore = Math.max(loginScore ?? -1, displayScore ?? -1);
-
-      if (bestScore > 0) {
-        scored.push({ type: 'user', handle: m.login, member: m, score: bestScore, priority: 0 });
-      }
-    }
-
-    for (const target of [
-      { handle: 'all' as const, label: m('composer.mention.all_room_members') },
-      { handle: 'here' as const, label: m('composer.mention.members_here') }
-    ]) {
-      const score = fuzzyMatch(query, target.handle);
-      if (score && score > 0) {
-        scored.push({ type: 'virtual', ...target, score, priority: 1 });
-      }
-    }
-
-    for (const role of roles) {
-      if (!role.pingable || role.name === 'everyone') continue;
-      const score = fuzzyMatch(query, role.name);
-      if (score && score > 0) {
-        scored.push({ type: 'role', handle: role.name, role, score, priority: 2 });
-      }
-    }
-
-    scored.sort(
-      (a, b) => a.priority - b.priority || b.score - a.score || a.handle.localeCompare(b.handle)
-    );
-    return scored.slice(0, 10);
-  });
+  let results = $derived(
+    rankMentionCandidates(query, members, roles, prioritizedUserIds).slice(0, 10)
+  );
 
   let popupRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
 
@@ -109,7 +73,11 @@ Shows matching room members when typing @username in chat input.
       >
         <span aria-hidden="true" class="iconify icon-[uil--megaphone] h-4 w-4"></span>
       </div>
-      <bdi class="min-w-0 truncate text-sm text-text">{result.label}</bdi>
+      <bdi class="min-w-0 truncate text-sm text-text">
+        {result.handle === 'all'
+          ? m('composer.mention.all_room_members')
+          : m('composer.mention.members_here')}
+      </bdi>
       <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.handle}</bdi>
     {:else}
       <div

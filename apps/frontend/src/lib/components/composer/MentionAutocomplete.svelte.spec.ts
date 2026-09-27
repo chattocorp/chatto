@@ -28,6 +28,7 @@ function renderAutocomplete(props: {
   query: string;
   members: RoomMember[];
   roles?: { name: string; isSystem?: boolean; position?: number; pingable?: boolean }[];
+  prioritizedUserIds?: ReadonlySet<string>;
   onSelect?: (login: string, viaTab: boolean) => void;
   onClose?: () => void;
 }) {
@@ -36,6 +37,7 @@ function renderAutocomplete(props: {
       query: props.query,
       members: props.members,
       roles: props.roles ?? [],
+      prioritizedUserIds: props.prioritizedUserIds,
       onSelect: props.onSelect ?? (() => {}),
       onClose: props.onClose ?? (() => {})
     }
@@ -115,6 +117,16 @@ describe('MentionAutocomplete', () => {
       });
       const order = visibleLogins(container);
       expect(order[0]).toBe('al'); // exact match wins
+    });
+
+    it('lists prioritized users, such as thread participants, first', () => {
+      const { container } = renderAutocomplete({
+        query: 'cha',
+        members: [member('chaz6'), member('chatto'), member('chatto_bot', 'ChattoBot')],
+        prioritizedUserIds: new Set(['u_chatto_bot'])
+      });
+      expect(visibleLogins(container)).toEqual(['chatto_bot', 'chaz6', 'chatto']);
+      expect(activeLogin(container)).toBe('chatto_bot');
     });
 
     it('includes virtual mention handles and pingable role names', () => {
