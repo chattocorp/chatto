@@ -134,7 +134,9 @@
       "role_update_failed": "Échec de la mise à jour de l'attribution de rôle",
       "danger_zone": "Zone de danger",
       "open_delete_account": "Supprimer le compte",
-      "delete_account_entry_description": "Supprime définitivement le compte de ce membre. Ses messages deviennent illisibles. Cette action est irréversible."
+      "delete_account_entry_description": "Supprime définitivement le compte de ce membre. Ses messages deviennent illisibles. Cette action est irréversible.",
+      "bio_placeholder": "Présentez un peu ce membre aux autres",
+      "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du membre."
     },
     "member_delete": {
       "title": "Supprimer un membre",

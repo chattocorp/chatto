@@ -134,7 +134,9 @@
       "role_update_failed": "נכשל בעדכון הקצאת התפקיד",
       "danger_zone": "אזור סיכון",
       "open_delete_account": "מחיקת החשבון",
-      "delete_account_entry_description": "מוחק לצמיתות את החשבון של חבר זה. ההודעות שלו הופכות לבלתי קריאות. לא ניתן לבטל פעולה זו."
+      "delete_account_entry_description": "מוחק לצמיתות את החשבון של חבר זה. ההודעות שלו הופכות לבלתי קריאות. לא ניתן לבטל פעולה זו.",
+      "bio_placeholder": "ספר לאחרים מעט על החבר הזה",
+      "bio_description": "עד {max} תווים, מוצג בפרופיל של החבר."
     },
     "member_delete": {
       "title": "מחיקת חבר",

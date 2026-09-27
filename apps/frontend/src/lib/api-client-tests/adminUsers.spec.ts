@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   getMember: vi.fn(),
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
-  updateUser: vi.fn(),
   changeUserPassword: vi.fn(),
   deleteUser: vi.fn(),
   clearUsernameCooldown: vi.fn()
@@ -36,7 +35,6 @@ describe('createAdminUserManagementAPI', () => {
     mocks.getMember.mockReset();
     mocks.assignRole.mockReset();
     mocks.revokeRole.mockReset();
-    mocks.updateUser.mockReset();
     mocks.changeUserPassword.mockReset();
     mocks.deleteUser.mockReset();
     mocks.clearUsernameCooldown.mockReset();
@@ -47,7 +45,6 @@ describe('createAdminUserManagementAPI', () => {
       getMember: mocks.getMember,
       assignRole: mocks.assignRole,
       revokeRole: mocks.revokeRole,
-      updateUser: mocks.updateUser,
       changeUserPassword: mocks.changeUserPassword,
       deleteUser: mocks.deleteUser,
       clearUsernameCooldown: mocks.clearUsernameCooldown
@@ -276,46 +273,6 @@ describe('createAdminUserManagementAPI', () => {
 
     expect(mocks.assignRole).toHaveBeenCalledWith({ userId: 'user-1', roleName: 'moderator' });
     expect(mocks.revokeRole).toHaveBeenCalledWith({ userId: 'user-1', roleName: 'moderator' });
-  });
-
-  it('updates a user and maps the returned profile', async () => {
-    mocks.updateUser.mockResolvedValue({
-      user: {
-        id: 'user-1',
-        login: 'renamed',
-        displayName: 'Renamed User',
-        avatarUrl: '/assets/avatar.png'
-      }
-    });
-    const api = createAdminUserManagementAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    });
-
-    const user = await api.updateUser({
-      userId: 'user-1',
-      login: 'renamed',
-      displayName: 'Renamed User'
-    });
-
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://chat.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.updateUser).toHaveBeenCalledWith({
-      userId: 'user-1',
-      login: 'renamed',
-      displayName: 'Renamed User',
-      updateMask: { paths: ['display_name', 'login'] }
-    });
-    expect(user).toEqual({
-      id: 'user-1',
-      login: 'renamed',
-      displayName: 'Renamed User',
-      avatarUrl: '/assets/avatar.png'
-    });
   });
 
   it('clears username cooldown', async () => {

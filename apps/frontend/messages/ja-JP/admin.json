@@ -134,7 +134,9 @@
       "role_update_failed": "ロール割り当ての更新に失敗しました",
       "danger_zone": "危険ゾーン",
       "open_delete_account": "アカウントを削除",
-      "delete_account_entry_description": "このメンバーのアカウントを完全に削除します。メッセージは読めなくなります。この操作は取り消せません。"
+      "delete_account_entry_description": "このメンバーのアカウントを完全に削除します。メッセージは読めなくなります。この操作は取り消せません。",
+      "bio_placeholder": "このメンバーについて簡単に紹介してください",
+      "bio_description": "最大 {max} 文字。メンバーのプロフィールに表示されます。"
     },
     "member_delete": {
       "title": "メンバーを削除",

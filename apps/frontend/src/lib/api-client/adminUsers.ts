@@ -1,17 +1,17 @@
-import { updateMask } from './updateMask';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { createAdminMemberLoader, type AdminMemberBatch } from '$lib/query/adminMembers';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
-import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 
 export type AdminManagedUser = {
   id: string;
   login: string;
   displayName: string;
   avatarUrl?: string | null;
+  /** Public self-authored bio; `null` when unset. */
+  bio?: string | null;
   isBot?: boolean;
 };
 
@@ -55,12 +55,6 @@ export type AdminMemberDetails = {
   viewerCanManageUserPermissions: boolean;
   assignableRoleNames: string[] | null;
   revocableRoleNames: string[] | null;
-};
-
-export type AdminUpdateUserInput = {
-  userId: string;
-  login?: string;
-  displayName?: string;
 };
 
 export type AdminDeleteUserInput = {
@@ -178,14 +172,6 @@ export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
       };
     },
 
-    async updateUser(input: AdminUpdateUserInput): Promise<AdminManagedUser> {
-      const response = await client.updateUser({
-        ...input,
-        updateMask: updateMask(input, ['displayName', 'login'])
-      });
-      return adminManagedUser(response.user);
-    },
-
     async changeUserPassword(userId: string, password: string): Promise<AdminMember> {
       const response = await client.changeUserPassword({ userId, password });
       if (!response.member) {
@@ -220,19 +206,6 @@ function adminMemberTarget(
   return { case: 'userId', value: target.userId };
 }
 
-function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
-  if (!user) {
-    throw new Error('admin user response did not include a user');
-  }
-  return {
-    id: user.id,
-    login: user.login,
-    displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null,
-    ...(user.bot ? { isBot: true } : {})
-  };
-}
-
 function adminMember(member: APIAdminMember): AdminMember {
   const summary = member.user;
   if (!summary) {
@@ -243,6 +216,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     login: summary.login,
     displayName: summary.displayName,
     avatarUrl: summary.avatarUrl ?? null,
+    bio: summary.bio,
     ...(summary.bot ? { isBot: true } : {}),
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null,

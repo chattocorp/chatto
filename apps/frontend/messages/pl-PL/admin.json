@@ -134,7 +134,9 @@
       "role_update_failed": "Nie udało się zaktualizować przypisania roli",
       "danger_zone": "Strefa zagrożenia",
       "open_delete_account": "Usuń konto",
-      "delete_account_entry_description": "Trwale usuwa konto tego członka. Jego wiadomości stają się nieczytelne. Tej operacji nie można cofnąć."
+      "delete_account_entry_description": "Trwale usuwa konto tego członka. Jego wiadomości stają się nieczytelne. Tej operacji nie można cofnąć.",
+      "bio_placeholder": "Opowiedz innym trochę o tym członku",
+      "bio_description": "Do {max} znaków, wyświetlane w profilu członka."
     },
     "member_delete": {
       "title": "Usuń członka",

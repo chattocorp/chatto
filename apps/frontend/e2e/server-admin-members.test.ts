@@ -118,7 +118,7 @@ test.describe('Server Admin Members', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
 
-      // Click on the row containing the admin's login (DataTable uses onRowClick)
+      // Click the row; DataTable forwards the click to the row link.
       await page.getByRole('row').filter({ hasText: admin.login }).click();
 
       // Should navigate to member details page
@@ -128,6 +128,27 @@ test.describe('Server Admin Members', () => {
       await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
+    });
+  });
+
+  test.describe('Members List Keyboard Access', () => {
+    test('server admin can open a member from the list with the keyboard', async ({
+      serverAdminPage
+    }) => {
+      const { page } = serverAdminPage;
+      const admin = await createAndLoginTestUser(page);
+      const server = await usePrimaryServerViaAPI(page);
+
+      await serverAdminPage.gotoMembersDirectly(server.id);
+
+      const row = page.getByRole('row').filter({ hasText: `@${admin.login}` });
+      const memberLink = row.getByRole('link');
+      await expect(memberLink).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      await memberLink.focus();
+      await page.keyboard.press('Enter');
+
+      await expect(page).toHaveURL(routes.serverAdminMember(admin.id!));
     });
   });
 

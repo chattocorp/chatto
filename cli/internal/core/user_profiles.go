@@ -18,8 +18,7 @@ import (
 const (
 	MaxCustomStatusEmojiLength = 16
 	MaxCustomStatusTextLength  = 100
-	// MaxBioLength bounds a user's self-authored public bio in Unicode
-	// characters.
+	// MaxBioLength bounds a user's public bio in Unicode characters.
 	MaxBioLength = 1000
 )
 
@@ -308,25 +307,46 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	return user, nil
 }
 
-type AdminUpdateUserInput struct {
-	Login       *string
-	DisplayName *string
-	Bio         *string
-}
-
-// AdminUpdateUser updates a human profile without advancing its login cooldown.
-// The actor needs user.manage-accounts, including when editing their own profile.
-func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*evtv1.User, error) {
-	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+// UpdateManagedUserProfile applies one identity patch to targetUserID as an
+// atomic batch. Omitted fields remain unchanged.
+//
+// A self-update delegates to UpdateOwnUserProfile and keeps its login
+// cooldown rules. Updating another account uses the same target-aware policy
+// as avatars: user.manage-accounts for humans; ownership, bot.manage, or
+// user.manage-accounts for bots. Such updates record actorID on the facts. A
+// login change by a bot owner or bot manager checks and starts the target's
+// login cooldown, as a self-service change would. An actor with
+// user.manage-accounts neither checks nor advances it. Conflicts are returned
+// to the caller; replacement values are never replayed after a concurrent
+// profile edit.
+func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string) (*evtv1.User, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if input.Login == nil && input.DisplayName == nil && input.Bio == nil {
+	if login == nil && displayName == nil && bio == nil {
 		return nil, fmt.Errorf("%w: at least one of login, display_name, or bio must be provided", ErrInvalidArgument)
 	}
-	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
+	if actorID == targetUserID {
+		return c.UpdateOwnUserProfile(ctx, actorID, login, displayName, bio)
+	}
+	enforceCooldown := false
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		if _, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID); err != nil {
+			return err
+		}
+		if login == nil {
+			return nil
+		}
+		canManageAccounts, err := c.CanManageUserAccounts(ctx, actorID)
+		if err != nil {
+			return fmt.Errorf("check user.manage-accounts: %w", err)
+		}
+		enforceCooldown = !canManageAccounts
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, input.Bio, true)
+	return c.updateUserProfileWithCooldown(ctx, actorID, targetUserID, login, displayName, bio, false, enforceCooldown)
 }
 
 // AdminClearLoginChangeCooldown clears a human account's login cooldown.

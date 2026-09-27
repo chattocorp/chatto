@@ -200,6 +200,7 @@ vi.mock('$lib/state/globals.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
 }));
 

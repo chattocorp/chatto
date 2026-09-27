@@ -124,6 +124,12 @@ const checks = [
     pattern: /<(?:select|textarea)\b/g
   },
   {
+    description:
+      'clickable table row or cell; put a data-table-row-link on a real link in the row instead',
+    pattern:
+      /<(?:tr|td)\b[^>]*\bon(?:click|auxclick|dblclick|keydown|pointerdown|pointerup|mousedown|mouseup)\b/g
+  },
+  {
     description: 'retired color token; use action or neutral-action',
     pattern: /(?:text|bg|border|ring|outline|from|to)-(?:accent|primary)(?:\b|\/)/g
   },

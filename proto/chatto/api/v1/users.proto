@@ -30,7 +30,7 @@ message User {
   CustomUserStatus custom_status = 7;
   reserved 8;
   reserved "is_bot";
-  // Short self-authored biography shown on the user's profile, when set.
+  // Short Markdown biography shown on the user's profile, when set.
   optional string bio = 9;
   // IANA time zone the user chose to share on their profile (for example
   // "Europe/Berlin"). Absent means the user has not enabled time-zone

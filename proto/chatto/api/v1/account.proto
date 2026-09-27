@@ -11,34 +11,6 @@ import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/api/v1/viewer.proto";
 
-// Request to update the authenticated user's profile. Human and bot accounts
-// use this same self-service operation. update_mask selects fields to apply
-// or reset. Fields outside the mask stay unchanged.
-message UpdateProfileRequest {
-  // New non-empty display name. The server also rejects control and
-  // confusing invisible characters.
-  optional string display_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
-  // New login identifier, when changing it. The server accepts ASCII letters,
-  // digits, period, underscore, and hyphen, starting with a letter or digit.
-  optional string login = 2 [(buf.validate.field).string = {
-    min_len: 2
-    max_len: 32
-  }];
-  // New Markdown biography, when changing it. Empty clears the bio.
-  optional string bio = 3 [(buf.validate.field).string.max_len = 1000];
-  // Editable fields to apply or reset: display_name, login, bio.
-  // Omit to infer populated fields; * selects all editable fields. An explicit
-  // empty mask is invalid. Unselected values are ignored. Selected absent values
-  // reset the field to its default, subject to field validation.
-  google.protobuf.FieldMask update_mask = 4;
-}
-
-// Result of a profile update.
-message UpdateProfileResponse {
-  // Updated user profile.
-  User user = 1;
-}
-
 // Request to update or add the authenticated user's password.
 message ChangePasswordRequest {
   // New password. The server applies the same password policy as registration
@@ -174,12 +146,10 @@ message DeleteMyAccountResponse {
   reserved "deleted";
 }
 
-// Self-service account, profile, display preference, presence,
-// custom-status, external identity, and account lifecycle commands for the
-// authenticated user.
+// Self-service account, display preference, presence, custom-status,
+// external identity, and account lifecycle commands for the authenticated
+// user. Public profile and avatar changes use UserService.
 service MyAccountService {
-  // Updates the authenticated user's login, display name, and/or bio.
-  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
   // Lists the authenticated user's verified email addresses and primary choice.

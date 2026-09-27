@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// MyAccountServiceUpdateProfileProcedure is the fully-qualified name of the MyAccountService's
-	// UpdateProfile RPC.
-	MyAccountServiceUpdateProfileProcedure = "/chatto.api.v1.MyAccountService/UpdateProfile"
 	// MyAccountServiceChangePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// ChangePassword RPC.
 	MyAccountServiceChangePasswordProcedure = "/chatto.api.v1.MyAccountService/ChangePassword"
@@ -94,8 +91,6 @@ const (
 
 // MyAccountServiceClient is a client for the chatto.api.v1.MyAccountService service.
 type MyAccountServiceClient interface {
-	// Updates the authenticated user's login, display name, and/or bio.
-	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
@@ -174,12 +169,6 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
 	return &myAccountServiceClient{
-		updateProfile: connect.NewClient[v1.UpdateProfileRequest, v1.UpdateProfileResponse](
-			httpClient,
-			baseURL+MyAccountServiceUpdateProfileProcedure,
-			connect.WithSchema(myAccountServiceMethods.ByName("UpdateProfile")),
-			connect.WithClientOptions(opts...),
-		),
 		changePassword: connect.NewClient[v1.ChangePasswordRequest, v1.ChangePasswordResponse](
 			httpClient,
 			baseURL+MyAccountServiceChangePasswordProcedure,
@@ -295,7 +284,6 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // myAccountServiceClient implements MyAccountServiceClient.
 type myAccountServiceClient struct {
-	updateProfile              *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
 	changePassword             *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
 	listVerifiedEmails         *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
 	requestEmailVerification   *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
@@ -314,11 +302,6 @@ type myAccountServiceClient struct {
 	deleteCustomStatus         *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
 	requestAccountDeletion     *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
 	deleteMyAccount            *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
-}
-
-// UpdateProfile calls chatto.api.v1.MyAccountService.UpdateProfile.
-func (c *myAccountServiceClient) UpdateProfile(ctx context.Context, req *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
-	return c.updateProfile.CallUnary(ctx, req)
 }
 
 // ChangePassword calls chatto.api.v1.MyAccountService.ChangePassword.
@@ -413,8 +396,6 @@ func (c *myAccountServiceClient) DeleteMyAccount(ctx context.Context, req *conne
 
 // MyAccountServiceHandler is an implementation of the chatto.api.v1.MyAccountService service.
 type MyAccountServiceHandler interface {
-	// Updates the authenticated user's login, display name, and/or bio.
-	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
@@ -489,12 +470,6 @@ type MyAccountServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
-	myAccountServiceUpdateProfileHandler := connect.NewUnaryHandler(
-		MyAccountServiceUpdateProfileProcedure,
-		svc.UpdateProfile,
-		connect.WithSchema(myAccountServiceMethods.ByName("UpdateProfile")),
-		connect.WithHandlerOptions(opts...),
-	)
 	myAccountServiceChangePasswordHandler := connect.NewUnaryHandler(
 		MyAccountServiceChangePasswordProcedure,
 		svc.ChangePassword,
@@ -607,8 +582,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 	)
 	return "/chatto.api.v1.MyAccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case MyAccountServiceUpdateProfileProcedure:
-			myAccountServiceUpdateProfileHandler.ServeHTTP(w, r)
 		case MyAccountServiceChangePasswordProcedure:
 			myAccountServiceChangePasswordHandler.ServeHTTP(w, r)
 		case MyAccountServiceListVerifiedEmailsProcedure:
@@ -653,10 +626,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 
 // UnimplementedMyAccountServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMyAccountServiceHandler struct{}
-
-func (UnimplementedMyAccountServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdateProfile is not implemented"))
-}
 
 func (UnimplementedMyAccountServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ChangePassword is not implemented"))

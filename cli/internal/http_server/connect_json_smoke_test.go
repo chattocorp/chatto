@@ -118,6 +118,6 @@ func TestConnectJSONIntegrationSmoke(t *testing.T) {
 	require.Equal(t, "invalid_argument", call(token, bots+"ListBots", `{"page":{"limit":501}}`, 400)["code"])
 	require.Equal(t, "not_found", call(token, "chatto.api.v1.UserService/GetUser", `{"userId":"missing-user"}`, 404)["code"])
 	require.Equal(t, "permission_denied", call(token, "chatto.admin.v1.AdminServerService/UpdateBlockedUsernames", `{"blockedUsernames":["blocked"],"updateMask":"blockedUsernames"}`, 403)["code"])
-	call(token, account+"UpdateProfile", `{"login":"json-smoke-renamed","updateMask":"login"}`, 200)
-	require.Equal(t, "failed_precondition", call(token, account+"UpdateProfile", `{"login":"json-smoke-again","updateMask":"login"}`, 400)["code"])
+	call(token, "chatto.api.v1.UserService/UpdateUserProfile", `{"userId":"`+owner.GetId()+`","login":"json-smoke-renamed","updateMask":"login"}`, 200)
+	require.Equal(t, "failed_precondition", call(token, "chatto.api.v1.UserService/UpdateUserProfile", `{"userId":"`+owner.GetId()+`","login":"json-smoke-again","updateMask":"login"}`, 400)["code"])
 }

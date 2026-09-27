@@ -34,6 +34,17 @@ describe('MessageUserInteractionState', () => {
     expect(state.hasCurrentMember(member.id)).toBe(false);
   });
 
+  it('keeps the bot owner of an actor who is no longer in the room', () => {
+    const state = new MessageUserInteractionState(() => []);
+
+    state.showUser(
+      { ...member, deleted: false, isBot: true, bot: { ownerUserId: 'owner-1' } },
+      null
+    );
+
+    expect(state.user?.bot).toEqual({ ownerUserId: 'owner-1' });
+  });
+
   it('tracks the selected user and current membership independently', () => {
     const state = new MessageUserInteractionState(() => [member]);
     const rect = new DOMRect(1, 2, 3, 4);

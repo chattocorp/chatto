@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -96,6 +96,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
@@ -176,6 +177,7 @@ describe('notifications page', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -856,13 +858,8 @@ describe('notifications page', () => {
   });
 
   it('groups rows by date in the viewer timezone', async () => {
-    // Fix the clock at midday in Auckland. Near local midnight on a daylight
-    // saving day, 24 hours earlier can be two calendar days earlier.
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-06-15T00:00:00Z'));
-    onTestFinished(() => {
-      vi.useRealTimers();
-    });
+    // Keep the 24-hour fixture interval away from daylight-saving changes.
+    vi.setSystemTime(new Date('2026-07-15T12:00:00Z'));
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1_000);
     const older = new Date(now);

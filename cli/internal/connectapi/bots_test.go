@@ -104,20 +104,49 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUser bot: %v", err)
 	}
-	updated, err := env.account.UpdateProfile(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.UpdateProfileRequest{
+	updated, err := env.users.UpdateUserProfile(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId:      botCore.GetId(),
 		Login:       stringPtr("updated-connect-helper"),
 		DisplayName: stringPtr("Updated Connect Bot"),
 		Bio:         stringPtr("**Build helper**"),
 	}))
 	if err != nil {
-		t.Fatalf("bot UpdateProfile: %v", err)
+		t.Fatalf("bot UpdateUserProfile: %v", err)
 	}
 	if user := updated.Msg.GetUser(); user.GetLogin() != "updated-connect-helper" || user.GetDisplayName() != "Updated Connect Bot" || user.GetBio() != "**Build helper**" {
 		t.Fatalf("updated bot user = %+v", user)
 	}
+	ownerUpdated, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: bot.GetUser().GetId(),
+		Bio:    stringPtr("Maintained by its owner."),
+	}))
+	if err != nil {
+		t.Fatalf("owner UpdateUserProfile bot: %v", err)
+	}
+	if user := ownerUpdated.Msg.GetUser(); user.GetBio() != "Maintained by its owner." || user.GetLogin() != "updated-connect-helper" {
+		t.Fatalf("owner-updated bot user = %+v", user)
+	}
+	// The bot's own rename above started its username cooldown. It also
+	// applies to the owner, and bot reads expose it.
+	if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: bot.GetUser().GetId(),
+		Login:  stringPtr("owner-renamed-helper"),
+	})); errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("owner rename during bot cooldown code = %v, want failed precondition", errorCode(err))
+	}
+	cooldownBot, err := service.GetBot(ctx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.GetUser().GetId()}))
+	if err != nil || cooldownBot.Msg.GetBot().GetLastLoginChange() == nil {
+		t.Fatalf("GetBot during cooldown = %+v, %v; want last_login_change", cooldownBot, err)
+	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	if _, err := env.users.UpdateUserProfile(withCaller(env.ctx, recipient), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: bot.GetUser().GetId(),
+		Bio:    stringPtr("Not my bot."),
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("stranger UpdateUserProfile bot code = %v, want permission denied", errorCode(err))
 	}
 	_, err = service.ReassignBotOwner(ctx, connect.NewRequest(&apiv1.ReassignBotOwnerRequest{
 		BotUserId: bot.GetUser().GetId(), OwnerUserId: recipient.GetId(),

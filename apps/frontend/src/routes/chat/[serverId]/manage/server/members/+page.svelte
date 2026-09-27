@@ -1,6 +1,5 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
@@ -154,13 +153,6 @@
           onLoadMore={loadMore}
           loadMoreRoot={scrollContainer}
           loadingMoreMessage={m('admin.members.loading_more')}
-          onRowClick={(user) =>
-            goto(
-              resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                serverId: serverIdToSegment(serverScope.serverId),
-                userId: user.id
-              })
-            )}
         >
           {#snippet header()}
             <th class="table-header-cell">{m('admin.common.user')}</th>
@@ -173,7 +165,15 @@
             <td class="px-4 py-3">
               <div class="flex items-center gap-2">
                 <UserAvatar user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }} size="sm" />
-                <AccountName name={user.displayName} identity={user} />
+                <a
+                  class="data-table-row-link min-w-0"
+                  href={resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                    serverId: serverIdToSegment(serverScope.serverId),
+                    userId: user.id
+                  })}
+                >
+                  <AccountName name={user.displayName || user.login} identity={user} />
+                </a>
               </div>
             </td>
             <td class="px-4 py-3 text-muted">@{user.login}</td>

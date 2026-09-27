@@ -134,7 +134,9 @@
       "role_update_failed": "Rollenzuweisung konnte nicht aktualisiert werden",
       "danger_zone": "Gefahrenzone",
       "open_delete_account": "Konto löschen",
-      "delete_account_entry_description": "Löscht das Konto dieses Mitglieds endgültig. Seine Nachrichten werden unlesbar. Dies kann nicht rückgängig gemacht werden."
+      "delete_account_entry_description": "Löscht das Konto dieses Mitglieds endgültig. Seine Nachrichten werden unlesbar. Dies kann nicht rückgängig gemacht werden.",
+      "bio_placeholder": "Erzähl anderen ein wenig über dieses Mitglied",
+      "bio_description": "Bis zu {max} Zeichen, wird im Profil des Mitglieds angezeigt."
     },
     "member_delete": {
       "title": "Mitglied löschen",

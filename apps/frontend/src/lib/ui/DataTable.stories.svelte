@@ -74,6 +74,34 @@
 </Story>
 
 <Story
+  name="Linked rows"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Put a `data-table-row-link` on a real link in the primary cell. The whole row opens the link, the link is one keyboard stop, and other controls in the row stay operable.'
+      }
+    }
+  }}
+>
+  <div class="max-w-3xl">
+    <Panel title="Spaces" noPadding>
+      <DataTable items={rows} columns={4} getKey={(row) => row.id} header={tableHeader}>
+        {#snippet row(row: SpaceRow)}
+          <td class="px-4 py-3 font-medium">
+            <a class="data-table-row-link" href={`#${row.id}`}>{row.name}</a>
+          </td>
+          <td class="px-4 py-3"><CopyId value={row.id} /></td>
+          <td class="px-4 py-3 text-end tabular-nums">{row.members}</td>
+          <td class="px-4 py-3"><Pill>{row.visibility}</Pill></td>
+        {/snippet}
+      </DataTable>
+    </Panel>
+  </div>
+</Story>
+
+<Story
   name="Following controls"
   asChild
   parameters={{

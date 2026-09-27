@@ -134,7 +134,9 @@
       "role_update_failed": "Det gick inte att uppdatera rolltilldelningen",
       "danger_zone": "Riskzon",
       "open_delete_account": "Ta bort konto",
-      "delete_account_entry_description": "Tar bort medlemmens konto permanent. Deras meddelanden blir oläsbara. Detta går inte att ångra."
+      "delete_account_entry_description": "Tar bort medlemmens konto permanent. Deras meddelanden blir oläsbara. Detta går inte att ångra.",
+      "bio_placeholder": "Berätta lite om den här medlemmen för andra",
+      "bio_description": "Upp till {max} tecken, visas i medlemmens profil."
     },
     "member_delete": {
       "title": "Ta bort medlem",

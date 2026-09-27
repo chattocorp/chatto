@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { render } from 'vitest-browser-svelte';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
     ownerUserId: 'owner-user-id',
     createdAt: null,
     apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
+    lastLoginChange: null as Date | null,
     apiKeys: [
       {
         id: 'legacy',
@@ -62,6 +64,7 @@ const api = {
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
+  updateUserProfile: vi.fn(),
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn()
 };
@@ -115,6 +118,18 @@ describe('Bot detail page', () => {
         }
       }
     });
+    mocks.bot.lastLoginChange = null;
+    api.updateUserProfile.mockImplementation(
+      (userId: string, input: { login?: string; displayName?: string; bio?: string }) =>
+        Promise.resolve({
+          id: userId,
+          login: input.login ?? mocks.bot.login,
+          displayName: input.displayName ?? mocks.bot.displayName,
+          bio: input.bio ?? mocks.bot.bio,
+          deleted: false,
+          avatarUrl: null
+        })
+    );
     api.listOutboundWebhooks.mockResolvedValue([]);
     api.getBot.mockResolvedValue(mocks.bot);
     api.batchGetUsers.mockResolvedValue([]);
@@ -229,6 +244,230 @@ describe('Bot detail page', () => {
     expect((container.querySelector('#create-bot-webhook-room') as HTMLSelectElement).value).toBe(
       ''
     );
+  });
+
+  it('saves only the changed bot profile fields and caches the result', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-display-name"]') as HTMLInputElement,
+      'Renamed Bot'
+    );
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+        displayName: 'Renamed Bot'
+      })
+    );
+    await vi.waitFor(() => {
+      const cached = queryClient.getQueryData<{ displayName: string; bio: string | null }>(
+        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+      );
+      expect(cached?.displayName).toBe('Renamed Bot');
+      expect(cached?.bio).toBe('Initial bot bio');
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Bot profile updated');
+  });
+
+  it('keeps the bot profile draft when a save fails', async () => {
+    api.updateUserProfile.mockRejectedValueOnce(new Error('Username is already taken'));
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    setInput(login, 'taken_login');
+    buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() => buttonByText(document, 'Change username').click());
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Username is already taken'));
+    expect(login.value).toBe('taken_login');
+  });
+
+  it('does not send back an untouched field that changed during the edit', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement,
+      'renamed_bot'
+    );
+    // A realtime refresh delivers another manager's display-name change.
+    queryClient.setQueryData(
+      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id'),
+      { ...mocks.bot, displayName: 'Renamed Elsewhere' }
+    );
+    flushSync();
+    await vi.waitFor(() => expect(container.textContent).toContain('Renamed Elsewhere'));
+    buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() => buttonByText(document, 'Change username').click());
+
+    await vi.waitFor(() =>
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+        login: 'renamed_bot'
+      })
+    );
+  });
+
+  it('shows a localized message when the profile changed concurrently', async () => {
+    api.updateUserProfile.mockRejectedValueOnce(
+      new ConnectError('optimistic concurrency sequence mismatch', Code.Aborted)
+    );
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-display-name"]') as HTMLInputElement,
+      'Conflicting Name'
+    );
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('This profile changed while you were editing it.')
+    );
+    expect(container.textContent).not.toContain('optimistic concurrency');
+  });
+
+  it('confirms a username change and then locks the username during the cooldown', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    setInput(login, 'fresh_name');
+    buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Change the username of this bot to @fresh_name?')
+    );
+    expect(api.updateUserProfile).not.toHaveBeenCalled();
+
+    buttonByText(document, 'Change username').click();
+    await vi.waitFor(() =>
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', { login: 'fresh_name' })
+    );
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).not.toBeNull()
+    );
+    expect(login.disabled).toBe(true);
+  });
+
+  it('saves a case-only rename without confirmation or a cooldown lock', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    setInput(login, 'Helper_Bot');
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', { login: 'Helper_Bot' })
+    );
+    expect(document.body.textContent).not.toContain('Change the username of this bot');
+    await vi.waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(login.disabled).toBe(false);
+    expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).toBeNull();
+  });
+
+  it('keeps the started cooldown in the bot cache after a rename', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement,
+      'fresh_name'
+    );
+    buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() => buttonByText(document, 'Change username').click());
+
+    await vi.waitFor(() => {
+      const cached = queryClient.getQueryData<{ lastLoginChange: Date | null }>(
+        settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id')
+      );
+      expect(cached?.lastLoginChange).toBeInstanceOf(Date);
+    });
+  });
+
+  it('explains why a username edit cannot be saved when a cooldown starts during the edit', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement,
+      'late_rename'
+    );
+    // Another manager's rename arrives while this form is open.
+    queryClient.setQueryData(
+      settingsQueryKeys.bot('server-1', server.scope.connection, 'bot-user-id'),
+      { ...mocks.bot, lastLoginChange: new Date() }
+    );
+    flushSync();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).not.toBeNull()
+    );
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.form-error')?.textContent).toContain(
+        'The username of this bot can change again in'
+      )
+    );
+    expect(api.updateUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('uses bot-specific help text for the bio', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.textContent).toContain('shown on the profile of the bot.');
+    expect(container.textContent).not.toContain('shown on your profile');
+  });
+
+  it('locks the username while the bot cooldown is active', async () => {
+    mocks.bot.lastLoginChange = new Date();
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    expect(login.disabled).toBe(true);
+    expect(
+      container.querySelector('[data-testid="bot-profile-login-cooldown"]')?.textContent
+    ).toContain('The username of this bot can change again in');
+  });
+
+  it('lets an account manager rename a bot during its cooldown without confirmation', async () => {
+    server.permissions.canManageBots = false;
+    server.permissions.canAdminManageAccounts = true;
+    mocks.bot.lastLoginChange = new Date();
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    expect(login.disabled).toBe(false);
+    setInput(login, 'admin_renamed');
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(api.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+        login: 'admin_renamed'
+      })
+    );
+    expect(document.body.textContent).not.toContain('Change the username of this bot');
+  });
+
+  it('hides bot profile editing on servers without managed profile updates', async () => {
+    server.features = { managedUserProfiles: false };
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-profile-login"]')).toBeNull();
+  });
+
+  it('hides bot profile editing from viewers who cannot manage the bot', async () => {
+    server.permissions.canManageBots = false;
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-profile-login"]')).toBeNull();
   });
 
   it('uploads the selected bot avatar through the user API', async () => {
@@ -443,13 +682,14 @@ describe('Bot detail page', () => {
     expect(container.textContent).not.toContain('Reassign owner');
   });
 
-  it('shows only avatar management to an account manager who does not manage bots', async () => {
+  it('shows only identity management to an account manager who does not manage bots', async () => {
     server.permissions.canManageBots = false;
     server.permissions.canAdminManageAccounts = true;
     const { container } = render(BotDetailPage);
     await settle();
 
     expect(container.textContent).toContain('Upload avatar');
+    expect(container.querySelector('[data-testid="bot-profile-login"]')).not.toBeNull();
     expect(container.textContent).not.toContain('Create API key');
     expect(container.textContent).not.toContain('Create incoming webhook');
     expect(container.textContent).not.toContain('Reassign owner');

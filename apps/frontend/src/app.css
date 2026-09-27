@@ -886,12 +886,27 @@
   border-radius: 0;
 }
 
+/* DataTable body row. A row is navigable when one of its cells contains a
+ * `data-table-row-link`: DataTable forwards plain clicks on the row to that
+ * link, and keyboard focus on the link highlights the whole row. The marker
+ * class needs no styles of its own; the link keeps its caller's text styling.
+ */
+@utility data-table-row {
+  &:has(.data-table-row-link) {
+    cursor: pointer;
+  }
+
+  &:has(.data-table-row-link:focus-visible) {
+    @apply bg-surface/70;
+  }
+}
+
 /* Standard record-table header cell. Matrix headers remain deliberately
  * bespoke because their vertical labels encode a different interaction.
- */
-/* Header cells set their own alignment: browsers centre th unless the
+ * Header cells set their own alignment: browsers centre th unless the
  * inherited alignment differs from start, so a logical text-start on the row
- * would not reach them. Callers may still override with text-end. */
+ * would not reach them. Callers may still override with text-end.
+ */
 @utility table-header-cell {
   @apply px-4 py-2.5 text-start font-medium;
 }

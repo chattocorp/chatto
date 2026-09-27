@@ -7,14 +7,16 @@
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import {
     createAdminUserManagementAPI,
-    type AdminManagedUser,
     type AdminMember,
     type AdminMemberDetails,
     type AdminRoleMutationResult,
-    type AdminUpdateUserInput,
     type AdminUserManagementAPI
   } from '$lib/api-client/adminUsers';
-  import { createUserAPI } from '$lib/api-client/users';
+  import {
+    createUserAPI,
+    type UpdateUserProfileInput,
+    type UserSummary
+  } from '$lib/api-client/users';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { m } from '$lib/i18n/messages';
@@ -113,7 +115,7 @@
     privacyGeneration: number;
   };
   type IdentityMutationVariables = MemberMutationScope & {
-    input: Omit<AdminUpdateUserInput, 'userId'>;
+    input: UpdateUserProfileInput;
     roleNames: string[];
   };
   type PasswordMutationVariables = MemberMutationScope & { password: string };
@@ -173,14 +175,15 @@
 
   const identityMutation = createMutation(
     () => ({
-      mutationFn: ({ api, userId: targetUserId, input }: IdentityMutationVariables) =>
-        api.updateUser({ userId: targetUserId, ...input }),
+      mutationFn: ({ connection, userId: targetUserId, input }: IdentityMutationVariables) =>
+        connection.getAPI(createUserAPI).updateUserProfile(targetUserId, input),
       onSuccess: (updated, target) => {
         if (!isCurrentTarget(target)) return;
         updateCachedMember(target, (current) => ({
           ...current,
           login: updated.login,
-          displayName: updated.displayName
+          displayName: updated.displayName,
+          bio: updated.bio ?? null
         }));
         invalidateMemberLists(target);
         for (const roleName of target.roleNames) invalidateRole(target, roleName);
@@ -230,10 +233,7 @@
     () => queryClient
   );
 
-  async function updateIdentity(input: {
-    login?: string;
-    displayName?: string;
-  }): Promise<AdminManagedUser | null> {
+  async function updateIdentity(input: UpdateUserProfileInput): Promise<UserSummary | null> {
     const target = mutationScope();
     if (!target || !member) return null;
     const updated = await identityMutation.mutateAsync({

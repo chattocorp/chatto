@@ -23,6 +23,8 @@ external value changes, such as a successful save, update the mounted editor.
     editorKind,
     disabled = false,
     maxlength = 1000,
+    placeholder,
+    description,
     oninput
   }: {
     value?: string;
@@ -30,6 +32,10 @@ external value changes, such as a successful save, update the mounted editor.
     disabled?: boolean;
     /** Maximum number of Unicode characters in the saved Markdown source. */
     maxlength?: number;
+    /** Editor placeholder. Defaults to the copy for the viewer's own profile. */
+    placeholder?: string;
+    /** Help text under the editor. Defaults to the copy for the viewer's own profile. */
+    description?: string;
     oninput?: () => void;
   } = $props();
 
@@ -87,6 +93,7 @@ external value changes, such as a successful save, update the mounted editor.
     {indentState}
     {editorApi}
     inputDisabled={disabled}
+    animated={false}
   />
   <div class="input min-w-0 [--composer-min-height:8rem] [&_.ProseMirror]:min-h-32">
     {#key editorKind}
@@ -94,7 +101,7 @@ external value changes, such as a successful save, update the mounted editor.
         <LoadingFog class="h-32 w-full" />
       {:then { default: Editor }}
         <Editor
-          placeholder={m('settings.profile.bio.placeholder')}
+          placeholder={placeholder ?? m('settings.profile.bio.placeholder')}
           editable={!disabled}
           testid="settings-bio"
           onReady={ready}
@@ -111,7 +118,7 @@ external value changes, such as a successful save, update the mounted editor.
     {/key}
   </div>
   <p id={id + '-description'} class="text-sm text-muted">
-    {m('settings.profile.bio.description', { max: maxlength })}
+    {description ?? m('settings.profile.bio.description', { max: maxlength })}
   </p>
   <p class={['text-end text-sm', characterCount > maxlength ? 'text-danger' : 'text-muted']}>
     {characterCount} / {maxlength}

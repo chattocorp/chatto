@@ -134,7 +134,9 @@
       "role_update_failed": "無法更新角色指派",
       "danger_zone": "危險區域",
       "open_delete_account": "刪除帳號",
-      "delete_account_entry_description": "永久刪除此成員的帳號。其訊息將變為無法讀取。此操作無法復原。"
+      "delete_account_entry_description": "永久刪除此成員的帳號。其訊息將變為無法讀取。此操作無法復原。",
+      "bio_placeholder": "向其他人簡單介紹一下此成員",
+      "bio_description": "最多 {max} 個字元，顯示在成員的個人檔案中。"
     },
     "member_delete": {
       "title": "刪除成員",

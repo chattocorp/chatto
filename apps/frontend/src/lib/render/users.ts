@@ -16,6 +16,8 @@ export type UserAvatarUserView = {
   displayName: string;
   deleted: boolean;
   isBot?: boolean;
+  /** Public human owner of an active bot; absent for other accounts. */
+  bot?: { ownerUserId: string };
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: CustomUserStatusView | null;

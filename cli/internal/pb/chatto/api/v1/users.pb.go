@@ -85,7 +85,7 @@ type User struct {
 	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
 	// Custom profile status, when set.
 	CustomStatus *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
-	// Short self-authored biography shown on the user's profile, when set.
+	// Short Markdown biography shown on the user's profile, when set.
 	Bio *string `protobuf:"bytes,9,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
 	// IANA time zone the user chose to share on their profile (for example
 	// "Europe/Berlin"). Absent means the user has not enabled time-zone

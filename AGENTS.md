@@ -101,6 +101,11 @@ For an ad-hoc tool command, use `mise x -- ...`. Do not assume that `go`,
 not run it at the same time as `mise test-cli`, a frontend build, or another
 task that reads `packages/api-types/dist`.
 
+Put scratch files, such as PR bodies, commit messages, logs, and file backups,
+in the gitignored `.context/` directory of the worktree. Do not use fixed paths
+in `/tmp`. Parallel agent sessions share `/tmp` and can overwrite each other's
+files. Use `mktemp` when a file must be outside the worktree.
+
 When an agent needs the long-running development stack, launch `mise dev`; the
 task runs the child processes through `tools/dev-supervisor.sh` so lifecycle
 signals reach them directly. Stop it before handing control back to the user.

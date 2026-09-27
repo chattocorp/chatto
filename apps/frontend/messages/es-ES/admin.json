@@ -134,7 +134,9 @@
       "role_update_failed": "No se pudo actualizar la asignación de roles",
       "danger_zone": "Zona de peligro",
       "open_delete_account": "Eliminar cuenta",
-      "delete_account_entry_description": "Elimina definitivamente la cuenta de este miembro. Sus mensajes quedan ilegibles. Esto no se puede deshacer."
+      "delete_account_entry_description": "Elimina definitivamente la cuenta de este miembro. Sus mensajes quedan ilegibles. Esto no se puede deshacer.",
+      "bio_placeholder": "Cuéntales a los demás un poco sobre este miembro",
+      "bio_description": "Hasta {max} caracteres, se muestra en el perfil del miembro."
     },
     "member_delete": {
       "title": "Eliminar miembro",

@@ -6,6 +6,7 @@ import MentionAutocomplete from './MentionAutocomplete.svelte';
 import type { RoomMember } from '$lib/state/room';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,

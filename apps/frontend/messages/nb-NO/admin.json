@@ -134,7 +134,9 @@
       "role_update_failed": "Kunne ikke oppdatere rolletildelingen",
       "danger_zone": "Faresone",
       "open_delete_account": "Slett konto",
-      "delete_account_entry_description": "Sletter dette medlemmets konto permanent. Meldingene blir uleselige. Dette kan ikke angres."
+      "delete_account_entry_description": "Sletter dette medlemmets konto permanent. Meldingene blir uleselige. Dette kan ikke angres.",
+      "bio_placeholder": "Fortell andre litt om dette medlemmet",
+      "bio_description": "Opptil {max} tegn, vises på profilen til medlemmet."
     },
     "member_delete": {
       "title": "Slett medlem",

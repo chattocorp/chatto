@@ -112,6 +112,29 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: members}), nil
 }
 
+func (s *userService) UpdateUserProfile(ctx context.Context, req *connect.Request[apiv1.UpdateUserProfileRequest]) (*connect.Response[apiv1.UpdateUserProfileResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	if req.Msg.GetUserId() == "" {
+		return nil, invalidArgument("user_id is required")
+	}
+	updated, err := s.api.core.UpdateManagedUserProfile(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.Login, req.Msg.DisplayName, req.Msg.Bio)
+	if err != nil {
+		return nil, err
+	}
+	user, err := requiredUserSummary(ctx, s.api, updated)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.UpdateUserProfileResponse{User: user}), nil
+}
+
 func (s *userService) UploadAvatar(ctx context.Context, req *connect.Request[apiv1.UploadAvatarRequest]) (*connect.Response[apiv1.UploadAvatarResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

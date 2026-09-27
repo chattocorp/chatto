@@ -197,22 +197,6 @@ describe('DataTable.hoverable', () => {
     expect(viewport.className).not.toContain('max-h-[70dvh]');
   });
 
-  it('still renders cursor-pointer on hoverable=false rows when onRowClick is set', async () => {
-    const onRowClick = vi.fn();
-    const { container } = render(DataTable, {
-      props: {
-        items: [{ id: '1' }],
-        columns: 1,
-        header: testSnippet('<th>X</th>'),
-        row: testSnippet('<td>x</td>'),
-        hoverable: false,
-        onRowClick
-      }
-    });
-    const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).toContain('cursor-pointer');
-  });
-
   it('does not render an auto-load sentinel by default', async () => {
     const { container } = renderTable();
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1);

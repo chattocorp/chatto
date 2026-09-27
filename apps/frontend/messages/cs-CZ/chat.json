@@ -48,6 +48,7 @@
       "send_message": "Odeslat zprávu",
       "view_profile": "Zobrazit profil",
       "profile_requires_direct_message": "K zobrazení tohoto profilu je nutná přímá zpráva.",
+      "manage_bot": "Spravovat robota",
       "view_in_admin": "Zobrazit ve správě serveru",
       "copy_user_id": "Zkopírovat ID uživatele"
     },

@@ -2,8 +2,14 @@
 @component
 
 The standard semantic record table. Consumers provide header and row snippets;
-this component provides the viewport, empty state, row interaction, grouping,
-and optional incremental loading.
+this component provides the viewport, empty state, grouping, and optional
+incremental loading.
+
+To make a row navigable, render a real link with the `data-table-row-link`
+class in a cell that uniquely identifies the record, usually its name. The
+link stays the row's single keyboard stop and names the row for assistive
+technology. Plain clicks elsewhere in the row activate it, while other links,
+buttons, and context menus in the row keep their own behaviour.
 -->
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
@@ -11,6 +17,7 @@ and optional incremental loading.
   import ScrollFader from './ScrollFader.svelte';
   import { m } from '$lib/i18n/messages';
   import LoadingFog from './LoadingFog.svelte';
+  import { forwardRowClicks } from './dataTableRowLinks';
 
   let {
     items,
@@ -22,7 +29,6 @@ and optional incremental loading.
     empty,
     loading = false,
     loadingMessage = m('common.loading'),
-    onRowClick,
     getKey,
     getGroupKey,
     group,
@@ -55,7 +61,6 @@ and optional incremental loading.
      * loading message.
      */
     loadingMessage?: string;
-    onRowClick?: (item: T) => void;
     getKey?: (item: T, index: number) => unknown;
     getGroupKey?: (item: T, index: number) => string | null | undefined;
     group?: Snippet<[T]>;
@@ -159,7 +164,7 @@ and optional incremental loading.
         {@render header()}
       </tr>
     </thead>
-    <tbody class="bg-background">
+    <tbody class="bg-background" {@attach forwardRowClicks}>
       {#each items as item, index (keyFn(item, index))}
         {#if shouldRenderGroup(item, index)}
           <tr class="border-b border-border bg-surface/80">
@@ -171,11 +176,9 @@ and optional incremental loading.
         {@render beforeRow?.(item)}
         <tr
           class={[
-            'border-b border-border last:border-0',
-            hoverable ? 'hover:bg-surface/70' : '',
-            onRowClick ? 'cursor-pointer' : ''
+            'data-table-row border-b border-border last:border-0',
+            hoverable ? 'hover:bg-surface/70' : ''
           ]}
-          onclick={() => onRowClick?.(item)}
         >
           {@render row(item)}
         </tr>

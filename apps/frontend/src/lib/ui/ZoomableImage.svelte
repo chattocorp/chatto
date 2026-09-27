@@ -2,6 +2,11 @@
 An image stage with local zoom and pan state. The parent keeps this component
 mounted when a signed image URL refreshes and remounts it for another image.
 -->
+<script module lang="ts">
+  /** Maximum magnification relative to the fitted image. */
+  const MAX_ZOOM = 16;
+</script>
+
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   import { m } from '$lib/i18n/messages';
@@ -48,7 +53,7 @@ mounted when a signed image URL refreshes and remounts it for another image.
 
   /** Adjust the offset so the stage point under the cursor stays fixed. */
   function zoomAt(requested: number, clientX?: number, clientY?: number) {
-    const next = Math.max(1, Math.min(4, requested));
+    const next = Math.max(1, Math.min(MAX_ZOOM, requested));
     if (next === zoom) return;
     const rect = stage.getBoundingClientRect();
     const x = (clientX ?? rect.left + rect.width / 2) - rect.left - rect.width / 2;
@@ -218,7 +223,7 @@ mounted when a signed image URL refreshes and remounts it for another image.
       type="button"
       class="icon-action text-white"
       aria-label={m('ui.image_modal.zoom_in')}
-      disabled={zoom >= 4}
+      disabled={zoom >= MAX_ZOOM}
       onclick={() => zoomAt(zoom + 0.25)}
     >
       <span class="iconify icon-[uil--plus] text-xl" aria-hidden="true"></span>

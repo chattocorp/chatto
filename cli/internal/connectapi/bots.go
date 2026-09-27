@@ -209,6 +209,13 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		return nil, err
 	}
 	out := &apiv1.Bot{User: user, OwnerUserId: bot.OwnerUserID, CreatedAt: bot.User.GetCreatedAt(), ApiKeyCreatedAt: timestamppb.New(bot.APIKeyCreatedAt)}
+	lastLoginChange, err := api.core.GetLastLoginChange(ctx, bot.User.GetId())
+	if err != nil {
+		return nil, err
+	}
+	if !lastLoginChange.IsZero() {
+		out.LastLoginChange = timestamppb.New(lastLoginChange)
+	}
 	for _, key := range bot.APIKeys {
 		mapped := &apiv1.BotApiKey{Id: key.ID, Name: key.Name, CreatedAt: timestamppb.New(key.CreatedAt)}
 		switch key.LastUsedState {

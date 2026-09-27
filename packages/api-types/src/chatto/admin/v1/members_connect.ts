@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -71,19 +71,6 @@ export const AdminUserService = {
       name: "RevokeRole",
       I: RevokeRoleRequest,
       O: RevokeRoleResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Updates a human user's login and/or display name without applying the
-     * username-change cooldown. Requires user.manage-accounts, including when
-     * the caller targets their own account. Preserves the cooldown timestamp.
-     *
-     * @generated from rpc chatto.admin.v1.AdminUserService.UpdateUser
-     */
-    updateUser: {
-      name: "UpdateUser",
-      I: UpdateUserRequest,
-      O: UpdateUserResponse,
       kind: MethodKind.Unary,
     },
     /**

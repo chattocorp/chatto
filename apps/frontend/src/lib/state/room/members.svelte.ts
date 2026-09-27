@@ -27,6 +27,8 @@ export type RoomMember = {
   displayName: string;
   deleted?: boolean;
   isBot?: boolean;
+  /** Public human owner of an active bot; absent for other accounts. */
+  bot?: { ownerUserId: string };
   avatarUrl?: string | null;
   customStatus?: CustomUserStatus | null;
   presenceStatus: PresenceStatus;
@@ -589,6 +591,7 @@ function memberFromDirectory(member: DirectoryMember): RoomMember {
     displayName: member.displayName,
     deleted: member.deleted,
     isBot: member.isBot,
+    ...(member.bot ? { bot: { ownerUserId: member.bot.ownerUserId } } : {}),
     avatarUrl: member.avatarUrl,
     customStatus: member.customStatus,
     presenceStatus: member.presenceStatus
