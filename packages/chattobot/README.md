@@ -140,8 +140,9 @@ references and follow their links:
   read as raw Markdown from `raw.githubusercontent.com`. Its entries are
   unofficial third-party projects. The agent cannot open the linked projects.
 
-The agent is instructed to cite pages it reads, to say which documentation version
-it used, and to say when the references do not answer a question. Published
+The agent is instructed to check the Awesome Chatto list in addition to the
+documentation for each Chatto question. It cites pages it reads, says which
+documentation version it used, and says when the references do not answer a question. Published
 documentation can differ from the connected server version.
 The tool permits only those HTTPS locations, including redirects. It rejects URL
 credentials and query strings, limits requests to 15 seconds and 512 KB, and
