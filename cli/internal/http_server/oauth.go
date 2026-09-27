@@ -254,7 +254,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 
 			credentials, userID, err := s.core.ExchangeAuthCodeForClientResourceSession(ctx, req.Code, req.CodeVerifier, req.RedirectURI, req.ClientID, strings.TrimSpace(req.Resource))
 			if err != nil {
-				writeOAuthCodeExchangeError(c, err)
+				writeOAuthCodeExchangeError(c, err, req.ClientID)
 				return
 			}
 			response := oauthBearerSessionResponse(credentials)
@@ -459,7 +459,7 @@ func oauthBearerSessionResponse(credentials core.BearerSessionCredentials) gin.H
 	}
 }
 
-func writeOAuthCodeExchangeError(c *gin.Context, err error) {
+func writeOAuthCodeExchangeError(c *gin.Context, err error, clientID string) {
 	status := http.StatusBadRequest
 	oauthErr := "invalid_grant"
 	desc := "Authorization code is invalid or has expired"
@@ -473,7 +473,7 @@ func writeOAuthCodeExchangeError(c *gin.Context, err error) {
 		desc = "client_id does not match the authorization request"
 	case errors.Is(err, core.ErrOAuthClientBlocked):
 		oauthErr = "invalid_client"
-		desc = "The OAuth client is blocked by this server"
+		desc = oauthClientBlockedDescription(clientID)
 	default:
 		status = http.StatusInternalServerError
 		oauthErr = "server_error"
