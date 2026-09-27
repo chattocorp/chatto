@@ -408,6 +408,14 @@ export async function completeServerOAuthFlow(
   return id;
 }
 
+function isLoopbackServerUrl(serverUrl: string): boolean {
+  try {
+    return isLoopbackHostname(new URL(serverUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Choose the OAuth client identity that this frontend presents to `serverUrl`.
  * A loopback frontend uses the built-in loopback client only for a server that
@@ -424,7 +432,7 @@ export function oauthClientIdForLocation(
   if (
     (location.protocol === 'http:' || location.protocol === 'https:') &&
     isLoopbackHostname(location.hostname) &&
-    !isLoopbackHostname(new URL(serverUrl).hostname)
+    !isLoopbackServerUrl(serverUrl)
   ) {
     return LOOPBACK_CLIENT_ID;
   }
