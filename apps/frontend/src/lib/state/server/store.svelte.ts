@@ -319,7 +319,11 @@ export class ServerStateStore {
       onAuthenticationRequired,
       onViewerLoaded
     );
-    this.serverInfo = new ServerInfoState(registration.url, publicServerInfoLoader);
+    this.serverInfo = new ServerInfoState(
+      registration.url,
+      publicServerInfoLoader,
+      () => this.projection.serverState
+    );
     this.notifications = new NotificationStore(notificationAPI, (roomId, threadRootId) =>
       this.readViews.covers(roomId, threadRootId)
     );
@@ -344,7 +348,10 @@ export class ServerStateStore {
       },
       new CallPreferencesState(this.serverId)
     );
-    this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
+    this.activeCallRooms = new ActiveCallRoomsState(
+      this.voiceCall,
+      () => this.projection.activeCalls
+    );
     const notifications = this.notifications;
     this.navigation = new NavigationStore(this.projection, this.realtimeSync, {
       get roomUnreadCounts() {
@@ -749,7 +756,7 @@ export class ServerStateStore {
   private clearRoomAccess(roomId: string, forgetStores = false): void {
     this.#roomMembers[roomId]?.resetProjectionState();
     this.voiceCall.handleRoomAccessRevoked(roomId);
-    this.activeCallRooms.clearRoom(roomId);
+    this.projection.removeRoomCalls(roomId);
     this.notifications.clearRoom(roomId);
     this.clearRoomMessageAccess(roomId, forgetStores);
   }
@@ -891,12 +898,6 @@ export class ServerStateStore {
         case 'server':
           this.serverInfo.applyProjectionProfile(resource.value);
           break;
-        case 'motd':
-        case 'runtimeConfig':
-          if (this.projection.serverState) {
-            this.serverInfo.applyProjectionState(this.projection.serverState);
-          }
-          break;
         case 'viewer': {
           const response = resource.value;
           if (!this.checkingPermissions && viewerAuthorizationLost(previousViewer, response)) {
@@ -939,9 +940,6 @@ export class ServerStateStore {
           this.notifications.replaceOccurrenceProjection(
             mapNotificationOccurrencePage(resource.value)
           );
-          break;
-        case 'activeCalls':
-          this.activeCallRooms.replaceProjection(resource.value.calls);
           break;
         case undefined:
           break;
@@ -1132,14 +1130,12 @@ export class ServerStateStore {
         break;
       case 'serverState':
         this.projection.serverState = null;
-        this.serverInfo.resetProjectionState();
         break;
       case 'notifications':
         this.notifications.resetProjectionState();
         break;
       case 'activeCalls':
         this.projection.activeCalls = [];
-        this.activeCallRooms.clear();
         break;
     }
   }
@@ -1152,7 +1148,6 @@ export class ServerStateStore {
     removeRegisteredAdminUserQueries(this.serverId, userId);
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
     this.notifications.scrubUser(userId);
-    this.activeCallRooms.scrubUser(userId);
     for (const store of Object.values(this.#roomMessages)) store.scrubUserReferences(userId);
     for (const store of Object.values(this.#threadMessages)) store.scrubUserReferences(userId);
   }
@@ -1821,9 +1816,7 @@ export class ServerStateStore {
       () => this.mentionRoles.invalidate(),
       () => this.notifications.resetProjectionState(),
       () => this.roomUnread.clear(),
-      () => this.pendingHighlights.clear(),
-      () => this.activeCallRooms.clear(),
-      () => this.serverInfo.resetProjectionState()
+      () => this.pendingHighlights.clear()
     ]);
     this.#playedCallSoundEventIds.length = 0;
     return complete;
@@ -1934,7 +1927,7 @@ export class ServerStateStore {
   /** Remove optimistic call UI state after a local join attempt fails. */
   handleVoiceCallJoinFailed(roomId: string): void {
     const currentUserId = this.projectionViewerId;
-    this.activeCallRooms.handleLeave(roomId, null, currentUserId);
+    if (currentUserId) this.projection.removeCallParticipant(roomId, currentUserId);
   }
 
   /** Clean up resources. */
@@ -1972,7 +1965,6 @@ export class ServerStateStore {
     this.#threadMessageRefCounts = Object.create(null);
     this.roomUnread.clear();
     this.pendingHighlights.clear();
-    this.activeCallRooms.clear();
     this.messageSearch.reset();
   }
 }

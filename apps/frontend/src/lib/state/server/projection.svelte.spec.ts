@@ -9,6 +9,8 @@ import { ServerProjectionStore } from './projection.svelte';
 import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 
 describe('ServerProjectionStore', () => {
   it('merges a partial snapshot user list into cached profiles', () => {
@@ -80,5 +82,55 @@ describe('ServerProjectionStore', () => {
       })
     );
     expect(store.rooms.get('dm')?.hasMessageHistory).toBe(true);
+  });
+
+  describe('active calls', () => {
+    const call = (roomId: string, userIds: string[]) =>
+      new ActiveCall({
+        room: new RoomSummary({ id: roomId }),
+        callId: `call-${roomId}`,
+        participants: userIds.map((id) => new CallParticipant({ user: new User({ id }) }))
+      });
+    const participants = (projection: ServerProjectionStore, roomId: string) =>
+      projection.activeCalls
+        .find((candidate) => candidate.room?.id === roomId)
+        ?.participants.map((participant) => participant.user?.id);
+
+    it('removes only the given participant from a room call', () => {
+      const projection = new ServerProjectionStore();
+      projection.activeCalls = [call('R1', ['U1', 'U2']), call('R2', ['U1'])];
+
+      projection.removeCallParticipant('R1', 'U1');
+
+      expect(participants(projection, 'R1')).toEqual(['U2']);
+      expect(participants(projection, 'R2')).toEqual(['U1']);
+    });
+
+    it('drops a room call when its last participant is removed optimistically', () => {
+      const projection = new ServerProjectionStore();
+      projection.activeCalls = [call('R1', ['U1'])];
+
+      projection.removeCallParticipant('R1', 'U1');
+
+      expect(projection.activeCalls).toEqual([]);
+    });
+
+    it('keeps a call whose last deleted participant is scrubbed', () => {
+      const projection = new ServerProjectionStore();
+      projection.activeCalls = [call('R1', ['U1'])];
+
+      projection.removeUser('U1');
+
+      expect(participants(projection, 'R1')).toEqual([]);
+    });
+
+    it('removes only the calls of the given room', () => {
+      const projection = new ServerProjectionStore();
+      projection.activeCalls = [call('R1', ['U1']), call('R2', ['U2'])];
+
+      projection.removeRoomCalls('R1');
+
+      expect(projection.activeCalls.map((candidate) => candidate.room?.id)).toEqual(['R2']);
+    });
   });
 });

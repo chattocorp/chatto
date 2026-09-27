@@ -120,7 +120,28 @@ export class ServerProjectionStore {
 
   removeRoom(roomId: string): void {
     this.rooms.delete(roomId);
+    this.removeRoomCalls(roomId);
+  }
+
+  /** Drop a room's active call, for example at an authorization boundary. */
+  removeRoomCalls(roomId: string): void {
     this.activeCalls = this.activeCalls.filter((call) => call.room?.id !== roomId);
+  }
+
+  /**
+   * Optimistically remove one participant from a room's call, for example after
+   * the viewer's join fails. The next active-calls replacement is authoritative.
+   */
+  removeCallParticipant(roomId: string, userId: string): void {
+    this.activeCalls = this.activeCalls.flatMap((call) => {
+      if (call.room?.id !== roomId) return [call];
+      if (!call.participants.some((participant) => participant.user?.id === userId)) return [call];
+      const next = call.clone();
+      next.participants = next.participants.filter(
+        (participant) => participant.user?.id !== userId
+      );
+      return next.participants.length > 0 ? [next] : [];
+    });
   }
 
   private activateRoom(roomId: string): void {
