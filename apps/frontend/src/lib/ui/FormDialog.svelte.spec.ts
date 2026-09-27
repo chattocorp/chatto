@@ -5,6 +5,29 @@ import FormDialog from './FormDialog.svelte';
 import { page, userEvent } from 'vitest/browser';
 
 describe('FormDialog', () => {
+  it('renders secondary actions in the footer without submitting the form', async () => {
+    const onsubmit = vi.fn();
+    const { container } = render(FormDialog, {
+      props: {
+        visible: true,
+        title: 'Set a status',
+        submitLabel: 'Save status',
+        children: testSnippet('<input name="status" value="Busy" />'),
+        secondaryActions: testSnippet('<button type="button">Clear status</button>'),
+        onsubmit,
+        onclose: vi.fn()
+      }
+    });
+
+    const footer = q(container, 'footer');
+    const clear = Array.from(footer?.querySelectorAll('button') ?? []).find(
+      (button) => button.textContent?.trim() === 'Clear status'
+    );
+    expect(clear).toBeDefined();
+    clear!.click();
+    expect(onsubmit).not.toHaveBeenCalled();
+  });
+
   it('keeps native validation and Enter submission in the mobile sheet', async () => {
     await page.viewport(390, 844);
     const onsubmit = vi.fn();

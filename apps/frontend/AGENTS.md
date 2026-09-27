@@ -338,6 +338,13 @@ Do not generate playground links for code written into this repository.
 - Keep debounce assertions independent of browser-suite scheduling: use fake
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.
+- Before you change the classes or markup of a shared component or utility,
+  search all specs, including route and e2e specs, for the old class names,
+  test IDs, and labels. Specs of other components often assert on them.
+- Hover styles only apply where `(hover: hover)` matches, and the headless
+  browser in CI reports no hover support. Test hover styles with
+  `it.skipIf(!matchMedia('(hover: hover)').matches)`, and test keyboard focus
+  styles without that condition.
 - Pin the clock with `vi.useFakeTimers({ toFake: ['Date'] })` and
   `vi.setSystemTime` in tests that group or label dates, such as Today,
   Yesterday, or a month. Relative instants such as "now minus 24 hours" land on

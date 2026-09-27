@@ -37,6 +37,7 @@ The submit button's color follows `submitTone` (`action` by default; use
   let {
     children,
     description,
+    secondaryActions,
     visible = $bindable(false),
     title,
     titleContent,
@@ -56,6 +57,11 @@ The submit button's color follows `submitTone` (`action` by default; use
     children: Snippet;
     /** Optional copy rendered above the form fields. */
     description?: Snippet;
+    /**
+     * Alternative actions that do not submit the form, such as removing the
+     * record being edited. Use ordinary `type="button"` buttons.
+     */
+    secondaryActions?: Snippet;
     visible?: boolean;
     title: string;
     /** Rich visual title; title remains the plain-text fallback. */
@@ -108,6 +114,7 @@ The submit button's color follows `submitTone` (`action` by default; use
   {title}
   {titleContent}
   {size}
+  {secondaryActions}
   describedBy={description ? descriptionId : undefined}
   {onclose}
 >

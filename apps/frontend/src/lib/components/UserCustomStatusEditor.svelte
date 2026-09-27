@@ -2,7 +2,7 @@
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { Button, Select, TextInput } from '$lib/ui/form';
-  import { Hint } from '$lib/ui';
+  import { FormDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
     deleteCustomStatus as deleteCustomStatusViaAPI,
@@ -27,15 +27,14 @@
   let {
     status,
     config,
-    compact = false,
-    sheet = false,
+    visible = $bindable(true),
     onChange,
     onClose
   }: {
     status?: CustomUserStatus | null;
     config: CustomUserStatusAPIConfig;
-    compact?: boolean;
-    sheet?: boolean;
+    /** Whether the dialog is open. The owner mounts the editor while it is visible. */
+    visible?: boolean;
     onChange?: (status: CustomUserStatus | null) => void;
     onClose?: () => void;
   } = $props();
@@ -55,17 +54,12 @@
   let isSaving = $state(false);
   let isClearing = $state(false);
   let error = $state('');
-  let compactCustomEditorOpen = $state(false);
   // svelte-ignore state_referenced_locally
   let expiryPreset = $state<ExpiryPreset>(initialExpiryPreset(localStatus));
 
   const isCustom = $derived(selectedMode === 'custom');
-  const statusTextInputId = $derived(
-    compact ? 'compact-custom-status-text' : 'settings-custom-status-text'
-  );
-  const expiresAtInputId = $derived(
-    compact ? 'compact-custom-status-expires-at' : 'settings-custom-status-expires-at'
-  );
+  const statusTextInputId = 'settings-custom-status-text';
+  const expiresAtInputId = 'settings-custom-status-expires-at';
   const currentExpiresAt = $derived(toDatetimeLocalValue(localStatus?.expiresAt));
   const activeTemplate = $derived(
     selectedMode === 'custom'
@@ -76,14 +70,7 @@
   const activeText = $derived(
     isCustom ? statusText.trim() : customStatusTemplateText(selectedMode as CustomStatusTemplateId)
   );
-  const hasActiveCustomStatus = $derived(
-    !!localStatus && getCustomStatusTemplate(localStatus) === undefined
-  );
   const hasActiveStatus = $derived(!!localStatus);
-  const customRowActive = $derived(
-    selectedMode === 'custom' && (compactCustomEditorOpen || hasActiveCustomStatus)
-  );
-  const noStatusSelected = $derived(!hasActiveStatus && !compactCustomEditorOpen);
   const draftIsEmpty = $derived(!statusText.trim());
   const isModified = $derived(
     activeEmoji !== (localStatus?.emoji ?? '') ||
@@ -171,21 +158,6 @@
     }
   }
 
-  function selectMode(mode: Mode) {
-    selectedMode = mode;
-    error = '';
-    if (mode !== 'custom') {
-      compactCustomEditorOpen = false;
-      const templateExpiry = defaultTemplateExpiry(mode);
-      statusExpiresAt = templateExpiry ? toDatetimeLocalValue(templateExpiry) : '';
-    }
-  }
-
-  function openCompactCustomEditor() {
-    selectMode('custom');
-    compactCustomEditorOpen = true;
-  }
-
   function selectTemplateDraft(mode: CustomStatusTemplateId) {
     const template = CUSTOM_STATUS_TEMPLATES.find((item) => item.id === mode);
     if (!template) return;
@@ -252,7 +224,7 @@
       const customStatus = await setCustomStatusViaAPI(config, {
         emoji,
         text,
-        expiresAt: compact ? null : expiryInputToISO(statusExpiresAt)
+        expiresAt: expiryInputToISO(statusExpiresAt)
       });
       onChange?.(customStatus);
       localStatus = customStatus;
@@ -261,37 +233,6 @@
       statusText = initialText(customStatus);
       statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
       expiryPreset = initialExpiryPreset(customStatus);
-      compactCustomEditorOpen = false;
-      toast.success(m('settings.profile.status.saved'));
-      onClose?.();
-    } catch (err) {
-      error = err instanceof Error ? err.message : m('settings.profile.status.save_failed');
-    } finally {
-      isSaving = false;
-    }
-  }
-
-  async function applyTemplateStatus(mode: CustomStatusTemplateId) {
-    const template = CUSTOM_STATUS_TEMPLATES.find((item) => item.id === mode);
-    if (!template) return;
-
-    isSaving = true;
-    error = '';
-
-    try {
-      const customStatus = await setCustomStatusViaAPI(config, {
-        emoji: template.emoji,
-        text: customStatusTemplateText(mode),
-        expiresAt: defaultTemplateExpiry(mode)?.toISOString() ?? null
-      });
-      onChange?.(customStatus);
-      localStatus = customStatus;
-      selectedMode = initialMode(customStatus);
-      statusEmoji = customStatus?.emoji ?? statusEmoji;
-      statusText = initialText(customStatus);
-      statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
-      expiryPreset = initialExpiryPreset(customStatus);
-      compactCustomEditorOpen = false;
       toast.success(m('settings.profile.status.saved'));
       onClose?.();
     } catch (err) {
@@ -314,7 +255,6 @@
       statusText = '';
       expiryPreset = 'today';
       statusExpiresAt = toLocalDatetime(endOfToday());
-      compactCustomEditorOpen = false;
       toast.success(m('settings.profile.status.cleared'));
       onClose?.();
     } catch (err) {
@@ -323,17 +263,15 @@
       isClearing = false;
     }
   }
-
-  async function chooseNoStatus() {
-    if (!localStatus) {
-      compactCustomEditorOpen = false;
-      onClose?.();
-      return;
-    }
-
-    await clearCustomStatus();
-  }
 </script>
+
+<!--
+@component
+The "Set a status" dialog for the current user's custom status. It owns the
+draft, suggestions, expiry, and the save and clear requests. `FormDialog`
+supplies the responsive presentation, including the bottom sheet on narrow
+touch screens.
+-->
 
 {#snippet emojiTrigger(emoji: string | null | undefined)}
   <button
@@ -349,173 +287,56 @@
   </button>
 {/snippet}
 
-{#if compact}
-  <form
-    class="flex flex-col gap-1 menu-section p-1"
-    data-testid="custom-status-editor"
-    onsubmit={saveCustomStatus}
-  >
-    <div class="px-2 py-1 text-xs font-semibold text-muted">
-      {m('settings.profile.status.title')}
-    </div>
-    <div
-      class="flex flex-col gap-0.5"
-      role="radiogroup"
-      aria-label={m('settings.profile.status.template.label')}
+<FormDialog
+  bind:visible
+  title={m('settings.profile.status.dialog_title')}
+  submitLabel={m('settings.profile.status.save_button')}
+  loading={isSaving}
+  disabled={!canSave || isClearing}
+  error={error || null}
+  onsubmit={saveCustomStatus}
+  onclose={() => onClose?.()}
+>
+  <div class="flex flex-col gap-4" data-testid="custom-status-editor">
+    <TextInput
+      id={statusTextInputId}
+      bind:value={statusText}
+      label={m('settings.profile.status.text.label')}
+      labelHidden
+      placeholder={m('settings.profile.status.text.placeholder')}
+      disabled={isSaving || isClearing}
+      maxlength={100}
+      testid="settings-custom-status-text"
+      oninput={markCustomDraft}
     >
-      <button
-        type="button"
-        role="radio"
-        aria-checked={noStatusSelected}
-        class={['sidebar-item gap-3 text-start', noStatusSelected && 'bg-surface']}
-        disabled={isSaving || isClearing}
-        onclick={chooseNoStatus}
-      >
-        <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-          <span aria-hidden="true" class="iconify icon-[uil--minus-circle] text-muted"></span>
-        </span>
-        <span class={['min-w-0 truncate', noStatusSelected && 'font-medium']}>
-          {m('settings.profile.status.template.none')}
-        </span>
-        {#if noStatusSelected}
-          <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
-        {/if}
-      </button>
-      {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
-        {@const isSelected = selectedMode === template.id}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={isSelected}
-          class={['sidebar-item gap-3 text-start', isSelected && 'bg-surface']}
-          disabled={isSaving || isClearing}
-          onclick={() => applyTemplateStatus(template.id)}
-        >
-          <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-            {template.emoji}
-          </span>
-          <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
-          {#if isSelected}
-            <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
-          {/if}
-        </button>
-      {/each}
-      <button
-        type="button"
-        role="radio"
-        aria-checked={hasActiveCustomStatus}
-        class={['sidebar-item gap-3 text-start', customRowActive && 'bg-surface']}
-        disabled={isSaving || isClearing}
-        onclick={openCompactCustomEditor}
-      >
-        {#if hasActiveCustomStatus && localStatus}
-          <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-            {localStatus.emoji}
-          </span>
-        {:else}
-          <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-            <span aria-hidden="true" class="iconify icon-[uil--pen]"></span>
-          </span>
-        {/if}
-        <bdi class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
-          {hasActiveCustomStatus && localStatus
-            ? localStatus.text
-            : m('settings.profile.status.template.custom')}
-        </bdi>
-        {#if hasActiveCustomStatus}
-          <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
-        {/if}
-      </button>
-    </div>
-
-    {#if compactCustomEditorOpen}
-      <div class="flex min-w-0 items-center gap-1">
-        <div class="min-w-0 flex-1">
-          <TextInput
-            id={statusTextInputId}
-            bind:value={statusText}
-            label={m('settings.profile.status.text.label')}
-            labelHidden
-            placeholder={m('settings.profile.status.text.placeholder')}
+      {#snippet leading()}
+        {@render emojiTrigger(activeEmoji)}
+      {/snippet}
+      {#snippet trailing()}
+        {#if statusText || hasActiveStatus}
+          <button
+            type="button"
+            class="field-action"
+            title={m('settings.profile.status.clear_button')}
+            aria-label={m('settings.profile.status.clear_button')}
             disabled={isSaving || isClearing}
-            maxlength={100}
-            testid="settings-custom-status-text"
+            onclick={clearDraftStatus}
           >
-            {#snippet leading()}
-              {@render emojiTrigger(statusEmoji)}
-            {/snippet}
-          </TextInput>
-        </div>
-        <Button
-          type="submit"
-          size="icon"
-          label={m('settings.profile.status.save_button')}
-          title={m('settings.profile.status.save_button')}
-          disabled={!isModified || isSaving}
-        >
-          <span
-            class={['iconify', isSaving ? 'icon-[uil--spinner] animate-spin' : 'icon-[uil--check]']}
-            aria-hidden="true"
-          ></span>
-        </Button>
-      </div>
-    {/if}
+            <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
+          </button>
+        {/if}
+      {/snippet}
+    </TextInput>
 
-    {#if error}
-      <Hint tone="danger">{error}</Hint>
-    {/if}
-  </form>
-{:else}
-  <form
-    class={['flex flex-col', sheet ? 'gap-2' : 'gap-4']}
-    data-testid="custom-status-editor"
-    onsubmit={saveCustomStatus}
-  >
-    <div class={sheet ? 'menu-section p-2' : undefined}>
-      <TextInput
-        id={statusTextInputId}
-        bind:value={statusText}
-        label={m('settings.profile.status.text.label')}
-        labelHidden
-        placeholder={m('settings.profile.status.text.placeholder')}
-        disabled={isSaving || isClearing}
-        maxlength={100}
-        testid="settings-custom-status-text"
-        oninput={markCustomDraft}
-      >
-        {#snippet leading()}
-          {@render emojiTrigger(activeEmoji)}
-        {/snippet}
-        {#snippet trailing()}
-          {#if statusText || hasActiveStatus}
-            <button
-              type="button"
-              class="field-action"
-              title={m('settings.profile.status.clear_button')}
-              aria-label={m('settings.profile.status.clear_button')}
-              disabled={isSaving || isClearing}
-              onclick={clearDraftStatus}
-            >
-              <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
-            </button>
-          {/if}
-        {/snippet}
-      </TextInput>
-    </div>
-
-    <div class={sheet ? 'flex flex-col gap-1 menu-section p-1' : 'flex flex-col gap-1.5'}>
-      <div
-        class={sheet
-          ? 'px-2 py-1 text-xs font-semibold text-muted'
-          : 'text-sm font-semibold text-muted'}
-      >
+    <section class="flex flex-col gap-1" aria-labelledby="custom-status-suggestions">
+      <h3 id="custom-status-suggestions" class="text-sm font-semibold text-muted">
         {m('settings.profile.status.suggestions')}
-      </div>
-      <div class="grid gap-1">
+      </h3>
+      <div class="-mx-1 selectable-list">
         {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
           <button
             type="button"
-            class="sidebar-item gap-3 text-start"
+            class="flex w-full cursor-pointer items-center gap-3 selectable-list-item px-2 py-1.5 text-start disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSaving || isClearing}
             onclick={() => selectTemplateDraft(template.id)}
           >
@@ -526,69 +347,48 @@
           </button>
         {/each}
       </div>
-    </div>
+    </section>
 
-    <div class={sheet ? 'menu-section p-2' : ''}>
-      <Select
-        id={expiresAtInputId}
-        label={m('settings.profile.status.expires_at.label')}
-        value={expiryPreset}
-        options={expiryOptions}
-        disabled={isSaving || isClearing}
-        testid="settings-custom-status-expiry-preset"
-        onValueChange={(preset) => {
-          expiryPreset = preset as ExpiryPreset;
-          updateExpiryFromPreset();
-        }}
-      />
-    </div>
+    <Select
+      id={expiresAtInputId}
+      label={m('settings.profile.status.expires_at.label')}
+      value={expiryPreset}
+      options={expiryOptions}
+      disabled={isSaving || isClearing}
+      testid="settings-custom-status-expiry-preset"
+      onValueChange={(preset) => {
+        expiryPreset = preset as ExpiryPreset;
+        updateExpiryFromPreset();
+      }}
+    />
 
     {#if expiryPreset === 'custom'}
-      <div class={sheet ? 'menu-section p-2' : ''}>
-        <TextInput
-          id={`${expiresAtInputId}-custom`}
-          type="datetime-local"
-          label={m('settings.profile.status.expiry.custom_date')}
-          bind:value={statusExpiresAt}
-          disabled={isSaving || isClearing}
-          testid="settings-custom-status-expires-at"
-        />
-      </div>
+      <TextInput
+        id={`${expiresAtInputId}-custom`}
+        type="datetime-local"
+        label={m('settings.profile.status.expiry.custom_date')}
+        bind:value={statusExpiresAt}
+        disabled={isSaving || isClearing}
+        testid="settings-custom-status-expires-at"
+      />
     {/if}
+  </div>
 
-    {#if error}
-      <Hint tone="danger">{error}</Hint>
-    {/if}
-
-    <div class={['flex flex-wrap items-center justify-end gap-2', sheet && 'menu-section p-2']}>
-      {#if hasActiveStatus}
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          loading={isClearing}
-          disabled={isSaving}
-          onclick={clearCustomStatus}
-        >
-          <span aria-hidden="true" class="iconify icon-[uil--times]"></span>
-          {m('settings.profile.status.clear_button')}
-        </Button>
-      {/if}
-      <Button type="button" variant="secondary" size="sm" onclick={() => onClose?.()}>
-        {m('common.cancel')}
-      </Button>
+  {#snippet secondaryActions()}
+    {#if hasActiveStatus}
       <Button
-        type="submit"
-        size="sm"
-        disabled={!canSave || isSaving}
-        loading={isSaving || isClearing}
+        type="button"
+        variant="secondary"
+        loading={isClearing}
+        disabled={isSaving}
+        onclick={clearCustomStatus}
       >
-        <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
-        {m('settings.profile.status.save_button')}
+        <span aria-hidden="true" class="iconify icon-[uil--times]"></span>
+        {m('settings.profile.status.clear_button')}
       </Button>
-    </div>
-  </form>
-{/if}
+    {/if}
+  {/snippet}
+</FormDialog>
 
 {#if emojiPickerAnchor}
   <ContextMenu anchor={emojiPickerAnchor} onclose={() => (emojiPickerAnchor = null)}>

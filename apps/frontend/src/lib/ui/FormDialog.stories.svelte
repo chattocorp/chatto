@@ -47,6 +47,9 @@
   let narrowVisible = $state(false);
   let narrowName = $state('');
 
+  let statusVisible = $state(false);
+  let statusText = $state('In focus mode');
+
   function fakeSubmit() {
     loading = true;
     setTimeout(() => {
@@ -85,6 +88,39 @@
 
     <TextInput id="story-room-name" label="Room Name" bind:value={basicName} />
     <TextArea id="story-room-desc" label="Description (optional)" bind:value={basicDesc} rows={3} />
+  </FormDialog>
+</Story>
+
+<Story
+  name="Secondary action"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Use `secondaryActions` for an alternative that does not submit the form, such as clearing the record being edited. It sits between Cancel and the submit action.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (statusVisible = true)}>Set a status...</Button>
+
+  <FormDialog
+    bind:visible={statusVisible}
+    title="Set a status"
+    submitLabel="Save status"
+    disabled={!statusText.trim()}
+    onsubmit={() => (statusVisible = false)}
+    onclose={() => (statusVisible = false)}
+  >
+    <TextInput id="story-status" label="Status" bind:value={statusText} />
+
+    {#snippet secondaryActions()}
+      <Button type="button" variant="secondary" onclick={() => (statusText = '')}>
+        <span aria-hidden="true" class="iconify icon-[uil--times]"></span>
+        Clear status
+      </Button>
+    {/snippet}
   </FormDialog>
 </Story>
 

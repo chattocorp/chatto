@@ -582,10 +582,7 @@ describe('CurrentUserBar', () => {
     expect(server.currentUser.user?.customStatus).toEqual(status);
   });
 
-  it('loads the custom status editor only after opening the touch bottom sheet', async () => {
-    inputCapabilities.prefersTouchActions = true;
-    inputCapabilities.supportsHoverActions = false;
-
+  it('loads the custom status editor only after opening its dialog', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     await tick();

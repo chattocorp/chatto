@@ -28,10 +28,9 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { buildDirectMessagePresentation } from '$lib/render/users';
 
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
-  import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
-  import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { ConfirmDialog, Dialog } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import { toast } from '$lib/ui/toast';
   import MenuItem from '$lib/ui/MenuItem.svelte';
@@ -117,7 +116,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   const compactCallButtonClass = 'pill-button';
   const compactCallActiveButtonClass = 'pill-button-success';
   const compactCallDangerButtonClass = 'pill-button-danger';
-  const useSheetDialog = prefersTouchActions() && !supportsHoverActions();
   const presenceModes: PresenceStatus[] = [
     PresenceStatus.ONLINE,
     PresenceStatus.AWAY,
@@ -274,31 +272,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
 {#if privilegedModeDeadline !== null}
   <Deadline at={privilegedModeDeadline} onreached={() => void activeStore.expirePrivilegedMode()} />
 {/if}
-
-{#snippet customStatusEditor(sheet = false)}
-  {#if activeServerUser && customStatusDialogVisible}
-    {#await loadCustomStatusEditor(customStatusEditorLoadAttempt) then { default: UserCustomStatusEditor }}
-      <UserCustomStatusEditor
-        status={customStatus}
-        config={customStatusAPIConfig()}
-        {sheet}
-        onChange={updateCurrentCustomStatus}
-        onClose={() => (customStatusDialogVisible = false)}
-      />
-    {:catch}
-      <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
-        <p class="text-sm text-muted">{m('common.error.network')}</p>
-        <button
-          type="button"
-          class="btn-secondary"
-          onclick={() => (customStatusEditorLoadAttempt += 1)}
-        >
-          {m('common.retry')}
-        </button>
-      </div>
-    {/await}
-  {/if}
-{/snippet}
 
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
@@ -499,37 +472,28 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   </ContextMenu>
 {/if}
 
-{#if activeServerUser}
-  {#if useSheetDialog}
-    <BottomSheet
+{#if activeServerUser && customStatusDialogVisible}
+  {#await loadCustomStatusEditor(customStatusEditorLoadAttempt) then { default: UserCustomStatusEditor }}
+    <UserCustomStatusEditor
       bind:visible={customStatusDialogVisible}
-      onclose={() => (customStatusDialogVisible = false)}
-    >
-      <div class="flex max-h-[78vh] flex-col gap-2 overflow-y-auto pb-2 text-text">
-        <header class="flex items-center justify-between gap-3 menu-section px-3 py-2">
-          <h2 class="text-base font-semibold text-text">
-            {m('settings.profile.status.dialog_title')}
-          </h2>
-          <button
-            type="button"
-            onclick={() => (customStatusDialogVisible = false)}
-            class="icon-action shrink-0"
-            aria-label={m('ui.close')}
-          >
-            <span class="iconify icon-[uil--times] text-xl" aria-hidden="true"></span>
-          </button>
-        </header>
-        {@render customStatusEditor(true)}
-      </div>
-    </BottomSheet>
-  {:else}
+      status={customStatus}
+      config={customStatusAPIConfig()}
+      onChange={updateCurrentCustomStatus}
+      onClose={() => (customStatusDialogVisible = false)}
+    />
+  {:catch}
     <Dialog
       bind:visible={customStatusDialogVisible}
       title={m('settings.profile.status.dialog_title')}
-      size="md"
+      size="sm"
       onclose={() => (customStatusDialogVisible = false)}
     >
-      {@render customStatusEditor()}
+      <p class="text-muted" role="alert">{m('common.error.network')}</p>
+      {#snippet primaryAction()}
+        <Button onclick={() => (customStatusEditorLoadAttempt += 1)}>
+          {m('common.retry')}
+        </Button>
+      {/snippet}
     </Dialog>
-  {/if}
+  {/await}
 {/if}

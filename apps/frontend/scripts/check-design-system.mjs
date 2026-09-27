@@ -36,7 +36,6 @@ const knownDrift = {
   // Lazy-bundle retry buttons avoid the form barrel in room chunks: #2664
   buttonRecipes: new Set([
     'src/lib/RoomDirectory.svelte',
-    'src/lib/components/CurrentUserBar.svelte',
     'src/lib/components/users/UserMenu.svelte',
     'src/lib/components/voice/VoiceCallPanel.svelte',
     'src/routes/chat/[serverId]/[roomId]/MessageAttachments.svelte',
