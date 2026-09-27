@@ -17,34 +17,15 @@ import {
   type NotificationPolicyScope,
   type ScopedNotificationPolicy
 } from '$lib/api-client/notifications';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
-const { mocks } = vi.hoisted(() => ({
-  mocks: {
-    connection: { queryScope: 'test-0', getAPI: vi.fn() },
-    batch: vi.fn(),
-    update: vi.fn(),
-    isCurrent: vi.fn(() => true)
-  }
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'test-server',
-    connection: mocks.connection,
-    isCurrent: mocks.isCurrent,
-    store: {
-      serverInfo: { name: 'Test Server' },
-      navigation: {
-        roomGroups: [{ id: 'group-1', name: 'Channels', roomIds: ['room-1', 'room-2'] }],
-        rooms: [
-          { id: 'room-1', name: 'general', viewerIsMember: true, type: 1 },
-          { id: 'room-2', name: 'private', viewerIsMember: false, type: 1 },
-          { id: 'dm-1', name: 'Taylor', viewerIsMember: true, type: 2 }
-        ]
-      }
-    }
-  })
-}));
+const mocks = { batch: vi.fn(), update: vi.fn() };
+let server: TestServerScope;
 
 import NotificationPolicySettings from './NotificationPolicySettings.svelte';
 
@@ -102,7 +83,7 @@ describe('NotificationPolicySettings', () => {
     queryClient.setQueryData(
       settingsQueryKeys.notificationPolicies(
         'test-server',
-        mocks.connection,
+        server.scope.connection,
         scopes.map(notificationPolicyScopeKey)
       ),
       Object.fromEntries(scopes.map((scope) => [notificationPolicyScopeKey(scope), policy(scope)]))
@@ -114,11 +95,25 @@ describe('NotificationPolicySettings', () => {
     queryClient.clear();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-    mocks.connection.queryScope = `test-${++queryScope}`;
-    mocks.connection.getAPI.mockImplementation(() => ({
-      batchGetNotificationPolicies: mocks.batch,
-      updateScopedNotificationPolicy: mocks.update
-    }));
+    server = createTestServerScope({
+      serverId: 'test-server',
+      api: {
+        batchGetNotificationPolicies: mocks.batch,
+        updateScopedNotificationPolicy: mocks.update
+      },
+      serverInfo: { name: 'Test Server' },
+      store: {
+        navigation: {
+          roomGroups: [{ id: 'group-1', name: 'Channels', roomIds: ['room-1', 'room-2'] }],
+          rooms: [
+            { id: 'room-1', name: 'general', viewerIsMember: true, type: 1 },
+            { id: 'room-2', name: 'private', viewerIsMember: false, type: 1 },
+            { id: 'dm-1', name: 'Taylor', viewerIsMember: true, type: 2 }
+          ]
+        }
+      }
+    });
+    server.queryScope = `test-${++queryScope}`;
     mocks.batch.mockImplementation(async (requested: NotificationPolicyScope[]) =>
       requested.map((scope) => policy(scope))
     );
@@ -330,7 +325,7 @@ describe('NotificationPolicySettings', () => {
         queryClient.getQueryCache().find({
           queryKey: settingsQueryKeys.notificationPolicies(
             'test-server',
-            mocks.connection,
+            server.scope.connection,
             scopes.map(notificationPolicyScopeKey)
           ),
           exact: true
@@ -361,7 +356,7 @@ describe('NotificationPolicySettings', () => {
         queryClient.getQueryData<Record<string, ScopedNotificationPolicy>>(
           settingsQueryKeys.notificationPolicies(
             'test-server',
-            mocks.connection,
+            server.scope.connection,
             scopes.map(notificationPolicyScopeKey)
           )
         )?.['room:room-1']?.effective.directMentions
@@ -462,7 +457,7 @@ describe('NotificationPolicySettings', () => {
     await save.promise;
     expect(
       queryClient.getQueriesData({
-        queryKey: settingsQueryKeys.notificationPoliciesRoot('test-server', mocks.connection)
+        queryKey: settingsQueryKeys.notificationPoliciesRoot('test-server', server.scope.connection)
       })
     ).toEqual([]);
   });

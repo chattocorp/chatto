@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type {
-  AdminMember,
-  AdminMemberDetails,
-  AdminUserManagementAPI
-} from '$lib/api-client/adminUsers';
+import type { AdminMember, AdminMemberDetails } from '$lib/api-client/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
@@ -14,53 +10,34 @@ import {
   removeRegisteredAdminUserQueries
 } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
-import {
-  memberDetailPageTestState,
-  memberDetailTestPage
-} from '../MemberDetailPageTestState.svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
-  getMember: vi.fn(),
-  deleteUser: vi.fn(),
   toastSuccess: vi.fn(),
   goto: vi.fn()
 }));
 
-vi.mock('$app/state', () => ({ page: memberDetailTestPage }));
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return { userId: routeUserId };
+    }
+  }
+}));
 
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   goto: mocks.goto
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    get serverId() {
-      return memberDetailPageTestState.serverId;
-    },
-    get connection() {
-      return {
-        queryScope: memberDetailPageTestState.sessionId,
-        getAPI: () =>
-          ({
-            getMember: mocks.getMember,
-            deleteUser: mocks.deleteUser
-          }) as unknown as AdminUserManagementAPI
-      };
-    },
-    get store() {
-      return {
-        currentUser: { user: { id: memberDetailPageTestState.viewerId, settings: null } },
-        viewerId: memberDetailPageTestState.viewerId,
-        permissions: {
-          canAdminViewUsers: true,
-          canAdminManageAccounts: true
-        }
-      };
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+const api = { getMember: vi.fn(), deleteUser: vi.fn() };
+let server: TestServerScope;
+let routeUserId = $state('alice');
 
 vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.toastSuccess, error: vi.fn() }
@@ -118,11 +95,14 @@ describe('server member delete page', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
-    memberDetailPageTestState.reset();
-    mocks.getMember.mockImplementation((userId: string) =>
-      Promise.resolve(details(member(userId)))
-    );
-    mocks.deleteUser.mockResolvedValue(true);
+    routeUserId = 'alice';
+    server = createTestServerScope({
+      viewer: { id: 'viewer' },
+      api,
+      permissions: { canAdminViewUsers: true, canAdminManageAccounts: true }
+    });
+    api.getMember.mockImplementation((userId: string) => Promise.resolve(details(member(userId))));
+    api.deleteUser.mockResolvedValue(true);
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
@@ -142,12 +122,12 @@ describe('server member delete page', () => {
 
     expect(rendered.container.textContent).toContain('Member not found');
     expect(rendered.container.textContent).not.toContain('Danger Zone');
-    expect(mocks.deleteUser).not.toHaveBeenCalled();
+    expect(api.deleteUser).not.toHaveBeenCalled();
   });
 
   it('discards a delete result when a session cache purge arrives mid-flight', async () => {
     const deletion = deferred<void>();
-    mocks.deleteUser.mockReturnValueOnce(deletion.promise);
+    api.deleteUser.mockReturnValueOnce(deletion.promise);
     const rendered = renderPage();
     await settle();
 
@@ -160,7 +140,7 @@ describe('server member delete page', () => {
       (candidate) => candidate.getAttribute('type') === 'submit'
     ) as HTMLButtonElement;
     submit.click();
-    await vi.waitFor(() => expect(mocks.deleteUser).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(api.deleteUser).toHaveBeenCalledOnce());
 
     // Simulates an authentication/visibility purge between request and response.
     removeRegisteredAdminQueries('server-1');
@@ -174,7 +154,7 @@ describe('server member delete page', () => {
 
   it('discards a delete result after the route target changes', async () => {
     const deletion = deferred<void>();
-    mocks.deleteUser.mockReturnValueOnce(deletion.promise);
+    api.deleteUser.mockReturnValueOnce(deletion.promise);
     const rendered = renderPage();
     await settle();
 
@@ -187,37 +167,36 @@ describe('server member delete page', () => {
       (candidate) => candidate.getAttribute('type') === 'submit'
     ) as HTMLButtonElement;
     submit.click();
-    await vi.waitFor(() => expect(mocks.deleteUser).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(api.deleteUser).toHaveBeenCalledOnce());
 
-    memberDetailPageTestState.userId = 'bob';
+    routeUserId = 'bob';
     flushSync();
-    await vi.waitFor(() => expect(mocks.getMember).toHaveBeenCalledWith('bob', expect.anything()));
+    await vi.waitFor(() => expect(api.getMember).toHaveBeenCalledWith('bob', expect.anything()));
     await settle();
 
-    const bobKey = adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'bob');
+    const bobKey = adminQueryKeys.member('server-1', server.scope.connection, 'bob');
     expect(queryClient.getQueryData(bobKey)).toEqual(details(member('bob')));
 
     deletion.resolve();
     await settle();
 
-    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
+    expect(api.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
     expect(mocks.goto).not.toHaveBeenCalled();
     expect(queryClient.getQueryData(bobKey)).toEqual(details(member('bob')));
   });
 
   it('blocks deleting the viewer account through this page', async () => {
-    memberDetailPageTestState.userId = 'viewer';
-    memberDetailPageTestState.viewerId = 'viewer';
+    routeUserId = 'viewer';
     const rendered = renderPage();
     await settle();
 
     expect(rendered.container.textContent).toContain('You cannot delete this account.');
-    expect(mocks.deleteUser).not.toHaveBeenCalled();
+    expect(api.deleteUser).not.toHaveBeenCalled();
   });
 
   it('blocks deletion when the viewer cannot delete the account', async () => {
-    mocks.getMember.mockResolvedValueOnce(
+    api.getMember.mockResolvedValueOnce(
       details(member('alice', { viewerCanDeleteAccount: false }))
     );
     const rendered = renderPage();
@@ -225,7 +204,7 @@ describe('server member delete page', () => {
 
     expect(rendered.container.textContent).toContain('You cannot delete this account.');
     expect(rendered.container.querySelector('#member-delete-confirm')).toBeNull();
-    expect(mocks.deleteUser).not.toHaveBeenCalled();
+    expect(api.deleteUser).not.toHaveBeenCalled();
   });
 
   it('keeps the submit button disabled until the login matches', async () => {
@@ -253,7 +232,7 @@ describe('server member delete page', () => {
     const rendered = renderPage();
     await settle();
 
-    const membersKey = adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice');
+    const membersKey = adminQueryKeys.member('server-1', server.scope.connection, 'alice');
     queryClient.setQueryData(membersKey, details(member('alice')));
 
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
@@ -269,14 +248,14 @@ describe('server member delete page', () => {
     submit.click();
     await settle();
 
-    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
+    expect(api.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
     expect(queryClient.getQueryData(membersKey)).toBeUndefined();
     expect(mocks.goto).toHaveBeenCalledOnce();
   });
 
   it('shows a failure without navigating away', async () => {
-    mocks.deleteUser.mockRejectedValueOnce(new Error('permission denied'));
+    api.deleteUser.mockRejectedValueOnce(new Error('permission denied'));
     const rendered = renderPage();
     await settle();
 

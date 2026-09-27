@@ -1,15 +1,9 @@
 import { tick } from 'svelte';
-import { SvelteMap } from 'svelte/reactivity';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
-import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
-
-const mocks = vi.hoisted(() => ({
-  state: null as SvelteMap<string, boolean> | null,
-  sync: null as RealtimeProjectionSyncState | null
-}));
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 vi.mock('$app/state', () => ({
   page: { url: new URL('https://example.test/chat/origin/manage/server/permissions') }
@@ -18,33 +12,24 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path.replace('[serverId]', 'origin')
 }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: () => 'origin' }));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {
-      get realtimeSync() {
-        return mocks.sync;
-      },
-      get permissions() {
-        return {
-          ...NO_SERVER_PERMISSIONS,
-          loaded: mocks.state!.get('loaded') ?? false,
-          canAdminManageRoles: mocks.state!.get('allowed') ?? false
-        };
-      }
-    }
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 import Layout from './+layout.svelte';
 
+let server: TestServerScope;
+let sync: RealtimeProjectionSyncState;
+
 beforeEach(() => {
-  mocks.state = new SvelteMap([
-    ['loaded', true],
-    ['allowed', true]
-  ]);
-  mocks.sync = new RealtimeProjectionSyncState();
-  mocks.sync.markCaughtUp('initial');
+  sync = new RealtimeProjectionSyncState();
+  sync.markCaughtUp('initial');
+  server = createTestServerScope({
+    serverId: 'origin',
+    permissions: { canAdminManageRoles: true },
+    store: { realtimeSync: sync }
+  });
 });
 
 describe('management route admission', () => {
@@ -55,27 +40,27 @@ describe('management route admission', () => {
     await tick();
     const filter = container.querySelector<HTMLInputElement>('[data-testid="filter"]')!;
     filter.value = 'message';
-    mocks.sync!.markStale();
+    sync.markStale();
     await tick();
     expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
-    mocks.state!.set('loaded', true);
-    mocks.sync!.markCaughtUp('refreshed');
+    server.permissions.loaded = true;
+    sync.markCaughtUp('refreshed');
     await tick();
     expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
     expect(filter.value).toBe('message');
 
-    mocks.sync!.markStale();
+    sync.markStale();
     await tick();
-    mocks.state!.set('allowed', false);
-    mocks.state!.set('loaded', true);
-    mocks.sync!.markCaughtUp('revoked');
+    server.permissions.canAdminManageRoles = false;
+    server.permissions.loaded = true;
+    sync.markCaughtUp('revoked');
     await tick();
     expect(container.querySelector('[data-testid="filter"]')).toBeNull();
     await expect.element(container).toHaveTextContent('Access Denied');
   });
 
   it('does not admit private content while initial permissions are unknown', async () => {
-    mocks.state!.set('loaded', false);
+    server.permissions.loaded = false;
     const { container } = render(Layout, {
       props: { children: testSnippet('<input data-testid="filter" />') }
     });

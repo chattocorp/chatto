@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   unreadOccurrences: [] as Array<{
     room: { id: string } | null;
     eventId: string;
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   }>,
   threadFollowStates: new Map<string, boolean>(),
   hasUnreadFollowedThread: false
-}));
+};
 
 vi.mock('$app/paths', () => ({
   assets: '',
@@ -20,21 +21,10 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'server-1',
-    store: {
-      notifications: {
-        get attentionOccurrences() {
-          return mocks.unreadOccurrences;
-        }
-      },
-      loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
-        mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null,
-      hasUnreadFollowedThreadInLoadedRooms: () => mocks.hasUnreadFollowedThread
-    }
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 import MyThreadsNavItem from './MyThreadsNavItem.svelte';
 
@@ -43,6 +33,18 @@ describe('MyThreadsNavItem', () => {
     mocks.unreadOccurrences = [];
     mocks.threadFollowStates.clear();
     mocks.hasUnreadFollowedThread = false;
+    createTestServerScope({
+      store: {
+        notifications: {
+          get attentionOccurrences() {
+            return mocks.unreadOccurrences;
+          }
+        },
+        loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
+          mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null,
+        hasUnreadFollowedThreadInLoadedRooms: () => mocks.hasUnreadFollowedThread
+      }
+    });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });

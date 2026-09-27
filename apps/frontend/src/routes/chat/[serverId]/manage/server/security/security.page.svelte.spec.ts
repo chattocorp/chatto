@@ -5,6 +5,7 @@ import type { OAuthClient } from '$lib/api-client/oauthClients';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
   getServerSecurityConfig: vi.fn(),
@@ -15,21 +16,12 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn()
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: { currentUser: { user: null } },
-    connection: {
-      queryScope: 'security-test',
-      apiConfig: { baseUrl: '/api/connect', bearerToken: 'token' },
-      getAPI: () => ({
-        list: mocks.listOAuthClients,
-        updatePolicy: mocks.updateOAuthClientPolicy
-      })
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/serverState', async () => {
   const actual = await vi.importActual<typeof import('$lib/api-client/serverState')>(
@@ -83,6 +75,11 @@ describe('server security query lifecycle', () => {
   beforeEach(() => {
     queryClient.clear();
     vi.clearAllMocks();
+    server = createTestServerScope({
+      serverId: 'origin',
+      viewer: null,
+      api: { list: mocks.listOAuthClients, updatePolicy: mocks.updateOAuthClientPolicy }
+    });
     mocks.getServerSecurityConfig.mockResolvedValue({ blockedUsernames: 'root\nadmin' });
     mocks.updateBlockedUsernames.mockResolvedValue({
       blockedUsernames: 'root\nadmin\nreserved'
@@ -110,7 +107,7 @@ describe('server security query lifecycle', () => {
     await settle();
 
     expect(mocks.getServerSecurityConfig).toHaveBeenCalledWith(
-      { baseUrl: '/api/connect', bearerToken: 'token' },
+      server.scope.connection.apiConfig,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect((first.container.querySelector('textarea') as HTMLTextAreaElement).value).toBe(
@@ -127,7 +124,7 @@ describe('server security query lifecycle', () => {
   });
 
   it('saves changed values and replaces the exact cached snapshot', async () => {
-    const connection = { queryScope: 'security-test' };
+    const connection = server.scope.connection;
     const queryKey = adminQueryKeys.securityConfig('origin', connection);
     const { container } = render(SecurityPage);
     await settle();
@@ -144,7 +141,7 @@ describe('server security query lifecycle', () => {
 
     await vi.waitFor(() =>
       expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith(
-        { baseUrl: '/api/connect', bearerToken: 'token' },
+        server.scope.connection.apiConfig,
         'root\nadmin\nreserved'
       )
     );
@@ -160,7 +157,7 @@ describe('server security query lifecycle', () => {
   it('does not restore private data after an admin cache privacy boundary', async () => {
     const saveResult = deferred<{ blockedUsernames: string }>();
     mocks.updateBlockedUsernames.mockReturnValue(saveResult.promise);
-    const connection = { queryScope: 'security-test' };
+    const connection = server.scope.connection;
     const queryKey = adminQueryKeys.securityConfig('origin', connection);
     const view = render(SecurityPage);
     await settle();

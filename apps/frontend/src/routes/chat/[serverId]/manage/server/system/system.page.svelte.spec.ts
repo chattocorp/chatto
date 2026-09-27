@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import SystemPage from './+page.svelte';
 
@@ -9,20 +10,12 @@ const mocks = vi.hoisted(() => ({
   getAdminSystemInfo: vi.fn()
 }));
 
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {},
-    connection: {
-      queryScope: 'system-test',
-      apiConfig: {
-        baseUrl: '/api/connect',
-        bearerToken: 'token'
-      }
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+let server: TestServerScope;
 
 vi.mock('$lib/api-client/adminDiagnostics', async () => {
   const actual = await vi.importActual<typeof import('$lib/api-client/adminDiagnostics')>(
@@ -107,6 +100,7 @@ function deferred<T>() {
 describe('server admin system diagnostics', () => {
   beforeEach(() => {
     queryClient.clear();
+    server = createTestServerScope({ serverId: 'origin' });
     mocks.getAdminSystemInfo.mockReset();
     mocks.getAdminSystemInfo.mockResolvedValue(systemInfo);
   });
@@ -118,7 +112,7 @@ describe('server admin system diagnostics', () => {
     await settle();
 
     expect(mocks.getAdminSystemInfo).toHaveBeenCalledWith(
-      { baseUrl: '/api/connect', bearerToken: 'token' },
+      server.scope.connection.apiConfig,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(first.container.textContent).toContain('test-server');

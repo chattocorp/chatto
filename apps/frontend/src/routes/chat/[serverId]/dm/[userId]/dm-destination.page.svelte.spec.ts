@@ -1,15 +1,14 @@
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
   page: { params: { serverId: '-', userId: 'recipient' } },
   startDM: vi.fn(),
   ensureRoomAvailable: vi.fn(),
   goto: vi.fn(),
-  record: vi.fn(),
-  isCurrent: vi.fn(() => true),
-  currentUser: { user: { id: 'self' } as { id: string } | undefined }
+  record: vi.fn()
 }));
 
 vi.mock('$app/state', () => ({
@@ -28,22 +27,10 @@ vi.mock('$lib/navigation', () => ({ serverIdToSegment: () => '-' }));
 vi.mock('$lib/state/recentQuickSwitcher.svelte', () => ({
   recentQuickSwitcher: { record: mocks.record }
 }));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    isCurrent: mocks.isCurrent,
-    connection: { getAPI: () => ({ startDM: mocks.startDM }) },
-    store: {
-      get currentUser() {
-        return mocks.currentUser;
-      },
-      get accountId() {
-        return mocks.currentUser.user?.id ?? null;
-      },
-      ensureRoomAvailable: mocks.ensureRoomAvailable
-    }
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 import Destination from './+page.svelte';
 
@@ -56,13 +43,17 @@ function deferred<T>() {
 }
 
 let mounted: ReturnType<typeof render> | undefined;
+let server: TestServerScope;
 beforeEach(() => {
   vi.resetAllMocks();
   const page = $state({ params: { serverId: '-', userId: 'recipient' } });
   mocks.page = page;
-  const currentUser = $state<{ user: { id: string } | undefined }>({ user: { id: 'self' } });
-  mocks.currentUser = currentUser;
-  mocks.isCurrent.mockReturnValue(true);
+  server = createTestServerScope({
+    serverId: 'origin',
+    viewer: { id: 'self' },
+    api: { startDM: mocks.startDM },
+    store: { ensureRoomAvailable: mocks.ensureRoomAvailable }
+  });
   mocks.startDM.mockResolvedValue({ id: 'dm-room' });
   mocks.ensureRoomAvailable.mockResolvedValue(undefined);
 });
@@ -136,12 +127,13 @@ describe('DM destination', () => {
   });
 
   it('waits for the verified viewer before opening a conversation', async () => {
-    mocks.currentUser.user = undefined;
+    const viewer = server.currentUser.user;
+    server.currentUser.user = undefined;
     mocks.page.params.userId = 'self';
     mounted = render(Destination);
     await expect.element(mounted.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
     expect(mocks.startDM).not.toHaveBeenCalled();
-    mocks.currentUser.user = { id: 'self' };
+    server.currentUser.user = viewer;
     flushSync();
     await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledWith([]));
     expect(mocks.startDM).toHaveBeenCalledOnce();
@@ -152,7 +144,7 @@ describe('DM destination', () => {
     mocks.startDM.mockReturnValue(pending.promise);
     mounted = render(Destination);
     await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledOnce());
-    mocks.isCurrent.mockReturnValue(false);
+    server.current = false;
     pending.resolve({ id: 'dm-room' });
     await new Promise<void>((done) => queueMicrotask(done));
     expect(mocks.ensureRoomAvailable).not.toHaveBeenCalled();

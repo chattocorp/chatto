@@ -22,8 +22,16 @@ export type TestServerScopeOptions = {
    * runs the real factory with a stub config, so `vi.mock` of an API module works.
    */
   api?: object;
-  /** Extra store members, such as `navigation` or `projection`. Getters are kept. */
-  store?: object;
+  /**
+   * Extra `store.serverInfo` members, such as `livekitUrl`. Getters are kept.
+   * `supportsFeature` always reads `features`.
+   */
+  serverInfo?: object;
+  /**
+   * Extra store members, such as `navigation` or `projection`. Getters are kept.
+   * A function gets the server ID and gives the members for that server's store.
+   */
+  store?: object | ((serverId: string) => object);
   /** Extra connection members. Getters are kept. */
   connection?: object;
 };
@@ -40,6 +48,11 @@ export class TestServerScope {
   features = $state<boolean | Partial<Record<ServerFeature, boolean>>>(true);
   /** Projection viewer ID. Default: the accepted account's ID. */
   projectionViewerId = $state<string | null | undefined>(undefined);
+  /**
+   * Query scope of the connection. Default: the server ID with a `-session` suffix.
+   * Set it to model a new session on the same server.
+   */
+  queryScope = $state<string | undefined>(undefined);
   /** A real account state, so `update()` and its same-account rule behave as in the app. */
   readonly currentUser = new CurrentUserState();
   readonly scope: ServerScope;
@@ -65,11 +78,69 @@ export class TestServerScope {
 
 /** Build the typed scope objects whose getters read the fixture's current state. */
 function buildScope(t: TestServerScope, options: TestServerScopeOptions): ServerScope {
-  const store = withMembers(
+  const queryScope = () => t.queryScope ?? `${t.serverId}-session`;
+  // The scope's store belongs to its server, as in the app: one store object per server ID.
+  // The cache is not reactive, because getters that run in `$derived` fill it.
+  const stores: Record<string, ServerStateStore> = Object.create(null);
+  const storeFor = (serverId: string): ServerStateStore =>
+    (stores[serverId] ??= buildStore(
+      t,
+      serverId,
+      options.serverInfo,
+      typeof options.store === 'function' ? options.store(serverId) : options.store
+    ));
+  const connection = withMembers(
     {
       get serverId() {
         return t.serverId;
       },
+      get queryScope() {
+        return queryScope();
+      },
+      isConnected: true,
+      showConnectionLostBanner: false,
+      get connectBaseUrl() {
+        return `https://${t.serverId}.example.test/api/connect`;
+      },
+      bearerToken: null,
+      get apiConfig(): ConnectAPIConfig {
+        return {
+          serverId: t.serverId,
+          queryScope: queryScope(),
+          baseUrl: `https://${t.serverId}.example.test/api/connect`,
+          bearerToken: null
+        };
+      },
+      getAPI<T>(factory: (config: ConnectAPIConfig) => T): T {
+        return (options.api as T | undefined) ?? factory(this.apiConfig);
+      },
+      invalidatePrivateData() {},
+      forceReconnect() {}
+    },
+    options.connection
+  );
+  return {
+    get serverId() {
+      return t.serverId;
+    },
+    connection: connection as unknown as ServerConnection,
+    get store() {
+      return storeFor(t.serverId);
+    },
+    isCurrent: () => t.current
+  };
+}
+
+/** Build the store of one server. Its getters read the fixture's current state. */
+function buildStore(
+  t: TestServerScope,
+  serverId: string,
+  serverInfo: object | undefined,
+  extra: object | undefined
+): ServerStateStore {
+  const store = withMembers(
+    {
+      serverId,
       currentUser: t.currentUser,
       get accountId() {
         return t.currentUser.user?.id ?? null;
@@ -91,51 +162,14 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
       get permissions() {
         return t.permissions;
       },
-      serverInfo: {
+      serverInfo: withMembers(withMembers({}, serverInfo), {
         supportsFeature: (feature: ServerFeature) =>
           typeof t.features === 'boolean' ? t.features : (t.features[feature] ?? true)
-      }
+      })
     },
-    options.store
+    extra
   );
-  const connection = withMembers(
-    {
-      get serverId() {
-        return t.serverId;
-      },
-      get queryScope() {
-        return `${t.serverId}-session`;
-      },
-      isConnected: true,
-      showConnectionLostBanner: false,
-      get connectBaseUrl() {
-        return `https://${t.serverId}.example.test/api/connect`;
-      },
-      bearerToken: null,
-      get apiConfig(): ConnectAPIConfig {
-        return {
-          serverId: t.serverId,
-          queryScope: `${t.serverId}-session`,
-          baseUrl: `https://${t.serverId}.example.test/api/connect`,
-          bearerToken: null
-        };
-      },
-      getAPI<T>(factory: (config: ConnectAPIConfig) => T): T {
-        return (options.api as T | undefined) ?? factory(this.apiConfig);
-      },
-      invalidatePrivateData() {},
-      forceReconnect() {}
-    },
-    options.connection
-  );
-  return {
-    get serverId() {
-      return t.serverId;
-    },
-    connection: connection as unknown as ServerConnection,
-    store: store as unknown as ServerStateStore,
-    isCurrent: () => t.current
-  };
+  return store as unknown as ServerStateStore;
 }
 
 /** Copy `extra`'s own members onto `base`, keeping getters and setters. */

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
   listAdminRoles: vi.fn(),
@@ -18,20 +19,10 @@ vi.mock('$app/paths', () => ({
     )
 }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
-vi.mock('$lib/state/server/scope.svelte', () => ({
-  useServerScope: () => ({
-    serverId: 'origin',
-    store: {},
-    connection: {
-      queryScope: 'role-create-test',
-      getAPI: () => ({
-        listAdminRoles: mocks.listAdminRoles,
-        createRole: mocks.createRole
-      })
-    },
-    isCurrent: () => true
-  })
-}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 vi.mock('$lib/api-client/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/ui/Panel.svelte', async () => ({
   default: (await import('../[name]/RolePageSnippetMock.svelte')).default
@@ -51,16 +42,22 @@ vi.mock('$lib/ui/PageTitle.svelte', async () => ({
 
 import RoleCreatePage from './+page.svelte';
 
+let server: TestServerScope;
+
 describe('role creation query invalidation', () => {
   beforeEach(() => {
     queryClient.clear();
     vi.clearAllMocks();
+    server = createTestServerScope({
+      serverId: 'origin',
+      api: { listAdminRoles: mocks.listAdminRoles, createRole: mocks.createRole }
+    });
     mocks.listAdminRoles.mockResolvedValue({ roles: [], viewerCanManageRoles: true });
     mocks.createRole.mockResolvedValue({ name: 'moderator' });
   });
 
   it('invalidates the cached permission tier before navigating to the new role', async () => {
-    const connection = { queryScope: 'role-create-test' };
+    const connection = server.scope.connection;
     const tierKey = adminQueryKeys.permissionTiers('origin', connection);
     queryClient.setQueryData(tierKey, { roles: [] });
     const { container } = render(RoleCreatePage);
@@ -76,7 +73,7 @@ describe('role creation query invalidation', () => {
   });
 
   it('reuses the cached role catalog capability snapshot', async () => {
-    const connection = { queryScope: 'role-create-test' };
+    const connection = server.scope.connection;
     queryClient.setQueryData(adminQueryKeys.roleCatalog('origin', connection), {
       roles: [],
       viewerCanManageRoles: true,
