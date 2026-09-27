@@ -91,7 +91,7 @@ func (i *notificationBoundaryIndex) run(ctx context.Context) error {
 
 	var pendingResync chan error
 	for {
-		watcher, err := i.kv.WatchFiltered(ctx, []string{
+		watcher, err := watchKeyFilters(ctx, i.kv, []string{
 			notificationVisibilityBoundaryFilterAll,
 			notificationReadBoundaryFilterAll,
 			notificationUnreadMarkerFilterAll,
@@ -168,6 +168,13 @@ func (i *notificationBoundaryIndex) completeSync(fullRepair bool) {
 	if !i.synced {
 		i.synced = true
 		close(i.ready)
+		if i.logger != nil {
+			i.logger.Debug("Notification boundary index sync complete",
+				"visibility_boundaries", len(i.visibility),
+				"read_boundaries", len(i.read),
+				"unread_marker_users", len(i.unreadMarkerByUser),
+			)
+		}
 	}
 	if fullRepair {
 		i.fullRepair = true
