@@ -1729,7 +1729,7 @@ describe('RoomSidebar', () => {
       container,
       'button[aria-label="Clear member search"]'
     ) as HTMLButtonElement;
-    expect(clearButton).toHaveClass('h-8', 'w-8');
+    expect(clearButton).toHaveClass('field-action');
     clearButton.click();
     await tick();
 
