@@ -75,8 +75,17 @@ test('web content blocks implementation and task steering until the next user me
       'blocked after reading web content'
     );
 
-    // Consumed steering also delivers a user message to the model; rejected steering does not.
+    // A message received before the web read cannot confirm that content.
+    const early = await options.prepareMessage('Also check this', 'user');
     await call('webSearch', { query: 'more' });
+    steerConsumed = true;
+    expect(await agent.steer(early)).toBe(true);
+    await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
+      'blocked after reading web content'
+    );
+    steerConsumed = false;
+
+    // Consumed steering after the read delivers a confirmation; rejected steering does not.
     const steered = await options.prepareMessage('Go ahead', 'user');
     expect(await agent.steer(steered)).toBe(false);
     await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(

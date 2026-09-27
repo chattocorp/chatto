@@ -108,32 +108,45 @@ test.each(['file:///etc/passwd', 'ftp://example.com/', 'https://user:pw@example.
   }
 );
 
-test('the browse allowlist keeps exact known URLs and resolves page-relative links', () => {
+test('the browse allowlist keeps exact trusted URLs and only the latest page links', () => {
   const allowlist = createUrlAllowlist();
-  allowlist.addFrom('Read https://example.com/guide, then (https://example.com/faq#top).');
+  allowlist.addTrusted('Read https://example.com/guide, then (https://example.com/faq#top).');
   expect(allowlist.has('https://example.com/guide')).toBe(true);
   expect(allowlist.has('https://example.com/faq')).toBe(true);
   expect(allowlist.has('https://example.com/guide?leak=thread-text')).toBe(false);
   expect(allowlist.has('https://attacker.example/')).toBe(false);
-  allowlist.addFrom('[Install](/docs/install) and [Next](next.md)', 'https://example.com/docs/');
+  allowlist.setPageLinks(
+    '[Install](/docs/install) and [Next](next.md)',
+    'https://example.com/docs/'
+  );
   expect(allowlist.has('https://example.com/docs/install')).toBe(true);
   expect(allowlist.has('https://example.com/docs/next.md')).toBe(true);
-  allowlist.addFrom('[Relative](/ignored)');
-  expect(allowlist.has('https://example.com/ignored')).toBe(false);
+  const many = Array.from({ length: 80 }, (_, index) => `[${index}](/c/${index})`).join(' ');
+  allowlist.setPageLinks(many, 'https://attacker.example/');
+  expect(allowlist.has('https://example.com/docs/install')).toBe(false);
+  expect(allowlist.has('https://attacker.example/c/49')).toBe(true);
+  expect(allowlist.has('https://attacker.example/c/50')).toBe(false);
+  expect(allowlist.has('https://example.com/guide')).toBe(true);
 });
 
-test('browsePage opens only allowlisted URLs within its budget and adds links from pages it reads', async () => {
+test('web tools enforce the allowlist and request budget', async () => {
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
   const allowlist = createUrlAllowlist();
-  allowlist.addFrom('https://example.com/start');
+  allowlist.addTrusted('https://example.com/start');
   const onWebContent = vi.fn();
   const request = vi
     .fn<typeof fetch>()
-    .mockImplementation(async () => Response.json({ success: true, result: '[Next](/next)' }));
-  let browsesLeft = 2;
+    .mockImplementation(async (url) =>
+      String(url).includes('tavily')
+        ? Response.json({
+            results: [{ title: 'Found', url: 'https://found.example/', content: '' }]
+          })
+        : Response.json({ success: true, result: '[Next](/next)' })
+    );
+  const budget = { search: 1, browse: 2 };
   const extension = webExtension(
-    { cloudflare },
-    { onWebContent, allowlist, takeBrowse: () => browsesLeft-- > 0 },
+    { tavilyApiKey: 'tvly-key', cloudflare },
+    { onWebContent, allowlist, take: (kind) => budget[kind]-- > 0 },
     request
   );
   const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -143,15 +156,18 @@ test('browsePage opens only allowlisted URLs within its budget and adds links fr
     }
   } as AgentExtensionAPI);
   const browse = (url: string) => tools.get('browsePage')!.execute('call', { url } as never);
+  const search = () => tools.get('webSearch')!.execute('call', { query: 'q' } as never);
   await expect(browse('https://attacker.example/?d=secret')).rejects.toThrow('can open only');
   expect(request).not.toHaveBeenCalled();
   expect(onWebContent).not.toHaveBeenCalled();
+  await search();
+  expect(allowlist.has('https://found.example/')).toBe(true);
+  await expect(search()).rejects.toThrow('search limit');
   await browse('https://example.com/start');
-  expect(onWebContent).toHaveBeenCalledOnce();
   await browse('https://example.com/next');
-  expect(request).toHaveBeenCalledTimes(2);
-  await expect(browse('https://example.com/next')).rejects.toThrow('page limit');
-  expect(request).toHaveBeenCalledTimes(2);
+  expect(onWebContent).toHaveBeenCalledTimes(3);
+  await expect(browse('https://found.example/')).rejects.toThrow('page limit');
+  expect(request).toHaveBeenCalledTimes(3);
 });
 
 test('the steering guard blocks only send and keeps other task operations', async () => {

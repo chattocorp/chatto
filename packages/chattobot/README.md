@@ -179,14 +179,16 @@ through this tool.
 Web content and messages from other thread participants can contain instructions
 that try to control the agent. The host applies these limits:
 
-- `browsePage` opens only URLs that appear in the conversation owner's messages, in
-  `webSearch` results, or as links on pages that it already read. Injected text
-  therefore cannot add conversation data to a URL. A hostile page can still offer
-  links and tell the agent which ones to open. Each order of choices can reveal a
-  small amount of data, so the host permits at most 5 page reads per user message.
+- `browsePage` opens only URLs that appear in the conversation owner's messages or
+  in `webSearch` results, and at most 50 links from the most recently read page.
+  Injected text therefore cannot add conversation data to a URL. A hostile page
+  can still tell the agent which of its links to open. Each user message allows
+  at most 5 searches and 5 page reads, so this channel can reveal at most about
+  28 bits for each user message, for example a short code.
 - After the agent reads web content, the host refuses `implementChatto`,
-  `askImplementation`, and `task_send` until the agent receives a new message from
-  the user. Task notifications do not remove this limit.
+  `askImplementation`, and `task_send` until a user message sent after that
+  content reaches the agent. Task notifications and earlier messages do not
+  remove this limit.
 
 Read-only investigation and `task_cancel` remain available. Instructions in earlier
 web content remain in the conversation history, and an investigation plan can
