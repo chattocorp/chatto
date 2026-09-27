@@ -636,6 +636,41 @@ describe('CurrentUserBar', () => {
     });
   });
 
+  it('shows a custom clear time field after choosing the custom expiry preset', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+
+    const preset = await vi.waitFor(() => {
+      const select = q(
+        container,
+        '[data-testid="settings-custom-status-expiry-preset"]'
+      ) as HTMLSelectElement;
+      expect(select).toBeTruthy();
+      return select;
+    });
+    expect(q(container, '[data-testid="settings-custom-status-expires-at"]')).toBeNull();
+
+    preset.value = 'custom';
+    preset.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(preset.value).toBe('custom');
+      const custom = q(
+        container,
+        '[data-testid="settings-custom-status-expires-at"]'
+      ) as HTMLInputElement;
+      expect(custom.type).toBe('datetime-local');
+      expect(custom.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    });
+  });
+
   it('shows the custom status emoji next to the display name, not on the avatar', () => {
     server.currentUser.user = {
       ...server.currentUser.user!,

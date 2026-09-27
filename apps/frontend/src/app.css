@@ -1334,9 +1334,14 @@
   @apply min-h-12 px-5 py-2.5 font-semibold;
 }
 
-/* Square icon-only size for Button size="icon"; the variant supplies the tone. */
+/* Square icon-only size for Button size="icon"; the variant supplies the tone.
+ * The element selector outranks the padding and radius of the btn-* tones, so
+ * the square shape does not depend on rule order.
+ */
 @utility btn-icon {
-  @apply h-10 w-10 shrink-0 justify-center rounded-md p-0;
+  &:is(button, a) {
+    @apply h-10 w-10 shrink-0 justify-center rounded-md p-0;
+  }
 }
 
 /* Form input utilities */
@@ -1921,7 +1926,12 @@
  * colour, independent of rule order.
  */
 @utility icon-action-danger {
-  &:is(.icon-action, .field-action):not(:disabled):hover,
+  @media (hover: hover) {
+    &:is(.icon-action, .field-action):not(:disabled):hover {
+      color: var(--color-danger);
+    }
+  }
+
   &:is(.icon-action, .field-action):focus-visible {
     color: var(--color-danger);
   }

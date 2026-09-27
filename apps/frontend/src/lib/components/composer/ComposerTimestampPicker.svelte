@@ -142,7 +142,7 @@
 
         <!-- A native datalist keeps the time zone suggestions inside this popover.
              Combobox would open a second floating layer above the context menu. -->
-        <FormField id={timezoneInputId} label={m('composer.timestamp.timezone')}>
+        <FormField id={timezoneInputId} label={m('composer.timestamp.timezone')} required>
           <input
             id={timezoneInputId}
             class="input"
