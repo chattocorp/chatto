@@ -100,6 +100,19 @@ func (c *ChattoCore) renewableSessionTTLForClient(clientID string) time.Duration
 	return ttl
 }
 
+// clampLoopbackSessionWindow limits a loopback-client session to its fixed
+// lifetime from creation. Validation applies it to every stored session, so a
+// longer window written by a replica without this rule cannot outlive the cap.
+func clampLoopbackSessionWindow(session RenewableSession) RenewableSession {
+	if session.ClientID != config.ChattoLoopbackClientID {
+		return session
+	}
+	if deadline := session.CreatedAt.Add(config.ChattoLoopbackSessionLifetime); deadline.Before(session.ExpiresAt) {
+		session.ExpiresAt = deadline
+	}
+	return session
+}
+
 func (c *ChattoCore) renewableSessionWindowNeedsRenewal(session RenewableSession, now time.Time) bool {
 	if session.ClientID == config.ChattoLoopbackClientID {
 		return false
@@ -374,6 +387,7 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 	if err != nil {
 		return RenewableSession{}, nil, err
 	}
+	session = clampLoopbackSessionWindow(session)
 	if !now.Before(session.ExpiresAt) {
 		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
