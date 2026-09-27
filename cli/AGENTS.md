@@ -462,9 +462,13 @@ server.
   reads, and replay against a real EVT history. Set
   `CHATTO_BENCH_EVT_STORE_DIR` to a copy of a NATS data directory under
   `.context/bench/`. Use an absolute path or a path relative to `cli/`. Never
-  use a live server's directory. The copy holds real
-  user data; delete it after use. Compare base and branch results with
-  `benchstat` before you ship a memory change.
+  use a live server's directory. The copy holds real user data; delete it
+  after use.
+- A projection memory change must not make request-path reads or replay
+  noticeably slower. Before you ship one, run `mise bench-projections-store`
+  on the target base and on the branch with the same data. Alternate the runs
+  and compare them with `benchstat`. Check read latency and allocations, not
+  only retained heap. Use a temporary `git worktree` for the base checkout.
 - For realtime connection-memory work, negotiate production WebSocket
   compression and use an external load generator so client allocations do not
   enter the server profile.
