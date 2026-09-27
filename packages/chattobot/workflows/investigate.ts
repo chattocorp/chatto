@@ -54,8 +54,8 @@ export interface InvestigationSettings {
 }
 
 /** Capture configuration once per source generation, preserving settings for active conversations.
- * With implementation enabled, investigate its base branch on origin so plans and changes share a
- * base. Otherwise use `CHATTO_SOURCE_REF`, or the checkout's `HEAD` when it is unset. */
+ * With implementation enabled, investigate its remote-tracking base branch so plans and changes
+ * share a base. Otherwise use `CHATTO_SOURCE_REF`, or the checkout's `HEAD` when it is unset. */
 export function investigationSettings(
   implementation?: Pick<ImplementationSettings, 'baseBranch'>
 ): InvestigationSettings | undefined {
@@ -64,7 +64,7 @@ export function investigationSettings(
   return {
     directory: resolve(directory),
     baseRef: implementation?.baseBranch
-      ? `origin/${implementation.baseBranch}`
+      ? `refs/remotes/origin/${implementation.baseBranch}`
       : (setting('CHATTO_SOURCE_REF') ?? 'HEAD'),
     model: setting('CHATTO_INVESTIGATION_MODEL') ?? 'openai-codex/gpt-5.6-sol'
   };

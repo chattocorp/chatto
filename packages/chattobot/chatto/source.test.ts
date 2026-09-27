@@ -190,7 +190,7 @@ test('passes implementation configuration through the realtime source and captur
     baseBranch: 'main',
     model: 'test/worker'
   });
-  expect(original.investigation?.baseRef).toBe('origin/main');
+  expect(original.investigation?.baseRef).toBe('refs/remotes/origin/main');
   vi.stubEnv('CHATTO_SOURCE_REF', 'next');
   await chattoSource(ctx);
   expect(mocks.bot.mock.calls[1]![0]!.implementation?.baseBranch).toBe('next');
@@ -273,21 +273,29 @@ test.each(['recover', 'exhaust', 'abort', 'other'])('registration retry: %s', as
   expect(dispatch).toHaveBeenCalledTimes(mode === 'recover' ? 2 : mode === 'exhaust' ? 3 : 1);
 });
 
-test('reports invalid settings before contacting the server', async () => {
+test.each([
+  [
+    { CHATTO_IMPLEMENTATION_REPOSITORY: 'example/chatto', CHATTO_SOURCE_DIRECTORY: '' },
+    'CHATTO_IMPLEMENTATION_REPOSITORY requires CHATTO_SOURCE_DIRECTORY'
+  ],
+  [{ CHATTO_URL: 'not a url' }, 'CHATTO_URL must be an HTTP or HTTPS URL without credentials'],
+  [
+    { CHATTO_URL: 'https://user:secret@chat.example' },
+    'CHATTO_URL must be an HTTP or HTTPS URL without credentials'
+  ]
+])('reports invalid settings before contacting the server: %j', async (env, message) => {
   vi.stubEnv('CHATTO_URL', 'https://chat.example');
   vi.stubEnv('CHATTO_API_KEY', 'key');
-  vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', 'example/chatto');
-  vi.stubEnv('CHATTO_SOURCE_DIRECTORY', '');
+  for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
   const ctx: EventSourceContext = {
     signal: new AbortController().signal,
     state: new Map(),
     dispatch: vi.fn()
   };
-  await expect(chattoSource(ctx)).rejects.toThrow('requires CHATTO_SOURCE_DIRECTORY');
-  expect(error).toHaveBeenCalledWith(
-    'ChattoBot configuration error: CHATTO_IMPLEMENTATION_REPOSITORY requires CHATTO_SOURCE_DIRECTORY'
-  );
+  await expect(chattoSource(ctx)).rejects.toThrow(message);
+  expect(error).toHaveBeenCalledWith(`ChattoBot configuration error: ${message}`);
+  expect(JSON.stringify(error.mock.calls)).not.toContain('secret');
   expect(mocks.rpc).not.toHaveBeenCalled();
   expect(mocks.bot).not.toHaveBeenCalled();
 });

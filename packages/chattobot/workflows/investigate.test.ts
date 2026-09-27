@@ -194,7 +194,9 @@ test('an empty source ref uses HEAD, and implementation selects its base branch 
     model: 'openai-codex/gpt-5.6-sol'
   });
   vi.stubEnv('CHATTO_SOURCE_REF', 'feature');
-  expect(investigationSettings({ baseBranch: 'develop' })?.baseRef).toBe('origin/develop');
+  expect(investigationSettings({ baseBranch: 'develop' })?.baseRef).toBe(
+    'refs/remotes/origin/develop'
+  );
 });
 
 test.each(['direct', 'tool'])(

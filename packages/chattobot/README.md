@@ -62,9 +62,11 @@ source and console. Without `--watch`, restart to load code or configuration cha
 
 The server loads `.env` from this project directory. Restart it after changing
 credentials. The API key authenticates the realtime connection. Empty settings
-count as unset. The bot checks its settings before it connects. If a setting is
-missing or invalid, the terminal shows a `ChattoBot configuration error` that names
-the setting, and the bot stays stopped until you correct it and restart.
+count as unset. The bot checks its settings before it connects. If a required
+setting is missing or has an invalid format, the terminal shows a `ChattoBot
+configuration error` that names the setting. The bot then stays stopped until you
+correct the setting and restart. Model names, the source directory, and Git refs
+are checked when they are used.
 The web console is available at `http://localhost:5173`.
 
 To restrict the bot to one user, set `CHATTO_ALLOWED_USER_ID` in `.env` to that
@@ -150,8 +152,8 @@ CHATTO_INVESTIGATION_MODEL=openai-codex/gpt-5.6-sol
 The directory must be a local Git checkout. The ref must exist locally; the bot
 does not fetch updates for investigations. If omitted or empty, the ref defaults to
 `HEAD`. When implementation is enabled, investigations use the implementation base
-branch on origin instead, for example `origin/main`, so plans and changes start
-from the same branch. Uncommitted changes
+branch's remote-tracking ref instead, for example `refs/remotes/origin/main`, so
+plans and changes start from the same branch. Uncommitted changes
 in the supplied checkout are not included. Configure the selected model's
 credentials in Pi or the host environment, then restart ChattoBot and start a new
 conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent.

@@ -38,6 +38,13 @@ export function messageDelivery(message: AddressedMessage, botId: string): Deliv
   };
 }
 
+/** Match the client's server URL rules without including the value in an error message. */
+function isServerUrl(value: string): boolean {
+  if (!URL.canParse(value)) return false;
+  const url = new URL(value);
+  return (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password;
+}
+
 /** Read and validate this source generation's settings before contacting any service.
  * Runling does not log source failure messages, so configuration errors are logged here.
  * Their messages name settings, never their values. */
@@ -46,6 +53,8 @@ function sourceSettings() {
     const serverUrl = setting('CHATTO_URL');
     const apiKey = setting('CHATTO_API_KEY');
     if (!serverUrl || !apiKey) throw new ConfigurationError('Set CHATTO_URL and CHATTO_API_KEY');
+    if (!isServerUrl(serverUrl))
+      throw new ConfigurationError('CHATTO_URL must be an HTTP or HTTPS URL without credentials');
     const implementation = implementationSettings();
     return {
       serverUrl,
