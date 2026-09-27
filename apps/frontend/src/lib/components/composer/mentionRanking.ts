@@ -2,7 +2,10 @@ import { fuzzyMatch } from '$lib/fuzzyMatch';
 import type { RoomMember } from '$lib/state/room';
 import type { MentionRole } from './autocomplete.svelte';
 
-/** Fuzzy score of an exact, case-insensitive match. See `fuzzyMatch`. */
+/**
+ * Fuzzy score of an exact, case-insensitive match. See `fuzzyMatch`. A long
+ * fuzzy match can score higher, so compare for equality.
+ */
 const EXACT_MATCH_SCORE = 1000;
 
 /** One ranked @mention autocomplete candidate. */
@@ -40,7 +43,7 @@ export function rankMentionCandidates(
     if (score > 0) {
       users.push({
         result: { type: 'user', handle: member.login, member, score, priority: 0 },
-        exact: score >= EXACT_MATCH_SCORE,
+        exact: loginScore === EXACT_MATCH_SCORE || displayScore === EXACT_MATCH_SCORE,
         prioritized: prioritizedUserIds.has(member.id)
       });
     }

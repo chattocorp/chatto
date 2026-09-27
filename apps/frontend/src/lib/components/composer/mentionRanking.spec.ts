@@ -43,6 +43,17 @@ describe('rankMentionCandidates', () => {
     ]);
   });
 
+  it('does not treat a long fuzzy match that scores above 1000 as an exact match', () => {
+    const query = 'a'.repeat(26) + 'x';
+    const scattered = member('a'.repeat(26) + '_x');
+    const prioritized = member('spaced', 'a '.repeat(26) + 'x');
+
+    expect(handles(query, [scattered, prioritized], [], new Set([prioritized.id]))).toEqual([
+      'spaced',
+      scattered.login
+    ]);
+  });
+
   it('keeps users above virtual handles and roles, even when prioritized', () => {
     const roles = [{ name: 'helpers', pingable: true }];
     expect(
