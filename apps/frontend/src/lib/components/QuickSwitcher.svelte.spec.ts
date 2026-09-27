@@ -63,7 +63,7 @@ const mocks = vi.hoisted(() => ({
         id: 'user-current'
       }
     },
-    projectionViewerId: 'user-current' as string | null,
+    viewerId: 'user-current' as string | null,
     navigation: {
       rooms: [] as Array<{
         id: string;

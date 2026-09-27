@@ -33,7 +33,7 @@ function makeStore(
   viewerId: string | null = 'viewer-1'
 ): RoomPinsStore {
   const connection = { getAPI: () => api } as unknown as ServerConnection;
-  return new RoomPinsStore(connection, serverId, () => viewerId, 'R1');
+  return new RoomPinsStore(connection, serverId, viewerId, 'R1');
 }
 
 describe('RoomPinsStore', () => {

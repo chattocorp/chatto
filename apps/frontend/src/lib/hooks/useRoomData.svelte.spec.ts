@@ -16,7 +16,7 @@ const { mocks } = vi.hoisted(() => ({
         hasDisplayableView: boolean;
       };
       isAuthenticated: boolean;
-      projectionViewerId: string;
+      viewerId: string;
       projection: { rooms: SvelteMap<string, unknown> };
       projectedMembersForRoom: ReturnType<typeof vi.fn>;
       currentUser: { user: { id: string } | undefined };
@@ -83,7 +83,7 @@ describe('useRoomData projection selector', () => {
     mocks.store = {
       realtimeSync,
       isAuthenticated: true,
-      projectionViewerId: 'viewer',
+      viewerId: 'viewer',
       projection: { rooms: new SvelteMap() },
       projectedMembersForRoom: vi.fn((roomId: string) => [member(roomId)]),
       currentUser: { user: { id: 'viewer' } },

@@ -586,7 +586,7 @@ export class ServerStateStore {
   messagesForRoom(roomId: string): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.viewerId, {
+    store = new MessagesStore(this.#serverConnection, () => this.realtimeViewerId(), {
       roomId
     });
     this.#roomMessages[roomId] = store;
@@ -662,7 +662,7 @@ export class ServerStateStore {
   pinsForRoom(roomId: string): RoomPinsStore {
     let store = this.#roomPins[roomId];
     if (store) return store;
-    store = new RoomPinsStore(this.#serverConnection, this.serverId, () => this.viewerId, roomId);
+    store = new RoomPinsStore(this.#serverConnection, this.serverId, this.viewerId, roomId);
     this.#roomPins[roomId] = store;
     return store;
   }
@@ -801,7 +801,7 @@ export class ServerStateStore {
     const key = `${roomId}\u0000${threadRootEventId}`;
     let store = this.#threadMessages[key];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.viewerId, {
+    store = new MessagesStore(this.#serverConnection, () => this.realtimeViewerId(), {
       roomId,
       threadRootEventId
     });
