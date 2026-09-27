@@ -314,17 +314,23 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      # Breaking checks compare a pull request with its target branch. A push
+      # has already passed them as a pull request, and labels that acknowledge
+      # public API breaks exist only on pull requests. The target branch can
+      # also move during a push run, so a shallow fetch of it is not stable.
       - name: Fetch protobuf breaking base
+        if: github.event_name == 'pull_request'
         run: |
-          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          base_ref="${GITHUB_BASE_REF}"
           git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
       - name: Lint Chatto protobufs
         run: mise lint-proto
 
       - name: Check storage, internal, and Operator protobuf breaking changes
+        if: github.event_name == 'pull_request'
         run: |
-          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"
 
@@ -333,8 +339,9 @@ jobs:
         run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public protobuf packages without acknowledged breaks
+        if: github.event_name == 'pull_request'
         run: |
-          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          base_ref="${GITHUB_BASE_REF}"
           cd proto
           labels='${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}'
           # Check each package once; imported packages have their own checks and labels.
@@ -348,8 +355,9 @@ jobs:
           done
 
       - name: Check Authling persisted protobuf breaking changes
+        if: github.event_name == 'pull_request'
         run: |
-          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          base_ref="${GITHUB_BASE_REF}"
           if git cat-file -e "origin/${base_ref}:authling/buf.yaml" 2>/dev/null; then
             cd authling
             mise x -- buf breaking . \

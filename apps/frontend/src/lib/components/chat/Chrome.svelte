@@ -2,15 +2,10 @@
   import type { Snippet } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import { LoadingFog, ScrollFader } from '$lib/ui';
-  import {
-    createChromePermissions,
-    type ChromePermissions
-  } from '$lib/state/server/chromePermissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
@@ -117,37 +112,14 @@
     page.url.pathname === resolve('/chat/[serverId]/threads', { serverId: serverSegment })
   );
 
-  type ServerChromeData = ChromePermissions & {
-    name: string;
-    bannerUrl: string | null;
-  };
-
   // Server chrome is part of the canonical retained projection. Switching a
   // warm server selects this state synchronously; only a genuinely cold
   // projection renders the quiet loading branch below.
-  const serverData = $derived.by<ServerChromeData | null>(() => {
-    const viewerResponse = activeStore.projection.viewer;
-    if (!activeStore.realtimeSync.hasDisplayableView) return null;
-    const viewer = viewerResponse ? viewerResponseToState(viewerResponse) : null;
-    const can = (permission: string) => viewer?.viewerPermissions[permission] ?? false;
-    return {
-      name: activeStore.serverInfo.name,
-      bannerUrl: activeStore.serverInfo.bannerUrl,
-      canViewAdmin: viewer?.canViewAdmin ?? false,
-      canManage: can('server.manage'),
-      canManageNeighbors: can('server.manage-neighbors'),
-      canManageRooms: can('room.manage'),
-      canModerate: can('room.remove-member'),
-      canManageRoles: viewer?.canAdminManageRoles ?? false,
-      canAssignRoles: viewer?.canAssignRoles ?? false,
-      canManageUserAccounts: viewer?.canAdminManageAccounts ?? false,
-      canManageUserPermissions: viewer?.canManageUserPermissions ?? false
-    };
-  });
-
-  // Descendants read the canonical derived state directly, without a mirrored
-  // permission object or post-render synchronization effect.
-  createChromePermissions(() => serverData);
+  const serverData = $derived(
+    activeStore.realtimeSync.hasDisplayableView
+      ? { name: activeStore.serverInfo.name, bannerUrl: activeStore.serverInfo.bannerUrl }
+      : null
+  );
 
   // Server updates mutate the retained projection, so these derived values
   // update without a separate validation query.
@@ -156,11 +128,7 @@
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived(
-    getAdminNavItems({
-      serverSegment,
-      chrome: serverData,
-      server: activeStore.permissions
-    })
+    getAdminNavItems({ serverSegment, permissions: activeStore.permissions })
   );
   const managedRoom = $derived(
     page.params.roomId
@@ -272,7 +240,7 @@
       <hr class="border-border" />
 
       <!-- Room List - always visible to server members (shows rooms user has joined) -->
-      <RoomList canReorderGroups={serverData.canManageRooms} />
+      <RoomList canReorderGroups={activeStore.permissions.canManageRooms} />
     </ScrollFader>
   {/if}
 </ServerSidebar>

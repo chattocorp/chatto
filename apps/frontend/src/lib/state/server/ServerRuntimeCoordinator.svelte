@@ -6,7 +6,6 @@
   import { serverRegistry } from './registry.svelte';
   import { serverConnectionManager } from './serverConnection.svelte';
   import { startServerRecovery } from './serverRecovery';
-  import { onSessionTerminated } from '$lib/eventBus.svelte';
 
   $effect(() => untrack(() => startServerRecovery(serverRegistry)));
 
@@ -51,18 +50,19 @@
   });
 
   // Remote session termination is authoritative even when its server is not
-  // the active route. Sign out that server.
+  // the active route. Sign out that server. Reading each bus here subscribes
+  // again when a server's bus starts after this effect first ran.
   $effect(() => {
-    const remoteIds = serverRegistry.servers
+    const remoteBuses = serverRegistry.servers
       .filter((server) => !serverRegistry.isOriginServer(server.id))
-      .map((server) => server.id);
+      .map((server) => ({ id: server.id, bus: eventBusManager.getBus(server.id) }));
     return untrack(() => {
-      const disposers = remoteIds.map((id) =>
-        onSessionTerminated(id, () => {
+      const disposers = remoteBuses.map(({ id, bus }) =>
+        bus?.onSessionTerminated(() => {
           queueMicrotask(() => serverRegistry.clearServerAuthentication(id));
         })
       );
-      return () => disposers.forEach((dispose) => dispose());
+      return () => disposers.forEach((dispose) => dispose?.());
     });
   });
 </script>

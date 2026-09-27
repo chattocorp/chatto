@@ -21,7 +21,7 @@ name = "Mailpit"
 url = "http://localhost:$((CONDUCTOR_PORT + 9))"
 
 [scripts]
-setup = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
+setup = "mise setup"
 archive = "exec tools/stop-workspace-dev.sh"
 run_mode = "concurrent"
 

@@ -4,16 +4,14 @@
  *
  * The manager keeps one bus per registered server. Route hooks select their
  * bus from `ServerScope`; origin-global and cross-server consumers select a
- * server explicitly.
+ * server explicitly. Every consumer subscribes to the same ordered stream of
+ * projection updates; a semantic event is `update.event`.
  */
 
 import { SvelteSet } from 'svelte/reactivity';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { eventBusManager } from './state/server/eventBus.svelte';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RealtimeResource, RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 
-export type EventHandler = (event: RealtimeEvent) => void;
 /** One ordered public event or canonical resource response consumed by the frontend. */
 export class RealtimeProjectionUpdate {
   /** Semantic source event. Resource responses do not have one. */
@@ -56,84 +54,92 @@ export class RealtimeProjectionUpdate {
 }
 export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;
 
-export interface EventBus {
-  handlers: SvelteSet<EventHandler>;
-  projectionHandlers: SvelteSet<ProjectionHandler>;
-  sessionTerminatedHandlers: SvelteSet<(reason: string) => void>;
-}
+/**
+ * Fan-out for one server's realtime stream.
+ *
+ * The server store's reducer applies each update first. Listeners then see the
+ * same update in subscription order. A listener error is logged and does not
+ * stop other listeners or the transport, so the event cursor still advances
+ * and the update is not delivered again: a listener must finish its own
+ * cleanup work before it can throw. A reducer error propagates, because the
+ * projection is then out of date; the transport closes and reconnects. A reset
+ * still reaches every listener before the reducer error is thrown.
+ */
+export class EventBus {
+  #reducer: ProjectionHandler | null = null;
+  #listeners = new SvelteSet<ProjectionHandler>();
+  #sessionTerminatedListeners = new SvelteSet<(reason: string) => void>();
 
-function selectedBus(serverId: string): EventBus | undefined {
-  return serverId ? eventBusManager.getBus(serverId) : undefined;
-}
+  constructor(private readonly serverId: string) {}
 
-/** Register a handler for semantic events and canonical resource responses. */
-export function onProjectionEvent(serverId: string, handler: ProjectionHandler): () => void {
-  const bus = selectedBus(serverId);
-  if (!bus) return () => {};
-  bus.projectionHandlers.add(handler);
-  return () => {
-    bus.projectionHandlers.delete(handler);
-  };
-}
+  /** Install the canonical reducer. A newer store for the same server replaces the previous one. */
+  setReducer(reducer: ProjectionHandler): void {
+    this.#reducer = reducer;
+  }
 
-// ---------------------------------------------------------------------------
-// Typed event handler helpers
-// ---------------------------------------------------------------------------
+  /** Remove this reducer if it is still installed, for example when its store is disposed. */
+  clearReducer(reducer: ProjectionHandler): void {
+    if (this.#reducer === reducer) this.#reducer = null;
+  }
 
-// ---------------------------------------------------------------------------
-// Typed event handler exports
-// ---------------------------------------------------------------------------
+  /** Number of listeners, for transport diagnostics. */
+  get listenerCount(): number {
+    return this.#listeners.size;
+  }
 
-export function onSessionTerminated(
-  serverId: string,
-  handler: (reason: string) => void
-): () => void {
-  const bus = selectedBus(serverId);
-  if (!bus) return () => {};
-  bus.sessionTerminatedHandlers.add(handler);
-  return () => bus.sessionTerminatedHandlers.delete(handler);
-}
+  /** Receive every semantic event and resource update after the reducer applied it. */
+  subscribe(listener: ProjectionHandler): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
 
-// ---------------------------------------------------------------------------
-// Room-scoped helpers
-// ---------------------------------------------------------------------------
+  /** Receive the reason when the server terminates this session. */
+  onSessionTerminated(listener: (reason: string) => void): () => void {
+    this.#sessionTerminatedListeners.add(listener);
+    return () => this.#sessionTerminatedListeners.delete(listener);
+  }
 
-type PresenceHandler = (userId: string, status: PresenceStatus) => void;
+  /** Apply a transport update to the reducer, then notify listeners. */
+  publish(update: RealtimeProjectionUpdate): void {
+    const reducer = this.#reducer;
+    if (!reducer) throw new Error('projection update received before reducer registration');
+    if (!update.reset) {
+      reducer(update);
+      this.notify(update);
+      return;
+    }
+    let reducerFailed = false;
+    let reducerFailure: unknown;
+    try {
+      reducer(update);
+    } catch (error) {
+      reducerFailed = true;
+      reducerFailure = error;
+      console.error(`[eventBus:${this.serverId}] reset handler failed`);
+    }
+    this.notify(update);
+    if (reducerFailed) throw reducerFailure;
+  }
 
-export function onPresenceChange(serverId: string, handler: PresenceHandler): () => void {
-  const bus = selectedBus(serverId);
-  if (!bus) return () => {};
-  const wrapper: EventHandler = (event) => {
-    if (event.event.case !== 'presenceChanged' || !event.actorId) return;
-    handler(event.actorId, event.event.value.status);
-  };
-  bus.handlers.add(wrapper);
-  return () => bus.handlers.delete(wrapper);
-}
+  /** Notify listeners of an update that the reducer already applied. */
+  notify(update: RealtimeProjectionUpdate): void {
+    for (const listener of [...this.#listeners]) {
+      try {
+        listener(update);
+      } catch (error) {
+        console.error(`[eventBus:${this.serverId}] handler threw`, error);
+      }
+    }
+  }
 
-export interface TypingEventData {
-  userId: string;
-  roomId: string;
-  threadRootEventId: string | null;
-}
-
-type TypingHandler = (data: TypingEventData) => void;
-
-export function onTypingEvent(serverId: string, handler: TypingHandler): () => void {
-  const bus = selectedBus(serverId);
-  if (!bus) return () => {};
-  const wrapper: EventHandler = (event) => {
-    if (event.event.case !== 'userTyping') return;
-    if (!event.actorId) return;
-    const ev = event.event.value;
-    handler({
-      userId: event.actorId,
-      roomId: ev.roomId,
-      threadRootEventId: ev.threadRootEventId ?? null
-    });
-  };
-  bus.handlers.add(wrapper);
-  return () => {
-    bus.handlers.delete(wrapper);
-  };
+  /** Tell session-termination listeners that the server ended this session. */
+  terminateSession(reason: string): void {
+    for (const listener of [...this.#sessionTerminatedListeners]) {
+      try {
+        listener(reason);
+      } catch (error) {
+        console.error(`[eventBus:${this.serverId}] session termination handler threw`, error);
+      }
+    }
+  }
 }

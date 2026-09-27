@@ -537,10 +537,10 @@ service, and send the target user ID.
 
 Profile updates move from `MyAccountService.UpdateProfile` and
 `AdminUserService.UpdateUser` to the target-aware
-`UserService.UpdateUserProfile` in Chatto 0.5.0-beta.8. This is an intentional
+`UserService.UpdateUserProfile` in Chatto 0.5.0-beta.9. This is an intentional
 pre-1.0 breaking change. Bots that update their own profile must call the new
 method and send their own user ID. The bundled client shows the bot profile
-editor only when the server version is 0.5.0-beta.8 or later.
+editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 

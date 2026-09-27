@@ -86,7 +86,6 @@ const { mocks } = vi.hoisted(() => {
             reason: 'version-confirmed'
           }
         },
-        setPermissions: vi.fn(),
         serverIndicator: vi.fn().mockReturnValue(null)
       }
     }
@@ -288,7 +287,6 @@ describe('ServerSidebarEntry', () => {
     mocks.store.roomUnread.resolveUnknownUnread.mockClear();
     mocks.store.roomUnread.setServerHasUnread.mockClear();
     mocks.store.roomUnread.setRoomUnread.mockClear();
-    mocks.store.setPermissions.mockClear();
     mocks.store.serverIndicator.mockReturnValue(null);
     mocks.store.projection.viewer = {};
     mocks.store.serverInfo.name = 'Loaded Remote';
@@ -308,7 +306,7 @@ describe('ServerSidebarEntry', () => {
 
   it('opens server actions on right-click and marks the server as read', async () => {
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
 
@@ -345,7 +343,7 @@ describe('ServerSidebarEntry', () => {
   it('opens server actions from the overlaid unread badge', async () => {
     mocks.store.serverIndicator.mockReturnValue('unread');
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
     const badge = q(container, '[data-testid="server-unread-dot"]')?.closest(
       'button'
@@ -362,7 +360,7 @@ describe('ServerSidebarEntry', () => {
   it('shows Copy Server Hostname last and copies the displayed host', async () => {
     mocks.server.url = 'https://remote.example.com:8443/chat';
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
 
@@ -397,7 +395,7 @@ describe('ServerSidebarEntry', () => {
 
   it('opens the remove-server confirmation for the selected server', async () => {
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
     icon.dispatchEvent(
@@ -525,7 +523,7 @@ describe('ServerSidebarEntry', () => {
       reason: 'server-too-old'
     };
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
 
     await expect
@@ -568,7 +566,7 @@ describe('ServerSidebarEntry', () => {
       reason: 'server-version-unknown'
     };
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
 
     await expect
@@ -607,7 +605,7 @@ describe('ServerSidebarEntry', () => {
       reason: 'server-version-unknown'
     };
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
 
     await expect.element(q(container, '[data-testid="server-icon"]')).toBeInTheDocument();
@@ -626,7 +624,7 @@ describe('ServerSidebarEntry', () => {
     };
     mocks.showConnectionLostIcon = true;
     const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
+      props: { serverId: 'remote' }
     });
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
@@ -890,8 +888,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
+        serverId: 'remote'
       }
     });
 
@@ -986,8 +983,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
+        serverId: 'remote'
       }
     });
 
@@ -1008,8 +1004,7 @@ describe('ServerSidebarEntry', () => {
   it('uses an already-hydrated projection without a loading state', async () => {
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
+        serverId: 'remote'
       }
     });
 
@@ -1040,8 +1035,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
+        serverId: 'remote'
       }
     });
 
@@ -1080,8 +1074,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
+        serverId: 'remote'
       }
     });
 
@@ -1101,8 +1094,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, {
       props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
+        serverId: 'remote'
       }
     });
 

@@ -8,7 +8,6 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { Button } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
@@ -37,8 +36,6 @@
   const roomId = $derived(page.params.roomId!);
   const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const getChromePermissionsState = getChromePermissions();
-  const chromePermissions = $derived(getChromePermissionsState());
 
   let scrollContainer = $state<HTMLDivElement>();
   let privacyGeneration = 0;
@@ -113,7 +110,7 @@
     serverScope.store.serverInfo.supportsFeature('roomManagement')
   );
   const backHref = $derived(
-    chromePermissions?.canManageRooms
+    serverScope.store.permissions.canManageRooms
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })
   );

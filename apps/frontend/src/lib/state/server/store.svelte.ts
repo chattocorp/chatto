@@ -12,7 +12,11 @@ import { runResetHandlers } from './resetHandlers';
 import { CurrentUserState, type CurrentUser } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
-import type { ServerPermissions, ViewerData } from './permissions';
+import {
+  NO_SERVER_PERMISSIONS,
+  serverPermissionsFromViewer,
+  type ServerPermissions
+} from './permissions';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 import { ReadViewRegistry } from './readViews.svelte';
@@ -125,19 +129,12 @@ function viewerAuthorizationLost(
   ].some((grant) => !currentGrants.has(grant));
 }
 
-const EMPTY_PERMISSIONS: ServerPermissions = {
-  loaded: false,
-  canViewAdmin: false,
-  canStartDMs: false,
-  canAdminViewUsers: false,
-  canAdminManageAccounts: false,
-  canAssignRoles: false,
-  canAdminViewRoles: false,
-  canAdminManageRoles: false,
-  canAdminViewSystem: false,
-  canAdminViewAudit: false,
-  canManageInvites: false
-};
+/** A message change that this client made, from {@link ServerStateStore.applyLocalMessageMutation}. */
+export type LocalMessageMutation =
+  | 'message-deleted'
+  | 'attachment-deleted'
+  | 'attachment-description-updated'
+  | 'link-preview-deleted';
 
 export class ServerStateStore {
   readonly serverId: string;
@@ -170,11 +167,28 @@ export class ServerStateStore {
   }
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
-  readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
-    this.ingestProjectionEvent(event);
+  readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
+    this.ingestProjectionEvent(update);
+    // Keep presence current for retained rooms and rooms first opened later.
+    const event = update.event;
+    if (event?.event.case === 'presenceChanged' && event.actorId) {
+      this.updateMemberPresence(event.actorId, event.event.value.status);
+    }
+  };
 
-  /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
-  permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
+  /**
+   * What the viewer may do on this server, derived from the viewer projection.
+   * A projection for an account that `currentUser` did not accept grants
+   * nothing, so the value stays unloaded until the accepted viewer arrives.
+   */
+  readonly permissions: ServerPermissions = $derived.by(() => {
+    const response = this.projection.viewer;
+    const acceptedUserId = this.currentUser.user?.id;
+    if (!response || !acceptedUserId || response.user?.profile?.id !== acceptedUserId) {
+      return NO_SERVER_PERMISSIONS;
+    }
+    return serverPermissionsFromViewer(viewerResponseToState(response));
+  });
 
   /**
    * Live reference to the registered server. Reads pick up `updateServer`
@@ -191,12 +205,6 @@ export class ServerStateStore {
   #roomMemberRoots: Record<string, () => void> = Object.create(null);
   #memberPresence = new SvelteMap<string, PresenceStatus>();
 
-  /** Keep presence current for retained rooms and rooms first opened later. */
-  readonly realtimePresenceHandler = (event: RealtimeEvent): void => {
-    if (event.event.case !== 'presenceChanged' || !event.actorId) return;
-    this.updateMemberPresence(event.actorId, event.event.value.status);
-  };
-
   private updateMemberPresence(userId: string, status: PresenceStatus): void {
     this.#memberPresence.set(userId, status);
     for (const store of Object.values(this.#roomMembers)) store.setPresence(userId, status);
@@ -209,8 +217,6 @@ export class ServerStateStore {
   #threadMessageRefCounts: Record<string, number> = Object.create(null);
   #adminRoomLayoutSubscriptions = 0;
 
-  /** Disposer for the internal effect root that wires lifecycle reactivity. */
-  readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
   readonly #privilegedModeAPI: PrivilegedModeAPI;
@@ -332,21 +338,6 @@ export class ServerStateStore {
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated);
     this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
-
-    // Apply the canonical projection delivered by this server's bus. Transient
-    // envelopes are consumed only by components that need one-shot signals.
-    this.#disposeEffects = $effect.root(() => {
-      $effect(() => {
-        const bus = eventBusManager.getBus(this.serverId);
-        if (!bus) return;
-        bus.projectionHandlers.add(this.realtimeProjectionHandler);
-        bus.handlers.add(this.realtimePresenceHandler);
-        return () => {
-          bus.projectionHandlers.delete(this.realtimeProjectionHandler);
-          bus.handlers.delete(this.realtimePresenceHandler);
-        };
-      });
-    });
   }
 
   /** Change privilege activation and reconcile effective viewer permissions in place. */
@@ -402,12 +393,16 @@ export class ServerStateStore {
     // An explicit privilege response supersedes pending event-driven checks.
     this.#permissionCheckGeneration++;
     this.checkingPermissions = false;
+    const previousViewer = this.projection.viewer;
     this.projection.viewer = response;
-    const viewer = viewerResponseToState(response);
-    if (!this.currentUser.apply(viewer.user)) return;
+    if (!this.currentUser.apply(viewerResponseToState(response).user)) return;
     // Mutation and expiry responses are authoritative. Refresh snapshots now,
     // including room-only grants, without waiting for the realtime reconnect.
-    this.reconcilePermissions(viewer, true);
+    if (viewerAuthorizationLost(previousViewer, response)) {
+      removeRegisteredAdminQueries(this.serverId);
+    } else {
+      refreshRegisteredAdminQueries(this.serverId);
+    }
   }
 
   /** Reject work whose resource boundary was superseded by a newer reset. */
@@ -567,8 +562,9 @@ export class ServerStateStore {
   messagesForRoom(roomId: string): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.setRoom(roomId);
+    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null, {
+      roomId
+    });
     this.#roomMessages[roomId] = store;
     return store;
   }
@@ -790,8 +786,10 @@ export class ServerStateStore {
     const key = `${roomId}\u0000${threadRootEventId}`;
     let store = this.#threadMessages[key];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.setThread(roomId, threadRootEventId);
+    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null, {
+      roomId,
+      threadRootEventId
+    });
     this.#threadMessages[key] = store;
     return store;
   }
@@ -839,7 +837,6 @@ export class ServerStateStore {
       this.checkingPermissions = false;
       if (update.privacyReset) {
         this.#serverConnection.invalidatePrivateData();
-        this.permissions = EMPTY_PERMISSIONS;
         // Clear authority first; optional mirrors must not prevent this boundary.
         this.projection.reset();
       }
@@ -890,9 +887,7 @@ export class ServerStateStore {
           if (!this.checkingPermissions && viewerAuthorizationLost(previousViewer, response)) {
             removeRegisteredAdminQueries(this.serverId);
           }
-          const viewer = viewerResponseToState(response);
-          if (!this.currentUser.apply(viewer.user)) return;
-          this.setPermissions(viewer);
+          if (!this.currentUser.apply(viewerResponseToState(response).user)) return;
           this.roomUnread.acknowledgeViewerProjection();
           break;
         }
@@ -1112,7 +1107,6 @@ export class ServerStateStore {
     switch (family) {
       case 'viewer':
         this.projection.viewer = null;
-        this.permissions = EMPTY_PERMISSIONS;
         break;
       case 'rooms':
         this.reconcileRoomPermissions([]);
@@ -1276,11 +1270,7 @@ export class ServerStateStore {
       });
     }
     this.ingestProjectionEvent(update);
-    const bus = eventBusManager.getBus(this.serverId);
-    if (!bus) return;
-    for (const handler of bus.projectionHandlers) {
-      if (handler !== this.realtimeProjectionHandler) handler(update);
-    }
+    eventBusManager.getBus(this.serverId)?.notify(update);
   }
 
   private invalidateRealtimeEvent(event: RealtimeEvent, refreshQueries = true): void {
@@ -1606,6 +1596,23 @@ export class ServerStateStore {
     }
   }
 
+  /**
+   * Show a message change that this client made before its realtime event
+   * arrives. Every loaded timeline of the room gets it, including closed
+   * threads. A deletion applies at once; another change reloads the window
+   * around the message when a timeline contains it.
+   */
+  applyLocalMessageMutation(roomId: string, eventId: string, kind: LocalMessageMutation): void {
+    for (const store of this.loadedMessageStores(roomId)) {
+      if (kind === 'message-deleted') {
+        store.applyLocalMessageDeletion(eventId);
+        continue;
+      }
+      const anchorEventId = store.refreshAnchorForMessageMutation(eventId);
+      if (anchorEventId) void store.refreshCurrentWindow(anchorEventId);
+    }
+  }
+
   private loadedMessageStores(roomId: string): MessagesStore[] {
     return [
       ...(this.#roomMessages[roomId] ? [this.#roomMessages[roomId]] : []),
@@ -1851,34 +1858,6 @@ export class ServerStateStore {
     return this.#getSession().token != null;
   }
 
-  /** Update permissions from viewer query data. */
-  setPermissions(viewer: ViewerData): void {
-    this.reconcilePermissions(viewer, false);
-  }
-
-  /** The permission refresh owns query reauthorization; avoid starting it twice. */
-  private reconcilePermissions(viewer: ViewerData, refreshAdmin: boolean): void {
-    const previous = this.permissions;
-    this.permissions = { ...viewer, loaded: true };
-    const lostAdminCapability =
-      previous.loaded &&
-      ((previous.canViewAdmin && !viewer.canViewAdmin) ||
-        (previous.canAdminViewUsers && !viewer.canAdminViewUsers) ||
-        (previous.canAdminManageAccounts && !viewer.canAdminManageAccounts) ||
-        (previous.canAssignRoles && !viewer.canAssignRoles) ||
-        (previous.canAdminViewRoles && !viewer.canAdminViewRoles) ||
-        (previous.canAdminManageRoles && !viewer.canAdminManageRoles) ||
-        (previous.canAdminViewSystem && !viewer.canAdminViewSystem) ||
-        (previous.canAdminViewAudit && !viewer.canAdminViewAudit) ||
-        (previous.canManageInvites && !viewer.canManageInvites));
-    if (this.checkingPermissions) return;
-    if (lostAdminCapability) {
-      removeRegisteredAdminQueries(this.serverId);
-    } else if (refreshAdmin) {
-      refreshRegisteredAdminQueries(this.serverId);
-    }
-  }
-
   /**
    * Single source of truth for the server-level indicator dot.
    * Notifications take precedence over plain unread.
@@ -1941,6 +1920,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    eventBusManager.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#messageReconciler.reset();
     this.projection.users.clear();
@@ -1956,7 +1936,6 @@ export class ServerStateStore {
     for (const dispose of Object.values(this.#roomMemberRoots)) dispose();
     this.#roomMemberRoots = Object.create(null);
     this.#memberPresence.clear();
-    this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;
     this.realtimeSync.reset();

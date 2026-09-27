@@ -55,7 +55,7 @@ export function useRoomUnread(
     get unreadMarkerEventId() {
       return unread.unreadMarkerEventId;
     },
-    markRoomAsRead: unread.markAsRead,
+    markAsRead: unread.markAsRead,
     clearUnreadMarker: unread.clearUnreadMarker
   };
 }

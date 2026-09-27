@@ -20,7 +20,6 @@ export type RoomData = {
   hasLimitedMessageAccess: boolean;
   canPostMessage: boolean;
   canPostInThread: boolean;
-  canPostInteractions: boolean;
   canAttach: boolean;
   canReact: boolean;
   canManageOthersMessage: boolean;
@@ -80,7 +79,6 @@ export function useRoomData(getProps: () => { roomId: string }) {
       hasLimitedMessageAccess: room.hasLimitedMessageAccess,
       canPostMessage: room.canPostMessage,
       canPostInThread: room.canPostInThread,
-      canPostInteractions: room.canPostInteractions,
       canAttach: room.canAttach,
       canReact: room.canReact,
       canManageOthersMessage: room.canManageOthersMessage,

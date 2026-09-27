@@ -19,6 +19,7 @@ import {
 } from './eventBus.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
+import type { EventBus, ProjectionHandler } from '$lib/eventBus.svelte';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -175,15 +176,47 @@ function heartbeatFrame(resumeCursor?: string): RealtimeServerFrame {
   });
 }
 
-async function startAndSubscribe(fake = new FakeServerConnection()): Promise<{
+/** Options for {@link startLiveBus}; each maps to one `ensureBus` parameter. */
+type LiveBusOptions = {
+  projectionSupported?: boolean;
+  sync?: RealtimeProjectionSyncState;
+  reducer?: ProjectionHandler;
+  completeProjectionCatchUp?: (cursor: string) => Promise<void>;
+  waitForProjectionReconciliation?: () => Promise<void>;
+};
+
+/**
+ * Register the test server's bus and, when projection is supported, make its
+ * transport live. This is what the app coordinator does for the active server.
+ */
+function startLiveBus(fake: FakeServerConnection, options: LiveBusOptions = {}): EventBus {
+  const projectionSupported = options.projectionSupported ?? true;
+  const controller = eventBusManager.ensureBus({
+    serverId: TEST_SERVER,
+    connection: fake as unknown as ServerConnection,
+    projectionSupported,
+    sync: options.sync ?? new RealtimeProjectionSyncState(),
+    projectionHandler: options.reducer ?? (() => {}),
+    completeProjectionCatchUp: options.completeProjectionCatchUp,
+    waitForProjectionReconciliation: options.waitForProjectionReconciliation
+  });
+  if (projectionSupported) controller.setMode('live');
+  return eventBusManager.getBus(TEST_SERVER)!;
+}
+
+async function startAndSubscribe(
+  fake = new FakeServerConnection(),
+  reducer?: ProjectionHandler
+): Promise<{
   fake: FakeServerConnection;
   socket: FakeRealtimeSocket;
+  bus: EventBus;
 }> {
-  eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
+  const bus = startLiveBus(fake, { reducer });
   const socket = sockets.at(-1);
   if (!socket) throw new Error('expected realtime socket');
   socket.open();
-  return { fake, socket };
+  return { fake, socket, bus };
 }
 
 describe('eventBusManager realtime transport', () => {
@@ -215,7 +248,7 @@ describe('eventBusManager realtime transport', () => {
 
   it('opens /api/realtime and sends one complete subscription', async () => {
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
+    startLiveBus(fake);
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].url).toBe(fake.realtimeUrl);
@@ -234,29 +267,34 @@ describe('eventBusManager realtime transport', () => {
 
   it('registers the bus but defers the socket until projection support is confirmed', () => {
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, false);
+    startLiveBus(fake, { projectionSupported: false });
 
     expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
     expect(sockets).toHaveLength(0);
 
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true);
+    startLiveBus(fake, { projectionSupported: true });
 
     expect(sockets).toHaveLength(1);
   });
 
-  it('dispatches protobuf realtime events to existing event handlers', async () => {
-    const { socket } = await startAndSubscribe();
-    const handler = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
+  it('dispatches protobuf realtime events to the reducer and then to listeners', async () => {
+    const calls: string[] = [];
+    const reducer = vi.fn(() => calls.push('reducer'));
+    const { socket, bus } = await startAndSubscribe(undefined, reducer);
+    const listener = vi.fn(() => calls.push('listener'));
+    bus.subscribe(listener);
 
     await socket.receive(cursorlessFrame());
 
-    expect(handler).toHaveBeenCalledWith(
-      expect.objectContaining({
+    const expectedUpdate = expect.objectContaining({
+      event: expect.objectContaining({
         id: 'evt-1',
         event: expect.objectContaining({ case: 'userTyping' })
       })
-    );
+    });
+    expect(reducer).toHaveBeenCalledWith(expectedUpdate);
+    expect(listener).toHaveBeenCalledWith(expectedUpdate);
+    expect(calls).toEqual(['reducer', 'listener']);
     expect(consoleDebug).toHaveBeenCalledWith(
       `[eventBus:${TEST_SERVER}] event dispatched`,
       'userTyping',
@@ -266,9 +304,8 @@ describe('eventBusManager realtime transport', () => {
 
   it('resumes socket reconnects only after the projection reducer applied the cursor', async () => {
     vi.useFakeTimers();
-    const { socket } = await startAndSubscribe();
     const projectionHandler = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(projectionHandler);
+    const { socket } = await startAndSubscribe(undefined, projectionHandler);
 
     await socket.receive(projectionFrame('cursor-applied'));
     expect(projectionHandler).toHaveBeenCalledTimes(1);
@@ -297,17 +334,10 @@ describe('eventBusManager realtime transport', () => {
         })
     );
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(
-      TEST_SERVER,
-      fake as unknown as ServerConnection,
-      true,
-      sync,
-      reconcile
-    );
+    const updates = vi.fn();
+    startLiveBus(fake, { sync, reducer: updates, completeProjectionCatchUp: reconcile });
     const socket = sockets[0];
     socket.open();
-    const updates = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(updates);
     expect(RealtimeSubscribe.fromBinary(socket.sent[0]).resumeCursor).toBe('retained-cursor');
     await socket.receive(
       serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'current-cursor' }) })
@@ -326,7 +356,7 @@ describe('eventBusManager realtime transport', () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('retained-cursor');
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    startLiveBus(fake, { sync });
     const socket = sockets[0];
     socket.open();
     await socket.receive(
@@ -345,22 +375,26 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
-  it('purges on resync before reconnect even when an optional reset handler fails', async () => {
+  it('purges on resync before reconnect even when an optional reset listener fails', async () => {
     vi.useFakeTimers();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('rejected');
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const cleared = vi.fn();
+    const bus = startLiveBus(fake, {
+      sync,
+      reducer: (update) => {
+        if (update.privacyReset) cleared();
+      }
+    });
     const socket = sockets[0];
     socket.open();
-    const cleared = vi.fn();
-    const handlers = eventBusManager.getBus(TEST_SERVER)!.projectionHandlers;
-    handlers.add(() => {
+    const listenerCleared = vi.fn();
+    bus.subscribe(() => {
       throw new Error('optional mirror');
     });
-    handlers.add((update) => {
-      if (update.privacyReset) cleared();
+    bus.subscribe((update) => {
+      if (update.privacyReset) listenerCleared();
     });
     await socket.receive(
       serverFrame({
@@ -369,6 +403,7 @@ describe('eventBusManager realtime transport', () => {
       })
     );
     expect(cleared).toHaveBeenCalledOnce();
+    expect(listenerCleared).toHaveBeenCalledOnce();
     expect(sync.resumeCursor).toBeNull();
     expect(sync.hasUsableProjection).toBe(false);
     expect(sockets).toHaveLength(1);
@@ -382,11 +417,13 @@ describe('eventBusManager realtime transport', () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('old');
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
-    sockets[0].open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add((update) => {
-      if (update.event?.event.case === 'viewerPermissionsChanged') sync.reset();
+    startLiveBus(fake, {
+      sync,
+      reducer: (update) => {
+        if (update.event?.event.case === 'viewerPermissionsChanged') sync.reset();
+      }
     });
+    sockets[0].open();
     await sockets[0].receive(
       serverFrame({
         case: 'event',
@@ -407,17 +444,10 @@ describe('eventBusManager realtime transport', () => {
     sync.markCaughtUp('cursor-expired');
     const fake = new FakeServerConnection();
     const completeProjectionCatchUp = vi.fn().mockResolvedValue(undefined);
-    eventBusManager.startBus(
-      TEST_SERVER,
-      fake as unknown as ServerConnection,
-      true,
-      sync,
-      completeProjectionCatchUp
-    );
+    const projectionHandler = vi.fn();
+    startLiveBus(fake, { sync, reducer: projectionHandler, completeProjectionCatchUp });
     const socket = sockets[0];
     socket.open();
-    const projectionHandler = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(projectionHandler);
     await socket.receive(snapshotFrame());
 
     expect(sync.phase).toBe('hydrating');
@@ -448,11 +478,10 @@ describe('eventBusManager realtime transport', () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('old-cursor');
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const updates = vi.fn();
+    startLiveBus(fake, { sync, reducer: updates });
     const first = sockets[0];
     first.open();
-    const updates = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(updates);
     await first.receive(snapshotFrame());
     expect(sync.hasDisplayableView).toBe(true);
     first.serverClose();
@@ -474,8 +503,7 @@ describe('eventBusManager realtime transport', () => {
   });
 
   it('rejects a second snapshot on the same subscription', async () => {
-    const { socket } = await startAndSubscribe();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    const { socket } = await startAndSubscribe(undefined, vi.fn());
 
     await socket.receive(snapshotFrame());
     await socket.receive(snapshotFrame());
@@ -487,10 +515,9 @@ describe('eventBusManager realtime transport', () => {
   it('rejects an atomic snapshot without its server profile', async () => {
     const sync = new RealtimeProjectionSyncState();
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    startLiveBus(fake, { sync, reducer: vi.fn() });
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
     await socket.receive(
       serverFrame({
         case: 'snapshot',
@@ -503,10 +530,15 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBeNull();
   });
 
-  it('rejects snapshot recovery before a projection reducer is registered', async () => {
+  it('rejects snapshot recovery when the projection reducer fails', async () => {
     const sync = new RealtimeProjectionSyncState();
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    startLiveBus(fake, {
+      sync,
+      reducer: () => {
+        throw new Error('reducer failed');
+      }
+    });
     const socket = sockets[0];
     socket.open();
     await socket.receive(snapshotFrame());
@@ -516,9 +548,11 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBeNull();
   });
 
-  it('does not advance the cursor when no projection reducer is registered', async () => {
+  it('does not advance the cursor when the projection reducer fails', async () => {
     vi.useFakeTimers();
-    const { socket } = await startAndSubscribe();
+    const { socket } = await startAndSubscribe(new FakeServerConnection(), () => {
+      throw new Error('reducer failed');
+    });
 
     await socket.receive(projectionFrame('cursor-must-not-persist'));
     expect(socket.closeCalls.at(-1)?.code).toBe(4000);
@@ -534,17 +568,13 @@ describe('eventBusManager realtime transport', () => {
     sync.markCaughtUp('cursor-before-failure');
     const fake = new FakeServerConnection();
     const waitForReconciliation = vi.fn().mockRejectedValue(new Error('resource read failed'));
-    eventBusManager.startBus(
-      TEST_SERVER,
-      fake as unknown as ServerConnection,
-      true,
+    startLiveBus(fake, {
       sync,
-      undefined,
-      waitForReconciliation
-    );
+      reducer: vi.fn(),
+      waitForProjectionReconciliation: waitForReconciliation
+    });
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
 
     await socket.receive(projectionFrame('cursor-failed'));
 
@@ -557,10 +587,9 @@ describe('eventBusManager realtime transport', () => {
     vi.useFakeTimers();
     const sync = new RealtimeProjectionSyncState();
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    startLiveBus(fake, { sync, reducer: vi.fn() });
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
 
     await socket.receiveBytes(new Uint8Array([0xff, 0xff]));
 
@@ -574,7 +603,7 @@ describe('eventBusManager realtime transport', () => {
     vi.useFakeTimers();
     const sync = new RealtimeProjectionSyncState();
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    startLiveBus(fake, { sync });
     const socket = sockets[0];
     socket.open();
 
@@ -587,37 +616,35 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
-  it('isolates handler errors so one throwing handler does not stop the others', async () => {
-    const { socket } = await startAndSubscribe();
+  it('isolates listener errors so one throwing listener does not stop the others', async () => {
+    const { socket, bus } = await startAndSubscribe(undefined, vi.fn());
     const ranBefore = vi.fn();
     const ranAfter = vi.fn();
-    const bus = eventBusManager.getBus(TEST_SERVER)!;
-    bus.handlers.add(ranBefore);
-    bus.handlers.add(() => {
+    bus.subscribe(ranBefore);
+    bus.subscribe(() => {
       throw new Error('handler boom');
     });
-    bus.handlers.add(ranAfter);
+    bus.subscribe(ranAfter);
 
     await socket.receive(cursorlessFrame());
 
     expect(ranBefore).toHaveBeenCalledTimes(1);
     expect(ranAfter).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('handler threw');
+    expect(socket.closeCalls).toHaveLength(0);
   });
 
-  it('continues delivering events after a handler error on a previous event', async () => {
-    const { socket } = await startAndSubscribe();
+  it('continues delivering events after a listener error on a previous event', async () => {
+    const { socket, bus } = await startAndSubscribe(undefined, vi.fn());
     const handler = vi.fn();
     let throwOnce = true;
-    const bus = eventBusManager.getBus(TEST_SERVER)!;
-    bus.projectionHandlers.add(vi.fn());
-    bus.handlers.add(() => {
+    bus.subscribe(() => {
       if (throwOnce) {
         throwOnce = false;
         throw new Error('handler boom');
       }
     });
-    bus.handlers.add(handler);
+    bus.subscribe(handler);
 
     await socket.receive(cursorlessFrame('evt-1'));
     await socket.receive(cursorlessFrame('evt-2'));
@@ -662,7 +689,7 @@ describe('eventBusManager realtime transport', () => {
   it('does not reconnect when the server rejects the older protocol version', async () => {
     vi.useFakeTimers();
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
+    startLiveBus(fake);
     const socket = sockets[0];
     socket.open();
 
@@ -706,9 +733,9 @@ describe('eventBusManager realtime transport', () => {
 
   it('dispatches session termination as control state and does not reconnect', async () => {
     vi.useFakeTimers();
-    const { fake, socket } = await startAndSubscribe();
+    const { fake, socket, bus } = await startAndSubscribe();
     const handler = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.sessionTerminatedHandlers.add(handler);
+    bus.onSessionTerminated(handler);
 
     await socket.receive(
       serverFrame({
@@ -795,13 +822,15 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
-  it('does not dispatch heartbeat frames to handlers', async () => {
-    const { socket } = await startAndSubscribe();
+  it('does not dispatch heartbeat frames to the reducer or listeners', async () => {
+    const reducer = vi.fn();
+    const { socket, bus } = await startAndSubscribe(undefined, reducer);
     const handler = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
+    bus.subscribe(handler);
 
     await socket.receive(heartbeatFrame());
 
+    expect(reducer).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -811,17 +840,13 @@ describe('eventBusManager realtime transport', () => {
     const reconciliation = deferred<void>();
     const waitForReconciliation = vi.fn(() => reconciliation.promise);
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(
-      TEST_SERVER,
-      fake as unknown as ServerConnection,
-      true,
+    startLiveBus(fake, {
       sync,
-      undefined,
-      waitForReconciliation
-    );
+      reducer: vi.fn(),
+      waitForProjectionReconciliation: waitForReconciliation
+    });
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
     await socket.receive(heartbeatFrame('heartbeat-cursor'));
 
     expect(sync.resumeCursor).toBe('before-heartbeat');
@@ -846,17 +871,14 @@ describe('eventBusManager realtime transport', () => {
     const completeCatchUp = vi.fn().mockResolvedValue(undefined);
     const pendingRead = deferred<void>();
     const waitForReconciliation = vi.fn(() => pendingRead.promise);
-    eventBusManager.startBus(
-      TEST_SERVER,
-      new FakeServerConnection() as unknown as ServerConnection,
-      true,
+    startLiveBus(new FakeServerConnection(), {
       sync,
-      completeCatchUp,
-      waitForReconciliation
-    );
+      reducer: vi.fn(),
+      completeProjectionCatchUp: completeCatchUp,
+      waitForProjectionReconciliation: waitForReconciliation
+    });
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
     for (let index = 0; index < 100; index++)
       await socket.receive(projectionFrame(`event-${index}`));
     await socket.receive(heartbeatFrame('heartbeat-before-caught-up'));
@@ -880,17 +902,14 @@ describe('eventBusManager realtime transport', () => {
     const hydration = deferred<void>();
     const completeCatchUp = vi.fn(() => hydration.promise);
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(
-      TEST_SERVER,
-      fake as unknown as ServerConnection,
-      true,
+    startLiveBus(fake, {
       sync,
-      completeCatchUp,
-      async () => {}
-    );
+      reducer: vi.fn(),
+      completeProjectionCatchUp: completeCatchUp,
+      waitForProjectionReconciliation: async () => {}
+    });
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
     await socket.receive(snapshotFrame());
     await socket.receive(projectionFrame('snapshot-event'));
     await socket.receive(heartbeatFrame('snapshot-heartbeat'));
@@ -942,19 +961,19 @@ describe('eventBusManager realtime transport', () => {
           serverId: 'active-server',
           connection: active as unknown as ServerConnection,
           projectionSupported: true,
-          sync: activeSync
+          sync: activeSync,
+          projectionHandler: vi.fn()
         },
         {
           serverId: 'inactive-server',
           connection: inactive as unknown as ServerConnection,
           projectionSupported: true,
-          sync: inactiveSync
+          sync: inactiveSync,
+          projectionHandler: vi.fn()
         }
       ],
       'active-server'
     );
-    eventBusManager.getBus('active-server')!.projectionHandlers.add(vi.fn());
-    eventBusManager.getBus('inactive-server')!.projectionHandlers.add(vi.fn());
 
     expect(sockets.map((socket) => socket.url)).toEqual([active.realtimeUrl, inactive.realtimeUrl]);
     const inactiveSocket = sockets[1];
@@ -982,19 +1001,19 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'first-server',
         connection: first as unknown as ServerConnection,
         projectionSupported: true,
-        sync: firstSync
+        sync: firstSync,
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'second-server',
         connection: second as unknown as ServerConnection,
         projectionSupported: true,
-        sync: secondSync
+        sync: secondSync,
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'first-server');
-    eventBusManager.getBus('first-server')!.projectionHandlers.add(vi.fn());
-    eventBusManager.getBus('second-server')!.projectionHandlers.add(vi.fn());
     const firstLive = sockets[0];
     firstLive.open();
     await firstLive.receive(
@@ -1027,20 +1046,19 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'active-before-promotion',
         connection: active as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'promoted-server',
         connection: promotedConnection as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'active-before-promotion');
-    for (const registration of registrations) {
-      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
-    }
     const pollingSocket = sockets[1];
     pollingSocket.open();
     await pollingSocket.receive(heartbeatFrame());
@@ -1072,26 +1090,26 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'active',
         connection: active as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'inactive-a',
         connection: inactiveA as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'inactive-b',
         connection: inactiveB as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'active');
-    for (const registration of registrations) {
-      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
-    }
     expect(sockets.map((socket) => socket.url)).toEqual([
       active.realtimeUrl,
       inactiveA.realtimeUrl
@@ -1104,6 +1122,102 @@ describe('eventBusManager realtime transport', () => {
     );
     await vi.waitFor(() => expect(sockets).toHaveLength(3));
     expect(sockets[2].url).toBe(inactiveB.realtimeUrl);
+  });
+
+  it('immediately catches up a projection that became inactive before its first catch-up', async () => {
+    const home = new FakeServerConnection();
+    const remote = new FakeServerConnection();
+    home.realtimeUrl = 'ws://home.test/api/realtime';
+    remote.realtimeUrl = 'ws://remote.test/api/realtime';
+    const homeSync = new RealtimeProjectionSyncState();
+    homeSync.markCaughtUp('home-ready');
+    const remoteSync = new RealtimeProjectionSyncState();
+    const registrations = [
+      {
+        serverId: 'interrupted-home',
+        connection: home as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: homeSync,
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'interrupted-remote',
+        connection: remote as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: remoteSync,
+        projectionHandler: vi.fn()
+      }
+    ];
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'interrupted-remote');
+    sockets[0].open();
+    await sockets[0].receive(snapshotFrame());
+    expect(remoteSync.phase).toBe('hydrating');
+
+    // Leave the remote server before its live socket reaches caught_up.
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'interrupted-home');
+
+    expect(sockets.map((socket) => socket.url)).toEqual([
+      remote.realtimeUrl,
+      home.realtimeUrl,
+      remote.realtimeUrl
+    ]);
+    const poll = sockets[2];
+    poll.open();
+    await poll.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'remote-ready' }) })
+    );
+    expect(remoteSync.hasUsableProjection).toBe(true);
+  });
+
+  it('reruns an unready catch-up that arrives while another poll is in flight', async () => {
+    const home = new FakeServerConnection();
+    const remote = new FakeServerConnection();
+    const other = new FakeServerConnection();
+    home.realtimeUrl = 'ws://home.test/api/realtime';
+    remote.realtimeUrl = 'ws://remote.test/api/realtime';
+    other.realtimeUrl = 'ws://other.test/api/realtime';
+    const homeSync = new RealtimeProjectionSyncState();
+    homeSync.markCaughtUp('home-ready');
+    const registrations = [
+      {
+        serverId: 'overlap-home',
+        connection: home as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: homeSync,
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'overlap-remote',
+        connection: remote as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'overlap-other',
+        connection: other as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      }
+    ];
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'overlap-remote');
+    expect(sockets.map((socket) => socket.url)).toEqual([remote.realtimeUrl, other.realtimeUrl]);
+
+    // The remote server goes dormant mid-hydration while the other server's poll runs.
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'overlap-home');
+    expect(sockets).toHaveLength(3);
+    expect(sockets[2].url).toBe(home.realtimeUrl);
+
+    const otherPoll = sockets[1];
+    otherPoll.open();
+    await otherPoll.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'other-ready' }) })
+    );
+    await vi.waitFor(() => expect(sockets).toHaveLength(4));
+    expect(sockets[3].url).toBe(remote.realtimeUrl);
   });
 
   it('periodically resumes a ready inactive projection with jittered serialized polling', async () => {
@@ -1121,19 +1235,19 @@ describe('eventBusManager realtime transport', () => {
           serverId: 'periodic-active',
           connection: active as unknown as ServerConnection,
           projectionSupported: true,
-          sync: new RealtimeProjectionSyncState()
+          sync: new RealtimeProjectionSyncState(),
+          projectionHandler: vi.fn()
         },
         {
           serverId: 'periodic-inactive',
           connection: inactive as unknown as ServerConnection,
           projectionSupported: true,
-          sync: inactiveSync
+          sync: inactiveSync,
+          projectionHandler: vi.fn()
         }
       ],
       'periodic-active'
     );
-    eventBusManager.getBus('periodic-active')!.projectionHandlers.add(vi.fn());
-    eventBusManager.getBus('periodic-inactive')!.projectionHandlers.add(vi.fn());
 
     expect(sockets).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(59_999);

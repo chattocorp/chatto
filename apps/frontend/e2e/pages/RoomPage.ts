@@ -960,17 +960,14 @@ export class RoomPage {
     return this.page.getByText('Drop files here');
   }
 
-  /** The main room content div (where the drop zone is attached) */
+  /** The room conversation pane, which owns the room's drop zone. */
   get roomDropZone(): Locator {
-    // Target the room content area that contains both the message input and the room header
-    return this.page.locator('div.relative.flex.min-h-0.min-w-0.flex-1.flex-col').filter({
-      has: this.page.getByTestId('message-input')
-    });
+    return this.page.getByTestId('room-main-pane');
   }
 
-  /** The active thread pane, which owns its thread-scoped drop zone. */
+  /** The thread conversation pane, which owns the thread's drop zone. */
   get threadDropZone(): Locator {
-    return this.page.getByTestId('thread-pane');
+    return this.page.getByTestId('thread-conversation-pane');
   }
 
   /**

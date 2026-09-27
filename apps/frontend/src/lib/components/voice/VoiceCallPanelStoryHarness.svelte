@@ -4,7 +4,6 @@
   import type { Component } from 'svelte';
   import type { Track } from 'livekit-client';
   import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
-  import type { ServerPermissions } from '$lib/state/server/permissions';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
@@ -47,20 +46,6 @@
     isCurrent: () => true
   });
   let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
-
-  const permissions: ServerPermissions = {
-    loaded: true,
-    canViewAdmin: false,
-    canStartDMs: false,
-    canAdminViewUsers: false,
-    canAdminManageAccounts: false,
-    canAssignRoles: false,
-    canAdminViewRoles: false,
-    canAdminManageRoles: false,
-    canAdminViewSystem: false,
-    canAdminViewAudit: false,
-    canManageInvites: false
-  };
 
   function posterTrack(svg: string): Track {
     const poster = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -235,7 +220,6 @@
         }
       })
     );
-    store.permissions = permissions;
     store.voiceCall.roomId = scenario === 'idle' ? null : roomId;
     store.voiceCall.connected = scenario !== 'idle';
     store.voiceCall.audioBoostAvailable = true;

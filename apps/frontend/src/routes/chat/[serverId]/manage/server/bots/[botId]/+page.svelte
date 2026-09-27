@@ -14,7 +14,6 @@
     type UserSummary
   } from '$lib/api-client/users';
   import { RoomKind } from '$lib/api-client/roomDirectory';
-  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { CopyId } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
   import BotCredentialSection, {
@@ -63,11 +62,8 @@
   const supportsManagedProfiles = $derived(
     serverScope.store.serverInfo.supportsFeature('managedUserProfiles')
   );
-  const viewerState = $derived.by(() => {
-    const viewer = serverScope.store.projection.viewer;
-    return viewer ? viewerResponseToState(viewer) : null;
-  });
-  const canManageBots = $derived(viewerState?.viewerPermissions['bot.manage'] ?? false);
+  const canManageBots = $derived(serverScope.store.permissions.canManageBots);
+  const viewerId = $derived(serverScope.store.currentUser.user?.id ?? null);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
   const canReassignOwner = $derived(canManageBots);
   const backHref = $derived(
@@ -105,9 +101,7 @@
     () => queryClient
   );
   const owner = $derived(ownerQuery.data?.[0] ?? null);
-  const canOperateBot = $derived(
-    !!bot && (bot.ownerUserId === viewerState?.user.id || canManageBots)
-  );
+  const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
   // Owners, bot managers, and account managers can edit the bot's public identity.
   const canEditIdentity = $derived(canOperateBot || canManageAccounts);
   const targetKey = $derived(
@@ -544,9 +538,8 @@
       {/if}
     </div>
   {/if}
-  <!-- The bot read can finish before the viewer read. Keep the matrix owner
-       during that gap; the server layout blocks input until both are current. -->
-  {#if supportsBots && !botQuery.error && (botQuery.isPending || !viewerState || canOperateBot)}
+  <!-- Keep the matrix owner while the bot read is pending. -->
+  {#if supportsBots && !botQuery.error && (botQuery.isPending || canOperateBot)}
     <div class="mt-6">
       <UserPermissionsMatrix
         userId={botId}

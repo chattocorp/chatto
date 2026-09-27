@@ -163,7 +163,8 @@ that boundary. User captures contain encrypted PII, avatar references,
 preferences, and roles from the same generation. The server releases the read
 barrier before it resolves data-encryption keys, assembles user resources,
 encodes protobuf messages, or writes to the WebSocket. Slow key storage or a
-KMS cannot stop content-view event application.
+KMS cannot stop content-view event application. The server resolves the keys
+for at most 16 referenced users at the same time.
 
 One atomic `snapshot` frame contains these canonical `chatto.api.v1` resource
 shapes:
@@ -386,6 +387,20 @@ The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
 
+Each server has one [`EventBus`](../../apps/frontend/src/lib/eventBus.svelte.ts).
+The bus sends every update to the `ServerStateStore` reducer first. Then it sends
+the same update to the listeners, in the order that they subscribed. A semantic
+event, such as a typing or presence change, is the update's `event` field.
+Components subscribe through `useProjectionEvent`, `usePresenceChange`, or
+`useTypingEvent`. An error in a listener is logged. It does not stop the other
+listeners or the transport, and the update is not delivered again. A reducer
+error closes the transport, and the client connects again, because the projection
+is then not current. A reset still reaches every listener first.
+
+When this client deletes or changes a message, `ServerStateStore` updates every
+loaded timeline of that room, including closed threads. It does this before the
+realtime event arrives.
+
 `ServerStateStore` owns retained `RoomMembersStore` instances for the session.
 Each instance has a reactive owner that lasts until the server store is
 disposed. Room navigation selects an existing store. Public join and leave
@@ -504,8 +519,8 @@ Outgoing push payloads omit numeric app badge values.
 
 Each server store owns a RAM-only
 [`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.svelte.ts).
-Visible thread panes register independently and remove their own registration
-when hidden or unmounted. Exact room and thread targets permit concurrent views;
+Mounted thread panes register independently and remove their own registration
+when they unmount. Exact room and thread targets permit concurrent views;
 a room view does not cover its threads. App focus and visibility gate the shared
 attention rule. Notification badges and sound use this rule without changing
 server rows or counts. Presentation counts subtract only loaded unread
@@ -612,7 +627,9 @@ invalidate pending reads. Empty DMs remain excluded from sidebar navigation.
 
 The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.
-Inactive servers use bounded periodic catch-up sockets. A page reload restores
+Inactive servers use bounded periodic catch-up sockets. An inactive server
+without usable data gets a catch-up immediately. This includes a server that
+became inactive before its first catch-up completed. A page reload restores
 a compatible complete snapshot set and its cursor when available. Without that
 set, it starts without a cursor and performs new resource reads.
 

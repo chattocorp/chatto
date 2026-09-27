@@ -5,13 +5,8 @@
  * up through serialized, short-lived connections to the same event stream.
  */
 
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import {
-  RealtimeProjectionUpdate,
-  type EventHandler,
-  type ProjectionHandler,
-  type EventBus
-} from '$lib/eventBus.svelte';
+import { SvelteMap } from 'svelte/reactivity';
+import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 import {
   RealtimeInitialState,
   RealtimeCloseCode,
@@ -63,7 +58,7 @@ export type RealtimeServerRegistration = {
   projectionSupported: boolean;
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
-  projectionHandler?: ProjectionHandler;
+  projectionHandler: ProjectionHandler;
   /** Refresh auxiliary state once at the subscription's caught-up boundary. */
   completeProjectionCatchUp?: (cursor: string) => Promise<void>;
   /** Wait for event-triggered reads without fetching unrelated resources. */
@@ -112,55 +107,30 @@ class EventBusManager {
   #managedServerIds = new Set<string>();
   #activeServerId: string | null = null;
   #pollCycleRunning = false;
+  /** An unready catch-up request arrived while another poll cycle was running. */
+  #unreadyPollCycleRequested = false;
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /**
-   * Compatibility entry point for direct consumers and focused tests. New app
-   * ownership should use synchronizeAuthenticatedServers().
-   */
-  startBus(
-    serverId: string,
-    serverConnection: ServerConnection,
-    realtimeProjectionSupported = true,
-    sync = new RealtimeProjectionSyncState(),
-    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
-    waitForProjectionReconciliation?: () => Promise<void>
-  ): () => void {
-    const controller = this.ensureBus(
+  /** Register the stable bus/reducer surface without necessarily opening a socket. */
+  ensureBus(registration: RealtimeServerRegistration): TransportController {
+    const {
       serverId,
-      serverConnection,
-      realtimeProjectionSupported,
+      connection: serverConnection,
+      projectionSupported: realtimeProjectionSupported,
       sync,
-      undefined,
+      projectionHandler,
       completeProjectionCatchUp,
       waitForProjectionReconciliation
-    );
-    if (realtimeProjectionSupported) controller.setMode('live');
-    return () => this.stopBus(serverId);
-  }
-
-  /** Register the stable bus/reducer surface without necessarily opening a socket. */
-  ensureBus(
-    serverId: string,
-    serverConnection: ServerConnection,
-    realtimeProjectionSupported = true,
-    sync = new RealtimeProjectionSyncState(),
-    projectionHandler?: ProjectionHandler,
-    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
-    waitForProjectionReconciliation?: () => Promise<void>
-  ): TransportController {
+    } = registration;
     const existing = this.#controllers.get(serverId);
     if (existing) {
-      if (projectionHandler) this.#buses.get(serverId)?.projectionHandlers.add(projectionHandler);
+      this.#buses.get(serverId)?.setReducer(projectionHandler);
       existing.update(realtimeProjectionSupported);
       return existing;
     }
 
-    const handlers = new SvelteSet<EventHandler>();
-    const projectionHandlers = new SvelteSet<ProjectionHandler>();
-    const sessionTerminatedHandlers = new SvelteSet<(reason: string) => void>();
-    if (projectionHandler) projectionHandlers.add(projectionHandler);
-    const bus: EventBus = { handlers, projectionHandlers, sessionTerminatedHandlers };
+    const bus = new EventBus(serverId);
+    bus.setReducer(projectionHandler);
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
@@ -180,7 +150,7 @@ class EventBusManager {
     const debugState = () => ({
       mode,
       generation,
-      handlers: handlers.size,
+      handlers: bus.listenerCount,
       events: dispatchedEventCount,
       heartbeats: heartbeatCount,
       reconnects: reconnectCount,
@@ -249,10 +219,10 @@ class EventBusManager {
         if (mode === 'live') scheduleReconnect('access token renewed', 0);
         else if (mode === 'polling') connect('access token renewed');
       } catch (error) {
-        console.warn(`[eventBus:${serverId}] bearer renewal temporarily failed`, error);
+        console.warn(`[eventBus:${serverId}] authentication recovery temporarily failed`, error);
         if (stopped) return;
         if (mode === 'live')
-          scheduleReconnect('bearer renewal temporarily failed', RECONNECT_WAIT_MS);
+          scheduleReconnect('authentication recovery temporarily failed', RECONNECT_WAIT_MS);
         else {
           mode = 'dormant';
           resolvePoll(false);
@@ -298,45 +268,14 @@ class EventBusManager {
       resolvePoll(false);
     };
 
-    const dispatchEvent = (event: RealtimeEvent) => {
+    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
       dispatchedEventCount++;
       console.debug(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
         eventId: event.id,
         total: dispatchedEventCount,
         ...debugState()
       });
-      for (const handler of handlers) {
-        try {
-          handler(event);
-        } catch (error) {
-          console.error(`[eventBus:${serverId}] handler threw`, error);
-        }
-      }
-    };
-
-    const dispatchProjectionUpdate = (update: RealtimeProjectionUpdate) => {
-      if (projectionHandlers.size === 0) {
-        throw new Error('projection update received before reducer registration');
-      }
-      let canonicalFailure: unknown;
-      for (const handler of projectionHandlers) {
-        if (!update.reset) {
-          handler(update);
-          continue;
-        }
-        try {
-          handler(update);
-        } catch (error) {
-          if (handler === projectionHandler) canonicalFailure = error;
-          console.error(`[eventBus:${serverId}] reset handler failed`);
-        }
-      }
-      if (canonicalFailure) throw canonicalFailure;
-    };
-
-    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
-      dispatchEvent(event);
-      dispatchProjectionUpdate(
+      bus.publish(
         new RealtimeProjectionUpdate({
           event,
           cursor: event.cursor ?? null
@@ -441,7 +380,7 @@ class EventBusManager {
                 try {
                   const retainView = sync.hasDisplayableView;
                   sync.acceptProjectionEvent(undefined, true);
-                  dispatchProjectionUpdate(
+                  bus.publish(
                     new RealtimeProjectionUpdate({
                       reset: true,
                       privacyReset: !retainView,
@@ -465,7 +404,7 @@ class EventBusManager {
                     }
                   ];
                   for (const resource of resources) {
-                    dispatchProjectionUpdate(
+                    bus.publish(
                       new RealtimeProjectionUpdate({
                         resource: new RealtimeResourceUpdate({ resource, replace: true })
                       })
@@ -527,24 +466,13 @@ class EventBusManager {
               case 'close':
                 if (frame.frame.value.code === RealtimeCloseCode.RESYNC_REQUIRED) {
                   sync.reset();
-                  dispatchProjectionUpdate(
-                    new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
-                  );
+                  bus.publish(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
                 }
                 if (frame.frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED) {
                   sync.invalidateAuthorization();
                 }
                 if (frame.frame.value.code === RealtimeCloseCode.SESSION_TERMINATED) {
-                  for (const handler of sessionTerminatedHandlers) {
-                    try {
-                      handler(frame.frame.value.message);
-                    } catch (error) {
-                      console.error(
-                        `[eventBus:${serverId}] session termination handler threw`,
-                        error
-                      );
-                    }
-                  }
+                  bus.terminateSession(frame.frame.value.message);
                   becomeDormant(true, 'disconnected');
                   resolvePoll(false);
                   return;
@@ -727,15 +655,7 @@ class EventBusManager {
     this.#activeServerId = nextIds.has(activeServerId ?? '') ? activeServerId : null;
 
     for (const registration of registrations) {
-      this.ensureBus(
-        registration.serverId,
-        registration.connection,
-        registration.projectionSupported,
-        registration.sync,
-        registration.projectionHandler,
-        registration.completeProjectionCatchUp,
-        registration.waitForProjectionReconciliation
-      );
+      this.ensureBus(registration);
     }
     // Close the previous live transport before opening the next one so a
     // route change never leaves two persistent sockets, even momentarily.
@@ -770,19 +690,34 @@ class EventBusManager {
     for (const serverId of [...this.#controllers.keys()]) this.stopBus(serverId);
   }
 
-  async #runPollCycle(onlyEmpty: boolean): Promise<void> {
-    if (this.#pollCycleRunning) return;
+  /**
+   * Serially catch up inactive projections. With `onlyUnready`, poll only
+   * projections without usable data: new ones, and ones whose live transport
+   * became dormant before its first catch-up completed. Those would otherwise
+   * stay unreadable until the next periodic cycle.
+   */
+  async #runPollCycle(onlyUnready: boolean): Promise<void> {
+    if (this.#pollCycleRunning) {
+      // The running cycle can already have passed a server that just became
+      // dormant mid-hydration. Run another unready pass after it finishes.
+      if (onlyUnready) this.#unreadyPollCycleRequested = true;
+      return;
+    }
     this.#pollCycleRunning = true;
     try {
       for (const serverId of this.#managedServerIds) {
         if (serverId === this.#activeServerId) continue;
         const controller = this.#controllers.get(serverId);
         if (!controller?.projectionSupported) continue;
-        if (onlyEmpty && controller.sync.phase !== 'empty') continue;
+        if (onlyUnready && controller.sync.hasUsableProjection) continue;
         await controller.pollOnce();
       }
     } finally {
       this.#pollCycleRunning = false;
+    }
+    if (this.#unreadyPollCycleRequested) {
+      this.#unreadyPollCycleRequested = false;
+      await this.#runPollCycle(true);
     }
   }
   #scheduleNextPoll(): void {

@@ -682,6 +682,59 @@ describe('ServerStateStore viewer', () => {
   });
 });
 
+describe('ServerStateStore permissions', () => {
+  function adminViewer(userId: string): GetViewerResponse {
+    return new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: userId }) }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      }),
+      viewerPermissions: new ServerViewerPermissions({
+        permissions: [new PermissionGrant({ permission: 'server.manage', granted: true })]
+      })
+    });
+  }
+
+  it('stays unloaded while the viewer projection belongs to another account', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    store.projection.viewer = adminViewer('U2');
+
+    expect(store.permissions.loaded).toBe(false);
+    expect(store.permissions.canAdminViewSystem).toBe(false);
+    expect(store.permissions.canManageServer).toBe(false);
+  });
+
+  it('loads from the viewer projection of the accepted account', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.viewer = adminViewer('U1');
+    expect(store.permissions.loaded).toBe(false);
+
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+
+    expect(store.permissions.loaded).toBe(true);
+    expect(store.permissions.canAdminViewSystem).toBe(true);
+    expect(store.permissions.canManageServer).toBe(true);
+    expect(store.permissions.canManageRooms).toBe(false);
+  });
+
+  it('resets to unloaded when a privacy reset clears the viewer projection', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    store.projection.viewer = adminViewer('U1');
+    expect(store.permissions.loaded).toBe(true);
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+    );
+
+    expect(store.projection.viewer).toBeNull();
+    expect(store.permissions.loaded).toBe(false);
+    expect(store.permissions.canAdminViewSystem).toBe(false);
+    expect(store.permissions.canManageServer).toBe(false);
+  });
+});
+
 describe('ServerStateStore privileged mode', () => {
   it('reads snapshots with current permissions while reconnect is still pending', async () => {
     const fake = new FakeServerConnection([]);
@@ -715,7 +768,7 @@ describe('ServerStateStore privileged mode', () => {
       user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
       privilegedMode: new PrivilegedModeState({ available: true, active: false })
     });
-    store.setPermissions({ canAdminViewSystem: false } as never);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.activatePrivilegedMode.mockResolvedValueOnce({
       privilegedMode: new PrivilegedModeState({ available: true, active: true }),
@@ -742,6 +795,38 @@ describe('ServerStateStore privileged mode', () => {
     expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });
 
+  it('removes admin queries when deactivation drops only an effective permission', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      viewerPermissions: new ServerViewerPermissions({
+        permissions: [new PermissionGrant({ permission: 'room.manage', granted: true })]
+      }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    });
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    expect(store.permissions.canManageRooms).toBe(true);
+    apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
+      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
+      capabilities: new ViewerCapabilities(),
+      viewerPermissions: new ServerViewerPermissions()
+    });
+    fake.forceReconnect.mockImplementationOnce(() =>
+      store.realtimeSync.markCaughtUp(
+        'cursor-after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
+
+    await store.setPrivilegedMode(false);
+
+    // Losing a permission fails closed, like losing an admin capability.
+    expect(store.permissions.canManageRooms).toBe(false);
+    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.refreshRegisteredAdminQueries).not.toHaveBeenCalled();
+  });
+
   it('applies deactivation permissions before completing the projection refresh', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
@@ -752,7 +837,7 @@ describe('ServerStateStore privileged mode', () => {
       }),
       privilegedMode: new PrivilegedModeState({ available: true, active: true })
     });
-    store.setPermissions({ canAdminViewSystem: true } as never);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
       privilegedMode: new PrivilegedModeState({ available: true, active: false }),
@@ -883,9 +968,12 @@ describe('ServerStateStore privileged mode', () => {
     const store = makeStore(fake);
     store.projection.viewer = new GetViewerResponse({
       user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      }),
       privilegedMode: new PrivilegedModeState({ available: true, active: true })
     });
-    store.setPermissions({ canAdminViewSystem: true } as never);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     apiMocks.refreshPrivilegedMode.mockResolvedValueOnce({
       user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
       privilegedMode: new PrivilegedModeState({ available: true, active: false }),
@@ -1020,10 +1108,12 @@ describe('ServerStateStore room search state', () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');
     store.membersForRoom('b');
-    store.realtimePresenceHandler(
-      new RealtimeEvent({
-        actorId: 'U2',
-        event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          actorId: 'U2',
+          event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
+        })
       })
     );
     expect(a.livePresence.get('U2')).toBe(2);
@@ -2131,15 +2221,15 @@ describe('ServerStateStore unified realtime resources', () => {
       apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
       const fake = new FakeServerConnection([]);
       const store = makeStore(fake);
-      eventBusManager.ensureBus(
-        store.serverId,
-        fake as unknown as ServerConnection,
-        true,
-        store.realtimeSync,
-        store.realtimeProjectionHandler
-      );
+      eventBusManager.ensureBus({
+        serverId: store.serverId,
+        connection: fake as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: store.realtimeSync,
+        projectionHandler: store.realtimeProjectionHandler
+      });
       const observer = vi.fn<(update: RealtimeProjectionUpdate) => void>();
-      eventBusManager.getBus(store.serverId)!.projectionHandlers.add(observer);
+      eventBusManager.getBus(store.serverId)!.subscribe(observer);
       const deleted = new DirectoryMember({
         user: new User({ id: 'U2', displayName: 'Old profile' })
       });
@@ -2646,15 +2736,15 @@ describe('ServerStateStore unified realtime resources', () => {
     apiMocks.readRealtimeUsers.mockResolvedValueOnce([users]);
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    eventBusManager.ensureBus(
-      store.serverId,
-      fake as unknown as ServerConnection,
-      true,
-      store.realtimeSync,
-      store.realtimeProjectionHandler
-    );
+    eventBusManager.ensureBus({
+      serverId: store.serverId,
+      connection: fake as unknown as ServerConnection,
+      projectionSupported: true,
+      sync: store.realtimeSync,
+      projectionHandler: store.realtimeProjectionHandler
+    });
     const observer = vi.fn();
-    eventBusManager.getBus(store.serverId)?.projectionHandlers.add(observer);
+    eventBusManager.getBus(store.serverId)!.subscribe(observer);
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
@@ -2672,6 +2762,91 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(observer).toHaveBeenCalledWith(
       expect.objectContaining({ resource: users.resource, replaceResource: true })
     );
+  });
+
+  it('applies a local message deletion to every loaded timeline of that room only', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    const thread = store.messagesForThread('R1', 'ROOT');
+    const otherRoom = store.messagesForRoom('R2');
+    await flushPromises(20);
+    const deleteInRoom = vi.spyOn(room, 'applyLocalMessageDeletion');
+    const deleteInThread = vi.spyOn(thread, 'applyLocalMessageDeletion');
+    const deleteInOtherRoom = vi.spyOn(otherRoom, 'applyLocalMessageDeletion');
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow');
+
+    store.applyLocalMessageMutation('R1', 'M1', 'message-deleted');
+
+    expect(deleteInRoom).toHaveBeenCalledExactlyOnceWith('M1');
+    expect(deleteInThread).toHaveBeenCalledExactlyOnceWith('M1');
+    expect(deleteInOtherRoom).not.toHaveBeenCalled();
+    expect(refreshRoom).not.toHaveBeenCalled();
+  });
+
+  function postedRow(id: string, echoOfEventId: string | null = null): TimelineEventView {
+    return {
+      id,
+      createdAt: new Date(Date.UTC(2026, 0, 1)).toISOString(),
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: 'R1',
+        threadRootEventId: null,
+        echoOfEventId,
+        body: id,
+        attachments: [],
+        replyCount: 0,
+        threadParticipants: [],
+        reactions: []
+      }
+    };
+  }
+
+  it('refreshes the window around a loaded message after another local message change', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    const thread = store.messagesForThread('R1', 'ROOT');
+    await flushPromises(20);
+    room.ingestEvent(postedRow('M1'));
+    room.ingestEvent(postedRow('ECHO', 'ORIGINAL'));
+    const settled = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow').mockResolvedValue(settled);
+    const refreshThread = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue(settled);
+    const deleteInRoom = vi.spyOn(room, 'applyLocalMessageDeletion');
+
+    for (const kind of [
+      'attachment-deleted',
+      'attachment-description-updated',
+      'link-preview-deleted'
+    ] as const) {
+      refreshRoom.mockClear();
+      store.applyLocalMessageMutation('R1', 'M1', kind);
+      expect(refreshRoom).toHaveBeenCalledExactlyOnceWith('M1');
+    }
+
+    // A channel echo refers to its original message; refresh around the loaded echo row.
+    refreshRoom.mockClear();
+    store.applyLocalMessageMutation('R1', 'ORIGINAL', 'attachment-deleted');
+    expect(refreshRoom).toHaveBeenCalledExactlyOnceWith('ECHO');
+
+    refreshRoom.mockClear();
+    store.applyLocalMessageMutation('R1', 'NOT-LOADED', 'attachment-deleted');
+    expect(refreshRoom).not.toHaveBeenCalled();
+    expect(refreshThread).not.toHaveBeenCalled();
+    expect(deleteInRoom).not.toHaveBeenCalled();
+  });
+
+  it('removes a locally deleted channel echo without refreshing around it', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    await flushPromises(20);
+    room.ingestEvent(postedRow('ECHO', 'ORIGINAL'));
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow');
+    expect(room.rootEvents.map((event) => event.id)).toEqual(['ECHO']);
+
+    store.applyLocalMessageMutation('R1', 'ECHO', 'message-deleted');
+
+    expect(room.rootEvents).toEqual([]);
+    expect(refreshRoom).not.toHaveBeenCalled();
   });
 
   it('does not revoke viewer room access when another user leaves', async () => {

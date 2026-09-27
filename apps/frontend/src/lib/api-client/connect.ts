@@ -72,10 +72,11 @@ export function skipAuthenticationRequired(): { contextValues: ContextValues } {
 }
 
 /**
- * Request a new sign-in when a session that cannot renew itself is rejected.
+ * Report a rejected session that cannot renew itself.
  *
  * Cookie and fixed-token sessions have no other way to recover from
- * `Unauthenticated`. A renewable bearer session is different: the bearer
+ * `Unauthenticated`. The hook decides whether the session needs a new
+ * sign-in; the registry first confirms a rejected cookie session. A renewable bearer session is different: the bearer
  * interceptor refreshes it, and only a rejected refresh grant marks it for
  * reauthentication. The error always reaches the caller.
  */
@@ -93,7 +94,10 @@ export function authenticationRequiredInterceptor(
         !config.renewBearerToken &&
         !request.contextValues.get(skipAuthenticationRequiredKey)
       ) {
-        notifyAuthenticationRequired(config.serverId);
+        notifyAuthenticationRequired(
+          config.serverId,
+          `${request.service.typeName}/${request.method.name}`
+        );
       }
       throw err;
     }

@@ -1,3 +1,8 @@
+# Tasks and `mise install` trust this config and install missing tools
+# automatically from this version on, so `mise setup` or `mise dev` needs no
+# separate `mise trust` or `mise install` step.
+min_version = "2026.8.9"
+
 [tools]
 buf = "latest"
 go = "1.26.7"

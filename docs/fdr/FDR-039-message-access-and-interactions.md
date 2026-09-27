@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-26
 
 ## Overview
 
@@ -48,12 +48,8 @@ permissions. Room membership remains a separate requirement.
   need read access, membership, and a room policy that permits threads.
 - Broad read access with interaction posting lets an account read the room
   but respond only in related threads. The same rule applies to humans and bots.
-- When the account cannot post roots, the client shows a posting-permission
-  notice above the room timeline. It distinguishes replies in readable threads,
-  replies only in related threads, and no posting. Read access and room policy
-  must also permit replies. The posting notice can appear with the limited-read
-  notice. Only DM notices include received DMs as an interaction condition.
-  Both update when effective permissions change.
+- When the account cannot post roots, the client disables the room composer.
+  The client does not show a separate posting-permission notice.
 - A channel-room operation that reads or returns an existing message also
   needs access to that message's thread. Deletion remains independently
   authorized and does not return surrounding message state.
@@ -64,13 +60,10 @@ permissions. Room membership remains a separate requirement.
 - A room timeline for an account with only interaction-scoped access contains
   the roots of threads that the account can read. The account can then read
   each complete thread through the thread API.
-- The client shows a persistent notice above this limited timeline. It explains
-  that only conversations started by the account or with a direct mention are
-  visible. In DMs, the notice also includes received conversations.
 - An empty limited timeline says that there are no conversations the account
   can read yet. It does not imply that the room is empty or show the normal
-  beginning-of-conversation marker. The notice follows effective permissions
-  without an additional request or a page-wide loading lock.
+  beginning-of-conversation marker. The client does not show a separate
+  limited-access notice above the timeline.
 - Main-room typing indicators require broad access. A thread typing indicator
   is visible when the account can read that thread.
 - The normal realtime protocol carries authorized semantic message events.

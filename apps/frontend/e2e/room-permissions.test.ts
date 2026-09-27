@@ -328,27 +328,7 @@ test.describe('Room-Level Permission Overrides', () => {
         expect(beforeMention.page?.events ?? []).toEqual([]);
 
         await memberPage.goto(routes.room(roomId));
-        await expect(memberPage.getByTestId('limited-message-access')).toHaveText(
-          'You can only see conversations you started or where someone mentioned you.'
-        );
         await expect(memberPage.getByText('No conversations you can read yet.')).toBeVisible();
-        await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-        await expect(memberPage.getByTestId('room-post-denied')).toBeVisible();
-        await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
-          'You can only reply in threads you can read.'
-        );
-        await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
-        await grantRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
-        await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
-          'You can only reply in threads you started or where someone mentioned you.'
-        );
-        await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
-        await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
-          'You do not have permission to post messages in this room.'
-        );
-        await expect(memberPage.getByTestId('limited-message-access')).toBeVisible();
-        await grantRoomPermission(page, roomId, 'everyone', 'message.post');
-        await expect(memberPage.getByTestId('room-post-denied')).toHaveCount(0);
         await expect(
           memberPage.getByText('This is the beginning of this conversation.')
         ).toHaveCount(0);
@@ -381,14 +361,14 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText(earlierBody)).toBeVisible();
         await expect(memberPage.getByText(`@${member.displayName} ${mentionSuffix}`)).toBeVisible();
         await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
-        await expect(memberPage.getByTestId('limited-message-access')).toBeVisible();
 
         await memberPage.goto(routes.room(roomId));
+        await expect(memberPage.getByTestId('room-main-pane').getByText(rootBody)).toBeVisible();
+        await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
         await grantRoomPermission(page, roomId, 'everyone', 'message.read');
-        await expect(memberPage.getByTestId('limited-message-access')).toHaveCount(0, {
+        await expect(memberPage.getByText(unrelatedBody)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(memberPage.getByText(unrelatedBody)).toBeVisible();
       });
     });
   });

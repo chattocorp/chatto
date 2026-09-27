@@ -1,7 +1,7 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.5.0-beta.7",
+  "version": "0.5.0-beta.8",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "lint": "eslint .",
     "test:unit": "vitest",
+    "test:focused": "vitest --run",
     "test:unit:run": "vitest --run --project=server && vitest --run --project=client && vitest --run --project=storybook && pnpm run test:performance-comparison && pnpm run test:e2e-sharding",
     "test:performance-comparison": "node --test scripts/compare-e2e-performance.test.mjs",
     "test:e2e-sharding": "node --test scripts/run-e2e-shard.test.mjs",

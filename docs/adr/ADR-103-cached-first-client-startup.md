@@ -1,7 +1,7 @@
 # ADR-103: Open a Saved Chat View Before Client Connection
 
 **Date:** 2026-09-23
-**Status:** Partially superseded by [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)
+**Status:** Superseded by [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)
 
 ## Context
 
@@ -13,8 +13,9 @@ server could therefore delay useful content that was already on the device.
 
 ## Decision
 
-ADR-107 removes the saved chat view. Only the service worker shell decision
-below remains in effect. The rest of this record is historical.
+ADR-107 supersedes this record. It removes the saved chat view and makes app
+navigations load the document from the network first. This record is
+historical.
 
 Before ADR-107, ADR-104 replaced the storage limits and cursor-free format
 described below with versioned resource snapshots and a shared, atomic replay

@@ -107,10 +107,10 @@ Include this component once in the application root so signed-out pages also cle
         if (!checkingSound) void soundForCreations();
       };
 
-      bus.projectionHandlers.add(handler);
+      const unsubscribe = bus.subscribe(handler);
       cleanups.push(() => {
         active = false;
-        bus.projectionHandlers.delete(handler);
+        unsubscribe();
       });
     }
 

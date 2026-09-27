@@ -28,14 +28,6 @@ export class MessageTimelineSource {
     return new MessageTimelineSource(api, roomId, threadRootEventId);
   }
 
-  matches(scope: MessageTimelineScope, roomId: string, threadRootEventId = ''): boolean {
-    return (
-      this.scope === scope &&
-      this.roomId === roomId &&
-      (this.threadRootEventId ?? '') === threadRootEventId
-    );
-  }
-
   rootEventsFrom(events: TimelineEventView[]): TimelineEventView[] {
     return events.filter(isRootRoomEvent);
   }

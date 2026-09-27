@@ -2,7 +2,6 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
@@ -10,11 +9,9 @@
 
   let { children } = $props();
 
-  const getChromePermissionsState = getChromePermissions();
-  const chromePermissions = $derived(getChromePermissionsState());
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
-  const serverPermissions = $derived(serverScope.store.permissions);
+  const permissions = $derived(serverScope.store.permissions);
 
   // Server management routes are gated here. Resource-scoped room routes
   // perform their own checks after loading the target resource.
@@ -37,11 +34,11 @@
 
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
-      return () => chromePermissions?.canManage ?? false;
+      return () => permissions.canManageServer;
     }
 
     if (pathname.startsWith(neighborsBase)) {
-      return () => chromePermissions?.canManageNeighbors ?? false;
+      return () => permissions.canManageNeighbors;
     }
 
     // Bot owners retain management of existing bots after losing bot.create.
@@ -54,17 +51,17 @@
     // Members pages call AdminUserService.ListMembers/GetMember, which
     // require admin.view-users.
     if (pathname.startsWith(membersBase)) {
-      return () => serverPermissions.canAdminViewUsers;
+      return () => permissions.canAdminViewUsers;
     }
 
     if (pathname.startsWith(invitationsBase)) {
-      return () => serverPermissions.canManageInvites;
+      return () => permissions.canManageInvites;
     }
 
     // The room collection is a server-wide layout editor. Individual room
     // pages allow delegated managers and enforce access after loading the room.
     if (pathname === roomsBase || pathname === `${roomsBase}/`) {
-      return () => chromePermissions?.canManageRooms ?? false;
+      return () => permissions.canManageRooms;
     }
     if (pathname.startsWith(`${roomsBase}/`)) return () => true;
 
@@ -75,40 +72,38 @@
 
     // The suspension list requires effective server-scope room.remove-member.
     if (pathname.startsWith(moderationBase)) {
-      return () => chromePermissions?.canModerate ?? false;
+      return () => permissions.canModerateRooms;
     }
 
     // Permissions pages call the server/group role permission matrix APIs,
     // which require role.manage.
     if (pathname.startsWith(permissionsBase)) {
-      return () => chromePermissions?.canManageRoles ?? false;
+      return () => permissions.canAdminManageRoles;
     }
 
     // Security (blocked usernames) — server.manage
     if (pathname.startsWith(securityBase)) {
-      return () => chromePermissions?.canManage ?? false;
+      return () => permissions.canManageServer;
     }
 
     // System info (NATS/JetStream stats) — owner-only for now.
     if (pathname.startsWith(systemBase)) {
-      return () => serverPermissions.canAdminViewSystem;
+      return () => permissions.canAdminViewSystem;
     }
 
     // Event log inspection — admin.view-audit
     if (pathname.startsWith(eventLogBase)) {
-      return () => serverPermissions.canAdminViewAudit;
+      return () => permissions.canAdminViewAudit;
     }
 
     // Default: require server manage for unknown management routes.
-    return () => chromePermissions?.canManage ?? false;
+    return () => permissions.canManageServer;
   }
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
-
-  const permissionsLoaded = $derived(chromePermissions !== null && serverPermissions.loaded);
 </script>
 
-{#if !permissionsLoaded}
+{#if !permissions.loaded}
   <!-- blank shell while permissions load; avoids an Access Denied flash -->
 {:else if hasPermission}
   {@render children?.()}

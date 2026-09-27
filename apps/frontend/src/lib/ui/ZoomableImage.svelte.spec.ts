@@ -13,7 +13,7 @@ async function mount() {
   view.container.style.width = '400px';
   view.container.style.height = '350px';
   expect(view.container.querySelector('img')?.classList.contains('skeleton')).toBe(false);
-  const stage = view.container.querySelector<HTMLDivElement>('.touch-none')!;
+  const stage = view.container.querySelector<HTMLDivElement>('[role="group"]')!;
   await expect.poll(() => stage.clientWidth).toBe(400);
   await expect.poll(() => view.container.querySelector('img')?.naturalWidth).toBe(400);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -65,13 +65,40 @@ describe('ZoomableImage', () => {
     await expect.element(view.query.getByText('200%')).toBeVisible();
     expect(view.image.style.transform).toMatch(/translate\(-100(?:\.\d+)?px, 0px\) scale\(2/);
 
-    pointer(view.stage, 'pointerdown', 1, rect.left + 200, rect.top + 150);
-    pointer(view.stage, 'pointermove', 1, rect.left + 2000, rect.top + 150);
+    // Events that start on the image bubble to the stage's pan handlers.
+    pointer(view.image, 'pointerdown', 1, rect.left + 200, rect.top + 150);
+    pointer(view.image, 'pointermove', 1, rect.left + 2000, rect.top + 150);
     await tick();
     const fit = Math.min(view.stage.clientWidth / 400, view.stage.clientHeight / 300);
     const maxX = Math.max(0, (400 * fit * 2 - view.stage.clientWidth) / 2);
     expect(view.image.style.transform).toContain(`translate(${maxX}px, 0px)`);
-    pointer(view.stage, 'pointerup', 1, rect.left + 2000, rect.top + 150);
+    pointer(view.image, 'pointerup', 1, rect.left + 2000, rect.top + 150);
+  });
+
+  it('keeps the image as the hit target so the native image context menu works', async () => {
+    const view = await mount();
+    const rect = view.stage.getBoundingClientRect();
+    expect(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)).toBe(
+      view.image
+    );
+    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
+    view.image.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(false);
+  });
+
+  it('forgets a touch whose pointer capture ends without pointerup', async () => {
+    const view = await mount();
+    view.stage.setPointerCapture = vi.fn();
+    view.stage.hasPointerCapture = () => false;
+    const rect = view.stage.getBoundingClientRect();
+    // A long-press image menu can end a touch without pointerup.
+    pointer(view.image, 'pointerdown', 1, rect.left + 150, rect.top + 150);
+    pointer(view.stage, 'lostpointercapture', 1, rect.left + 150, rect.top + 150);
+    pointer(view.image, 'pointerdown', 2, rect.left + 200, rect.top + 150);
+    pointer(view.image, 'pointermove', 2, rect.left + 300, rect.top + 150);
+    await tick();
+    await expect.element(view.query.getByText('100%')).toBeVisible();
+    pointer(view.image, 'pointerup', 2, rect.left + 300, rect.top + 150);
   });
 
   it('zooms with a two-pointer pinch and toggles with double-click', async () => {

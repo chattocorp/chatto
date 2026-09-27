@@ -10,25 +10,9 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import type { ServerPermissions } from '$lib/state/server/permissions';
   import { m } from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
-
-  // Check whether any authenticated server grants a permission.
-  // Optimistically returns true while permissions are still loading.
-  // Unauthenticated servers are skipped entirely.
-  function anyServerHasPermission(key: keyof ServerPermissions): boolean {
-    return serverRegistry.servers.some((s) => {
-      const store = serverRegistry.tryGetStore(s.id);
-      if (!store?.isAuthenticated) return false;
-
-      const perms = store.permissions;
-      return !perms.loaded || perms[key];
-    });
-  }
-
-  void anyServerHasPermission;
 
   const directoryHref = resolve('/chat/servers');
   const directoryActive = $derived(

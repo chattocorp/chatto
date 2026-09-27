@@ -6,7 +6,8 @@ import {
   getIdsFromUrlViaConnect,
   postMessageViaConnect,
   postMessagesViaConnect,
-  postReplyViaConnect
+  postReplyViaConnect,
+  postThreadReplyViaConnect
 } from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -220,6 +221,51 @@ test.describe('jump to message', () => {
 
     // The old target message should no longer be visible (scope to <p> to exclude reply preview)
     await expect(page.locator('p', { hasText: targetBody })).not.toBeVisible();
+  });
+
+  test('a reply link in a long thread jumps to an older reply and back to present', async ({
+    page,
+    roomPage
+  }) => {
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 1 });
+    await loginSeededUser(page.request, scene.users[0]);
+    const roomId = scene.rooms[0].id;
+    const rootId = scene.messages[0].id;
+    const stamp = Date.now();
+    const replyIds: string[] = [];
+    for (let i = 0; i < 61; i++) {
+      replyIds.push(
+        await postThreadReplyViaConnect(page, roomId, `Thread filler ${i} - ${stamp}`, rootId)
+      );
+    }
+    const targetBody = `Thread filler 0 - ${stamp}`;
+    const replyBody = `Thread reply pointing back - ${stamp}`;
+    await postThreadReplyViaConnect(page, roomId, replyBody, rootId, replyIds[0]);
+
+    await roomPage.gotoThread(roomId, rootId);
+    const thread = roomPage.threadPane;
+    await expect(thread.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(thread.locator('p', { hasText: targetBody })).not.toBeVisible();
+
+    await thread
+      .locator('[role="article"]', { hasText: replyBody })
+      .getByTestId('reply-attribution')
+      .click({ position: { x: 8, y: 8 } });
+
+    await expect(thread.locator('p', { hasText: targetBody })).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    await expect(thread.getByTestId('jump-to-present')).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    await thread.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
+
+    await expect(thread.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(thread.getByTestId('jump-to-present')).not.toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await expect(thread.locator('p', { hasText: targetBody })).not.toBeVisible();
   });
 
   test('jump to message works for nearby messages already in DOM', async ({

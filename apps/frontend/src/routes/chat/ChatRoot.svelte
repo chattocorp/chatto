@@ -11,7 +11,7 @@
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import { onSessionTerminated } from '$lib/eventBus.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
@@ -73,7 +73,7 @@
       );
     }
 
-    const stopTermination = onSessionTerminated(serverId, (reason) => {
+    const stopTermination = eventBusManager.getBus(serverId)?.onSessionTerminated((reason) => {
       console.warn('Session terminated by server:', reason);
       if (isExplicitSignOutRedirectInProgress()) return;
       clearTerminatedOriginSession();
@@ -83,7 +83,7 @@
       clearTerminatedOriginSession();
     });
     return () => {
-      stopTermination();
+      stopTermination?.();
       stopChannel();
     };
   });

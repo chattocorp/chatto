@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
+import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
 
 const mocks = vi.hoisted(() => ({
   state: null as SvelteMap<string, boolean> | null,
@@ -25,14 +26,14 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         return mocks.sync;
       },
       get permissions() {
-        return { loaded: mocks.state!.get('loaded') };
+        return {
+          ...NO_SERVER_PERMISSIONS,
+          loaded: mocks.state!.get('loaded') ?? false,
+          canAdminManageRoles: mocks.state!.get('allowed') ?? false
+        };
       }
     }
   })
-}));
-vi.mock('$lib/state/server/chromePermissions.svelte', () => ({
-  getChromePermissions: () => () =>
-    mocks.state!.get('loaded') ? { canManageRoles: mocks.state!.get('allowed') } : null
 }));
 
 import Layout from './+layout.svelte';

@@ -44,7 +44,7 @@ describe('MessageTimelineSource', () => {
     await source.fetchPage({ limit: 50, before: 'cursor' });
     await source.fetchAround('older', 25);
 
-    expect(source.matches('room', 'room-1')).toBe(true);
+    expect(source).toMatchObject({ scope: 'room', roomId: 'room-1' });
     expect(source.eventsFrom([newer, reply, older])).toEqual([newer, older]);
     expect(source.sort([newer, older])).toEqual([older, newer]);
     expect(api.getRoomEvents).toHaveBeenCalledWith({
@@ -69,7 +69,11 @@ describe('MessageTimelineSource', () => {
     await source.fetchPage({ limit: 50, after: 'cursor' });
     await source.fetchAround('first-reply', 25);
 
-    expect(source.matches('thread', 'room-1', 'root')).toBe(true);
+    expect(source).toMatchObject({
+      scope: 'thread',
+      roomId: 'room-1',
+      threadRootEventId: 'root'
+    });
     expect(source.eventsFrom([firstReply, otherReply, root])).toEqual([firstReply, root]);
     expect(source.sort([firstReply, root])).toEqual([root, firstReply]);
     expect(api.getThreadEvents).toHaveBeenCalledWith({
@@ -103,12 +107,11 @@ describe('MessageTimelineSource', () => {
   it('keeps APIs isolated between server-owned sources', async () => {
     const firstApi = timelineApi();
     const secondApi = timelineApi();
-    const first = MessageTimelineSource.room(firstApi, 'room-1');
+    MessageTimelineSource.room(firstApi, 'room-1');
     const second = MessageTimelineSource.room(secondApi, 'room-1');
 
     await second.fetchPage({ limit: 50 });
 
-    expect(first.matches('room', 'room-1')).toBe(true);
     expect(firstApi.getRoomEvents).not.toHaveBeenCalled();
     expect(secondApi.getRoomEvents).toHaveBeenCalledOnce();
   });

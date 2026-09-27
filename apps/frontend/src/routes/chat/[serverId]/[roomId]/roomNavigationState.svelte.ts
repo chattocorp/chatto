@@ -1,26 +1,52 @@
 import type { QuoteInsertionContent } from '$lib/state/room';
-import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
+import type { PendingThreadReply, ThreadOpenOptions } from './threadOpenOptions';
 
+/** A message that a conversation pane must jump to and highlight once. */
+export type PendingHighlight = {
+  roomId: string;
+  /** The thread timeline that shows the message, or null for the room timeline. */
+  threadRootEventId: string | null;
+  eventId: string;
+  /** A notification that becomes read after a successful jump. */
+  notificationId: string | null;
+};
+
+/** Composer input that waits until the target thread pane has a composer. */
+export type PendingComposerInput = {
+  roomId: string;
+  threadRootEventId: string;
+  quote?: QuoteInsertionContent;
+  reply?: PendingThreadReply;
+};
+
+/**
+ * Room-level navigation requests for the room and thread conversation panes.
+ *
+ * Each request names its target timeline. A pane reads only its own requests
+ * and clears one after it handles it. The clear methods take the handled
+ * request, so a late completion cannot clear a newer request.
+ */
 export class RoomNavigationState {
-  pendingThreadHighlight = $state<string | null>(null);
-  pendingMainHighlightId = $state<string | null>(null);
-  pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
-  pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
+  highlight = $state.raw<PendingHighlight | null>(null);
+  composerInput = $state.raw<PendingComposerInput | null>(null);
 
-  #mainHighlightRequestId = 0;
-  #pendingThreadQuoteId = 0;
-  #pendingThreadReplyId = 0;
   #appliedThreadMessageRoute: string | null = null;
   #appliedHighlightParam: string | null = null;
 
-  prepareThreadOpen(threadRootEventId: string, options: ThreadOpenOptions = {}): void {
-    this.pendingThreadHighlight = options.highlightEventId ?? null;
-    this.pendingThreadQuote = options.quoteText
-      ? { id: ++this.#pendingThreadQuoteId, text: options.quoteText }
-      : null;
-    this.pendingThreadReply = options.reply
-      ? { id: ++this.#pendingThreadReplyId, threadRootEventId, ...options.reply }
-      : null;
+  prepareThreadOpen(
+    roomId: string,
+    threadRootEventId: string,
+    options: ThreadOpenOptions = {}
+  ): void {
+    if (options.highlightEventId) {
+      this.beginHighlight(roomId, threadRootEventId, options.highlightEventId);
+    } else if (this.highlight?.threadRootEventId) {
+      this.highlight = null;
+    }
+    this.composerInput =
+      options.quoteText || options.reply
+        ? { roomId, threadRootEventId, quote: options.quoteText, reply: options.reply }
+        : null;
   }
 
   consumeThreadMessageRoute(
@@ -60,39 +86,37 @@ export class RoomNavigationState {
     return eventId;
   }
 
-  beginHighlight(eventId: string, inThread: boolean): number | null {
-    if (inThread) {
-      this.pendingThreadHighlight = eventId;
-      return null;
-    }
-
-    this.pendingMainHighlightId = eventId;
-    return ++this.#mainHighlightRequestId;
+  beginHighlight(
+    roomId: string,
+    threadRootEventId: string | null,
+    eventId: string,
+    notificationId: string | null = null
+  ): void {
+    this.highlight = { roomId, threadRootEventId, eventId, notificationId };
   }
 
-  failMainHighlight(requestId: number, eventId: string): boolean {
-    if (this.#mainHighlightRequestId !== requestId || this.pendingMainHighlightId !== eventId) {
-      return false;
-    }
-
-    this.pendingMainHighlightId = null;
-    return true;
+  highlightFor(roomId: string, threadRootEventId: string | null): PendingHighlight | null {
+    const highlight = this.highlight;
+    return highlight?.roomId === roomId && highlight.threadRootEventId === threadRootEventId
+      ? highlight
+      : null;
   }
 
+  composerInputFor(roomId: string, threadRootEventId: string): PendingComposerInput | null {
+    const input = this.composerInput;
+    return input?.roomId === roomId && input.threadRootEventId === threadRootEventId ? input : null;
+  }
+
+  clearHighlight(highlight: PendingHighlight): void {
+    if (this.highlight === highlight) this.highlight = null;
+  }
+
+  /** Drop a room-timeline highlight when its room stops being active. */
   clearMainHighlight(): void {
-    this.#mainHighlightRequestId++;
-    this.pendingMainHighlightId = null;
+    if (this.highlight?.threadRootEventId === null) this.highlight = null;
   }
 
-  clearThreadHighlight(): void {
-    this.pendingThreadHighlight = null;
-  }
-
-  clearThreadQuote(): void {
-    this.pendingThreadQuote = null;
-  }
-
-  clearThreadReply(): void {
-    this.pendingThreadReply = null;
+  clearComposerInput(input: PendingComposerInput): void {
+    if (this.composerInput === input) this.composerInput = null;
   }
 }
