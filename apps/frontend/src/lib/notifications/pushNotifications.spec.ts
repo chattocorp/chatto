@@ -40,6 +40,9 @@ const mocks = vi.hoisted(() => ({
     origin: {
       isAuthenticated: true,
       currentUser: { user: { id: 'origin-user' } },
+      get accountId(): string | null {
+        return this.currentUser.user.id;
+      },
       serverInfo: {
         pushNotificationsEnabled: true,
         vapidPublicKey: 'origin-vapid'
@@ -48,6 +51,9 @@ const mocks = vi.hoisted(() => ({
     remote: {
       isAuthenticated: true,
       currentUser: { user: { id: 'remote-user' } },
+      get accountId(): string | null {
+        return this.currentUser.user.id;
+      },
       serverInfo: {
         pushNotificationsEnabled: true,
         vapidPublicKey: 'remote-vapid'

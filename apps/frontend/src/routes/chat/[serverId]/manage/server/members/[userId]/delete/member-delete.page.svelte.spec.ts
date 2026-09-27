@@ -51,6 +51,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     get store() {
       return {
         currentUser: { user: { id: memberDetailPageTestState.viewerId, settings: null } },
+        viewerId: memberDetailPageTestState.viewerId,
         permissions: {
           canAdminViewUsers: true,
           canAdminManageAccounts: true

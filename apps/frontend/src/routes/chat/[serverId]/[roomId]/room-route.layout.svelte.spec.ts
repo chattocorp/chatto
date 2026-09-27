@@ -92,6 +92,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       get viewerId() {
         return mocks.currentUserId;
       },
+      get projectionViewerId() {
+        return mocks.roomsStore.currentUserId;
+      },
       roomDirectory: {
         joinRoom: mocks.joinRoom,
         loadJoinPreview: mocks.loadJoinPreview

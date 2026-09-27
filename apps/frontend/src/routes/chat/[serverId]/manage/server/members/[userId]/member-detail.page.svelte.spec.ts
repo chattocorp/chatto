@@ -60,6 +60,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       return {
         serverInfo: { supportsFeature: () => true },
         currentUser: { user: { id: 'viewer', settings: null } },
+        viewerId: 'viewer',
         permissions: {
           canAdminViewUsers: true,
           canAdminManageAccounts: mocks.canAdminManageAccounts

@@ -40,6 +40,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'origin',
     store: {
       currentUser: mocks.currentUser,
+      get accountId() {
+        return mocks.currentUser.user?.id ?? null;
+      },
       permissions: mocks.permissions,
       serverInfo: {
         supportsFeature: (feature: string) => feature !== 'userAvatars' || mocks.supportsUserAvatars

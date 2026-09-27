@@ -696,7 +696,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function dmPresentation(room: RoomsListItem) {
     return buildDirectMessagePresentation(
       room.members,
-      navigation.currentUserId,
+      stores.projectionViewerId,
       m('common.you'),
       getLiveDisplayName
     );
@@ -872,7 +872,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <span class="min-w-0 flex-1"
         ><DirectMessageName
           participants={room.members}
-          currentUserId={navigation.currentUserId}
+          currentUserId={stores.projectionViewerId}
           getDisplayName={getLiveDisplayName}
         /></span
       >

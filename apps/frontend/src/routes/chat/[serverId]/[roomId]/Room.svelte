@@ -130,7 +130,6 @@
 
   // Create context-based state (must be synchronous, before children render)
   createMentionRoles(() => stores.mentionRoles.roles);
-  const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
   const room = useRoomData(() => ({ roomId }));
@@ -191,7 +190,7 @@
   );
 
   function getRecentThreadRootCandidate() {
-    const currentUserId = currentUser.user?.id;
+    const currentUserId = stores.viewerId;
     if (
       !currentUserId ||
       !permissions.canPostInThread ||

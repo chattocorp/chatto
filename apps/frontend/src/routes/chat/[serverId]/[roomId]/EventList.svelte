@@ -184,7 +184,7 @@
     lastEditableMessageCtx.setFinder(() => {
       return findLastEditableMessage({
         events: filteredEvents,
-        currentUserId: currentUser.user?.id,
+        currentUserId: stores.viewerId,
         roomPermissions,
         messageEditWindowSeconds: serverInfo.messageEditWindowSeconds,
         nowMs: Date.now()
@@ -860,7 +860,7 @@
       interactions={userInteractions}
       serverId={serverScope.serverId}
       {roomId}
-      currentUserId={currentUser.user?.id}
+      currentUserId={stores.viewerId ?? undefined}
       {canStartDMs}
       canBanRoomMembers={roomPermissions.canBanRoomMembers}
       {isUniversal}

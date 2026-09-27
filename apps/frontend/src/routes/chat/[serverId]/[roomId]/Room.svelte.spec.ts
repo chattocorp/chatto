@@ -239,6 +239,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: (serverId: string) => ({
       realtimeSync: { isRecoveringSnapshot: false },
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+      viewerId: 'test-user',
+      accountId: 'test-user',
       serverInfo: {
         livekitUrl: mocks.livekitUrl,
         videoProcessingEnabled: false,

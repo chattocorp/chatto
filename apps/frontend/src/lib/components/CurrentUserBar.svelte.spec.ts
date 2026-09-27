@@ -157,6 +157,12 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
         get viewerUser() {
           return currentUserState.user;
         },
+        get accountId() {
+          return currentUserState.user?.id ?? null;
+        },
+        get projectionViewerId() {
+          return roomsState.currentUserId;
+        },
         voiceCall: voiceCallState,
         navigation: roomsState,
         projection: projectionState,

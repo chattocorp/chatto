@@ -41,8 +41,7 @@
   const activeServerId = $derived(serverScope.serverId);
   const store = $derived(serverScope.store);
   const userId = $derived(page.params.userId!);
-  const currentUser = $derived(store.currentUser);
-  const isSelf = $derived(currentUser.user?.id === userId);
+  const isSelf = $derived(store.viewerId === userId);
   const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
   const canAdminManageAccounts = $derived(store.permissions.canAdminManageAccounts);
   const supportsUserAvatars = $derived(store.serverInfo.supportsFeature('userAvatars'));

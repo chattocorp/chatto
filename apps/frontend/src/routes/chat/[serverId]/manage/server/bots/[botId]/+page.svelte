@@ -55,7 +55,7 @@
   );
   const supportsUserAvatars = $derived(serverScope.store.serverInfo.supportsFeature('userAvatars'));
   const canManageBots = $derived(serverScope.store.permissions.canManageBots);
-  const viewerId = $derived(serverScope.store.currentUser.user?.id ?? null);
+  const viewerId = $derived(serverScope.store.accountId);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
   const canReassignOwner = $derived(canManageBots);
   const backHref = $derived(

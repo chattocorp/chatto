@@ -18,7 +18,7 @@
   // session verification and command readiness.
   const ready = $derived(
     !navigation.isInitialLoading &&
-      (!navigation.currentUserId || navigation.currentUserId === serverStore.viewerId)
+      (!serverStore.projectionViewerId || serverStore.projectionViewerId === serverStore.viewerId)
   );
 
   let threadId = $derived(page.params.threadId);

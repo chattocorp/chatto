@@ -134,6 +134,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         return authState.get('authenticated')!;
       },
       viewerId: 'test-user',
+      accountId: 'test-user',
       readViews: { register: mocks.registerReadView },
       notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
       reconcileThreadRead: mocks.reconcileThreadRead,

@@ -101,7 +101,7 @@ sidebar. Shows the avatar with presence and the live display name.
     if (room.type === RoomKind.DM) {
       return buildDirectMessagePresentation(
         room.members,
-        navigation?.currentUserId,
+        activeStore.projectionViewerId,
         m('common.you'),
         getLiveDisplayName
       ).label;
@@ -209,7 +209,7 @@ sidebar. Shows the avatar with presence and the live display name.
     clearingCustomStatus = true;
     try {
       const customStatus = await deleteCustomStatus(config);
-      if (store.currentUser.user?.id === userId) {
+      if (store.currentUser.user && store.accountId === userId) {
         store.currentUser.user = { ...store.currentUser.user, customStatus };
       }
       if (activeServerId === serverId && activeServerUser?.id === userId) {

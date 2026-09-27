@@ -47,7 +47,15 @@ vi.mock('$app/navigation', async (importOriginal) => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: { currentUser: mocks.currentUser },
+    store: {
+      currentUser: mocks.currentUser,
+      get viewerId() {
+        return mocks.currentUser.user?.id ?? null;
+      },
+      get accountId() {
+        return mocks.currentUser.user?.id ?? null;
+      }
+    },
     connection,
     isCurrent: () => mocks.scopeCurrent
   })

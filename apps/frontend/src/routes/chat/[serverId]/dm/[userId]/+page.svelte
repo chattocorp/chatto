@@ -16,8 +16,8 @@
   const scope = useServerScope();
   let failed = $state(false);
   let attempt = $state(0);
-  // The self-conversation check needs the verified viewer.
-  const viewerId = $derived(scope.store.currentUser.user?.id);
+  // The self-conversation check needs the accepted account. The server enforces access.
+  const viewerId = $derived(scope.store.accountId);
 
   // Each recipient or retry owns one request. Cleanup prevents late results
   // from navigating after the user leaves or selects a different recipient.

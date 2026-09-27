@@ -24,9 +24,8 @@
 
   const serverScope = useServerScope();
   const activeServerId = $derived(serverScope.serverId);
-  const currentUser = $derived(serverScope.store.currentUser);
   const userId = $derived(page.params.userId!);
-  const isSelf = $derived(currentUser.user?.id === userId);
+  const isSelf = $derived(serverScope.store.viewerId === userId);
   // The detail page keys its interactive sections on this value; keying the
   // confirmation form here resets input state when the route target changes.
   const memberTargetKey = $derived(

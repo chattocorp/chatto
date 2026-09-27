@@ -16,7 +16,11 @@ export function roomPinsSeenStorageKey(serverId: string, viewerId: string, roomI
   return serverStorageKey(serverId, `viewer:${viewerId}:room:${roomId}:pinsSeen`);
 }
 
-export function clearRoomPinsSeenMarker(serverId: string, viewerId: string, roomId: string): void {
+export function clearRoomPinsSeenMarker(
+  serverId: string,
+  viewerId: string | null,
+  roomId: string
+): void {
   if (browser && viewerId)
     localStorage.removeItem(roomPinsSeenStorageKey(serverId, viewerId, roomId));
 }
@@ -32,8 +36,8 @@ export class RoomPinsStore {
   private readonly api: PinnedMessagesAPI;
   readonly roomId: string;
   private readonly serverId: string;
-  private readonly viewerId: string;
-  private readonly seenStorageKey: string;
+  /** Reads the viewer ID for the device-local "pins seen" key, which is per account. */
+  private readonly getViewerId: () => string | null;
   private hydrated = false;
   private retainCount = 0;
   private requestEpoch = 0;
@@ -48,15 +52,21 @@ export class RoomPinsStore {
   constructor(
     serverConnection: ServerConnection,
     serverId: string,
-    viewerId: string,
+    getViewerId: () => string | null,
     roomId: string
   ) {
     this.roomId = roomId;
     this.serverId = serverId;
-    this.viewerId = viewerId;
+    this.getViewerId = getViewerId;
     this.api = serverConnection.getAPI(createPinnedMessagesAPI);
-    this.seenStorageKey = roomPinsSeenStorageKey(serverId, viewerId, roomId);
-    if (browser) this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
+    const key = this.seenStorageKey;
+    if (browser && key) this.lastSeenMarker = localStorage.getItem(key) ?? '';
+  }
+
+  /** The device-local key for this viewer and room, or null before the viewer is known. */
+  private get seenStorageKey(): string | null {
+    const viewerId = this.getViewerId();
+    return viewerId ? roomPinsSeenStorageKey(this.serverId, viewerId, this.roomId) : null;
   }
 
   get hasUnseen(): boolean {
@@ -180,7 +190,8 @@ export class RoomPinsStore {
   markSeen(): void {
     if (!this.latestKnownMarker) return;
     this.lastSeenMarker = this.latestKnownMarker;
-    if (browser) localStorage.setItem(this.seenStorageKey, this.lastSeenMarker);
+    const key = this.seenStorageKey;
+    if (browser && key) localStorage.setItem(key, this.lastSeenMarker);
   }
 
   reset(options: { rehydrateRetained?: boolean; accessRevoked?: boolean } = {}): void {
@@ -200,7 +211,7 @@ export class RoomPinsStore {
     this.latestKnownMarker = '';
     if (options.accessRevoked) {
       this.lastSeenMarker = '';
-      clearRoomPinsSeenMarker(this.serverId, this.viewerId, this.roomId);
+      clearRoomPinsSeenMarker(this.serverId, this.getViewerId(), this.roomId);
     }
     if (options.rehydrateRetained && this.retainCount > 0 && !this.accessBlocked)
       void this.hydrate();

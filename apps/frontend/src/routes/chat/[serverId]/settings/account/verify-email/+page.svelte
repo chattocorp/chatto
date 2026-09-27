@@ -44,7 +44,7 @@
       serverId: serverIdToSegment(serverScope.serverId)
     })
   );
-  const viewerUserId = $derived(serverScope.store.currentUser.user?.id ?? '');
+  const viewerUserId = $derived(serverScope.store.accountId ?? '');
   let pendingEmail = $derived(
     viewerUserId ? readPendingEmailVerification(serverScope.serverId, viewerUserId) : ''
   );

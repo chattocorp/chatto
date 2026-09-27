@@ -37,6 +37,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       get currentUser() {
         return mocks.currentUser;
       },
+      get accountId() {
+        return mocks.currentUser.user?.id ?? null;
+      },
       ensureRoomAvailable: mocks.ensureRoomAvailable
     }
   })

@@ -93,6 +93,9 @@ const { mocks } = vi.hoisted(() => ({
         isInitialLoading: false,
         currentUserId: 'me'
       },
+      get projectionViewerId(): string | null {
+        return this.navigation.currentUserId;
+      },
       roomDirectory: {
         joinRoom: vi.fn()
       },

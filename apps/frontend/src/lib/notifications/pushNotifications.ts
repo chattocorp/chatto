@@ -252,7 +252,7 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
   return serverRegistry.servers.flatMap((server) => {
     const store = serverRegistry.tryGetStore(server.id);
     const info = store?.serverInfo;
-    const userId = store?.currentUser.user?.id;
+    const userId = store?.accountId;
     if (
       !store?.isAuthenticated ||
       !userId ||

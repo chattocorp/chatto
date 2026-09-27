@@ -294,7 +294,7 @@
     if (thread.isDirectMessage) {
       return buildDirectMessagePresentation(
         thread.directMessageParticipants,
-        serverStore.currentUser.user?.id,
+        serverStore.viewerId,
         m('common.you'),
         getLiveDisplayName
       ).visibleParticipants;
@@ -309,7 +309,7 @@
     if (!thread.isDirectMessage) return `#${thread.roomName}`;
     return buildDirectMessagePresentation(
       thread.directMessageParticipants,
-      serverStore.currentUser.user?.id,
+      serverStore.viewerId,
       m('common.you'),
       getLiveDisplayName
     ).label;
@@ -487,7 +487,7 @@
                                 >{#if thread.isDirectMessage}
                                   <DirectMessageName
                                     participants={thread.directMessageParticipants}
-                                    currentUserId={serverStore.currentUser.user?.id}
+                                    currentUserId={serverStore.viewerId}
                                     getDisplayName={getLiveDisplayName}
                                   />
                                 {:else}{roomLabel(thread)}{/if}
