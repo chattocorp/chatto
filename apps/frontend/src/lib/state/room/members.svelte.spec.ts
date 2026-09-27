@@ -451,11 +451,14 @@ describe('RoomMembersStore', () => {
   });
 
   it('preserves explicit bot identity from directory members', async () => {
-    const store = createStore([pageResult([user('bot-1', 'helper_bot', true)])]);
+    const store = createStore([
+      pageResult([{ ...user('bot-1', 'helper_bot', true), bot: { ownerUserId: 'owner-1' } }])
+    ]);
     store.setRoom('room-1');
     await store.loadInitial();
 
     expect(store.members[0]?.isBot).toBe(true);
+    expect(store.members[0]?.bot).toEqual({ ownerUserId: 'owner-1' });
   });
 
   it('publishes the first page before hydrating the canonical member list in the background', async () => {

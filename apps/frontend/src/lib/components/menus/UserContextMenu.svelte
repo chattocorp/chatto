@@ -77,7 +77,7 @@ keep the compact menu without a navigation action.
       displayName: string;
       isBot?: boolean;
       /** Public human owner of an active bot. */
-      bot?: { ownerUserId: string } | null;
+      bot?: { ownerUserId: string };
       deleted?: boolean;
       avatarUrl?: string | null;
       bio?: string | null;
