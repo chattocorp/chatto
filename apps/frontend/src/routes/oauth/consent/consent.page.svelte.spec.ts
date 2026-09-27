@@ -228,4 +228,33 @@ describe('OAuth consent client identity', () => {
       .element(getByText('Chatto will remember this approval for this address.'))
       .not.toBeInTheDocument();
   });
+
+  it('labels the built-in loopback client as unverified and shows its local origin', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify(
+              consentResponse({
+                redirectUri: 'http://chatto.dev.localhost:4000/servers/callback?mode=popup',
+                redirectOrigin: 'http://chatto.dev.localhost:4000',
+                clientId: 'chatto://loopback',
+                clientName: 'Unverified local app',
+                clientUri: ''
+              })
+            ),
+            { status: 200 }
+          )
+      )
+    );
+
+    const { getByText } = render(ConsentPage);
+
+    await expect.element(getByText('Unverified app on this device')).toBeVisible();
+    await expect
+      .element(getByText('http://chatto.dev.localhost:4000', { exact: true }))
+      .toBeVisible();
+    await expect.element(getByText('loopback', { exact: true })).not.toBeInTheDocument();
+  });
 });

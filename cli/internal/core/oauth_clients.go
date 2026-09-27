@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -39,6 +40,11 @@ func newOAuthClientModel(projection events.ProjectionHandle[*OAuthClientProjecti
 
 func (c *ChattoCore) RequireOAuthClientAllowed(ctx context.Context, clientID string) error {
 	clientID = strings.TrimSpace(clientID)
+	if clientID == config.ChattoLoopbackClientID && !c.config.AuthLoopbackClientEnabled {
+		// Treat a disabled loopback client like a blocked client so issued codes,
+		// refresh credentials, and access tokens stop working as well.
+		return ErrOAuthClientBlocked
+	}
 	if c.oauthClientModel == nil || clientID == "" {
 		return nil
 	}

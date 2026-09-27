@@ -244,6 +244,8 @@ domain fact. EVT stores this value. See
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
+**Loopback client** — The opt-in built-in OAuth client `chatto://loopback`. The bundled frontend uses it when it runs on a loopback origin, such as a local development stack, and signs in to a server that is not local. Any local process can present it, so it is unverified. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+
 **Pubsub Event** — A non-durable `pubsubv1.PubSubEvent` envelope published on
 `live.sync.>` through NATS Core. Its client-facing variants reference public
 realtime payloads. Private control variants can keep private payloads. It is not

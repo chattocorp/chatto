@@ -130,6 +130,13 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			})
 			return
 		}
+		if client.ClientID == config.ChattoLoopbackClientID && !s.config.Auth.LoopbackClientEnabled {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "This server does not accept sign-in from clients on a local address",
+			})
+			return
+		}
 		if err := s.core.RequireOAuthClientAllowed(c.Request.Context(), client.ClientID); err != nil {
 			if errors.Is(err, core.ErrOAuthClientBlocked) {
 				c.JSON(http.StatusBadRequest, gin.H{
@@ -655,7 +662,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		return "", false
 	}
 	source := evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
-	if params.ClientID == config.ChattoDesktopOrigin || params.ClientID == config.ChattoMobileClientID {
+	if config.IsBuiltInOAuthClientID(params.ClientID) {
 		source = evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
 	}
 	redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)

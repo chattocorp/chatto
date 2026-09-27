@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"hmans.de/chatto/internal/config"
 )
 
 type oauthRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -215,6 +217,45 @@ func TestOAuthClientNativeLoopbackIPRedirectUsesVariablePortOnly(t *testing.T) {
 		{name: "different IPv4 query", candidate: "http://127.0.0.1:52000/oauth/callback?source=other"},
 		{name: "named localhost different port", candidate: "http://inspector.feature.localhost:52000/oauth/callback"},
 		{name: "named localhost exact", candidate: "http://inspector.feature.localhost:41000/oauth/callback", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := client.allowsRedirectURI(tt.candidate); got != tt.want {
+				t.Fatalf("allowsRedirectURI(%q) = %v, want %v", tt.candidate, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuiltInLoopbackClientAcceptsPopupCallbackOnAnyLoopbackOrigin(t *testing.T) {
+	s := &HTTPServer{}
+	client, err := s.resolveOAuthClient(context.Background(), config.ChattoLoopbackClientID)
+	if err != nil {
+		t.Fatalf("resolveOAuthClient: %v", err)
+	}
+	if !client.BuiltIn || client.Native {
+		t.Fatalf("loopback client = %#v, want built-in web client", client)
+	}
+	tests := []struct {
+		name      string
+		candidate string
+		want      bool
+	}{
+		{name: "localhost", candidate: "http://localhost:4001/servers/callback?mode=popup", want: true},
+		{name: "workspace localhost", candidate: "http://chatto.canberra.localhost:4000/servers/callback?mode=popup", want: true},
+		{name: "IPv4", candidate: "http://127.0.0.1:5173/servers/callback?mode=popup", want: true},
+		{name: "IPv6", candidate: "http://[::1]:4000/servers/callback?mode=popup", want: true},
+		{name: "HTTPS localhost", candidate: "https://chatto.localhost/servers/callback?mode=popup", want: true},
+		{name: "public host", candidate: "https://evil.example/servers/callback?mode=popup"},
+		{name: "localhost prefix", candidate: "http://localhost.evil.example/servers/callback?mode=popup"},
+		{name: "invalid localhost label", candidate: "http://bad_label.localhost/servers/callback?mode=popup"},
+		{name: "other loopback IP", candidate: "http://127.0.0.2/servers/callback?mode=popup"},
+		{name: "wrong path", candidate: "http://localhost:4001/other?mode=popup"},
+		{name: "missing query", candidate: "http://localhost:4001/servers/callback"},
+		{name: "extra query", candidate: "http://localhost:4001/servers/callback?mode=popup&x=1"},
+		{name: "userinfo", candidate: "http://user@localhost:4001/servers/callback?mode=popup"},
+		{name: "fragment", candidate: "http://localhost:4001/servers/callback?mode=popup#x"},
+		{name: "custom scheme", candidate: "chatto://localhost/servers/callback?mode=popup"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

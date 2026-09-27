@@ -281,6 +281,24 @@ callbacks can use a different port at runtime. Chatto matches the path and
 query exactly and does not accept wildcards. For a local callback, the consent
 page shows a warning, and the member must approve each authorization again.
 
+The bundled client can also run on a local address of the member's computer,
+for example a development server on `localhost`. Your server cannot get a
+metadata document from that address. To let such a client sign in, set
+`auth.loopback_client_enabled = true`. The client then uses the built-in
+`chatto://loopback` identity, and the list of OAuth clients shows it as
+"Unverified local app".
+
+<Aside type="caution">
+  Any program on the member's computer can use this identity. Enable it only
+  when your members need a local client, for example to develop Chatto.
+</Aside>
+
+Chatto accepts only the bundled client's callback path on a local address.
+The local-callback rules above apply. The consent page shows the local
+address, and the member must approve each sign-in. A session of this client
+ends 24 hours after sign-in and does not renew. When you disable the setting,
+existing sessions of this client also stop working.
+
 ## Manage OAuth Clients
 
 After a first successful authorization, the client appears under **Server

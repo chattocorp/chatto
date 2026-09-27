@@ -35,13 +35,19 @@ type OAuthClient struct {
 	RedirectURIs []string
 	// Native permits the RFC 8252 variable-port exception for literal
 	// loopback IP callbacks. Web clients always require an exact callback.
-	Native  bool
-	BuiltIn bool
+	Native bool
+	// AnyLoopbackOrigin permits each registered callback on every HTTP or HTTPS
+	// loopback origin, with any port. The path and query must stay exact. Only
+	// the built-in loopback client sets it.
+	AnyLoopbackOrigin bool
+	BuiltIn           bool
 }
 
 func (c OAuthClient) allowsRedirectURI(candidate string) bool {
 	for _, redirectURI := range c.RedirectURIs {
-		if redirectURI == candidate || (c.Native && matchesLoopbackIPRedirectURI(redirectURI, candidate)) {
+		if redirectURI == candidate ||
+			(c.Native && matchesLoopbackIPRedirectURI(redirectURI, candidate)) ||
+			(c.AnyLoopbackOrigin && matchesAnyLoopbackOriginRedirectURI(redirectURI, candidate)) {
 			return true
 		}
 	}
@@ -62,6 +68,25 @@ func matchesLoopbackIPRedirectURI(registered, candidate string) bool {
 	}
 	return strings.EqualFold(registeredURL.Hostname(), candidateURL.Hostname()) &&
 		registeredURL.EscapedPath() == candidateURL.EscapedPath() &&
+		registeredURL.RawQuery == candidateURL.RawQuery &&
+		registeredURL.ForceQuery == candidateURL.ForceQuery
+}
+
+// matchesAnyLoopbackOriginRedirectURI accepts candidate when it has the
+// registered path and query on an HTTP or HTTPS loopback origin. The loopback
+// host can be a literal loopback IP, localhost, or a valid .localhost name.
+func matchesAnyLoopbackOriginRedirectURI(registered, candidate string) bool {
+	registeredURL, err := url.Parse(registered)
+	if err != nil {
+		return false
+	}
+	candidateURL, err := url.Parse(candidate)
+	if err != nil || (candidateURL.Scheme != "http" && candidateURL.Scheme != "https") || candidateURL.Host == "" ||
+		candidateURL.User != nil || candidateURL.Fragment != "" || candidateURL.Opaque != "" ||
+		!isLoopbackOAuthRedirectHost(candidateURL.Hostname()) {
+		return false
+	}
+	return registeredURL.EscapedPath() == candidateURL.EscapedPath() &&
 		registeredURL.RawQuery == candidateURL.RawQuery &&
 		registeredURL.ForceQuery == candidateURL.ForceQuery
 }
@@ -449,6 +474,12 @@ func (s *HTTPServer) resolveOAuthClient(ctx context.Context, clientID string) (O
 		return OAuthClient{
 			ClientID: clientID, ClientName: "Chatto Desktop", ClientURI: config.ChattoDesktopOrigin,
 			RedirectURIs: []string{config.ChattoDesktopOrigin + config.ChattoDesktopOAuthCallbackPath + "?mode=popup"}, BuiltIn: true,
+		}, nil
+	}
+	if clientID == config.ChattoLoopbackClientID {
+		return OAuthClient{
+			ClientID: clientID, ClientName: config.ChattoLoopbackClientName,
+			RedirectURIs: []string{config.ChattoLoopbackOAuthCallback}, AnyLoopbackOrigin: true, BuiltIn: true,
 		}, nil
 	}
 	if s.oauthClientResolver == nil {

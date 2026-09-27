@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/config"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -89,7 +90,20 @@ func (c *ChattoCore) renewableSessionTTL() time.Duration {
 	return c.authTokenTTL()
 }
 
+// renewableSessionTTLForClient returns the initial session window for an OAuth
+// client. Loopback-client sessions use a shorter fixed lifetime.
+func (c *ChattoCore) renewableSessionTTLForClient(clientID string) time.Duration {
+	ttl := c.renewableSessionTTL()
+	if clientID == config.ChattoLoopbackClientID && (ttl <= 0 || ttl > config.ChattoLoopbackSessionLifetime) {
+		return config.ChattoLoopbackSessionLifetime
+	}
+	return ttl
+}
+
 func (c *ChattoCore) renewableSessionWindowNeedsRenewal(session RenewableSession, now time.Time) bool {
+	if session.ClientID == config.ChattoLoopbackClientID {
+		return false
+	}
 	ttl := c.renewableSessionTTL()
 	remaining := session.ExpiresAt.Sub(now)
 	return ttl > 0 && remaining > 0 && remaining <= ttl/4
@@ -247,7 +261,7 @@ func (c *ChattoCore) createBearerSessionForGrant(ctx context.Context, userID, cl
 		Source:            source,
 		Request:           auditRequestMetadata(ctx),
 		CreatedAt:         now,
-		ExpiresAt:         now.Add(c.renewableSessionTTL()),
+		ExpiresAt:         now.Add(c.renewableSessionTTLForClient(clientID)),
 		AuthGeneration:    authGeneration,
 		CurrentGeneration: 0,
 	}

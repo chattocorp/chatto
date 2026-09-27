@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isBackendCapableOrigin } from './runtimeOrigin';
+import { isBackendCapableOrigin, isLoopbackHostname } from './runtimeOrigin';
 
 describe('isBackendCapableOrigin', () => {
   it.each(['http://chat.example', 'https://chat.example'])(
@@ -15,4 +15,25 @@ describe('isBackendCapableOrigin', () => {
       expect(isBackendCapableOrigin(new URL(origin))).toBe(false);
     }
   );
+});
+
+describe('isLoopbackHostname', () => {
+  it.each(['localhost', 'LOCALHOST', '127.0.0.1', '[::1]', '::1', 'chatto.canberra.localhost'])(
+    'accepts loopback hostnames: %s',
+    (hostname) => {
+      expect(isLoopbackHostname(hostname)).toBe(true);
+    }
+  );
+
+  it.each([
+    'chat.example',
+    'localhost.example',
+    '.localhost',
+    'bad..localhost',
+    '-bad.localhost',
+    'under_score.localhost',
+    '127.0.0.2'
+  ])('rejects other hostnames: %s', (hostname) => {
+    expect(isLoopbackHostname(hostname)).toBe(false);
+  });
 });

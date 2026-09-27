@@ -220,12 +220,46 @@ describe('remote server OAuth popup', () => {
   it('uses the built-in OAuth client identity for Chatto Desktop', async () => {
     const { oauthClientIdForLocation } = await import('./reauth');
     expect(
-      oauthClientIdForLocation({
-        origin: 'chatto://desktop',
-        protocol: 'chatto:',
-        host: 'desktop'
-      })
+      oauthClientIdForLocation(
+        {
+          origin: 'chatto://desktop',
+          protocol: 'chatto:',
+          host: 'desktop',
+          hostname: 'desktop'
+        },
+        'https://remote.example'
+      )
     ).toBe('chatto://desktop');
+  });
+
+  it.each([
+    'http://localhost:4001',
+    'http://chatto.canberra.localhost:4000',
+    'http://127.0.0.1:5173',
+    'http://[::1]:4000',
+    'https://chatto.localhost'
+  ])('uses the built-in loopback identity from %s for a remote server', async (origin) => {
+    const { oauthClientIdForLocation } = await import('./reauth');
+    expect(oauthClientIdForLocation(new URL(origin), 'https://remote.example')).toBe(
+      'chatto://loopback'
+    );
+  });
+
+  it.each(['http://127.0.0.1:4010', 'http://chatto.other.localhost:4000'])(
+    'keeps the origin CIMD identity for the local server %s',
+    async (serverUrl) => {
+      const { oauthClientIdForLocation } = await import('./reauth');
+      expect(oauthClientIdForLocation(new URL('http://localhost:4000'), serverUrl)).toBe(
+        'http://localhost:4000/oauth/frontend-client-metadata.json'
+      );
+    }
+  );
+
+  it('uses the origin CIMD identity on a public origin', async () => {
+    const { oauthClientIdForLocation } = await import('./reauth');
+    expect(
+      oauthClientIdForLocation(new URL('https://chat.example'), 'https://remote.example')
+    ).toBe('https://chat.example/oauth/frontend-client-metadata.json');
   });
 
   it('keeps the main client mounted while completing PKCE through a popup', async () => {

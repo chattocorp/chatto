@@ -50,6 +50,11 @@ func setupOAuthServer(t *testing.T) *HTTPServer {
 
 func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPServer {
 	t.Helper()
+	return setupOAuthServerWithAuth(t, config.AuthConfig{TokenTTL: config.Duration(tokenTTL)})
+}
+
+func setupOAuthServerWithAuth(t *testing.T, auth config.AuthConfig) *HTTPServer {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
 	_, nc := testutil.StartSharedNATS(t)
@@ -57,7 +62,11 @@ func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPSer
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
-	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{AuthTokenTTL: tokenTTL, SkipSetupWizard: true})
+	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
+		AuthTokenTTL:              auth.TokenTTL.Duration(),
+		AuthLoopbackClientEnabled: auth.LoopbackClientEnabled,
+		SkipSetupWizard:           true,
+	})
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
@@ -79,7 +88,7 @@ func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPSer
 			Webserver: config.WebserverConfig{
 				URL: "https://chatto.example",
 			},
-			Auth: config.AuthConfig{TokenTTL: config.Duration(tokenTTL)},
+			Auth: auth,
 		},
 		nc:      nc,
 		router:  router,
@@ -1156,6 +1165,103 @@ func TestOAuthLocalRedirectRequiresConsentForEveryAuthorization(t *testing.T) {
 	}
 	if consent.RedirectOrigin != "http://tool.feature.localhost:6276" {
 		t.Fatalf("local consent details = %#v", consent)
+	}
+}
+
+func TestOAuthBuiltInLoopbackClientRequiresConsentAndRecordsBuiltInSource(t *testing.T) {
+	s := setupOAuthServerWithAuth(t, config.AuthConfig{LoopbackClientEnabled: true})
+	s.oauthClientResolver = nil // The built-in client must not need CIMD retrieval.
+	const redirectURI = "http://chatto.canberra.localhost:4001/servers/callback?mode=popup"
+	const redirectOrigin = "http://chatto.canberra.localhost:4001"
+	ctx := context.Background()
+	cookies, user := loginOAuthTestUser(t, s, "oauth-loopback-client")
+	if err := s.core.AssignServerRole(ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	if err := s.core.GrantOAuthClientConsent(ctx, user.Id, config.ChattoLoopbackClientID, config.ChattoLoopbackClientName, "", redirectOrigin); err != nil {
+		t.Fatalf("GrantOAuthClientConsent: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {config.ChattoLoopbackClientID},
+		"redirect_uri":          {redirectURI},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q, want consent prompt: %s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+	cookies = mergeCookies(cookies, w.Result().Cookies())
+
+	consentReq := httptest.NewRequest(http.MethodGet, "/oauth/consent/request", nil)
+	addCookies(consentReq, cookies)
+	consentW := httptest.NewRecorder()
+	s.router.ServeHTTP(consentW, consentReq)
+	if consentW.Code != http.StatusOK {
+		t.Fatalf("consent request status = %d: %s", consentW.Code, consentW.Body.String())
+	}
+	var consent struct {
+		ClientID       string `json:"clientId"`
+		ClientName     string `json:"clientName"`
+		RedirectOrigin string `json:"redirectOrigin"`
+	}
+	if err := json.Unmarshal(consentW.Body.Bytes(), &consent); err != nil {
+		t.Fatalf("decode consent request: %v", err)
+	}
+	if consent.ClientID != config.ChattoLoopbackClientID || consent.ClientName != config.ChattoLoopbackClientName || consent.RedirectOrigin != redirectOrigin {
+		t.Fatalf("loopback consent details = %#v", consent)
+	}
+
+	approveReq := httptest.NewRequest(http.MethodPost, "/oauth/consent/approve", nil)
+	addCookies(approveReq, cookies)
+	approveW := httptest.NewRecorder()
+	s.router.ServeHTTP(approveW, approveReq)
+	if approveW.Code != http.StatusOK {
+		t.Fatalf("approve status = %d: %s", approveW.Code, approveW.Body.String())
+	}
+	var approval map[string]string
+	if err := json.Unmarshal(approveW.Body.Bytes(), &approval); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(approval["redirectUrl"], "http://chatto.canberra.localhost:4001/servers/callback?") || !strings.Contains(approval["redirectUrl"], "code=") {
+		t.Fatalf("loopback approval redirect = %q", approval["redirectUrl"])
+	}
+
+	client, err := s.core.GetOAuthClient(ctx, user.Id, config.ChattoLoopbackClientID)
+	if err != nil {
+		t.Fatalf("GetOAuthClient: %v", err)
+	}
+	if client.Source != evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN {
+		t.Fatalf("loopback client source = %v, want built-in", client.Source)
+	}
+}
+
+func TestOAuthAuthorizeRejectsLoopbackClientUnlessEnabled(t *testing.T) {
+	s := setupOAuthServer(t)
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-loopback-disabled")
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {config.ChattoLoopbackClientID},
+		"redirect_uri":          {"http://localhost:4001/servers/callback?mode=popup"},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("authorize status = %d, want 400: %s", w.Code, w.Body.String())
+	}
+	var response map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["error"] != "invalid_client" || !strings.Contains(response["error_description"], "local address") {
+		t.Fatalf("disabled loopback response = %#v", response)
 	}
 }
 

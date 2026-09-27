@@ -32,6 +32,17 @@ Chatto Desktop uses the fixed built-in client identifier `chatto://desktop` and
 an exact built-in callback. Future native applications may use HTTPS-hosted
 CIMD metadata with native application callback schemes.
 
+The bundled frontend on a loopback origin uses the fixed built-in client
+identifier `chatto://loopback` when it signs in to a server that is not local.
+Such a server cannot retrieve a CIMD document from the user's loopback
+interface. This client accepts the frontend popup callback path on each HTTP or
+HTTPS loopback origin, with any port. Any local process can present it, so it
+is off by default and a server accepts it only with
+`auth.loopback_client_enabled`. The local-callback rules below apply: the
+server shows the callback origin and requires consent for each authorization.
+The consent page uses a non-endorsing name, and the client's sessions end 24
+hours after sign-in without renewal.
+
 The bundled frontend publishes its CIMD document for the canonical
 `webserver.url` origin and each exact `webserver.allowed_origins` entry. The
 request host must match one of these configured origins. The document uses the

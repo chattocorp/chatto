@@ -20,8 +20,17 @@
     scopes: string[];
   };
 
+  // Any local process can present the built-in loopback client, so the page
+  // shows a non-endorsing name and the callback origin instead of its ID.
+  const LOOPBACK_CLIENT_ID = 'chatto://loopback';
+
   let request = $state<ConsentRequest | null>(null);
   let clientIdentity = $state('');
+  const clientDisplayName = $derived(
+    request?.clientId === LOOPBACK_CLIENT_ID
+      ? m('auth.oauth.loopback_client_name')
+      : (request?.clientName ?? '')
+  );
   let error = $state('');
   let loading = $state(true);
   let submitting = $state<'approve' | 'deny' | null>(null);
@@ -93,6 +102,9 @@
 
       if (!pendingRequest.clientId) {
         return redirectUri.host;
+      }
+      if (pendingRequest.clientId === LOOPBACK_CLIENT_ID) {
+        return pendingRequest.redirectOrigin;
       }
       if (typeof pendingRequest.clientId !== 'string') return '';
       // CIMD IDs are URLs; built-in native IDs can be opaque strings. Keep
@@ -172,8 +184,8 @@
     {:else if request}
       <div class="flex flex-col gap-4">
         <div class="text-center">
-          <p class="font-semibold break-all">{request.clientName || clientIdentity}</p>
-          {#if request.clientName}
+          <p class="font-semibold break-all">{clientDisplayName || clientIdentity}</p>
+          {#if clientDisplayName}
             <p class="mt-1 text-sm break-all text-muted">{clientIdentity}</p>
           {/if}
         </div>
