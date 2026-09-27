@@ -76,6 +76,11 @@ Do not generate playground links for code written into this repository.
 - Use `Snippet<[Args]>` for reusable layout/render snippets.
 - Reserve imperative event listeners for reusable attachments, subscriptions,
   and external libraries. Use the shared Svelte event patterns in components.
+- Svelte delegates events such as `click` to the application root. When an
+  attachment's DOM listener must see the result of Svelte handlers on its
+  descendants, for example `defaultPrevented` or `stopPropagation`, register it
+  with `on` from `svelte/events`. A plain `addEventListener` runs before those
+  handlers.
 
 ## Routing And Navigation
 
@@ -164,6 +169,10 @@ Do not generate playground links for code written into this repository.
   HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.
 - Use `<SkeletonImg>` instead of `<img class="skeleton">`.
 - Use `link` for inline links, not a hand-built `text-action` treatment.
+- Make a table row navigable with a real `data-table-row-link` in the row, as
+  `DataTable` documents. Do not put click handlers on rows or cells, and do not
+  stretch a link over a row with an absolutely positioned pseudo-element: Safari
+  does not use a positioned table row as its containing block.
 - Flex children with truncation or fixed-width media usually need `min-w-0`.
 - Prefer native browser scrolling for scrollable regions and galleries; do not
   intercept wheel, touch, or pointer scrolling unless the interaction is
@@ -329,6 +338,11 @@ Do not generate playground links for code written into this repository.
 - Keep debounce assertions independent of browser-suite scheduling: use fake
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.
+- Pin the clock with `vi.useFakeTimers({ toFake: ['Date'] })` and
+  `vi.setSystemTime` in tests that group or label dates, such as Today,
+  Yesterday, or a month. Relative instants such as "now minus 24 hours" land on
+  the wrong calendar day around daylight-saving changes. Restore real timers in
+  `afterEach`.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
 - A cold `page.goto` or `page.reload` starts without a resume cursor and loads
   fresh data from the server. To test resume or catch-up behavior, keep the
