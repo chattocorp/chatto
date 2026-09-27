@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -17,7 +17,7 @@ The Operator API gives server operators local, root-equivalent user administrati
 - The server refuses to start if the operator socket parent directory is not private to the Chatto process user or if an existing operator socket has a mode other than `0600`. A stale existing socket with mode `0600` may be removed and replaced.
 - Operator actions are attributed to the system actor. They are not tied to a Chatto user account, cookie session, bearer session, or RBAC role.
 - The user-administration surface lives in `chatto.operator.v1.OperatorUserService`. Operators can create, list, and look up users by ID, login, or verified email.
-- Operators can update login and display name, set passwords, delete users, add verified email addresses, assign and revoke roles, and clear a user's self-service username-change cooldown.
+- Operators can update login and display name, set passwords, delete users, add verified email addresses, assign and revoke roles, and clear a user's username-change cooldown.
 - The CLI groups these commands under `chatto operator user ...`, for example `chatto operator user create`, `chatto operator user get --email`, and `chatto operator user clear-username-cooldown`.
 - `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.

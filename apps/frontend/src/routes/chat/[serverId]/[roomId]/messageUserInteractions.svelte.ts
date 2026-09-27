@@ -16,6 +16,7 @@ export class MessageUserInteractionState {
         displayName: user.displayName,
         deleted: user.deleted ?? false,
         isBot: user.isBot,
+        ...(user.bot ? { bot: { ownerUserId: user.bot.ownerUserId } } : {}),
         avatarUrl: user.avatarUrl,
         customStatus: user.customStatus,
         presenceStatus: user.presenceStatus

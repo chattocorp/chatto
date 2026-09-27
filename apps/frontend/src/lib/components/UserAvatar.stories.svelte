@@ -43,19 +43,32 @@
 </script>
 
 <script lang="ts">
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 
   provideUserProfiles();
-  createPresenceCache();
 </script>
 
 <Story name="Presence dots" asChild>
   <div class="flex items-center gap-5 rounded-md bg-surface p-4">
-    <UserAvatar user={onlineUser} serverId="storybook" size="md" showPresence />
-    <UserAvatar user={awayUser} serverId="storybook" size="md" showPresence />
-    <UserAvatar user={dndUser} serverId="storybook" size="md" showPresence />
-    <UserAvatar user={offlineUser} serverId="storybook" size="md" showPresence />
+    <UserAvatar user={onlineUser} size="md" showPresence />
+    <UserAvatar user={awayUser} size="md" showPresence />
+    <UserAvatar user={dndUser} size="md" showPresence />
+    <UserAvatar user={offlineUser} size="md" showPresence />
+  </div>
+</Story>
+
+<Story name="Current presence" asChild>
+  <!-- The server store's current presence replaces the presence in the profile. -->
+  <div class="flex items-center gap-5 rounded-md bg-surface p-4">
+    <UserAvatar user={offlineUser} presence={PresenceStatus.ONLINE} size="md" showPresence />
+    <UserAvatar user={offlineUser} presence={PresenceStatus.AWAY} size="md" showPresence />
+    <UserAvatar
+      user={offlineUser}
+      presence={PresenceStatus.DO_NOT_DISTURB}
+      size="md"
+      showPresence
+    />
+    <UserAvatar user={offlineUser} presence={PresenceStatus.OFFLINE} size="md" showPresence />
   </div>
 </Story>
 

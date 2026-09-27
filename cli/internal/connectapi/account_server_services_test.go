@@ -253,22 +253,24 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.account.UpdateProfile(env.ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+	if _, err := env.users.UpdateUserProfile(env.ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId:      env.viewer.Id,
 		DisplayName: stringPtr("No Auth"),
 	})); errorCode(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdateProfile code = %v, want unauthenticated", errorCode(err))
+		t.Fatalf("unauthenticated UpdateUserProfile code = %v, want unauthenticated", errorCode(err))
 	}
-	if _, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{})); errorCode(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty UpdateProfile code = %v, want invalid_argument", errorCode(err))
+	if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{UserId: env.viewer.Id})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty UpdateUserProfile code = %v, want invalid_argument", errorCode(err))
 	}
 
-	profileResp, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+	profileResp, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId:      env.viewer.Id,
 		DisplayName: stringPtr("Connect Profile"),
 		Login:       stringPtr("connect-profile"),
 		Bio:         stringPtr("Connect profile bio"),
 	}))
 	if err != nil {
-		t.Fatalf("UpdateProfile: %v", err)
+		t.Fatalf("UpdateUserProfile: %v", err)
 	}
 	if user := profileResp.Msg.GetUser(); user.GetId() != env.viewer.Id || user.GetDisplayName() != "Connect Profile" || user.GetLogin() != "connect-profile" || user.GetBio() != "Connect profile bio" {
 		t.Fatalf("updated profile = %+v, want renamed viewer", user)
@@ -280,19 +282,21 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	if firstLoginChange.IsZero() {
 		t.Fatal("first profile login change did not start the cooldown")
 	}
-	if _, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
-		Login: stringPtr("connect-profile-blocked"),
+	if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: env.viewer.Id,
+		Login:  stringPtr("connect-profile-blocked"),
 	})); errorCode(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("UpdateProfile during cooldown code = %v, want failed precondition (err=%v)", errorCode(err), err)
+		t.Fatalf("UpdateUserProfile during cooldown code = %v, want failed precondition (err=%v)", errorCode(err), err)
 	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageAccounts); err != nil {
 		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
 	}
-	bypassResp, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
-		Login: stringPtr("connect-profile-bypass"),
+	bypassResp, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: env.viewer.Id,
+		Login:  stringPtr("connect-profile-bypass"),
 	}))
 	if err != nil {
-		t.Fatalf("UpdateProfile with own cooldown bypass: %v", err)
+		t.Fatalf("UpdateUserProfile with own cooldown bypass: %v", err)
 	}
 	if got := bypassResp.Msg.GetUser().GetLogin(); got != "connect-profile-bypass" {
 		t.Fatalf("bypassed profile login = %q, want connect-profile-bypass", got)
@@ -689,7 +693,7 @@ func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
 				t.Fatalf("CreateAuthTokenWithSource: %v", err)
 			}
 			ctx := withArmedBearerCredential(env.ctx, user, token)
-			resp, err := env.adminUsers.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+			resp, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 				UserId: user.Id,
 				Login:  stringPtr("self-manager-second"),
 			}))
@@ -715,11 +719,19 @@ func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
 			if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermUserManageAccounts); err != nil {
 				t.Fatalf("deny account management: %v", err)
 			}
-			if _, err := env.adminUsers.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+			// Without account management, a self rename follows the ordinary
+			// self-service cooldown rules again.
+			if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+				UserId: user.Id,
+				Login:  stringPtr("self-manager-third"),
+			})); err != nil {
+				t.Fatalf("self rename after permission denial: %v", err)
+			}
+			if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 				UserId: user.Id,
 				Login:  stringPtr("self-manager-denied"),
-			})); errorCode(err) != connect.CodePermissionDenied {
-				t.Fatalf("self rename after permission denial = %v, want permission_denied", err)
+			})); errorCode(err) != connect.CodeFailedPrecondition {
+				t.Fatalf("second self rename after permission denial = %v, want failed_precondition", err)
 			}
 			if _, err := env.adminUsers.ClearUsernameCooldown(ctx, connect.NewRequest(&adminv1.ClearUsernameCooldownRequest{
 				UserId: user.Id,
@@ -741,11 +753,11 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 		t.Fatalf("CreateUser regular: %v", err)
 	}
 
-	if _, err := env.adminUsers.UpdateUser(env.ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+	if _, err := env.users.UpdateUserProfile(env.ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("No Auth"),
 	})); errorCode(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdateUser code = %v, want unauthenticated", errorCode(err))
+		t.Fatalf("unauthenticated UpdateUserProfile code = %v, want unauthenticated", errorCode(err))
 	}
 	if _, err := env.adminUsers.ChangeUserPassword(env.ctx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
@@ -758,11 +770,11 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated DeleteUser code = %v, want unauthenticated", errorCode(err))
 	}
-	if _, err := env.adminUsers.UpdateUser(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.UpdateUserRequest{
+	if _, err := env.users.UpdateUserProfile(withCaller(env.ctx, regular), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("Denied"),
 	})); errorCode(err) != connect.CodePermissionDenied {
-		t.Fatalf("regular UpdateUser code = %v, want permission_denied", errorCode(err))
+		t.Fatalf("regular UpdateUserProfile code = %v, want permission_denied", errorCode(err))
 	}
 	if _, err := env.adminUsers.ChangeUserPassword(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
@@ -778,14 +790,14 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if _, err := env.core.UpdateUserLogin(env.ctx, regular.Id, "admin-user-regular-renamed"); err != nil {
 		t.Fatalf("UpdateUserLogin regular: %v", err)
 	}
-	if _, err := env.adminUsers.UpdateUser(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.UpdateUserRequest{
+	if _, err := env.users.UpdateUserProfile(withCaller(env.ctx, regular), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: regular.Id,
 		Login:  stringPtr("admin-user-regular-bypass"),
-	})); errorCode(err) != connect.CodePermissionDenied {
-		t.Fatalf("regular self UpdateUser code = %v, want permission_denied", errorCode(err))
+	})); errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("regular self UpdateUserProfile during cooldown code = %v, want failed_precondition", errorCode(err))
 	}
 	if _, err := env.core.UpdateUserLogin(env.ctx, regular.Id, "admin-user-regular-cooldown"); !errors.Is(err, core.ErrLoginChangeCooldown) {
-		t.Fatalf("regular cooldown after denied self UpdateUser err = %v, want cooldown", err)
+		t.Fatalf("regular cooldown after rejected self UpdateUserProfile err = %v, want cooldown", err)
 	}
 	if _, err := env.adminUsers.ClearUsernameCooldown(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.ClearUsernameCooldownRequest{
 		UserId: regular.Id,
@@ -822,18 +834,15 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("account manager GetMember code = %v, want permission_denied", errorCode(err))
 	}
-	accountUpdateResp, err := env.adminUsers.UpdateUser(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.UpdateUserRequest{
+	accountUpdateResp, err := env.users.UpdateUserProfile(withCaller(env.ctx, accountManager), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("Account Managed Target"),
 	}))
 	if err != nil {
-		t.Fatalf("account manager UpdateUser: %v", err)
+		t.Fatalf("account manager UpdateUserProfile: %v", err)
 	}
 	if accountUpdateResp.Msg.GetUser().GetDisplayName() != "Account Managed Target" {
-		t.Fatalf("account manager UpdateUser user display name = %q, want Account Managed Target", accountUpdateResp.Msg.GetUser().GetDisplayName())
-	}
-	if member := accountUpdateResp.Msg.GetMember(); member.GetUser().GetId() != target.Id || member.GetUser().GetDisplayName() != "Account Managed Target" {
-		t.Fatalf("account manager UpdateUser member = %+v, want updated target", member)
+		t.Fatalf("account manager UpdateUserProfile user display name = %q, want Account Managed Target", accountUpdateResp.Msg.GetUser().GetDisplayName())
 	}
 	if _, err := env.adminUsers.ChangeUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
@@ -872,10 +881,10 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	adminCtx := withArmedBearerCredential(env.ctx, admin, adminToken)
 
-	if _, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
+	if _, err := env.users.UpdateUserProfile(adminCtx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: target.Id,
 	})); errorCode(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty UpdateUser code = %v, want invalid_argument", errorCode(err))
+		t.Fatalf("empty UpdateUserProfile code = %v, want invalid_argument", errorCode(err))
 	}
 	if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId: target.Id,
@@ -897,13 +906,13 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("self ChangeUserPassword code = %v, want permission_denied", errorCode(err))
 	}
-	resp, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
+	resp, err := env.users.UpdateUserProfile(adminCtx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("Managed Target"),
 		Login:       stringPtr("managed-target"),
 	}))
 	if err != nil {
-		t.Fatalf("UpdateUser: %v", err)
+		t.Fatalf("UpdateUserProfile: %v", err)
 	}
 	if user := resp.Msg.GetUser(); user.GetId() != target.Id || user.GetDisplayName() != "Managed Target" || user.GetLogin() != "managed-target" {
 		t.Fatalf("updated user = %+v, want managed target", user)

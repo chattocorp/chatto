@@ -4,11 +4,11 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { DirectoryMember } from "./member_directory_pb.js";
-import { ImageUpload } from "./common_pb.js";
 import { User } from "./users_pb.js";
+import { ImageUpload } from "./common_pb.js";
 
 /**
  * Request for users visible to the authenticated user.
@@ -287,6 +287,127 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
 
   static equals(a: BatchGetUsersResponse | PlainMessage<BatchGetUsersResponse> | undefined, b: BatchGetUsersResponse | PlainMessage<BatchGetUsersResponse> | undefined): boolean {
     return proto3.util.equals(BatchGetUsersResponse, a, b);
+  }
+}
+
+/**
+ * Request to update one user's public profile. update_mask selects fields
+ * to apply or reset. Fields outside the mask stay unchanged.
+ *
+ * @generated from message chatto.api.v1.UpdateUserProfileRequest
+ */
+export class UpdateUserProfileRequest extends Message<UpdateUserProfileRequest> {
+  /**
+   * Required target user ID. Self-updates are allowed. Updating another user
+   * requires the applicable account-management or bot-management authority.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * New non-empty display name. The server also rejects control and
+   * confusing invisible characters.
+   *
+   * @generated from field: optional string display_name = 2;
+   */
+  displayName?: string;
+
+  /**
+   * New login identifier, when changing it. The server accepts ASCII letters,
+   * digits, period, underscore, and hyphen, starting with a letter or digit.
+   *
+   * @generated from field: optional string login = 3;
+   */
+  login?: string;
+
+  /**
+   * New Markdown biography, when changing it. Empty clears the bio.
+   *
+   * @generated from field: optional string bio = 4;
+   */
+  bio?: string;
+
+  /**
+   * Editable fields to apply or reset: display_name, login, bio.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 5;
+   */
+  updateMask?: FieldMask;
+
+  constructor(data?: PartialMessage<UpdateUserProfileRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateUserProfileRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "update_mask", kind: "message", T: FieldMask },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserProfileRequest {
+    return new UpdateUserProfileRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateUserProfileRequest {
+    return new UpdateUserProfileRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateUserProfileRequest {
+    return new UpdateUserProfileRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateUserProfileRequest | PlainMessage<UpdateUserProfileRequest> | undefined, b: UpdateUserProfileRequest | PlainMessage<UpdateUserProfileRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateUserProfileRequest, a, b);
+  }
+}
+
+/**
+ * Result of a user profile update.
+ *
+ * @generated from message chatto.api.v1.UpdateUserProfileResponse
+ */
+export class UpdateUserProfileResponse extends Message<UpdateUserProfileResponse> {
+  /**
+   * Updated user profile.
+   *
+   * @generated from field: chatto.api.v1.User user = 1;
+   */
+  user?: User;
+
+  constructor(data?: PartialMessage<UpdateUserProfileResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateUserProfileResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user", kind: "message", T: User },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserProfileResponse {
+    return new UpdateUserProfileResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateUserProfileResponse {
+    return new UpdateUserProfileResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateUserProfileResponse {
+    return new UpdateUserProfileResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateUserProfileResponse | PlainMessage<UpdateUserProfileResponse> | undefined, b: UpdateUserProfileResponse | PlainMessage<UpdateUserProfileResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateUserProfileResponse, a, b);
   }
 }
 

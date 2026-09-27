@@ -221,13 +221,13 @@ The new password cannot be empty. Setting a password does not require the previo
 
 ## Clear a username-change cooldown
 
-Allow a user to change their username again after a recent self-service change:
+Allow a user or bot to change its username again after a recent username change:
 
 ```sh
 chatto operator user clear-username-cooldown USER_ID
 ```
 
-The command does not change the user's current username. It clears the 30-day wait before the user's next self-service change. Use `--json` to get a `cleared` result for a script.
+The command does not change the user's current username. It clears the 30-day wait before the next username change. Use `--json` to get a `cleared` result for a script.
 
 ## Manage roles
 

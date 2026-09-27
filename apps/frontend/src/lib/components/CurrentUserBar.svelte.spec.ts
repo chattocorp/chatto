@@ -9,6 +9,7 @@ import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
+import { ServerPresence } from '$lib/state/server/presence.svelte';
 import { setPresenceStatus } from '$lib/presenceTracking';
 import { deleteCustomStatus } from '$lib/api-client/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
@@ -17,6 +18,7 @@ import { createTestServerScope, type TestServerScope } from '$lib/test-utils/ser
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
 let presencePreference: ReturnType<typeof presencePreferences.get>;
+let presence: ServerPresence;
 
 vi.mock('$lib/api-client/userStatus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/api-client/userStatus')>()),
@@ -138,6 +140,7 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   getLiveLogin: (_userId: string, fallback: string) => fallback,
@@ -161,6 +164,7 @@ describe('CurrentUserBar', () => {
     document.documentElement.dir = 'ltr';
     localStorage.clear();
     sessionStorage.clear();
+    presence = new ServerPresence();
     server = createTestServerScope({
       serverId: 'origin',
       viewer: {
@@ -177,6 +181,7 @@ describe('CurrentUserBar', () => {
         voiceCall: voiceCallState,
         navigation: roomsState,
         projection: projectionState,
+        presence,
         setPrivilegedMode: privilegedModeActions.set,
         expirePrivilegedMode: privilegedModeActions.expire
       }
@@ -312,7 +317,7 @@ describe('CurrentUserBar', () => {
       .toBeVisible();
   });
 
-  it('uses the seeded presence cache instead of the first-login offline fallback', () => {
+  it('uses the chosen presence instead of the first-login offline fallback', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
@@ -326,8 +331,9 @@ describe('CurrentUserBar', () => {
     expect(container.textContent).toContain('@alice');
   });
 
-  it('uses the presence cache instead of local presence preference for the current user dot', () => {
+  it('uses the server-reported presence instead of the chosen presence for the current user dot', () => {
     presencePreference.status = PresenceStatus.AWAY;
+    presence.set('user-1', PresenceStatus.ONLINE);
 
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -340,12 +346,11 @@ describe('CurrentUserBar', () => {
     expect(presenceDot.className).not.toContain('bg-presence-away');
   });
 
-  it('renders the current user dot from the seeded away presence cache value', () => {
+  it('renders the current user dot from a server-reported away presence', () => {
     presencePreference.status = PresenceStatus.ONLINE;
+    presence.set('user-1', PresenceStatus.AWAY);
 
-    const { container } = render(CurrentUserBarTestHarness, {
-      cachedPresence: PresenceStatus.AWAY
-    });
+    const { container } = render(CurrentUserBarTestHarness);
 
     expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
     const presenceDot = q(
@@ -353,6 +358,32 @@ describe('CurrentUserBar', () => {
       '[data-testid="current-user-presence-menu"] [aria-label="Away"] span'
     )!;
     expect(presenceDot.className).toContain('bg-presence-away');
+  });
+
+  it('follows server-reported presence changes and falls back to the chosen presence', async () => {
+    presencePreference.status = PresenceStatus.DO_NOT_DISTURB;
+    const screen = render(CurrentUserBarTestHarness);
+    const dot = (label: string) =>
+      q(screen.container, `[data-testid="current-user-presence-menu"] [aria-label="${label}"]`);
+
+    expect(dot('Do not disturb')).toBeTruthy();
+
+    presence.set('user-1', PresenceStatus.AWAY);
+    await expect.poll(() => dot('Away')).toBeTruthy();
+    expect(dot('Do not disturb')).toBeFalsy();
+
+    presence.clear();
+    await expect.poll(() => dot('Do not disturb')).toBeTruthy();
+    expect(dot('Away')).toBeFalsy();
+  });
+
+  it('ignores server-reported presence of other users', () => {
+    presence.set('user-2', PresenceStatus.AWAY);
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
+    expect(q(container, '[aria-label="Presence: Away"]')).toBeFalsy();
   });
 
   it('keeps the username line when display name and username match', () => {
@@ -433,6 +464,26 @@ describe('CurrentUserBar', () => {
     });
     expect(presencePreference.status).toBe(PresenceStatus.AWAY);
     expect(presencePreferences.get(remote).status).toBe(PresenceStatus.OFFLINE);
+  });
+
+  it('shows a saved presence choice before the server reports it', async () => {
+    presence.set('user-1', PresenceStatus.ONLINE);
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    const away = await vi.waitFor(() => {
+      const item = Array.from(container.querySelectorAll('[role="menuitemradio"]')).find(
+        (candidate) => candidate.textContent?.includes('Away')
+      ) as HTMLButtonElement | undefined;
+      expect(item).toBeTruthy();
+      return item!;
+    });
+    away.click();
+
+    await vi.waitFor(() => {
+      expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
+    });
+    expect(presence.get('user-1')).toBe(PresenceStatus.AWAY);
   });
 
   it('keeps the previous selection and reports a failed presence save', async () => {

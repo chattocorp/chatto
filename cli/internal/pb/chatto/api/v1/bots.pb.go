@@ -96,9 +96,14 @@ type Bot struct {
 	// Active incoming webhook credentials, ordered by creation time.
 	IncomingWebhooks []*BotIncomingWebhook `protobuf:"bytes,6,rep,name=incoming_webhooks,json=incomingWebhooks,proto3" json:"incoming_webhooks,omitempty"`
 	// Active API keys, ordered by creation time.
-	ApiKeys       []*BotApiKey `protobuf:"bytes,7,rep,name=api_keys,json=apiKeys,proto3" json:"api_keys,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ApiKeys []*BotApiKey `protobuf:"bytes,7,rep,name=api_keys,json=apiKeys,proto3" json:"api_keys,omitempty"`
+	// Time of the last username change that started the 30-day username
+	// cooldown. Absent when no cooldown was started. The bot, its owner, and
+	// bot managers cannot change the username again until the cooldown ends.
+	// A caller with user.manage-accounts can change it at any time.
+	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Bot) Reset() {
@@ -169,6 +174,13 @@ func (x *Bot) GetIncomingWebhooks() []*BotIncomingWebhook {
 func (x *Bot) GetApiKeys() []*BotApiKey {
 	if x != nil {
 		return x.ApiKeys
+	}
+	return nil
+}
+
+func (x *Bot) GetLastLoginChange() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastLoginChange
 	}
 	return nil
 }
@@ -2275,7 +2287,7 @@ var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf5\x02\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbd\x03\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\"\n" +
 	"\rowner_user_id\x18\x02 \x01(\tR\vownerUserId\x129\n" +
@@ -2283,7 +2295,8 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12G\n" +
 	"\x12api_key_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fapiKeyCreatedAt\x12N\n" +
 	"\x11incoming_webhooks\x18\x06 \x03(\v2!.chatto.api.v1.BotIncomingWebhookR\x10incomingWebhooks\x123\n" +
-	"\bapi_keys\x18\a \x03(\v2\x18.chatto.api.v1.BotApiKeyR\aapiKeysJ\x04\b\x05\x10\x06R\x12api_key_rotated_at\"\x8e\x02\n" +
+	"\bapi_keys\x18\a \x03(\v2\x18.chatto.api.v1.BotApiKeyR\aapiKeys\x12F\n" +
+	"\x11last_login_change\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChangeJ\x04\b\x05\x10\x06R\x12api_key_rotated_at\"\x8e\x02\n" +
 	"\tBotApiKey\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
@@ -2521,71 +2534,72 @@ var file_chatto_api_v1_bots_proto_depIdxs = []int32{
 	39, // 2: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
 	3,  // 3: chatto.api.v1.Bot.incoming_webhooks:type_name -> chatto.api.v1.BotIncomingWebhook
 	2,  // 4: chatto.api.v1.Bot.api_keys:type_name -> chatto.api.v1.BotApiKey
-	39, // 5: chatto.api.v1.BotApiKey.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 6: chatto.api.v1.BotApiKey.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
-	39, // 7: chatto.api.v1.BotApiKey.last_used_at:type_name -> google.protobuf.Timestamp
-	39, // 8: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: chatto.api.v1.BotIncomingWebhook.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
-	39, // 10: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
-	40, // 11: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
-	1,  // 12: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	41, // 13: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
-	1,  // 14: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 15: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	1,  // 16: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
-	2,  // 17: chatto.api.v1.CreateBotResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
-	1,  // 18: chatto.api.v1.CreateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	2,  // 19: chatto.api.v1.CreateBotApiKeyResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
-	1,  // 20: chatto.api.v1.RevokeBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 21: chatto.api.v1.CreateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 22: chatto.api.v1.RevokeBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 23: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
-	25, // 24: chatto.api.v1.BotOutboundWebhook.latest_failure:type_name -> chatto.api.v1.BotWebhookFailure
-	39, // 25: chatto.api.v1.BotOutboundWebhook.created_at:type_name -> google.protobuf.Timestamp
-	39, // 26: chatto.api.v1.BotWebhookFailure.completed_at:type_name -> google.protobuf.Timestamp
-	24, // 27: chatto.api.v1.ListBotOutboundWebhooksResponse.webhooks:type_name -> chatto.api.v1.BotOutboundWebhook
-	24, // 28: chatto.api.v1.GetBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
-	24, // 29: chatto.api.v1.CreateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
-	42, // 30: chatto.api.v1.UpdateBotOutboundWebhookRequest.update_mask:type_name -> google.protobuf.FieldMask
-	24, // 31: chatto.api.v1.UpdateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
-	25, // 32: chatto.api.v1.ListBotWebhookFailuresResponse.failures:type_name -> chatto.api.v1.BotWebhookFailure
-	36, // 33: chatto.api.v1.BotService.ListBotWebhookFailures:input_type -> chatto.api.v1.ListBotWebhookFailuresRequest
-	26, // 34: chatto.api.v1.BotService.ListBotOutboundWebhooks:input_type -> chatto.api.v1.ListBotOutboundWebhooksRequest
-	28, // 35: chatto.api.v1.BotService.GetBotOutboundWebhook:input_type -> chatto.api.v1.GetBotOutboundWebhookRequest
-	30, // 36: chatto.api.v1.BotService.CreateBotOutboundWebhook:input_type -> chatto.api.v1.CreateBotOutboundWebhookRequest
-	32, // 37: chatto.api.v1.BotService.UpdateBotOutboundWebhook:input_type -> chatto.api.v1.UpdateBotOutboundWebhookRequest
-	34, // 38: chatto.api.v1.BotService.RevokeBotOutboundWebhook:input_type -> chatto.api.v1.RevokeBotOutboundWebhookRequest
-	4,  // 39: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
-	6,  // 40: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
-	8,  // 41: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
-	10, // 42: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
-	12, // 43: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
-	14, // 44: chatto.api.v1.BotService.CreateBotApiKey:input_type -> chatto.api.v1.CreateBotApiKeyRequest
-	16, // 45: chatto.api.v1.BotService.RevokeBotApiKey:input_type -> chatto.api.v1.RevokeBotApiKeyRequest
-	18, // 46: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
-	20, // 47: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
-	22, // 48: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
-	37, // 49: chatto.api.v1.BotService.ListBotWebhookFailures:output_type -> chatto.api.v1.ListBotWebhookFailuresResponse
-	27, // 50: chatto.api.v1.BotService.ListBotOutboundWebhooks:output_type -> chatto.api.v1.ListBotOutboundWebhooksResponse
-	29, // 51: chatto.api.v1.BotService.GetBotOutboundWebhook:output_type -> chatto.api.v1.GetBotOutboundWebhookResponse
-	31, // 52: chatto.api.v1.BotService.CreateBotOutboundWebhook:output_type -> chatto.api.v1.CreateBotOutboundWebhookResponse
-	33, // 53: chatto.api.v1.BotService.UpdateBotOutboundWebhook:output_type -> chatto.api.v1.UpdateBotOutboundWebhookResponse
-	35, // 54: chatto.api.v1.BotService.RevokeBotOutboundWebhook:output_type -> chatto.api.v1.RevokeBotOutboundWebhookResponse
-	5,  // 55: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
-	7,  // 56: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
-	9,  // 57: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
-	11, // 58: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
-	13, // 59: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
-	15, // 60: chatto.api.v1.BotService.CreateBotApiKey:output_type -> chatto.api.v1.CreateBotApiKeyResponse
-	17, // 61: chatto.api.v1.BotService.RevokeBotApiKey:output_type -> chatto.api.v1.RevokeBotApiKeyResponse
-	19, // 62: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
-	21, // 63: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
-	23, // 64: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
-	49, // [49:65] is the sub-list for method output_type
-	33, // [33:49] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	39, // 5: chatto.api.v1.Bot.last_login_change:type_name -> google.protobuf.Timestamp
+	39, // 6: chatto.api.v1.BotApiKey.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 7: chatto.api.v1.BotApiKey.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
+	39, // 8: chatto.api.v1.BotApiKey.last_used_at:type_name -> google.protobuf.Timestamp
+	39, // 9: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: chatto.api.v1.BotIncomingWebhook.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
+	39, // 11: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
+	40, // 12: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
+	1,  // 13: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
+	41, // 14: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 15: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 16: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
+	1,  // 17: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
+	2,  // 18: chatto.api.v1.CreateBotResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
+	1,  // 19: chatto.api.v1.CreateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
+	2,  // 20: chatto.api.v1.CreateBotApiKeyResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
+	1,  // 21: chatto.api.v1.RevokeBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 22: chatto.api.v1.CreateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 23: chatto.api.v1.RevokeBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 24: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
+	25, // 25: chatto.api.v1.BotOutboundWebhook.latest_failure:type_name -> chatto.api.v1.BotWebhookFailure
+	39, // 26: chatto.api.v1.BotOutboundWebhook.created_at:type_name -> google.protobuf.Timestamp
+	39, // 27: chatto.api.v1.BotWebhookFailure.completed_at:type_name -> google.protobuf.Timestamp
+	24, // 28: chatto.api.v1.ListBotOutboundWebhooksResponse.webhooks:type_name -> chatto.api.v1.BotOutboundWebhook
+	24, // 29: chatto.api.v1.GetBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	24, // 30: chatto.api.v1.CreateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	42, // 31: chatto.api.v1.UpdateBotOutboundWebhookRequest.update_mask:type_name -> google.protobuf.FieldMask
+	24, // 32: chatto.api.v1.UpdateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	25, // 33: chatto.api.v1.ListBotWebhookFailuresResponse.failures:type_name -> chatto.api.v1.BotWebhookFailure
+	36, // 34: chatto.api.v1.BotService.ListBotWebhookFailures:input_type -> chatto.api.v1.ListBotWebhookFailuresRequest
+	26, // 35: chatto.api.v1.BotService.ListBotOutboundWebhooks:input_type -> chatto.api.v1.ListBotOutboundWebhooksRequest
+	28, // 36: chatto.api.v1.BotService.GetBotOutboundWebhook:input_type -> chatto.api.v1.GetBotOutboundWebhookRequest
+	30, // 37: chatto.api.v1.BotService.CreateBotOutboundWebhook:input_type -> chatto.api.v1.CreateBotOutboundWebhookRequest
+	32, // 38: chatto.api.v1.BotService.UpdateBotOutboundWebhook:input_type -> chatto.api.v1.UpdateBotOutboundWebhookRequest
+	34, // 39: chatto.api.v1.BotService.RevokeBotOutboundWebhook:input_type -> chatto.api.v1.RevokeBotOutboundWebhookRequest
+	4,  // 40: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
+	6,  // 41: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
+	8,  // 42: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
+	10, // 43: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
+	12, // 44: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
+	14, // 45: chatto.api.v1.BotService.CreateBotApiKey:input_type -> chatto.api.v1.CreateBotApiKeyRequest
+	16, // 46: chatto.api.v1.BotService.RevokeBotApiKey:input_type -> chatto.api.v1.RevokeBotApiKeyRequest
+	18, // 47: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
+	20, // 48: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
+	22, // 49: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
+	37, // 50: chatto.api.v1.BotService.ListBotWebhookFailures:output_type -> chatto.api.v1.ListBotWebhookFailuresResponse
+	27, // 51: chatto.api.v1.BotService.ListBotOutboundWebhooks:output_type -> chatto.api.v1.ListBotOutboundWebhooksResponse
+	29, // 52: chatto.api.v1.BotService.GetBotOutboundWebhook:output_type -> chatto.api.v1.GetBotOutboundWebhookResponse
+	31, // 53: chatto.api.v1.BotService.CreateBotOutboundWebhook:output_type -> chatto.api.v1.CreateBotOutboundWebhookResponse
+	33, // 54: chatto.api.v1.BotService.UpdateBotOutboundWebhook:output_type -> chatto.api.v1.UpdateBotOutboundWebhookResponse
+	35, // 55: chatto.api.v1.BotService.RevokeBotOutboundWebhook:output_type -> chatto.api.v1.RevokeBotOutboundWebhookResponse
+	5,  // 56: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
+	7,  // 57: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
+	9,  // 58: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
+	11, // 59: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
+	13, // 60: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
+	15, // 61: chatto.api.v1.BotService.CreateBotApiKey:output_type -> chatto.api.v1.CreateBotApiKeyResponse
+	17, // 62: chatto.api.v1.BotService.RevokeBotApiKey:output_type -> chatto.api.v1.RevokeBotApiKeyResponse
+	19, // 63: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
+	21, // 64: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
+	23, // 65: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
+	50, // [50:66] is the sub-list for method output_type
+	34, // [34:50] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bots_proto_init() }

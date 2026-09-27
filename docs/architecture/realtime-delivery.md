@@ -391,8 +391,8 @@ Each server has one [`EventBus`](../../apps/frontend/src/lib/eventBus.svelte.ts)
 The bus sends every update to the `ServerStateStore` reducer first. Then it sends
 the same update to the listeners, in the order that they subscribed. A semantic
 event, such as a typing or presence change, is the update's `event` field.
-Components subscribe through `useProjectionEvent`, `usePresenceChange`, or
-`useTypingEvent`. An error in a listener is logged. It does not stop the other
+Components subscribe through `useProjectionEvent` or `useTypingEvent`. An error
+in a listener is logged. It does not stop the other
 listeners or the transport, and the update is not delivered again. A reducer
 error closes the transport, and the client connects again, because the projection
 is then not current. A reset still reaches every listener first.
@@ -413,8 +413,13 @@ from the shared user store. It does not start a second profile read. Member-list
 reads at that cursor use the same boundary when they load profiles. An unknown
 typing user starts one shared profile read during a typing burst. Room and
 thread labels can use that profile before member-list loading finishes.
-The session store also retains presence updates for inactive rooms and rooms
-opened later. Catch-up refreshes profiles and presence for retained members.
+Each server store keeps one presence map, `ServerStateStore.presence`, for the
+whole server. The store writes it from presence events and user resources,
+also while the server is not on screen. A partial user read without a presence
+value does not change a known value. A complete replacement, such as the
+snapshot, which never carries presence, removes all values until catch-up reads
+the users again. Presence dots and the member list read this map. Catch-up
+refreshes profiles and presence for retained members.
 An event during offset pagination restarts
 the membership read with the event's minimum cursor. Recovery resets and room
 access loss clear retained membership. Universal-room eligibility changes require
@@ -448,8 +453,9 @@ This lets status changes from another session update the bar without a viewer
 reload.
 Three independent presence-filtered scans publish connected members while the
 full directory loads. Each status filter also supplies presence for cached
-profiles. Per-user change versions prevent these previews from replacing newer
-realtime presence. The full scan owns completion and final membership; failed
+profiles to the server's presence map. Per-user change versions prevent these
+previews from replacing newer realtime presence. The full scan owns completion
+and final membership; failed
 or late previews cannot block it or restore state after a reset.
 
 The per-server store checks permission events before it changes retained role

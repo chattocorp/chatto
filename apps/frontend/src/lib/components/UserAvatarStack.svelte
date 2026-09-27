@@ -5,13 +5,11 @@
 
   let {
     users,
-    serverId,
     useLiveProfile = true,
     testId,
     class: className = ''
   }: {
     users: readonly UserAvatarUserView[];
-    serverId?: string;
     useLiveProfile?: boolean;
     testId?: string;
     class?: string;
@@ -22,7 +20,6 @@
   {#each users as user (user.id)}
     <UserAvatar
       {user}
-      {serverId}
       size="md"
       {useLiveProfile}
       class={users.length > 1 ? 'ring-2 ring-background' : ''}

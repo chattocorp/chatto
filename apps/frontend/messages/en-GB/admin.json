@@ -134,7 +134,9 @@
       "role_update_failed": "Failed to update role assignment",
       "danger_zone": "Danger Zone",
       "open_delete_account": "Delete account",
-      "delete_account_entry_description": "Permanently deletes this member's account. Their messages become unreadable. This cannot be undone."
+      "delete_account_entry_description": "Permanently deletes this member's account. Their messages become unreadable. This cannot be undone.",
+      "bio_placeholder": "Tell others a little about this member",
+      "bio_description": "Up to {max} characters, shown on the profile of the member."
     },
     "member_delete": {
       "title": "Delete Member",

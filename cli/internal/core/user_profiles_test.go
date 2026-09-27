@@ -636,9 +636,9 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("CreateUser target: %v", err)
 		}
 		login := "adminauth-renamed"
-		_, err = c.AdminUpdateUser(ctx, "", target.Id, AdminUpdateUserInput{Login: &login})
+		_, err = c.UpdateManagedUserProfile(ctx, "", target.Id, &login, nil, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Fatalf("AdminUpdateUser err = %v, want ErrNotAuthenticated", err)
+			t.Fatalf("UpdateManagedUserProfile err = %v, want ErrNotAuthenticated", err)
 		}
 		if err := c.AdminSetUserPasswordAuthorized(ctx, "", target.Id, "newpassword456"); !errors.Is(err, ErrNotAuthenticated) {
 			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrNotAuthenticated", err)
@@ -657,9 +657,9 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("CreateUser target: %v", err)
 		}
 		login := "adminauth-denied"
-		_, err = c.AdminUpdateUser(ctx, regular.Id, target.Id, AdminUpdateUserInput{Login: &login})
+		_, err = c.UpdateManagedUserProfile(ctx, regular.Id, target.Id, &login, nil, nil)
 		if !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("AdminUpdateUser err = %v, want ErrPermissionDenied", err)
+			t.Fatalf("UpdateManagedUserProfile err = %v, want ErrPermissionDenied", err)
 		}
 		if err := c.AdminClearLoginChangeCooldown(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("AdminClearLoginChangeCooldown err = %v, want ErrPermissionDenied", err)
@@ -685,15 +685,20 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		}
 		login := "adminauth-updated"
 		displayName := "Admin Updated"
-		updated, err := c.AdminUpdateUser(ctx, admin.Id, target.Id, AdminUpdateUserInput{
-			Login:       &login,
-			DisplayName: &displayName,
-		})
+		bio := "Updated by an admin."
+		updated, err := c.UpdateManagedUserProfile(ctx, admin.Id, target.Id, &login, &displayName, &bio)
 		if err != nil {
-			t.Fatalf("AdminUpdateUser: %v", err)
+			t.Fatalf("UpdateManagedUserProfile: %v", err)
 		}
-		if updated.GetLogin() != login || updated.GetDisplayName() != displayName {
-			t.Fatalf("updated user = %+v, want login %q display %q", updated, login, displayName)
+		if updated.GetLogin() != login || updated.GetDisplayName() != displayName || updated.GetBio() != bio {
+			t.Fatalf("updated user = %+v, want login %q display %q bio %q", updated, login, displayName, bio)
+		}
+		lastChange, err := c.GetLastLoginChange(ctx, target.Id)
+		if err != nil {
+			t.Fatalf("GetLastLoginChange: %v", err)
+		}
+		if !lastChange.IsZero() {
+			t.Fatalf("managed login change started the target cooldown at %v", lastChange)
 		}
 		if err := c.AdminClearLoginChangeCooldown(ctx, admin.Id, target.Id); err != nil {
 			t.Fatalf("AdminClearLoginChangeCooldown: %v", err)
@@ -783,18 +788,19 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("CreateUser self: %v", err)
 		}
 		login := "adminauth-self-updated"
-		if _, err := c.AdminUpdateUser(ctx, user.Id, user.Id, AdminUpdateUserInput{Login: &login}); !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("AdminUpdateUser self err = %v, want ErrPermissionDenied", err)
-		}
 		if err := c.AdminClearLoginChangeCooldown(ctx, user.Id, user.Id); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("AdminClearLoginChangeCooldown self err = %v, want ErrPermissionDenied", err)
 		}
-		updated, err := c.UpdateUserLogin(ctx, user.Id, login)
+		updated, err := c.UpdateManagedUserProfile(ctx, user.Id, user.Id, &login, nil, nil)
 		if err != nil {
-			t.Fatalf("UpdateUserLogin self: %v", err)
+			t.Fatalf("UpdateManagedUserProfile self: %v", err)
 		}
 		if updated.GetLogin() != login {
 			t.Fatalf("updated login = %q, want %q", updated.GetLogin(), login)
+		}
+		secondLogin := "adminauth-self-again"
+		if _, err := c.UpdateManagedUserProfile(ctx, user.Id, user.Id, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
+			t.Fatalf("second self login change err = %v, want ErrLoginChangeCooldown", err)
 		}
 	})
 

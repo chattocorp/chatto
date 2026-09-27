@@ -1,6 +1,11 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Codecs, type StorageSlot, serverSlot } from '$lib/storage/slot';
-import type { PresenceCacheScope } from '../presenceCache.svelte';
+
+/** One viewer on one server. */
+export type PresenceScope = {
+  serverId: string;
+  userId: string;
+};
 
 // Keep the old storage strings at this boundary so existing local choices
 // remain readable. Runtime state and API calls use PresenceStatus directly.
@@ -62,7 +67,7 @@ class PresencePreference {
   readonly slot: StorageSlot<PresenceStatus | null>;
   readonly migrated: StorageSlot<boolean>;
 
-  constructor(scope: PresenceCacheScope) {
+  constructor(scope: PresenceScope) {
     this.migrated = serverSlot(
       scope.serverId,
       `presence-synced:${encodeURIComponent(scope.userId)}`,
@@ -101,7 +106,7 @@ class PresencePreferences {
   #entries = new Map<string, PresencePreference>();
 
   /** Obtain the account's shared reactive preference, hydrating it on first use. */
-  get(scope: PresenceCacheScope): PresencePreference {
+  get(scope: PresenceScope): PresencePreference {
     const key = JSON.stringify([scope.serverId, scope.userId]);
     let preference = this.#entries.get(key);
     if (!preference) {

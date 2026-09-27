@@ -33,16 +33,19 @@ function pointer(stage: HTMLElement, type: string, id: number, x: number, y: num
 }
 
 describe('ZoomableImage', () => {
-  it('steps from Fit to 400%, disables the limit, and returns to Fit', async () => {
+  it('steps beyond 400% to 1600%, disables the limit, and returns to Fit', async () => {
     const view = await mount();
     const increase = view.query.getByRole('button', { name: 'Zoom in' });
     const decrease = view.query.getByRole('button', { name: 'Zoom out' });
     await expect.element(decrease).toBeDisabled();
     for (let step = 0; step < 12; step += 1) await increase.click();
     await expect.element(view.query.getByText('400%')).toBeVisible();
+    await expect.element(increase).toBeEnabled();
+    for (let step = 0; step < 48; step += 1) await increase.click();
+    await expect.element(view.query.getByText('1600%')).toBeVisible();
     await expect.element(increase).toBeDisabled();
     await decrease.click();
-    await expect.element(view.query.getByText('375%')).toBeVisible();
+    await expect.element(view.query.getByText('1575%')).toBeVisible();
     await view.query.getByRole('button', { name: 'Fit' }).click();
     await expect.element(view.query.getByText('100%')).toBeVisible();
     expect(view.image.style.transform).toBe('translate(0px, 0px) scale(1)');
@@ -58,21 +61,27 @@ describe('ZoomableImage', () => {
       cancelable: true,
       clientX: rect.left + 300,
       clientY: rect.top + rect.height / 2,
-      deltaY: -Math.log(2) / 0.002
+      deltaY: -Math.log(8) / 0.002
     });
     view.stage.dispatchEvent(wheel);
     expect(wheel.defaultPrevented).toBe(true);
-    await expect.element(view.query.getByText('200%')).toBeVisible();
-    expect(view.image.style.transform).toMatch(/translate\(-100(?:\.\d+)?px, 0px\) scale\(2/);
+    await expect.element(view.query.getByText('800%')).toBeVisible();
+    expect(view.image.style.transform).toMatch(/translate\(-700(?:\.\d+)?px, 0px\) scale\(8/);
 
     // Events that start on the image bubble to the stage's pan handlers.
     pointer(view.image, 'pointerdown', 1, rect.left + 200, rect.top + 150);
-    pointer(view.image, 'pointermove', 1, rect.left + 2000, rect.top + 150);
+    pointer(view.image, 'pointermove', 1, rect.left + 10000, rect.top + 150);
     await tick();
     const fit = Math.min(view.stage.clientWidth / 400, view.stage.clientHeight / 300);
-    const maxX = Math.max(0, (400 * fit * 2 - view.stage.clientWidth) / 2);
+    const maxX = Math.max(0, (400 * fit * 8 - view.stage.clientWidth) / 2);
     expect(view.image.style.transform).toContain(`translate(${maxX}px, 0px)`);
     pointer(view.image, 'pointerup', 1, rect.left + 2000, rect.top + 150);
+    view.stage.dispatchEvent(new WheelEvent('wheel', { deltaY: -10000, cancelable: true }));
+    await expect.element(view.query.getByText('1600%')).toBeVisible();
+    await expect.element(view.query.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    view.stage.dispatchEvent(new WheelEvent('wheel', { deltaY: 10000, cancelable: true }));
+    await expect.element(view.query.getByText('100%')).toBeVisible();
+    expect(view.image.style.transform).toBe('translate(0px, 0px) scale(1)');
   });
 
   it('keeps the image as the hit target so the native image context menu works', async () => {

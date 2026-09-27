@@ -219,7 +219,6 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
               {#if user}
                 <UserAvatar
                   user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }}
-                  serverId={serverScope.serverId}
                   size="sm"
                   showPresence={false}
                 />

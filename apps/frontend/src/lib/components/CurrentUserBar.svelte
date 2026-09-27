@@ -27,7 +27,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { buildDirectMessagePresentation } from '$lib/render/users';
 
-  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
@@ -65,7 +64,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
 
   const serverScope = useServerScope();
   const appUi = getAppUiState();
-  const presenceCache = getPresenceCache();
   const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = $derived(serverScope.store);
@@ -126,10 +124,12 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     PresenceStatus.DO_NOT_DISTURB,
     PresenceStatus.OFFLINE
   ];
+  // The status the server reports for the viewer, then the viewer's own choice.
   const currentPresence = $derived.by(() => {
     if (!activeServerUser) return PresenceStatus.OFFLINE;
-    return presenceCache.get(
-      { serverId: activeServerId, userId: activeServerUser.id },
+    return (
+      activeStore.presence.get(activeServerUser.id) ??
+      presencePreference?.status ??
       activeServerUser.presenceStatus
     );
   });
@@ -194,8 +194,15 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   }
 
   async function choosePresenceMode(mode: PresenceStatus) {
+    const scope = presenceScope;
+    const store = activeStore;
     try {
-      if (presenceScope) await setPresenceStatus(presenceScope, mode);
+      if (scope) {
+        await setPresenceStatus(scope, mode);
+        // Show the saved choice at once. The server's presence event corrects it
+        // if the effective status differs.
+        store.presence.set(scope.userId, mode);
+      }
       statusMenuAnchor = null;
     } catch {
       toast.error(m('settings.profile.status.save_failed'));
@@ -367,7 +374,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             data-testid="current-user-presence-menu"
             onclick={openStatusMenu}
           >
-            <UserAvatar user={activeServerUser} serverId={activeServerId} size="sm" showPresence />
+            <UserAvatar user={activeServerUser} presence={currentPresence} size="sm" showPresence />
           </button>
         {/snippet}
         {#snippet badges()}

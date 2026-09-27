@@ -34,7 +34,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     RoomPinsStore
   } from '$lib/state/room';
   import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
-  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
@@ -114,7 +113,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const serverScope = useServerScope();
   const connection = () => serverScope.connection;
-  const presenceCache = getPresenceCache();
   const activeServerId = $derived(serverScope.serverId);
   const activeCallRooms = $derived(serverScope.store.activeCallRooms);
   const isInThisCall = $derived(serverScope.store.voiceCall.isInCall(roomId));
@@ -165,12 +163,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let groupedMembersSnapshot: RoomMember[] | null = null;
   let observedPresenceVersion = -1;
 
-  // Get effective presence for a member (live update or fall back to initial value)
+  // The server's observed presence, or the member's own snapshot value.
   function getPresence(member: RoomMember): PresenceStatus {
-    return presenceCache.get(
-      { serverId: activeServerId, userId: member.id },
-      member.presenceStatus
-    );
+    return serverScope.store.presence.get(member.id) ?? member.presenceStatus;
   }
 
   // Check if a presence status counts as "online" (connected to the system)
@@ -209,7 +204,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   // period so busy rooms do not continuously move rows between the Online and Offline groups.
   const syncPresenceGrouping: Attachment = () => {
     const currentMembers = members;
-    const presenceVersion = presenceCache.version;
+    const presenceVersion = serverScope.store.presence.version;
     const viewerId = currentUserId;
     untrack(() => {
       if (currentMembers !== groupedMembersSnapshot) {
@@ -608,7 +603,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           }}
     >
       {#snippet avatar()}
-        <UserAvatar user={member} serverId={serverScope.serverId} size="sm" showPresence />
+        <UserAvatar user={member} presence={getPresence(member)} size="sm" showPresence />
       {/snippet}
       {#snippet name()}
         {#if member.deleted}

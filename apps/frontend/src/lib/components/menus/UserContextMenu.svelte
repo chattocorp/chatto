@@ -44,6 +44,7 @@ keep the compact menu without a navigation action.
     getLiveCustomStatus,
     getLiveDisplayName,
     getLiveLogin,
+    getLiveBotOwnerUserId,
     getLiveTimezone,
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
@@ -75,6 +76,8 @@ keep the compact menu without a navigation action.
       login: string;
       displayName: string;
       isBot?: boolean;
+      /** Public human owner of an active bot. */
+      bot?: { ownerUserId: string };
       deleted?: boolean;
       avatarUrl?: string | null;
       bio?: string | null;
@@ -124,6 +127,23 @@ keep the compact menu without a navigation action.
     } catch {
       return null;
     }
+  });
+  const botOwnerUserId = $derived(
+    user.isBot ? getLiveBotOwnerUserId(user.id, user.bot?.ownerUserId ?? null) : null
+  );
+  // The bot's owner, bot managers, and account managers can open its management
+  // page; the page itself enforces the same rule through BotService.GetBot.
+  const manageBotHref = $derived.by(() => {
+    if (!user.isBot || user.deleted) return null;
+    const permissions = serverScope.store.permissions;
+    const isOwner = !!botOwnerUserId && botOwnerUserId === serverScope.store.accountId;
+    const canManage =
+      permissions.loaded && (permissions.canManageBots || permissions.canAdminManageAccounts);
+    if (!isOwner && !canManage) return null;
+    return resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+      serverId: serverIdToSegment(serverScope.serverId),
+      botId: user.id
+    });
   });
   const adminUserHref = $derived(
     serverScope.store.permissions.loaded && serverScope.store.permissions.canAdminViewUsers
@@ -203,7 +223,7 @@ keep the compact menu without a navigation action.
     <Interval milliseconds={60_000} ontick={() => (now = Date.now())} />
   {/if}
 
-  {#if canSendMessage || onOpenProfile || adminUserHref || canBanFromRoom}
+  {#if canSendMessage || onOpenProfile || manageBotHref || adminUserHref || canBanFromRoom}
     <MenuSection>
       {#if canSendMessage}
         <MenuItem icon="icon-[uil--comment-alt-message]" onclick={handleSendMessage}>
@@ -213,6 +233,16 @@ keep the compact menu without a navigation action.
       {#if onOpenProfile}
         <MenuItem icon="icon-[uil--user]" onclick={handleOpenProfile}>
           {m('chat.user_menu.view_profile')}
+        </MenuItem>
+      {/if}
+      {#if manageBotHref}
+        <MenuItem
+          href={manageBotHref}
+          icon="icon-[uil--robot]"
+          onclick={() => onClose?.()}
+          dataTestid="manage-bot"
+        >
+          {m('chat.user_menu.manage_bot')}
         </MenuItem>
       {/if}
       {#if adminUserHref}

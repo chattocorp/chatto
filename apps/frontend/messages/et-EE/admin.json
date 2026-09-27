@@ -134,7 +134,9 @@
       "role_update_failed": "Rolli määramise värskendamine ebaõnnestus",
       "danger_zone": "Ohtlik tsoon",
       "open_delete_account": "Kustuta konto",
-      "delete_account_entry_description": "Kustutab selle liikme konto jäädavalt. Tema sõnumid muutuvad loetamatuks. Seda ei saa tagasi võtta."
+      "delete_account_entry_description": "Kustutab selle liikme konto jäädavalt. Tema sõnumid muutuvad loetamatuks. Seda ei saa tagasi võtta.",
+      "bio_placeholder": "Räägi teistele sellest liikmest veidi",
+      "bio_description": "Kuni {max} märki, kuvatakse liikme profiilis."
     },
     "member_delete": {
       "title": "Kustuta liige",

@@ -3,28 +3,27 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { PresenceAPI } from '$lib/api-client/presence';
 import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
-import type { PresenceCacheScope } from '$lib/state/presenceCache.svelte';
+import type { PresenceScope } from '$lib/state/server/presencePreference.svelte';
 
 const PRESENCE_REFRESH_MS = 30_000;
-export type PresenceReporter = PresenceCacheScope &
+export type PresenceReporter = PresenceScope &
   Pick<PresenceAPI, 'getPreference' | 'setPreference' | 'refreshPresence'>;
 
-let selectStatus: ((scope: PresenceCacheScope, status: PresenceStatus) => Promise<void>) | null =
-  null;
-let refreshChoice: ((scope: PresenceCacheScope) => void) | null = null;
+let selectStatus: ((scope: PresenceScope, status: PresenceStatus) => Promise<void>) | null = null;
+let refreshChoice: ((scope: PresenceScope) => void) | null = null;
 
 /** Save a deliberate selection on this server. Never report success before acknowledgement. */
-export async function setPresenceStatus(scope: PresenceCacheScope, status: PresenceStatus) {
+export async function setPresenceStatus(scope: PresenceScope, status: PresenceStatus) {
   if (!selectStatus) throw new Error('Presence is not connected');
   await selectStatus(scope, status);
 }
 
 /** Reconcile a private device update; event payloads are invalidations, not stale choices. */
-export function refreshPresencePreference(scope: PresenceCacheScope) {
+export function refreshPresencePreference(scope: PresenceScope) {
   refreshChoice?.(scope);
 }
 
-function identity(scope: PresenceCacheScope) {
+function identity(scope: PresenceScope) {
   return JSON.stringify([scope.serverId, scope.userId]);
 }
 
@@ -96,7 +95,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     }
   }
 
-  async function choose(scope: PresenceCacheScope, status: PresenceStatus) {
+  async function choose(scope: PresenceScope, status: PresenceStatus) {
     const account = accounts.get(identity(scope));
     if (!account || account.busy) throw new Error('Presence is not ready');
     const preference = presencePreferences.get(scope);
@@ -134,7 +133,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     });
   }
 
-  function refresh(scope: PresenceCacheScope) {
+  function refresh(scope: PresenceScope) {
     const account = accounts.get(identity(scope));
     if (account) void reconcile(account);
   }

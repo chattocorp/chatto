@@ -1,32 +1,17 @@
 import { updateMask } from './updateMask';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
-import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import {
   TimeFormat,
   type UserSettings as APIUserSettings
 } from '@chatto/api-types/api/v1/viewer_pb';
 import { timeFormatOrAuto } from './timeFormat.js';
 
-export type AccountUser = {
-  id: string;
-  login: string;
-  displayName: string;
-  avatarUrl?: string | null;
-  bio: string | null;
-};
-
 export type AccountUserSettings = {
   timezone?: string | null;
   timeFormat: TimeFormat;
   /** Present when the server supports private time-zone preferences. */
   shareTimezone?: boolean;
-};
-
-export type UpdateProfileInput = {
-  displayName?: string;
-  login?: string;
-  bio?: string;
 };
 
 export type UpdateSettingsInput = {
@@ -50,14 +35,6 @@ export function createAccountAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
 
   return {
-    async updateProfile(input: UpdateProfileInput): Promise<AccountUser> {
-      const response = await client.updateProfile({
-        ...input,
-        updateMask: updateMask(input, ['displayName', 'login', 'bio'])
-      });
-      return accountUser(response.user);
-    },
-
     async changePassword(input: ChangePasswordInput): Promise<void> {
       await client.changePassword({
         password: input.password,
@@ -122,19 +99,6 @@ function verifiedEmail(value: {
 }
 
 export type AccountAPI = ReturnType<typeof createAccountAPI>;
-
-function accountUser(user: APIUser | undefined): AccountUser {
-  if (!user) {
-    throw new Error('account response did not include a user');
-  }
-  return {
-    id: user.id,
-    login: user.login,
-    displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null,
-    bio: user.bio ?? null
-  };
-}
 
 function userSettings(settings: APIUserSettings | undefined): AccountUserSettings {
   return {

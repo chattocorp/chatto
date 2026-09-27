@@ -134,7 +134,7 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
+| `bio` | `optional string` | Short Markdown biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 
@@ -986,6 +986,7 @@ them.
 | `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
 | `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
+| `last_login_change` | `google.protobuf.Timestamp` | Time of the last username change that started the 30-day username cooldown. Absent when no cooldown was started. The bot, its owner, and bot managers cannot change the username again until the cooldown ends. A caller with user.manage-accounts can change it at any time. |
 
 <a id="chatto-api-v1-BotApiKey"></a>
 
@@ -1641,7 +1642,7 @@ admin/member metadata with visibility controlled by the service.
 | `has_verified_email` | `bool` | Whether the caller may see that the user has a verified email and one exists. |
 | `verified_emails` | `repeated string` | Verified email addresses visible to the caller. |
 | `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
-| `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
+| `last_login_change` | `google.protobuf.Timestamp` | Start of the current username-change cooldown, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
 

@@ -9,7 +9,7 @@
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
-  import ServerPresenceSync from './ServerPresenceSync.svelte';
+  import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
@@ -190,7 +190,7 @@
   ]);
 </script>
 
-<ServerPresenceSync />
+<ServerSubscriptionMarker />
 <!-- Sidebar -->
 <ServerSidebar>
   {#if isServerSettingsMode}

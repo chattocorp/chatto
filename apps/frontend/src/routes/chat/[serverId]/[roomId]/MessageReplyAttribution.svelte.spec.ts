@@ -4,13 +4,8 @@ import { q } from '$lib/test-utils';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import MessageReplyAttribution from './MessageReplyAttribution.svelte';
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  getPresenceCache: () => ({
-    get: (_scope: { serverId: string; userId: string }, fallback: unknown) => fallback
-  })
-}));
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,

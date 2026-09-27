@@ -134,7 +134,9 @@
       "role_update_failed": "Kan de roltoewijzing niet updaten",
       "danger_zone": "Gevarenzone",
       "open_delete_account": "Account verwijderen",
-      "delete_account_entry_description": "Verwijdert het account van dit lid definitief. De berichten worden onleesbaar. Dit kan niet ongedaan worden gemaakt."
+      "delete_account_entry_description": "Verwijdert het account van dit lid definitief. De berichten worden onleesbaar. Dit kan niet ongedaan worden gemaakt.",
+      "bio_placeholder": "Vertel anderen iets over dit lid",
+      "bio_description": "Maximaal {max} tekens, getoond op het profiel van het lid."
     },
     "member_delete": {
       "title": "Lid verwijderen",

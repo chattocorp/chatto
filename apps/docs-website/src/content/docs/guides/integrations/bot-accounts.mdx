@@ -81,6 +81,21 @@ it can do** lists its effective permissions, such as **Read all messages** and
 room names only to members who can see those rooms. Owners and managers can
 expand **Inactive grants** to see saved grants that the owner ceiling blocks.
 
+## Change the profile of a bot
+
+The owner of a bot can change its display name, username, bio, and avatar.
+Open the bot in **Server Admin → Bots**, or select **Manage bot** in the user
+menu of the bot. Accounts with `bot.manage` or `user.manage-accounts` can do
+this for all bots. API clients use the same `UserService` methods as the bot,
+with the user ID of the bot.
+
+The username of a bot has the same 30-day cooldown as the username of a
+person. A username change by the bot, its owner, or an account with
+`bot.manage` starts the cooldown. During the cooldown, these accounts cannot
+change the username again. `Bot.last_login_change` shows when the cooldown
+started. An account with `user.manage-accounts` can change the username at any
+time.
+
 ## Authenticate requests
 
 Send the API key as a bearer credential:
@@ -94,10 +109,11 @@ effective `message.post` and normal room access. API clients can identify bot
 authors with `User.bot`. The bundled client shows a **BOT** label. This label
 does not mean that the account is verified.
 
-A bot can change its own profile with `MyAccountService.UpdateProfile`, and its
-own avatar with `UserService.UploadAvatar` and `UserService.DeleteAvatar`. It
-cannot change other accounts, manage bots or keys, or add a password, session,
-OAuth token, email, or external login.
+A bot can change its own profile with `UserService.UpdateUserProfile`, and its
+own avatar with `UserService.UploadAvatar` and `UserService.DeleteAvatar`. Send
+the user ID of the bot as `user_id`. The bot cannot change other accounts,
+manage bots or keys, or add a password, session, OAuth token, email, or
+external login.
 
 `BotService` manages bots, owners, API keys, and incoming webhooks. To read
 the effective permissions of a bot, use

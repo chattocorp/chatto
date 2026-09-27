@@ -95,13 +95,8 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   getPushRegistrationTargets: mocks.pushNotifications.getPushRegistrationTargets
 }));
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  getPresenceCache: () => ({
-    get: (_scope: { serverId: string; userId: string }, fallback: number) => fallback
-  })
-}));
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
@@ -182,8 +177,8 @@ describe('notifications page', () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('offers explicit push activation while browser permission is unset', async () => {
@@ -863,10 +858,8 @@ describe('notifications page', () => {
   });
 
   it('groups rows by date in the viewer timezone', async () => {
-    // Pin the clock to midday in Auckland. Around a daylight-saving change,
-    // a real clock can make "now minus 24 hours" two calendar days ago.
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-06-15T00:00:00Z'));
+    // Keep the 24-hour fixture interval away from daylight-saving changes.
+    vi.setSystemTime(new Date('2026-07-15T12:00:00Z'));
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1_000);
     const older = new Date(now);

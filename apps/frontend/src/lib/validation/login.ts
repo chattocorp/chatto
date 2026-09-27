@@ -7,6 +7,7 @@
  * Mixed case is preserved; uniqueness and login are case-insensitive.
  */
 
+import { getLocale } from '$lib/i18n/runtime';
 import type { ValidationResult } from './displayName';
 
 /** Maximum login length in characters (matching backend) */
@@ -92,17 +93,27 @@ export function getLoginChangeCooldownRemaining(lastChangeDate: Date | null): nu
 }
 
 /**
- * Format a cooldown duration in milliseconds into a human-readable string.
+ * Format a cooldown duration in milliseconds as a localized duration, such as
+ * "5 days" or "5 Tage". The result is interpolated into translated messages.
  */
-export function formatCooldownRemaining(ms: number): string {
+export function formatCooldownRemaining(ms: number, locale: string = getLocale()): string {
   if (ms <= 0) return '';
+  const format = (value: number, unit: 'day' | 'hour' | 'minute') =>
+    new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'long' }).format(value);
 
   const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
-  if (days > 1) return `${days} days`;
+  if (days > 1) return format(days, 'day');
 
   const hours = Math.ceil(ms / (60 * 60 * 1000));
-  if (hours > 1) return `${hours} hours`;
+  if (hours > 1) return format(hours, 'hour');
 
-  const minutes = Math.ceil(ms / (60 * 1000));
-  return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  return format(Math.ceil(ms / (60 * 1000)), 'minute');
+}
+
+/**
+ * True when changing `previous` to `next` starts the login cooldown. Case-only
+ * changes keep the same identity, so the server neither checks nor starts it.
+ */
+export function startsLoginCooldown(previous: string, next: string): boolean {
+  return previous.toLowerCase() !== next.toLowerCase();
 }

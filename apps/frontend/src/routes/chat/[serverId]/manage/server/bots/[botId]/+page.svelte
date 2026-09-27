@@ -8,7 +8,11 @@
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
-  import { createUserAPI } from '$lib/api-client/users';
+  import {
+    createUserAPI,
+    type UpdateUserProfileInput,
+    type UserSummary
+  } from '$lib/api-client/users';
   import { RoomKind } from '$lib/api-client/roomDirectory';
   import { CopyId } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
@@ -16,6 +20,7 @@
     type BotCredentialSectionItem
   } from '$lib/components/bots/BotCredentialSection.svelte';
   import BotOutboundWebhookSection from '$lib/components/bots/BotOutboundWebhookSection.svelte';
+  import BotProfileSection from '$lib/components/bots/BotProfileSection.svelte';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
@@ -39,6 +44,7 @@
   import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { startsLoginCooldown } from '$lib/validation';
   import { onDestroy } from 'svelte';
 
   const serverScope = useServerScope();
@@ -54,6 +60,9 @@
     serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
   );
   const supportsUserAvatars = $derived(serverScope.store.serverInfo.supportsFeature('userAvatars'));
+  const supportsManagedProfiles = $derived(
+    serverScope.store.serverInfo.supportsFeature('managedUserProfiles')
+  );
   const canManageBots = $derived(serverScope.store.permissions.canManageBots);
   const viewerId = $derived(serverScope.store.accountId);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
@@ -94,7 +103,8 @@
   );
   const owner = $derived(ownerQuery.data?.[0] ?? null);
   const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
-  const canEditAvatar = $derived(canOperateBot || canManageAccounts);
+  // Owners, bot managers, and account managers can edit the bot's public identity.
+  const canEditIdentity = $derived(canOperateBot || canManageAccounts);
   const targetKey = $derived(
     `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
   );
@@ -150,6 +160,26 @@
     void queryClient.invalidateQueries({
       queryKey: settingsQueryKeys.botsRoot(serverScope.serverId, serverScope.connection)
     });
+  }
+
+  async function updateProfile(input: UpdateUserProfileInput): Promise<UserSummary | null> {
+    if (!bot) return null;
+    const mutationTarget = targetKey;
+    // Account managers bypass the cooldown; other renames start a new one.
+    const startedCooldown =
+      input.login !== undefined &&
+      !canManageAccounts &&
+      startsLoginCooldown(bot.login, input.login);
+    const updated = await userAPI().updateUserProfile(bot.id, input);
+    if (!isCurrentTarget(mutationTarget) || !bot) return null;
+    cacheBot({
+      ...bot,
+      login: updated.login,
+      displayName: updated.displayName,
+      bio: updated.bio ?? null,
+      lastLoginChange: startedCooldown ? new Date() : bot.lastLoginChange
+    });
+    return updated;
   }
 
   async function uploadAvatar(file: File): Promise<boolean> {
@@ -426,7 +456,17 @@
             </dl>
           </Panel>
 
-          {#if supportsUserAvatars && canEditAvatar}
+          {#if supportsManagedProfiles && canEditIdentity}
+            {#key targetKey}
+              <BotProfileSection
+                {bot}
+                canBypassLoginCooldown={canManageAccounts}
+                onsave={updateProfile}
+              />
+            {/key}
+          {/if}
+
+          {#if supportsUserAvatars && canEditIdentity}
             {#key targetKey}
               <AvatarEditor
                 user={{ ...bot, isBot: true }}

@@ -99,6 +99,16 @@ export class Bot extends Message<Bot> {
    */
   apiKeys: BotApiKey[] = [];
 
+  /**
+   * Time of the last username change that started the 30-day username
+   * cooldown. Absent when no cooldown was started. The bot, its owner, and
+   * bot managers cannot change the username again until the cooldown ends.
+   * A caller with user.manage-accounts can change it at any time.
+   *
+   * @generated from field: google.protobuf.Timestamp last_login_change = 8;
+   */
+  lastLoginChange?: Timestamp;
+
   constructor(data?: PartialMessage<Bot>) {
     super();
     proto3.util.initPartial(data, this);
@@ -113,6 +123,7 @@ export class Bot extends Message<Bot> {
     { no: 4, name: "api_key_created_at", kind: "message", T: Timestamp },
     { no: 6, name: "incoming_webhooks", kind: "message", T: BotIncomingWebhook, repeated: true },
     { no: 7, name: "api_keys", kind: "message", T: BotApiKey, repeated: true },
+    { no: 8, name: "last_login_change", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Bot {

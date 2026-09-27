@@ -5,13 +5,12 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import RemoveRoomUserModal from './RemoveRoomUserModal.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveDisplayName: (_id: string, fallback: string) => fallback,
   getLiveLogin: (_id: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_id: string, fallback: unknown) => fallback
 }));
-
-vi.mock('$lib/state/presenceCache.svelte', () => ({ getPresenceCache: () => null }));
 
 const user = {
   id: 'target-1',

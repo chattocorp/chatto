@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -70,11 +70,16 @@ exercise more authority than its human owner currently possesses.
 - A human user with `bot.create` can create a bot account and becomes its
   owner.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
-  bots. Selecting a bot opens its own detail page for login and display-name
-  editing, avatar management, API-key management, deletion, metadata, and
-  permissions. An account manager who does not manage bots can see all bots and
-  can manage their avatars, but cannot manage their credentials or lifecycle.
+  bots. Selecting a bot opens its detail page. The page edits the login,
+  display name, and bio, and manages the avatar, API keys, deletion, metadata,
+  and permissions. An account manager who does not manage bots can see all
+  bots and manage their profiles and avatars. The account manager cannot
+  manage their credentials or lifecycle.
   Bot custom-status and personal-settings management are not supported.
+- The user context menu of a bot shows **Manage bot** to its owner, to a human
+  with `bot.manage`, and to a human with `user.manage-accounts`. The item
+  opens the detail page of the bot. The client finds the owner from the public
+  `User.bot` reference.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
@@ -218,12 +223,18 @@ exercise more authority than its human owner currently possesses.
   bot-management permission appears in their stored allowlist.
 - Bots cannot have passwords, verified emails, external identities, browser
   sessions, OAuth access tokens, password-reset flows, or other human sign-in
-  methods. A bot API key can update its own public profile through
-  `MyAccountService.UpdateProfile` and can manage its own avatar through
+  methods. A bot API key can update its own public profile and avatar through
   `UserService`. It cannot change ownership, permissions, or API keys.
 - A bot owner, a human with `bot.manage`, or a human with
-  `user.manage-accounts` can upload or delete a bot's avatar. A bot cannot
-  target another account.
+  `user.manage-accounts` can change a bot's login, display name, and bio, and
+  can upload or delete its avatar. A login change by the owner or a human with
+  `bot.manage` checks and starts the 30-day username cooldown of the bot. A
+  human with `user.manage-accounts` bypasses the cooldown. A case-only change
+  does not check or start it. The owner and bot managers can see the start of
+  the cooldown through `BotService`, without `admin.view-users`. The bot detail page
+  asks for confirmation before a login change that starts the cooldown, and it
+  locks the username field while the cooldown runs. `Bot.last_login_change`
+  reports the start of the cooldown. A bot cannot target another account.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
@@ -253,8 +264,9 @@ APIs as people without requiring parallel bot-only resource models. Separating
 authentication keeps an API credential from becoming an interactive login.
 **Tradeoff:** Account-security and credential-enrolment operations must enforce
 the account-kind boundary rather than treating every passwordless account as
-eligible for a password or external identity. Self-profile operations can stay
-shared because they always target the authenticated identity.
+eligible for a password or external identity. Profile and avatar operations stay
+shared in `UserService`. They take a target user ID, so the bot itself and its
+human managers use the same methods.
 
 ### 3. Explicit allowlist instead of normal role inheritance
 
@@ -528,6 +540,13 @@ servers. New clients receive the same error from old servers. The bundled
 client hides avatar editors when the server version is earlier than
 0.5.0-alpha.6. Custom clients must regenerate their bindings, change the
 service, and send the target user ID.
+
+Profile updates move from `MyAccountService.UpdateProfile` and
+`AdminUserService.UpdateUser` to the target-aware
+`UserService.UpdateUserProfile` in Chatto 0.5.0-beta.9. This is an intentional
+pre-1.0 breaking change. Bots that update their own profile must call the new
+method and send their own user ID. The bundled client shows the bot profile
+editor only when the server version is 0.5.0-beta.9 or later.
 
 ## Related
 

@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import {
   createChattoClient,
   StaleResponseError,
@@ -13,6 +14,13 @@ const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
 import { mapUserSummary, type UserSummary } from './userSummary.js';
+
+/** Profile fields to change. Omitted fields stay unchanged; an empty bio clears it. */
+export type UpdateUserProfileInput = {
+  displayName?: string;
+  login?: string;
+  bio?: string;
+};
 
 export function createUserAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(UserService, config);
@@ -50,6 +58,20 @@ export function createUserAPI(config: ConnectAPIConfig) {
         return summary ? [mapUserSummary(summary)] : [];
       });
     },
+    /**
+     * Update the target user's public profile. The server allows self-updates,
+     * account managers for humans, and owners or bot managers for bots.
+     */
+    async updateUserProfile(userId: string, input: UpdateUserProfileInput): Promise<UserSummary> {
+      return updateProfile(async () => {
+        const response = await client.updateUserProfile({
+          userId,
+          ...input,
+          updateMask: updateMask(input, ['displayName', 'login', 'bio'])
+        });
+        return requiredUser(response.user);
+      });
+    },
     async uploadAvatar(userId: string, file: File): Promise<UserSummary> {
       return updateProfile(async () => {
         const response = await client.uploadAvatar({
@@ -75,6 +97,6 @@ export function createUserAPI(config: ConnectAPIConfig) {
 export type UserAPI = ReturnType<typeof createUserAPI>;
 
 function requiredUser(user: Parameters<typeof mapUserSummary>[0] | undefined) {
-  if (!user) throw new Error('avatar response did not include a user');
+  if (!user) throw new Error('user profile response did not include a user');
   return user;
 }

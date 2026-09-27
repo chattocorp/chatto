@@ -114,6 +114,33 @@ describe('UserAvatar', () => {
     expect(q(container, `[aria-label="${label}"] [data-testid="presence-dot"]`)).toBeTruthy();
   });
 
+  it('shows the current presence instead of the presence in the user profile', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'sm',
+      showPresence: true,
+      presenceStatus: PresenceStatus.ONLINE,
+      presence: PresenceStatus.DO_NOT_DISTURB
+    });
+
+    expect(q(container, '[aria-label="Do not disturb"] [data-testid="presence-dot"]')).toBeTruthy();
+    expect(q(container, '[aria-label="Online"]')).toBeFalsy();
+  });
+
+  it('updates when the current presence changes', async () => {
+    const view = render(UserAvatarTestHarness, {
+      size: 'sm',
+      showPresence: true,
+      presenceStatus: PresenceStatus.ONLINE,
+      presence: PresenceStatus.AWAY
+    });
+    expect(q(view.container, '[aria-label="Away"]')).toBeTruthy();
+
+    await view.rerender({ presence: PresenceStatus.OFFLINE });
+
+    expect(q(view.container, '[aria-label="Offline"]')).toBeTruthy();
+    expect(q(view.container, '[aria-label="Away"]')).toBeFalsy();
+  });
+
   it('keeps extra-small avatars free of presence overlays', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'xs', showPresence: true });
 

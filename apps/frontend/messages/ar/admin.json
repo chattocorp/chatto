@@ -134,7 +134,9 @@
       "role_update_failed": "فشل تحديث تعيين الدور",
       "danger_zone": "منطقة الخطر",
       "open_delete_account": "حذف الحساب",
-      "delete_account_entry_description": "يحذف حساب هذا العضو نهائيًا. تصبح رسائله غير قابلة للقراءة. لا يمكن التراجع عن هذا الإجراء."
+      "delete_account_entry_description": "يحذف حساب هذا العضو نهائيًا. تصبح رسائله غير قابلة للقراءة. لا يمكن التراجع عن هذا الإجراء.",
+      "bio_placeholder": "عرّف الآخرين قليلاً بهذا العضو",
+      "bio_description": "حتى {max} حرف، يظهر في الملف الشخصي للعضو."
     },
     "member_delete": {
       "title": "حذف عضو",

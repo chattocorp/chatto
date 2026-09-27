@@ -1,7 +1,6 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { UserAvatarUserView } from '$lib/render/users';
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
@@ -12,12 +11,15 @@
     showPresence = false,
     showStatus = false,
     presenceStatus = PresenceStatus.ONLINE,
+    presence,
     isBot = false
   }: {
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
     presenceStatus?: PresenceStatus;
+    /** Current presence from the server store, which overrides `presenceStatus`. */
+    presence?: PresenceStatus;
     isBot?: boolean;
   } = $props();
 
@@ -37,7 +39,6 @@
   } satisfies UserAvatarUserView);
 
   provideUserProfiles();
-  createPresenceCache();
 </script>
 
-<UserAvatar {user} serverId="test-server" {size} {showPresence} {showStatus} />
+<UserAvatar {user} {presence} {size} {showPresence} {showStatus} />

@@ -134,7 +134,9 @@
       "role_update_failed": "Rol ataması güncellenemedi",
       "danger_zone": "Tehlike bölgesi",
       "open_delete_account": "Hesabı sil",
-      "delete_account_entry_description": "Bu üyenin hesabını kalıcı olarak siler. Mesajları okunamaz hâle gelir. Bu işlem geri alınamaz."
+      "delete_account_entry_description": "Bu üyenin hesabını kalıcı olarak siler. Mesajları okunamaz hâle gelir. Bu işlem geri alınamaz.",
+      "bio_placeholder": "Diğerlerine bu üye hakkında biraz bilgi verin",
+      "bio_description": "En fazla {max} karakter, üyenin profilinde gösterilir."
     },
     "member_delete": {
       "title": "Üyeyi sil",

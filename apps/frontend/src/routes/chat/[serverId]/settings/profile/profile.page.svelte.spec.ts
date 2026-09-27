@@ -28,14 +28,9 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/account', () => ({
-  createAccountAPI: () => ({
-    updateProfile: mocks.updateProfile
-  })
-}));
-
 vi.mock('$lib/api-client/users', () => ({
   createUserAPI: () => ({
+    updateUserProfile: (userId: string, input: unknown) => mocks.updateProfile(userId, input),
     uploadAvatar: mocks.uploadAvatar,
     deleteAvatar: mocks.deleteAvatar
   })
@@ -81,7 +76,7 @@ describe('Profile settings page', () => {
       }
     });
     mocks.updateProfile.mockReset();
-    mocks.updateProfile.mockImplementation((input) =>
+    mocks.updateProfile.mockImplementation((_userId, input) =>
       Promise.resolve({
         id: 'user-1',
         displayName: input.displayName ?? server.currentUser.user!.displayName,
@@ -149,7 +144,7 @@ describe('Profile settings page', () => {
       saveButton.click();
 
       await vi.waitFor(() => {
-        expect(mocks.updateProfile).toHaveBeenCalledWith({
+        expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
           displayName: 'Ada Lovelace',
           login: undefined,
           bio: undefined
@@ -168,7 +163,7 @@ describe('Profile settings page', () => {
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
-      expect(mocks.updateProfile).toHaveBeenCalledWith({
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
         displayName: undefined,
         login: undefined,
         bio: 'I build analytical engines.'
@@ -187,7 +182,7 @@ describe('Profile settings page', () => {
     expect(input.classList.contains('tiptap')).toBe(true);
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
     await vi.waitFor(() => {
-      expect(mocks.updateProfile).toHaveBeenCalledWith({
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
         displayName: undefined,
         login: undefined,
         bio: '**Visual bio**'
@@ -209,7 +204,7 @@ describe('Profile settings page', () => {
       .toBe('**Keep this draft**');
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
     await vi.waitFor(() => {
-      expect(mocks.updateProfile).toHaveBeenCalledWith({
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
         displayName: undefined,
         login: undefined,
         bio: '**Keep this draft**'
@@ -278,7 +273,7 @@ describe('Profile settings page', () => {
     confirmButton?.click();
 
     await vi.waitFor(() => {
-      expect(mocks.updateProfile).toHaveBeenCalledWith({
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
         displayName: undefined,
         login: 'alice2',
         bio: undefined
@@ -328,7 +323,7 @@ describe('Profile settings page', () => {
     confirmButton?.click();
 
     await vi.waitFor(() => {
-      expect(mocks.updateProfile).toHaveBeenCalledWith({
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
         displayName: undefined,
         login: 'alice2',
         bio: undefined

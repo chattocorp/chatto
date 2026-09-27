@@ -844,7 +844,7 @@ func (x *UserDisplayNameChangedEvent) GetEncryptedDisplayName() *EncryptedUserSt
 }
 
 // UserBioChangedEvent is the authoritative durable fact for a change to a
-// user's self-authored bio. An empty encrypted value clears the bio. Bio text
+// user's bio. An empty encrypted value clears the bio. Bio text
 // is user PII and stays encrypted at rest.
 type UserBioChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`

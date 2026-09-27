@@ -22,6 +22,7 @@ import { RoomUnreadStore } from './roomUnread.svelte';
 import { ReadViewRegistry } from './readViews.svelte';
 import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
+import { ServerPresence } from './presence.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 import { NavigationStore } from './rooms.svelte';
 import { RoomDirectoryStore } from './roomDirectory.svelte';
@@ -53,7 +54,6 @@ import type { RoomMember } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
@@ -193,10 +193,9 @@ export class ServerStateStore {
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
     this.ingestProjectionEvent(update);
-    // Keep presence current for retained rooms and rooms first opened later.
     const event = update.event;
     if (event?.event.case === 'presenceChanged' && event.actorId) {
-      this.updateMemberPresence(event.actorId, event.event.value.status);
+      this.presence.set(event.actorId, event.event.value.status);
     }
   };
 
@@ -227,12 +226,8 @@ export class ServerStateStore {
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #roomMembers: Record<string, RoomMembersStore> = Object.create(null);
   #roomMemberRoots: Record<string, () => void> = Object.create(null);
-  #memberPresence = new SvelteMap<string, PresenceStatus>();
-
-  private updateMemberPresence(userId: string, status: PresenceStatus): void {
-    this.#memberPresence.set(userId, status);
-    for (const store of Object.values(this.#roomMembers)) store.setPresence(userId, status);
-  }
+  /** Observed presence of this server's users. Every presence reader uses it. */
+  readonly presence = new ServerPresence();
   #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
   #roomPins: Record<string, RoomPinsStore> = Object.create(null);
   #roomMessageSearch: Record<string, MessageSearchStore> = Object.create(null);
@@ -712,10 +707,8 @@ export class ServerStateStore {
       // derived fields an owner that lasts until this server store is disposed.
       let created!: RoomMembersStore;
       this.#roomMemberRoots[roomId] = $effect.root(() => {
-        created = new RoomMembersStore(this.#serverConnection);
+        created = new RoomMembersStore(this.#serverConnection, this.presence);
         created.setRoom(roomId);
-        // Initialize before exposing the store; selectors can run in a derived.
-        created.livePresence = new SvelteMap(this.#memberPresence);
       });
       store = created;
       this.#roomMembers[roomId] = store;
@@ -908,8 +901,16 @@ export class ServerStateStore {
           break;
         }
         case 'users': {
+          // A partial read without presence keeps the known status. A complete
+          // replacement, such as the snapshot, which never carries presence,
+          // forgets all presence until catch-up reads the users again.
+          this.presence.applySnapshot(
+            resource.value.users.flatMap((member) =>
+              member.user?.id ? [[member.user.id, member.user.presenceStatus] as const] : []
+            ),
+            update.replaceResource
+          );
           const members = resource.value.users.map(mapDirectoryMember);
-          for (const member of members) this.updateMemberPresence(member.id, member.presenceStatus);
           for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
           break;
         }
@@ -1801,7 +1802,7 @@ export class ServerStateStore {
     const complete = runResetHandlers([
       () => refreshRegisteredAdminQueries(this.serverId),
       () => this.projection.users.clear(),
-      () => this.#memberPresence.clear(),
+      () => this.presence.clear(),
       ...Object.values(this.#roomMembers).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#threadMessages).map((store) => () => store.resetProjectionState()),
@@ -1947,7 +1948,7 @@ export class ServerStateStore {
     this.#roomMembers = Object.create(null);
     for (const dispose of Object.values(this.#roomMemberRoots)) dispose();
     this.#roomMemberRoots = Object.create(null);
-    this.#memberPresence.clear();
+    this.presence.clear();
     this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;
     this.realtimeSync.reset();
