@@ -24,53 +24,85 @@ const streamSequenceReadSentinelSubject = "$JS.API.STREAM.MSG.GET.CHATTO_TEST_SE
 // one stream round trip per retained occurrence.
 func TestNotificationVisibleOccurrencesReadsStreamOncePerBatch(t *testing.T) {
 	chattoCore, nc := setupTestCore(t)
-	reader, occurrences := setupNotificationVisibilityFixture(t, chattoCore, 20)
+	reader, _, occurrences := setupNotificationVisibilityFixture(t, chattoCore, 20)
+
+	// Let background notification work settle before the reads are counted.
+	require.NoError(t, chattoCore.NotificationOccurrences().WaitCurrent(testContext(t)))
 
 	var sequenceReads atomic.Int64
 	marks := make(chan struct{}, 1)
-	count := func(msg *nats.Msg) {
-		if msg.Subject == streamSequenceReadSentinelSubject {
+	// One subscription runs its handler in delivery order, so the sentinel is
+	// handled after every earlier request. Other workers read other streams in
+	// the background. Only EVT reads can come from the visibility filter.
+	sub, err := nc.Subscribe("$JS.API.>", func(msg *nats.Msg) {
+		switch msg.Subject {
+		case streamSequenceReadSentinelSubject:
 			marks <- struct{}{}
-			return
+		case "$JS.API.STREAM.MSG.GET.EVT", "$JS.API.DIRECT.GET.EVT":
+			var request struct {
+				Seq uint64 `json:"seq"`
+			}
+			if json.Unmarshal(msg.Data, &request) == nil && request.Seq != 0 {
+				sequenceReads.Add(1)
+			}
 		}
-		var request struct {
-			Seq uint64 `json:"seq"`
-		}
-		if json.Unmarshal(msg.Data, &request) == nil && request.Seq != 0 {
-			sequenceReads.Add(1)
-		}
-	}
-	// Other workers read other streams in the background. Only EVT reads can
-	// come from the visibility filter.
-	for _, subject := range []string{"$JS.API.STREAM.MSG.GET.EVT", "$JS.API.DIRECT.GET.EVT", streamSequenceReadSentinelSubject} {
-		sub, err := nc.Subscribe(subject, count)
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = sub.Unsubscribe() })
-	}
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
 	require.NoError(t, nc.Flush())
-	// The core shares nc, and the server delivers its messages in order, so
-	// the sentinel arrives after every earlier stream-message read.
+	readsSoFar := func() int64 {
+		t.Helper()
+		require.NoError(t, nc.Publish(streamSequenceReadSentinelSubject, nil))
+		select {
+		case <-marks:
+		case <-time.After(2 * time.Second):
+			t.Fatal("stream read sentinel was not delivered")
+		}
+		return sequenceReads.Load()
+	}
 	readsFor := func(batch []*notificationv1.NotificationOccurrence) int64 {
 		t.Helper()
-		sync := func() int64 {
-			require.NoError(t, nc.Publish(streamSequenceReadSentinelSubject, nil))
-			select {
-			case <-marks:
-			case <-time.After(2 * time.Second):
-				t.Fatal("stream read sentinel was not delivered")
-			}
-			return sequenceReads.Load()
-		}
-		before := sync()
+		before := readsSoFar()
 		visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(testContext(t), reader, batch)
 		require.NoError(t, err)
 		require.Len(t, visible, len(batch))
-		return sync() - before
+		return readsSoFar() - before
 	}
 
 	single := readsFor(occurrences[:1])
 	all := readsFor(occurrences)
 	require.LessOrEqual(t, all, single+1, "visibility filter read the event stream once per occurrence")
+}
+
+// TestNotificationVisibleOccurrencesFiltersMixedBatchInOrder checks a batch
+// that spans more than one content-view barrier chunk. It must omit targets in
+// a room that the reader left and deleted targets, and keep the input order.
+func TestNotificationVisibleOccurrencesFiltersMixedBatchInOrder(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, poster, occurrences := setupNotificationVisibilityFixture(t, chattoCore, notificationVisibilityChunkSize+44)
+	leftRoom := NotificationOccurrenceMessageReference(occurrences[0]).GetRoomId()
+	require.NoError(t, chattoCore.LeaveRoom(ctx, reader, KindChannel, reader, leftRoom))
+
+	want := make([]string, 0, len(occurrences))
+	for index, occurrence := range occurrences {
+		message := NotificationOccurrenceMessageReference(occurrence)
+		switch {
+		case message.GetRoomId() == leftRoom:
+		case index%7 == 1:
+			require.NoError(t, chattoCore.DeleteMessage(ctx, poster, KindChannel, message.GetRoomId(), message.GetEventId()))
+		default:
+			want = append(want, occurrence.GetId())
+		}
+	}
+
+	visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader, occurrences)
+	require.NoError(t, err)
+	got := make([]string, 0, len(visible))
+	for _, occurrence := range visible {
+		got = append(got, occurrence.GetId())
+	}
+	require.Equal(t, want, got)
 }
 
 // BenchmarkNotificationVisibleOccurrences measures the visibility filter that
@@ -80,7 +112,7 @@ func BenchmarkNotificationVisibleOccurrences(b *testing.B) {
 	for _, count := range []int{100, 1000} {
 		b.Run(fmt.Sprintf("occurrences_%d", count), func(b *testing.B) {
 			chattoCore := setupTestCoreWithEncryption(b)
-			reader, occurrences := setupNotificationVisibilityFixture(b, chattoCore, count)
+			reader, _, occurrences := setupNotificationVisibilityFixture(b, chattoCore, count)
 			ctx := context.Background()
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -95,8 +127,8 @@ func BenchmarkNotificationVisibleOccurrences(b *testing.B) {
 
 // setupNotificationVisibilityFixture creates count visible occurrences for one
 // reader. Their targets are spread over several rooms. It returns the reader
-// ID and the occurrences in list order.
-func setupNotificationVisibilityFixture(tb testing.TB, chattoCore *ChattoCore, count int) (string, []*notificationv1.NotificationOccurrence) {
+// ID, the poster ID, and the occurrences in list order.
+func setupNotificationVisibilityFixture(tb testing.TB, chattoCore *ChattoCore, count int) (string, string, []*notificationv1.NotificationOccurrence) {
 	tb.Helper()
 	ctx := context.Background()
 	poster, err := chattoCore.CreateUser(ctx, SystemActorID, "visibility-poster", "Visibility Poster", "password")
@@ -135,5 +167,5 @@ func setupNotificationVisibilityFixture(tb testing.TB, chattoCore *ChattoCore, c
 	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, reader.Id)
 	require.NoError(tb, err)
 	require.Len(tb, occurrences, count)
-	return reader.Id, occurrences
+	return reader.Id, poster.Id, occurrences
 }
