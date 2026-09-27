@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -34,31 +33,27 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		})
 	}
 
-	threadRoots := sortedMapKeys(p.byThread)
-	for _, root := range threadRoots {
-		thread := &projectionv1.ThreadSnapshot{RootEventId: root}
+	for _, root := range sortedHandleKeys(&p.eventIDs, p.byThread) {
+		thread := &projectionv1.ThreadSnapshot{RootEventId: p.eventIDs.id(root)}
 		for _, entry := range p.byThread[root] {
 			thread.Entries = append(thread.Entries, &projectionv1.ThreadTimelineEntrySnapshot{
-				EventId:        entry.EventID,
-				StreamSequence: entry.StreamSeq,
+				EventId:        p.eventIDs.id(entry.event),
+				StreamSequence: entry.streamSeq,
 			})
 		}
 		snapshot.Threads = append(snapshot.Threads, thread)
 	}
 
-	replyIDs := sortedMapKeys(p.messageToThread)
-	for _, replyID := range replyIDs {
-		reply := p.replySummaries[replyID]
+	for _, handle := range sortedHandleKeys(&p.eventIDs, p.replies) {
+		reply := p.replies[handle]
 		row := &projectionv1.ThreadReplySnapshot{
-			EventId:           replyID,
-			ThreadRootEventId: p.messageToThread[replyID],
+			EventId:           p.eventIDs.id(handle),
+			ThreadRootEventId: p.eventIDs.id(reply.root),
+			ActorId:           p.principalIDs.id(reply.actor),
+			Retracted:         reply.retracted,
 		}
-		if reply != nil {
-			row.ActorId = reply.actorID
-			row.Retracted = reply.retracted
-			if !reply.createdAt.IsZero() {
-				row.CreatedAt = timestamppb.New(reply.createdAt)
-			}
+		if reply.hasCreatedAt {
+			row.CreatedAt = timestamppb.New(reply.createdAtTime())
 		}
 		snapshot.Replies = append(snapshot.Replies, row)
 	}
@@ -86,41 +81,40 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		})
 	}
 
-	messageIDs := sortedMapKeys(p.messageThreads)
-	for _, eventID := range messageIDs {
-		ref := p.messageThreads[eventID]
+	type messageRow struct {
+		eventID string
+		ref     threadMessageRef
+	}
+	messages := make([]messageRow, 0, len(p.messageRefs))
+	for i, ref := range p.messageRefs {
+		if ref.room != 0 {
+			messages = append(messages, messageRow{eventID: p.eventIDs.id(uint32(i + 1)), ref: ref})
+		}
+	}
+	sort.Slice(messages, func(i, j int) bool { return messages[i].eventID < messages[j].eventID })
+	for _, message := range messages {
 		snapshot.Messages = append(snapshot.Messages, &projectionv1.ThreadMessageSnapshot{
-			EventId: eventID, RoomId: ref.roomID, ThreadRootEventId: ref.threadRootEventID,
+			EventId: message.eventID, RoomId: p.principalIDs.id(message.ref.room), ThreadRootEventId: p.eventIDs.id(message.ref.root),
 		})
 	}
 
-	userIDs := sortedMapKeys(p.interactions)
-	for _, userID := range userIDs {
-		byThread := p.interactions[userID]
-		keys := sortedMapKeys(byThread)
-		for _, key := range keys {
-			interaction := byThread[key]
-			if interaction == nil {
-				return nil, fmt.Errorf("nil thread interaction in projection")
-			}
-			causeKeys := make([]string, 0, len(interaction.causes))
-			for causeKey := range interaction.causes {
-				causeKeys = append(causeKeys, causeKey)
-			}
-			sort.Strings(causeKeys)
-			for _, causeKey := range causeKeys {
-				cause := interaction.causes[causeKey]
-				row := &projectionv1.ThreadInteractionSnapshot{
-					UserId: userID, RoomId: interaction.roomID, ThreadRootEventId: interaction.threadRootEventID,
-					Cause: string(cause.Kind), SourceEventId: cause.SourceEventID,
-				}
-				if !cause.CreatedAt.IsZero() {
-					row.CreatedAt = timestamppb.New(cause.CreatedAt)
-				}
-				snapshot.Interactions = append(snapshot.Interactions, row)
-			}
-		}
+	interactions := make([]*projectionv1.ThreadInteractionSnapshot, 0, len(p.interactions))
+	for key, room := range p.interactions {
+		interactions = append(interactions, &projectionv1.ThreadInteractionSnapshot{
+			UserId: p.principalIDs.id(key.user), RoomId: p.principalIDs.id(room), ThreadRootEventId: p.eventIDs.id(key.root),
+		})
 	}
+	sort.Slice(interactions, func(i, j int) bool {
+		a, b := interactions[i], interactions[j]
+		if a.UserId != b.UserId {
+			return a.UserId < b.UserId
+		}
+		if a.RoomId != b.RoomId {
+			return a.RoomId < b.RoomId
+		}
+		return a.ThreadRootEventId < b.ThreadRootEventId
+	})
+	snapshot.Interactions = interactions
 
 	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
 	if p.replayGuard.compatibilityMode {
@@ -137,31 +131,33 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 	defer p.Unlock()
 
 	previous := struct {
-		byThread        map[string][]ThreadTimelineEntry
-		messageToThread map[string]string
+		byThread        map[uint32][]threadEntry
+		replies         map[uint32]threadReply
 		channelRooms    map[string]struct{}
 		dmRooms         map[string]map[string]struct{}
-		messageThreads  map[string]threadMessageRef
-		interactions    map[string]map[string]*projectedThreadInteraction
-		replySummaries  map[string]*threadReplySummary
-		summaryByThread map[string]*threadSummary
+		principalIDs    projectionIDTable
+		eventIDs        projectionIDTable
+		messageRefs     []threadMessageRef
+		interactions    map[threadInteractionKey]uint32
+		summaryByThread map[uint32]*threadSummary
 		followState     map[threadFollowStateKey]compactThreadFollowState
 		followers       map[threadFollowRef]map[string]struct{}
 		followedByUser  map[string]map[threadFollowRef]struct{}
 		replayGuard     projectionReplayGuard
 		shreddedUsers   map[string]struct{}
-	}{p.byThread, p.messageToThread, p.channelRooms, p.dmRooms, p.messageThreads, p.interactions, p.replySummaries, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
+	}{p.byThread, p.replies, p.channelRooms, p.dmRooms, p.principalIDs, p.eventIDs, p.messageRefs, p.interactions, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
 	defer func() {
 		if err == nil {
 			return
 		}
 		p.byThread = previous.byThread
-		p.messageToThread = previous.messageToThread
+		p.replies = previous.replies
 		p.channelRooms = previous.channelRooms
 		p.dmRooms = previous.dmRooms
-		p.messageThreads = previous.messageThreads
+		p.principalIDs = previous.principalIDs
+		p.eventIDs = previous.eventIDs
+		p.messageRefs = previous.messageRefs
 		p.interactions = previous.interactions
-		p.replySummaries = previous.replySummaries
 		p.summaryByThread = previous.summaryByThread
 		p.followState = previous.followState
 		p.followers = previous.followers
@@ -220,66 +216,67 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if !p.isInteractionRoomLocked(roomID) {
 			return fmt.Errorf("Thread projection snapshot message %q has unknown room", eventID)
 		}
-		if _, duplicate := p.messageThreads[eventID]; duplicate {
+		handle := p.eventIDs.intern(eventID)
+		if _, duplicate := p.messageRefLocked(handle); duplicate {
 			return fmt.Errorf("Thread projection snapshot repeats message mapping %q", eventID)
 		}
-		p.messageThreads[eventID] = threadMessageRef{roomID: roomID, threadRootEventID: rootID}
+		p.setMessageRefLocked(handle, threadMessageRef{room: p.principalIDs.intern(roomID), root: p.eventIDs.intern(rootID)})
 	}
 
 	for _, thread := range snapshot.GetThreads() {
-		root := thread.GetRootEventId()
-		if root == "" {
+		rootID := thread.GetRootEventId()
+		if rootID == "" {
 			return fmt.Errorf("Thread projection snapshot has empty thread root")
 		}
+		root := p.eventIDs.intern(rootID)
 		if _, exists := p.byThread[root]; exists {
-			return fmt.Errorf("Thread projection snapshot repeats thread %q", root)
+			return fmt.Errorf("Thread projection snapshot repeats thread %q", rootID)
 		}
-		entries := make([]ThreadTimelineEntry, 0, len(thread.GetEntries()))
+		entries := make([]threadEntry, 0, len(thread.GetEntries()))
 		for _, entry := range thread.GetEntries() {
 			if entry.GetEventId() == "" || entry.GetStreamSequence() == 0 {
-				return fmt.Errorf("Thread projection snapshot has invalid entry in thread %q", root)
+				return fmt.Errorf("Thread projection snapshot has invalid entry in thread %q", rootID)
 			}
-			entries = append(entries, ThreadTimelineEntry{EventID: entry.GetEventId(), StreamSeq: entry.GetStreamSequence()})
+			entries = append(entries, threadEntry{event: p.eventIDs.intern(entry.GetEventId()), streamSeq: entry.GetStreamSequence()})
 		}
 		p.byThread[root] = entries
 	}
 
 	for _, row := range snapshot.GetReplies() {
 		replyID := row.GetEventId()
-		root := row.GetThreadRootEventId()
-		if replyID == "" || root == "" {
+		rootID := row.GetThreadRootEventId()
+		if replyID == "" || rootID == "" {
 			return fmt.Errorf("Thread projection snapshot has invalid reply mapping")
 		}
-		if _, exists := p.messageToThread[replyID]; exists {
+		handle := p.eventIDs.intern(replyID)
+		if _, exists := p.replies[handle]; exists {
 			return fmt.Errorf("Thread projection snapshot repeats reply %q", replyID)
 		}
-		var createdAt time.Time
+		reply := threadReply{root: p.eventIDs.intern(rootID), actor: p.principalIDs.intern(row.GetActorId()), retracted: row.GetRetracted()}
 		if row.GetCreatedAt() != nil {
 			if err := row.GetCreatedAt().CheckValid(); err != nil {
 				return fmt.Errorf("Thread projection snapshot reply %q timestamp: %w", replyID, err)
 			}
-			createdAt = row.GetCreatedAt().AsTime()
+			reply.createdAt = row.GetCreatedAt().AsTime().UnixNano()
+			reply.hasCreatedAt = true
 		}
-		p.messageToThread[replyID] = root
-		p.replySummaries[replyID] = &threadReplySummary{actorID: row.GetActorId(), createdAt: createdAt, retracted: row.GetRetracted()}
+		p.replies[handle] = reply
 	}
 
-	seenEntries := make(map[string]struct{}, len(p.messageToThread))
+	seenEntries := make(map[uint32]struct{}, len(p.replies))
 	for root, entries := range p.byThread {
-		summary := newThreadSummary()
 		for _, entry := range entries {
-			if _, duplicate := seenEntries[entry.EventID]; duplicate {
-				return fmt.Errorf("Thread projection snapshot repeats timeline entry %q", entry.EventID)
+			if _, duplicate := seenEntries[entry.event]; duplicate {
+				return fmt.Errorf("Thread projection snapshot repeats timeline entry %q", p.eventIDs.id(entry.event))
 			}
-			seenEntries[entry.EventID] = struct{}{}
-			if mappedRoot, ok := p.messageToThread[entry.EventID]; !ok || mappedRoot != root {
-				return fmt.Errorf("Thread projection snapshot entry %q has no matching reply", entry.EventID)
+			seenEntries[entry.event] = struct{}{}
+			if reply, ok := p.replies[entry.event]; !ok || reply.root != root {
+				return fmt.Errorf("Thread projection snapshot entry %q has no matching reply", p.eventIDs.id(entry.event))
 			}
-			summary.replyIDs = append(summary.replyIDs, entry.EventID)
 		}
-		p.summaryByThread[root] = summary
+		p.summaryByThread[root] = newThreadSummary()
 	}
-	if len(seenEntries) != len(p.messageToThread) {
+	if len(seenEntries) != len(p.replies) {
 		return fmt.Errorf("Thread projection snapshot contains replies outside thread timelines")
 	}
 
@@ -315,44 +312,23 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		userID := row.GetUserId()
 		roomID := row.GetRoomId()
 		rootID := row.GetThreadRootEventId()
-		kind := ThreadInteractionCauseKind(row.GetCause())
-		if userID == "" || roomID == "" || rootID == "" || row.GetSourceEventId() == "" {
+		if userID == "" || roomID == "" || rootID == "" {
 			return fmt.Errorf("Thread projection snapshot has incomplete interaction identity")
-		}
-		if kind != ThreadInteractionCauseRootAuthored && kind != ThreadInteractionCauseDirectMention && kind != ThreadInteractionCauseDMReceived {
-			return fmt.Errorf("Thread projection snapshot has invalid interaction cause %q", kind)
-		}
-		if _, dm := p.dmRooms[roomID]; kind == ThreadInteractionCauseDMReceived && !dm {
-			return fmt.Errorf("Thread projection snapshot has DM interaction in a channel")
 		}
 		if !p.isInteractionRoomLocked(roomID) {
 			return fmt.Errorf("Thread projection snapshot interaction has unknown room %q", roomID)
 		}
-		rootRef, rootExists := p.messageThreads[rootID]
-		if !rootExists || rootRef.roomID != roomID || rootRef.threadRootEventID != rootID {
+		room := p.principalIDs.intern(roomID)
+		root := p.eventIDs.intern(rootID)
+		rootRef, rootExists := p.messageRefLocked(root)
+		if !rootExists || rootRef.room != room || rootRef.root != root {
 			return fmt.Errorf("Thread projection snapshot interaction has invalid root %q", rootID)
 		}
-		sourceRef, sourceExists := p.messageThreads[row.GetSourceEventId()]
-		if !sourceExists || sourceRef.roomID != roomID || sourceRef.threadRootEventID != rootID {
-			return fmt.Errorf("Thread projection snapshot interaction has invalid source %q", row.GetSourceEventId())
+		key := threadInteractionKey{user: p.principalIDs.intern(userID), root: root}
+		if _, duplicate := p.interactions[key]; duplicate {
+			return fmt.Errorf("Thread projection snapshot repeats interaction")
 		}
-		var createdAt time.Time
-		if row.GetCreatedAt() != nil {
-			if err := row.GetCreatedAt().CheckValid(); err != nil {
-				return fmt.Errorf("Thread projection snapshot interaction timestamp: %w", err)
-			}
-			createdAt = row.GetCreatedAt().AsTime()
-		}
-		key := threadFollowKeyPart(roomID, rootID)
-		if existing := p.interactions[userID][key]; existing != nil {
-			causeKey := string(kind) + "\x00" + row.GetSourceEventId()
-			if _, duplicate := existing.causes[causeKey]; duplicate {
-				return fmt.Errorf("Thread projection snapshot repeats interaction cause")
-			}
-		}
-		p.addInteractionCauseLocked(userID, roomID, rootID, ThreadInteractionCause{
-			Kind: kind, SourceEventID: row.GetSourceEventId(), CreatedAt: createdAt,
-		})
+		p.interactions[key] = room
 	}
 
 	guard := snapshot.GetReplayGuard()
@@ -386,14 +362,15 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 }
 
 func (p *ThreadProjection) resetSnapshotStateLocked() {
-	p.byThread = make(map[string][]ThreadTimelineEntry)
-	p.messageToThread = make(map[string]string)
+	p.byThread = make(map[uint32][]threadEntry)
+	p.replies = make(map[uint32]threadReply)
 	p.channelRooms = make(map[string]struct{})
 	p.dmRooms = make(map[string]map[string]struct{})
-	p.messageThreads = make(map[string]threadMessageRef)
-	p.interactions = make(map[string]map[string]*projectedThreadInteraction)
-	p.replySummaries = make(map[string]*threadReplySummary)
-	p.summaryByThread = make(map[string]*threadSummary)
+	p.principalIDs = newProjectionIDTable()
+	p.eventIDs = newProjectionIDTable()
+	p.messageRefs = nil
+	p.interactions = make(map[threadInteractionKey]uint32)
+	p.summaryByThread = make(map[uint32]*threadSummary)
 	p.followState = make(map[threadFollowStateKey]compactThreadFollowState)
 	p.followers = make(map[threadFollowRef]map[string]struct{})
 	p.followedByUser = make(map[string]map[threadFollowRef]struct{})

@@ -120,13 +120,12 @@ message ThreadMessageSnapshot {
   string thread_root_event_id = 3;
 }
 
+// One account-to-thread relationship. Relationships are durable post-time
+// facts; the projection retains only their existence.
 message ThreadInteractionSnapshot {
   string user_id = 1;
   string room_id = 2;
   string thread_root_event_id = 3;
-  string cause = 4;
-  string source_event_id = 5;
-  google.protobuf.Timestamp created_at = 6;
 }
 
 message ProjectionReplayGuardSnapshot {

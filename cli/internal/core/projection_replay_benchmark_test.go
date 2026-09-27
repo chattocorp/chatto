@@ -442,6 +442,42 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 			newTarget(NewRoomTimelineProjection()),
 			newTarget(NewThreadProjection()),
 		}, nil
+	case "reactions":
+		return []projectionBenchmarkTarget{newTarget(NewReactionProjection())}, nil
+	case "assets":
+		return []projectionBenchmarkTarget{newTarget(NewAssetProjection())}, nil
+	case "rbac":
+		return []projectionBenchmarkTarget{newTarget(NewRBACProjection())}, nil
+	case "content_keys":
+		return []projectionBenchmarkTarget{newTarget(NewContentKeyProjection())}, nil
+	case "infallible_content_view":
+		// Every Server Content View component that needs no DEK resolver.
+		roomDirectory := NewRoomDirectoryProjection()
+		serverConfig := NewConfigProjection()
+		roomGroupLayout := NewRoomGroupLayoutProjection()
+		timeline := NewRoomTimelineProjection()
+		callState := NewCallStateProjection()
+		assets := NewAssetProjection()
+		threads := NewThreadProjection()
+		reactions := NewReactionProjection()
+		contentKeys := NewContentKeyProjection()
+		rbac := NewRBACProjection()
+		view := newServerContentView(
+			newServerContentComponent("room_directory", roomDirectory, roomDirectory),
+			newInfallibleServerContentComponent("server_config", serverConfig, serverConfig.Apply),
+			newInfallibleServerContentComponent("room_group_layout", roomGroupLayout, roomGroupLayout.Apply),
+			newInfallibleServerContentComponent("room_timeline", timeline, timeline.Apply),
+			newInfallibleServerContentComponent("call_state", callState, callState.Apply),
+			newInfallibleServerContentComponent("assets", assets, assets.Apply),
+			newInfallibleServerContentComponent("threads", threads, threads.Apply),
+			newInfallibleServerContentComponent("reactions", reactions, reactions.Apply),
+			newInfallibleServerContentComponent("content_keys", contentKeys, contentKeys.Apply),
+			newInfallibleServerContentComponent("rbac", rbac, rbac.Apply),
+		)
+		return []projectionBenchmarkTarget{newContentViewBenchmarkTarget(view,
+			roomDirectory, serverConfig, roomGroupLayout, timeline, callState,
+			assets, threads, reactions, contentKeys, rbac,
+		)}, nil
 	case "content_view_timeline_and_threads":
 		timeline := NewRoomTimelineProjection()
 		threads := NewThreadProjection()
@@ -449,25 +485,31 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 			newInfallibleServerContentComponent("room_timeline", timeline, timeline.Apply),
 			newInfallibleServerContentComponent("threads", threads, threads.Apply),
 		)
-		return []projectionBenchmarkTarget{{
-			projection: view,
-			subjects:   view.Subjects(),
-			apply: func(event *evtv1.Event, subject string, sequence uint64) error {
-				mutation, err := view.PrepareSubject(event, subject, sequence)
-				if err != nil {
-					return err
-				}
-				mutation.Commit()
-				return nil
-			},
-			complete: view.CompleteStartupReplay,
-			estimate: func() int64 {
-				_, bytes, _ := view.adminProjectionEstimate(timeline, threads)
-				return bytes
-			},
-		}}, nil
+		return []projectionBenchmarkTarget{newContentViewBenchmarkTarget(view, timeline, threads)}, nil
 	default:
 		return nil, fmt.Errorf("unknown projection benchmark scope %q", scope)
+	}
+}
+
+// newContentViewBenchmarkTarget applies events through the content view's
+// shared prepare-and-commit barrier, as the production projector does.
+func newContentViewBenchmarkTarget(view *ServerContentView, components ...events.SnapshotComponentModel) projectionBenchmarkTarget {
+	return projectionBenchmarkTarget{
+		projection: view,
+		subjects:   view.Subjects(),
+		apply: func(event *evtv1.Event, subject string, sequence uint64) error {
+			mutation, err := view.PrepareSubject(event, subject, sequence)
+			if err != nil {
+				return err
+			}
+			mutation.Commit()
+			return nil
+		},
+		complete: view.CompleteStartupReplay,
+		estimate: func() int64 {
+			_, bytes, _ := view.adminProjectionEstimate(components...)
+			return bytes
+		},
 	}
 }
 

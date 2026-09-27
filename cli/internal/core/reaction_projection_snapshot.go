@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"slices"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -15,31 +17,51 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 	snapshot := &projectionv1.ReactionProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
-	for _, messageID := range sortedMapKeys(p.byMessage) {
-		message := &projectionv1.MessageReactionsSnapshot{MessageEventId: messageID}
-		for _, emoji := range sortedMapKeys(p.byMessage[messageID]) {
-			group := &projectionv1.EmojiReactionsSnapshot{Emoji: emoji}
-			for _, userID := range sortedMapKeys(p.byMessage[messageID][emoji]) {
-				entry := p.byMessage[messageID][emoji][userID]
-				group.Users = append(group.Users, &projectionv1.UserReactionSnapshot{UserId: userID, AddedAtNanos: entry.AddedAtNanos, SourceEventId: entry.SourceEventID})
+	for _, message := range sortedHandleKeys(&p.ids, p.byMessage) {
+		reactions := slices.Clone(p.byMessage[message])
+		slices.SortFunc(reactions, func(a, b reactionProjectionEntry) int {
+			if byEmoji := strings.Compare(p.ids.id(a.emoji), p.ids.id(b.emoji)); byEmoji != 0 {
+				return byEmoji
 			}
-			message.Emojis = append(message.Emojis, group)
+			return strings.Compare(p.ids.id(a.user), p.ids.id(b.user))
+		})
+		row := &projectionv1.MessageReactionsSnapshot{MessageEventId: p.ids.id(message)}
+		var group *projectionv1.EmojiReactionsSnapshot
+		for _, reaction := range reactions {
+			if emoji := p.ids.id(reaction.emoji); group == nil || group.Emoji != emoji {
+				group = &projectionv1.EmojiReactionsSnapshot{Emoji: emoji}
+				row.Emojis = append(row.Emojis, group)
+			}
+			group.Users = append(group.Users, &projectionv1.UserReactionSnapshot{
+				UserId: p.ids.id(reaction.user), AddedAtNanos: reaction.addedAtNanos, SourceEventId: p.ids.id(reaction.source),
+			})
 		}
-		snapshot.Messages = append(snapshot.Messages, message)
+		snapshot.Messages = append(snapshot.Messages, row)
 	}
 	for _, key := range sortedMapKeys(p.roomSeq) {
 		snapshot.RoomSequences = append(snapshot.RoomSequences, &projectionv1.StringUint64Snapshot{Key: key, Value: p.roomSeq[key]})
 	}
-	appendStrings := func(values map[string]string) []*projectionv1.StringStringSnapshot {
-		rows := make([]*projectionv1.StringStringSnapshot, 0, len(values))
-		for _, key := range sortedMapKeys(values) {
-			rows = append(rows, &projectionv1.StringStringSnapshot{Key: key, Value: values[key]})
-		}
+	sortedRows := func(rows []*projectionv1.StringStringSnapshot) []*projectionv1.StringStringSnapshot {
+		slices.SortFunc(rows, func(a, b *projectionv1.StringStringSnapshot) int { return strings.Compare(a.Key, b.Key) })
 		return rows
 	}
-	snapshot.MessageRooms = appendStrings(p.messageRoom)
-	snapshot.EchoOriginals = appendStrings(p.echoOriginal)
-	snapshot.AssetRooms = appendStrings(p.assetRoom)
+	messageRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.messageRooms))
+	for i, room := range p.messageRooms {
+		if room != 0 {
+			messageRooms = append(messageRooms, &projectionv1.StringStringSnapshot{Key: p.ids.id(uint32(i + 1)), Value: p.ids.id(room)})
+		}
+	}
+	snapshot.MessageRooms = sortedRows(messageRooms)
+	echoOriginals := make([]*projectionv1.StringStringSnapshot, 0, len(p.echoOriginal))
+	for echo, original := range p.echoOriginal {
+		echoOriginals = append(echoOriginals, &projectionv1.StringStringSnapshot{Key: p.ids.id(echo), Value: p.ids.id(original)})
+	}
+	snapshot.EchoOriginals = sortedRows(echoOriginals)
+	assetRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.assetRoom))
+	for asset, room := range p.assetRoom {
+		assetRooms = append(assetRooms, &projectionv1.StringStringSnapshot{Key: asset, Value: room})
+	}
+	snapshot.AssetRooms = sortedRows(assetRooms)
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
@@ -54,73 +76,83 @@ func (p *ReactionProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("reaction snapshot replay guard: %w", err)
 	}
-	byMessage := make(map[string]map[string]map[string]reactionProjectionEntry, len(snapshot.GetMessages()))
+	restored := NewReactionProjection()
+	restored.replayGuard = guard
 	for _, message := range snapshot.GetMessages() {
 		if message.GetMessageEventId() == "" {
 			return fmt.Errorf("reaction snapshot has empty message ID")
 		}
-		if _, duplicate := byMessage[message.GetMessageEventId()]; duplicate {
+		messageHandle := restored.ids.intern(message.GetMessageEventId())
+		if _, duplicate := restored.byMessage[messageHandle]; duplicate {
 			return fmt.Errorf("reaction snapshot repeats message %q", message.GetMessageEventId())
 		}
-		emojis := make(map[string]map[string]reactionProjectionEntry)
+		var reactions []reactionProjectionEntry
+		seenEmojis := make(map[uint32]struct{}, len(message.GetEmojis()))
 		for _, group := range message.GetEmojis() {
 			if group.GetEmoji() == "" {
 				return fmt.Errorf("reaction snapshot has empty emoji")
 			}
-			if _, duplicate := emojis[group.GetEmoji()]; duplicate {
+			emoji := restored.ids.intern(group.GetEmoji())
+			if _, duplicate := seenEmojis[emoji]; duplicate {
 				return fmt.Errorf("reaction snapshot repeats emoji")
 			}
-			users := make(map[string]reactionProjectionEntry)
+			seenEmojis[emoji] = struct{}{}
 			for _, user := range group.GetUsers() {
 				if user.GetUserId() == "" {
 					return fmt.Errorf("reaction snapshot has empty user ID")
 				}
-				if _, duplicate := users[user.GetUserId()]; duplicate {
+				userHandle := restored.ids.intern(user.GetUserId())
+				if reactionIndex(reactions, emoji, userHandle) >= 0 {
 					return fmt.Errorf("reaction snapshot repeats user")
 				}
-				users[user.GetUserId()] = reactionProjectionEntry{AddedAtNanos: user.GetAddedAtNanos(), SourceEventID: user.GetSourceEventId()}
+				reactions = append(reactions, reactionProjectionEntry{
+					addedAtNanos: user.GetAddedAtNanos(), emoji: emoji, user: userHandle,
+					source: restored.ids.intern(user.GetSourceEventId()),
+				})
 			}
-			emojis[group.GetEmoji()] = users
 		}
-		byMessage[message.GetMessageEventId()] = emojis
+		if len(reactions) > 0 {
+			restored.byMessage[messageHandle] = reactions
+		}
 	}
-	roomSeq := make(map[string]uint64)
 	for _, row := range snapshot.GetRoomSequences() {
 		if row.GetKey() == "" {
 			return fmt.Errorf("reaction snapshot has empty room sequence key")
 		}
-		if _, duplicate := roomSeq[row.GetKey()]; duplicate {
+		if _, duplicate := restored.roomSeq[row.GetKey()]; duplicate {
 			return fmt.Errorf("reaction snapshot repeats room sequence")
 		}
-		roomSeq[row.GetKey()] = row.GetValue()
+		restored.roomSeq[row.GetKey()] = row.GetValue()
 	}
-	restoreStrings := func(rows []*projectionv1.StringStringSnapshot) (map[string]string, error) {
-		values := make(map[string]string, len(rows))
+	validRows := func(rows []*projectionv1.StringStringSnapshot) error {
+		seen := make(map[string]struct{}, len(rows))
 		for _, row := range rows {
 			if row.GetKey() == "" || row.GetValue() == "" {
-				return nil, fmt.Errorf("reaction snapshot has invalid string mapping")
+				return fmt.Errorf("reaction snapshot has invalid string mapping")
 			}
-			if _, duplicate := values[row.GetKey()]; duplicate {
-				return nil, fmt.Errorf("reaction snapshot repeats string mapping")
+			if _, duplicate := seen[row.GetKey()]; duplicate {
+				return fmt.Errorf("reaction snapshot repeats string mapping")
 			}
-			values[row.GetKey()] = row.GetValue()
+			seen[row.GetKey()] = struct{}{}
 		}
-		return values, nil
+		return nil
 	}
-	messageRoom, err := restoreStrings(snapshot.GetMessageRooms())
-	if err != nil {
-		return err
+	for _, rows := range [][]*projectionv1.StringStringSnapshot{snapshot.GetMessageRooms(), snapshot.GetEchoOriginals(), snapshot.GetAssetRooms()} {
+		if err := validRows(rows); err != nil {
+			return err
+		}
 	}
-	echoOriginal, err := restoreStrings(snapshot.GetEchoOriginals())
-	if err != nil {
-		return err
+	for _, row := range snapshot.GetMessageRooms() {
+		restored.setMessageRoomLocked(restored.ids.intern(row.GetKey()), restored.ids.intern(row.GetValue()))
 	}
-	assetRoom, err := restoreStrings(snapshot.GetAssetRooms())
-	if err != nil {
-		return err
+	for _, row := range snapshot.GetEchoOriginals() {
+		restored.echoOriginal[restored.ids.intern(row.GetKey())] = restored.ids.intern(row.GetValue())
+	}
+	for _, row := range snapshot.GetAssetRooms() {
+		restored.assetRoom[row.GetKey()] = row.GetValue()
 	}
 	p.Lock()
-	p.byMessage, p.roomSeq, p.messageRoom, p.echoOriginal, p.assetRoom, p.replayGuard = byMessage, roomSeq, messageRoom, echoOriginal, assetRoom, guard
+	p.ids, p.byMessage, p.roomSeq, p.messageRooms, p.echoOriginal, p.assetRoom, p.replayGuard = restored.ids, restored.byMessage, restored.roomSeq, restored.messageRooms, restored.echoOriginal, restored.assetRoom, restored.replayGuard
 	p.Unlock()
 	return nil
 }
