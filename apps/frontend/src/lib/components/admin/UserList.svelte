@@ -1,13 +1,12 @@
 <!--
 @component
 
-Renders the standard user record table. The caller owns the surrounding panel
-and supplies an optional row-navigation callback.
+Renders the standard user record table. The caller owns the surrounding panel.
+When `clickable` is set, each row links to the member's Server Admin page.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { CopyId } from '$lib/ui';
@@ -28,7 +27,6 @@ and supplies an optional row-navigation callback.
     loading = false,
     clickable = true,
     emptyMessage = m('admin.users.empty'),
-    onUserClick,
     totalCount = users.length,
     hasMore = false,
     loadingMore = false,
@@ -39,7 +37,6 @@ and supplies an optional row-navigation callback.
     loading?: boolean;
     clickable?: boolean;
     emptyMessage?: string;
-    onUserClick?: (user: User) => void;
     /** Total matching users, including pages not yet loaded. */
     totalCount?: number;
     hasMore?: boolean;
@@ -50,18 +47,11 @@ and supplies an optional row-navigation callback.
 
   const serverScope = useServerScope();
 
-  function handleRowClick(user: User) {
-    if (!clickable) return;
-    if (onUserClick) {
-      onUserClick(user);
-    } else {
-      goto(
-        resolve('/chat/[serverId]/manage/server/members/[userId]', {
-          serverId: serverIdToSegment(serverScope.serverId),
-          userId: user.id
-        })
-      );
-    }
+  function memberHref(user: User) {
+    return resolve('/chat/[serverId]/manage/server/members/[userId]', {
+      serverId: serverIdToSegment(serverScope.serverId),
+      userId: user.id
+    });
   }
 </script>
 
@@ -76,7 +66,6 @@ and supplies an optional row-navigation callback.
     {loadingMore}
     {onLoadMore}
     {loadMoreRoot}
-    onRowClick={clickable ? handleRowClick : undefined}
   >
     {#snippet header()}
       <th class="table-header-cell">{m('admin.users.login')}</th>
@@ -84,7 +73,13 @@ and supplies an optional row-navigation callback.
       <th class="table-header-cell">{m('admin.users.id')}</th>
     {/snippet}
     {#snippet row(user: User)}
-      <td class="px-4 py-3 font-medium">{user.login}</td>
+      <td class="px-4 py-3 font-medium">
+        {#if clickable}
+          <a class="data-table-row-link" href={memberHref(user)}>{user.login}</a>
+        {:else}
+          {user.login}
+        {/if}
+      </td>
       <td class="px-4 py-3"><AccountName name={user.displayName} identity={user} /></td>
       <td class="px-4 py-3 text-muted"><CopyId value={user.id} /></td>
     {/snippet}

@@ -889,6 +889,45 @@
 /* Standard record-table header cell. Matrix headers remain deliberately
  * bespoke because their vertical labels encode a different interaction.
  */
+/* DataTable body row. A row becomes navigable when its primary cell contains a
+ * data-table-row-link. Other controls in that row stay above the link's
+ * overlay so that they keep their own pointer behaviour.
+ */
+@utility data-table-row {
+  position: relative;
+
+  &:has(.data-table-row-link) {
+    cursor: pointer;
+  }
+
+  &:has(.data-table-row-link)
+    :is(a, button, input, select, textarea, [tabindex]):not(.data-table-row-link) {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* Real link that navigates a whole DataTable row. Its overlay covers the row
+ * for pointer input, and keyboard focus outlines the complete row. The link
+ * text names the row for assistive technology; callers keep its text styling.
+ */
+@utility data-table-row-link {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:focus-visible::after {
+    outline: 2px solid var(--color-action);
+    outline-offset: -2px;
+  }
+}
+
 /* Header cells set their own alignment: browsers centre th unless the
  * inherited alignment differs from start, so a logical text-start on the row
  * would not reach them. Callers may still override with text-end. */

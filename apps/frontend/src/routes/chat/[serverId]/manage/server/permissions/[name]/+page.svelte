@@ -345,13 +345,6 @@
                   loadMoreRoot={scrollContainer}
                   clickable={canAssignRoles}
                   emptyMessage={m('admin.permissions.no_users_with_role')}
-                  onUserClick={(user) =>
-                    goto(
-                      resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                        serverId: serverSegment,
-                        userId: user.id
-                      })
-                    )}
                 />
               {/if}
             {/if}

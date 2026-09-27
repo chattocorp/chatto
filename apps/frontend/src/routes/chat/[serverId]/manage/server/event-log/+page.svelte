@@ -227,13 +227,11 @@
     );
   }
 
-  function openEntry(entry: AdminEventLogEntry) {
-    goto(
-      resolve('/chat/[serverId]/manage/server/event-log/[sequence]', {
-        serverId: serverIdToSegment(activeServerId),
-        sequence: entry.sequence
-      })
-    );
+  function entryHref(entry: AdminEventLogEntry) {
+    return resolve('/chat/[serverId]/manage/server/event-log/[sequence]', {
+      serverId: serverIdToSegment(activeServerId),
+      sequence: entry.sequence
+    });
   }
 </script>
 
@@ -338,7 +336,6 @@
           loadMoreRoot={scrollContainer}
           loadingMoreMessage={m('admin.event_log.loading_older')}
           getGroupKey={(entry) => dateGroupKey(entry.createdAt)}
-          onRowClick={openEntry}
         >
           {#snippet header()}
             <th class="table-header-cell">{m('admin.event_log.seq')}</th>
@@ -351,7 +348,9 @@
             <td class="px-4 py-3 font-mono text-sm text-muted">{entry.sequence}</td>
             <td class="px-4 py-3 text-sm">{formatTimestamp(entry.createdAt)}</td>
             <td class="px-4 py-3">
-              <Pill tone="action">{entry.eventType || '—'}</Pill>
+              <a class="data-table-row-link" href={entryHref(entry)}>
+                <Pill tone="action">{entry.eventType || '—'}</Pill>
+              </a>
             </td>
             <td class="px-4 py-3 font-mono text-xs">
               {#if entry.aggregateType}

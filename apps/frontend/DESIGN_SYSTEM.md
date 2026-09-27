@@ -584,6 +584,11 @@ single outer radius and clipping boundary: the table viewport becomes square so
 preceding controls or notices meet its header without an inset corner. Do not
 add feature-local radius overrides for this composition. Dense matrices may keep
 an intrinsic content width inside the viewport; ordinary record tables fill it.
+To make a table row navigable, put the `data-table-row-link` class on a real
+link in the row's primary cell, usually the record's name. The link covers the
+whole row for pointer input, is the row's single keyboard stop, and names the
+row for assistive technology. Other links and buttons in the row stay above it
+and keep their own behaviour. Do not attach click handlers to table rows.
 Standard record-table headings use `table-header-cell`; matrix headings remain
 bespoke because their vertical labels have different spatial needs.
 
