@@ -22,13 +22,10 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
-  import {
-    registerAdminUserRemovalListener,
-    registerQueryCacheRemovalListener
-  } from '$lib/query/cacheRegistry';
+  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { FormError } from '$lib/ui/form';
@@ -53,26 +50,17 @@
     })
   );
 
-  let componentActive = true;
-  let privacyGeneration = 0;
+  const session = new SessionGuard(serverScope);
   let removedMember = $state<{ serverId: string; userId: string } | null>(null);
   let roleError = $state<{ targetKey: string; message: string } | null>(null);
 
   const removeUserRemovalListener = registerAdminUserRemovalListener((serverId, removedUserId) => {
     if (serverId !== activeServerId || removedUserId !== userId) return;
-    privacyGeneration += 1;
+    session.invalidate();
     removedMember = { serverId, userId: removedUserId };
   });
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === activeServerId) privacyGeneration += 1;
-  });
 
-  onDestroy(() => {
-    componentActive = false;
-    privacyGeneration += 1;
-    removeUserRemovalListener();
-    removeCacheRemovalListener();
-  });
+  onDestroy(removeUserRemovalListener);
 
   const memberQuery = createQuery(
     () => {
@@ -106,13 +94,10 @@
     roleError?.targetKey === memberTargetKey ? roleError.message : null
   );
 
-  type MemberMutationScope = {
-    serverId: string;
-    connection: ServerConnection;
+  type MemberMutationScope = SessionSnapshot & {
     userId: string;
     queryKey: ReturnType<typeof adminQueryKeys.member>;
     api: AdminUserManagementAPI;
-    privacyGeneration: number;
   };
   type IdentityMutationVariables = MemberMutationScope & {
     input: UpdateUserProfileInput;
@@ -126,27 +111,17 @@
 
   function mutationScope(): MemberMutationScope | null {
     if (!member) return null;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     return {
-      serverId: activeServerId,
-      connection,
+      ...snapshot,
       userId,
-      queryKey: adminQueryKeys.member(activeServerId, connection, userId),
-      api: connection.getAPI(createAdminUserManagementAPI),
-      privacyGeneration
+      queryKey: adminQueryKeys.member(snapshot.serverId, snapshot.connection, userId),
+      api: snapshot.connection.getAPI(createAdminUserManagementAPI)
     };
   }
 
   function isCurrentTarget(target: MemberMutationScope | undefined): target is MemberMutationScope {
-    return (
-      target !== undefined &&
-      componentActive &&
-      serverScope.isCurrent() &&
-      target.serverId === activeServerId &&
-      target.connection.queryScope === serverScope.connection.queryScope &&
-      target.userId === userId &&
-      target.privacyGeneration === privacyGeneration
-    );
+    return session.isCurrent(target) && target.userId === userId;
   }
 
   function updateCachedMember(

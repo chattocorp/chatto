@@ -3,9 +3,9 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { onDestroy, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import {
     deleteServerBanner,
     deleteServerLogo,
@@ -18,7 +18,6 @@
     type EditableServerProfile
   } from '$lib/api-client/serverState';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
@@ -34,21 +33,10 @@
   const MAX_SERVER_DESCRIPTION_BYTES = 500;
 
   const serverScope = useServerScope();
-  let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
+  const session = new SessionGuard(serverScope);
 
-  onDestroy(() => {
-    privacyGeneration += 1;
-    removeCacheRemovalListener();
-  });
-
-  type SettingsMutationScope = {
-    serverId: string;
-    connection: ServerConnection;
+  type SettingsMutationScope = SessionSnapshot & {
     queryKey: ReturnType<typeof adminQueryKeys.serverSettings>;
-    privacyGeneration: number;
   };
 
   type SaveVariables = SettingsMutationScope & { input: EditableServerConfig };
@@ -134,26 +122,11 @@
     goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverScope.serverId) }));
   });
 
-  function isCurrentSession(
-    variables: SettingsMutationScope | undefined
-  ): variables is SettingsMutationScope {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
   function mutationScope(): SettingsMutationScope {
-    const serverId = serverScope.serverId;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     return {
-      serverId,
-      connection,
-      queryKey: adminQueryKeys.serverSettings(serverId, connection),
-      privacyGeneration
+      ...snapshot,
+      queryKey: adminQueryKeys.serverSettings(snapshot.serverId, snapshot.connection)
     };
   }
 
@@ -177,7 +150,7 @@
       mutationFn: ({ connection, input }: SaveVariables) =>
         updateServerConfig(connection.apiConfig, input),
       onSuccess: (profile, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         queryClient.setQueryData<AuthenticatedServerState>(variables.queryKey, (current) =>
           mergeEditableProfile(current, profile)
         );
@@ -252,12 +225,12 @@
         }
       },
       onSuccess: (profile, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         updateAssetSnapshot(variables, profile);
         toast.success(assetSuccessMessage(variables.operation));
       },
       onError: (mutationError, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         toast.error(
           mutationError instanceof Error
             ? mutationError.message
@@ -265,7 +238,7 @@
         );
       },
       onSettled: (_profile, _error, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         if (variables.operation === 'upload-logo' && logoFileInput) logoFileInput.value = '';
         if (variables.operation === 'upload-banner' && bannerFileInput) bannerFileInput.value = '';
       }
@@ -277,22 +250,22 @@
   const saving = $derived(saveMutation.isPending);
   const uploadingLogo = $derived(
     assetMutation.isPending &&
-      isCurrentSession(assetMutation.variables) &&
+      session.isCurrent(assetMutation.variables) &&
       assetMutation.variables.operation === 'upload-logo'
   );
   const deletingLogo = $derived(
     assetMutation.isPending &&
-      isCurrentSession(assetMutation.variables) &&
+      session.isCurrent(assetMutation.variables) &&
       assetMutation.variables.operation === 'delete-logo'
   );
   const uploadingBanner = $derived(
     assetMutation.isPending &&
-      isCurrentSession(assetMutation.variables) &&
+      session.isCurrent(assetMutation.variables) &&
       assetMutation.variables.operation === 'upload-banner'
   );
   const deletingBanner = $derived(
     assetMutation.isPending &&
-      isCurrentSession(assetMutation.variables) &&
+      session.isCurrent(assetMutation.variables) &&
       assetMutation.variables.operation === 'delete-banner'
   );
   const error = $derived.by(() => {
@@ -301,7 +274,7 @@
         ? settingsQuery.error.message
         : m('server_settings.load_failed');
     }
-    if (saveMutation.isError && isCurrentSession(saveMutation.variables)) {
+    if (saveMutation.isError && session.isCurrent(saveMutation.variables)) {
       return saveMutation.error instanceof Error
         ? saveMutation.error.message
         : m('server_settings.save_failed');

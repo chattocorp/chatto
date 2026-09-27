@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Code, ConnectError } from '@connectrpc/connect';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
-  import { onDestroy } from 'svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     browserAuthorizationWindow,
@@ -18,12 +17,11 @@
   import Panel from '$lib/ui/Panel.svelte';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { m } from '$lib/i18n/messages';
-  import { registerServerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
 
@@ -38,29 +36,16 @@
   const serverScope = useServerScope();
   // Private identity data and provider links belong to the accepted account only.
   const accountId = $derived(serverScope.store.accountId);
-  let componentActive = true;
-  let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerServerQueryCacheRemovalListener((removedServerId) => {
-    if (removedServerId === serverScope.serverId) privacyGeneration += 1;
-  });
+  // Account settings stay valid when admin data is removed; only the end of the
+  // server session makes their responses stale.
+  const session = new SessionGuard(serverScope, 'server-session');
 
-  onDestroy(() => {
-    componentActive = false;
-    privacyGeneration += 1;
-    removeCacheRemovalListener();
-  });
-
-  type IdentityMutationScope = {
-    serverId: string;
-    connection: ServerConnection;
-    privacyGeneration: number;
-  };
-  type LinkVariables = IdentityMutationScope & {
+  type LinkVariables = SessionSnapshot & {
     provider: ExternalIdentityProviderInfo;
     currentPassword?: string;
     redirectPath: string;
   };
-  type DisconnectVariables = IdentityMutationScope & {
+  type DisconnectVariables = SessionSnapshot & {
     subjectHash: string;
     providerLabel: string;
     currentPassword?: string;
@@ -96,7 +81,7 @@
   // Keep refreshes bound to the account and session that opened this window.
   let providerLinkWindow = $state.raw<{
     window: AuthorizationWindow;
-    scope: IdentityMutationScope;
+    scope: SessionSnapshot;
     userId: string;
     providerId: string;
   } | null>(null);
@@ -106,7 +91,7 @@
   function providerLinkIsCurrent() {
     return (
       providerLinkWindow !== null &&
-      isCurrentSession(providerLinkWindow.scope) &&
+      session.isCurrent(providerLinkWindow.scope) &&
       providerLinkWindow.userId === accountId
     );
   }
@@ -173,7 +158,7 @@
     authorizationWindow.detachOpener();
     const pending = {
       window: authorizationWindow,
-      scope: mutationScope(),
+      scope: session.snapshot(),
       userId,
       providerId: provider.id
     };
@@ -223,27 +208,6 @@
   let blockedDisconnectProviderLabel = $state('');
   let showDisconnectBlockedModal = $state(false);
 
-  function mutationScope(): IdentityMutationScope {
-    return {
-      serverId: serverScope.serverId,
-      connection: serverScope.connection,
-      privacyGeneration
-    };
-  }
-
-  function isCurrentSession(
-    variables: IdentityMutationScope | undefined
-  ): variables is IdentityMutationScope {
-    return (
-      variables !== undefined &&
-      componentActive &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
   const linkMutation = createMutation(
     () => ({
       mutationFn: ({
@@ -274,12 +238,12 @@
   );
 
   const linkingProviderId = $derived(
-    linkMutation.isPending && isCurrentSession(linkMutation.variables)
+    linkMutation.isPending && session.isCurrent(linkMutation.variables)
       ? linkMutation.variables.provider.id
       : ''
   );
   const disconnectingSubjectHash = $derived(
-    disconnectMutation.isPending && isCurrentSession(disconnectMutation.variables)
+    disconnectMutation.isPending && session.isCurrent(disconnectMutation.variables)
       ? disconnectMutation.variables.subjectHash
       : ''
   );
@@ -327,7 +291,7 @@
     returnURL.searchParams.set('link_user', accountId ?? '');
     returnURL.searchParams.set('link_complete', '1');
     const variables: LinkVariables = {
-      ...mutationScope(),
+      ...session.snapshot(),
       provider,
       currentPassword,
       redirectPath: returnURL.pathname + returnURL.search + returnURL.hash
@@ -335,10 +299,10 @@
     actionError = '';
     try {
       const startUrl = await linkMutation.mutateAsync(variables);
-      if (!isCurrentSession(variables)) return;
+      if (!session.isCurrent(variables)) return;
       window.location.href = startUrl;
     } catch (err) {
-      if (!isCurrentSession(variables)) return;
+      if (!session.isCurrent(variables)) return;
       if (
         err instanceof ConnectError &&
         err.code === Code.FailedPrecondition &&
@@ -428,7 +392,7 @@
   ) {
     const { subjectHash, providerLabel } = target;
     const variables: DisconnectVariables = {
-      ...mutationScope(),
+      ...session.snapshot(),
       subjectHash,
       providerLabel,
       currentPassword
@@ -436,7 +400,7 @@
     actionError = '';
     try {
       await disconnectMutation.mutateAsync(variables);
-      if (!isCurrentSession(variables)) {
+      if (!session.isCurrent(variables)) {
         return;
       }
       disconnectTarget = null;
@@ -445,7 +409,7 @@
       disconnectFreshAuthError = '';
       await identitiesQuery.refetch();
     } catch (err) {
-      if (!isCurrentSession(variables)) {
+      if (!session.isCurrent(variables)) {
         return;
       }
       if (

@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   projectionHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
   directoryAPI: null as MemberDirectoryAPI | null,
   commandAPI: null as RoomCommandAPI | null,
+  serverId: 'server-1',
   queryScope: 'session-1',
   scopeCurrent: true
 }));
@@ -44,6 +45,9 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
+    get serverId() {
+      return mocks.serverId;
+    },
     get connection() {
       return {
         queryScope: mocks.queryScope,
@@ -147,9 +151,10 @@ function renderPanel(
     canManageMembers: boolean;
   }> = {}
 ) {
+  mocks.serverId = overrides.serverId ?? 'server-1';
   return render(RoomMembersPanel, {
     props: {
-      serverId: overrides.serverId ?? 'server-1',
+      serverId: mocks.serverId,
       roomId: overrides.roomId ?? 'room-1',
       roomName: 'general',
       isUniversal: overrides.isUniversal ?? false,

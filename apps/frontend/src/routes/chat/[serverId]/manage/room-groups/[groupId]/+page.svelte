@@ -2,13 +2,12 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
-  import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import {
     createAdminRoomLayoutAPI,
     type AdminManagedRoomGroup
   } from '$lib/api-client/adminRoomLayout';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
@@ -26,7 +25,6 @@
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomGroupQuery
   } from '$lib/query/adminInvalidation';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
   import type { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import { m } from '$lib/i18n/messages';
@@ -38,26 +36,15 @@
   const backHref = $derived(resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }));
 
   const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
-  let privacyGeneration = 0;
+  const session = new SessionGuard(serverScope);
+  /** Increases when the group snapshot changes, so an older save does not overwrite it. */
   let snapshotGeneration = 0;
   let formRevision = $state(0);
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
 
-  onDestroy(() => {
-    privacyGeneration += 1;
-    snapshotGeneration += 1;
-    removeCacheRemovalListener();
-  });
-
-  type GroupMutationScope = {
-    serverId: string;
-    connection: ServerConnection;
+  type GroupMutationScope = SessionSnapshot & {
     groupId: string;
     queryKey: ReturnType<typeof adminQueryKeys.roomGroup>;
     api: ReturnType<typeof createAdminRoomLayoutAPI>;
-    privacyGeneration: number;
     snapshotGeneration: number;
     input: ReturnType<typeof buildRoomGroupSettingsUpdate>;
   };
@@ -94,14 +81,7 @@
   );
 
   function isCurrentGroup(variables: GroupMutationScope | undefined): boolean {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === activeServerId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.groupId === groupId &&
-      variables.privacyGeneration === privacyGeneration
-    );
+    return session.isCurrent(variables) && variables.groupId === groupId;
   }
 
   function canApplyGroupSnapshot(variables: GroupMutationScope): boolean {
@@ -146,14 +126,12 @@
 
   function saveGeneralSettings(input: ReturnType<typeof buildRoomGroupSettingsUpdate>): void {
     if (!canManageGroup || updateGroupMutation.isPending) return;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     updateGroupMutation.mutate({
-      serverId: activeServerId,
-      connection,
+      ...snapshot,
       groupId,
-      queryKey: adminQueryKeys.roomGroup(activeServerId, connection, groupId),
-      api: connection.getAPI(createAdminRoomLayoutAPI),
-      privacyGeneration,
+      queryKey: adminQueryKeys.roomGroup(snapshot.serverId, snapshot.connection, groupId),
+      api: snapshot.connection.getAPI(createAdminRoomLayoutAPI),
       snapshotGeneration,
       input
     });
@@ -170,7 +148,7 @@
           groupId
         );
       } else {
-        privacyGeneration += 1;
+        session.invalidate();
         purgeAdminRoomGroupQuery(activeServerId, serverScope.connection, groupId);
       }
     }

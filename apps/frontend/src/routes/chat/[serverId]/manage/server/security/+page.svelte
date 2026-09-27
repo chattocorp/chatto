@@ -5,7 +5,6 @@
     createQuery,
     type InfiniteData
   } from '@tanstack/svelte-query';
-  import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import {
     createOAuthClientAPI,
@@ -22,10 +21,9 @@
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -38,30 +36,16 @@
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
-  let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
+  const session = new SessionGuard(serverScope);
 
-  onDestroy(() => {
-    privacyGeneration += 1;
-    removeCacheRemovalListener();
-  });
-
-  type SecurityMutationVariables = {
-    serverId: string;
-    connection: ServerConnection;
+  type SecurityMutationVariables = SessionSnapshot & {
     queryKey: ReturnType<typeof adminQueryKeys.securityConfig>;
     blockedUsernames: string;
-    privacyGeneration: number;
   };
 
-  type OAuthClientPolicyMutationVariables = {
-    serverId: string;
-    connection: ServerConnection;
+  type OAuthClientPolicyMutationVariables = SessionSnapshot & {
     clientId: string;
     policy: EditableOAuthClientPolicyName;
-    privacyGeneration: number;
   };
 
   type OAuthClientPage = {
@@ -76,7 +60,7 @@
     return JSON.stringify([
       variables.serverId,
       variables.connection.queryScope,
-      variables.privacyGeneration,
+      variables.generation,
       variables.clientId
     ]);
   }
@@ -111,41 +95,17 @@
     () => queryClient
   );
 
-  function isCurrentSession(
-    variables: SecurityMutationVariables | undefined
-  ): variables is SecurityMutationVariables {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
-  function isCurrentOAuthClientSession(
-    variables: OAuthClientPolicyMutationVariables | undefined
-  ): variables is OAuthClientPolicyMutationVariables {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
   const securityMutation = createMutation(
     () => ({
       mutationFn: ({ connection, blockedUsernames }: SecurityMutationVariables) =>
         updateBlockedUsernames(connection.apiConfig, blockedUsernames),
       onSuccess: (config, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         queryClient.setQueryData(variables.queryKey, config);
         toast.success(m('admin.security.settings_saved'));
       },
       onError: (mutationError, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
       }
     }),
@@ -157,7 +117,7 @@
       mutationFn: ({ connection, clientId, policy }: OAuthClientPolicyMutationVariables) =>
         connection.getAPI(createOAuthClientAPI).updatePolicy(clientId, policy),
       onSuccess: (client, variables) => {
-        if (!isCurrentOAuthClientSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         const queryKey = adminQueryKeys.oauthClients(variables.serverId, variables.connection);
         queryClient.setQueryData<InfiniteData<OAuthClientPage, number>>(queryKey, (current) =>
           current
@@ -178,7 +138,7 @@
         toast.success(m('admin.security.oauth_clients.policy_saved'));
       },
       onError: (mutationError, variables) => {
-        if (!isCurrentOAuthClientSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
       },
       onSettled: (_client, _mutationError, variables) => {
@@ -192,7 +152,7 @@
   let blockedUsernames = $derived(securityConfig?.blockedUsernames ?? '');
   const loading = $derived(securityQuery.isPending);
   const saving = $derived(
-    securityMutation.isPending && isCurrentSession(securityMutation.variables)
+    securityMutation.isPending && session.isCurrent(securityMutation.variables)
   );
   const changed = $derived(
     securityConfig !== null && blockedUsernames !== securityConfig.blockedUsernames
@@ -200,7 +160,7 @@
   const error = $derived.by(() => {
     const queryError = securityQuery.error;
     if (queryError) return queryError instanceof Error ? queryError.message : String(queryError);
-    if (securityMutation.isError && isCurrentSession(securityMutation.variables)) {
+    if (securityMutation.isError && session.isCurrent(securityMutation.variables)) {
       return securityMutation.error instanceof Error
         ? securityMutation.error.message
         : String(securityMutation.error);
@@ -217,14 +177,11 @@
   function save(e: Event) {
     e.preventDefault();
     if (!changed || saving) return;
-    const serverId = serverScope.serverId;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     securityMutation.mutate({
-      serverId,
-      connection,
-      queryKey: adminQueryKeys.securityConfig(serverId, connection),
-      blockedUsernames,
-      privacyGeneration
+      ...snapshot,
+      queryKey: adminQueryKeys.securityConfig(snapshot.serverId, snapshot.connection),
+      blockedUsernames
     });
   }
 
@@ -237,13 +194,7 @@
     if (client.policy === 'unknown') return;
     if (policy === client.policy || !isEditableOAuthClientPolicy(policy)) return;
 
-    const variables = {
-      serverId: serverScope.serverId,
-      connection: serverScope.connection,
-      clientId: client.clientId,
-      policy,
-      privacyGeneration
-    };
+    const variables = { ...session.snapshot(), clientId: client.clientId, policy };
     const mutationKey = oauthClientPolicyMutationKey(variables);
     if (pendingOAuthClientPolicies.has(mutationKey)) return;
 
@@ -270,11 +221,9 @@
     if (client.policy === 'unknown') return false;
     return pendingOAuthClientPolicies.has(
       oauthClientPolicyMutationKey({
-        serverId: serverScope.serverId,
-        connection: serverScope.connection,
+        ...session.snapshot(),
         clientId: client.clientId,
-        policy: client.policy,
-        privacyGeneration
+        policy: client.policy
       })
     );
   }

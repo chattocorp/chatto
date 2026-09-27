@@ -4,11 +4,10 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
-  import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { UserList } from '$lib/components/admin';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
@@ -24,30 +23,18 @@
   } from '$lib/query/adminInvalidation';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
-  let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
+  const session = new SessionGuard(serverScope);
 
-  onDestroy(() => {
-    privacyGeneration += 1;
-    removeCacheRemovalListener();
-  });
-
-  type RoleMutationScope = {
-    serverId: string;
-    connection: ServerConnection;
+  type RoleMutationScope = SessionSnapshot & {
     roleName: string;
     queryKey: ReturnType<typeof adminQueryKeys.role>;
     api: ReturnType<typeof createRoleAPI>;
-    privacyGeneration: number;
     canComplete: () => boolean;
   };
 
@@ -107,24 +94,12 @@
   let deleteConfirmRoleName = $state<string | null>(null);
   let metadataRevision = $state(0);
 
-  function isCurrentSession(
-    variables: RoleMutationScope | undefined
-  ): variables is RoleMutationScope {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
   function isCurrentRole(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
-    return isCurrentSession(variables) && variables.roleName === roleName;
+    return session.isCurrent(variables) && variables.roleName === roleName;
   }
 
   function updateRoleSnapshot(variables: RoleMutationScope, updatedRole: Role): void {
-    if (!isCurrentSession(variables)) return;
+    if (!session.isCurrent(variables)) return;
     queryClient.setQueryData<RoleDetails>(variables.queryKey, (current) =>
       current ? { ...current, role: updatedRole } : current
     );
@@ -178,15 +153,12 @@
   );
 
   function mutationScope(targetRole: Role): RoleMutationScope {
-    const serverId = serverScope.serverId;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     return {
-      serverId,
-      connection,
+      ...snapshot,
       roleName: targetRole.name,
-      queryKey: adminQueryKeys.role(serverId, connection, targetRole.name),
-      api: connection.getAPI(createRoleAPI),
-      privacyGeneration,
+      queryKey: adminQueryKeys.role(snapshot.serverId, snapshot.connection, targetRole.name),
+      api: snapshot.connection.getAPI(createRoleAPI),
       canComplete: captureMutationCompletion(serverScope)
     };
   }

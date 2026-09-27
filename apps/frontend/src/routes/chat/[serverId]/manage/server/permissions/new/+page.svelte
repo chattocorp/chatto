@@ -3,11 +3,10 @@
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
-  import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
@@ -18,31 +17,19 @@
   import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
-
-  onDestroy(() => {
-    privacyGeneration += 1;
-    removeCacheRemovalListener();
-  });
+  const session = new SessionGuard(serverScope);
 
   let name = $state('');
   let displayName = $state('');
   let description = $state('');
   let pingable = $state(false);
 
-  type CreateRoleVariables = {
-    serverId: string;
-    connection: ServerConnection;
+  type CreateRoleVariables = SessionSnapshot & {
     api: ReturnType<typeof createRoleAPI>;
     input: CreateRoleInput;
-    privacyGeneration: number;
     canComplete: () => boolean;
   };
 
@@ -57,18 +44,6 @@
     },
     () => queryClient
   );
-
-  function isCurrentSession(
-    variables: CreateRoleVariables | undefined
-  ): variables is CreateRoleVariables {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
 
   const createRoleMutation = createMutation(
     () => ({
@@ -91,14 +66,11 @@
   );
 
   function createRole() {
-    const targetServerId = serverScope.serverId;
     const targetName = name.trim();
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     createRoleMutation.mutate({
-      serverId: targetServerId,
-      connection,
-      api: connection.getAPI(createRoleAPI),
-      privacyGeneration,
+      ...snapshot,
+      api: snapshot.connection.getAPI(createRoleAPI),
       canComplete: captureMutationCompletion(serverScope),
       input: {
         name: targetName,
@@ -112,12 +84,12 @@
   const canManageRoles = $derived(roleCatalogQuery.data?.viewerCanManageRoles ?? false);
   const loading = $derived(roleCatalogQuery.isPending);
   const creating = $derived(
-    createRoleMutation.isPending && isCurrentSession(createRoleMutation.variables)
+    createRoleMutation.isPending && session.isCurrent(createRoleMutation.variables)
   );
   const error = $derived(
     roleCatalogQuery.isError
       ? m('admin.permissions.load_instance_failed')
-      : createRoleMutation.isError && isCurrentSession(createRoleMutation.variables)
+      : createRoleMutation.isError && session.isCurrent(createRoleMutation.variables)
         ? createRoleMutation.error instanceof Error
           ? createRoleMutation.error.message
           : m('admin.permissions.load_instance_failed')

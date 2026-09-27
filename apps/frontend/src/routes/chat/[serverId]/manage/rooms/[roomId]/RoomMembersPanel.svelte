@@ -31,7 +31,7 @@
     ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
     roomMembersQueryPage
   } from '$lib/query/roomMembers';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -54,6 +54,7 @@
   } = $props();
 
   const serverScope = useServerScope();
+  const session = new SessionGuard(serverScope);
 
   let selectedUser = $state<DirectoryMember | null>(null);
   let selectedUserId = $state('');
@@ -61,8 +62,6 @@
   let removeCandidate = $state<DirectoryMember | null>(null);
   let activeDirectorySearch = $state('');
   let directoryDebouncePending = $state(false);
-  let privacyGeneration = 0;
-  let disposed = false;
   const searchDebounce = useDebounce();
 
   const canEditMembership = $derived(canManageMembers && !isUniversal && !archived);
@@ -119,11 +118,8 @@
     () => queryClient
   );
 
-  type MemberMutationScope = {
-    serverId: string;
+  type MemberMutationScope = SessionSnapshot & {
     roomId: string;
-    connection: ServerConnection;
-    privacyGeneration: number;
     user: DirectoryMember;
   };
 
@@ -183,18 +179,14 @@
       : null
   );
 
-  onDestroy(() => {
-    disposed = true;
-    privacyGeneration += 1;
-    searchDebounce.cancel();
-  });
+  onDestroy(() => searchDebounce.cancel());
 
   useProjectionEvent((event) => {
     if (event.resource?.case === 'rooms') {
       if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
         void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
       } else {
-        privacyGeneration += 1;
+        session.invalidate();
         clearLocalState();
         purgeRoomMemberQueries(serverId, serverScope.connection, roomId);
       }
@@ -208,7 +200,7 @@
       const affectsMutation =
         addMemberMutation.variables?.user.id === userId ||
         removeMemberMutation.variables?.user.id === userId;
-      if (affectsSelection || affectsRemoval || affectsMutation) privacyGeneration += 1;
+      if (affectsSelection || affectsRemoval || affectsMutation) session.invalidate();
       if (affectsSelection) clearSelectedUser();
       if (affectsRemoval) removeCandidate = null;
     }
@@ -249,25 +241,11 @@
   }
 
   function mutationTarget(user: DirectoryMember): MemberMutationScope {
-    return {
-      serverId,
-      roomId,
-      connection: serverScope.connection,
-      privacyGeneration,
-      user
-    };
+    return { ...session.snapshot(), roomId, user };
   }
 
   function isCurrentTarget(target: MemberMutationScope | undefined): boolean {
-    return (
-      target !== undefined &&
-      !disposed &&
-      serverScope.isCurrent() &&
-      target.serverId === serverId &&
-      target.roomId === roomId &&
-      target.connection.queryScope === serverScope.connection.queryScope &&
-      target.privacyGeneration === privacyGeneration
-    );
+    return session.isCurrent(target) && target.roomId === roomId;
   }
 
   async function reconcileMembership(target: MemberMutationScope): Promise<void> {
