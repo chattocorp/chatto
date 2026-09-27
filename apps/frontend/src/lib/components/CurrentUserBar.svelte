@@ -194,8 +194,15 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   }
 
   async function choosePresenceMode(mode: PresenceStatus) {
+    const scope = presenceScope;
+    const store = activeStore;
     try {
-      if (presenceScope) await setPresenceStatus(presenceScope, mode);
+      if (scope) {
+        await setPresenceStatus(scope, mode);
+        // Show the saved choice at once. The server's presence event corrects it
+        // if the effective status differs.
+        store.presence.set(scope.userId, mode);
+      }
       statusMenuAnchor = null;
     } catch {
       toast.error(m('settings.profile.status.save_failed'));

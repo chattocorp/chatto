@@ -901,7 +901,9 @@ export class ServerStateStore {
           break;
         }
         case 'users': {
-          // Snapshot users can omit presence, which must not overwrite a known status.
+          // A partial read without presence keeps the known status. A complete
+          // replacement, such as the snapshot, which never carries presence,
+          // forgets all presence until catch-up reads the users again.
           this.presence.applySnapshot(
             resource.value.users.flatMap((member) =>
               member.user?.id ? [[member.user.id, member.user.presenceStatus] as const] : []

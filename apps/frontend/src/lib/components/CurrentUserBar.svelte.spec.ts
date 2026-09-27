@@ -465,6 +465,26 @@ describe('CurrentUserBar', () => {
     expect(presencePreferences.get(remote).status).toBe(PresenceStatus.OFFLINE);
   });
 
+  it('shows a saved presence choice before the server reports it', async () => {
+    presence.set('user-1', PresenceStatus.ONLINE);
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    const away = await vi.waitFor(() => {
+      const item = Array.from(container.querySelectorAll('[role="menuitemradio"]')).find(
+        (candidate) => candidate.textContent?.includes('Away')
+      ) as HTMLButtonElement | undefined;
+      expect(item).toBeTruthy();
+      return item!;
+    });
+    away.click();
+
+    await vi.waitFor(() => {
+      expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
+    });
+    expect(presence.get('user-1')).toBe(PresenceStatus.AWAY);
+  });
+
   it('keeps the previous selection and reports a failed presence save', async () => {
     const { container } = render(CurrentUserBarTestHarness);
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();

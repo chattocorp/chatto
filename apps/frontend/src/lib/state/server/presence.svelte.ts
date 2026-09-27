@@ -13,8 +13,12 @@ export class ServerPresence {
   /** The version of the latest change for each user, for the preview fence. */
   #changedAt = new SvelteMap<string, number>();
 
+  #version = $state(0);
+
   /** Increases with every change. Read it to react to any presence change. */
-  version = $state(0);
+  get version(): number {
+    return this.#version;
+  }
 
   /** The known presence of a user, or undefined when it is not known. */
   get(userId: string): PresenceStatus | undefined {
@@ -24,9 +28,9 @@ export class ServerPresence {
   /** Apply a presence change or a fresh profile value. An unspecified status changes nothing. */
   set(userId: string, status: PresenceStatus): void {
     if (status === PresenceStatus.UNSPECIFIED) return;
-    this.version++;
+    this.#version++;
     this.#statuses.set(userId, status);
-    this.#changedAt.set(userId, this.version);
+    this.#changedAt.set(userId, this.#version);
   }
 
   /**
@@ -51,6 +55,6 @@ export class ServerPresence {
   clear(): void {
     this.#statuses.clear();
     this.#changedAt.clear();
-    this.version++;
+    this.#version++;
   }
 }
