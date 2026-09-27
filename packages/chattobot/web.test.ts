@@ -1,5 +1,14 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { browseWeb, searchWeb, webSettings, webTools } from './web.ts';
+import type { AgentExtensionAPI, AgentTasks } from 'runling/agents';
+import {
+  browseWeb,
+  createUrlAllowlist,
+  guardTaskSteering,
+  searchWeb,
+  webExtension,
+  webSettings,
+  webTools
+} from './web.ts';
 import { ConfigurationError } from './settings.ts';
 
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
@@ -98,3 +107,62 @@ test.each(['file:///etc/passwd', 'ftp://example.com/', 'https://user:pw@example.
     expect(request).not.toHaveBeenCalled();
   }
 );
+
+test('the browse allowlist keeps exact known URLs and resolves page-relative links', () => {
+  const allowlist = createUrlAllowlist();
+  allowlist.addFrom('Read https://example.com/guide, then (https://example.com/faq#top).');
+  expect(allowlist.has('https://example.com/guide')).toBe(true);
+  expect(allowlist.has('https://example.com/faq')).toBe(true);
+  expect(allowlist.has('https://example.com/guide?leak=thread-text')).toBe(false);
+  expect(allowlist.has('https://attacker.example/')).toBe(false);
+  allowlist.addFrom('[Install](/docs/install) and [Next](next.md)', 'https://example.com/docs/');
+  expect(allowlist.has('https://example.com/docs/install')).toBe(true);
+  expect(allowlist.has('https://example.com/docs/next.md')).toBe(true);
+  allowlist.addFrom('[Relative](/ignored)');
+  expect(allowlist.has('https://example.com/ignored')).toBe(false);
+});
+
+test('browsePage opens only allowlisted URLs and adds links from pages it reads', async () => {
+  const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
+  const allowlist = createUrlAllowlist();
+  allowlist.addFrom('https://example.com/start');
+  const onWebContent = vi.fn();
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () => Response.json({ success: true, result: '[Next](/next)' }));
+  const extension = webExtension({ cloudflare }, onWebContent, allowlist, request);
+  const factory = typeof extension === 'function' ? extension : extension.factory;
+  await factory({
+    registerTool(tool) {
+      tools.set(tool.name, tool as never);
+    }
+  } as AgentExtensionAPI);
+  const browse = (url: string) => tools.get('browsePage')!.execute('call', { url } as never);
+  await expect(browse('https://attacker.example/?d=secret')).rejects.toThrow('can open only');
+  expect(request).not.toHaveBeenCalled();
+  expect(onWebContent).not.toHaveBeenCalled();
+  await browse('https://example.com/start');
+  expect(onWebContent).toHaveBeenCalledOnce();
+  await browse('https://example.com/next');
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+test('the steering guard blocks only send and keeps other task operations', async () => {
+  let blocked = true;
+  const tasks = {
+    send: vi.fn(async () => {}),
+    cancel: vi.fn(),
+    get active() {
+      return true;
+    }
+  } as unknown as AgentTasks;
+  const guarded = guardTaskSteering(tasks, () => blocked);
+  expect(() => guarded.send('task', 'message')).toThrow('blocked after reading web content');
+  expect(tasks.send).not.toHaveBeenCalled();
+  guarded.cancel('task');
+  expect(tasks.cancel).toHaveBeenCalledWith('task');
+  expect(guarded.active).toBe(true);
+  blocked = false;
+  await guarded.send('task', 'message');
+  expect(tasks.send).toHaveBeenCalledWith('task', 'message');
+});

@@ -13,7 +13,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('web content blocks implementation and task steering until the next turn', async () => {
+test('web content blocks implementation and task steering until the next user message', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn<typeof fetch>(async () =>
@@ -48,10 +48,18 @@ test('web content blocks implementation and task steering until the next turn', 
     await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
       'blocked after reading web content'
     );
-    await expect(call('askImplementation', { id: 'task', question: 'Why?' })).rejects.toThrow();
     options.onBusy(false);
 
-    // A new human turn clears the guard; the unknown task now fails for its own reason.
+    // A notification turn keeps the guard: the web content remains in the agent history.
+    await options.prepareMessage('{"type":"task.completed"}', 'notification');
+    options.onBusy(true);
+    await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.toThrow(
+      'blocked after reading web content'
+    );
+    options.onBusy(false);
+
+    // A new user message clears the guard; the unknown task now fails for its own reason.
+    await options.prepareMessage('Yes, please continue', 'user');
     options.onBusy(true);
     await expect(call('task_send', { id: 'task', message: 'Do it' })).rejects.not.toThrow(
       'blocked after reading web content'

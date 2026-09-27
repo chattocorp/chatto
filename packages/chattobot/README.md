@@ -176,11 +176,20 @@ on its network and returns up to 30,000 characters of Markdown. Target sites see
 Cloudflare, not the bot host, and the bot cannot reach private network addresses
 through this tool.
 
-Web content can contain instructions that try to control the agent. After the
-agent reads web content in a turn, the host refuses `implementChatto`,
-`askImplementation`, and `task_send` until the user sends a new message.
-Read-only investigation remains available. Instructions in earlier web content
-remain in the conversation history, so use web access only with trusted users.
+Web content and messages from other thread participants can contain instructions
+that try to control the agent. The host applies these limits:
+
+- `browsePage` opens only URLs that appear in the conversation owner's messages, in
+  `webSearch` results, or as links on pages that it already read. Injected text
+  therefore cannot add conversation data to a URL and send it to another server.
+- After the agent reads web content, the host refuses `implementChatto`,
+  `askImplementation`, and `task_send` until the user sends a new message. Task
+  notifications do not remove this limit.
+
+Read-only investigation and `task_cancel` remain available. Instructions in earlier
+web content remain in the conversation history, and an investigation plan can
+contain them. Review plans before you ask for implementation, and use web access
+only with trusted users.
 
 Tavily receives each search query and the host's IP address. Cloudflare receives
 each page URL and the host's IP address. The agent is instructed not to put
