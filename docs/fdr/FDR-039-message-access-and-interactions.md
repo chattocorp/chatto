@@ -178,7 +178,7 @@ needs its own broad or narrow grant.
 relationships. A client supplies a known thread root to the normal thread API,
 which applies the current access rules.
 **Why:** A relationship is an authorization input, not a user-managed resource.
-This keeps internal cause metadata out of the public API.
+This keeps authorization inputs out of the public API.
 **Tradeoff:** Clients cannot enumerate related threads. A bot learns the
 relevant message and thread IDs from its normal notification occurrences.
 

@@ -461,7 +461,8 @@ server.
 - Run `mise bench-projections-store` to measure retained heap, request-path
   reads, and replay against a real EVT history. Set
   `CHATTO_BENCH_EVT_STORE_DIR` to a copy of a NATS data directory under
-  `.context/bench/`. Never use a live server's directory. The copy holds real
+  `.context/bench/`. Use an absolute path or a path relative to `cli/`. Never
+  use a live server's directory. The copy holds real
   user data; delete it after use. Compare base and branch results with
   `benchstat` before you ship a memory change.
 - For realtime connection-memory work, negotiate production WebSocket

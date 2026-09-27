@@ -263,8 +263,8 @@ keys for follow state and followed-thread indexes.
 Threads interns user and room IDs in one small table and event IDs in a second
 table. Its indexes store `uint32` handles instead of ID strings. Each ID string
 is held once. Handles are process-local; snapshots store ID strings. Room
-deletion removes the room's message references and relationships. The interned
-IDs of that room stay until the next rebuild or restore.
+deletion removes the room's message references and relationships. The message
+IDs of that room stay in the table. Only a snapshot restore removes them.
 
 Reactions interns message, emoji, user, and room IDs in one table. It keeps the
 source event ID of each active reaction as a string, because each source ID

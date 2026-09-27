@@ -73,9 +73,16 @@ func BenchmarkProjectionRetainedHeapFromStore(b *testing.B) {
 // projectionBenchmarkStoreDir returns the configured store copy or skips.
 func projectionBenchmarkStoreDir(b *testing.B) string {
 	b.Helper()
-	storeDir := os.Getenv(projectionBenchmarkStoreEnv)
-	if storeDir == "" {
+	configured := os.Getenv(projectionBenchmarkStoreEnv)
+	if configured == "" {
 		b.Skipf("set %s to a copied NATS data directory", projectionBenchmarkStoreEnv)
+	}
+	// Resolve relative paths against the module root, not the package
+	// directory that go test runs in, and refuse missing directories so NATS
+	// does not create an empty store in the source tree.
+	storeDir := projectionBenchmarkOutputDirectory(b, configured)
+	if info, err := os.Stat(storeDir); err != nil || !info.IsDir() {
+		b.Fatalf("%s=%q is not a directory", projectionBenchmarkStoreEnv, configured)
 	}
 	return storeDir
 }

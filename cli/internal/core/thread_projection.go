@@ -468,8 +468,8 @@ func (p *ThreadProjection) addInteractionLocked(userID string, room, root uint32
 }
 
 // removeRoomInteractionStateLocked drops the message refs and relationships of
-// a deleted room. Interned IDs stay in the table until the next rebuild or
-// snapshot restore.
+// a deleted room. The room's message IDs stay in the append-only ID table;
+// only a snapshot restore, which interns live state only, removes them.
 func (p *ThreadProjection) removeRoomInteractionStateLocked(roomID string) {
 	room, ok := p.principalIDs.lookup(roomID)
 	if !ok {
