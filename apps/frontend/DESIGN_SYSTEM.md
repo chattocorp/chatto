@@ -149,6 +149,7 @@ a side stripe or cast shadow for navigation selection.
 | Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
 | Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
+| Lazily loaded part failed to load           | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
 
 `TextInput` and `Select` accept `labelHidden` when the surrounding context
 already names the control, for example a policy column in a table row. The

@@ -21,6 +21,7 @@ export { default as Hint } from './Hint.svelte';
 export { default as LoadingPage } from './LoadingPage.svelte';
 export { default as LoadingDots } from './LoadingDots.svelte';
 export { default as LoadingFog } from './LoadingFog.svelte';
+export { default as LoadRetry } from './LoadRetry.svelte';
 export { default as MarkdownHtml } from './MarkdownHtml.svelte';
 export { default as MenuItem } from './MenuItem.svelte';
 export { default as MenuSection } from './MenuSection.svelte';
