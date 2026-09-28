@@ -21,7 +21,7 @@
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
@@ -36,7 +36,7 @@
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
 
   type SecurityMutationVariables = SessionSnapshot & {
     queryKey: ReturnType<typeof adminQueryKeys.securityConfig>;

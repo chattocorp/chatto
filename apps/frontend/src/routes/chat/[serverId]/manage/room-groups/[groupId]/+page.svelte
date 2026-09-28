@@ -7,7 +7,7 @@
     createAdminRoomLayoutAPI,
     type AdminManagedRoomGroup
   } from '$lib/api-client/adminRoomLayout';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
@@ -36,7 +36,7 @@
   const backHref = $derived(resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }));
 
   const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
   /** Increases when the group snapshot changes, so an older save does not overwrite it. */
   let snapshotGeneration = 0;
   let formRevision = $state(0);

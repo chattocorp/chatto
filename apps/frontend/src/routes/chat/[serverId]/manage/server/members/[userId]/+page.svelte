@@ -25,7 +25,7 @@
   import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { FormError } from '$lib/ui/form';
@@ -50,7 +50,7 @@
     })
   );
 
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
   let removedMember = $state<{ serverId: string; userId: string } | null>(null);
   let roleError = $state<{ targetKey: string; message: string } | null>(null);
 

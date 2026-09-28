@@ -5,89 +5,58 @@ import {
 import type { ServerScope } from './scope.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 
-/** The server session in which a mutation started. Check it with {@link SessionGuard.isCurrent}. */
+/** The session in which a mutation started. */
 export type SessionSnapshot = {
   readonly serverId: string;
   readonly connection: ServerConnection;
   readonly generation: number;
 };
 
-/**
- * Which cache event ends the session:
- * - `private-data`: the server removes or rechecks its private or admin query
- *   data, for example at sign-out, at a reset, or when the viewer's rights
- *   change.
- * - `server-session`: the server session ends, or the viewer's permissions are
- *   rechecked. Account settings use this, because a change of admin data alone
- *   does not affect them.
- */
-export type SessionFence = 'private-data' | 'server-session';
+export type SessionGuard = ReturnType<typeof createSessionGuard>;
 
 /**
- * Tells whether the response to a mutation still belongs to the screen that
- * sent it. Take a {@link snapshot} when the mutation starts, and check it with
- * {@link isCurrent} before the response changes the screen or its caches.
+ * Tells whether a mutation response still belongs to the screen that sent it.
+ * Take a `snapshot()` when the mutation starts, and check it with `isCurrent()`
+ * before the response changes the screen or its caches.
  *
- * A snapshot becomes stale when the route leaves its server, the connection
- * changes its query scope, the component is destroyed, the fence removes the
- * server's query data, or the owner calls {@link invalidate}.
+ * A snapshot is stale after the route leaves its server or connection session,
+ * after the component is destroyed, after `invalidate()`, and after the server
+ * removes or rechecks its private query data. Account settings use the
+ * `'server-session'` fence, which ignores changes to admin data only.
  *
- * Create the guard while a component initializes.
+ * Call it while a component initializes.
  */
-export class SessionGuard {
-  readonly #scope: ServerScope;
-  /**
-   * The session generation. A plain field is the source, because an effect
-   * teardown reads the old value of `$state`. `#reactiveGeneration` mirrors it
-   * so that derived values that call {@link isCurrent} update.
-   */
-  #generation = 0;
-  #reactiveGeneration = $state(0);
+export function createSessionGuard(
+  scope: ServerScope,
+  fence: 'private-data' | 'server-session' = 'private-data'
+) {
+  let generation = 0;
+  const register =
+    fence === 'server-session'
+      ? registerServerQueryCacheRemovalListener
+      : registerQueryCacheRemovalListener;
+  const unregister = register((serverId) => {
+    if (serverId === scope.serverId) generation++;
+  });
+  $effect(() => () => {
+    generation++;
+    unregister();
+  });
 
-  constructor(scope: ServerScope, fence: SessionFence = 'private-data') {
-    this.#scope = scope;
-    const register =
-      fence === 'server-session'
-        ? registerServerQueryCacheRemovalListener
-        : registerQueryCacheRemovalListener;
-    const unregister = register((serverId) => {
-      if (serverId === scope.serverId) this.invalidate();
-    });
-    // The teardown runs when the owning component is destroyed.
-    $effect(() => () => {
-      this.invalidate();
-      unregister();
-    });
-  }
-
-  /** The current session, to attach to mutation variables. */
-  snapshot(): SessionSnapshot {
-    return {
-      serverId: this.#scope.serverId,
-      connection: this.#scope.connection,
-      generation: this.#generation
-    };
-  }
-
-  /**
-   * Whether a snapshot still belongs to the current session. Derived values
-   * that call it update when the session ends. Do not call it in an effect
-   * teardown: there, the scope can return old values.
-   */
-  isCurrent<T extends SessionSnapshot>(snapshot: T | null | undefined): snapshot is T {
-    // Read the mirror only to make derived values depend on the generation.
-    void this.#reactiveGeneration;
-    return (
+  return {
+    snapshot: (): SessionSnapshot => ({
+      serverId: scope.serverId,
+      connection: scope.connection,
+      generation
+    }),
+    isCurrent: <T extends SessionSnapshot>(snapshot: T | null | undefined): snapshot is T =>
       snapshot != null &&
-      this.#scope.isCurrent() &&
-      snapshot.serverId === this.#scope.serverId &&
-      snapshot.connection.queryScope === this.#scope.connection.queryScope &&
-      snapshot.generation === this.#generation
-    );
-  }
-
-  /** Make every earlier snapshot stale, for example when the page changes its subject. */
-  invalidate(): void {
-    this.#reactiveGeneration = ++this.#generation;
-  }
+      scope.isCurrent() &&
+      snapshot.serverId === scope.serverId &&
+      snapshot.connection.queryScope === scope.connection.queryScope &&
+      snapshot.generation === generation,
+    invalidate: () => {
+      generation++;
+    }
+  };
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
@@ -37,7 +37,7 @@
   const serverSegment = $derived(serverIdToSegment(activeServerId));
 
   let scrollContainer = $state<HTMLDivElement>();
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
   /** Increases when the room snapshot changes, so an older save does not overwrite it. */
   let snapshotGeneration = 0;
   let pendingMemberRevalidation: {

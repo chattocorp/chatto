@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { untrack } from 'svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import {
     deleteServerBanner,
     deleteServerLogo,
@@ -33,7 +33,7 @@
   const MAX_SERVER_DESCRIPTION_BYTES = 500;
 
   const serverScope = useServerScope();
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
 
   type SettingsMutationScope = SessionSnapshot & {
     queryKey: ReturnType<typeof adminQueryKeys.serverSettings>;

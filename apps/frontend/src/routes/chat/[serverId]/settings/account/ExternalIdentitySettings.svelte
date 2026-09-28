@@ -21,7 +21,7 @@
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
 
@@ -36,9 +36,7 @@
   const serverScope = useServerScope();
   // Private identity data and provider links belong to the accepted account only.
   const accountId = $derived(serverScope.store.accountId);
-  // A change of admin data alone does not affect account settings. The end of
-  // the server session, or a recheck of the viewer's permissions, does.
-  const session = new SessionGuard(serverScope, 'server-session');
+  const session = createSessionGuard(serverScope, 'server-session');
 
   type LinkVariables = SessionSnapshot & {
     provider: ExternalIdentityProviderInfo;

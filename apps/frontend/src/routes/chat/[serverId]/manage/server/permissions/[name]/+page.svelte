@@ -7,7 +7,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { UserList } from '$lib/components/admin';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
@@ -29,7 +29,7 @@
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
 
   type RoleMutationScope = SessionSnapshot & {
     roleName: string;

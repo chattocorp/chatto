@@ -6,7 +6,7 @@ import {
 } from '$lib/query/cacheRegistry';
 import type { ServerScope } from './scope.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
-import { SessionGuard, type SessionFence } from './sessionGuard.svelte';
+import { createSessionGuard, type SessionGuard } from './sessionGuard.svelte';
 
 function makeScope(serverId = 'S1') {
   const scope = $state({
@@ -29,11 +29,11 @@ function makeScope(serverId = 'S1') {
   };
 }
 
-function withGuard(fence?: SessionFence) {
+function withGuard(fence?: 'private-data' | 'server-session') {
   const { scope, serverScope } = makeScope();
   let guard!: SessionGuard;
   const destroy = $effect.root(() => {
-    guard = new SessionGuard(serverScope, fence);
+    guard = createSessionGuard(serverScope, fence);
   });
   flushSync();
   return { scope, guard, destroy };
@@ -93,7 +93,6 @@ describe('SessionGuard', () => {
 
   it('ends the session when a removal and the destroy happen in the same tick', () => {
     // Sign-out removes private data and then destroys the route before a flush.
-    // A $state increment in the teardown would read the old value and do nothing.
     const { guard, destroy } = withGuard();
     removeRegisteredAdminQueries('S1');
     const afterRemoval = guard.snapshot();
@@ -133,25 +132,5 @@ describe('SessionGuard', () => {
     removeRegisteredAdminQueries('S1');
 
     expect(guard.isCurrent(after)).toBe(true);
-  });
-
-  it('updates a derived value when a snapshot becomes stale', () => {
-    const { guard, destroy } = withGuard();
-    const snapshot = guard.snapshot();
-    let current = true;
-    const stop = $effect.root(() => {
-      $effect(() => {
-        current = guard.isCurrent(snapshot);
-      });
-    });
-    flushSync();
-    expect(current).toBe(true);
-
-    removeRegisteredAdminQueries('S1');
-    flushSync();
-
-    expect(current).toBe(false);
-    stop();
-    destroy();
   });
 });

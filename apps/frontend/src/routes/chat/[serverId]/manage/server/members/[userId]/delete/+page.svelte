@@ -13,7 +13,7 @@
   import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Hint, PaneContent, PageTitle } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -46,7 +46,7 @@
   onDestroy(removeRemovalListener);
   // Authentication or visibility changes purge all admin queries for a
   // session. The guard also discards results after this component is destroyed.
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
 
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members/[userId]', {

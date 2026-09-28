@@ -6,7 +6,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
@@ -20,7 +20,7 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
 
   let name = $state('');
   let displayName = $state('');

@@ -31,7 +31,7 @@
     ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
     roomMembersQueryPage
   } from '$lib/query/roomMembers';
-  import { SessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -52,7 +52,7 @@
   } = $props();
 
   const serverScope = useServerScope();
-  const session = new SessionGuard(serverScope);
+  const session = createSessionGuard(serverScope);
 
   let selectedUser = $state<DirectoryMember | null>(null);
   let selectedUserId = $state('');
