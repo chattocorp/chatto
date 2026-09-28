@@ -253,7 +253,7 @@
       "create_link": "Bağlantı Oluştur",
       "label": "Etiket",
       "url": "URL'si",
-      "link_url_placeholder": "https://docs.example.com or /docs",
+      "link_url_placeholder": "https://docs.example.com veya /docs",
       "delete_group": "Grubu Sil",
       "delete_link": "Bağlantıyı Sil",
       "archive_room": "Arşiv Odası",

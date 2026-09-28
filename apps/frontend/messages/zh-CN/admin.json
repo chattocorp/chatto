@@ -253,7 +253,7 @@
       "create_link": "创建链接",
       "label": "标签",
       "url": "URL",
-      "link_url_placeholder": "https://docs.example.com or /docs",
+      "link_url_placeholder": "https://docs.example.com 或 /docs",
       "delete_group": "删除群组",
       "delete_link": "删除链接",
       "archive_room": "归档聊天室",

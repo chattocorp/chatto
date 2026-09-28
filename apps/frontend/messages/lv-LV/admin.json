@@ -253,7 +253,7 @@
       "create_link": "Izveidot saiti",
       "label": "Etiķete",
       "url": "URL",
-      "link_url_placeholder": "https://docs.example.com or /docs",
+      "link_url_placeholder": "https://docs.example.com vai /docs",
       "delete_group": "Dzēst grupu",
       "delete_link": "Dzēst saiti",
       "archive_room": "Arhīva telpa",

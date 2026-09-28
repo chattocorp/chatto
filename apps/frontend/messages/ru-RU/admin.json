@@ -253,7 +253,7 @@
       "create_link": "Создать ссылку",
       "label": "Этикетка",
       "url": "URL-адрес",
-      "link_url_placeholder": "https://docs.example.com or /docs",
+      "link_url_placeholder": "https://docs.example.com или /docs",
       "delete_group": "Удалить группу",
       "delete_link": "Удалить ссылку",
       "archive_room": "Архивная комната",

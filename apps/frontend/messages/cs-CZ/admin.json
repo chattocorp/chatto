@@ -253,7 +253,7 @@
       "create_link": "Vytvořit odkaz",
       "label": "Štítek",
       "url": "URL",
-      "link_url_placeholder": "https://docs.example.com or /docs",
+      "link_url_placeholder": "https://docs.example.com nebo /docs",
       "delete_group": "Smazat skupinu",
       "delete_link": "Smazat odkaz",
       "archive_room": "Místnost pro archiv",
