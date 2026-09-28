@@ -98,5 +98,6 @@
       ? `${id}-error`
       : effectiveDescription
         ? `${id}-description`
-        : undefined}></textarea>
+        : undefined}
+  ></textarea>
 </FormField>

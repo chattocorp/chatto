@@ -1,8 +1,5 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import {
-  type DirectoryMember,
-  DirectoryMemberSchema
-} from '@chatto/api-types/api/v1/member_directory_pb';
+import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { StaleResponseError } from '$lib/api-client/connect';
 import {
   mapDirectoryMember,
@@ -10,7 +7,6 @@ import {
 } from '$lib/api-client/directoryMemberView';
 import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 import { timestampToDate } from '$lib/api-client/timestamps';
-import { clone } from '@bufbuild/protobuf';
 
 export type UserReader = (ids: string[], minimumCursor?: string) => Promise<DirectoryMember[]>;
 
@@ -88,13 +84,11 @@ export class UserStore {
       this.#statusExpiry.set(
         id,
         scheduleCustomStatusExpiry({ emoji: '', text: '', expiresAt }, () => {
-          const stored = this.get(id);
-          if (!stored?.user) return;
-          if (timestampToDate(stored.user.customStatus?.expiresAt)?.toISOString() !== expiresAt)
+          const current = this.get(id);
+          if (!current?.user) return;
+          if (timestampToDate(current.user.customStatus?.expiresAt)?.toISOString() !== expiresAt)
             return;
-          const current = clone(DirectoryMemberSchema, stored);
-          current.user!.customStatus = undefined;
-          this.set(id, current);
+          this.set(id, { ...current, user: { ...current.user, customStatus: undefined } });
         })
       );
     } else this.#statusExpiry.delete(id);
