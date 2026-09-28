@@ -61,7 +61,7 @@ polls the cache briefly after a change. See FDR-042.
       mutationFn: ({ connection, origin }: CreateVariables) =>
         connection.getAPI(createNeighborAPI).create(origin),
       onSuccess: (neighbor, variables) => {
-        if (!isCurrent(variables)) return;
+        if (!serverScope.isCurrent()) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) => [
           ...current,
           neighbor
@@ -70,8 +70,8 @@ polls the cache briefly after a change. See FDR-042.
         expectDiscovery();
         toast.success(m('admin.neighbors.created'));
       },
-      onError: (error, variables) => {
-        if (isCurrent(variables)) toastError(error);
+      onError: (error) => {
+        if (serverScope.isCurrent()) toastError(error);
       }
     }),
     () => queryClient
@@ -82,7 +82,7 @@ polls the cache briefly after a change. See FDR-042.
       mutationFn: ({ connection, neighbor, origin }: UpdateVariables) =>
         connection.getAPI(createNeighborAPI).update(neighbor, origin),
       onSuccess: (updated, variables) => {
-        if (!isCurrent(variables)) return;
+        if (!serverScope.isCurrent()) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
           current.map((neighbor) => (neighbor.id === updated.id ? updated : neighbor))
         );
@@ -91,8 +91,8 @@ polls the cache briefly after a change. See FDR-042.
         expectDiscovery();
         toast.success(m('admin.neighbors.updated'));
       },
-      onError: (error, variables) => {
-        if (isCurrent(variables)) toastError(error);
+      onError: (error) => {
+        if (serverScope.isCurrent()) toastError(error);
       }
     }),
     () => queryClient
@@ -103,7 +103,7 @@ polls the cache briefly after a change. See FDR-042.
       mutationFn: ({ connection, neighbor }: DeleteVariables) =>
         connection.getAPI(createNeighborAPI).delete(neighbor),
       onSuccess: (_result, variables) => {
-        if (!isCurrent(variables)) return;
+        if (!serverScope.isCurrent()) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
           current.filter((neighbor) => neighbor.id !== variables.neighbor.id)
         );
@@ -111,8 +111,8 @@ polls the cache briefly after a change. See FDR-042.
         if (editTarget?.neighbor.id === variables.neighbor.id) editTarget = null;
         toast.success(m('admin.neighbors.deleted'));
       },
-      onError: (error, variables) => {
-        if (isCurrent(variables)) toastError(error);
+      onError: (error) => {
+        if (serverScope.isCurrent()) toastError(error);
       }
     }),
     () => queryClient
@@ -190,11 +190,6 @@ polls the cache briefly after a change. See FDR-042.
       connection,
       queryKey: adminQueryKeys.neighbors(serverId, connection)
     };
-  }
-
-  // The server session cannot change while this page is mounted (see ServerScope).
-  function isCurrent(_variables: NeighborMutationVariables): boolean {
-    return serverScope.isCurrent();
   }
 
   function cancelEdit() {
