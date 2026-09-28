@@ -155,8 +155,9 @@ Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, and app indicators use
 notification orange when at least one contributing unread occurrence is
 Important and a neutral treatment when every contributing occurrence is
-Ambient. Room rows show the Important and the Ambient counts separately. Ambient notifications do not play a local sound. Attention levels are
-not user-configurable in this iteration.
+Ambient. Room rows show the Important and the Ambient counts separately.
+Ambient notifications do not play a local sound. Attention levels are not
+user-configurable in this iteration.
 
 **Why:** Whether activity is stored, whether it leaves the app, and how
 strongly it is presented are different choices. The delivery names state where
@@ -384,8 +385,8 @@ the viewer did not see its activity. With separate counts, the viewer can
 still see the remaining count until they scroll to its message.
 
 **Tradeoff:** A read is a position, not a set of seen messages. A read through
-a message also covers older notifications above it that the viewer did
-not see. A viewer who leaves a room within a second of scrolling can leave newer
+a message also covers older notifications above it that the viewer did not
+see. A viewer who leaves a room within a second of scrolling can leave newer
 activity unread.
 
 ## Compatibility
