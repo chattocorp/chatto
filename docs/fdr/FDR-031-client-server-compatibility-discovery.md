@@ -28,6 +28,9 @@ Chatto's pre-1.0 API remains experimental.
 - The server context menu and touch sheet explain each active sign-in,
   connection, and compatibility warning. When an unreachable status and a lost
   connection describe the same failure, they appear as one warning.
+- A lost-connection warning appears only after a connection attempt fails.
+  An immediate retry, a credential renewal, and the catch-up after tab wake or
+  network recovery do not show a warning.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown

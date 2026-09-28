@@ -109,6 +109,8 @@ class EventBusManager {
   #pollCycleRunning = false;
   /** An unready catch-up request arrived while another poll cycle was running. */
   #unreadyPollCycleRequested = false;
+  /** A full catch-up request arrived while another poll cycle was running. */
+  #fullPollCycleRequested = false;
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Register the stable bus/reducer surface without necessarily opening a socket. */
@@ -196,6 +198,13 @@ class EventBusManager {
       serverConnection.setRealtimeConnectionStatus(status);
     };
 
+    /** Stop after a credential renewal that failed or needs a new sign-in. */
+    const stopAfterFailedRenewal = () => {
+      mode = 'dormant';
+      resolvePoll(false);
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+    };
+
     const recoverFromAuthenticationRequired = async (current: RealtimeSocket, reason: string) => {
       console.warn(`[eventBus:${serverId}] realtime authentication required`, {
         reason,
@@ -205,14 +214,14 @@ class EventBusManager {
       if (socket === current) socket = null;
       socketSubscribed = false;
       sync.markStale();
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      // Renewal is part of reconnecting; only a failed renewal is a failure.
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
       current.close(1000, 'authentication_required');
       try {
         const renewed = await serverConnection.handleAuthenticationRequired();
         if (stopped) return;
         if (!renewed) {
-          mode = 'dormant';
-          resolvePoll(false);
+          stopAfterFailedRenewal();
           return;
         }
         reconnectAttempts = 0;
@@ -223,10 +232,7 @@ class EventBusManager {
         if (stopped) return;
         if (mode === 'live')
           scheduleReconnect('authentication recovery temporarily failed', RECONNECT_WAIT_MS);
-        else {
-          mode = 'dormant';
-          resolvePoll(false);
-        }
+        else stopAfterFailedRenewal();
       }
     };
 
@@ -235,14 +241,13 @@ class EventBusManager {
       if (socket === current) socket = null;
       socketSubscribed = false;
       sync.markStale();
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
       current.close(1000, 'session_renewal_required');
       try {
         const renewed = await serverConnection.renewBrowserSession();
         if (stopped) return;
         if (!renewed) {
-          mode = 'dormant';
-          resolvePoll(false);
+          stopAfterFailedRenewal();
           return;
         }
         reconnectAttempts = 0;
@@ -250,8 +255,9 @@ class EventBusManager {
         else if (mode === 'polling') connect('browser session renewed');
       } catch (error) {
         console.warn(`[eventBus:${serverId}] browser session renewal failed`, error);
+        if (stopped) return;
         if (mode === 'live') scheduleReconnect('browser session renewal retry', RECONNECT_WAIT_MS);
-        else resolvePoll(false);
+        else stopAfterFailedRenewal();
       }
     };
 
@@ -553,8 +559,13 @@ class EventBusManager {
       reconnectCount++;
       reconnectAttempts++;
       sync.markStale();
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       const wait = delayMs ?? (reconnectAttempts <= 1 ? 0 : RECONNECT_WAIT_MS);
+      // An immediate retry is still part of reconnecting. Report a lost
+      // connection only when the client has to wait before the next attempt.
+      serverConnection.setRealtimeConnectionStatus(
+        wait === 0 ? 'connecting' : 'disconnected',
+        reconnectAttempts
+      );
       reconnectTimer = setTimeout(() => connect(reason), wait);
     }
 
@@ -565,8 +576,17 @@ class EventBusManager {
       scheduleReconnect(reason, 0);
     };
 
+    // For an inactive server, a forced reconnect (tab wake, network recovery)
+    // drops any catch-up that started before it, clears a failure reported
+    // before it, and catches up again at once.
     const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason) => {
-      reconnectNow(reason);
+      if (mode === 'live') {
+        reconnectNow(reason);
+        return;
+      }
+      if (stopped || !projectionSupported) return;
+      becomeDormant(true);
+      void this.#runPollCycle(false);
     });
 
     const heartbeatWatchdog = setInterval(() => {
@@ -699,8 +719,10 @@ class EventBusManager {
   async #runPollCycle(onlyUnready: boolean): Promise<void> {
     if (this.#pollCycleRunning) {
       // The running cycle can already have passed a server that just became
-      // dormant mid-hydration. Run another unready pass after it finishes.
+      // dormant mid-hydration or asked to catch up. Run another pass after it
+      // finishes.
       if (onlyUnready) this.#unreadyPollCycleRequested = true;
+      else this.#fullPollCycleRequested = true;
       return;
     }
     this.#pollCycleRunning = true;
@@ -715,9 +737,11 @@ class EventBusManager {
     } finally {
       this.#pollCycleRunning = false;
     }
-    if (this.#unreadyPollCycleRequested) {
+    if (this.#fullPollCycleRequested || this.#unreadyPollCycleRequested) {
+      const onlyUnready = !this.#fullPollCycleRequested;
+      this.#fullPollCycleRequested = false;
       this.#unreadyPollCycleRequested = false;
-      await this.#runPollCycle(true);
+      await this.#runPollCycle(onlyUnready);
     }
   }
   #scheduleNextPoll(): void {
