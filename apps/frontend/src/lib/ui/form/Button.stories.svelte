@@ -31,7 +31,8 @@
     'ghost',
     'warning',
     'danger',
-    'danger-secondary'
+    'danger-secondary',
+    'danger-ghost'
   ] as const;
   const sizes = ['sm', 'md', 'lg'] as const;
 </script>
@@ -43,7 +44,7 @@
     docs: {
       description: {
         story:
-          'Use action for the recommended flow action, neutral for neutral emphasis, secondary for cancellation, warning/danger for risky actions, danger-secondary for a quiet destructive action, and ghost only for low-emphasis commands.'
+          'Use action for the recommended flow action, neutral for neutral emphasis, secondary for cancellation, warning/danger for risky actions, danger-secondary for a quiet destructive action, danger-ghost for a quiet state that turns into a destructive action on hover, and ghost only for low-emphasis commands.'
       }
     }
   }}

@@ -53,6 +53,10 @@ and cannot be combined with semantic actions.
     title?: string;
     /** Rich title content; title remains the plain-text fallback. */
     titleContent?: Snippet;
+    /**
+     * Width. `sm` to `lg` suit task dialogs. `xl` is for media viewers and
+     * browsing grids that grow with their content, such as the server directory.
+     */
     size?: 'sm' | 'md' | 'lg' | 'xl';
     /** Accessible description element ID. */
     describedBy?: string;

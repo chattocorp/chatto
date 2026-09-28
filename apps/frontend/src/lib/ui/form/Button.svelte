@@ -19,8 +19,19 @@
     children
   }: {
     type?: 'button' | 'submit' | 'reset';
+    /**
+     * `danger-ghost` rests like a quiet ghost button and turns danger on hover,
+     * for a state that becomes a destructive action, such as Joined → Leave.
+     */
     variant?:
-      'action' | 'neutral' | 'secondary' | 'ghost' | 'warning' | 'danger' | 'danger-secondary';
+      | 'action'
+      | 'neutral'
+      | 'secondary'
+      | 'ghost'
+      | 'warning'
+      | 'danger'
+      | 'danger-secondary'
+      | 'danger-ghost';
     /** `icon` is a square 40 px control for a single icon; pass `label` as its accessible name. */
     size?: 'sm' | 'md' | 'lg' | 'icon';
     loading?: boolean;
@@ -50,7 +61,8 @@
     ghost: 'btn-ghost',
     warning: 'btn-warning',
     danger: 'btn-danger',
-    'danger-secondary': 'btn-danger-secondary'
+    'danger-secondary': 'btn-danger-secondary',
+    'danger-ghost': 'btn-danger-ghost'
   };
 
   const sizeClasses = {
