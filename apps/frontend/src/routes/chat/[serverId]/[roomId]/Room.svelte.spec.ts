@@ -271,7 +271,15 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
 vi.mock('$lib/ui', async () => {
   const { default: EmptyState } = await import('$lib/ui/EmptyState.svelte');
   const { default: Hint } = await import('$lib/ui/Hint.svelte');
-  return { EmptyState, Hint };
+  return {
+    PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
+    PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
+    HeaderIconButton: (await import('$lib/ui/HeaderIconButton.svelte')).default,
+    LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+    Pill: (await import('$lib/ui/Pill.svelte')).default,
+    EmptyState,
+    Hint
+  };
 });
 
 import Room from './Room.svelte';

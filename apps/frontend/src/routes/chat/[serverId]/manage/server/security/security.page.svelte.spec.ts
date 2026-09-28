@@ -41,6 +41,11 @@ vi.mock('$lib/ui/DataTable.svelte', async () => ({
   default: (await import('./DataTableMock.svelte')).default
 }));
 vi.mock('$lib/ui', async () => ({
+  Panel: (await import('$lib/ui/Panel.svelte')).default,
+  PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
+  PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
+  LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+  DataTable: (await import('$lib/ui/DataTable.svelte')).default,
   Hint: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,
   PaneContent: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
 }));

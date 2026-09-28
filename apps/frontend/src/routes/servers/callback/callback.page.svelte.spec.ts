@@ -20,7 +20,10 @@ vi.mock('$app/state', () => ({
     }
   }
 }));
-vi.mock('$app/navigation', () => ({ goto: gotoMock }));
+vi.mock('$app/navigation', () => ({
+  pushState: vi.fn(),
+  goto: gotoMock
+}));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$lib/auth/reauth', () => ({
   completeServerOAuthFlow: completeServerOAuthFlowMock

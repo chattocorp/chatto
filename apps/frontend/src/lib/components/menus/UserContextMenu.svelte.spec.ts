@@ -28,6 +28,7 @@ const serverScopeMock = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/navigation', () => ({
+  segmentToServerId: vi.fn(),
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
 }));
 
