@@ -82,6 +82,14 @@ const checks = [
     pattern: /\brtl:(?:scale-x-\[-1\]|rotate-180)(?![\w-])/g
   },
   {
+    // Door arrows and redo point along the reading direction. MenuItem uses
+    // its mirrorIconInRtl prop instead of the utility.
+    description:
+      'mirror door-arrow and redo icons in right-to-left layouts: add rtl:-scale-x-100, or mirrorIconInRtl on MenuItem',
+    pattern:
+      /icon-\[uil--(?:sign-in-alt|sign-out-alt|signin|signout|redo|undo)\](?![^'"`\n]*rtl:-scale-x-100)(?![^>]*mirrorIconInRtl)/g
+  },
+  {
     description:
       'wheelchair or accessibility icons do not describe content; use icon-[uil--file-edit-alt]',
     pattern: /icon-\[[a-z0-9]+--[\w-]*(?:wheelchair|accessib|universal-access)[\w-]*\]/g

@@ -92,7 +92,7 @@
       disabled={signingOutAll || !canSignOutCurrentServer}
       onclick={handleSignOutCurrentServer}
     >
-      <span aria-hidden="true" class="iconify icon-[uil--sign-out-alt]"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--sign-out-alt] rtl:-scale-x-100"></span>
       {m('chat.sign_out.current_server')}
     </Button>
   {/snippet}
@@ -103,7 +103,7 @@
       disabled={signingOutCurrent && canSignOutCurrentServer}
       onclick={handleSignOutAllServers}
     >
-      <span aria-hidden="true" class="iconify icon-[uil--signout]"></span>
+      <span aria-hidden="true" class="iconify icon-[uil--signout] rtl:-scale-x-100"></span>
       {m('chat.sign_out.all_servers')}
     </Button>
   {/snippet}

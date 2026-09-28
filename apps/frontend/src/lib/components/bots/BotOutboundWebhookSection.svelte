@@ -384,7 +384,9 @@
           }}
         >
           <span
-            class={removeAuthorization ? 'iconify icon-[uil--redo]' : 'iconify icon-[uil--times]'}
+            class={removeAuthorization
+              ? 'iconify icon-[uil--redo] rtl:-scale-x-100'
+              : 'iconify icon-[uil--times]'}
             aria-hidden="true"
           ></span>
         </Button>

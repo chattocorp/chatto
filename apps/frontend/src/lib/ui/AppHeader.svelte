@@ -166,7 +166,8 @@
         title={m('ui.sign_out')}
         aria-label={m('ui.sign_out')}
       >
-        <span class="iconify icon-[uil--signout] text-lg" aria-hidden="true"></span>
+        <span class="iconify icon-[uil--signout] text-lg rtl:-scale-x-100" aria-hidden="true"
+        ></span>
       </button>
     {/if}
   </div>

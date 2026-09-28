@@ -430,7 +430,7 @@
             id="notification-echo-filter"
             testid="notification-echo-filter"
             label={m('settings.notifications.sound.echo')}
-            icon="icon-[uil--redo]"
+            icon="icon-[uil--redo] rtl:-scale-x-100"
             min={0}
             max={100}
             value={notificationPreferences.notificationSoundFilters.echo}

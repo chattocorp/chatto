@@ -39,7 +39,7 @@ presentation-only.
 {#if (kind === 'room' && !isRoomMember) || showMarkRead || (canConfigure && onConfigure)}
   <MenuSection>
     {#if kind === 'room' && !isRoomMember}
-      <MenuItem icon="icon-[uil--sign-in-alt]" onclick={onJoin} disabled={!canJoin}>
+      <MenuItem icon="icon-[uil--sign-in-alt]" mirrorIconInRtl onclick={onJoin} disabled={!canJoin}>
         {m('room.join.action')}
       </MenuItem>
     {:else if showMarkRead}
@@ -60,6 +60,7 @@ presentation-only.
   <MenuSection>
     <MenuItem
       icon={kind === 'server' ? 'icon-[uil--minus-circle]' : 'icon-[uil--sign-out-alt]'}
+      mirrorIconInRtl={kind !== 'server'}
       tone="danger"
       onclick={onLeave}
     >

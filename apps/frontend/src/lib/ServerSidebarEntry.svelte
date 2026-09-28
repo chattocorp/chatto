@@ -358,6 +358,7 @@
         {#if signInRequired}
           <MenuItem
             icon="icon-[uil--sign-in-alt]"
+            mirrorIconInRtl
             onclick={() => void handleSignIn()}
             disabled={signingIn}
             dataTestid="server-log-in"
@@ -367,6 +368,7 @@
         {:else}
           <MenuItem
             icon="icon-[uil--sign-out-alt]"
+            mirrorIconInRtl
             onclick={() => void handleSignOut()}
             disabled={signingOut}
             dataTestid="server-sign-out"

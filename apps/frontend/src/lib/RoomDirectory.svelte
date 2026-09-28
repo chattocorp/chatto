@@ -247,7 +247,7 @@ store owns only optimistic join/leave state.
           <span aria-hidden="true" class="iconify icon-[uil--check] group-hover:hidden"></span>
           <span
             aria-hidden="true"
-            class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline"
+            class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline rtl:-scale-x-100"
           ></span>
           <span class="group-hover:hidden">{m('room.directory.joined')}</span>
           <span class="hidden group-hover:inline">{m('room.directory.leave')}</span>
@@ -352,7 +352,7 @@ store owns only optimistic join/leave state.
   bind:visible={leaveConfirmVisible}
   title={m('room.leave.title')}
   actionLabel={m('room.leave.action')}
-  actionIcon="iconify icon-[uil--sign-out-alt]"
+  actionIcon="iconify icon-[uil--sign-out-alt] rtl:-scale-x-100"
   onconfirm={confirmLeaveRoom}
   onclose={() => (leaveConfirmVisible = false)}
 >

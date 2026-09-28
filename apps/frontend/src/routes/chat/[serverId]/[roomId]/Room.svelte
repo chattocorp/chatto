@@ -709,7 +709,7 @@
               {/if}
               {#if showLeaveRoom}
                 <HeaderIconButton
-                  icon="icon-[uil--sign-out-alt]"
+                  icon="icon-[uil--sign-out-alt] rtl:-scale-x-100"
                   label={m('room.leave.title')}
                   disabled={leavingRoom}
                   onclick={() =>
