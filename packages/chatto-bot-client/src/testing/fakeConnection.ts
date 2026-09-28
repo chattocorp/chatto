@@ -11,7 +11,7 @@ export function fakeConnection(
 ) {
   const transport = createRouterTransport(routes);
   const eventListeners = new Set<(event: RealtimeEvent) => void>();
-  const resetListeners = new Set<() => void>();
+  const resetListeners = new Set<(reset: { gap: boolean }) => void>();
   const status = signal<ChattoConnectionStatus>('connecting');
   const sessionEnded = signal(false);
   const closed = signal(false);
@@ -39,7 +39,7 @@ export function fakeConnection(
       eventListeners.add(listener);
       return () => eventListeners.delete(listener);
     },
-    onReset(listener: () => void) {
+    onReset(listener: (reset: { gap: boolean }) => void) {
       resetListeners.add(listener);
       return () => resetListeners.delete(listener);
     },
@@ -52,8 +52,8 @@ export function fakeConnection(
     emit(event: RealtimeEvent) {
       for (const listener of [...eventListeners]) listener(event);
     },
-    reset() {
-      for (const listener of [...resetListeners]) listener();
+    reset(gap = false) {
+      for (const listener of [...resetListeners]) listener({ gap });
     },
     setStatus(value: ChattoConnectionStatus) {
       status.set(value);

@@ -36,10 +36,11 @@ host IP address, the key, and request data. The bot package adds no external
 service or logging.
 
 `consumeEvents` handles events in order: the next event waits until
-`onEvent` resolves. It resolves when `signal` aborts. It rejects when
-`onEvent` or `onStatus` throws, when more than 1000 received events wait for
-the handler, when the server ends the session (for example after the API key
-is revoked), or when the connection closes. `onStatus` reports `connecting`, `reconnecting`, and `ready`. A
+`onEvent` resolves. At most 1000 received events wait; when a slow handler
+falls further behind, the waiting events are dropped and a gap is reported. It
+resolves when `signal` aborts. It rejects when `onEvent` or `onStatus` throws,
+when the server ends the session (for example after the API key is revoked),
+or when the connection closes. `onStatus` reports `connecting`, `reconnecting`, and `ready`. A
 `ready` status with `gap: true` means that the server could not resume the
 stream, so events can be missing.
 

@@ -16,10 +16,9 @@ export type ServerRegistrationMetadataPatch = Partial<
 /**
  * Owns the server catalogue independently from device-local authentication.
  *
- * Updates preserve registration object identity and notify readers of
- * `registrations`. Read registration fields through `registrations` or `get`
- * to track them. Removal and reset deliberately invalidate retained entries at
- * their lifecycle boundary.
+ * Every change publishes new registration objects and a new array, so
+ * reactive readers see it. Do not retain a registration object; read it again
+ * with `get`.
  */
 export class ServerCatalog {
   readonly #registrationsSignal = signal<ServerRegistration[]>([]);
@@ -45,11 +44,9 @@ export class ServerCatalog {
   }
 
   update(id: string, data: ServerRegistrationMetadataPatch): boolean {
-    const registration = this.get(id);
-    if (!registration) return false;
-    Object.assign(registration, data);
-    // The array is unchanged; tell its readers that an entry changed.
-    this.#registrationsSignal.notify();
+    const index = this.registrations.findIndex((registration) => registration.id === id);
+    if (index === -1) return false;
+    this.registrations = this.registrations.with(index, { ...this.registrations[index], ...data });
     return true;
   }
 

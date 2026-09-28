@@ -11,7 +11,6 @@ export function assetUrlForServer(
   rawUrl: string | null | undefined
 ): string | null {
   if (!rawUrl) return null;
-  if (typeof window === 'undefined') return rawUrl;
 
   const server = serverRegistry.getServer(serverId);
   if (!server) return rawUrl;
@@ -24,7 +23,9 @@ export function assetUrlForServer(
       return rawUrl;
     }
 
-    if (parsed.origin === window.location.origin) {
+    // A browser page on the same origin uses a relative path. Other hosts,
+    // such as bots in Node, need the absolute URL.
+    if (typeof window !== 'undefined' && parsed.origin === window.location.origin) {
       return `${parsed.pathname}${parsed.search}`;
     }
     return parsed.href;

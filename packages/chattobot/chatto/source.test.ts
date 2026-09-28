@@ -171,8 +171,14 @@ test('retains conversations across reloads, isolates a new identity, and closes 
     const controller = new AbortController();
     await generation({ signal: controller.signal, state, dispatch: vi.fn() }, controller);
   };
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
   await run();
+  expect(warning).not.toHaveBeenCalled();
   await run();
+  expect(warning).toHaveBeenCalledWith(
+    'ChattoBot reloaded: messages sent during the reload are not replayed.'
+  );
+  warning.mockRestore();
   const firstState = mocks.bot.mock.calls[0]![0]!.state;
   expect(mocks.bot.mock.calls[1]![0]!.state).toBe(firstState);
 

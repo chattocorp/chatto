@@ -255,3 +255,26 @@ describe('createChattoTransport requests', () => {
     expect(headers.get('Content-Type')).toBe('application/proto');
   });
 });
+
+describe('redirect handling', () => {
+  it('fails redirected requests instead of following them', async () => {
+    const fetch = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(new Uint8Array(), {
+          status: 200,
+          headers: { 'Content-Type': 'application/proto' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    try {
+      const client = createChattoClient(RoomService, {
+        baseUrl: 'http://localhost:1234/api/connect',
+        bearerToken: 'fixed'
+      });
+      await client.listMembers({ roomId: 'room' });
+      expect(fetch.mock.calls[0]?.[1]?.redirect).toBe('error');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

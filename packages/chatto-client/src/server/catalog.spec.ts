@@ -10,19 +10,25 @@ const registration = (id: string) => ({
   addedAt: 1
 });
 
+it('publishes new registrations for every change', () => {
+  const catalogBefore = new ServerCatalog([registration('solo')]);
+  const before = catalogBefore.get('solo');
+  catalogBefore.update('solo', { name: 'Renamed' });
+  expect(catalogBefore.get('solo')).not.toBe(before);
+  expect(catalogBefore.get('solo')?.name).toBe('Renamed');
+});
+
 it('notifies readers when a server is added, updated, or removed', () => {
   const catalog = new ServerCatalog([registration('one')]);
   const runs: string[][] = [];
   const stop = effect(() => {
     runs.push(catalog.registrations.map((entry) => entry.name));
   });
-  const retained = catalog.get('one');
 
   catalog.add(registration('two'));
   catalog.update('one', { name: 'Renamed' });
   catalog.remove('two');
 
   expect(runs).toEqual([['one'], ['one', 'two'], ['Renamed', 'two'], ['Renamed']]);
-  expect(catalog.get('one')).toBe(retained);
   stop();
 });

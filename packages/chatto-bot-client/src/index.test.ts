@@ -146,16 +146,16 @@ test('consumes events in order, reports status and gaps, and stops on abort', as
   await vi.waitFor(() => expect(handled).toEqual(['first']));
   release();
   await vi.waitFor(() => expect(handled).toEqual(['first', 'second']));
-  // A resync publishes a reset and then a snapshot: one gap.
-  fake.reset();
+  // The connection decides whether a reset is a gap.
   fake.setStatus('connecting');
-  fake.reset();
+  fake.reset(true);
+  fake.setStatus('connected');
   fake.setStatus('connected');
   expect(statuses).toEqual([
     { state: 'connecting' },
     { state: 'ready', gap: false },
-    { state: 'ready', gap: true },
     { state: 'reconnecting' },
+    { state: 'ready', gap: true },
     { state: 'ready', gap: false }
   ]);
   controller.abort();
@@ -178,15 +178,30 @@ test('stops when the server ends the session or the connection closes', async ()
   }
 });
 
-test('stops instead of buffering without bound behind a slow handler', async () => {
+test('drops the backlog and reports a gap behind a slow handler', async () => {
   const fake = fakeConnection();
   const bot = await createBotClient(fake.chatto);
+  const controller = new AbortController();
+  const handled: string[] = [];
+  const statuses: unknown[] = [];
+  let release!: () => void;
   const consuming = bot.consumeEvents({
-    signal: new AbortController().signal,
-    onEvent: () => new Promise(() => {})
+    signal: controller.signal,
+    onStatus: (status) => statuses.push(status),
+    async onEvent(event) {
+      handled.push(event.id);
+      if (event.id === 'event-0') await new Promise<void>((resolve) => (release = resolve));
+    }
   });
-  for (let index = 0; index < 1002; index++) fake.emit(dmEvent(`event-${index}`));
-  await expect(consuming).rejects.toThrow('faster than the bot handled them');
+  fake.emit(dmEvent('event-0'));
+  await vi.waitFor(() => expect(handled).toEqual(['event-0']));
+  for (let index = 1; index < 1003; index++) fake.emit(dmEvent(`event-${index}`));
+  expect(statuses).toContainEqual({ state: 'ready', gap: true });
+  release();
+  await vi.waitFor(() => expect(handled.at(-1)).toBe('event-1002'));
+  expect(handled).toHaveLength(3);
+  controller.abort();
+  await consuming;
 });
 
 test('a failing status callback stops consumption without breaking the connection', async () => {

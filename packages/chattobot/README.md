@@ -547,7 +547,8 @@ Short disconnects resume from the last received event. Unavailable replay
 reports a recovery gap and continues from a new snapshot. Each source
 generation opens its own connection and closes it when the generation ends, so
 a config reload or a process restart starts from a new snapshot. Messages that
-arrive while no generation runs are not replayed. There is no durable inbox or
+arrive while no generation runs are not replayed; ChattoBot logs a warning
+after each reload. There is no durable inbox or
 exactly-once delivery. Changing server or bot identity starts separate
 conversation state. Failed run registration gets up to three attempts, with delays of 250 ms
 and 500 ms. Shutdown or reload cancels the wait. Inbox deliveries are not retried.

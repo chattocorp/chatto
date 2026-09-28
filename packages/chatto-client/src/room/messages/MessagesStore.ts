@@ -1126,31 +1126,25 @@ export class MessagesStore {
 
     this.messageTombstones.set(messageEventId, deletedAt);
 
-    for (let i = 0; i < this.events.length; i++) {
-      const e = this.events[i];
+    this.updateEvents((e) => {
       const evt = e.event;
-      if (!isMessagePostedPayload(evt)) continue;
-      if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) continue;
-
-      this.events = this.events.with(i, {
+      if (!isMessagePostedPayload(evt)) return e;
+      if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) return e;
+      return {
         ...e,
         event: { ...evt, body: null, attachments: [], linkPreview: null, deletedAt }
-      });
-    }
+      };
+    });
 
     this.applyPrivacyBoundariesToPreviews();
   }
 
   private applyChannelEchoLink(originalEventId: string, echoEventId: string): void {
-    for (let i = 0; i < this.events.length; i++) {
-      const e = this.events[i];
+    this.updateEvents((e) => {
       const evt = e.event;
-      if (e.id !== originalEventId || !isMessagePostedPayload(evt)) continue;
-      this.events = this.events.with(i, {
-        ...e,
-        event: { ...evt, channelEchoEventId: echoEventId }
-      });
-    }
+      if (e.id !== originalEventId || !isMessagePostedPayload(evt)) return e;
+      return { ...e, event: { ...evt, channelEchoEventId: echoEventId } };
+    });
 
     const previewKey = this.previewKey(originalEventId);
     const preview = this.previewEvents.get(previewKey);
@@ -1163,16 +1157,11 @@ export class MessagesStore {
   }
 
   private clearChannelEchoLink(echoEventId: string): void {
-    for (let i = 0; i < this.events.length; i++) {
-      const e = this.events[i];
+    this.updateEvents((e) => {
       const evt = e.event;
-      if (!isMessagePostedPayload(evt)) continue;
-      if (evt.channelEchoEventId !== echoEventId) continue;
-      this.events = this.events.with(i, {
-        ...e,
-        event: { ...evt, channelEchoEventId: null }
-      });
-    }
+      if (!isMessagePostedPayload(evt) || evt.channelEchoEventId !== echoEventId) return e;
+      return { ...e, event: { ...evt, channelEchoEventId: null } };
+    });
 
     for (const [key, preview] of this.previewEvents) {
       if (!isMessagePostedPayload(preview?.event)) continue;
@@ -1519,6 +1508,20 @@ export class MessagesStore {
             : existingParticipants
       }
     });
+  }
+
+  /**
+   * Replace rows through `update`, which returns the same row when it does not
+   * change it. Publishes one new array, and only when a row changed.
+   */
+  private updateEvents(update: (event: TimelineEventView) => TimelineEventView): void {
+    let changed = false;
+    const next = this.events.map((event) => {
+      const updated = update(event);
+      if (updated !== event) changed = true;
+      return updated;
+    });
+    if (changed) this.events = next;
   }
 
   private sortEvents(): void {

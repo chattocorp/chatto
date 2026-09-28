@@ -16,13 +16,13 @@ import type { Client } from '@connectrpc/connect';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { createChattoClient as createServiceClient, type ConnectAPIConfig } from './api/connect.js';
 import { effect, effectRoot, signal, untrack } from './reactivity/index.js';
-import type { RealtimeProjectionUpdate } from './realtime/eventBus.js';
 import { eventBusManager } from './server/realtimeTransport.js';
 import { generateServerId, serverRegistry } from './server/registry.js';
 import { startClientRuntime } from './server/runtime.js';
 import type { ServerConnection } from './server/serverConnection.js';
 import { serverConnectionManager } from './server/serverConnection.js';
 import { emptyServerSession } from './server/sessions.js';
+import { parseServerUrl } from './util/serverUrl.js';
 import type { ServerStateStore } from './server/store.js';
 
 /** Settings for {@link connectChatto}. */
@@ -31,6 +31,12 @@ export interface ConnectChattoOptions {
   serverUrl: string;
   /** Bearer token, for example a bot API key. It is kept only in memory. */
   apiKey: string;
+}
+
+/** A projection reset; see {@link ChattoConnection.onReset}. */
+export interface ChattoReset {
+  /** Events since the previous connection can be missing. */
+  readonly gap: boolean;
 }
 
 /** Realtime status of a connection. */
@@ -69,25 +75,14 @@ export interface ChattoConnection {
    */
   onEvent(listener: (event: RealtimeEvent) => void): () => void;
   /**
-   * Receive projection resets. A reset after the first one means that the
-   * server could not resume the stream, so events can have been missed.
+   * Receive projection resets. The first reset delivers the initial snapshot.
+   * `gap` is true when a later reset replaced a stream that the server could
+   * not resume, so events can have been missed. A resync that publishes
+   * several resets before the next connection reports one gap.
    */
-  onReset(listener: (update: RealtimeProjectionUpdate) => void): () => void;
+  onReset(listener: (reset: ChattoReset) => void): () => void;
   /** Stop realtime delivery and remove the server and its state. */
   close(): void;
-}
-
-function parseServerUrl(value: string): URL {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error('Use an HTTP or HTTPS Chatto server URL without credentials');
-  }
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
-    throw new Error('Use an HTTP or HTTPS Chatto server URL without credentials');
-  }
-  return url;
 }
 
 /** The open connection. The client runtime keeps one server live at a time. */
@@ -122,18 +117,33 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   runtime.setActiveServer(serverId);
 
   const eventListeners = new Set<(event: RealtimeEvent) => void>();
-  const resetListeners = new Set<(update: RealtimeProjectionUpdate) => void>();
+  const resetListeners = new Set<(reset: ChattoReset) => void>();
+  let resets = 0;
+  // Whether the stream was connected after the previous reset. A resync
+  // publishes a reset and then a snapshot before the next connection.
+  let connectedSinceReset = false;
   const closed = signal(false);
 
   // The event bus starts once the viewer loaded. Subscribe whenever the
   // runtime creates (or replaces) this server's bus.
   const disposeBusSubscription = effectRoot(() => {
     effect(() => {
+      if (!serverRegistry.tryGetStore(serverId)) return;
+      if (serverConnectionManager.getClient(serverId).status === 'connected') {
+        connectedSinceReset = true;
+      }
+    });
+    effect(() => {
       const bus = eventBusManager.getBus(serverId);
       if (!bus) return;
       return untrack(() =>
         bus.subscribe((update) => {
-          if (update.reset) for (const listener of [...resetListeners]) listener(update);
+          if (update.reset) {
+            resets++;
+            const reset: ChattoReset = { gap: resets > 1 && connectedSinceReset };
+            connectedSinceReset = false;
+            for (const listener of [...resetListeners]) listener(reset);
+          }
           const event = update.event;
           if (event) for (const listener of [...eventListeners]) listener(event);
         })

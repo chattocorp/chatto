@@ -10,7 +10,7 @@
 import type { ServiceType } from '@bufbuild/protobuf';
 import type { Client } from '@connectrpc/connect';
 import type { ChattoConnection, RealtimeEvent } from '@chatto/client';
-import { effect, effectRoot } from '@chatto/client/reactivity';
+import { effect, effectRoot, untrack } from '@chatto/client/reactivity';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
@@ -50,9 +50,9 @@ const MESSAGE_CHUNK_LENGTH = 8000;
 /** Thread events requested per page. */
 const THREAD_PAGE_SIZE = 100;
 /**
- * Largest number of received events that wait for the handler. A slower
- * handler stops consumption, so memory stays bounded; the host can reconnect
- * from a new snapshot.
+ * Largest number of received events that wait for the handler. When a slow
+ * handler falls further behind, the waiting events are dropped and a gap is
+ * reported, so memory stays bounded and the bot stays responsive.
  */
 const MAX_QUEUED_EVENTS = 1000;
 
@@ -105,7 +105,7 @@ export interface ConsumeEventsOptions {
   /**
    * Handle one event. Events are handled in order; the next event waits until
    * the returned promise resolves. A rejection stops consumption. When more
-   * than 1000 received events wait, consumption stops with an error.
+   * than 1000 received events wait, they are dropped and a gap is reported.
    */
   onEvent: (event: RealtimeEvent) => void | Promise<void>;
   onStatus?: (status: RealtimeStatus) => void;
@@ -307,61 +307,55 @@ export async function createBotClient(
   /**
    * Handle realtime events in order until `signal` aborts. The connection
    * keeps receiving events while a handler runs; up to 1000 wait in memory.
-   * Resolves on abort. Rejects when `onEvent` or `onStatus` throws, when too
-   * many events wait, when the server ends the session, or when the
-   * connection closes.
+   * Resolves on abort. Rejects when `onEvent` or `onStatus` throws, when the
+   * server ends the session, or when the connection closes.
    */
   async function consumeEvents({ signal, onEvent, onStatus }: ConsumeEventsOptions): Promise<void> {
     signal.throwIfAborted();
-    const queue: RealtimeEvent[] = [];
+    let queue: RealtimeEvent[] = [];
     let wake: (() => void) | undefined;
     let failure: { error: unknown } | undefined;
     const fail = (error: unknown) => {
       failure ??= { error };
       wake?.();
     };
-    // A failing status callback stops consumption; it must not throw into
-    // the connection code that changed the status.
+    let lastStatus: string | undefined;
+    // Report outside reactive tracking, and only changes. A failing status
+    // callback stops consumption; it must not throw into the connection code
+    // that changed the status.
     const report = (status: RealtimeStatus) => {
+      const key = JSON.stringify(status);
+      if (key === lastStatus && !('gap' in status && status.gap)) return;
+      lastStatus = key;
       try {
-        onStatus?.(status);
+        untrack(() => onStatus?.(status));
       } catch (error) {
         fail(error);
       }
     };
     const stopEvents = chatto.onEvent((event) => {
       if (queue.length >= MAX_QUEUED_EVENTS) {
-        fail(new Error('Chatto events arrived faster than the bot handled them'));
-        return;
+        // Keep the bot responsive: drop the backlog and report the loss.
+        queue = [];
+        report({ state: 'ready', gap: true });
       }
       queue.push(event);
       wake?.();
     });
-    let resets = 0;
-    let connectedSinceReset = false;
-    const stopResets = chatto.onReset(() => {
-      resets++;
-      // The first snapshot starts the stream. A later one replaces a stream
-      // that the server could not resume. A resync publishes a reset and then
-      // a snapshot before the next connection; report that gap once.
-      if (resets > 1 && connectedSinceReset) report({ state: 'ready', gap: true });
-      connectedSinceReset = false;
+    const stopResets = chatto.onReset(({ gap }) => {
+      if (gap) report({ state: 'ready', gap: true });
     });
     let connectedBefore = false;
-    const stopStatus = effectRoot(() => {
+    const stopEffects = effectRoot(() => {
       effect(() => {
-        if (chatto.closed) {
-          fail(new Error('The Chatto connection is closed'));
-          return;
-        }
-        if (chatto.sessionEnded) {
+        if (chatto.closed) fail(new Error('The Chatto connection is closed'));
+        else if (chatto.sessionEnded)
           fail(new Error('Chatto ended the session; the API key can be revoked'));
-          return;
-        }
+      });
+      effect(() => {
         const status = chatto.connection.status;
         if (status === 'connected') {
           connectedBefore = true;
-          connectedSinceReset = true;
           report({ state: 'ready', gap: false });
         } else if (status === 'connecting') {
           report({ state: connectedBefore ? 'reconnecting' : 'connecting' });
@@ -387,7 +381,7 @@ export async function createBotClient(
     } finally {
       stopEvents();
       stopResets();
-      stopStatus();
+      stopEffects();
     }
   }
 

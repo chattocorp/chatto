@@ -143,6 +143,8 @@ export function createChattoTransport(
     bearerRenewalInterceptor(config)
   ];
   if (config.transport) return config.transport(interceptors);
+  // Connect sends every request with `redirect: 'error'`, so a token and
+  // request data reach only the configured server.
   return createConnectTransport({
     baseUrl: config.baseUrl,
     useBinaryFormat: options.useBinaryFormat ?? true,

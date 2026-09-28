@@ -707,6 +707,8 @@ class EventBusManager {
     this.#buses.delete(serverId);
     this.#managedServerIds.delete(serverId);
     if (this.#activeServerId === serverId) this.#activeServerId = null;
+    // Without servers, no poll is due; a pending timer would keep a Node host alive.
+    if (this.#controllers.size === 0) this.#clearPollTimer();
   }
 
   getBus(serverId: string): EventBus | undefined {

@@ -19,7 +19,8 @@ vi.mock('./api/viewer.js', async (original) => ({
 
 import { connectChatto, type ChattoConnection } from './connect.js';
 import { serverRegistry } from './server/registry.js';
-import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
+import { eventBusManager, setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
+import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
 
 const profile = {
   name: 'Bot server',
@@ -112,6 +113,41 @@ describe('connectChatto in Node', () => {
     serverRegistry.handleAuthenticationRequired(connection.serverId);
     expect(connection.sessionEnded).toBe(true);
     expect(serverRegistry.getServer(connection.serverId)?.token).toBe('key');
+  });
+
+  it('reports a gap once for resets after the stream was connected', async () => {
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await connection.ready();
+    await vi.waitFor(() => expect(eventBusManager.getBus(connection!.serverId)).toBeDefined());
+    const bus = eventBusManager.getBus(connection.serverId)!;
+    const gaps: boolean[] = [];
+    connection.onReset(({ gap }) => gaps.push(gap));
+    const reset = () => bus.publish(new RealtimeProjectionUpdate({ reset: true }));
+
+    reset(); // initial snapshot
+    connection.connection.setRealtimeConnectionStatus('connected');
+    reset(); // a resync after a connected stream
+    connection.connection.setRealtimeConnectionStatus('connecting');
+    reset(); // its snapshot, before the next connection
+    connection.connection.setRealtimeConnectionStatus('connected');
+    connection.connection.setRealtimeConnectionStatus('connecting');
+    reset(); // a snapshot that replaced a stream that could not resume
+
+    expect(gaps).toEqual([false, true, false, true]);
+  });
+
+  it('leaves no timers behind after close', async () => {
+    vi.useFakeTimers();
+    try {
+      const closing = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      await closing.ready();
+      await vi.waitFor(() => expect(eventBusManager.getBus(closing.serverId)).toBeDefined());
+      await Promise.resolve();
+      closing.close();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('stops waiting when the caller aborts', async () => {

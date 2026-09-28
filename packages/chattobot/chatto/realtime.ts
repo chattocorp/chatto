@@ -117,6 +117,9 @@ async function consume(
   if (!session || session.identity !== identity) {
     session = { identity, conversations: createConversationState() };
     ctx.state.set('chatto', session);
+  } else {
+    // Each generation starts from a new snapshot; the previous one is closed.
+    console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
   }
   // Active runs keep this generation's client even if a reload changes credentials.
   const bot = createChattoBot({

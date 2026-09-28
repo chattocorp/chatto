@@ -31,8 +31,11 @@ chatto.close();
 - `chatto.service(Service)` creates a typed Connect client with the
   connection's authentication.
 - `onEvent` listeners run in order after the store applied an event. They must
-  not throw. `onReset` reports projection resets; a reset after the first one
-  means that events can be missing.
+  not throw. `onReset` reports projection resets. `gap: true` means that a
+  new snapshot replaced a stream that the server could not resume, so events
+  can be missing.
+- `close()` stops realtime delivery and all timers, and rejects a pending
+  `ready()`.
 - The token is kept only in memory: it is never renewed or written to device
   storage. When the server rejects it, `ready()` rejects and `sessionEnded`
   becomes true. Close the connection then.

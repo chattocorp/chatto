@@ -14,6 +14,7 @@
 import type { ServiceType } from '@bufbuild/protobuf';
 import { createClient, type Client } from '@connectrpc/connect';
 import { connectEndpoint, createChattoTransport } from './api/connect.js';
+import { parseServerUrl } from './util/serverUrl.js';
 
 /** Settings for {@link createChattoApi}. */
 export interface ChattoApiOptions {
@@ -35,15 +36,7 @@ export interface ChattoApi {
 
 /** Create a stateless API client with a fixed bearer token. */
 export function createChattoApi(options: ChattoApiOptions): ChattoApi {
-  let url: URL;
-  try {
-    url = new URL(options.serverUrl);
-  } catch {
-    throw new Error('Use an HTTP or HTTPS Chatto server URL without credentials');
-  }
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
-    throw new Error('Use an HTTP or HTTPS Chatto server URL without credentials');
-  }
+  const url = parseServerUrl(options.serverUrl);
   if (!options.apiKey) throw new Error('A Chatto API key is required');
   const request = options.fetch ?? globalThis.fetch;
   const transport = createChattoTransport(
