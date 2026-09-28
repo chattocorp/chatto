@@ -5,6 +5,7 @@ import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForUserDeletedViaConnect } from './fixtures/connectHelpers';
 import { test } from './setup';
 import { AccountPage } from './pages';
+import { DMPage } from './pages/DMPage';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -189,6 +190,40 @@ test.describe('Account Deletion', () => {
           ).not.toBeVisible();
         }
       );
+    });
+
+    test('a DM with a deleted partner shows the deleted user, not a self-DM', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
+      const userA = await createAndLoginTestUser(page);
+
+      await withServerUser(browser!, serverURL, async ({ page: pageB, user: userB }) => {
+        const roomB = await new DMPage(pageB).startConversation(userA.login);
+        await roomB.sendMessage(`Goodbye from ${userB.login} at ${Date.now()}`);
+
+        const dmA = new DMPage(page);
+        await dmA.goto();
+        await dmA.expectConversationVisible(userB.displayName);
+
+        const accountPage = new AccountPage(pageB);
+        await accountPage.goto();
+        await accountPage.deleteAccount();
+
+        // Without a reload, the viewer sees the deleted partner, not their own self-DM.
+        const deletedRow = dmA.getConversation('[deleted user]');
+        await expect(deletedRow).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(deletedRow.getByTestId('you-badge')).toHaveCount(0);
+        await expect(dmA.getConversation(userB.displayName)).not.toBeVisible();
+
+        // A fresh snapshot keeps the same presentation.
+        await page.reload();
+        await expect(dmA.getConversation('[deleted user]')).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+        await expect(page.locator('nav a.sidebar-item [data-testid="you-badge"]')).toHaveCount(0);
+      });
     });
 
     test('join events from deleted users are hidden', async ({
