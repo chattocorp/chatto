@@ -5,6 +5,7 @@ import { page, userEvent } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
+import { loadLocaleMessages } from '$lib/i18n/messages';
 import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 
@@ -193,6 +194,28 @@ describe('RoomDirectory', () => {
     expect(visibleLabel()).toEqual(['Joined']);
     button.focus();
     await expect.poll(visibleLabel).toEqual(['Leave']);
+  });
+
+  it('widens the status column for long translations instead of overflowing', async () => {
+    await loadLocaleMessages('ru-RU');
+    try {
+      const { container } = render(Harness, {
+        props: {
+          initialRooms: [room('r1'), room('r2')],
+          joinedRooms: [joined('r1')],
+          roomGroups: null
+        }
+      });
+      flushSync();
+      const contents = [...container.querySelectorAll<HTMLElement>('li .button-content')];
+      // Joined (Присоединился) and Join (Присоединяйтесь) are wider than w-28.
+      expect(contents).toHaveLength(2);
+      for (const content of contents) {
+        expect(content.scrollWidth).toBeLessThanOrEqual(content.clientWidth);
+      }
+    } finally {
+      await loadLocaleMessages('en-GB');
+    }
   });
 
   it('shows the empty state when there are no visible rooms', () => {
