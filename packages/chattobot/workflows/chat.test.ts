@@ -385,10 +385,15 @@ test('a later turn gets only new thread messages, read after the saved cursor', 
     })
   });
 
-  await bot(createWorkflowContext(), { ...delivery, triggers: ['mention'] });
+  await bot(
+    { ...createWorkflowContext(), run: { id: 'run', reference: 'funky-comics-8426' } },
+    { ...delivery, triggers: ['mention'] }
+  );
   expect(prompts).toHaveLength(2);
   expect(acknowledged).toEqual(['root']);
+  // Only the first turn names the run, for the supervisor to announce.
   expect(JSON.parse(prompts[0]!)).toMatchObject({
+    runName: 'funky-comics-8426',
     thread: [{ id: 'root', role: 'human', body: 'Hey' }],
     olderThreadMessagesOmitted: true
   });

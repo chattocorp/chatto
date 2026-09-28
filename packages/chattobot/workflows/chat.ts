@@ -313,6 +313,7 @@ export const conversation = task(
             return JSON.stringify({
               ...(isFirstTurn
                 ? {
+                    ...(ctx.run?.reference ? { runName: ctx.run.reference } : {}),
                     thread: read.messages,
                     ...(read.olderOmitted ? { olderThreadMessagesOmitted: true } : {})
                   }
