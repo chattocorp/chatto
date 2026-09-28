@@ -603,6 +603,18 @@
       // direct URL navigation to threads.
     }
   }
+
+  const canActivateBody = $derived(
+    !isInThreadPane &&
+      !!onOpenThread &&
+      (isEcho
+        ? !!messageEvent?.echoFromThreadRootEventId
+        : isRootMessage && (hasThread || canUseThreadAction))
+  );
+
+  function handleBodyActivate() {
+    if (canActivateBody && !interactions.hasOpenActionSurface) handleOpenThread();
+  }
 </script>
 
 {#snippet callPresenceIcon(kind: 'voice' | 'video' | null)}
@@ -645,6 +657,7 @@
     timestampSettings={userSettings}
     timestampLocale={activeLocale}
     onMentionClick={showPopoverForMember}
+    onBodyActivate={canActivateBody ? handleBodyActivate : undefined}
     onActorClick={showPopoverForActor}
     onActorTouchStart={(e) => e.stopPropagation()}
     onActorContextMenu={(e) => {
