@@ -92,6 +92,24 @@ is idempotent, closes the inbox iterator, and prevents reuse. It does not dispos
 the supplied agent. Within an `await using` scope, use `return await` so the
 connection stays alive until the interaction finishes.
 
+## Continuing an agent's conversation
+
+By default, an agent keeps its conversation in memory, and the conversation ends
+with the process. Set `sessionFile` to a path to keep it in a JSONL file
+instead. When that file exists, a new agent with the same `sessionFile`
+continues the conversation with its full context, for example after the task
+was cancelled or the process restarted. When it does not exist, the agent
+starts a new conversation there. Pi writes the file after the first model reply.
+
+```ts
+const worker = await agent({ model, cwd, sessionFile: join(artifactDirectory, "worker.jsonl") });
+```
+
+The file contains the complete model context: prompts, tool results, and
+replies. Keep it private, like other workflow data. A fork does not use the
+file. `sessionFile` cannot be combined with `trust`, because the untrusted mark
+is kept only in memory; a continued conversation would lose it.
+
 ## Untrusted content
 
 Set `trust` when an agent can read content that other people control, such as web

@@ -1,6 +1,7 @@
 import type { WorkflowContext } from './context.ts';
 import { requireDirectory } from './directory.ts';
 import { stripVTControlCharacters } from 'node:util';
+import { dirname } from 'node:path';
 import {
   createAgentSession,
   convertToLlm,
@@ -196,6 +197,11 @@ export interface RunAgentOptions {
   signal?: AbortSignal;
   /** Block selected tools after untrusted content enters this agent's context. */
   trust?: AgentTrustPolicy;
+  /** Keep the agent's conversation in this JSONL file. When the file exists, the agent
+   * continues that conversation, for example after a cancellation or restart. The file holds
+   * the complete model context, so keep it private. A fork does not use it. It cannot be
+   * combined with `trust`, because the untrusted mark is not stored in the file. */
+  sessionFile?: string;
 }
 
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
@@ -403,7 +409,12 @@ async function createRunlingAgent(
   });
   await resourceLoader.reload();
 
-  const sessionManager = SessionManager.inMemory(cwd);
+  if (options.sessionFile && options.trust)
+    throw new Error('An agent session file cannot be combined with a trust policy');
+  // A session file continues its conversation when it exists and starts a new one otherwise.
+  const sessionManager = options.sessionFile
+    ? SessionManager.open(options.sessionFile, dirname(options.sessionFile), cwd)
+    : SessionManager.inMemory(cwd);
   // Persist the inherited model context so Pi can compact and restore it.
   // Pi converts existing compaction/branch summaries into normal messages.
   for (const message of inheritedMessages) {
@@ -841,7 +852,12 @@ async function createRunlingAgent(
         throw new Error(`Agent ${agentId} is already running`);
       }
 
-      return createRunlingAgent(options, session.agent.state.messages, trust?.untrusted ?? false);
+      // A fork has its own history; it must not write into the parent's session file.
+      return createRunlingAgent(
+        { ...options, sessionFile: undefined },
+        session.agent.state.messages,
+        trust?.untrusted ?? false
+      );
     },
 
     dispose,

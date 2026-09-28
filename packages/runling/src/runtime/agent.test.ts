@@ -576,6 +576,56 @@ describe('runAgent', () => {
     expect(resourceOptions.settingsManager).toBe(sessionOptions.settingsManager);
   });
 
+  test('a session file keeps the conversation for a later agent, but not for a fork', async () => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const directory = await mkdtemp(join(tmpdir(), 'runling-session-'));
+    const sessionFile = join(directory, 'worker.jsonl');
+    try {
+      const first = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      const manager = sessionOptions.sessionManager;
+      manager.appendMessage({ role: 'user', content: 'Add /shrug', timestamp: 1 });
+      manager.appendMessage({
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Reading the composer.' }],
+        api: 'anthropic-messages',
+        provider: 'anthropic',
+        model: 'claude-opus-4-5',
+        usage: {
+          ...emptyUsage,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+        },
+        stopReason: 'stop',
+        timestamp: 2
+      });
+      first.dispose();
+      expect(await readFile(sessionFile, 'utf8')).toContain('Reading the composer.');
+
+      const resumed = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      expect(
+        sessionOptions.sessionManager
+          .buildSessionContext()
+          .messages.map((message: { role: string }) => message.role)
+      ).toEqual(['user', 'assistant']);
+      const fork = await resumed.fork();
+      expect(sessionOptions.sessionManager.getSessionFile()).toBeUndefined();
+      fork.dispose();
+      resumed.dispose();
+      await expect(
+        agent({
+          model: 'anthropic/claude-opus-4-5',
+          cwd: '.',
+          sessionFile,
+          trust: { untrusted: ['fetch'], blockAfterUntrusted: ['write'] }
+        })
+      ).rejects.toThrow('cannot be combined with a trust policy');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   test('returns the structured outcome reported by the agent', async () => {
     promptImplementation = async () => {
       await reportOutcome({
