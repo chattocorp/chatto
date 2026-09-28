@@ -17,7 +17,7 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 	snapshot := &projectionv1.ReactionProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
-	for _, message := range sortedHandleKeys(&p.ids, p.byMessage) {
+	for _, message := range sortedHandleKeys(p.messages, p.byMessage) {
 		reactions := slices.Clone(p.byMessage[message])
 		slices.SortFunc(reactions, func(a, b reactionProjectionEntry) int {
 			if byEmoji := strings.Compare(p.ids.id(a.emoji), p.ids.id(b.emoji)); byEmoji != 0 {
@@ -25,7 +25,7 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 			}
 			return strings.Compare(p.ids.id(a.user), p.ids.id(b.user))
 		})
-		row := &projectionv1.MessageReactionsSnapshot{MessageEventId: p.ids.id(message)}
+		row := &projectionv1.MessageReactionsSnapshot{MessageEventId: p.messages.id(message)}
 		var group *projectionv1.EmojiReactionsSnapshot
 		for _, reaction := range reactions {
 			if emoji := p.ids.id(reaction.emoji); group == nil || group.Emoji != emoji {
@@ -48,13 +48,13 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	messageRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.messageRooms))
 	for i, room := range p.messageRooms {
 		if room != 0 {
-			messageRooms = append(messageRooms, &projectionv1.StringStringSnapshot{Key: p.ids.id(uint32(i + 1)), Value: p.ids.id(room)})
+			messageRooms = append(messageRooms, &projectionv1.StringStringSnapshot{Key: p.messages.id(uint32(i + 1)), Value: p.ids.id(room)})
 		}
 	}
 	snapshot.MessageRooms = sortedRows(messageRooms)
 	echoOriginals := make([]*projectionv1.StringStringSnapshot, 0, len(p.echoOriginal))
 	for echo, original := range p.echoOriginal {
-		echoOriginals = append(echoOriginals, &projectionv1.StringStringSnapshot{Key: p.ids.id(echo), Value: p.ids.id(original)})
+		echoOriginals = append(echoOriginals, &projectionv1.StringStringSnapshot{Key: p.messages.id(echo), Value: p.messages.id(original)})
 	}
 	snapshot.EchoOriginals = sortedRows(echoOriginals)
 	assetRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.assetRoom))
@@ -76,13 +76,16 @@ func (p *ReactionProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("reaction snapshot replay guard: %w", err)
 	}
-	restored := NewReactionProjection()
+	// The restored model interns into the same message table so handles stay
+	// shared with the other ServerContentView components.
+	restored := newReactionProjection(p.messages)
+	restored.sharedEventIDs = p.sharedEventIDs
 	restored.replayGuard = guard
 	for _, message := range snapshot.GetMessages() {
 		if message.GetMessageEventId() == "" {
 			return fmt.Errorf("reaction snapshot has empty message ID")
 		}
-		messageHandle := restored.ids.intern(message.GetMessageEventId())
+		messageHandle := restored.messages.intern(message.GetMessageEventId())
 		if _, duplicate := restored.byMessage[messageHandle]; duplicate {
 			return fmt.Errorf("reaction snapshot repeats message %q", message.GetMessageEventId())
 		}
@@ -145,10 +148,10 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		}
 	}
 	for _, row := range snapshot.GetMessageRooms() {
-		restored.messageRooms.set(restored.ids.intern(row.GetKey()), restored.ids.intern(row.GetValue()))
+		restored.messageRooms.set(restored.messages.intern(row.GetKey()), restored.ids.intern(row.GetValue()))
 	}
 	for _, row := range snapshot.GetEchoOriginals() {
-		restored.echoOriginal[restored.ids.intern(row.GetKey())] = restored.ids.intern(row.GetValue())
+		restored.echoOriginal[restored.messages.intern(row.GetKey())] = restored.messages.intern(row.GetValue())
 	}
 	for _, row := range snapshot.GetAssetRooms() {
 		restored.assetRoom[row.GetKey()] = row.GetValue()

@@ -1220,8 +1220,8 @@ func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
 	if got := p.RoomEventCount("R1"); got != 0 {
 		t.Fatalf("RoomEventCount after ignored events = %d, want 0", got)
 	}
-	if got := len(p.byEventID); got != 0 {
-		t.Fatalf("byEventID after ignored events = %d, want 0", got)
+	if got := p.eventIDs.len(); got != 0 {
+		t.Fatalf("event IDs after ignored events = %d, want 0", got)
 	}
 }
 

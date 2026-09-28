@@ -253,28 +253,40 @@ message content; retraction removes the association during projection. The
 current Room Timeline schema stores only compact timeline and body references.
 Its schema fingerprint rejects the earlier `v7` payload-bearing schema.
 
+The Room Timeline, Threads, and Reactions components of the Server Content
+View intern event IDs in one shared event ID table. The table holds each event
+ID once for all three components. The components store `uint32` handles
+instead of ID strings. The table keeps ID bytes in an append-only arena and
+indexes them with pointer-free hash keys, so the garbage collector does not
+scan them. Handles are process-local; snapshots store ID strings, and a
+restore interns them again. The table has its own lock, because the components
+apply and read under different component locks. A read of an ID from a handle
+does not lock. The components keep separate models, and only the table is
+shared. A component that is created outside the content view, for example in
+a test, owns a private table.
+
 The Room Timeline component shares room and user IDs between compact event
-rows. Each row keeps a small event-kind value. An event-ID index locates a
-message's current body state in a dense array. Body authors use the shared
-user table. Only messages with multiple body events retain a separate index
-of superseded body sequences. A small map holds body facts and body history
-that arrive before their message post. The projection moves these values into
-the dense and sparse indexes when the post arrives. Each
-row stores references to known thread roots and echo sources as numeric row
-indexes. A sparse fallback keeps the original ID if the referenced event has
-not arrived or is outside the timeline. The Threads component uses structured
-keys for follow state and followed-thread indexes.
+rows. Each row keeps a small event-kind value and its creation time in Unix
+nanoseconds. Rows contain no Go pointers. Each row stores event ID handles for
+its event, thread root, containing thread, and echo source. A handle can name
+an event that has not arrived or that is outside the timeline. A dense slice
+indexed by event ID handle locates the row of an event, and the row locates
+the message's current body state in a dense array. Body authors use the
+shared user table. Only messages with multiple body events retain a separate
+index of superseded body sequences. A small map holds body facts and body
+history that arrive before their message post. The projection moves these
+values into the dense and sparse indexes when the post arrives. The Threads
+component uses structured keys for follow state and followed-thread indexes.
 
-Threads interns user and room IDs in one small table and event IDs in a second
-table. Its indexes store `uint32` handles instead of ID strings. Each ID string
-is held once. Handles are process-local; snapshots store ID strings. Room
-deletion removes the room's message references and relationships. The message
-IDs of that room stay in the table. Only a snapshot restore removes them.
+Threads interns user and room IDs in one small table. Its indexes store
+`uint32` handles instead of ID strings. Room deletion removes the room's
+message references and relationships. The message IDs of that room stay in
+the shared event ID table.
 
-Reactions interns message, emoji, user, and room IDs in one table. It keeps the
-source event ID of each active reaction as a string, because each source ID
-occurs only once. Each message has a short slice of active reactions, sorted by
-emoji and user handles.
+Reactions interns emoji, user, and room IDs in one table and message IDs in
+the shared event ID table. It keeps the source event ID of each active
+reaction as a string, because each source ID occurs only once. Each message
+has a short slice of active reactions, sorted by emoji and user handles.
 
 Timeline, Threads, and Reactions construct detached read results.
 
@@ -296,7 +308,8 @@ revision OCC for publication.
 
 Room Timeline retains one body-state entry per message. It stores the current
 body-event ID and EVT sequence, the author ID, the current attachment count,
-and an active flag. A sequence slice is allocated only after an edit. Its
+and an active flag. The body-event ID is in an append-only arena of the
+component, so the entry contains no Go pointers. A sequence slice is allocated only after an edit. Its
 component codec preserves the complete body-event sequence history. Complete
 encrypted body payloads remain in EVT and are not part of the snapshot cohort.
 
@@ -369,8 +382,10 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 Registered projector keys are used by metrics and automation. Registered names
 match the admin projection diagnostics. Composite projections expose nested
 read models, but only their parent projector is started by `ChattoCore.Run`.
-`chatto_projection_component_estimated_bytes` reports separate room-timeline
-and threads estimates inside the Server Content View. These estimates are
+`chatto_projection_component_estimated_bytes` reports separate room-timeline,
+threads, reactions, and shared event ID table (`event_ids`) estimates inside
+the Server Content View. The component estimates do not include the shared
+table. These estimates are
 diagnostic approximations; retained-heap benchmarks measure their actual Go
 heap cost. `BenchmarkProjectionRetainedHeapFromStore` replays the `EVT` stream
 of a copied NATS data directory from `CHATTO_BENCH_EVT_STORE_DIR` to measure

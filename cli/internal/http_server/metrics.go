@@ -442,6 +442,10 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 				ch <- prometheus.MustNewConstMetric(c.projectionComponentBytes, prometheus.GaugeValue, float64(metric.Bytes), "room_timeline")
 			case "component_threads":
 				ch <- prometheus.MustNewConstMetric(c.projectionComponentBytes, prometheus.GaugeValue, float64(metric.Bytes), "threads")
+			case "component_reactions":
+				ch <- prometheus.MustNewConstMetric(c.projectionComponentBytes, prometheus.GaugeValue, float64(metric.Bytes), "reactions")
+			case "component_event_ids":
+				ch <- prometheus.MustNewConstMetric(c.projectionComponentBytes, prometheus.GaugeValue, float64(metric.Bytes), "event_ids")
 			}
 		}
 	}

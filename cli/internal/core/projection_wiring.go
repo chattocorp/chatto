@@ -174,11 +174,14 @@ func initializeCoreProjections(
 	roomDirectory := NewRoomDirectoryProjection()
 	serverConfig := NewConfigProjection()
 	roomGroupLayout := NewRoomGroupLayoutProjection()
-	roomTimeline := NewRoomTimelineProjection()
+	// The room timeline, thread, and reaction components index the same
+	// message IDs. One shared table holds each ID once for all three.
+	eventIDs := newEventIDTable()
+	roomTimeline := newRoomTimelineProjection(eventIDs)
 	callState := NewCallStateProjection()
 	assets := NewAssetProjection()
-	threads := NewThreadProjection()
-	reactions := NewReactionProjection()
+	threads := newThreadProjection(eventIDs)
+	reactions := newReactionProjection(eventIDs)
 	users := newUserProjectionWithDEKResolver(infra.dekResolver)
 	userAuth := users.AuthProjection()
 	contentKeys := NewContentKeyProjection()
@@ -206,7 +209,7 @@ func initializeCoreProjections(
 		registrar, contentView, projectionsnapshot.ProjectionServerContentViewKey,
 		"Server Content View",
 		func() (int64, int64, []ProjectionAdminMetric) {
-			return contentView.adminProjectionEstimate(contentComponents...)
+			return contentView.adminProjectionEstimate(eventIDs, contentComponents...)
 		},
 		sharedSnapshots,
 	)

@@ -159,8 +159,11 @@ type ThreadProjection struct {
 	// principalIDs interns user and room IDs. The table stays small, so the
 	// lookups on authorization read paths stay cache-resident.
 	principalIDs projectionIDTable
-	// eventIDs interns message and thread-root event IDs.
-	eventIDs projectionIDTable
+	// eventIDs interns message and thread-root event IDs. The
+	// ServerContentView shares one table with the room timeline and reaction
+	// components; a standalone projection owns a private table.
+	eventIDs       *eventIDTable
+	sharedEventIDs bool
 	// messageRefs is indexed by eventIDs handle minus one.
 	messageRefs handleSlice[threadMessageRef]
 	// interactions maps each relationship to its room handle.
@@ -173,15 +176,27 @@ type ThreadProjection struct {
 	shreddedUsers   map[string]struct{}
 }
 
-// NewThreadProjection returns an empty projection.
+// NewThreadProjection returns an empty projection with a private event ID
+// table.
 func NewThreadProjection() *ThreadProjection {
+	return newThreadProjection(nil)
+}
+
+// newThreadProjection returns an empty projection that interns event IDs in
+// eventIDs. A nil table gives the projection a private table.
+func newThreadProjection(eventIDs *eventIDTable) *ThreadProjection {
+	shared := eventIDs != nil
+	if !shared {
+		eventIDs = newEventIDTable()
+	}
 	return &ThreadProjection{
 		byThread:        make(map[uint32][]threadEntry),
 		replies:         make(map[uint32]threadReply),
 		channelRooms:    make(map[string]struct{}),
 		dmRooms:         make(map[string]map[string]struct{}),
 		principalIDs:    newProjectionIDTable(),
-		eventIDs:        newProjectionIDTable(),
+		eventIDs:        eventIDs,
+		sharedEventIDs:  shared,
 		interactions:    make(map[threadInteractionKey]uint32),
 		summaryByThread: make(map[uint32]*threadSummary),
 		followState:     make(map[threadFollowStateKey]compactThreadFollowState),
@@ -468,8 +483,8 @@ func (p *ThreadProjection) addInteractionLocked(userID string, room, root uint32
 }
 
 // removeRoomInteractionStateLocked drops the message refs and relationships of
-// a deleted room. The room's message IDs stay in the append-only ID table;
-// only a snapshot restore, which interns live state only, removes them.
+// a deleted room. The room's message IDs stay in the append-only event ID
+// table.
 func (p *ThreadProjection) removeRoomInteractionStateLocked(roomID string) {
 	room, ok := p.principalIDs.lookup(roomID)
 	if !ok {

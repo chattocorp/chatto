@@ -33,7 +33,7 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		})
 	}
 
-	for _, root := range sortedHandleKeys(&p.eventIDs, p.byThread) {
+	for _, root := range sortedHandleKeys(p.eventIDs, p.byThread) {
 		thread := &projectionv1.ThreadSnapshot{RootEventId: p.eventIDs.id(root)}
 		for _, entry := range p.byThread[root] {
 			thread.Entries = append(thread.Entries, &projectionv1.ThreadTimelineEntrySnapshot{
@@ -44,7 +44,7 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		snapshot.Threads = append(snapshot.Threads, thread)
 	}
 
-	for _, handle := range sortedHandleKeys(&p.eventIDs, p.replies) {
+	for _, handle := range sortedHandleKeys(p.eventIDs, p.replies) {
 		reply := p.replies[handle]
 		row := &projectionv1.ThreadReplySnapshot{
 			EventId:           p.eventIDs.id(handle),
@@ -136,7 +136,6 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		channelRooms    map[string]struct{}
 		dmRooms         map[string]map[string]struct{}
 		principalIDs    projectionIDTable
-		eventIDs        projectionIDTable
 		messageRefs     handleSlice[threadMessageRef]
 		interactions    map[threadInteractionKey]uint32
 		summaryByThread map[uint32]*threadSummary
@@ -145,7 +144,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		followedByUser  map[string]map[threadFollowRef]struct{}
 		replayGuard     projectionReplayGuard
 		shreddedUsers   map[string]struct{}
-	}{p.byThread, p.replies, p.channelRooms, p.dmRooms, p.principalIDs, p.eventIDs, p.messageRefs, p.interactions, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
+	}{p.byThread, p.replies, p.channelRooms, p.dmRooms, p.principalIDs, p.messageRefs, p.interactions, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
 	defer func() {
 		if err == nil {
 			return
@@ -155,7 +154,6 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		p.channelRooms = previous.channelRooms
 		p.dmRooms = previous.dmRooms
 		p.principalIDs = previous.principalIDs
-		p.eventIDs = previous.eventIDs
 		p.messageRefs = previous.messageRefs
 		p.interactions = previous.interactions
 		p.summaryByThread = previous.summaryByThread
@@ -367,7 +365,8 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.channelRooms = make(map[string]struct{})
 	p.dmRooms = make(map[string]map[string]struct{})
 	p.principalIDs = newProjectionIDTable()
-	p.eventIDs = newProjectionIDTable()
+	// The event ID table is append-only and can be shared with other
+	// ServerContentView components, so a restore keeps it.
 	p.messageRefs = nil
 	p.interactions = make(map[threadInteractionKey]uint32)
 	p.summaryByThread = make(map[uint32]*threadSummary)
