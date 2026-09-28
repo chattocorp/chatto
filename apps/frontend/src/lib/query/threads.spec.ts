@@ -137,6 +137,58 @@ describe('followed thread query helpers', () => {
     expect(new Set(keys).size).toBe(3);
   });
 
+  it('drops the feed when a retracted message is shown in a cached thread', () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const latestReply = { id: 'reply-2' } as FollowedThread['latestReply'];
+    queryClient.setQueryData(
+      queryKey,
+      data({
+        threads: [thread('root-1'), thread('root-2', { roomId: 'room-2', latestReply })],
+        totalCount: 2,
+        hasMore: false
+      })
+    );
+
+    queryCaches.followedThreads!.retractMessage('origin', 'room-2', 'reply-2');
+
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toEqual([]);
+  });
+
+  it('keeps loaded pages for a retraction that no cached thread shows', () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    queryClient.setQueryData(
+      queryKey,
+      data({ threads: [thread('root-1'), thread('root-2')], totalCount: 2, hasMore: false })
+    );
+
+    queryCaches.followedThreads!.retractMessage('origin', 'room-1', 'older-reply');
+
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toHaveLength(2);
+    expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+  });
+
+  it('drops the feed for any retraction while a feed read is pending', async () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    queryClient.setQueryData(
+      queryKey,
+      data({ threads: [thread('root-1')], totalCount: 1, hasMore: false })
+    );
+    let resolveRead!: (page: FollowedThreadsPage) => void;
+    const pending = queryClient.fetchInfiniteQuery({
+      queryKey,
+      queryFn: () => new Promise<FollowedThreadsPage>((resolve) => (resolveRead = resolve)),
+      initialPageParam: 0,
+      staleTime: 0
+    });
+    expect(queryClient.getQueryState(queryKey)?.fetchStatus).toBe('fetching');
+
+    queryCaches.followedThreads!.retractMessage('origin', 'room-9', 'unknown');
+
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toEqual([]);
+    resolveRead({ threads: [], totalCount: 0, hasMore: false, nextOffset: 0 });
+    await pending.catch(() => undefined);
+  });
+
   it('scrubs room and reset privacy boundaries from retained caches', () => {
     const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
     queryClient.setQueryData(

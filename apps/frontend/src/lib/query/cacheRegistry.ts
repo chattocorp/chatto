@@ -38,6 +38,11 @@ export type FollowedThreadCache = {
   reset(serverId: string): void;
   /** Refetch the feed after activity changes a latest reply. */
   refresh(serverId: string): void;
+  /**
+   * Drop the feed when a cached or pending page can show a retracted message;
+   * otherwise refetch it in place.
+   */
+  retractMessage(serverId: string, roomId: string, eventId: string): void;
   /** Remove threads of a room that the viewer can no longer read. */
   scrubRoom(serverId: string, roomId: string): void;
 };

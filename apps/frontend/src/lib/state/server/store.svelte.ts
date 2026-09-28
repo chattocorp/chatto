@@ -1227,9 +1227,13 @@ export class ServerStateStore {
           if (payload.value.threadRootEventId) queryCaches.followedThreads?.refresh(this.serverId);
         }
         if (payload.case === 'messageEdited') queryCaches.followedThreads?.refresh(this.serverId);
-        // A retraction is a privacy boundary. A refresh keeps the cached feed,
-        // including the retracted text, until its refetch lands; a reset drops it.
-        if (payload.case === 'messageRetracted') queryCaches.followedThreads?.reset(this.serverId);
+        if (payload.case === 'messageRetracted') {
+          queryCaches.followedThreads?.retractMessage(
+            this.serverId,
+            payload.value.roomId,
+            payload.value.messageEventId
+          );
+        }
         return;
       }
       case 'assetProcessingStarted':

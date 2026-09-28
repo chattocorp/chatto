@@ -162,6 +162,27 @@ function refreshFollowedThreadQueries(serverId: string): void {
   }
 }
 
+/**
+ * Handle a retracted message. When a cached page shows it, or a pending read can
+ * return it, drop the feed so the text disappears at once. Otherwise refetch in
+ * place, which keeps the loaded pages.
+ */
+function retractFollowedThreadMessage(serverId: string, roomId: string, eventId: string): void {
+  const shown = followedThreadQueries(serverId).some(
+    (query) =>
+      query.state.fetchStatus === 'fetching' ||
+      flattenFollowedThreads(query.state.data as FollowedThreadsData | undefined).some(
+        (thread) =>
+          thread.roomId === roomId &&
+          (thread.threadRootEventId === eventId ||
+            thread.rootMessage?.id === eventId ||
+            thread.latestReply?.id === eventId)
+      )
+  );
+  if (shown) resetFollowedThreadQueries(serverId);
+  else refreshFollowedThreadQueries(serverId);
+}
+
 function resumeFollowedThreadQuery(queryKey: QueryKey): void {
   void queryClient
     .cancelQueries({ queryKey, exact: true }, { revert: false })
@@ -198,5 +219,6 @@ function scrubFollowedThreadRoom(serverId: string, roomId: string): void {
 queryCaches.followedThreads = {
   reset: resetFollowedThreadQueries,
   refresh: refreshFollowedThreadQueries,
+  retractMessage: retractFollowedThreadMessage,
   scrubRoom: scrubFollowedThreadRoom
 };

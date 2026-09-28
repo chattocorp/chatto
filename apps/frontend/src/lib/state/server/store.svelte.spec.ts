@@ -85,6 +85,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     resetFollowedThreads: vi.fn(),
     refreshFollowedThreads: vi.fn(),
     scrubFollowedThreadRoom: vi.fn(),
+    retractFollowedThreadMessage: vi.fn(),
     purgeRoomMemberQueries: vi.fn(),
     scrubRoomMemberUser: vi.fn()
   },
@@ -538,6 +539,7 @@ beforeEach(() => {
   queryCaches.followedThreads = {
     reset: cacheMocks.resetFollowedThreads,
     refresh: cacheMocks.refreshFollowedThreads,
+    retractMessage: cacheMocks.retractFollowedThreadMessage,
     scrubRoom: cacheMocks.scrubFollowedThreadRoom
   };
   queryCaches.roomMembers = {
@@ -545,6 +547,7 @@ beforeEach(() => {
     scrubUser: cacheMocks.scrubRoomMemberUser
   };
   cacheMocks.refreshRoleQueries.mockClear();
+  cacheMocks.retractFollowedThreadMessage.mockClear();
   cacheMocks.resetFollowedThreads.mockClear();
   cacheMocks.refreshFollowedThreads.mockClear();
   cacheMocks.scrubFollowedThreadRoom.mockClear();
@@ -3300,7 +3303,7 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
-  it('drops the cached followed-thread feed when a message is retracted', () => {
+  it('passes a retracted message to the followed-thread feed', () => {
     const store = makeStore(new FakeServerConnection([]));
 
     store.realtimeProjectionHandler(
@@ -3314,8 +3317,12 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
 
-    // A refresh would keep showing the retracted text until the refetch lands.
-    expect(cacheMocks.resetFollowedThreads).toHaveBeenCalledExactlyOnceWith(store.serverId);
+    expect(cacheMocks.retractFollowedThreadMessage).toHaveBeenCalledExactlyOnceWith(
+      store.serverId,
+      'R1',
+      'E-REPLY'
+    );
+    expect(cacheMocks.resetFollowedThreads).not.toHaveBeenCalled();
     expect(cacheMocks.refreshFollowedThreads).not.toHaveBeenCalled();
   });
 
