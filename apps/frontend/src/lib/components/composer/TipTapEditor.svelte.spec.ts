@@ -60,7 +60,11 @@ describe('TipTapEditor accessibility', () => {
   it('keeps its accessible name synchronized with the placeholder', async () => {
     const rendered = render(TipTapEditor, { props: { placeholder: 'Write a message' } });
 
-    await expect.element(page.getByRole('textbox', { name: 'Write a message' })).toBeVisible();
+    const editor = page.getByRole('textbox', { name: 'Write a message' });
+    await expect.element(editor).toBeVisible();
+    // An aria-label on a contenteditable div needs an explicit role.
+    await expect.element(editor).toHaveAttribute('role', 'textbox');
+    await expect.element(editor).toHaveAttribute('aria-multiline', 'true');
 
     await rendered.rerender({ placeholder: 'Edit your message' });
 
