@@ -9,6 +9,7 @@ export {
   computed,
   effect,
   effectRoot,
+  isObservingReads,
   setReadHook,
   signal,
   subscribe,

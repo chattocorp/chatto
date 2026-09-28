@@ -115,7 +115,12 @@ export function setVoiceCallFactory(factory: VoiceCallFactory): void {
   voiceCallFactory = factory;
 }
 
-/** Create a controller with the installed factory. */
+/**
+ * Create a controller with the installed factory. The result has the
+ * registered type, so an application that registers a type must install its
+ * factory before any store reads `voiceCall`; otherwise a `DetachedVoiceCall`
+ * is returned under that type.
+ */
 export function createVoiceCall(context: VoiceCallContext): RegisteredVoiceCall {
   // The registered type describes the installed factory; see Register.
   return voiceCallFactory(context) as RegisteredVoiceCall;

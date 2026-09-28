@@ -9,7 +9,8 @@
  * Writes mark dependent nodes as possibly stale. Computed values are pulled
  * lazily: a computed recomputes only when it is read and one of its sources
  * has a new version. Effects run synchronously when the outermost write or
- * {@link batch} completes.
+ * {@link batch} completes. An error in a later run of an effect is logged; it
+ * does not reach the code that wrote the signal.
  *
  * A computed that no effect observes does not register with its sources. It
  * checks source versions when it is read instead, so an unobserved computed
@@ -71,6 +72,15 @@ const MAX_EFFECT_RUNS_PER_FLUSH = 100_000;
  */
 export function setReadHook(hook: ReadHook | null): void {
   readHook = hook;
+}
+
+/**
+ * Whether a read now is observed: by the running computed or effect, or by an
+ * installed UI adapter. Collections use it to create per-key signals only
+ * when a read can subscribe to them.
+ */
+export function isObservingReads(): boolean {
+  return untrackDepth === 0 && (activeSources !== null || readHook !== null);
 }
 
 function track(source: Source): void {
@@ -431,11 +441,18 @@ function endBatch(): void {
   flushEffects();
 }
 
+/**
+ * Report an effect failure. An effect error is a defect of the effect's
+ * owner, not of the code that wrote a signal, so it does not reach the writer:
+ * a realtime reducer must not fail because an unrelated effect failed.
+ */
+function reportEffectError(error: unknown): void {
+  console.error('[chatto-client] an effect failed', error);
+}
+
 function flushEffects(): void {
   flushing = true;
   let runs = 0;
-  let firstError: unknown;
-  let failed = false;
   try {
     while (pendingEffects.length > 0) {
       const effects = pendingEffects;
@@ -447,23 +464,19 @@ function flushEffects(): void {
             dropped.cancelPending();
           }
           pendingEffects = [];
-          throw new Error('Effect update loop exceeded the maximum number of runs');
+          reportEffectError(new Error('Effect update loop exceeded the maximum number of runs'));
+          return;
         }
         try {
           effect.runIfStale();
         } catch (error) {
-          // Run the remaining effects, then report the first failure to the writer.
-          if (!failed) {
-            failed = true;
-            firstError = error;
-          }
+          reportEffectError(error);
         }
       }
     }
   } finally {
     flushing = false;
   }
-  if (failed) throw firstError;
 }
 
 /** A writable reactive value. */

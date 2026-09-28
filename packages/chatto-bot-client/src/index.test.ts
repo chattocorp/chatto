@@ -196,17 +196,17 @@ test('consumes events in order, reports status and gaps, and stops on abort', as
   await vi.waitFor(() => expect(handled).toEqual(['first']));
   release();
   await vi.waitFor(() => expect(handled).toEqual(['first', 'second']));
-  // The connection decides whether a reset is a gap.
+  // The connection decides whether a reset is a gap; it is reported with the
+  // next `ready`, not while the replacement snapshot loads.
   fake.setStatus('connecting');
   fake.reset(true);
-  fake.setStatus('connected');
+  expect(statuses.at(-1)).toEqual({ state: 'reconnecting' });
   fake.setStatus('connected');
   expect(statuses).toEqual([
     { state: 'connecting' },
     { state: 'ready', gap: false },
     { state: 'reconnecting' },
-    { state: 'ready', gap: true },
-    { state: 'ready', gap: false }
+    { state: 'ready', gap: true }
   ]);
   controller.abort();
   await consuming;
@@ -243,6 +243,7 @@ test('drops the backlog and reports a gap behind a slow handler', async () => {
       if (event.id === 'event-0') await new Promise<void>((resolve) => (release = resolve));
     }
   });
+  fake.setStatus('connected');
   fake.emit(dmEvent('event-0'));
   await vi.waitFor(() => expect(handled).toEqual(['event-0']));
   for (let index = 1; index < 1003; index++) fake.emit(dmEvent(`event-${index}`));

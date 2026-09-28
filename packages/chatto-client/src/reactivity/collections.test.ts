@@ -63,3 +63,14 @@ describe('ReactiveSet', () => {
     expect(sizes.mock.calls).toEqual([[1], [2], [1]]);
   });
 });
+
+describe('unobserved reads', () => {
+  it('create no per-key signals outside computeds, effects, and adapters', () => {
+    const map = new ReactiveMap([['a', 1]]);
+    for (let index = 0; index < 3; index++) map.get('a');
+    const runs = vi.fn();
+    effect(() => runs(map.get('a')));
+    map.set('a', 2);
+    expect(runs.mock.calls).toEqual([[1], [2]]);
+  });
+});

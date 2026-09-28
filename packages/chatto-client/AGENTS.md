@@ -41,9 +41,9 @@ Runling examples use it. See
 - Signals compare values by reference. Replace an object or array to publish a
   change, or call `notify()` after an in-place mutation. ADR-010 applies: keep
   high-frequency data out of collections that render.
-- Effects run synchronously when the outermost write ends. When an effect must
-  react to several related writes, coalesce its work, as `startClientRuntime`
-  does.
+- Effects run synchronously when the outermost write or `batch` ends. Wrap a
+  method that writes several signals in `batch`, so effects never observe a
+  half-applied change. An effect error is logged and does not reach the writer.
 
 ## Modules And Exports
 

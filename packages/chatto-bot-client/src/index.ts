@@ -400,17 +400,24 @@ export async function createBotClient(
         fail(error);
       }
     };
+    // A gap is reported with `ready` once the stream is connected again, so
+    // hosts are not told `ready` while a replacement snapshot still loads.
+    let pendingGap = false;
+    const reportGap = () => {
+      if (untrack(() => chatto.status) === 'connected') report({ state: 'ready', gap: true });
+      else pendingGap = true;
+    };
     const stopEvents = chatto.onEvent((event) => {
       if (queue.length >= MAX_QUEUED_EVENTS) {
         // Keep the bot responsive: drop the backlog and report the loss.
         queue = [];
-        report({ state: 'ready', gap: true });
+        reportGap();
       }
       queue.push(event);
       wake?.();
     });
     const stopResets = chatto.onReset(({ gap }) => {
-      if (gap) report({ state: 'ready', gap: true });
+      if (gap) reportGap();
     });
     let connectedBefore = false;
     const stopEffects = effectRoot(() => {
@@ -423,7 +430,8 @@ export async function createBotClient(
         const status = chatto.status;
         if (status === 'connected') {
           connectedBefore = true;
-          report({ state: 'ready', gap: false });
+          report({ state: 'ready', gap: pendingGap });
+          pendingGap = false;
         } else if (status === 'connecting') {
           report({ state: connectedBefore ? 'reconnecting' : 'connecting' });
         } else if (status === 'disconnected') {
@@ -431,17 +439,15 @@ export async function createBotClient(
         }
       });
     });
-    let onAbort: (() => void) | undefined;
-    const aborted = new Promise<void>((resolve) => {
-      onAbort = resolve;
-      signal.addEventListener('abort', onAbort, { once: true });
-    });
+    // Abort wakes the loop directly; no promise outlives one wait.
+    const onAbort = () => wake?.();
+    signal.addEventListener('abort', onAbort, { once: true });
     try {
       while (!signal.aborted) {
         if (failure) throw failure.error;
         const event = queue.shift();
         if (!event) {
-          await Promise.race([new Promise<void>((resolve) => (wake = resolve)), aborted]);
+          await new Promise<void>((resolve) => (wake = resolve));
           wake = undefined;
           continue;
         }
@@ -451,7 +457,7 @@ export async function createBotClient(
       stopEvents();
       stopResets();
       stopEffects();
-      if (onAbort) signal.removeEventListener('abort', onAbort);
+      signal.removeEventListener('abort', onAbort);
     }
   }
 

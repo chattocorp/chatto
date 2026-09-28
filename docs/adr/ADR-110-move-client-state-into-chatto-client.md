@@ -65,7 +65,9 @@ The package has its own small signal library in `reactivity/`: `signal`,
 `ReactiveMap`, and `ReactiveSet`. A computed value is lazy. A computed value
 without observers does not register with its sources, so it can be garbage
 collected with its owner. Effects run synchronously when the outermost write
-ends.
+or `batch` ends. An effect error is logged; it does not reach the code that
+wrote the signal. Multi-step store operations, such as registry changes, run
+in one `batch`, so effects never observe half-applied state.
 
 We examined alien-signals, Preact signals, `@vue/reactivity`, TanStack Store,
 and the TC39 signal polyfill. None of them has a hook for reads outside the

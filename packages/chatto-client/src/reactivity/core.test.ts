@@ -200,15 +200,21 @@ describe('effect', () => {
     expect(runs.mock.calls).toEqual([[0], [2]]);
   });
 
-  it('reports effect errors to the writer after running other effects', () => {
+  it('logs effect errors without failing the writer or other effects', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     const count = signal(0);
     const other = vi.fn();
     effect(() => {
       if (count.get() === 1) throw new Error('boom');
     });
     effect(() => other(count.get()));
-    expect(() => count.set(1)).toThrow('boom');
+    expect(() => count.set(1)).not.toThrow();
     expect(other).toHaveBeenLastCalledWith(1);
+    expect(logged).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ message: 'boom' })
+    );
+    logged.mockRestore();
   });
 
   it('disposes effects created in a root', () => {
@@ -292,7 +298,13 @@ describe('effect loops', () => {
     const stopLoop = effect(() => {
       count.set(count.get() + 1);
     });
-    expect(() => count.set(-1)).toThrow('maximum number of runs');
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    count.set(-1);
+    expect(logged).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ message: expect.stringContaining('maximum number of runs') })
+    );
+    logged.mockRestore();
     stopLoop();
     observed.set(1);
     expect(runs).toHaveBeenLastCalledWith(count.peek(), 1);
@@ -318,5 +330,22 @@ describe('effect disposal', () => {
     ).toThrow('boom');
     expect(source.observers.size).toBe(0);
     expect(() => source.set(1)).not.toThrow();
+  });
+});
+
+describe('batch errors', () => {
+  it('keeps the original error when effects run after a failed batch', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const count = signal(0);
+    effect(() => {
+      if (count.get() === 1) throw new Error('effect failed');
+    });
+    expect(() =>
+      batch(() => {
+        count.set(1);
+        throw new Error('batch failed');
+      })
+    ).toThrow('batch failed');
+    logged.mockRestore();
   });
 });

@@ -11,7 +11,7 @@
  * collections should stay plain `Map` and `Set` instances.
  */
 
-import { batch, signal, type Signal } from './core.js';
+import { batch, isObservingReads, signal, type Signal } from './core.js';
 
 function versionSignal(): Signal<number> {
   return signal(0, { equals: false });
@@ -49,11 +49,12 @@ export class ReactiveMap<K, V> extends Map<K, V> {
       this.#structureVersion().get();
       return;
     }
-    this.#keys ??= new Map();
-    let version = this.#keys.get(key);
+    let version = this.#keys?.get(key);
     if (!version) {
+      // Unobserved reads, such as plain store code in a bot, need no signal.
+      if (!isObservingReads()) return;
       version = versionSignal();
-      this.#keys.set(key, version);
+      (this.#keys ??= new Map()).set(key, version);
     }
     version.get();
   }
@@ -145,11 +146,11 @@ export class ReactiveSet<T> extends Set<T> {
       this.#structureVersion().get();
       return false;
     }
-    this.#values ??= new Map();
-    let version = this.#values.get(value);
+    let version = this.#values?.get(value);
     if (!version) {
+      if (!isObservingReads()) return true;
       version = versionSignal();
-      this.#values.set(value, version);
+      (this.#values ??= new Map()).set(value, version);
     }
     version.get();
     return true;
