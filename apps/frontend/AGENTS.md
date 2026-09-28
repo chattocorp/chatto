@@ -263,7 +263,9 @@ Do not generate playground links for code written into this repository.
   `ms`/`me`, and `text-start`/`text-end`) when an edge follows reading
   direction. Keep physical left/right positioning only for coordinates,
   centring, media controls, and other deliberately physical behavior.
-- Mirror directional icons and horizontal gestures in RTL. Isolate
+- Mirror directional icons and horizontal gestures in RTL. Arrows, chevrons,
+  door arrows such as sign-in and sign-out, and undo and redo are directional:
+  add `rtl:-scale-x-100`, or set `mirrorIconInRtl` on `MenuItem`. Isolate
   user-authored names and message content with `bdi`, `dir="auto"`, or an
   equivalent bidi boundary; keep code, identifiers, and URLs deliberately LTR
   where their syntax requires it.
@@ -473,8 +475,10 @@ mise test-e2e
   German, plus US English overrides where wording differs.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
 - Route accessibility coverage lives in `e2e/accessibility.test.ts`. Keep its
-  representative public, authenticated, mobile, admin, and dialog scans free of
-  blanket axe exclusions.
+  representative public, authenticated, mobile, admin, overlay, right-to-left,
+  and call scans free of blanket axe exclusions. Add a scan when you add a page
+  or overlay. Overlay scans include only the overlay, because an open overlay
+  can cover page controls that another scan covers.
 
 ## PWA And Assets
 
