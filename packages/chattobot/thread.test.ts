@@ -1,7 +1,11 @@
-import { expect, test, vi } from 'vitest';
-import { createChattoClient } from '@chatto/client';
+import { expect, test } from 'vitest';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { createBotClient } from '@chatto/bot-client';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import type { GetThreadEventsRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { createThreadReader } from './thread.ts';
 import type { Delivery } from './chatto/routing.ts';
+import { fakeChatto } from './chatto/fake-chatto.ts';
 
 const delivery: Delivery = {
   version: 1,
@@ -14,78 +18,80 @@ const delivery: Delivery = {
   thread_root_id: 'root',
   message: { id: 'ping', author_id: 'alice', body: "What's next?" }
 };
-const reader = (request: typeof fetch) =>
-  createThreadReader(
-    createChattoClient({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request }),
-    'bot'
+type Page = { events: ReturnType<typeof event>[]; hasOlder?: boolean; startCursor?: string };
+async function reader(pages: (request: GetThreadEventsRequest) => Page) {
+  const requests: GetThreadEventsRequest[] = [];
+  const { connectChatto } = fakeChatto({
+    viewerId: 'bot',
+    routes: (router) =>
+      router.service(ThreadService, {
+        getThreadEvents(request) {
+          requests.push(request);
+          return { page: pages(request) };
+        }
+      })
+  });
+  const bot = await createBotClient(
+    connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })
   );
+  return { read: createThreadReader(bot, 'bot'), requests };
+}
 const event = (id: string, body: string, actorId = 'alice') => ({
   id,
-  messagePosted: { message: { actorId, body } }
+  actorId,
+  event: { case: 'messagePosted' as const, value: { message: { id, actorId, body } } }
 });
 
 test('loads all pages in order with one root and no overlapping messages', async () => {
-  const request = vi
-    .fn<typeof fetch>()
-    .mockResolvedValueOnce(
-      Response.json({
-        page: {
+  const { read, requests } = await reader((request) =>
+    request.cursor.case === 'before'
+      ? { events: [event('one', 'eins'), event('two', 'zwei', 'bot'), event('three', 'drei')] }
+      : {
           events: [event('root', 'Hello'), event('three', 'drei'), event('ping', "What's next?")],
           hasOlder: true,
           startCursor: 'older'
         }
-      })
-    )
-    .mockResolvedValueOnce(
-      Response.json({
-        page: {
-          events: [event('one', 'eins'), event('two', 'zwei', 'bot'), event('three', 'drei')]
-        }
-      })
-    );
-  const messages = await reader(request)(delivery, new AbortController().signal);
+  );
+  const messages = await read(delivery, new AbortController().signal);
   expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two', 'three', 'ping']);
   expect(messages[2]?.role).toBe('bot');
-  expect(JSON.parse(request.mock.calls[1]![1]!.body as string)).toEqual({
+  expect(requests[1]).toMatchObject({
     roomId: 'room',
     threadRootEventId: 'root',
     limit: 100,
-    before: 'older'
+    cursor: { case: 'before', value: 'older' }
   });
-  expect(request.mock.calls[0]![1]?.redirect).toBe('error');
 });
 
 test('fails when pagination repeats instead of returning incomplete history', async () => {
-  const request = vi.fn<typeof fetch>().mockImplementation(async () =>
-    Response.json({
-      page: { events: [], hasOlder: true, startCursor: 'same' }
-    })
-  );
-  await expect(reader(request)(delivery, new AbortController().signal)).rejects.toThrow(
+  const { read } = await reader(() => ({ events: [], hasOlder: true, startCursor: 'same' }));
+  await expect(read(delivery, new AbortController().signal)).rejects.toThrow(
     'pagination did not advance'
   );
 });
 
 test('reports permission failures before composing a reply', async () => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 403 }));
-  await expect(reader(request)(delivery, new AbortController().signal)).rejects.toThrow('403');
+  const { read } = await reader(() => {
+    throw new ConnectError('denied', Code.PermissionDenied);
+  });
+  await expect(read(delivery, new AbortController().signal)).rejects.toMatchObject({
+    code: Code.PermissionDenied
+  });
 });
 
 test.each([null, 'existing-root'])('reads DM thread context for root %s', async (threadRoot) => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(
-    Response.json({
-      page: { events: [event('one', 'Hello'), event('two', 'Hi', 'bot')] }
-    })
-  );
-  const messages = await reader(request)(
+  const { read, requests } = await reader(() => ({
+    events: [event('one', 'Hello'), event('two', 'Hi', 'bot')]
+  }));
+  const messages = await read(
     { ...delivery, triggers: ['direct_message'], thread_root_id: threadRoot },
     new AbortController().signal
   );
-  expect(String(request.mock.calls[0]![0])).toContain('ThreadService/GetThreadEvents');
-  expect(JSON.parse(request.mock.calls[0]![1]!.body as string)).toEqual({
+  expect(requests[0]).toMatchObject({
     roomId: 'room',
     threadRootEventId: threadRoot ?? 'ping',
-    limit: 100
+    limit: 100,
+    cursor: { case: undefined }
   });
   expect(messages.map((message) => message.id)).toEqual(['one', 'two']);
 });

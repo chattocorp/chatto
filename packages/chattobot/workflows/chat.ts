@@ -17,7 +17,7 @@ import {
   type ChattoPost,
   type ConversationState
 } from '../chatto/routing.ts';
-import type { ChattoTyping } from '@chatto/client';
+import type { ChattoTyping } from '@chatto/bot-client';
 import type { ReadThread } from '../thread.ts';
 import type { Acknowledge } from '../reaction.ts';
 import {

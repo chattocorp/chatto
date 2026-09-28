@@ -1,7 +1,7 @@
 /** Route one Chatto thread and serialize all assistant and host-owned posts. */
 import { Type, type WorkflowContext } from 'runling';
 import { runConversationTask, type ConversationActivityHandler } from './conversation-task.ts';
-import type { ChattoTyping } from '@chatto/client';
+import type { ChattoTyping } from '@chatto/bot-client';
 import {
   createChattoRouter,
   type ChattoPost,

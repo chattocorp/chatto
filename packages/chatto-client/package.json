@@ -20,6 +20,11 @@
       "types": "./dist/svelte/index.d.ts",
       "import": "./dist/svelte/index.js"
     },
+    "./reactivity": {
+      "@chatto/source": "./src/reactivity/index.ts",
+      "types": "./dist/reactivity/index.d.ts",
+      "import": "./dist/reactivity/index.js"
+    },
     "./*": {
       "@chatto/source": "./src/*.ts",
       "types": "./dist/*.d.ts",

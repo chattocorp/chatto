@@ -130,7 +130,11 @@ export function connectEndpoint(baseUrl: string): string {
 
 export function createChattoTransport(
   config: { baseUrl: string } & Partial<ConnectAPIConfig>,
-  options: { useBinaryFormat?: boolean } = {}
+  options: {
+    useBinaryFormat?: boolean;
+    /** Fetch implementation for hosts that supply their own networking. */
+    fetch?: typeof globalThis.fetch;
+  } = {}
 ): Transport {
   const interceptors = [
     // Outermost, so it sees errors from every inner interceptor.
@@ -142,7 +146,8 @@ export function createChattoTransport(
   return createConnectTransport({
     baseUrl: config.baseUrl,
     useBinaryFormat: options.useBinaryFormat ?? true,
-    interceptors
+    interceptors,
+    ...(options.fetch ? { fetch: options.fetch } : {})
   });
 }
 

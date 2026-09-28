@@ -1,9 +1,5 @@
-import {
-  RoomKind,
-  type ChattoClient,
-  type ChattoMessage,
-  type RealtimeEvent
-} from '@chatto/client';
+import { RoomKind, type RealtimeEvent } from '@chatto/client';
+import type { ChattoMessage } from './types.js';
 
 export type AddressingReason = 'direct_message' | 'mention' | 'reply';
 
@@ -21,13 +17,19 @@ export interface AddressedMessage extends ChattoMessage {
 }
 
 /** Recognize DMs, viewer mentions, and verified replies to the viewer.
- * viewerId must come from this connection's getViewer(). Mentions use the
+ * viewerId must be this connection's viewer. Mentions use the
  * server's includesViewer flag. Only unmentioned non-DM replies require a lookup.
  * Self messages, non-message events, and unavailable text are ignored. Lookup
  * errors and cancellation propagate without logging or changing a checkpoint.
  */
 export async function addressedMessage(
-  client: Pick<ChattoClient, 'getMessage'>,
+  client: {
+    getMessage(options: {
+      roomId: string;
+      messageId: string;
+      signal?: AbortSignal;
+    }): Promise<ChattoMessage | undefined>;
+  },
   event: RealtimeEvent,
   {
     viewerId,

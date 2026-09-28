@@ -1,4 +1,7 @@
-import { createChattoClient } from '@chatto/client';
+import { createChattoApi } from '@chatto/client';
+import { createBotApi } from '@chatto/bot-client';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { readFile } from 'node:fs/promises';
 import { Type, task, step } from 'runling';
 import { generateReply } from './agent.ts';
@@ -62,32 +65,35 @@ export function createReplyWorkflow(
     },
     async (r, input) => {
       const { serverUrl, apiKey } = await loadConfig();
-      const client = createChattoClient({ serverUrl, apiKey, fetch: request });
-      const rpc = client.rpc;
+      const api = createChattoApi({ serverUrl, apiKey, fetch: request });
 
       // Confirm the configured credentials belong to the intended bot.
-      const viewer = await step('Check bot identity', () =>
-        rpc<{ user?: { profile?: { id?: string } } }>('ViewerService/GetViewer', {})
-      );
-      if (viewer.user?.profile?.id !== input.bot_id) {
+      const viewer = await step('Check bot identity', async () => {
+        const response = await api.service(ViewerService).getViewer({}, { signal: r.signal });
+        return { id: response.user?.profile?.id ?? '' };
+      });
+      if (viewer.id !== input.bot_id) {
         throw new Error('The webhook bot does not match the API key');
       }
+      const client = createBotApi(api, input.bot_id);
 
       // Ignore bot authors to prevent automatic reply loops.
       if (input.message.author_id === input.bot_id) {
         return { deliveryId: input.id, status: 'skipped' as const };
       }
 
-      const author = await step('Check message author', () =>
-        rpc<{ user?: { user?: { bot?: { ownerUserId: string } } } }>('UserService/GetUser', {
-          userId: input.message.author_id
-        })
-      );
-      if (!author.user?.user) {
+      const author = await step('Check message author', async () => {
+        const response = await api
+          .service(UserService)
+          .getUser({ userId: input.message.author_id }, { signal: r.signal });
+        const user = response.user?.user;
+        return user ? { bot: Boolean(user.bot) } : null;
+      });
+      if (!author) {
         throw new Error('The message author is unavailable');
       }
 
-      if (author.user.user.bot) {
+      if (author.bot) {
         return { deliveryId: input.id, status: 'skipped' as const };
       }
 
@@ -132,7 +138,7 @@ export function createReplyWorkflow(
             input.message.id
           );
 
-          const id = result.message?.id;
+          const id = result.id;
           if (!id) throw new Error('Chatto did not return a reply ID');
 
           return id;

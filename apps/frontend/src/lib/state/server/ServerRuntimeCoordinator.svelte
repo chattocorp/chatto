@@ -1,68 +1,29 @@
 <script lang="ts">
+  /**
+   * Runs the `@chatto/client` runtime for the app's lifetime and keeps the
+   * URL-active server's realtime transport live.
+   */
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { eventBusManager } from '@chatto/client/server/realtimeTransport';
-  import { serverRegistry } from '@chatto/client/server/registry';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
-  import { startServerRecovery } from '@chatto/client/server/serverRecovery';
+  import { startClientRuntime, type ClientRuntime } from '@chatto/client/server/runtime';
 
-  $effect(() => untrack(() => startServerRecovery(serverRegistry)));
-
-  function realtimeRegistrations() {
-    return serverRegistry.servers.flatMap((server) => {
-      const store = serverRegistry.tryGetStore(server.id);
-      return store?.isAuthenticated
-        ? [
-            {
-              serverId: server.id,
-              connection: serverConnectionManager.getClient(server.id),
-              projectionSupported: store.serverInfo.isSupportedVersion,
-              sync: store.realtimeSync,
-              projectionHandler: store.realtimeProjectionHandler,
-              completeProjectionCatchUp: (cursor: string) => store.completeRealtimeCatchUp(cursor),
-              waitForProjectionReconciliation: () => store.waitForRealtimeReconciliation()
-            }
-          ]
-        : [];
-    });
-  }
-
-  // Late session restoration and discovery metadata must both retrigger
-  // ownership, including while the app remains on the welcome/login route.
-  // The registration carries each store's canonical reducer, allowing the bus
-  // to install it before a newly opened socket can deliver its first snapshot.
-  const registrations = $derived.by(realtimeRegistrations);
   const activeServerId = $derived(page.route.id?.startsWith('/chat') ? getActiveServer() : '');
 
-  $effect(() => {
-    const nextRegistrations = registrations;
-    const nextActiveServerId = activeServerId;
+  let runtime: ClientRuntime | null = null;
 
-    // Synchronization mutates connection state. Track only the materialized
-    // registration inputs and URL-active server to avoid feedback loops.
-    untrack(() => {
-      eventBusManager.synchronizeAuthenticatedServers(
-        nextRegistrations,
-        nextActiveServerId || null
-      );
-    });
+  $effect(() => {
+    // Starting reads client state; it must not make this effect restart.
+    const started = untrack(startClientRuntime);
+    runtime = started;
+    return () => {
+      started.stop();
+      if (runtime === started) runtime = null;
+    };
   });
 
-  // Remote session termination is authoritative even when its server is not
-  // the active route. Sign out that server. Reading each bus here subscribes
-  // again when a server's bus starts after this effect first ran.
   $effect(() => {
-    const remoteBuses = serverRegistry.servers
-      .filter((server) => !serverRegistry.isOriginServer(server.id))
-      .map((server) => ({ id: server.id, bus: eventBusManager.getBus(server.id) }));
-    return untrack(() => {
-      const disposers = remoteBuses.map(({ id, bus }) =>
-        bus?.onSessionTerminated(() => {
-          queueMicrotask(() => serverRegistry.clearServerAuthentication(id));
-        })
-      );
-      return () => disposers.forEach((dispose) => dispose?.());
-    });
+    const serverId = activeServerId || null;
+    untrack(() => runtime?.setActiveServer(serverId));
   });
 </script>

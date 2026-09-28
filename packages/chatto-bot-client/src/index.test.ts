@@ -1,81 +1,176 @@
 import { expect, test, vi } from 'vitest';
-import { createChattoClient, RealtimeEvent, RoomKind } from '@chatto/client';
+import { RealtimeEvent, RoomKind } from '@chatto/client';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import type { CreateMessageRequest } from '@chatto/api-types/api/v1/messages_pb';
+import type { GetThreadEventsRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
   conversationKey,
   createBotClient,
   createDeliveryTracker,
   replyDestination
 } from './index.js';
+import { fakeConnection } from './testing/fakeConnection.js';
 
-test('composes a client, resolves identity once, and replies to the prompting message', async () => {
-  const request = vi
-    .fn<typeof fetch>()
-    .mockImplementation(async () => Response.json({ user: { profile: { id: 'bot' } } }));
-  const client = createChattoClient({
-    serverUrl: 'https://chat.example',
-    apiKey: 'secret',
-    fetch: request
-  });
-  const bot = await createBotClient(client);
-  expect(bot.client).toBe(client);
-  expect(bot.viewerId).toBe('bot');
-  const event = new RealtimeEvent({
-    id: 'incoming',
+function dmEvent(id = 'incoming', body = 'hello') {
+  return new RealtimeEvent({
+    id,
     actorId: 'human',
     event: {
       case: 'messagePosted',
       value: {
         roomId: 'room',
         roomKind: RoomKind.DM,
-        bodyPlaintext: 'hello',
+        bodyPlaintext: body,
         threadRootEventId: 'root'
       }
     }
   });
-  const message = (await bot.addressedMessage(event))!;
+}
+
+test('resolves identity once and replies to the prompting message', async () => {
+  const created: CreateMessageRequest[] = [];
+  const fake = fakeConnection((router) =>
+    router.service(MessageService, {
+      createMessage(request) {
+        created.push(request);
+        return { message: { id: 'reply' } };
+      }
+    })
+  );
+  const bot = await createBotClient(fake.chatto);
+  expect(bot.chatto).toBe(fake.chatto);
+  expect(bot.viewerId).toBe('bot');
+  const message = (await bot.addressedMessage(dmEvent()))!;
   expect(message.reasons).toEqual(['direct_message']);
   expect(bot.conversationKey(message)).toBe(JSON.stringify(['bot', 'room', 'root', 'human']));
   await bot.reply(message, 'hi');
-  expect(request).toHaveBeenCalledTimes(2);
-  expect(JSON.parse(request.mock.calls[1]![1]!.body as string)).toEqual({
+  expect(created).toHaveLength(1);
+  expect(created[0]).toMatchObject({
     roomId: 'room',
     threadRootEventId: 'root',
     inReplyTo: 'incoming',
     body: 'hi'
   });
-  const controller = new AbortController();
-  controller.abort(new Error('stop'));
-  await expect(bot.reply(message, 'no', controller.signal)).rejects.toThrow('stop');
-  expect(request).toHaveBeenCalledTimes(2);
+  await expect(bot.reply(message, 'no', AbortSignal.abort(new Error('stop')))).rejects.toThrow();
+  expect(created).toHaveLength(1);
 });
 
-test('identity failures and cancellation do not create a bot adapter', async () => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
-  const client = createChattoClient({
-    serverUrl: 'https://chat.example',
-    apiKey: 'secret',
-    fetch: request
-  });
-  await expect(createBotClient(client)).rejects.toThrow('viewer identity');
+test('identity failures and cancellation do not create a bot client', async () => {
+  const rejected = fakeConnection(undefined, Promise.reject(new Error('rejected API key')));
+  await expect(createBotClient(rejected.chatto)).rejects.toThrow('rejected API key');
   const signal = AbortSignal.abort(new Error('cancelled'));
-  await expect(createBotClient(client, { signal })).rejects.toThrow('cancelled');
-  expect(request).toHaveBeenCalledOnce();
+  await expect(createBotClient(fakeConnection().chatto, { signal })).rejects.toThrow('cancelled');
 });
 
-test("bot thread roles are separate from the API client's message data", async () => {
-  const client = createChattoClient({ serverUrl: 'https://chat.example', apiKey: 'secret' });
-  vi.spyOn(client, 'getViewer').mockResolvedValue({ id: 'bot' });
-  const messages = [
-    { id: 'one', authorId: 'bot', body: 'hi' },
-    { id: 'two', authorId: 'other', body: 'hello' }
-  ];
-  vi.spyOn(client, 'readThread').mockResolvedValue(messages);
-  const bot = await createBotClient(client);
-  expect(await bot.readThread({ roomId: 'room', threadRootId: 'one' })).toEqual([
-    { ...messages[0], role: 'bot' },
-    { ...messages[1], role: 'human' }
+test('splits long messages at 8000 code points and sends them in order', async () => {
+  const bodies: string[] = [];
+  const fake = fakeConnection((router) =>
+    router.service(MessageService, {
+      createMessage(request) {
+        bodies.push(request.body);
+        return {};
+      }
+    })
+  );
+  const bot = await createBotClient(fake.chatto);
+  await bot.postMessage({ roomId: 'room', threadRootId: 'root' }, '😀'.repeat(8001));
+  expect(bodies.map((body) => Array.from(body).length)).toEqual([8000, 1]);
+  await bot.postMessage({ roomId: 'room', threadRootId: 'root' }, '');
+  expect(bodies).toHaveLength(3);
+});
+
+test('reads all thread pages root first, with bot roles kept separate', async () => {
+  const requests: GetThreadEventsRequest[] = [];
+  const posted = (id: string, actorId: string, body: string) => ({
+    id,
+    actorId,
+    event: { case: 'messagePosted' as const, value: { message: { id, actorId, body } } }
+  });
+  const fake = fakeConnection((router) =>
+    router.service(ThreadService, {
+      getThreadEvents(request) {
+        requests.push(request);
+        return request.cursor.case === 'before'
+          ? { page: { events: [posted('root', 'human', 'question')], hasOlder: false } }
+          : {
+              page: {
+                events: [posted('one', 'bot', 'answer'), posted('two', 'human', 'thanks')],
+                hasOlder: true,
+                startCursor: 'older'
+              }
+            };
+      }
+    })
+  );
+  const bot = await createBotClient(fake.chatto);
+  const messages = await bot.readThread({ roomId: 'room', threadRootId: 'root' });
+  expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two']);
+  expect(requests.map((request) => request.cursor.value)).toEqual([undefined, 'older']);
+  const roles = await bot.readBotThread({ roomId: 'room', threadRootId: 'root' });
+  expect(roles.map((message) => message.role)).toEqual(['human', 'bot', 'human']);
+  expect(messages[1]).not.toHaveProperty('role');
+});
+
+test('rejects thread pagination that does not advance', async () => {
+  const fake = fakeConnection((router) =>
+    router.service(ThreadService, {
+      getThreadEvents: () => ({ page: { events: [], hasOlder: true, startCursor: 'same' } })
+    })
+  );
+  const bot = await createBotClient(fake.chatto);
+  await expect(bot.readThread({ roomId: 'room', threadRootId: 'root' })).rejects.toThrow(
+    'did not advance'
+  );
+});
+
+test('consumes events in order, reports status and gaps, and stops on abort', async () => {
+  const fake = fakeConnection();
+  const bot = await createBotClient(fake.chatto);
+  const controller = new AbortController();
+  const handled: string[] = [];
+  const statuses: unknown[] = [];
+  let release!: () => void;
+  const consuming = bot.consumeEvents({
+    signal: controller.signal,
+    onStatus: (status) => statuses.push(status),
+    async onEvent(event) {
+      handled.push(event.id);
+      if (event.id === 'first') await new Promise<void>((resolve) => (release = resolve));
+    }
+  });
+  fake.setStatus('connected');
+  fake.reset();
+  fake.emit(dmEvent('first'));
+  fake.emit(dmEvent('second'));
+  await vi.waitFor(() => expect(handled).toEqual(['first']));
+  release();
+  await vi.waitFor(() => expect(handled).toEqual(['first', 'second']));
+  fake.setStatus('connecting');
+  fake.setStatus('connected');
+  fake.reset();
+  expect(statuses).toEqual([
+    { state: 'connecting' },
+    { state: 'ready', gap: false },
+    { state: 'reconnecting' },
+    { state: 'ready', gap: false },
+    { state: 'ready', gap: true }
   ]);
-  expect(messages[0]).not.toHaveProperty('role');
+  controller.abort();
+  await consuming;
+  expect(fake.listenerCount).toBe(0);
+});
+
+test('a failed event handler stops consumption with its error', async () => {
+  const fake = fakeConnection();
+  const bot = await createBotClient(fake.chatto);
+  const consuming = bot.consumeEvents({
+    signal: new AbortController().signal,
+    onEvent: () => Promise.reject(new Error('dispatch failed'))
+  });
+  fake.emit(dmEvent());
+  await expect(consuming).rejects.toThrow('dispatch failed');
+  expect(fake.listenerCount).toBe(0);
 });
 
 test('default keys isolate bot, room, thread, and sender; root messages reply in their own thread', () => {

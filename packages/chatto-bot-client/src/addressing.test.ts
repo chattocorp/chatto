@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest';
-import { createChattoClient, RealtimeEvent, RoomKind } from '@chatto/client';
+import { RealtimeEvent, RoomKind } from '@chatto/client';
+import type { ChattoMessage } from './types.js';
 import { addressedMessage } from './index.js';
 
 const event = () =>
@@ -17,16 +18,30 @@ const event = () =>
       }
     }
   });
-function setup(response: unknown = {}) {
-  const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(response));
-  return {
-    request,
-    client: createChattoClient({
-      serverUrl: 'https://chat.example',
-      apiKey: 'secret',
-      fetch: request
-    })
-  };
+/** A message lookup that returns `message`, recording each request. */
+function setup(message?: Omit<ChattoMessage, 'authorId'> & { actorId?: string }) {
+  const request = vi.fn(
+    async ({
+      roomId,
+      messageId,
+      signal
+    }: {
+      roomId: string;
+      messageId: string;
+      signal?: AbortSignal;
+    }) => {
+      signal?.throwIfAborted();
+      if (!message || message.id !== messageId || message.roomId !== roomId || !message.actorId)
+        return undefined;
+      return {
+        id: message.id,
+        roomId: message.roomId,
+        authorId: message.actorId,
+        ...(message.threadRootId ? { threadRootId: message.threadRootId } : {})
+      };
+    }
+  );
+  return { request, client: { getMessage: request } };
 }
 
 test('disabled reply recognition makes no lookup', async () => {
@@ -81,17 +96,16 @@ test.each(['self', 'missing-text', 'missing-id', 'missing-actor', 'other-event',
 test.each(['valid', 'wrong-author', 'wrong-room', 'wrong-id', 'wrong-thread', 'missing'])(
   'reply ownership verification: %s',
   async (kind) => {
-    const { client, request } = setup({
-      message:
-        kind === 'missing'
-          ? undefined
-          : {
-              id: kind === 'wrong-id' ? 'different' : 'target',
-              roomId: kind === 'wrong-room' ? 'different' : 'room',
-              actorId: kind === 'wrong-author' ? 'human' : 'viewer',
-              threadRootEventId: kind === 'wrong-thread' ? 'different' : 'root'
-            }
-    });
+    const { client, request } = setup(
+      kind === 'missing'
+        ? undefined
+        : {
+            id: kind === 'wrong-id' ? 'different' : 'target',
+            roomId: kind === 'wrong-room' ? 'different' : 'room',
+            actorId: kind === 'wrong-author' ? 'human' : 'viewer',
+            threadRootId: kind === 'wrong-thread' ? 'different' : 'root'
+          }
+    );
     const result = await addressedMessage(client, event(), { viewerId: 'viewer' });
     if (kind === 'valid') expect(result?.reasons).toEqual(['reply']);
     else expect(result).toBeUndefined();
@@ -100,7 +114,7 @@ test.each(['valid', 'wrong-author', 'wrong-room', 'wrong-id', 'wrong-thread', 'm
 );
 
 test('replies to a viewer-authored thread root are recognized', async () => {
-  const { client } = setup({ message: { id: 'target', roomId: 'room', actorId: 'viewer' } });
+  const { client } = setup({ id: 'target', roomId: 'room', actorId: 'viewer' });
   const incoming = event();
   if (incoming.event.case !== 'messagePosted') throw new Error('fixture');
   incoming.event.value.threadRootEventId = 'target';
@@ -109,11 +123,11 @@ test('replies to a viewer-authored thread root are recognized', async () => {
   ]);
 });
 
-test('lookup failures propagate sanitized errors; cancellation does not become an ignored message', async () => {
+test('lookup failures propagate; cancellation does not become an ignored message', async () => {
   const { client, request } = setup();
-  request.mockRejectedValue(new Error('private URL or token'));
+  request.mockRejectedValueOnce(new Error('lookup failed'));
   await expect(addressedMessage(client, event(), { viewerId: 'viewer' })).rejects.toThrow(
-    /^Chatto API request did not complete$/
+    'lookup failed'
   );
   const controller = new AbortController();
   controller.abort(new Error('cancelled'));

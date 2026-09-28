@@ -325,6 +325,12 @@ importers:
 
   examples/runling-bot:
     dependencies:
+      '@chatto/api-types':
+        specifier: workspace:*
+        version: link:../../packages/api-types
+      '@chatto/bot-client':
+        specifier: workspace:*
+        version: link:../../packages/chatto-bot-client
       '@chatto/client':
         specifier: workspace:*
         version: link:../../packages/chatto-client
@@ -353,9 +359,18 @@ importers:
 
   packages/chatto-bot-client:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^1.10.1
+        version: 1.10.1
+      '@chatto/api-types':
+        specifier: workspace:*
+        version: link:../api-types
       '@chatto/client':
         specifier: workspace:*
         version: link:../chatto-client
+      '@connectrpc/connect':
+        specifier: ^1.7.0
+        version: 1.7.0(@bufbuild/protobuf@1.10.1)
     devDependencies:
       '@types/node':
         specifier: ^22.20.1
@@ -428,6 +443,15 @@ importers:
         specifier: workspace:*
         version: link:../runling
     devDependencies:
+      '@bufbuild/protobuf':
+        specifier: ^1.10.1
+        version: 1.10.1
+      '@chatto/api-types':
+        specifier: workspace:*
+        version: link:../api-types
+      '@connectrpc/connect':
+        specifier: ^1.7.0
+        version: 1.7.0(@bufbuild/protobuf@1.10.1)
       '@types/node':
         specifier: ^22
         version: 22.20.1

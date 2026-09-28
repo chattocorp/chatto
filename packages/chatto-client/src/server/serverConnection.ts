@@ -20,6 +20,12 @@ export interface ServerConnectionConfig {
   token: string | null;
   /** Access-token expiry as Unix epoch milliseconds. */
   accessTokenExpiresAt?: number | null;
+  /**
+   * Whether the bearer token belongs to a renewable OAuth session. A fixed
+   * token, such as a bot API key, is never renewed; the server's rejection
+   * ends it.
+   */
+  renewable?: boolean;
   /** Registered server ID, used to clear stale credentials after auth failures */
   serverId?: string;
 }
@@ -100,6 +106,7 @@ export class ServerConnection {
   #realtimeUrl: string;
   #token: string | null;
   #accessTokenExpiresAt: number | null;
+  readonly #renewable: boolean;
   #renewalTimer: ReturnType<typeof setTimeout> | null = null;
   #browserRenewal: Promise<boolean> | null = null;
   #browserRenewalTimer: ReturnType<typeof setTimeout> | null = null;
@@ -166,7 +173,7 @@ export class ServerConnection {
       bearerToken: this.#token,
       dataGeneration: () => this.#dataGeneration,
       renewBearerToken:
-        this.#serverId && this.#token
+        this.#serverId && this.#token && this.#renewable
           ? (force) => serverRegistry.renewServerAuthentication(this.#serverId!, force)
           : undefined,
       onAuthenticationRequired: this.#serverId
@@ -401,12 +408,13 @@ export class ServerConnection {
   }
 
   constructor(config: ServerConnectionConfig) {
-    const { serverUrl, token, accessTokenExpiresAt, serverId } = config;
+    const { serverUrl, token, accessTokenExpiresAt, serverId, renewable = true } = config;
     this.#host = hostFromServerUrl(serverUrl);
     this.#connectBaseUrl = connectBaseUrlFromServerUrl(serverUrl);
     this.#realtimeUrl = realtimeUrlFromServerUrl(serverUrl);
     this.#token = token;
     this.#accessTokenExpiresAt = accessTokenExpiresAt ?? null;
+    this.#renewable = renewable;
     this.#serverId = serverId;
     this.#scheduleRenewal();
 
@@ -555,6 +563,7 @@ class ServerConnectionManager {
       serverUrl: server.url,
       token: server.token,
       accessTokenExpiresAt: server.accessTokenExpiresAt,
+      renewable: server.refreshToken != null,
       serverId
     });
 

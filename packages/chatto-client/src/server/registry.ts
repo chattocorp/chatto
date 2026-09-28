@@ -841,6 +841,9 @@ class ServerRegistry {
 
   #adoptPersistedBearerSession(id: string): void {
     const persisted = readPersistedAuthentication(id);
+    // Without device storage (for example in Node), the in-memory session is
+    // the only copy, and another tab cannot have rotated it.
+    if (persisted === undefined && typeof localStorage === 'undefined') return;
     const current = this.sessions.get(id);
     if (!current) return;
     if (!persisted?.token) {

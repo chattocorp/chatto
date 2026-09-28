@@ -1,5 +1,8 @@
-import type { ChattoClient } from '@chatto/client';
-import { readBotThread, type BotThreadMessage as ThreadMessage } from '@chatto/bot-client';
+import {
+  readBotThread,
+  type BotClient,
+  type BotThreadMessage as ThreadMessage
+} from '@chatto/bot-client';
 import type { Delivery } from './chatto/routing.ts';
 
 export type { BotThreadMessage as ThreadMessage } from '@chatto/bot-client';
@@ -13,7 +16,7 @@ export function threadLocation(delivery: Delivery) {
 
 /** Read a delivery's complete thread with bot/human roles for this bot identity. */
 export function createThreadReader(
-  client: Pick<ChattoClient, 'readThread'>,
+  client: Pick<BotClient, 'readThread'>,
   botId: string
 ): ReadThread {
   return (delivery, signal) => readBotThread(client, botId, threadLocation(delivery), signal);

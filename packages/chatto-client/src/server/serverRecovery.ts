@@ -12,7 +12,9 @@ export function startServerRecovery(registry: RecoveryRegistry): () => void {
   let paused = false;
 
   function tick(immediate = false) {
-    if (disposed || paused || document.visibilityState === 'hidden' || !navigator.onLine) return;
+    if (disposed || paused) return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const ids = new Set(registry.servers.map((server) => server.id));
     for (const [id, attempt] of attempts) {
       if (!ids.has(id) || (!attempt.running && !registry.needsRecovery(id))) attempts.delete(id);
@@ -49,10 +51,13 @@ export function startServerRecovery(registry: RecoveryRegistry): () => void {
     paused = true;
   };
   // Capacitor dispatches document resume/pause events for native scene changes.
-  document.addEventListener('resume', resume);
-  document.addEventListener('pause', pause);
-  document.addEventListener('visibilitychange', retry);
-  window.addEventListener('online', retry);
+  const browser = typeof document !== 'undefined' && typeof window !== 'undefined';
+  if (browser) {
+    document.addEventListener('resume', resume);
+    document.addEventListener('pause', pause);
+    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('online', retry);
+  }
   const timer = setInterval(tick, 1000);
   tick();
 
@@ -60,6 +65,7 @@ export function startServerRecovery(registry: RecoveryRegistry): () => void {
     disposed = true;
     clearInterval(timer);
     attempts.clear();
+    if (!browser) return;
     document.removeEventListener('resume', resume);
     document.removeEventListener('pause', pause);
     document.removeEventListener('visibilitychange', retry);

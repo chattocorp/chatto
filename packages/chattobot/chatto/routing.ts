@@ -1,6 +1,6 @@
-import type { ChattoPost, Destination } from '@chatto/client';
+import type { ChattoPost, Destination } from '@chatto/bot-client';
 import { createDeliveryTracker } from '@chatto/bot-client';
-export type { ChattoPost, Destination } from '@chatto/client';
+export type { ChattoPost, Destination } from '@chatto/bot-client';
 import type { WebhookRouter } from 'runling/web';
 import { task, Type, type WorkflowContext, type TSchema, type Static } from 'runling';
 

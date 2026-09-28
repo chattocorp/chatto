@@ -1,4 +1,4 @@
-import { createChattoClient, type RealtimeCheckpoint } from '@chatto/client';
+import { connectChatto, type ChattoConnection } from '@chatto/client';
 import { createBotClient, type AddressedMessage } from '@chatto/bot-client';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
@@ -19,8 +19,6 @@ import {
 
 interface Session {
   identity: string;
-  apiKey: string;
-  checkpoint: RealtimeCheckpoint;
   conversations: ConversationState;
 }
 
@@ -95,17 +93,30 @@ function sourceSettings() {
 /** Outbound-only bot source. Conversation state survives reloads for the same bot identity. */
 export const chattoSource: EventSource = async (ctx) => {
   const { serverUrl, apiKey, allowedUserId, ...settings } = sourceSettings();
-  const client = createChattoClient({ serverUrl, apiKey });
-  const botClient = await createBotClient(client, { signal: ctx.signal });
-  const botId = botClient.viewerId;
+  // Each source generation owns its connection and closes it when it ends.
+  // A new generation starts from a fresh realtime snapshot.
+  const chatto = connectChatto({ serverUrl, apiKey });
+  try {
+    await consume(ctx, chatto, allowedUserId, settings, serverUrl);
+  } finally {
+    chatto.close();
+  }
+};
+
+async function consume(
+  ctx: Parameters<EventSource>[0],
+  chatto: ChattoConnection,
+  allowedUserId: string | undefined,
+  settings: Omit<ReturnType<typeof sourceSettings>, 'serverUrl' | 'apiKey' | 'allowedUserId'>,
+  serverUrl: string
+): Promise<void> {
+  const client = await createBotClient(chatto, { signal: ctx.signal });
+  const botId = client.viewerId;
   const identity = JSON.stringify([new URL(serverUrl).origin, botId]);
   let session = ctx.state.get('chatto') as Session | undefined;
   if (!session || session.identity !== identity) {
-    session = { identity, apiKey, checkpoint: {}, conversations: createConversationState() };
+    session = { identity, conversations: createConversationState() };
     ctx.state.set('chatto', session);
-  } else if (session.apiKey !== apiKey) {
-    session.apiKey = apiKey;
-    session.checkpoint = {};
   }
   // Active runs keep this generation's client even if a reload changes credentials.
   const bot = createChattoBot({
@@ -116,9 +127,8 @@ export const chattoSource: EventSource = async (ctx) => {
     readThread: createThreadReader(client, botId),
     acknowledge: createEyesReaction(client)
   });
-  await client.consumeRealtime({
+  await client.consumeEvents({
     signal: ctx.signal,
-    checkpoint: session.checkpoint,
     onStatus(status) {
       // Only fixed local status fields are logged, never connection details or payloads.
       if (status.state === 'ready' && status.gap)
@@ -130,7 +140,7 @@ export const chattoSource: EventSource = async (ctx) => {
       // Ignore before routing: disallowed senders cannot start, steer, cancel,
       // or trigger acknowledgements for an existing conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await botClient.addressedMessage(event, { signal: ctx.signal }).catch(() => {
+      const message = await client.addressedMessage(event, { signal: ctx.signal }).catch(() => {
         ctx.signal.throwIfAborted();
         // Missing reply targets do not stop this bot's realtime source.
         console.warn(
@@ -155,4 +165,4 @@ export const chattoSource: EventSource = async (ctx) => {
       }
     }
   });
-};
+}
