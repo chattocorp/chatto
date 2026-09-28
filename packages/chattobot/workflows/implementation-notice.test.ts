@@ -63,3 +63,50 @@ test('the supervisor phrases a milestone; the host adds the PR URL only when it 
 test('when the supervisor says nothing about a new PR, the host posts its URL alone', async () => {
   expect(await publishedTurn()).toEqual([prUrl]);
 });
+
+test('a notification turn cannot cancel a task; a person can', async () => {
+  let gate: ((event: unknown) => Promise<unknown>) | undefined;
+  const decisions: unknown[] = [];
+  interact.mockImplementationOnce(async (_ctx, _agent, _prompt, options) => {
+    await options.prepareMessage(published, 'notification');
+    decisions.push(await gate!({ type: 'tool_call', toolName: 'task_cancel', input: {} }));
+    await options.prepareMessage('Please stop the implementation', 'user');
+    decisions.push(await gate!({ type: 'tool_call', toolName: 'task_cancel', input: {} }));
+    return 'done';
+  });
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    post: async () => {},
+    typing: async () => {},
+    readThread: async () => [],
+    timeout: 0,
+    createAgent: async (options: AgentOptions) => {
+      for (const extension of options.extensions ?? []) {
+        const factory = typeof extension === 'function' ? extension : extension.factory;
+        await factory({
+          on: (name: string, handler: (event: unknown) => Promise<unknown>) => {
+            if (name === 'tool_call') gate = handler;
+          },
+          registerTool() {}
+        } as unknown as import('runling/agents').AgentExtensionAPI);
+      }
+      return { runOutcome: vi.fn(), steer: async () => false, dispose() {} };
+    },
+    implementation: { directory: '/unused', repository: 'example/chatto' }
+  });
+  await bot(createWorkflowContext(), {
+    version: 1,
+    id: 'delivery',
+    type: 'message.created',
+    triggers: ['direct_message'],
+    occurred_at: 'now',
+    bot_id: 'bot',
+    room_id: 'room',
+    thread_root_id: null,
+    message: { id: 'message', author_id: 'human', body: 'Implement the fix' }
+  });
+  expect(decisions).toEqual([
+    { block: true, reason: expect.stringContaining('A notification is not such a request') },
+    undefined
+  ]);
+});

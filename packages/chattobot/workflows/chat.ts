@@ -123,6 +123,13 @@ export const conversation = task(
     };
     const maintainerGate = defineAgentExtension((pi) => {
       pi.on('tool_call', async (event) => {
+        // Notifications do not authorize stopping work either: only a person can ask for that.
+        if (event.toolName === 'task_cancel' && latestOrigin !== 'user')
+          return {
+            block: true,
+            reason:
+              'task_cancel is available only when a person in this thread asks to stop the work. A notification is not such a request.'
+          };
         if (!MAINTAINER_TOOLS.has(event.toolName)) return;
         // Notifications wake the agent but never authorize work; postRefusal stays silent there.
         if (latestOrigin === 'user' && requesterIsMaintainer()) return;

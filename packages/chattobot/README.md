@@ -237,6 +237,10 @@ enters a conversation, Runling blocks `implementChatto`, `askImplementation`, an
 that asks the user to start a new thread. Read-only investigation and
 `task_cancel` remain available.
 
+The supervisor can cancel a task with `task_cancel` only in a turn that a
+person's message started. Task notifications do not authorize cancellation, in
+the same way that they do not authorize new work.
+
 A later conversation in the same thread reads the complete thread again,
 including bot replies that used research results. Runling does not track that
 text as untrusted. Start a new thread, not only a new conversation, for work that
