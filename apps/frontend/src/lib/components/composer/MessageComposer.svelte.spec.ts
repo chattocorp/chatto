@@ -12,6 +12,7 @@ import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { EditState, ReplyState } from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { expandPostCommand } from './messageComposerState.svelte';
 
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { renderMarkdown } from '$lib/markdown';
@@ -2639,6 +2640,35 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
+    it.each(['visual', 'markdown'] as const)('posts /shrug from the %s editor', async (kind) => {
+      userPreferences.composerEditor = kind;
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, '/shrug hello there');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.body).toBe('hello there 🤷');
+    });
+
+    it('posts /shrug without text as the emoji', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, '/shrug');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.body).toBe('🤷');
+    });
+
+    it('leaves other slash text unchanged', () => {
+      expect(expandPostCommand('/shrugging hello')).toBe('/shrugging hello');
+      expect(expandPostCommand('hello /shrug')).toBe('hello /shrug');
+      expect(expandPostCommand('/shrug\nhello')).toBe('hello 🤷');
+    });
+
     it('inserts a raw timestamp token from the picker before sending', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);

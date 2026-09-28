@@ -14,6 +14,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Wide tables scroll horizontally inside the message instead of widening or clipping the conversation layout.
 - Message source HTML, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting. Image syntax never loads or displays an image; its label and destination can fall back to an ordinary link.
 - Backslashes normally remain literal so common chat text such as Windows paths and kaomoji is not unexpectedly changed. An escaped pipe inside a GFM table cell is still interpreted as cell content rather than a column boundary.
+- In a new post, `/shrug` at the start of the message adds 🤷 after the remaining text. `/shrug` alone posts 🤷. Editing does not expand this command.
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
