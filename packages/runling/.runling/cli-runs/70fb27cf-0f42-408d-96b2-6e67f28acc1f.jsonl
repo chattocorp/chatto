@@ -1,5 +1,0 @@
-{"type":"started","run":{"id":"70fb27cf-0f42-408d-96b2-6e67f28acc1f","reference":"chilly-maps-3631","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"","status":"running","startedAt":1790600298935,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
-{"type":"event","event":{"type":"step.started","id":"e8d2de69-f536-4482-827f-50b4e338ad8b","label":"Echo","timestamp":366.7992909999999}}
-{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":366.844916}}
-{"type":"event","event":{"type":"step.finished","id":"e8d2de69-f536-4482-827f-50b4e338ad8b","status":"completed","durationMs":0.30862500000000637,"timestamp":367.107708}}
-{"type":"finished","finishedAt":1790600299303,"status":"completed","durationMs":365.86658300000005,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"","outputs":{"id":"calm-heads-3979"}},"error":null}

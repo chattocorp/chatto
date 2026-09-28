@@ -1,5 +1,0 @@
-{"type":"started","run":{"id":"ca2780aa-36a0-45c9-8864-769a3a62defa","reference":"many-roses-7997","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"A workflow result","status":"running","startedAt":1790600298344,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
-{"type":"event","event":{"type":"step.started","id":"140e8c96-0f2f-417d-b551-ae4639a5212a","label":"Echo","timestamp":365.30475}}
-{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":365.333125}}
-{"type":"event","event":{"type":"step.finished","id":"140e8c96-0f2f-417d-b551-ae4639a5212a","status":"completed","durationMs":0.2703750000000582,"timestamp":365.57387500000004}}
-{"type":"finished","finishedAt":1790600298710,"status":"completed","durationMs":364.494875,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"A workflow result","outputs":{"id":"bold-moles-4809"}},"error":null}

@@ -1,5 +1,0 @@
-{"type":"started","run":{"id":"72294064-95b4-4762-a3af-a4c6b9a5985a","reference":"itchy-pants-5294","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"--verbose","status":"running","startedAt":1790600292068,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
-{"type":"event","event":{"type":"step.started","id":"c8ac630d-eb7b-4be6-8cd9-12787c75c76e","label":"Echo","timestamp":476.652792}}
-{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":476.68554199999994}}
-{"type":"event","event":{"type":"step.finished","id":"c8ac630d-eb7b-4be6-8cd9-12787c75c76e","status":"completed","durationMs":0.2713339999999107,"timestamp":476.92329199999995}}
-{"type":"finished","finishedAt":1790600292545,"status":"completed","durationMs":475.96687499999996,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"--verbose","outputs":{"id":"eager-ways-6181"}},"error":null}

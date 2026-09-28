@@ -1,5 +1,0 @@
-{"type":"started","run":{"id":"a3fc0e4b-1020-4792-9ad1-57c1fdcc6079","reference":"jolly-peas-5137","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"A JSON result","status":"running","startedAt":1790600295243,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
-{"type":"event","event":{"type":"step.started","id":"3bb8c678-83b2-4b0a-8b64-d35f011402af","label":"Echo","timestamp":371.221042}}
-{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":371.25199999999995}}
-{"type":"event","event":{"type":"step.finished","id":"3bb8c678-83b2-4b0a-8b64-d35f011402af","status":"completed","durationMs":0.30387499999994816,"timestamp":371.52429199999995}}
-{"type":"finished","finishedAt":1790600295614,"status":"completed","durationMs":370.30587499999996,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"A JSON result","outputs":{"id":"silly-pillows-8199"}},"error":null}
