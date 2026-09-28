@@ -5689,9 +5689,8 @@ viewer.
 | --- | --- | --- |
 | `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
-| `member_user_ids` | `repeated string` | Complete participant user IDs for a DM. Empty for channel rooms. |
+| `member_user_ids` | `repeated string` | Complete participant user IDs for a DM, including participants whose accounts were deleted. Clients show those as deleted users. Empty for channel rooms. |
 | `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
-| `deleted_participant_user_ids` | `repeated string` | DM participants whose accounts were deleted. These IDs are not in member_user_ids. Clients show them as deleted users, so a DM with a deleted partner is not a self-DM. Empty for channel rooms. |
 
 
 
@@ -6005,7 +6004,7 @@ Search evidence stays on the containing MessageSearchResult.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing this thread. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Current thread metadata and viewer follow/read state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when present; it need not match the query. |
-| `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages, including deleted accounts that resolve to deleted users; empty for channels. |
+| `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages; empty for channels. |
 
 
 
@@ -6307,7 +6306,7 @@ One followed thread for the current user.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
-| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label, including participants whose accounts were deleted. Includes resolve those to deleted users. Empty for channel rooms. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
 
 
 

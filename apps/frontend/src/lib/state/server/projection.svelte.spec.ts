@@ -13,6 +13,18 @@ import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_call
 import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 
 describe('ServerProjectionStore', () => {
+  it('keeps a deleted account in DM membership as a tombstoned participant', () => {
+    const store = new ServerProjectionStore();
+    store.users.set('gone', new DirectoryMember({ user: new User({ id: 'gone', login: 'gone' }) }));
+    store.rooms.set('dm', new RoomWithViewerState({ memberUserIds: ['viewer', 'gone'] }));
+
+    store.removeUser('gone');
+
+    expect(store.rooms.get('dm')?.memberUserIds).toEqual(['viewer', 'gone']);
+    expect(store.users.get('gone')).toBeUndefined();
+    expect(store.users.isDeleted('gone')).toBe(true);
+  });
+
   it('merges a partial snapshot user list into cached profiles', () => {
     const store = new ServerProjectionStore();
     store.users.set(

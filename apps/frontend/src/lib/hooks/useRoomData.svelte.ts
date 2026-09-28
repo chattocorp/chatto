@@ -3,7 +3,6 @@ import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
 import { useServerScope } from '$lib/state/server/scope.svelte';
-import { deletedDirectMessageParticipant } from '$lib/render/users';
 
 export type RoomData = {
   room: {
@@ -33,9 +32,7 @@ export type RoomData = {
 export type DMData = {
   /** Stable member IDs from the room projection, including unresolved users. */
   participantIds: string[];
-  /** Participants whose accounts were deleted. They are not in `participantIds`. */
-  deletedParticipantIds: string[];
-  /** Resolved members, followed by a deleted placeholder for each deleted participant. */
+  /** Resolved participants, with a deleted placeholder for each deleted account. */
   participants: Array<{
     id: string;
     login: string;
@@ -98,14 +95,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
     const currentStore = store;
     if (!isDM || !currentStore.realtimeSync.hasDisplayableView) return null;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
-    const deletedParticipantIds = projectedRoom?.deletedParticipantUserIds ?? [];
     return {
       participantIds: projectedRoom?.memberUserIds ?? [],
-      deletedParticipantIds,
-      participants: [
-        ...currentStore.projectedMembersForRoom(getProps().roomId),
-        ...deletedParticipantIds.map(deletedDirectMessageParticipant)
-      ],
+      participants: currentStore.projectedMembersForRoom(getProps().roomId),
       currentUserId: currentStore.viewerId
     };
   });

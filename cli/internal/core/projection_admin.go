@@ -142,19 +142,10 @@ func (p *RoomMembershipProjection) adminProjectionEstimate() (int64, int64, []Pr
 			bytes += projectionMapEntryOverhead + int64(len(roomID))
 		}
 	}
-	var formerDMParticipants, formerBytes int64
-	for roomID, users := range p.formerDMParticipants {
-		formerBytes += projectionMapEntryOverhead + int64(len(roomID))
-		for userID := range users {
-			formerDMParticipants++
-			formerBytes += projectionMapEntryOverhead + int64(len(userID))
-		}
-	}
-	return memberships + formerDMParticipants, bytes + formerBytes, []ProjectionAdminMetric{
+	return memberships, bytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "memberships_by_room", Value: memberships, Bytes: bytes / 2},
 		{Name: "memberships_by_user", Value: userRooms, Bytes: bytes / 2},
-		{Name: "former_dm_participants", Value: formerDMParticipants, Bytes: formerBytes},
 	}
 }
 

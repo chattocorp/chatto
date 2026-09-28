@@ -735,10 +735,7 @@ describe('QuickSwitcher', () => {
     });
     mocks.store.projection.rooms.set(
       'deleted-partner',
-      new RoomWithViewerState({
-        memberUserIds: ['user-current'],
-        deletedParticipantUserIds: ['gone']
-      })
+      new RoomWithViewerState({ memberUserIds: ['user-current', 'gone'] })
     );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'alice');

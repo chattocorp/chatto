@@ -143,8 +143,7 @@ message ThreadSearchContext {
   ThreadSummary thread = 3;
   // Most recent visible reply, when present; it need not match the query.
   Message latest_reply = 4;
-  // Conversation-label participants for direct messages, including deleted
-  // accounts that resolve to deleted users; empty for channels.
+  // Conversation-label participants for direct messages; empty for channels.
   repeated string direct_message_participant_user_ids = 5;
 }
 

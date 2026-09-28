@@ -6,6 +6,7 @@ import (
 	"errors"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1279,8 +1280,8 @@ func TestThreadServiceListFollowedThreadsLabelsDeletedDMParticipant(t *testing.T
 		t.Fatalf("ListFollowedThreads returned %d threads, want 1", got)
 	}
 	got := resp.Msg.GetThreads()[0].GetDirectMessageParticipantUserIds()
-	if len(got) != 2 || got[0] != env.viewer.Id || got[1] != participant.Id {
-		t.Fatalf("DM participant IDs = %v, want viewer then deleted participant", got)
+	if !slices.Contains(got, env.viewer.Id) || !slices.Contains(got, participant.Id) || len(got) != 2 {
+		t.Fatalf("DM participant IDs = %v, want the viewer and the deleted participant", got)
 	}
 	deleted := resp.Msg.GetIncludes().GetUsers()[participant.Id]
 	if deleted == nil || !deleted.GetDeleted() {

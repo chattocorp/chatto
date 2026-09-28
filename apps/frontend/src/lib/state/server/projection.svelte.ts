@@ -100,14 +100,13 @@ export class ServerProjectionStore {
     this.activeCalls = [];
   }
 
+  /**
+   * Removes an account's profile and call participation. The profile becomes
+   * a deleted-user tombstone. DM `memberUserIds` keep the ID, because DM
+   * membership is fixed at creation and clients show deleted participants.
+   */
   removeUser(userId: string): void {
     this.users.delete(userId);
-    for (const [roomId, room] of this.rooms) {
-      if (!room.memberUserIds.includes(userId)) continue;
-      const next = room.clone();
-      next.memberUserIds = next.memberUserIds.filter((candidate) => candidate !== userId);
-      this.rooms.set(roomId, next);
-    }
     this.activeCalls = this.activeCalls.map((call) => {
       if (!call.participants.some((participant) => participant.user?.id === userId)) return call;
       const next = call.clone();

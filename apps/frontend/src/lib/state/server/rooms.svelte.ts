@@ -30,7 +30,7 @@ export type RoomsListItem = {
   viewerNotificationCount: number;
   viewerImportantNotificationCount: number;
   hasMessageHistory?: boolean | null;
-  /** DM participants: resolved members, then a deleted placeholder per deleted account. */
+  /** DM participants, with a deleted placeholder for each deleted account. */
   members: UserAvatarUserView[];
 };
 
@@ -87,6 +87,20 @@ export function avatarUserFromDirectoryMember(
 }
 
 /**
+ * Resolves one DM participant for presentation. Deleted accounts stay DM
+ * participants and resolve to a deleted placeholder; unresolved profiles are
+ * omitted until they load.
+ */
+export function directMessageParticipant(
+  projection: ServerProjectionStore,
+  userId: string
+): UserAvatarUserView[] {
+  const member = projection.users.get(userId);
+  if (member) return [avatarUserFromDirectoryMember(mapDirectoryMember(member))];
+  return projection.users.isDeleted(userId) ? [deletedDirectMessageParticipant(userId)] : [];
+}
+
+/**
  * Read-only navigation over the retained server projection.
  *
  * The view owns no server-derived room, membership, group, profile, ordering,
@@ -107,11 +121,9 @@ export class NavigationStore {
     const live = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived) return [];
-      const members = entry.memberUserIds.flatMap((userId) => {
-        const member = this.projection.users.get(userId);
-        return member ? [avatarUserFromDirectoryMember(mapDirectoryMember(member))] : [];
-      });
-      members.push(...entry.deletedParticipantUserIds.map(deletedDirectMessageParticipant));
+      const members = entry.memberUserIds.flatMap((userId) =>
+        directMessageParticipant(this.projection, userId)
+      );
       const viewerNotificationCount = this.notificationCounts.roomUnreadCounts[room.id] ?? 0;
       const viewerImportantNotificationCount =
         this.notificationCounts.roomImportantUnreadCounts[room.id] ?? 0;

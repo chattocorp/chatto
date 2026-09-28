@@ -299,9 +299,8 @@ type FollowedThread struct {
 	Thread *ThreadSummary `protobuf:"bytes,9,opt,name=thread,proto3" json:"thread,omitempty"`
 	// Most recent visible reply, when the thread has one.
 	LatestReply *Message `protobuf:"bytes,10,opt,name=latest_reply,json=latestReply,proto3" json:"latest_reply,omitempty"`
-	// User IDs used to derive a direct-message conversation label, including
-	// participants whose accounts were deleted. Includes resolve those to
-	// deleted users. Empty for channel rooms.
+	// User IDs used to derive a direct-message conversation label. Empty for
+	// channel rooms.
 	DirectMessageParticipantUserIds []string `protobuf:"bytes,11,rep,name=direct_message_participant_user_ids,json=directMessageParticipantUserIds,proto3" json:"direct_message_participant_user_ids,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache

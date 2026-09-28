@@ -117,7 +117,7 @@ func TestBuildRealtimeSnapshotHidesDMHistoryWithoutReadPermission(t *testing.T) 
 	t.Fatalf("DM %q is absent from realtime snapshot", dm.GetId())
 }
 
-func TestDMWithDeletedParticipantReportsDeletedParticipant(t *testing.T) {
+func TestDMWithDeletedParticipantKeepsTheParticipant(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "deleted-dm-peer", "Deleted DM Peer", "password")
 	if err != nil {
@@ -127,33 +127,22 @@ func TestDMWithDeletedParticipantReportsDeletedParticipant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	selfDM, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.GetId(), nil)
-	if err != nil {
-		t.Fatalf("FindOrCreateDM self: %v", err)
-	}
 	if err := env.core.DeleteUser(env.ctx, peer.GetId(), peer.GetId()); err != nil {
 		t.Fatalf("DeleteUser: %v", err)
 	}
 
-	assertDeletedParticipants := func(t *testing.T, source string, rooms []*apiv1.RoomWithViewerState) {
+	assertParticipants := func(t *testing.T, source string, rooms []*apiv1.RoomWithViewerState) {
 		t.Helper()
-		byID := directoryRoomsByID(rooms)
-		room := byID[dm.GetId()]
+		room := directoryRoomsByID(rooms)[dm.GetId()]
 		if room == nil {
 			t.Fatalf("%s: DM %q is absent", source, dm.GetId())
 		}
-		if got := room.GetMemberUserIds(); len(got) != 1 || got[0] != env.viewer.GetId() {
-			t.Fatalf("%s: DM member IDs = %v, want only the viewer", source, got)
+		got := map[string]bool{}
+		for _, id := range room.GetMemberUserIds() {
+			got[id] = true
 		}
-		if got := room.GetDeletedParticipantUserIds(); len(got) != 1 || got[0] != peer.GetId() {
-			t.Fatalf("%s: DM deleted participant IDs = %v, want [%s]", source, got, peer.GetId())
-		}
-		self := byID[selfDM.GetId()]
-		if self == nil {
-			t.Fatalf("%s: self-DM %q is absent", source, selfDM.GetId())
-		}
-		if got := self.GetDeletedParticipantUserIds(); len(got) != 0 {
-			t.Fatalf("%s: self-DM deleted participant IDs = %v, want none", source, got)
+		if len(got) != 2 || !got[env.viewer.GetId()] || !got[peer.GetId()] {
+			t.Fatalf("%s: DM member IDs = %v, want the viewer and the deleted participant", source, room.GetMemberUserIds())
 		}
 	}
 
@@ -163,11 +152,20 @@ func TestDMWithDeletedParticipantReportsDeletedParticipant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRooms: %v", err)
 	}
-	assertDeletedParticipants(t, "ListRooms", resp.Msg.GetRooms())
+	assertParticipants(t, "ListRooms", resp.Msg.GetRooms())
 
 	snapshot, err := env.api.BuildRealtimeSnapshot(env.ctx, env.viewer.GetId())
 	if err != nil {
 		t.Fatalf("BuildRealtimeSnapshot: %v", err)
 	}
-	assertDeletedParticipants(t, "BuildRealtimeSnapshot", snapshot.Rooms.GetRooms())
+	assertParticipants(t, "BuildRealtimeSnapshot", snapshot.Rooms.GetRooms())
+	var deleted *apiv1.User
+	for _, member := range snapshot.Users.GetUsers() {
+		if member.GetUser().GetId() == peer.GetId() {
+			deleted = member.GetUser()
+		}
+	}
+	if deleted == nil || !deleted.GetDeleted() || deleted.GetLogin() != "" {
+		t.Fatalf("snapshot user for deleted participant = %+v, want a tombstone without PII", deleted)
+	}
 }

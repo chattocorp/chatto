@@ -339,3 +339,41 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 		t.Errorf("Expected 2 room members after new user joins, got %d", len(members))
 	}
 }
+
+func TestChattoCore_DeleteUser_KeepsDMMembership(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	remaining, err := core.CreateUser(ctx, "system", "dmremaining", "DM Remaining", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser remaining: %v", err)
+	}
+	deleted, err := core.CreateUser(ctx, "system", "dmdeleted", "DM Deleted", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser deleted: %v", err)
+	}
+	dm, _, err := core.FindOrCreateDM(ctx, remaining.Id, []string{deleted.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := core.DeleteUser(ctx, deleted.Id, deleted.Id); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+
+	// DM membership is fixed at creation, so the deleted account stays a
+	// participant and the DM does not turn into a self-DM.
+	ids, err := core.ListRoomMemberIDsForList(ctx, remaining.Id, dm.Id)
+	if err != nil {
+		t.Fatalf("ListRoomMemberIDsForList: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Fatalf("DM member IDs after deletion = %v, want both participants", ids)
+	}
+	isMember, err := core.RoomMembershipExists(ctx, KindDM, deleted.Id, dm.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists: %v", err)
+	}
+	if !isMember {
+		t.Fatal("deleted account should stay a DM participant")
+	}
+}

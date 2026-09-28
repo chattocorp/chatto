@@ -64,9 +64,8 @@ message FollowedThread {
   ThreadSummary thread = 9;
   // Most recent visible reply, when the thread has one.
   Message latest_reply = 10;
-  // User IDs used to derive a direct-message conversation label, including
-  // participants whose accounts were deleted. Includes resolve those to
-  // deleted users. Empty for channel rooms.
+  // User IDs used to derive a direct-message conversation label. Empty for
+  // channel rooms.
   repeated string direct_message_participant_user_ids = 11;
 }
 

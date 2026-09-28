@@ -9,7 +9,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var roomDirectorySnapshotContractID = snapshotContractID("v1", &projectionv1.RoomDirectoryProjectionSnapshot{})
+// v2: DM memberships ignore UserLeftRoom, so v1 snapshots must be rebuilt.
+var roomDirectorySnapshotContractID = snapshotContractID("v2", &projectionv1.RoomDirectoryProjectionSnapshot{})
 
 func (*RoomDirectoryProjection) SnapshotContractID() string {
 	return roomDirectorySnapshotContractID
@@ -37,12 +38,6 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 		snapshot.Memberships = append(snapshot.Memberships, &projectionv1.RoomMembershipSnapshot{
 			RoomId:  roomID,
 			UserIds: sortedMapKeys(p.Membership.byRoom[roomID]),
-		})
-	}
-	for _, roomID := range sortedMapKeys(p.Membership.formerDMParticipants) {
-		snapshot.FormerDmParticipants = append(snapshot.FormerDmParticipants, &projectionv1.RoomMembershipSnapshot{
-			RoomId:  roomID,
-			UserIds: sortedMapKeys(p.Membership.formerDMParticipants[roomID]),
 		})
 	}
 	for _, roomID := range sortedMapKeys(p.Bans.byRoom) {
@@ -111,27 +106,6 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		}
 		byRoom[roomID] = users
 	}
-	formerDMParticipants := make(map[string]map[string]struct{}, len(snapshot.GetFormerDmParticipants()))
-	for _, former := range snapshot.GetFormerDmParticipants() {
-		roomID := former.GetRoomId()
-		if roomID == "" {
-			return fmt.Errorf("room directory snapshot has empty former DM participant room ID")
-		}
-		if _, duplicate := formerDMParticipants[roomID]; duplicate {
-			return fmt.Errorf("room directory snapshot repeats former DM participant room %q", roomID)
-		}
-		users := make(map[string]struct{}, len(former.GetUserIds()))
-		for _, userID := range former.GetUserIds() {
-			if userID == "" {
-				return fmt.Errorf("room directory snapshot has empty former DM participant in room %q", roomID)
-			}
-			if _, duplicate := users[userID]; duplicate {
-				return fmt.Errorf("room directory snapshot repeats former DM participant %q in room %q", userID, roomID)
-			}
-			users[userID] = struct{}{}
-		}
-		formerDMParticipants[roomID] = users
-	}
 	bans := make(map[string]map[string]RoomBan)
 	for _, row := range snapshot.GetBans() {
 		if row.GetRoomId() == "" || row.GetUserId() == "" || row.GetReason() == "" {
@@ -162,7 +136,6 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 	p.Bans.Lock()
 	p.Catalog.rooms, p.Catalog.seq = rooms, snapshot.GetCatalogSequence()
 	p.Membership.byRoom, p.Membership.byUser = byRoom, byUser
-	p.Membership.formerDMParticipants = formerDMParticipants
 	p.Bans.byRoom = bans
 	p.Bans.Unlock()
 	p.Membership.Unlock()

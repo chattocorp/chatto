@@ -81,7 +81,6 @@ describe('buildRoomPresentation', () => {
       dmData: {
         currentUserId: 'self',
         participantIds: ['self', 'other'],
-        deletedParticipantIds: [],
         participants: [
           {
             id: 'self',
@@ -115,7 +114,6 @@ describe('buildRoomPresentation', () => {
       build(roomData(), true, {
         currentUserId: 'self',
         participantIds: ['self'],
-        deletedParticipantIds: [],
         participants: [
           {
             id: 'self',
@@ -136,8 +134,7 @@ describe('buildRoomPresentation', () => {
     expect(
       build(roomData(), true, {
         currentUserId: 'self',
-        participantIds: ['self'],
-        deletedParticipantIds: ['gone'],
+        participantIds: ['self', 'gone'],
         participants: [
           { id: 'self', login: 'me', displayName: 'Me', presenceStatus: 0 },
           deletedDirectMessageParticipant('gone')
@@ -155,7 +152,6 @@ describe('buildRoomPresentation', () => {
       build(roomData(), true, {
         currentUserId: 'self',
         participantIds: [],
-        deletedParticipantIds: [],
         participants: []
       })
     ).toEqual({

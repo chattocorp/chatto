@@ -33,6 +33,13 @@ type UserContentSnapshot struct {
 	capturedAt time.Time
 }
 
+// Deleted reports whether the captured account was deleted or crypto-shredded.
+// Hydration returns no content for such an account; callers that must keep
+// its ID show it as a deleted user instead.
+func (s *UserContentSnapshot) Deleted() bool {
+	return s != nil && s.state != nil && (s.state.deleted || s.state.shredded)
+}
+
 // HydratedUserContent contains the public user state that was captured in one
 // UserContentSnapshot. Presence is runtime state and is not included.
 type HydratedUserContent struct {

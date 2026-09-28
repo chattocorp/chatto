@@ -56,6 +56,31 @@ function projectedRoom(
 }
 
 describe('NavigationStore', () => {
+  it('resolves a deleted DM participant to a deleted placeholder', () => {
+    const projection = new ServerProjectionStore();
+    projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    projection.users.set(
+      'gone',
+      new DirectoryMember({ user: new User({ id: 'gone', deleted: true }) })
+    );
+    projection.rooms.set(
+      'dm',
+      projectedRoom('dm', {
+        kind: RoomKind.DM,
+        memberUserIds: ['U1', 'gone', 'pending'],
+        hasMessageHistory: true
+      })
+    );
+
+    const { navigation } = navigationFor(projection);
+    const members = navigation.rooms.find((room) => room.id === 'dm')?.members ?? [];
+
+    // The viewer and the pending profile are unresolved; the deleted one is a placeholder.
+    expect(members).toEqual([expect.objectContaining({ id: 'gone', deleted: true })]);
+  });
+
   it('selects rooms, members, permissions, counts, and viewer identity from the projection', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse({

@@ -123,7 +123,7 @@ func TestRoomDirectoryProjectionPrepareRejectsMalformedEventBeforeCommit(t *test
 	}
 }
 
-func TestRoomDirectoryProjectionTracksFormerDMParticipants(t *testing.T) {
+func TestRoomDirectoryProjectionKeepsDMMembersOnLeave(t *testing.T) {
 	directory := NewRoomDirectoryProjection()
 	for _, event := range []*evtv1.Event{
 		roomCreatedEvent("DM", "", "", evtv1.RoomKind_ROOM_KIND_DM),
@@ -132,33 +132,21 @@ func TestRoomDirectoryProjectionTracksFormerDMParticipants(t *testing.T) {
 		roomCreatedEvent("C1", "general", "", evtv1.RoomKind_ROOM_KIND_CHANNEL),
 		joinEvent("C1", "U1"),
 		joinEvent("C1", "U2"),
+		// Older account deletions wrote leave events for DMs.
 		leaveEvent("DM", "U2"),
 		leaveEvent("C1", "U2"),
 	} {
 		mustApply(t, directory, event)
 	}
 
-	if got := directory.Membership.FormerDMParticipants("DM"); !equal(got, []string{"U2"}) {
-		t.Errorf("FormerDMParticipants(DM) = %v, want [U2]", got)
+	if got := sortedStrings(directory.Membership.Members("DM")); !equal(got, []string{"U1", "U2"}) {
+		t.Errorf("Members(DM) = %v, want [U1 U2]", got)
 	}
-	if got := directory.Membership.Members("DM"); !equal(got, []string{"U1"}) {
-		t.Errorf("Members(DM) = %v, want [U1]", got)
+	if !directory.Membership.IsMember("DM", "U2") {
+		t.Error("U2 should stay a DM member after a leave event")
 	}
-	if got := directory.Membership.FormerDMParticipants("C1"); len(got) != 0 {
-		t.Errorf("FormerDMParticipants(C1) = %v, want none for a channel", got)
-	}
-
-	mustApply(t, directory, joinEvent("DM", "U2"))
-	if got := directory.Membership.FormerDMParticipants("DM"); len(got) != 0 {
-		t.Errorf("FormerDMParticipants(DM) after rejoin = %v, want none", got)
-	}
-
-	mustApply(t, directory, leaveEvent("DM", "U2"))
-	mustApply(t, directory, &evtv1.Event{Event: &evtv1.Event_RoomDeleted{
-		RoomDeleted: &evtv1.RoomDeletedEvent{RoomId: "DM"},
-	}})
-	if got := directory.Membership.FormerDMParticipants("DM"); len(got) != 0 {
-		t.Errorf("FormerDMParticipants(DM) after room deletion = %v, want none", got)
+	if got := directory.Membership.Members("C1"); !equal(got, []string{"U1"}) {
+		t.Errorf("Members(C1) = %v, want [U1]", got)
 	}
 }
 

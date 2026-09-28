@@ -351,11 +351,13 @@
     const otherParticipantIds = participantIds.filter(
       (participantId) => participantId !== room.dmData?.currentUserId
     );
-    if (otherParticipantIds.length === 1) return otherParticipantIds[0];
-    // A DM whose partner deleted their account is not a self-DM.
-    return participantIds.length === 1 &&
-      participantIds[0] === room.dmData?.currentUserId &&
-      room.dmData.deletedParticipantIds.length === 0
+    if (otherParticipantIds.length === 1) {
+      const [otherId] = otherParticipantIds;
+      // A deleted partner has no profile to open.
+      const other = room.dmData?.participants.find((participant) => participant.id === otherId);
+      return other?.deleted ? null : otherId;
+    }
+    return participantIds.length === 1 && participantIds[0] === room.dmData?.currentUserId
       ? participantIds[0]
       : null;
   });

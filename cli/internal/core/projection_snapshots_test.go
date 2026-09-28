@@ -75,7 +75,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{notificationSnapshotContractID, "v2", &projectionv1.NotificationProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v2", &projectionv1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
-		{roomDirectorySnapshotContractID, "v1", &projectionv1.RoomDirectoryProjectionSnapshot{}},
+		{roomDirectorySnapshotContractID, "v2", &projectionv1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
 		{roomTimelineSnapshotContractID, "v9", &projectionv1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v3", &projectionv1.ThreadProjectionSnapshot{}},
@@ -225,9 +225,6 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
 			p.Catalog.seq = 41
 			p.Membership.addLocked("R1", "U1")
-			p.Catalog.rooms["D1"] = &roomCatalogEntry{kind: evtv1.RoomKind_ROOM_KIND_DM}
-			p.Membership.addLocked("D1", "U1")
-			p.Membership.addFormerDMParticipantLocked("D1", "U3")
 			expires := now.Add(time.Hour)
 			p.Bans.byRoom["R1"] = map[string]RoomBan{"U2": {EventID: "B1", RoomID: "R1", UserID: "U2", ModeratorID: "U1", Reason: "spam", CreatedAt: now, ExpiresAt: &expires}}
 		}},
@@ -352,7 +349,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}
 
 	expectedContractPrefix := map[string]string{
-		"room_directory": "v1-", "server_config": "v3-", "room_group_layout": "v1-",
+		"room_directory": "v2-", "server_config": "v3-", "room_group_layout": "v1-",
 		"notification_decisions": "v2-", "notifications": "v2-",
 		"room_timeline": "v9-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",
