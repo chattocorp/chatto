@@ -2,31 +2,57 @@
   "name": "@chatto/client",
   "private": true,
   "version": "0.1.0",
-  "description": "Framework-neutral Chatto client helpers for bots and integrations",
+  "description": "Framework-neutral Chatto client: connections, realtime projection, and reactive stores",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
+      "@chatto/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./svelte": {
+      "@chatto/source": "./src/svelte/index.ts",
+      "types": "./dist/svelte/index.d.ts",
+      "import": "./dist/svelte/index.js"
+    },
+    "./*": {
+      "@chatto/source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
-  "dependencies": {
-    "@chatto/api-types": "workspace:*"
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@bufbuild/protobuf": "^1.10.1",
+    "@chatto/api-types": "workspace:*",
+    "@connectrpc/connect": "^1.7.0",
+    "@connectrpc/connect-web": "^1.7.0",
+    "@tanstack/query-core": "5.103.2"
+  },
+  "peerDependencies": {
+    "svelte": "^5.7.0"
+  },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^22.20.1",
+    "svelte": "^5.57.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   }

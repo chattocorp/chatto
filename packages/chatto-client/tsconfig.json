@@ -8,8 +8,9 @@
     "strict": true,
     "skipLibCheck": true,
     "target": "ES2022",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.svelte.ts"]
 }
