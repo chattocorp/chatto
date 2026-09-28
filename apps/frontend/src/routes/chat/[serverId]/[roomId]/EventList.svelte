@@ -256,6 +256,10 @@
 
   function reportReadPosition() {
     if (!onReadPosition) return;
+    // A loading or recovering window is not what the viewer sees yet.
+    if (isLoading || stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) {
+      return;
+    }
     const position = currentReadPosition();
     if (!position) return;
     if (
@@ -274,6 +278,9 @@
     void virtualItems;
     void isJumpedMode;
     void viewport.shouldScrollToBottom;
+    void isLoading;
+    void stores.realtimeSync.isRecoveringSnapshot;
+    void messageStore.recoveryViewport;
     untrack(reportReadPosition);
   });
 
