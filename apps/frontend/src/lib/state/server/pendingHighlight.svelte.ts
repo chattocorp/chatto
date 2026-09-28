@@ -27,6 +27,11 @@ export class PendingHighlightStore {
     this.highlights.set(this.#key(roomId, threadRootId), { eventId, notificationId });
   }
 
+  /** Whether a destination has a highlight that is not consumed yet. Reactive. */
+  has(roomId: string, threadRootId: string | null): boolean {
+    return this.highlights.has(this.#key(roomId, threadRootId));
+  }
+
   /**
    * Remove and return the pending highlight for a destination, if any.
    */

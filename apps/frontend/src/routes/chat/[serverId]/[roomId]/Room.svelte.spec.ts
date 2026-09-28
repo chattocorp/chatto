@@ -417,7 +417,8 @@ beforeEach(() => {
         ensureStatus: vi.fn()
       },
       pendingHighlights: {
-        consume: mocks.pendingHighlightConsume
+        consume: mocks.pendingHighlightConsume,
+        has: () => false
       },
       notifications: {
         markOccurrenceRead: mocks.markOccurrenceRead
@@ -904,6 +905,29 @@ describe('Room local message echo', () => {
     );
 
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
+  });
+
+  it('leaves a message unread when it arrives while the viewer reads older history', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    (q(container, '[data-testid="report-history-position"]') as HTMLButtonElement).click();
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'newer-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
   });
 
   it('places the unread separator for a message that arrives while the viewer is away', async () => {

@@ -8,6 +8,8 @@
     "call_participants": "{count} משתתפים בשיחה",
     "go_to_notifications": "עבור אל {count} התראות",
     "notifications": "{count} התראות",
+    "go_to_other_notifications": "עבור אל {count} התראות נוספות",
+    "other_notifications": "{count} התראות נוספות",
     "unread_messages": "הודעות שלא נקראו",
     "go_to_dm_notifications": "עבור אל {count} התראות בהודעה ישירה",
     "new_direct_messages": "{count} הודעות ישירות חדשות",

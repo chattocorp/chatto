@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TimelineEventView } from '$lib/render/timelineEvents';
   import type { MessagesStore } from '$lib/state/room';
+  import type { TimelineReadPosition } from './readThroughTracker';
 
   let {
     messageStore,
@@ -10,7 +11,8 @@
     emptyMessage = '',
     pendingHighlightId = null,
     onReachedBottom,
-    onScrollToEventComplete
+    onScrollToEventComplete,
+    onReadPosition
   }: {
     messageStore?: Pick<MessagesStore, 'isInitialLoading'>;
     events?: TimelineEventView[];
@@ -20,6 +22,7 @@
     pendingHighlightId?: string | null;
     onReachedBottom?: () => void;
     onScrollToEventComplete?: (landed: boolean) => void;
+    onReadPosition?: (position: TimelineReadPosition) => void;
   } = $props();
 
   const isLoading = $derived(messageStore?.isInitialLoading ?? false);
@@ -44,4 +47,11 @@
 </button>
 <button type="button" data-testid="fail-highlight" onclick={() => onScrollToEventComplete?.(false)}>
   fail highlight
+</button>
+<button
+  type="button"
+  data-testid="report-history-position"
+  onclick={() => onReadPosition?.({ eventId: 'history-event', createdAtMs: 1000, latest: false })}
+>
+  report history position
 </button>

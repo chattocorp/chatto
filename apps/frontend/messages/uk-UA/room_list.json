@@ -8,6 +8,8 @@
     "call_participants": "{count} учасників дзвінка",
     "go_to_notifications": "Перейти до сповіщень {count}",
     "notifications": "Сповіщення {count}",
+    "go_to_other_notifications": "Перейти до інших сповіщень ({count})",
+    "other_notifications": "Інші сповіщення ({count})",
     "unread_messages": "непрочитані повідомлення",
     "go_to_dm_notifications": "Перейти до сповіщень прямої переписки {count}",
     "new_direct_messages": "{count} нові прямі повідомлення",

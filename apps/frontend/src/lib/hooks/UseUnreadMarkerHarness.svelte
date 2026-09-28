@@ -18,6 +18,9 @@
     events = [],
     skipActorId = null,
     canMarkAsRead = true,
+    limitLifecycle = false,
+    lifecycleUpToEventId,
+    onLifecycleRead,
     onReady
   }: {
     targetId: string;
@@ -29,6 +32,10 @@
     events?: UnreadMarkerEvent[];
     skipActorId?: string | null;
     canMarkAsRead?: boolean;
+    /** Pass `lifecycleUpToEventId` through `getLifecycleUpToEventId`. */
+    limitLifecycle?: boolean;
+    lifecycleUpToEventId?: string | null;
+    onLifecycleRead?: (upToEventId: string | undefined) => void;
     onReady: (api: UnreadMarkerHarnessAPI) => void;
   } = $props();
 
@@ -44,7 +51,9 @@
     },
     getMarkerEvents: () => events,
     getMarkerSkipActorId: () => skipActorId,
-    canMarkAsRead: () => canMarkAsRead
+    canMarkAsRead: () => canMarkAsRead,
+    getLifecycleUpToEventId: () => (limitLifecycle ? lifecycleUpToEventId : undefined),
+    onLifecycleRead: (upToEventId) => onLifecycleRead?.(upToEventId)
   });
 
   $effect(() => {

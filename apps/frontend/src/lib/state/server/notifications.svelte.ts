@@ -34,10 +34,30 @@ export type RoomNotificationLookup = {
 
 export type RoomNotificationResolveOptions = {
   isDM?: boolean;
+  /**
+   * Restrict the lookup to one attention level. `IMPORTANT` matches only
+   * Important occurrences; any other level matches every occurrence that is
+   * not Important. This mirrors the room badges, which show the Important
+   * count and the remaining count separately.
+   */
+  attentionLevel?: NotificationAttentionLevel;
 };
 
 function isDMNotification(notification: NotificationOccurrenceItem): boolean {
   return notification.signalKind === NotificationSignalKind.DIRECT_MESSAGE;
+}
+
+/** Whether an occurrence belongs to a room lookup with the given options. */
+function matchesRoomNotification(
+  notification: NotificationOccurrenceItem,
+  roomId: string,
+  options: RoomNotificationResolveOptions
+): boolean {
+  if (notification.room?.id !== roomId) return false;
+  if (isDMNotification(notification) !== Boolean(options.isDM)) return false;
+  if (options.attentionLevel === undefined) return true;
+  const important = notification.attentionLevel === NotificationAttentionLevel.IMPORTANT;
+  return important === (options.attentionLevel === NotificationAttentionLevel.IMPORTANT);
 }
 
 /**
@@ -364,10 +384,7 @@ export class NotificationStore {
    * Get the most recent non-DM notification for a room.
    */
   getRoomNotification(roomId: string): NotificationOccurrenceItem | undefined {
-    return this.attentionOccurrences.find((n) => {
-      const t = notificationTarget(n);
-      return !t.isDM && t.roomId === roomId;
-    });
+    return this.getCachedRoomNotification(roomId);
   }
 
   /**
@@ -397,14 +414,15 @@ export class NotificationStore {
    * Get the most recent notification for a DM conversation.
    */
   getDMRoomNotification(roomId: string): NotificationOccurrenceItem | undefined {
-    return this.attentionOccurrences.find((n) => isDMNotification(n) && n.room?.id === roomId);
+    return this.getCachedRoomNotification(roomId, { isDM: true });
   }
 
+  /** Get the most recent loaded unread occurrence that matches a room lookup. */
   getCachedRoomNotification(
     roomId: string,
     options: RoomNotificationResolveOptions = {}
   ): NotificationOccurrenceItem | undefined {
-    return options.isDM ? this.getDMRoomNotification(roomId) : this.getRoomNotification(roomId);
+    return this.attentionOccurrences.find((n) => matchesRoomNotification(n, roomId, options));
   }
 
   /**
@@ -675,11 +693,9 @@ export class NotificationStore {
         if (this.revokedRoomIds.has(roomId)) {
           return { ok: true, totalCount: 0, notification: null };
         }
-        const matches = page.occurrences
-          .filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
-          .filter((occurrence) =>
-            options.isDM ? isDMNotification(occurrence) : !isDMNotification(occurrence)
-          );
+        const matches = page.occurrences.filter(
+          (occurrence) => occurrence.unread && matchesRoomNotification(occurrence, roomId, options)
+        );
         totalCount += matches.length;
         if (!matchedOccurrence && matches.length > 0) matchedOccurrence = matches[0]!;
         hasMore = page.hasMore;

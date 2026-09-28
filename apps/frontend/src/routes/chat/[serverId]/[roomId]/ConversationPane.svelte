@@ -31,7 +31,7 @@ thread IDs can change while the pane stays mounted.
 </script>
 
 <script lang="ts">
-  import { tick, untrack, type Snippet } from 'svelte';
+  import { onDestroy, tick, untrack, type Snippet } from 'svelte';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { dropZone } from '$lib/dom/dropZone.svelte';
@@ -57,6 +57,7 @@ thread IDs can change while the pane stays mounted.
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { threadParticipantIds } from './threadParticipants';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import { ReadThroughTracker, type TimelineReadPosition } from './readThroughTracker';
 
   let {
     roomId,
@@ -134,6 +135,54 @@ thread IDs can change while the pane stays mounted.
     currentUserId: stores.viewerId
   }));
 
+  // The conversation is read up to the newest message that the viewer has
+  // seen, not up to its latest message. After a jump to an older message,
+  // newer activity and its notifications stay unread until the viewer
+  // scrolls to them.
+  let readPosition = $state.raw<{ key: string; position: TimelineReadPosition } | null>(null);
+  const currentReadPosition = $derived(
+    readPosition?.key === targetKey ? readPosition.position : null
+  );
+  // A jump to a message is about to start or is running. The entry read waits
+  // for it, so that it does not read past the target.
+  const highlightPending = $derived(
+    highlight !== null || stores.pendingHighlights.has(roomId, threadRootEventId)
+  );
+  const atLatest = $derived(!highlightPending && (currentReadPosition?.latest ?? true));
+
+  const readThrough = new ReadThroughTracker((upToEventId) => {
+    void unread.markAsRead(threadRootEventId ?? roomId, upToEventId);
+  });
+  let readThroughKey = untrack(() => targetKey);
+  onDestroy(() => readThrough.dispose());
+
+  /** The tracker for the current conversation, reset when the conversation changes. */
+  function currentReadThrough(): ReadThroughTracker {
+    if (readThroughKey !== targetKey) {
+      readThroughKey = targetKey;
+      readThrough.reset();
+    }
+    return readThrough;
+  }
+
+  function lifecycleUpToEventId(): string | undefined | null {
+    if (highlightPending) return null;
+    const position = currentReadPosition;
+    return position && !position.latest ? position.eventId : undefined;
+  }
+
+  function handleLifecycleRead(upToEventId: string | undefined) {
+    const position = currentReadPosition;
+    currentReadThrough().noteRead(
+      upToEventId !== undefined && position?.eventId === upToEventId ? position.createdAtMs : null
+    );
+  }
+
+  function handleReadPosition(position: TimelineReadPosition) {
+    readPosition = { key: targetKey, position };
+    if (appState.isPresent && !highlightPending) currentReadThrough().observe(position);
+  }
+
   async function markThreadAsRead(
     targetThreadRootEventId: string,
     upToEventId: string | undefined,
@@ -166,9 +215,17 @@ thread IDs can change while the pane stays mounted.
             : null,
         getMarkerEvents: () => markerEvents,
         getMarkerSkipActorId: () => stores.viewerId,
-        onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
+        onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error),
+        getLifecycleUpToEventId: lifecycleUpToEventId,
+        onLifecycleRead: handleLifecycleRead
       })
-    : useRoomUnread(() => ({ roomId, events: markerEvents, canReadMessages }));
+    : useRoomUnread(() => ({
+        roomId,
+        events: markerEvents,
+        canReadMessages,
+        getLifecycleUpToEventId: lifecycleUpToEventId,
+        onLifecycleRead: handleLifecycleRead
+      }));
 
   // A reply or a jump belongs to the conversation that started it. The server
   // store loads each timeline when it creates it, so a target change needs no
@@ -255,8 +312,10 @@ thread IDs can change while the pane stays mounted.
   });
 
   // Clear typing and mark the conversation read for messages from other users
-  // that arrive while the viewer is present. While the viewer is away, show
-  // the unread separator above the first such message at once.
+  // that arrive while the viewer is present at the latest message. While the
+  // viewer is away, show the unread separator above the first such message at
+  // once. A message that arrives while the viewer reads older history stays
+  // unread until the viewer scrolls to it.
   useProjectionEvent((projectionEvent) => {
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
@@ -267,8 +326,13 @@ thread IDs can change while the pane stays mounted.
     const accountId = stores.accountId;
     if (!accountId || actorId === accountId) return;
     const eventId = projectionEvent.event?.id ?? '';
-    if (appState.isPresent) void unread.markAsRead(threadRootEventId ?? roomId, eventId);
-    else if (eventId) unread.markArrivalWhileAway(eventId);
+    if (appState.isPresent && atLatest) {
+      void unread.markAsRead(threadRootEventId ?? roomId, eventId);
+      return;
+    }
+    const createdAt = projectionEvent.event?.createdAt;
+    if (createdAt) currentReadThrough().noteUnreadArrival(createdAt.toDate().getTime());
+    if (!appState.isPresent && eventId) unread.markArrivalWhileAway(eventId);
   });
 
   let isDraggingFiles = $state(false);
@@ -310,6 +374,7 @@ thread IDs can change while the pane stays mounted.
       {onOpenProfile}
       unreadAfterEventId={unread.unreadMarkerEventId}
       onReachedBottom={() => unread.clearUnreadMarker()}
+      onReadPosition={handleReadPosition}
       typingUserIds={typingIndicator.userIds}
       typingMembers={members}
       pendingHighlightId={highlight?.eventId ?? null}

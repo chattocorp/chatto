@@ -546,6 +546,38 @@ describe('NotificationStore', () => {
     expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
   });
 
+  it('resolveRoomNotification filters cached occurrences by attention level', async () => {
+    const reaction = { ...mention('reaction'), attentionLevel: NotificationAttentionLevel.AMBIENT };
+    const roomMention = mention('mention');
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    store.occurrences = [reaction, roomMention];
+
+    const important = await store.resolveRoomNotification('r1', {
+      attentionLevel: NotificationAttentionLevel.IMPORTANT
+    });
+    const ambient = await store.resolveRoomNotification('r1', {
+      attentionLevel: NotificationAttentionLevel.AMBIENT
+    });
+
+    expect(important.notification?.id).toBe('mention');
+    expect(ambient.notification?.id).toBe('reaction');
+    expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
+  });
+
+  it('fetchRoomNotification filters and counts by attention level', async () => {
+    const reaction = { ...mention('reaction'), attentionLevel: NotificationAttentionLevel.AMBIENT };
+    const store = new NotificationStore(
+      makeAPI({ notifications: page([mention('mention'), reaction], 2) })
+    );
+
+    const result = await store.fetchRoomNotification('r1', {
+      attentionLevel: NotificationAttentionLevel.AMBIENT
+    });
+
+    expect(result).toMatchObject({ ok: true, totalCount: 1, notification: { id: 'reaction' } });
+  });
+
   it('returns one page for automatic UI pagination', async () => {
     const first = notificationPage(page([mention('first')], 2));
     first.hasMore = true;
