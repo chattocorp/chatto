@@ -89,3 +89,34 @@ describe('PaneHeader responsive actions', () => {
     await expect.element(getByRole('button', { name: 'Pane actions' })).not.toBeInTheDocument();
   });
 });
+
+describe('PaneHeader title truncation', () => {
+  it('shrinks the subtitle before the title', async () => {
+    await page.viewport(1024, 800);
+    const { container } = render(PaneHeader, {
+      props: {
+        title: 'Helper Bot',
+        subtitle: '@a_very_long_username_that_does_not_fit_beside_the_title_bot',
+        actions
+      }
+    });
+    (container as HTMLElement).style.width = '360px';
+
+    const [title, subtitle] = container.querySelectorAll<HTMLElement>('.truncate');
+    expect(subtitle.textContent).toContain('@a_very_long_username');
+    expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
+    expect(subtitle.scrollWidth).toBeGreaterThan(subtitle.clientWidth);
+  });
+
+  it('truncates a title that alone is wider than the row', async () => {
+    await page.viewport(1024, 800);
+    const { container } = render(PaneHeader, {
+      props: { title: 'A display name that is much too long for this narrow header row' }
+    });
+    (container as HTMLElement).style.width = '240px';
+
+    const title = q(container, 'h1 bdi')!;
+    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
+    expect(container.firstElementChild!.scrollWidth).toBeLessThanOrEqual(240);
+  });
+});

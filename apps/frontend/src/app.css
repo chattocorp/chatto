@@ -787,6 +787,11 @@
 }
 
 @theme {
+  /* Readable width of the content column of a pane page (`max-w-pane`), and
+     the wider column of a browsing grid (`max-w-pane-wide`). */
+  --container-pane: 64rem;
+  --container-pane-wide: 72rem;
+
   --font-sans: 'IBM Plex Sans Variable', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
@@ -851,6 +856,16 @@
  */
 @utility pane-page {
   @apply flex min-h-0 min-w-0 flex-1 flex-col;
+
+  /* The PaneHeader row of a pane page stops at the content column, so its
+   * end-side tabs and actions stay next to the content on wide screens.
+   * PaneContent pads its column by 1.5rem and the header row by 0.5rem, so
+   * the header row is 1rem narrower to line up both end edges. */
+  --pane-header-max-width: calc(var(--container-pane) - 1rem);
+
+  &:has([data-pane-content='wide']) {
+    --pane-header-max-width: calc(var(--container-pane-wide) - 1rem);
+  }
 }
 
 /* Panel/card shells provide the outer surface frame. Their content sits on a
