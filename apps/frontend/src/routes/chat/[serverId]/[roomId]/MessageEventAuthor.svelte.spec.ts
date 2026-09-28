@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import { UserStore } from '$lib/state/server/users.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
+import { create } from '@bufbuild/protobuf';
 
 function pendingEvent(): TimelineEventView {
   return {
@@ -34,7 +35,7 @@ describe('realtime message author', () => {
     await expect.element(view.getByText('Unknown user', { exact: true })).toBeVisible();
     userStore.set(
       'author',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'author', login: 'author', displayName: 'Resolved author' }
       })
     );
@@ -43,7 +44,7 @@ describe('realtime message author', () => {
 
     userStore.set(
       'author',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'author', login: 'author', displayName: 'Updated author' }
       })
     );
@@ -57,7 +58,7 @@ describe('realtime message author', () => {
     const userStore = new UserStore();
     userStore.set(
       'author',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'author', login: 'author', displayName: 'Current author' }
       })
     );

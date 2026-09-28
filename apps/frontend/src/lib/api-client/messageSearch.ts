@@ -1,8 +1,12 @@
-import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
-import { MessageSearchOrder, MessageSearchState } from '@chatto/api-types/api/v1/message_search_pb';
+import {
+  MessageSearchService,
+  MessageSearchOrder,
+  MessageSearchState
+} from '@chatto/api-types/api/v1/message_search_pb';
 import { createChattoClient, type ConnectAPIConfig } from './connect';
 import { createRoomDirectoryAPI, RoomKind } from './roomDirectory';
 import { createUserAPI, type UserSummary } from './users';
+import { timestampToDate } from './timestamps.js';
 
 export { MessageSearchOrder, MessageSearchState };
 
@@ -90,7 +94,7 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
             actorId: message.actorId,
             actor: actors.get(message.actorId) ?? null,
             body: message.body ?? '',
-            createdAt: message.createdAt?.toDate().toISOString() ?? '',
+            createdAt: timestampToDate(message.createdAt)?.toISOString() ?? '',
             threadRootEventId: message.threadRootEventId || null,
             attachmentCount: message.attachments.length,
             relevanceScore

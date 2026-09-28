@@ -1,14 +1,14 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
-import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
+  ExternalIdentityAuthService,
   ExternalIdentityFlowKind,
   type PendingExternalIdentity as APIPendingExternalIdentity
 } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
-import {
-  type ExternalIdentityProvider as APIExternalIdentityProvider,
-  type LinkedExternalIdentity as APILinkedExternalIdentity
+import { MyAccountService } from '@chatto/api-types/api/v1/account_pb';
+import type {
+  ExternalIdentityProvider as APIExternalIdentityProvider,
+  LinkedExternalIdentity as APILinkedExternalIdentity
 } from '@chatto/api-types/api/v1/external_identities_pb';
 
 /** The flow runs before a session exists, so it sends no bearer credential. */

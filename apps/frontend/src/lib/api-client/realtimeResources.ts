@@ -1,24 +1,29 @@
 import { listAllDirectoryRooms } from './roomPages';
 import { createChattoClient, type ConnectAPIConfig, minimumCursorHeaders } from './connect';
-import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
-import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
-import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import {
+  NotificationService,
+  type ListNotificationOccurrencesResponse
+} from '@chatto/api-types/api/v1/notifications_pb';
+import {
+  RoomDirectoryService,
   type ListRoomGroupsResponse,
-  ListRoomsResponse
+  type ListRoomsResponse,
+  ListRoomsResponseSchema
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
-import type {
-  GetMotdResponse,
-  GetRuntimeConfigResponse
+import {
+  ServerService,
+  type GetMotdResponse,
+  type GetRuntimeConfigResponse
 } from '@chatto/api-types/api/v1/server_state_pb';
-import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import type { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
-import type { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
+import { ViewerService, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  VoiceCallService,
+  type ListActiveCallsResponse
+} from '@chatto/api-types/api/v1/voice_calls_pb';
+import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import { create } from '@bufbuild/protobuf';
 
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 const USER_BATCH_SIZE = 100;
@@ -92,7 +97,7 @@ export function createRealtimeResourceAPI(config: ConnectAPIConfig) {
         const entries = await listAllDirectoryRooms((page) =>
           rooms.listRooms({ page }, options(minimumCursor))
         );
-        const response = new ListRoomsResponse({ rooms: entries });
+        const response = create(ListRoomsResponseSchema, { rooms: entries });
         return [new RealtimeResourceUpdate({ resource: { case: 'rooms', value: response } })];
       }
       case 'roomGroups': {

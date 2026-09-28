@@ -1,12 +1,14 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
-import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_pb';
+import {
+  ExternalIdentityAuthService,
+  ExternalIdentityFlowKind
+} from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
 import {
   createExternalIdentityAPI,
   createExternalIdentityFlowAPI
 } from '$lib/api-client/externalIdentities';
-import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
 import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
 const flow = mockService(ExternalIdentityAuthService);

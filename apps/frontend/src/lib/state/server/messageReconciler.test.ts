@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
 import type { MessageResource } from '$lib/api-client/messageResources';
 import { MessageReconciler } from './messageReconciler';
+import { create } from '@bufbuild/protobuf';
 
 function resource(id: string): MessageResource {
-  return { message: new Message({ id }), timeline: null };
+  return { message: create(MessageSchema, { id }), timeline: null };
 }
 
 function deferred<T>() {
@@ -87,7 +88,7 @@ describe('MessageReconciler', () => {
   it('resolves newly discovered thread and echo references without cycling', async () => {
     const read = vi.fn(async (_room: string, ids: string[]) =>
       ids.map((id) => ({
-        message: new Message({
+        message: create(MessageSchema, {
           id,
           threadRootEventId: id === 'reply' ? 'root' : '',
           channelEchoEventId: id === 'reply' ? 'echo' : '',

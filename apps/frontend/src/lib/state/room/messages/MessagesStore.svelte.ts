@@ -33,6 +33,7 @@ import {
   clearOptimisticThreadFollowForEvent,
   type OptimisticThreadFollowHandle
 } from './optimisticThreadFollow';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 
 /** Messages requested per timeline page. */
 export const PAGE_SIZE = 50;
@@ -582,7 +583,7 @@ export class MessagesStore {
     const projectedMessage =
       event.event.case === 'messagePosted' ? event.event.value.message : null;
     if (projectedMessage?.deletedAt) {
-      const deletedAt = projectedMessage.deletedAt.toDate().toISOString();
+      const deletedAt = timestampDate(projectedMessage.deletedAt).toISOString();
       if (retainDeletedRow) this.applyRetainedDeletion(event.id, deletedAt);
       else this.applyDeletion(event.id, deletedAt);
       return;

@@ -1,6 +1,5 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
-import { CallMediaPublisherKind } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { VoiceCallService, CallMediaPublisherKind } from '@chatto/api-types/api/v1/voice_calls_pb';
 
 export type VoiceCallToken = {
   token: string;

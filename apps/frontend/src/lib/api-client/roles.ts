@@ -1,9 +1,10 @@
 import { updateMask } from './updateMask';
 import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
-import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
-import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
-import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
+import {
+  AdminRoleService,
+  type AdminRole as APIAdminRole
+} from '@chatto/api-types/admin/v1/roles_pb';
+import { RoleService, type Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 
 export type ServerRole = {

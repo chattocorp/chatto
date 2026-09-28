@@ -1,9 +1,12 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { createAdminMemberLoader, type AdminMemberBatch } from '$lib/query/adminMembers';
-import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
-import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
+import {
+  AdminUserService,
+  type AdminMember as APIAdminMember
+} from '@chatto/api-types/admin/v1/members_pb';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
+import { timestampToISO } from './timestamps.js';
 
 export type AdminManagedUser = {
   id: string;
@@ -219,13 +222,13 @@ function adminMember(member: APIAdminMember): AdminMember {
     bio: summary.bio,
     ...(summary.bot ? { isBot: true } : {}),
     roles: [...member.roles],
-    createdAt: member.createdAt?.toDate().toISOString() ?? null,
+    createdAt: timestampToISO(member.createdAt),
     deleted: summary.deleted,
     hasVerifiedEmail: member.hasVerifiedEmail,
     verifiedEmails: [...member.verifiedEmails],
     primaryVerifiedEmail: member.primaryVerifiedEmail ?? null,
     viewerCanDeleteAccount: member.viewerCanDeleteAccount,
-    lastLoginChange: member.lastLoginChange?.toDate().toISOString() ?? null
+    lastLoginChange: timestampToISO(member.lastLoginChange)
   };
 }
 

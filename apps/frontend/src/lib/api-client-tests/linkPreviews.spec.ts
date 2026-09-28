@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
 import {
-  SocialPostAuthor,
-  SocialPostExternalLink,
-  SocialPostImage,
-  SocialPostPreview,
-  LinkPreview,
-  FetchLinkPreviewResponse
+  SocialPostAuthorSchema,
+  SocialPostExternalLinkSchema,
+  SocialPostImageSchema,
+  SocialPostPreviewSchema,
+  LinkPreviewSchema,
+  FetchLinkPreviewResponseSchema
 } from '@chatto/api-types/api/v1/link_previews_pb';
-import { Timestamp } from '@bufbuild/protobuf';
 import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { MessageService } from '@chatto/api-types/api/v1/messages_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const mocks = mockService(MessageService);
 
@@ -26,8 +27,8 @@ describe('createLinkPreviewAPI', () => {
 
   it('fetches a preview and maps optional fields', async () => {
     mocks.fetchLinkPreview.mockReturnValue(
-      new FetchLinkPreviewResponse({
-        preview: new LinkPreview({
+      create(FetchLinkPreviewResponseSchema, {
+        preview: create(LinkPreviewSchema, {
           url: 'https://example.com/story',
           title: 'Story',
           description: 'Description',
@@ -59,7 +60,7 @@ describe('createLinkPreviewAPI', () => {
   });
 
   it('returns null when the server has no preview', async () => {
-    mocks.fetchLinkPreview.mockReturnValue(new FetchLinkPreviewResponse());
+    mocks.fetchLinkPreview.mockReturnValue(create(FetchLinkPreviewResponseSchema));
 
     const api = linkPreviewAPI();
 
@@ -68,45 +69,45 @@ describe('createLinkPreviewAPI', () => {
 
   it('maps a native Bluesky post snapshot', async () => {
     mocks.fetchLinkPreview.mockReturnValue(
-      new FetchLinkPreviewResponse({
-        preview: new LinkPreview({
+      create(FetchLinkPreviewResponseSchema, {
+        preview: create(LinkPreviewSchema, {
           url: 'https://bsky.app/profile/bsky.app/post/example',
           title: 'Bluesky (@bsky.app)',
           description: 'A post rendered by Chatto.',
           embedType: 'bluesky',
           embedId: 'at://did:plc:example/app.bsky.feed.post/example',
-          socialPost: new SocialPostPreview({
+          socialPost: create(SocialPostPreviewSchema, {
             provider: 'bluesky',
             url: 'https://bsky.app/profile/bsky.app/post/example',
-            author: new SocialPostAuthor({
+            author: create(SocialPostAuthorSchema, {
               displayName: 'Bluesky',
               handle: 'bsky.app',
               avatarUrl: '/assets/avatar.webp'
             }),
             text: 'A post rendered by Chatto.',
-            publishedAt: Timestamp.fromDate(new Date('2026-07-15T12:00:00Z')),
-            externalLink: new SocialPostExternalLink({
+            publishedAt: timestampFromDate(new Date('2026-07-15T12:00:00Z')),
+            externalLink: create(SocialPostExternalLinkSchema, {
               url: 'https://example.com/story',
               title: 'Story'
             }),
             images: [
-              new SocialPostImage({
+              create(SocialPostImageSchema, {
                 url: '/assets/post.webp',
                 alt: 'A blue sky',
                 width: 1200,
                 height: 800
               })
             ],
-            quotedPost: new SocialPostPreview({
+            quotedPost: create(SocialPostPreviewSchema, {
               provider: 'bluesky',
               url: 'https://bsky.app/profile/quoted.example/post/quoted',
-              author: new SocialPostAuthor({
+              author: create(SocialPostAuthorSchema, {
                 displayName: 'Quoted Author',
                 handle: 'quoted.example'
               }),
               text: 'Quoted words.',
               images: [
-                new SocialPostImage({
+                create(SocialPostImageSchema, {
                   url: '/assets/quoted.webp',
                   alt: 'Quoted attachment'
                 })

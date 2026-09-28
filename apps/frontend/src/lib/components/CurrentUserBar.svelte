@@ -6,6 +6,7 @@ sidebar. Shows the avatar with presence and the live display name. Right-click
 or touch long-press opens the profile menu; avatar clicks open presence settings.
 -->
 <script lang="ts">
+  import { timestampToDate } from '$lib/api-client/timestamps';
   import {
     UserCard,
     FadeScale,
@@ -140,7 +141,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   let privilegedModeLoading = $state(false);
   const privilegedMode = $derived(activeStore.projection.viewer?.privilegedMode);
   const privilegedModeDeadline = $derived(
-    privilegedMode?.active ? (privilegedMode.expiresAt?.toDate().getTime() ?? null) : null
+    privilegedMode?.active ? (timestampToDate(privilegedMode.expiresAt)?.getTime() ?? null) : null
   );
 
   function customStatusAPIConfig() {

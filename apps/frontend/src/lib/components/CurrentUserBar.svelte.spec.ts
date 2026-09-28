@@ -16,6 +16,8 @@ import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 let presencePreference: ReturnType<typeof presencePreferences.get>;
 let presence: ServerPresence;
@@ -110,7 +112,7 @@ const {
       privilegedMode?: {
         available: boolean;
         active: boolean;
-        expiresAt?: { toDate(): Date };
+        expiresAt?: Timestamp;
       };
     }
   },
@@ -269,7 +271,7 @@ describe('CurrentUserBar', () => {
       privilegedMode: {
         available: true,
         active: true,
-        expiresAt: { toDate: () => new Date(Date.now() + 60_000) }
+        expiresAt: timestampFromDate(new Date(Date.now() + 60_000))
       }
     };
     const { getByRole } = render(CurrentUserBarTestHarness);
@@ -284,7 +286,7 @@ describe('CurrentUserBar', () => {
       privilegedMode: {
         available: true,
         active: true,
-        expiresAt: { toDate: () => new Date(Date.now() - 1) }
+        expiresAt: timestampFromDate(new Date(Date.now() - 1))
       }
     };
 

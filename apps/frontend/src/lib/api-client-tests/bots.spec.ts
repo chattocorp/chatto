@@ -1,10 +1,9 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
-import { BotService } from '@chatto/api-types/api/v1/bots_connect';
-import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
+import { BotService, CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const mocks = mockService(BotService);
 
@@ -32,9 +31,9 @@ describe('createBotAPI', () => {
             timezone: 'Europe/Berlin'
           },
           ownerUserId: 'U-owner',
-          createdAt: Timestamp.fromDate(createdAt),
-          apiKeyCreatedAt: Timestamp.fromDate(createdAt),
-          lastLoginChange: Timestamp.fromDate(createdAt)
+          createdAt: timestampFromDate(createdAt),
+          apiKeyCreatedAt: timestampFromDate(createdAt),
+          lastLoginChange: timestampFromDate(createdAt)
         }
       ]
     });
@@ -91,7 +90,7 @@ describe('createBotAPI', () => {
         {
           id: 'K-one',
           name: 'Production',
-          createdAt: Timestamp.fromDate(createdAt),
+          createdAt: timestampFromDate(createdAt),
           lastUsedState: CredentialLastUsedState.NO_USE_RECORDED
         }
       ]
@@ -134,7 +133,7 @@ describe('createBotAPI', () => {
         {
           id: 'W-one',
           name: 'Production',
-          createdAt: Timestamp.fromDate(createdAt),
+          createdAt: timestampFromDate(createdAt),
           lastUsedState: CredentialLastUsedState.NO_USE_RECORDED
         }
       ]

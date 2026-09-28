@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Code, ConnectError, createContextValues } from '@connectrpc/connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
 import { describe, expect, it, vi } from 'vitest';
 import {
   authenticationRequiredInterceptor,

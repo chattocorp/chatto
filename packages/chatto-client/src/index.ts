@@ -8,7 +8,7 @@ export type {
   RealtimeStatus,
   WebSocketFactory
 } from './realtime.js';
-export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+export { RealtimeEventSchema, type RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 
 /** Connection settings supplied by the host; this package never reads environment files. */

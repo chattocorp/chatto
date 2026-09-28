@@ -1,7 +1,8 @@
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
+import { PinnedMessageSchema } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinnedMessagesAPI } from './pinnedMessages';
+import { create } from '@bufbuild/protobuf';
 
 const listPinnedMessagesMock = vi.hoisted(() => vi.fn());
 const timelineUsersForMessagesMock = vi.hoisted(() => vi.fn());
@@ -22,8 +23,8 @@ describe('pinned messages API', () => {
   });
 
   it('hydrates message-related users through the shared user cache', async () => {
-    const message = new Message({ id: 'M1', actorId: 'author' });
-    const pinnedMessage = new PinnedMessage({ message });
+    const message = create(MessageSchema, { id: 'M1', actorId: 'author' });
+    const pinnedMessage = create(PinnedMessageSchema, { message });
     listPinnedMessagesMock.mockResolvedValue({
       pinnedMessages: [pinnedMessage],
       page: { totalCount: 1n, hasMore: false },

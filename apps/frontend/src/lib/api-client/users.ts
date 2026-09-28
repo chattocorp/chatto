@@ -6,14 +6,15 @@ import {
   minimumCursorHeaders
 } from './connect.js';
 import { getUserStore } from '$lib/state/server/users.svelte';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
+import { DirectoryMemberSchema as APIDirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
 import { mapUserSummary, type UserSummary } from './userSummary.js';
+import { create } from '@bufbuild/protobuf';
 
 /** Profile fields to change. Omitted fields stay unchanged; an empty bio clears it. */
 export type UpdateUserProfileInput = {
@@ -30,7 +31,12 @@ export function createUserAPI(config: ConnectAPIConfig) {
     let acknowledged!: User;
     await store.readSnapshot(async () => {
       acknowledged = await read();
-      return [new APIDirectoryMember({ ...store.get(acknowledged.id), user: acknowledged })];
+      const current = store.get(acknowledged.id);
+      return [
+        current
+          ? { ...current, user: acknowledged }
+          : create(APIDirectoryMemberSchema, { user: acknowledged })
+      ];
     });
     if (store.isDeleted(acknowledged.id)) throw new StaleResponseError(false);
     // The command's own event can invalidate the profile before its response.

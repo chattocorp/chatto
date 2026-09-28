@@ -4,8 +4,8 @@ import { render } from 'vitest-browser-svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { mockService } from '$lib/test-utils';
-import { BotService } from '@chatto/api-types/api/v1/bots_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { BotService } from '@chatto/api-types/api/v1/bots_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
 
 vi.mock(
   '$lib/state/server/scope.svelte',

@@ -1,21 +1,17 @@
-import { Empty } from '@bufbuild/protobuf';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import {
   NotificationPolicyService,
-  NotificationService
-} from '@chatto/api-types/api/v1/notifications_connect';
-import type {
-  ListNotificationOccurrencesResponse,
-  NotificationDeliveryModes as APINotificationDeliveryModes,
-  NotificationMessageReference,
-  NotificationOccurrence as APINotificationOccurrence,
-  NotificationPolicy as APINotificationPolicy,
-  NotificationPolicyScope as APINotificationPolicyScope,
-  ScopedNotificationPolicy as APIScopedNotificationPolicy
-} from '@chatto/api-types/api/v1/notifications_pb';
-import {
+  NotificationService,
+  type ListNotificationOccurrencesResponse,
+  type NotificationDeliveryModes as APINotificationDeliveryModes,
+  type NotificationMessageReference,
+  type NotificationOccurrence as APINotificationOccurrence,
+  type NotificationPolicy as APINotificationPolicy,
+  type NotificationPolicyScope as APINotificationPolicyScope,
+  type ScopedNotificationPolicy as APIScopedNotificationPolicy,
   NotificationAttentionLevel,
-  NotificationDeliveryMode
+  NotificationDeliveryMode,
+  NotificationPolicyScopeSchema as APINotificationPolicyScopeSchema
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import {
@@ -24,6 +20,8 @@ import {
   type UserPresenceView,
   type UserSummary
 } from './userSummary.js';
+import { timestampToDate, timestampToISO } from './timestamps.js';
+import type { MessageInitShape } from '@bufbuild/protobuf';
 
 /** The acting user behind one notification occurrence. */
 export type NotificationActor = UserSummary & UserPresenceView;
@@ -276,8 +274,8 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
 
 function apiNotificationPolicyScope(
   scope: NotificationPolicyScope
-): Partial<APINotificationPolicyScope> {
-  if (scope.kind === 'server') return { scope: { case: 'server', value: new Empty() } };
+): MessageInitShape<typeof APINotificationPolicyScopeSchema> {
+  if (scope.kind === 'server') return { scope: { case: 'server', value: {} } };
   if (scope.kind === 'roomGroup') {
     return { scope: { case: 'roomGroupId', value: scope.id } };
   }
@@ -370,7 +368,7 @@ export function mapNotificationOccurrencePage(
     ),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
-    nextExpiryAt: response.nextExpiryAt?.toDate().toISOString() ?? null
+    nextExpiryAt: timestampToISO(response.nextExpiryAt)
   };
 }
 
@@ -382,7 +380,7 @@ export function notificationOccurrence(
   const actor = notificationActor(item.actor);
   return {
     id: item.id,
-    createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
+    createdAt: timestampToDate(item.createdAt)?.toISOString() ?? new Date(0).toISOString(),
     actor,
     signalKind: mapped.kind,
     targetSupported: mapped.supported,
@@ -392,7 +390,7 @@ export function notificationOccurrence(
     attentionLevel: notificationAttentionLevel(item.attentionLevel),
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
-    expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
+    expiresAt: timestampToDate(item.expiresAt)?.toISOString() ?? new Date(0).toISOString()
   };
 }
 

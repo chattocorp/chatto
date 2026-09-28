@@ -1,11 +1,13 @@
 import {
-  RealtimeSubscribe,
-  RealtimeServerFrame,
+  type RealtimeServerFrame,
   RealtimeInitialState,
   RealtimeRecovery,
   RealtimeCloseCode,
-  type RealtimeEvent
+  type RealtimeEvent,
+  RealtimeSubscribeSchema,
+  RealtimeServerFrameSchema
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 /** Host transport. Implementations must reject redirects before sending credentials. */
 export type WebSocketFactory = (url: string) => WebSocket;
@@ -98,12 +100,15 @@ export async function consumeRealtime(
       try {
         socket.send(
           new Uint8Array(
-            new RealtimeSubscribe({
-              protocolVersion: 4,
-              bearerToken: apiKey,
-              resumeCursor: checkpoint.cursor,
-              initialState: RealtimeInitialState.LIVE_ONLY
-            }).toBinary()
+            toBinary(
+              RealtimeSubscribeSchema,
+              create(RealtimeSubscribeSchema, {
+                protocolVersion: 4,
+                bearerToken: apiKey,
+                resumeCursor: checkpoint.cursor,
+                initialState: RealtimeInitialState.LIVE_ONLY
+              })
+            )
           )
         );
       } catch {
@@ -156,7 +161,7 @@ export async function consumeRealtime(
         queuedBytes -= data.byteLength;
         let frame: RealtimeServerFrame;
         try {
-          frame = RealtimeServerFrame.fromBinary(new Uint8Array(data));
+          frame = fromBinary(RealtimeServerFrameSchema, new Uint8Array(data));
         } catch {
           throw new TerminalError('Cannot decode realtime frame');
         }

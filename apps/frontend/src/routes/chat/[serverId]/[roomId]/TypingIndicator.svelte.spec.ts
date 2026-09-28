@@ -6,8 +6,9 @@ import { q } from '$lib/test-utils';
 import TypingIndicator from './TypingIndicator.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import { UserStore } from '$lib/state/server/users.svelte';
+import { create } from '@bufbuild/protobuf';
 
 function member(id: string, displayName: string): RoomMember {
   return {
@@ -139,7 +140,7 @@ describe('TypingIndicator', () => {
 
     profiles.set(
       'late',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'late', login: 'late', displayName: 'Late Member', bot: {} }
       })
     );
@@ -154,7 +155,7 @@ describe('TypingIndicator', () => {
     const profiles = new UserStore();
     profiles.set(
       'alice',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'alice', login: 'alice', displayName: 'New Alice' }
       })
     );

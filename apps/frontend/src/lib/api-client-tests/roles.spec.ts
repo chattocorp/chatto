@@ -1,7 +1,7 @@
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
-import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
+import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_pb';
+import { RoleService } from '@chatto/api-types/api/v1/roles_pb';
 import { createRoleAPI } from '$lib/api-client/roles';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 

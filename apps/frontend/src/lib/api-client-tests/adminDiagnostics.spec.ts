@@ -1,13 +1,14 @@
-import { protoInt64, Timestamp } from '@bufbuild/protobuf';
+import { protoInt64 } from '@bufbuild/protobuf';
 import {
   AdminAssetCleanupHealth,
-  AdminDurableWorkerHealth
+  AdminDurableWorkerHealth,
+  AdminDiagnosticsService
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
 import { fakeServer, mockService } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const mocks = mockService(AdminDiagnosticsService);
 
@@ -135,11 +136,11 @@ describe('getAdminSystemInfo', () => {
       assetCleanup: {
         health: AdminAssetCleanupHealth.RETRYING,
         pendingCount: protoInt64.parse(2),
-        oldestPendingAt: Timestamp.fromDate(new Date('2026-07-10T10:00:00Z')),
+        oldestPendingAt: timestampFromDate(new Date('2026-07-10T10:00:00Z')),
         passInProgress: false,
-        lastPassAt: Timestamp.fromDate(new Date('2026-07-10T11:00:00Z')),
-        lastSuccessfulPassAt: Timestamp.fromDate(new Date('2026-07-10T09:00:00Z')),
-        updatedAt: Timestamp.fromDate(new Date('2026-07-10T11:00:05Z')),
+        lastPassAt: timestampFromDate(new Date('2026-07-10T11:00:00Z')),
+        lastSuccessfulPassAt: timestampFromDate(new Date('2026-07-10T09:00:00Z')),
+        updatedAt: timestampFromDate(new Date('2026-07-10T11:00:05Z')),
         lastPassFailed: true,
         lastInspectedSequence: '41',
         latestDeletionSequence: '44'

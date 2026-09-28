@@ -1,25 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { Timestamp } from '@bufbuild/protobuf';
 
 import {
-  Asset,
-  GetAssetResponse,
-  BatchGetAssetsResponse,
-  RoomAttachmentListItem
+  AssetService,
+  AssetSchema,
+  GetAssetResponseSchema,
+  BatchGetAssetsResponseSchema,
+  RoomAttachmentListItemSchema
 } from '@chatto/api-types/api/v1/attachments_pb';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-import { ListRoomAttachmentsResponse } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomService, ListRoomAttachmentsResponseSchema } from '@chatto/api-types/api/v1/rooms_pb';
 import {
-  MessageAssetUrl,
-  MessageVideoProcessing,
   MessageVideoProcessingStatus,
-  MessageVideoVariant
+  MessageAssetUrlSchema,
+  MessageVideoProcessingSchema,
+  MessageVideoVariantSchema
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { createAttachmentAPI } from '$lib/api-client/attachments';
-import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const assets = mockService(AssetService);
 const rooms = mockService(RoomService);
@@ -31,9 +31,9 @@ function attachmentAPI() {
 }
 
 function assetUrl(url: string) {
-  return new MessageAssetUrl({
+  return create(MessageAssetUrlSchema, {
     url,
-    expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+    expiresAt: timestampFromDate(new Date('2026-06-01T13:00:00Z'))
   });
 }
 
@@ -44,7 +44,7 @@ describe('createAttachmentAPI', () => {
 
   it('reads file size metadata and forwards cancellation', async () => {
     assets.getAsset.mockReturnValue(
-      new GetAssetResponse({ asset: new Asset({ id: 'html', size: 1536n }) })
+      create(GetAssetResponseSchema, { asset: create(AssetSchema, { id: 'html', size: 1536n }) })
     );
     const api = attachmentAPI();
     await expect(api.getMetadata('room', 'html')).resolves.toEqual({ size: 1536 });
@@ -56,22 +56,22 @@ describe('createAttachmentAPI', () => {
   });
 
   it('does not report a missing asset as a zero-byte file', async () => {
-    assets.getAsset.mockReturnValue(new GetAssetResponse());
+    assets.getAsset.mockReturnValue(create(GetAssetResponseSchema));
     const api = attachmentAPI();
     await expect(api.getMetadata('room', 'missing')).rejects.toThrow('Asset metadata unavailable');
   });
 
   it('lists room attachments and maps attachment metadata', async () => {
     rooms.listRoomAttachments.mockReturnValue(
-      new ListRoomAttachmentsResponse({
+      create(ListRoomAttachmentsResponseSchema, {
         page: { totalCount: 2n, hasMore: true },
         attachments: [
-          new RoomAttachmentListItem({
+          create(RoomAttachmentListItemSchema, {
             messageEventId: 'event_2',
             threadRootEventId: 'event_1',
             description: 'A short video clip',
-            createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
-            attachment: new Asset({
+            createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
+            attachment: create(AssetSchema, {
               id: 'att_video',
               filename: 'clip.mp4',
               contentType: 'video/mp4',
@@ -79,7 +79,7 @@ describe('createAttachmentAPI', () => {
               height: 720,
               assetUrl: assetUrl('/assets/files/att_video'),
               thumbnailAssetUrl: assetUrl('/assets/files/att_video/image/120x120/cover'),
-              videoProcessing: new MessageVideoProcessing({
+              videoProcessing: create(MessageVideoProcessingSchema, {
                 status: MessageVideoProcessingStatus.COMPLETED,
                 durationMs: 1234n,
                 width: 1280,
@@ -87,7 +87,7 @@ describe('createAttachmentAPI', () => {
                 sourceAvailable: true,
                 thumbnailAssetUrl: assetUrl('/assets/files/att_thumb'),
                 variants: [
-                  new MessageVideoVariant({
+                  create(MessageVideoVariantSchema, {
                     quality: '720p',
                     width: 1280,
                     height: 720,
@@ -144,17 +144,17 @@ describe('createAttachmentAPI', () => {
 
   it('refreshes asset URLs and maps video variants', async () => {
     assets.batchGetAssets.mockReturnValue(
-      new BatchGetAssetsResponse({
+      create(BatchGetAssetsResponseSchema, {
         assets: [
-          new Asset({
+          create(AssetSchema, {
             id: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
             thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/960x800/contain?fresh=1'),
-            videoProcessing: new MessageVideoProcessing({
+            videoProcessing: create(MessageVideoProcessingSchema, {
               status: MessageVideoProcessingStatus.COMPLETED,
               thumbnailAssetUrl: assetUrl('/assets/files/thumb?fresh=1'),
               variants: [
-                new MessageVideoVariant({
+                create(MessageVideoVariantSchema, {
                   quality: '720p',
                   width: 1280,
                   height: 720,
@@ -191,14 +191,14 @@ describe('createAttachmentAPI', () => {
 
   it('keeps missing refreshed attachment URLs nullable', async () => {
     assets.batchGetAssets.mockReturnValue(
-      new BatchGetAssetsResponse({
+      create(BatchGetAssetsResponseSchema, {
         assets: [
-          new Asset({
+          create(AssetSchema, {
             id: 'att_1',
-            videoProcessing: new MessageVideoProcessing({
+            videoProcessing: create(MessageVideoProcessingSchema, {
               status: MessageVideoProcessingStatus.COMPLETED,
               variants: [
-                new MessageVideoVariant({
+                create(MessageVideoVariantSchema, {
                   quality: '720p',
                   width: 1280,
                   height: 720,
@@ -226,9 +226,9 @@ describe('createAttachmentAPI', () => {
 
   it('omits missing assets from refreshed URL results', async () => {
     assets.batchGetAssets.mockReturnValue(
-      new BatchGetAssetsResponse({
+      create(BatchGetAssetsResponseSchema, {
         assets: [
-          new Asset({
+          create(AssetSchema, {
             id: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
             thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/120x120/cover?fresh=1')
@@ -256,18 +256,18 @@ describe('createAttachmentAPI', () => {
 
   it('lists attachments with missing asset URLs as null', async () => {
     rooms.listRoomAttachments.mockReturnValue(
-      new ListRoomAttachmentsResponse({
+      create(ListRoomAttachmentsResponseSchema, {
         attachments: [
-          new RoomAttachmentListItem({
+          create(RoomAttachmentListItemSchema, {
             messageEventId: 'event_1',
-            attachment: new Asset({
+            attachment: create(AssetSchema, {
               id: 'att_1',
               filename: 'clip.mp4',
               contentType: 'video/mp4',
-              videoProcessing: new MessageVideoProcessing({
+              videoProcessing: create(MessageVideoProcessingSchema, {
                 status: MessageVideoProcessingStatus.COMPLETED,
                 variants: [
-                  new MessageVideoVariant({
+                  create(MessageVideoVariantSchema, {
                     quality: '720p',
                     width: 1280,
                     height: 720,

@@ -9,14 +9,18 @@ import {
   postMessageViaConnect
 } from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
+import { PresenceChangedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
 import {
-  RealtimeEvent,
+  type RealtimeEvent,
   RealtimeInitialState,
   RealtimeRecovery,
-  RealtimeServerFrame,
-  RealtimeSubscribe
+  type RealtimeServerFrame,
+  type RealtimeSubscribe,
+  RealtimeServerFrameSchema,
+  RealtimeSubscribeSchema
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
+import { ListNotificationOccurrencesResponseSchema } from '@chatto/api-types/api/v1/notifications_pb';
+import { create, fromBinary, fromJson, toBinary, toJson, type JsonValue } from '@bufbuild/protobuf';
 
 interface RealtimeConnectOptions {
   initialState?: RealtimeInitialState;
@@ -77,7 +81,7 @@ class RealtimeProtobufClient {
 
     const pendingClient = new RealtimeProtobufClient(socket);
     pendingClient.send(
-      new RealtimeSubscribe({
+      create(RealtimeSubscribeSchema, {
         protocolVersion: 4,
         bearerToken,
         initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
@@ -99,7 +103,7 @@ class RealtimeProtobufClient {
   }
 
   send(message: RealtimeSubscribe): void {
-    this.#socket.send(message.toBinary());
+    this.#socket.send(toBinary(RealtimeSubscribeSchema, message));
   }
 
   waitForEvent(predicate: (event: RealtimeEvent) => boolean): Promise<RealtimeEvent> {
@@ -141,7 +145,7 @@ class RealtimeProtobufClient {
   }
 
   async #handleMessage(data: unknown): Promise<void> {
-    const frame = RealtimeServerFrame.fromBinary(await websocketDataToBytes(data));
+    const frame = fromBinary(RealtimeServerFrameSchema, await websocketDataToBytes(data));
     if (frame.frame.case === 'close') {
       this.#rejectAll(
         new Error(`realtime server closed: ${frame.frame.value.code}: ${frame.frame.value.message}`)
@@ -244,7 +248,11 @@ test.describe('protobuf realtime stream', () => {
           const offline = await observed.waitForEvent(
             (event) => event.actorId === owner.id && event.event.case === 'presenceChanged'
           );
-          expect(offline.event.value?.toJson()).toEqual({ status: 'PRESENCE_STATUS_OFFLINE' });
+          if (offline.event.case !== 'presenceChanged')
+            throw new Error('expected a presence change');
+          expect(toJson(PresenceChangedEventSchema, offline.event.value)).toEqual({
+            status: 'PRESENCE_STATUS_OFFLINE'
+          });
 
           for (let refresh = 0; refresh < 3; refresh++) {
             await connectPost(page, 'chatto.api.v1.MyAccountService/RefreshPresence');
@@ -450,11 +458,11 @@ test.describe('protobuf realtime stream', () => {
           : undefined;
       await expect
         .poll(async () => {
-          const json = await connectPost<Record<string, unknown>>(
+          const json = await connectPost<JsonValue>(
             page,
             'chatto.api.v1.NotificationService/ListNotificationOccurrences'
           );
-          const response = ListNotificationOccurrencesResponse.fromJson(json);
+          const response = fromJson(ListNotificationOccurrencesResponseSchema, json);
           const occurrence = response.occurrences.find(
             (item) => item.signal?.kind.case === 'directMentionReceived'
           );
@@ -507,11 +515,11 @@ test.describe('protobuf realtime stream', () => {
           : undefined;
       await expect
         .poll(async () => {
-          const json = await connectPost<Record<string, unknown>>(
+          const json = await connectPost<JsonValue>(
             page,
             'chatto.api.v1.NotificationService/ListNotificationOccurrences'
           );
-          const response = ListNotificationOccurrencesResponse.fromJson(json);
+          const response = fromJson(ListNotificationOccurrencesResponseSchema, json);
           const occurrence = response.occurrences.find(
             (item) => item.signal?.kind.case === 'directMessageReceived'
           );

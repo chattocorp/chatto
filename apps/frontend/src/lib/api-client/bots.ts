@@ -1,7 +1,11 @@
 import { updateMask } from './updateMask';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { BotService } from '@chatto/api-types/api/v1/bots_connect';
-import { CredentialLastUsedState, type Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
+import {
+  BotService,
+  CredentialLastUsedState,
+  type Bot as APIBot
+} from '@chatto/api-types/api/v1/bots_pb';
+import { timestampToDate } from './timestamps.js';
 
 export type Bot = {
   id: string;
@@ -153,31 +157,31 @@ function botFromAPI(bot: APIBot): Bot {
     bio: user.bio ?? null,
     timezone: user.timezone ?? null,
     ownerUserId: bot.ownerUserId,
-    createdAt: bot.createdAt?.toDate() ?? null,
-    lastLoginChange: bot.lastLoginChange?.toDate() ?? null,
+    createdAt: timestampToDate(bot.createdAt) ?? null,
+    lastLoginChange: timestampToDate(bot.lastLoginChange) ?? null,
     apiKeys: (bot.apiKeys ?? []).map((key) => ({
       id: key.id,
       name: key.name,
-      createdAt: key.createdAt?.toDate() ?? null,
+      createdAt: timestampToDate(key.createdAt) ?? null,
       lastUsedState:
         key.lastUsedState === CredentialLastUsedState.RECORDED
           ? 'recorded'
           : key.lastUsedState === CredentialLastUsedState.NO_USE_RECORDED
             ? 'no_use_recorded'
             : 'unavailable',
-      lastUsedAt: key.lastUsedAt?.toDate() ?? null
+      lastUsedAt: timestampToDate(key.lastUsedAt) ?? null
     })),
     incomingWebhooks: (bot.incomingWebhooks ?? []).map((webhook) => ({
       id: webhook.id,
       name: webhook.name,
-      createdAt: webhook.createdAt?.toDate() ?? null,
+      createdAt: timestampToDate(webhook.createdAt) ?? null,
       lastUsedState:
         webhook.lastUsedState === CredentialLastUsedState.RECORDED
           ? 'recorded'
           : webhook.lastUsedState === CredentialLastUsedState.NO_USE_RECORDED
             ? 'no_use_recorded'
             : 'unavailable',
-      lastUsedAt: webhook.lastUsedAt?.toDate() ?? null
+      lastUsedAt: timestampToDate(webhook.lastUsedAt) ?? null
     }))
   };
 }

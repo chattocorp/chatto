@@ -1,21 +1,25 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMessageAPI } from '$lib/api-client/messages';
-import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
-import { CreateMessageResponse, UpdateMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import {
-  AssetUpload,
+  AssetUploadService,
   AssetUploadStatus,
-  CompleteUploadResponse,
-  CreateUploadResponse,
-  UploadChunkResponse
+  AssetUploadSchema,
+  CompleteUploadResponseSchema,
+  CreateUploadResponseSchema,
+  UploadChunkResponseSchema
 } from '@chatto/api-types/api/v1/asset_uploads_pb';
-import { Asset } from '@chatto/api-types/api/v1/attachments_pb';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import {
+  MessageService,
+  CreateMessageResponseSchema,
+  UpdateMessageResponseSchema
+} from '@chatto/api-types/api/v1/messages_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { AssetSchema } from '@chatto/api-types/api/v1/attachments_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const messages = mockService(MessageService);
 const users = mockService(UserService);
@@ -39,7 +43,7 @@ describe('createMessageAPI', () => {
   });
 
   it('trims descriptions before create and edit requests reach schema validation', async () => {
-    messages.createMessage.mockReturnValue(new CreateMessageResponse());
+    messages.createMessage.mockReturnValue(create(CreateMessageResponseSchema));
     messages.setAttachmentDescription.mockReturnValue({});
     const api = messageAPI();
     const description = '界'.repeat(1000);
@@ -59,11 +63,11 @@ describe('createMessageAPI', () => {
 
   it('posts a message and maps the renderable event response', async () => {
     messages.createMessage.mockReturnValue(
-      new CreateMessageResponse({
-        message: new Message({
+      create(CreateMessageResponseSchema, {
+        message: create(MessageSchema, {
           id: 'evt-1',
           actorId: 'user-1',
-          createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
+          createdAt: timestampFromDate(new Date('2026-06-20T10:00:00Z')),
           roomId: 'room-1',
           body: 'hello',
           thread: { viewerState: { isFollowing: true } }
@@ -114,8 +118,8 @@ describe('createMessageAPI', () => {
 
   it('uploads browser files through AssetUploadService and posts attachment asset IDs', async () => {
     uploads.createUpload.mockReturnValue(
-      new CreateUploadResponse({
-        upload: new AssetUpload({
+      create(CreateUploadResponseSchema, {
+        upload: create(AssetUploadSchema, {
           uploadId: 'upload-note',
           roomId: 'room-1',
           status: AssetUploadStatus.OPEN,
@@ -127,8 +131,8 @@ describe('createMessageAPI', () => {
       })
     );
     uploads.uploadChunk.mockReturnValue(
-      new UploadChunkResponse({
-        upload: new AssetUpload({
+      create(UploadChunkResponseSchema, {
+        upload: create(AssetUploadSchema, {
           uploadId: 'upload-note',
           roomId: 'room-1',
           status: AssetUploadStatus.OPEN,
@@ -139,15 +143,15 @@ describe('createMessageAPI', () => {
       })
     );
     uploads.completeUpload.mockReturnValue(
-      new CompleteUploadResponse({
-        upload: new AssetUpload({
+      create(CompleteUploadResponseSchema, {
+        upload: create(AssetUploadSchema, {
           uploadId: 'upload-note',
           status: AssetUploadStatus.COMPLETED,
           committedOffset: 5n,
           size: 5n,
           assetId: 'asset-note'
         }),
-        asset: new Asset({
+        asset: create(AssetSchema, {
           id: 'asset-note',
           filename: 'note.txt',
           contentType: 'text/plain'
@@ -155,8 +159,8 @@ describe('createMessageAPI', () => {
       })
     );
     messages.createMessage.mockReturnValue(
-      new CreateMessageResponse({
-        message: new Message({
+      create(CreateMessageResponseSchema, {
+        message: create(MessageSchema, {
           id: 'evt-attachment',
           actorId: 'user-1',
           roomId: 'room-1',
@@ -213,11 +217,11 @@ describe('createMessageAPI', () => {
 
   it('updates a message through MessageService', async () => {
     messages.updateMessage.mockReturnValue(
-      new UpdateMessageResponse({
-        message: new Message({
+      create(UpdateMessageResponseSchema, {
+        message: create(MessageSchema, {
           id: 'event-1',
           actorId: 'user-1',
-          createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
+          createdAt: timestampFromDate(new Date('2026-06-20T10:00:00Z')),
           roomId: 'room-1',
           body: 'edited'
         })
@@ -265,7 +269,7 @@ describe('createMessageAPI', () => {
   });
 
   it('can patch message echo state without sending a body', async () => {
-    messages.updateMessage.mockReturnValue(new UpdateMessageResponse());
+    messages.updateMessage.mockReturnValue(create(UpdateMessageResponseSchema));
 
     const api = messageAPI();
 

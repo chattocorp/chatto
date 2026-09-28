@@ -1,11 +1,13 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import {
-  RealtimeServerFrame,
-  RealtimeSubscribe,
+  type RealtimeServerFrame,
   RealtimeCloseCode,
-  RealtimeRecovery
+  RealtimeRecovery,
+  RealtimeServerFrameSchema,
+  RealtimeSubscribeSchema
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { createChattoClient, type RealtimeCheckpoint, type RealtimeStatus } from './index.js';
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 class Socket extends EventTarget {
   binaryType = '';
@@ -19,7 +21,9 @@ class Socket extends EventTarget {
   }
   frame(frame: RealtimeServerFrame) {
     this.dispatchEvent(
-      new MessageEvent('message', { data: new Uint8Array(frame.toBinary()).buffer })
+      new MessageEvent('message', {
+        data: new Uint8Array(toBinary(RealtimeServerFrameSchema, frame)).buffer
+      })
     );
   }
   disconnect() {
@@ -57,7 +61,7 @@ function fixture(onEvent = vi.fn(async () => {}), maxPendingFrames?: number, cur
 }
 
 const event = (id: string) =>
-  new RealtimeServerFrame({
+  create(RealtimeServerFrameSchema, {
     frame: {
       case: 'event',
       value: {
@@ -68,7 +72,7 @@ const event = (id: string) =>
     }
   });
 const caughtUp = (cursor: string, recovery = RealtimeRecovery.RESUMED) =>
-  new RealtimeServerFrame({
+  create(RealtimeServerFrameSchema, {
     frame: { case: 'caughtUp', value: { cursor, recovery } }
   });
 afterEach(() => vi.useRealTimers());
@@ -84,14 +88,14 @@ test('authenticates in binary subscription and commits cursors only after ordere
   const f = fixture(handler);
   f.sockets[0]!.open();
   expect(f.urls).toEqual(['wss://chat.example/api/realtime']);
-  expect(RealtimeSubscribe.fromBinary(f.sockets[0]!.sent[0]!)).toMatchObject({
+  expect(fromBinary(RealtimeSubscribeSchema, f.sockets[0]!.sent[0]!)).toMatchObject({
     protocolVersion: 4,
     bearerToken: 'private-token',
     initialState: 1
   });
   f.sockets[0]!.frame(event('first'));
   f.sockets[0]!.frame(
-    new RealtimeServerFrame({ frame: { case: 'heartbeat', value: { cursor: 'after' } } })
+    create(RealtimeServerFrameSchema, { frame: { case: 'heartbeat', value: { cursor: 'after' } } })
   );
   await vi.advanceTimersByTimeAsync(0);
   expect(f.checkpoint.cursor).toBeUndefined();
@@ -111,7 +115,7 @@ test('resumes after a disconnect and reports replay gaps', async () => {
   f.sockets[0]!.disconnect();
   await vi.advanceTimersByTimeAsync(1000);
   f.sockets[1]!.open();
-  expect(RealtimeSubscribe.fromBinary(f.sockets[1]!.sent[0]!).resumeCursor).toBe('initial');
+  expect(fromBinary(RealtimeSubscribeSchema, f.sockets[1]!.sent[0]!).resumeCursor).toBe('initial');
   f.sockets[1]!.frame(caughtUp('new', RealtimeRecovery.LIVE_ONLY));
   await vi.advanceTimersByTimeAsync(0);
   expect(f.statuses).toContainEqual({ state: 'ready', recovery: 'live-only', gap: true });
@@ -122,7 +126,7 @@ test('resumes after a disconnect and reports replay gaps', async () => {
 test('honors server delay even when the socket closes immediately after its close frame', async () => {
   const f = fixture();
   f.sockets[0]!.frame(
-    new RealtimeServerFrame({
+    create(RealtimeServerFrameSchema, {
       frame: {
         case: 'close',
         value: {
@@ -147,7 +151,7 @@ test.each([RealtimeCloseCode.AUTHENTICATION_REQUIRED, RealtimeCloseCode.UNSUPPOR
   async (code) => {
     const f = fixture();
     f.sockets[0]!.frame(
-      new RealtimeServerFrame({
+      create(RealtimeServerFrameSchema, {
         frame: {
           case: 'close',
           value: {
@@ -180,7 +184,7 @@ test('skips unknown semantic events using their common cursor metadata', async (
   const handler = vi.fn(async () => {});
   const f = fixture(handler);
   f.sockets[0]!.frame(
-    new RealtimeServerFrame({
+    create(RealtimeServerFrameSchema, {
       frame: { case: 'event', value: { id: 'future', cursor: 'future-cursor' } }
     })
   );
@@ -212,7 +216,7 @@ test('overflow reconnects after the current handler settles without accepting qu
   await vi.advanceTimersByTimeAsync(1000);
   expect(f.checkpoint.cursor).toBe('accepted');
   f.sockets[1]!.open();
-  expect(RealtimeSubscribe.fromBinary(f.sockets[1]!.sent[0]!).resumeCursor).toBe('accepted');
+  expect(fromBinary(RealtimeSubscribeSchema, f.sockets[1]!.sent[0]!).resumeCursor).toBe('accepted');
   f.controller.abort();
   await f.result;
 });
@@ -232,7 +236,7 @@ test('handler failure retains the preceding checkpoint and sanitizes the error',
 test('resync before the first caught-up frame still reports a gap', async () => {
   const f = fixture(undefined, undefined, 'previous-session');
   f.sockets[0]!.frame(
-    new RealtimeServerFrame({
+    create(RealtimeServerFrameSchema, {
       frame: {
         case: 'close',
         value: {
@@ -244,7 +248,7 @@ test('resync before the first caught-up frame still reports a gap', async () => 
   );
   await vi.advanceTimersByTimeAsync(1000);
   f.sockets[1]!.open();
-  expect(RealtimeSubscribe.fromBinary(f.sockets[1]!.sent[0]!).resumeCursor).toBeUndefined();
+  expect(fromBinary(RealtimeSubscribeSchema, f.sockets[1]!.sent[0]!).resumeCursor).toBeUndefined();
   f.sockets[1]!.frame(caughtUp('live', RealtimeRecovery.LIVE_ONLY));
   await vi.advanceTimersByTimeAsync(0);
   expect(f.statuses).toContainEqual({ state: 'ready', recovery: 'live-only', gap: true });

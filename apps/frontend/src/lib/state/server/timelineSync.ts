@@ -2,11 +2,13 @@ import type { MessageResource } from '$lib/api-client/messageResources';
 import type { UserAvatarUserView } from '$lib/render/users';
 import { messagePostedPayload } from '$lib/api-client/roomTimeline';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
 import type { MessagesStore } from '$lib/state/room';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MessageReconciler } from './messageReconciler';
 import type { RoomStores } from './roomStores.svelte';
+import { timestampToDate } from '$lib/api-client/timestamps';
+import { create } from '@bufbuild/protobuf';
 
 /** A message change that this client made, from {@link TimelineSync.applyLocalMutation}. */
 export type LocalMessageMutation =
@@ -81,13 +83,13 @@ export class TimelineSync {
       : { user: null, deleted: false };
     const timelineEvent: TimelineEventView = {
       id: event.id,
-      createdAt: event.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
+      createdAt: timestampToDate(event.createdAt)?.toISOString() ?? new Date().toISOString(),
       actorId: event.actorId || null,
       actor,
       actorResolution: actorDeleted ? 'deleted' : actor ? undefined : 'loading',
       // The event has only the posted fields. The resource read fills the rest.
       event: messagePostedPayload(
-        new Message({
+        create(MessageSchema, {
           roomId: posted.roomId,
           body: posted.bodyPlaintext,
           inReplyTo: posted.inReplyTo,

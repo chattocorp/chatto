@@ -1,6 +1,7 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_pb';
+import { timestampToISO } from './timestamps.js';
 
 export type MarkRoomAsReadResult = {
   lastReadAt: string | null;
@@ -31,8 +32,8 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
         { signal: options.signal }
       );
       return {
-        lastReadAt: response.lastReadAt?.toDate().toISOString() ?? null,
-        previousLastReadAt: response.previousLastReadAt?.toDate().toISOString() ?? null
+        lastReadAt: timestampToISO(response.lastReadAt),
+        previousLastReadAt: timestampToISO(response.previousLastReadAt)
       };
     },
 
@@ -53,8 +54,8 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
         { signal: options.signal }
       );
       return {
-        lastReadAt: response.lastReadAt?.toDate().toISOString() ?? null,
-        previousLastReadAt: response.previousLastReadAt?.toDate().toISOString() ?? null
+        lastReadAt: timestampToISO(response.lastReadAt),
+        previousLastReadAt: timestampToISO(response.previousLastReadAt)
       };
     }
   };

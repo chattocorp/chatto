@@ -1,9 +1,10 @@
-import { protoInt64, Timestamp } from '@bufbuild/protobuf';
+import { protoInt64 } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
+import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_pb';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const mocks = mockService(AdminEventLogService);
 
@@ -22,7 +23,7 @@ function apiEntry(sequence: string) {
     eventType: 'UserJoinedRoomEvent',
     eventId: `event-${sequence}`,
     actorId: 'actor-1',
-    createdAt: Timestamp.fromDate(new Date('2026-01-01T12:00:00.000Z')),
+    createdAt: timestampFromDate(new Date('2026-01-01T12:00:00.000Z')),
     payloadJson: `{"id":"event-${sequence}"}`
   };
 }
@@ -61,8 +62,8 @@ describe('createAdminEventLogAPI', () => {
       filter: {
         eventType: 'UserJoinedRoomEvent',
         actorId: 'actor-1',
-        createdAtFrom: Timestamp.fromDate(new Date('2026-01-01T00:00:00.000Z')),
-        createdAtTo: Timestamp.fromDate(new Date('2026-01-02T00:00:00.000Z'))
+        createdAtFrom: timestampFromDate(new Date('2026-01-01T00:00:00.000Z')),
+        createdAtTo: timestampFromDate(new Date('2026-01-02T00:00:00.000Z'))
       }
     });
     expect(page.totalCount).toBe('9007199254740993');
@@ -87,7 +88,8 @@ describe('createAdminEventLogAPI', () => {
 
     const page = await api.listEvents({ limit: 50 });
 
-    expect(receivedRequest(mocks.listEvents)).toMatchObject({ limit: 50, before: undefined });
+    expect(receivedRequest(mocks.listEvents)).toMatchObject({ limit: 50 });
+    expect(receivedRequest(mocks.listEvents)?.before).toBeUndefined();
     expect(receivedRequest(mocks.listEvents)?.filter).toBeUndefined();
     expect(page.entries).toEqual([]);
     expect(page.endCursor).toBeNull();

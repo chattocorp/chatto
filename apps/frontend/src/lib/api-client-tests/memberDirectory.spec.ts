@@ -1,14 +1,16 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { Timestamp } from '@bufbuild/protobuf';
+import {
+  PresenceStatus,
+  PresenceStatus as APIPresenceStatus
+} from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { REALTIME_MINIMUM_CURSOR_HEADER, type ConnectAPIConfig } from '$lib/api-client/connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
 import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const users = mockService(UserService);
 const rooms = mockService(RoomService);
@@ -59,11 +61,11 @@ describe('createMemberDirectoryAPI', () => {
             customStatus: {
               emoji: ':seedling:',
               text: 'Focus',
-              expiresAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z'))
+              expiresAt: timestampFromDate(new Date('2026-06-01T12:00:00Z'))
             }
           },
           roles: ['everyone', 'admin'],
-          createdAt: Timestamp.fromDate(new Date('2026-01-01T09:00:00Z'))
+          createdAt: timestampFromDate(new Date('2026-01-01T09:00:00Z'))
         }
       ],
       page: { totalCount: 2n, hasMore: true }

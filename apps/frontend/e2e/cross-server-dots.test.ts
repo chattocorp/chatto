@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, type WebSocket } from '@playwright/test';
-import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeServerFrameSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -24,6 +24,7 @@ import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { fromBinary } from '@bufbuild/protobuf';
 
 /**
  * Returns the remote server's base URL using 127.0.0.1 instead of localhost so
@@ -81,7 +82,7 @@ function observeRemotePolling(page: Page, remoteURL: string) {
     socket.on('framereceived', ({ payload }) => {
       if (
         typeof payload !== 'string' &&
-        RealtimeServerFrame.fromBinary(payload).frame.case === 'caughtUp'
+        fromBinary(RealtimeServerFrameSchema, payload).frame.case === 'caughtUp'
       ) {
         connection.caughtUp = true;
       }

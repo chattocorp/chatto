@@ -1,5 +1,5 @@
 import { createPublicChattoClient } from './connect.js';
-import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_pb';
 import { AccountCreationPolicy } from '@chatto/api-types/api/v1/server_pb';
 import { mapServerProfile } from './serverProfile.js';
 

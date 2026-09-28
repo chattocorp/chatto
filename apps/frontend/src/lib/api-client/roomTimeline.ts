@@ -8,22 +8,28 @@ import {
 } from '$lib/render/timelineEvents';
 import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
 import { VideoProcessingStatus } from '$lib/render/messageAttachments';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { MessageService } from '@chatto/api-types/api/v1/messages_pb';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_pb';
 import { createUserAPI } from './users.js';
-import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
+import {
+  type RoomTimelinePage,
+  type RoomTimelineEvent,
+  RoomTimelinePageSchema
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
-import { MessageVideoProcessingStatus } from '@chatto/api-types/api/v1/message_types_pb';
-import type {
-  Message,
-  MessageAssetUrl,
-  MessageVideoProcessing
+import {
+  MessageVideoProcessingStatus,
+  type Message,
+  type MessageAssetUrl,
+  type MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
-import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import { getUserStore } from '$lib/state/server/users.svelte';
+import { create } from '@bufbuild/protobuf';
+import { timestampToISO } from './timestamps.js';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 export type EventConnectionPage = {
   events: readonly TimelineEventView[];
@@ -91,8 +97,8 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
     let response!: { page?: RoomTimelinePage };
     const readProfiles = async () => {
       response = await read();
-      return Object.values(response.page?.includes?.users ?? {}).map(
-        (user) => new DirectoryMember({ user })
+      return Object.values(response.page?.includes?.users ?? {}).map((user) =>
+        create(DirectoryMemberSchema, { user })
       );
     };
     if (userStore) await userStore.readSnapshot(readProfiles, true);
@@ -123,7 +129,7 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
           options(minimumCursor)
         )
       );
-      return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
+      return roomTimelinePageToEventConnectionPage(response.page ?? create(RoomTimelinePageSchema));
     },
     async getRoomEventsAround({ roomId, eventId, limit, minimumCursor, signal }) {
       const response = await readPage(() =>
@@ -160,7 +166,7 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
           options(minimumCursor)
         )
       );
-      return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
+      return roomTimelinePageToEventConnectionPage(response.page ?? create(RoomTimelinePageSchema));
     },
     async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit, minimumCursor }) {
       const response = await readPage(() =>
@@ -268,7 +274,7 @@ export function roomTimelineEventToView(
   if (!payload) return null;
   return {
     id: event.id,
-    createdAt: timestampToISO(event.createdAt),
+    createdAt: timestampToISOOrEpoch(event.createdAt),
     actorId: event.actorId,
     actor: userView(event.actorId, users),
     event: payload
@@ -283,7 +289,7 @@ export function messageToTimelineEvent(
   if (!payload) return null;
   return {
     id: message.id,
-    createdAt: timestampToISO(message.createdAt),
+    createdAt: timestampToISOOrEpoch(message.createdAt),
     actorId: message.actorId,
     actor: userView(message.actorId, users),
     event: payload
@@ -367,18 +373,18 @@ export function messagePostedPayload(
     body: message.body !== undefined ? message.body : null,
     attachments: message.attachments.map(attachmentView),
     linkPreview: linkPreviewView(message.linkPreview),
-    updatedAt: timestampToISOOrNull(message.updatedAt),
+    updatedAt: timestampToISO(message.updatedAt),
     inReplyTo: message.inReplyTo || null,
     threadRootEventId: message.threadRootEventId || null,
     echoOfEventId: message.echoOfEventId || null,
     echoFromThreadRootEventId: message.echoFromThreadRootEventId || null,
     channelEchoEventId: message.channelEchoEventId || null,
-    deletedAt: timestampToISOOrNull(message.deletedAt),
+    deletedAt: timestampToISO(message.deletedAt),
     pinned: message.pinned,
     threadExists: thread !== undefined,
     canReplyInThread: message.viewerState?.canReplyInThread,
     replyCount: thread?.replyCount ?? 0,
-    lastReplyAt: timestampToISOOrNull(thread?.lastReplyAt),
+    lastReplyAt: timestampToISO(thread?.lastReplyAt),
     threadParticipantCount: thread?.participantCount ?? 0,
     threadParticipants: (thread?.participantPreviewUserIds ?? [])
       .map((id) => userView(id, users))
@@ -508,7 +514,7 @@ function socialPostPreviewView(
         }
       : null,
     text: post.text,
-    publishedAt: timestampToISOOrNull(post.publishedAt),
+    publishedAt: timestampToISO(post.publishedAt),
     externalLink: post.externalLink
       ? {
           url: post.externalLink.url,
@@ -532,14 +538,10 @@ function assetUrlView(assetUrl?: MessageAssetUrl) {
   if (!assetUrl) return null;
   return {
     url: assetUrl.url,
-    expiresAt: timestampToISO(assetUrl.expiresAt)
+    expiresAt: timestampToISOOrEpoch(assetUrl.expiresAt)
   };
 }
 
-function timestampToISO(timestamp: { toDate(): Date } | undefined): string {
-  return timestampToISOOrNull(timestamp) ?? new Date(0).toISOString();
-}
-
-function timestampToISOOrNull(timestamp: { toDate(): Date } | undefined): string | null {
-  return timestamp ? timestamp.toDate().toISOString() : null;
+function timestampToISOOrEpoch(timestamp: Timestamp | undefined): string {
+  return timestampToISO(timestamp) ?? new Date(0).toISOString();
 }

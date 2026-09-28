@@ -5,7 +5,11 @@ import { waitForRoomReady } from './fixtures/realtimeSync';
 import { postThreadReplyViaConnect, postMessagesViaConnect } from './fixtures/connectHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
-import { RealtimeServerFrame, RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  RealtimeServerFrameSchema,
+  RealtimeSubscribeSchema
+} from '@chatto/api-types/realtime/v1/realtime_pb';
+import { fromBinary, toBinary } from '@bufbuild/protobuf';
 
 async function simulateBackgroundResumeAndReconnect(page: Page, hiddenMs = 31_000) {
   await page.evaluate((durationMs: number) => {
@@ -54,17 +58,17 @@ for (const mobile of [false, true]) {
         if (forceSnapshot && typeof message !== 'string') {
           forceSnapshot = false;
           recovering = true;
-          const subscribe = RealtimeSubscribe.fromBinary(message);
+          const subscribe = fromBinary(RealtimeSubscribeSchema, message);
           // Exercise the same fallback as cursor expiry without a 15-minute wait.
           subscribe.resumeCursor = 'expired-test-cursor';
-          server.send(Buffer.from(subscribe.toBinary()));
+          server.send(Buffer.from(toBinary(RealtimeSubscribeSchema, subscribe)));
         } else server.send(message);
       });
       server.onMessage((message) => {
         if (
           recovering &&
           typeof message !== 'string' &&
-          RealtimeServerFrame.fromBinary(message).frame.case === 'caughtUp'
+          fromBinary(RealtimeServerFrameSchema, message).frame.case === 'caughtUp'
         ) {
           held = true;
           releaseCatchUp = () => {

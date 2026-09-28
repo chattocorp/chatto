@@ -1,4 +1,4 @@
-import type { ServiceType } from '@bufbuild/protobuf';
+import type { DescService } from '@bufbuild/protobuf';
 import {
   createRouterTransport,
   type ConnectRouter,
@@ -37,7 +37,7 @@ export function fakeServer(
 }
 
 /** Mock handlers for every method of a service, typed with the method's signature. */
-export type MockService<T extends ServiceType> = {
+export type MockService<T extends DescService> = {
   [K in keyof ServiceImpl<T>]: Mock<ServiceImpl<T>[K]>;
 };
 
@@ -46,9 +46,9 @@ export type MockService<T extends ServiceType> = {
  * with `router.service(Service, handlers)`. The handlers keep the method types,
  * so a fixture with the wrong response shape fails type checking.
  */
-export function mockService<T extends ServiceType>(service: T): MockService<T> {
+export function mockService<T extends DescService>(service: T): MockService<T> {
   return Object.fromEntries(
-    Object.keys(service.methods).map((name) => [name, vi.fn()])
+    Object.keys(service.method).map((name) => [name, vi.fn()])
   ) as MockService<T>;
 }
 

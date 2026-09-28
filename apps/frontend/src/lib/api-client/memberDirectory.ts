@@ -5,8 +5,8 @@ import {
   type ConnectAPIConfig,
   minimumCursorHeaders
 } from './connect.js';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { mapDirectoryMember, type DirectoryMember } from './directoryMemberView';
 export { mapDirectoryMember, type DirectoryMember } from './directoryMemberView';

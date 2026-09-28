@@ -1,5 +1,4 @@
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomService, type PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import { createChattoClient, type ConnectAPIConfig, minimumCursorHeaders } from './connect';
 import { timelineUsersForMessages } from './roomTimeline';
 

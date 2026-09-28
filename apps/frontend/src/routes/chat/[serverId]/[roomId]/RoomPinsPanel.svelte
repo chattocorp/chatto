@@ -5,6 +5,8 @@ Channel pinned messages rendered through the room timeline's canonical
 message presentation. Each message row itself opens the original message.
 -->
 <script lang="ts">
+  import { timestampToDate } from '$lib/api-client/timestamps';
+  import { timestampDate } from '@bufbuild/protobuf/wkt';
   import { formatAccountName } from '$lib/render/accountName';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -59,7 +61,7 @@ message presentation. Each message row itself opens the original message.
   }
 
   function formatTimestamp(message: Message): string {
-    const createdAt = message.createdAt?.toDate().toISOString() ?? '';
+    const createdAt = timestampToDate(message.createdAt)?.toISOString() ?? '';
     return createdAt ? formatDateTime(createdAt, userSettings, activeLocale) : '';
   }
 
@@ -141,7 +143,7 @@ message presentation. Each message row itself opens the original message.
                         {#if message.createdAt}
                           <time
                             class="text-xs text-muted"
-                            datetime={message.createdAt.toDate().toISOString()}
+                            datetime={timestampDate(message.createdAt).toISOString()}
                           >
                             {formatTimestamp(message)}
                           </time>

@@ -1,8 +1,9 @@
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserStore } from '$lib/state/server/users.svelte';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import { TYPING_TIMEOUT_MS, createTypingIndicator } from './useTypingIndicator.svelte';
+import { create } from '@bufbuild/protobuf';
 
 type TypingSignal = { roomId: string; threadRootEventId: string | null; userId: string };
 
@@ -66,7 +67,7 @@ describe('createTypingIndicator profile hydration', () => {
 
   it('does not read a known or deleted typer', () => {
     profiles.delete('removed');
-    profiles.set('known', new DirectoryMember({ user: { id: 'known' } }));
+    profiles.set('known', create(DirectoryMemberSchema, { user: { id: 'known' } }));
     const dispose = $effect.root(() => {
       createTypingIndicator(() => ({
         roomId: 'room',

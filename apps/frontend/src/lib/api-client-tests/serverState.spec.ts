@@ -1,10 +1,10 @@
 import { protoInt64 } from '@bufbuild/protobuf';
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
-import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
+import { AdminServerService } from '@chatto/api-types/admin/v1/server_pb';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_pb';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_pb';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_pb';
 import {
   deleteServerBanner,
   deleteServerLogo,

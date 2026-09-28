@@ -1,18 +1,22 @@
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
-import { MessagePinnedEvent, MessageUnpinnedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
+import { type PinnedMessage, PinnedMessageSchema } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  MessagePinnedEventSchema,
+  MessageUnpinnedEventSchema
+} from '@chatto/api-types/realtime/v1/events_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import { RoomPinsStore } from './pins.svelte';
+import { create } from '@bufbuild/protobuf';
 
 const pinMarkers = new WeakMap<PinnedMessage, string>();
 
 function pin(marker: string, messageId: string): PinnedMessage {
-  const item = new PinnedMessage({
-    message: new Message({ id: messageId, roomId: 'R1', body: `body-${messageId}` })
+  const item = create(PinnedMessageSchema, {
+    message: create(MessageSchema, { id: messageId, roomId: 'R1', body: `body-${messageId}` })
   });
   pinMarkers.set(item, marker);
   return item;
@@ -66,7 +70,7 @@ describe('RoomPinsStore', () => {
     const release = store.retain();
     await vi.waitFor(() => expect(api.list).toHaveBeenCalledTimes(1));
     store.applyRealtimeChange(
-      new MessagePinnedEvent({
+      create(MessagePinnedEventSchema, {
         roomId: 'R1',
         messageEventId: 'M2'
       }),
@@ -76,7 +80,7 @@ describe('RoomPinsStore', () => {
     await vi.waitFor(() => expect(store.items[0]?.message?.id).toBe('M2'));
     expect(store.hasUnseen).toBe(true);
     store.applyRealtimeChange(
-      new MessageUnpinnedEvent({
+      create(MessageUnpinnedEventSchema, {
         roomId: 'R1',
         messageEventId: 'M2'
       }),
@@ -123,7 +127,10 @@ describe('RoomPinsStore', () => {
     const release = store.retain();
     await vi.waitFor(() => expect(store.items).toHaveLength(1));
 
-    store.applyMessageUpdate('M1', new Message({ id: 'M1', roomId: 'R1', body: 'edited' }));
+    store.applyMessageUpdate(
+      'M1',
+      create(MessageSchema, { id: 'M1', roomId: 'R1', body: 'edited' })
+    );
 
     expect(store.items[0]?.message?.body).toBe('edited');
     release();
@@ -137,7 +144,7 @@ describe('RoomPinsStore', () => {
     const api = { list: vi.fn(() => pending), create: vi.fn(), remove: vi.fn() };
     const store = makeStore(api);
     const loading = store.hydrate();
-    store.applyMessageUpdate('M1', new Message({ id: 'M1', body: 'edited' }));
+    store.applyMessageUpdate('M1', create(MessageSchema, { id: 'M1', body: 'edited' }));
     store.applyMessageRetraction('M2');
     resolve(pinPage([pin('P1', 'M1'), pin('P2', 'M2')]));
     await loading;
@@ -301,7 +308,7 @@ describe('RoomPinsStore', () => {
     const staleLoad = store.loadMore();
     await vi.waitFor(() => expect(store.isLoadingMore).toBe(true));
     store.applyRealtimeChange(
-      new MessagePinnedEvent({
+      create(MessagePinnedEventSchema, {
         roomId: 'R1',
         messageEventId: 'M2'
       }),

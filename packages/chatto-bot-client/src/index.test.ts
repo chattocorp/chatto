@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest';
-import { createChattoClient, RealtimeEvent, RoomKind } from '@chatto/client';
+import { create } from '@bufbuild/protobuf';
+import { createChattoClient, RealtimeEventSchema, RoomKind } from '@chatto/client';
 import {
   conversationKey,
   createBotClient,
@@ -19,7 +20,7 @@ test('composes a client, resolves identity once, and replies to the prompting me
   const bot = await createBotClient(client);
   expect(bot.client).toBe(client);
   expect(bot.viewerId).toBe('bot');
-  const event = new RealtimeEvent({
+  const event = create(RealtimeEventSchema, {
     id: 'incoming',
     actorId: 'human',
     event: {

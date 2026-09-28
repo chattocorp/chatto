@@ -1,5 +1,5 @@
 import { sha256 } from 'js-sha256';
-import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
+import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_pb';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 
 export type UploadedAsset = {

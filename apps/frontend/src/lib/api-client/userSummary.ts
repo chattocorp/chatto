@@ -12,6 +12,7 @@
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
+import { timestampToISO } from './timestamps.js';
 
 /** Lightweight identity snapshot of one user, safe to cache and prime stores with. */
 export type UserSummary = {
@@ -83,7 +84,7 @@ export function mapUserPresenceView(user: APIUser | undefined): UserPresenceView
       ? {
           emoji: user.customStatus.emoji,
           text: user.customStatus.text,
-          expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
+          expiresAt: timestampToISO(user.customStatus.expiresAt)
         }
       : null
   };

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ListNotificationOccurrencesResponse,
-  NotificationOccurrence,
-  NotificationRoomUnreadCount
+  type NotificationOccurrence,
+  ListNotificationOccurrencesResponseSchema,
+  NotificationOccurrenceSchema,
+  NotificationRoomUnreadCountSchema
 } from '@chatto/api-types/api/v1/notifications_pb';
 
 import {
@@ -11,15 +12,16 @@ import {
   NotificationAttentionLevel,
   NotificationSignalKind
 } from '$lib/api-client/notifications';
+import { create } from '@bufbuild/protobuf';
 
 describe('notification occurrence presentation mapping', () => {
   it('preserves authoritative attention counts', () => {
     const current = mapNotificationOccurrencePage(
-      new ListNotificationOccurrencesResponse({
+      create(ListNotificationOccurrencesResponseSchema, {
         unreadCount: 3,
         importantUnreadCount: 0,
         roomUnreadCounts: [
-          new NotificationRoomUnreadCount({
+          create(NotificationRoomUnreadCountSchema, {
             roomId: 'room-1',
             unreadCount: 2,
             importantUnreadCount: 0
@@ -34,7 +36,7 @@ describe('notification occurrence presentation mapping', () => {
 
   it('keeps followed-thread targets intact', () => {
     const occurrence = requireNotificationOccurrence(
-      new NotificationOccurrence({
+      create(NotificationOccurrenceSchema, {
         id: 'thread-notification',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('followedThreadActivity', 'reply-1', 'root-1'),
@@ -52,7 +54,7 @@ describe('notification occurrence presentation mapping', () => {
 
   it('maps a direct mention as its own exact signal', () => {
     const occurrence = requireNotificationOccurrence(
-      new NotificationOccurrence({
+      create(NotificationOccurrenceSchema, {
         id: 'thread-mention',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('directMentionReceived', 'reply-2', 'root-1'),
@@ -71,7 +73,7 @@ describe('notification occurrence presentation mapping', () => {
 
   it('describes followed-room occurrences as messages', () => {
     const occurrence = requireNotificationOccurrence(
-      new NotificationOccurrence({
+      create(NotificationOccurrenceSchema, {
         id: 'room-notification',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('followedRoomActivity', 'message-1'),
@@ -88,7 +90,7 @@ describe('notification occurrence presentation mapping', () => {
 
   it('maps root room messages as their own signal', () => {
     const occurrence = requireNotificationOccurrence(
-      new NotificationOccurrence({
+      create(NotificationOccurrenceSchema, {
         id: 'room-message-notification',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('roomMessageReceived', 'message-2'),
@@ -106,7 +108,7 @@ describe('notification occurrence presentation mapping', () => {
 
   it('preserves a threaded reaction target', () => {
     const occurrence = requireNotificationOccurrence(
-      new NotificationOccurrence({
+      create(NotificationOccurrenceSchema, {
         id: 'reaction-notification',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('reactionReceived', 'message-1', 'thread-root-1', 'heart'),
@@ -125,7 +127,7 @@ describe('notification occurrence presentation mapping', () => {
 
   it('maps unknown future attention levels conservatively to Important', () => {
     const occurrence = requireNotificationOccurrence(
-      new NotificationOccurrence({
+      create(NotificationOccurrenceSchema, {
         id: 'future-attention',
         signal: notificationSignal('directMentionReceived', 'message-1'),
         attentionLevel: 99 as NotificationAttentionLevel,
@@ -138,11 +140,11 @@ describe('notification occurrence presentation mapping', () => {
 
   it('keeps unsupported targets as safe generic rows with authoritative counts', () => {
     const page = mapNotificationOccurrencePage(
-      new ListNotificationOccurrencesResponse({
+      create(ListNotificationOccurrencesResponseSchema, {
         unreadCount: 1,
         importantUnreadCount: 1,
         occurrences: [
-          new NotificationOccurrence({
+          create(NotificationOccurrenceSchema, {
             id: 'future-target',
             signal: { kind: { case: undefined } },
             attentionLevel: NotificationAttentionLevel.IMPORTANT,

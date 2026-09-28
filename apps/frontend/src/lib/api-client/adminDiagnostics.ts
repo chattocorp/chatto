@@ -1,9 +1,10 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 import {
+  AdminDiagnosticsService,
   AdminAssetCleanupHealth,
   AdminDurableWorkerHealth
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
+import { timestampToDate } from './timestamps.js';
 
 export type AdminSystemInfo = {
   connection: AdminConnectionInfo;
@@ -258,11 +259,11 @@ export async function getAdminSystemInfo(
       available: cleanupAvailable,
       health: assetCleanupHealth(cleanup?.health),
       pendingCount: Number(cleanup?.pendingCount ?? 0),
-      oldestPendingAt: cleanup?.oldestPendingAt?.toDate() ?? null,
+      oldestPendingAt: timestampToDate(cleanup?.oldestPendingAt) ?? null,
       passInProgress: cleanup?.passInProgress ?? false,
-      lastPassAt: cleanup?.lastPassAt?.toDate() ?? null,
-      lastSuccessfulPassAt: cleanup?.lastSuccessfulPassAt?.toDate() ?? null,
-      updatedAt: cleanup?.updatedAt?.toDate() ?? null,
+      lastPassAt: timestampToDate(cleanup?.lastPassAt) ?? null,
+      lastSuccessfulPassAt: timestampToDate(cleanup?.lastSuccessfulPassAt) ?? null,
+      updatedAt: timestampToDate(cleanup?.updatedAt) ?? null,
       lastPassFailed: cleanup?.lastPassFailed ?? false,
       lastInspectedSequence: cleanup?.lastInspectedSequence ?? '0',
       latestDeletionSequence: cleanup?.latestDeletionSequence ?? '0'

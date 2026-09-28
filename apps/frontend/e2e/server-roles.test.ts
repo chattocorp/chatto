@@ -1,8 +1,8 @@
 import { expect, type Page } from '@playwright/test';
-import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeServerFrameSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test } from './setup';
-import { GetRolePermissionMatrixRequest } from '@chatto/api-types/admin/v1/permissions_pb';
-import { AdminRoleServiceListMembersRequest } from '@chatto/api-types/admin/v1/roles_pb';
+import { GetRolePermissionMatrixRequestSchema } from '@chatto/api-types/admin/v1/permissions_pb';
+import { AdminRoleServiceListMembersRequestSchema } from '@chatto/api-types/admin/v1/roles_pb';
 import {
   activatePrivilegedMode,
   createAndLoginTestUser,
@@ -22,6 +22,7 @@ import {
 } from './fixtures/connectHelpers';
 import { browserAuthenticationHeaders } from './fixtures/csrf';
 import * as routes from './routes';
+import { fromBinary } from '@bufbuild/protobuf';
 
 interface TestServer {
   id: string;
@@ -300,7 +301,7 @@ test.describe('Server Roles Management', () => {
           socket.on('framereceived', ({ payload }) => {
             if (
               typeof payload !== 'string' &&
-              RealtimeServerFrame.fromBinary(payload).frame.case === 'snapshot'
+              fromBinary(RealtimeServerFrameSchema, payload).frame.case === 'snapshot'
             ) {
               snapshots[index]++;
             }
@@ -359,7 +360,8 @@ test.describe('Server Roles Management', () => {
         request.url().endsWith('/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix')
       ) {
         const body = request.postDataBuffer();
-        if (body) offsets.push(GetRolePermissionMatrixRequest.fromBinary(body).page?.offset ?? 0);
+        if (body)
+          offsets.push(fromBinary(GetRolePermissionMatrixRequestSchema, body).page?.offset ?? 0);
       }
     });
     await page.setViewportSize({ width: 1000, height: 800 });
@@ -402,7 +404,7 @@ test.describe('Server Roles Management', () => {
     page.on('websocket', (socket) =>
       socket.on('framereceived', ({ payload }) => {
         if (typeof payload === 'string') return;
-        const frame = RealtimeServerFrame.fromBinary(payload).frame;
+        const frame = fromBinary(RealtimeServerFrameSchema, payload).frame;
         if (frame.case === 'snapshot') snapshots++;
         if (frame.case === 'event' && frame.value.event.case === 'roleAssigned') assignments++;
         if (frame.case === 'event' && frame.value.event.case === 'roleUpdated') updates++;
@@ -451,7 +453,7 @@ test.describe('Server Roles Management', () => {
         const body = request.postDataBuffer();
         if (body)
           memberRequests.push(
-            AdminRoleServiceListMembersRequest.fromBinary(body).page?.offset ?? 0
+            fromBinary(AdminRoleServiceListMembersRequestSchema, body).page?.offset ?? 0
           );
       }
     });
@@ -742,7 +744,7 @@ test.describe('Server Roles Management', () => {
         socket.on('framereceived', ({ payload }) => {
           if (
             typeof payload !== 'string' &&
-            RealtimeServerFrame.fromBinary(payload).frame.case === 'snapshot'
+            fromBinary(RealtimeServerFrameSchema, payload).frame.case === 'snapshot'
           )
             snapshots++;
         })

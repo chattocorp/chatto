@@ -1,12 +1,15 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { UserStore } from './users.svelte';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import type { RoomGroup, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { create, clone } from '@bufbuild/protobuf';
+import { ActiveCallSchema } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { RoomWithViewerStateSchema } from '@chatto/api-types/api/v1/room_directory_pb';
 
 /** Authenticated server resources assembled from two canonical responses. */
 export type ProjectedServerState = {
@@ -46,7 +49,10 @@ export class ServerProjectionStore {
           this.viewer = chunk.value;
           if (chunk.value.user?.profile?.id) {
             const profile = chunk.value.user.profile;
-            const member = this.users.get(profile.id)?.clone() ?? new DirectoryMember();
+            const stored = this.users.get(profile.id);
+            const member = stored
+              ? clone(DirectoryMemberSchema, stored)
+              : create(DirectoryMemberSchema);
             member.user = profile;
             this.users.set(profile.id, member);
           }
@@ -109,7 +115,7 @@ export class ServerProjectionStore {
     this.users.delete(userId);
     this.activeCalls = this.activeCalls.map((call) => {
       if (!call.participants.some((participant) => participant.user?.id === userId)) return call;
-      const next = call.clone();
+      const next = clone(ActiveCallSchema, call);
       next.participants = next.participants.filter(
         (participant) => participant.user?.id !== userId
       );
@@ -135,7 +141,7 @@ export class ServerProjectionStore {
     this.activeCalls = this.activeCalls.flatMap((call) => {
       if (call.room?.id !== roomId) return [call];
       if (!call.participants.some((participant) => participant.user?.id === userId)) return [call];
-      const next = call.clone();
+      const next = clone(ActiveCallSchema, call);
       next.participants = next.participants.filter(
         (participant) => participant.user?.id !== userId
       );
@@ -147,7 +153,7 @@ export class ServerProjectionStore {
   private activateRoom(roomId: string): void {
     const current = this.rooms.get(roomId);
     if (!current) return;
-    const room = current.clone();
+    const room = clone(RoomWithViewerStateSchema, current);
     room.hasMessageHistory = true;
     const remaining = [...this.rooms.entries()].filter(([id]) => id !== roomId);
     this.rooms.clear();

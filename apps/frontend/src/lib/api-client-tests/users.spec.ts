@@ -1,11 +1,12 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
+import { DirectoryMemberSchema as APIDirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserSchema as APIUserSchema } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { create } from '@bufbuild/protobuf';
 
 const mocks = mockService(UserService);
 
@@ -23,7 +24,7 @@ describe('createUserAPI', () => {
     const directoryAPI = createMemberDirectoryAPI(config());
     mocks.batchGetUsers.mockReturnValue({
       users: [
-        new APIDirectoryMember({
+        create(APIDirectoryMemberSchema, {
           user: { id: 'bot', login: 'bot', bot: { ownerUserId: 'owner' } }
         })
       ]
@@ -45,7 +46,7 @@ describe('createUserAPI', () => {
     const store = getUserStore('server', 'session');
     mocks.deleteAvatar.mockImplementation(async () => {
       store.invalidate('U1');
-      return { user: new APIUser({ id: 'U1', login: 'alice' }) };
+      return { user: create(APIUserSchema, { id: 'U1', login: 'alice' }) };
     });
     const api = createUserAPI(config());
     await expect(api.deleteAvatar('U1')).resolves.toMatchObject({ id: 'U1', avatarUrl: null });
@@ -59,7 +60,7 @@ describe('createUserAPI', () => {
       mocks.deleteAvatar.mockImplementation(async () => {
         if (boundary === 'delete') store.delete('U1');
         else store.clear();
-        return { user: new APIUser({ id: 'U1', login: 'alice' }) };
+        return { user: create(APIUserSchema, { id: 'U1', login: 'alice' }) };
       });
       const api = createUserAPI(config());
       await expect(api.deleteAvatar('U1')).rejects.toThrow();
@@ -69,7 +70,7 @@ describe('createUserAPI', () => {
 
   it('updates the profile of an explicit user with a sparse update mask', async () => {
     mocks.updateUserProfile.mockReturnValue({
-      user: new APIUser({
+      user: create(APIUserSchema, {
         id: 'B1',
         login: 'helper',
         displayName: 'Helper',
@@ -97,7 +98,7 @@ describe('createUserAPI', () => {
 
   it('uploads and deletes an avatar for an explicit user', async () => {
     mocks.uploadAvatar.mockReturnValue({
-      user: new APIUser({
+      user: create(APIUserSchema, {
         id: 'U1',
         login: 'alice',
         displayName: 'Alice',
@@ -105,7 +106,7 @@ describe('createUserAPI', () => {
       })
     });
     mocks.deleteAvatar.mockReturnValue({
-      user: new APIUser({ id: 'U1', login: 'alice', displayName: 'Alice' })
+      user: create(APIUserSchema, { id: 'U1', login: 'alice', displayName: 'Alice' })
     });
     const api = createUserAPI(config());
     const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
@@ -129,8 +130,8 @@ describe('createUserAPI', () => {
   it('loads user summaries in batches', async () => {
     mocks.batchGetUsers.mockReturnValue({
       users: [
-        new APIDirectoryMember({
-          user: new APIUser({
+        create(APIDirectoryMemberSchema, {
+          user: create(APIUserSchema, {
             id: 'U1',
             login: 'alice',
             displayName: 'Alice',
@@ -163,19 +164,20 @@ describe('createUserAPI', () => {
 
   it('maps a bot owner identity without treating it as a management grant', () => {
     expect(
-      mapUserSummary(new APIUser({ id: 'bot', bot: { ownerUserId: 'owner' } })).bot?.ownerUserId
+      mapUserSummary(create(APIUserSchema, { id: 'bot', bot: { ownerUserId: 'owner' } })).bot
+        ?.ownerUserId
     ).toBe('owner');
   });
 
   it('uses bot metadata presence as the bot marker', () => {
-    expect(mapUserSummary(new APIUser({ id: 'human' })).isBot).toBe(false);
-    expect(mapUserSummary(new APIUser({ id: 'bot', bot: {} })).isBot).toBe(true);
+    expect(mapUserSummary(create(APIUserSchema, { id: 'human' })).isBot).toBe(false);
+    expect(mapUserSummary(create(APIUserSchema, { id: 'bot', bot: {} })).isBot).toBe(true);
   });
 
   it('maps missing avatar URLs to null', () => {
     expect(
       mapUserSummary(
-        new APIUser({
+        create(APIUserSchema, {
           id: 'U2',
           login: 'bob',
           displayName: 'Bob',

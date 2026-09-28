@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeSubscribeSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { WebSocketRoute } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { fromBinary, toBinary } from '@bufbuild/protobuf';
 
 for (const recovery of ['resume', 'snapshot'] as const) {
   test(`posts from a loaded room before realtime ${recovery} completes`, async ({
@@ -27,14 +28,14 @@ for (const recovery of ['resume', 'snapshot'] as const) {
       const server = socket.connectToServer();
       socket.onMessage((message) => {
         if (typeof message === 'string') return server.send(message);
-        const subscribe = RealtimeSubscribe.fromBinary(message);
+        const subscribe = fromBinary(RealtimeSubscribeSchema, message);
         if (held) {
           // A reconnect resumes from the cursor that this page holds in memory.
           expect(subscribe.resumeCursor).toBeTruthy();
           if (recovery === 'snapshot') subscribe.resumeCursor = 'expired-early-command-test';
           subscribed = true;
         }
-        server.send(Buffer.from(subscribe.toBinary()));
+        server.send(Buffer.from(toBinary(RealtimeSubscribeSchema, subscribe)));
       });
       server.onMessage((message) => {
         if (!held || released) socket.send(message);

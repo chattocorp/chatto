@@ -1,7 +1,10 @@
 import { ServerProjectionStore } from '$lib/state/server/projection.svelte';
 import { NavigationStore } from '$lib/state/server/rooms.svelte';
-import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
+import {
+  RoomGroupSchema,
+  RoomGroupViewerStateSchema
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { PermissionGrantSchema } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -180,6 +183,7 @@ vi.mock('$lib/navigation/readActions', () => ({
 }));
 
 import RoomList from './RoomList.svelte';
+import { create } from '@bufbuild/protobuf';
 
 function notification(id: string, roomId: string, isDM = false) {
   return {
@@ -1385,15 +1389,15 @@ describe('RoomList', () => {
   it('updates creation controls and an open menu when projected group permissions change', async () => {
     const originalNavigation = mocks.store.navigation;
     const projection = new ServerProjectionStore();
-    const setPermissions = (create: boolean, manage: boolean) => {
+    const setPermissions = (canCreate: boolean, manage: boolean) => {
       projection.roomGroups = [
-        new RoomGroup({
+        create(RoomGroupSchema, {
           id: 'reactive-group',
           name: 'Projects',
-          viewerState: new RoomGroupViewerState({
+          viewerState: create(RoomGroupViewerStateSchema, {
             permissions: [
-              new PermissionGrant({ permission: 'room.create', granted: create }),
-              new PermissionGrant({ permission: 'room.manage', granted: manage })
+              create(PermissionGrantSchema, { permission: 'room.create', granted: canCreate }),
+              create(PermissionGrantSchema, { permission: 'room.manage', granted: manage })
             ]
           })
         })

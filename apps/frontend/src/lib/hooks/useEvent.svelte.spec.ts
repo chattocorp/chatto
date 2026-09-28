@@ -1,7 +1,10 @@
 import { flushSync } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { PresenceChangedEvent, UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  PresenceChangedEventSchema,
+  UserTypingEventSchema
+} from '@chatto/api-types/realtime/v1/events_pb';
 import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 
 const serverScope = $state({ serverId: 'origin' });
@@ -22,6 +25,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 }));
 
 import { useProjectionEvent, useTypingEvent } from './useEvent.svelte';
+import { create } from '@bufbuild/protobuf';
 
 let buses: Map<string, EventBus>;
 
@@ -106,11 +110,11 @@ describe('useTypingEvent', () => {
 
     const typing = (actorId: string, threadRootEventId?: string) =>
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           actorId,
           event: {
             case: 'userTyping',
-            value: new UserTypingEvent({ roomId: 'R1', threadRootEventId })
+            value: create(UserTypingEventSchema, { roomId: 'R1', threadRootEventId })
           }
         })
       });
@@ -119,9 +123,9 @@ describe('useTypingEvent', () => {
     origin.publish(typing(''));
     origin.publish(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           actorId: 'U4',
-          event: { case: 'presenceChanged', value: new PresenceChangedEvent() }
+          event: { case: 'presenceChanged', value: create(PresenceChangedEventSchema) }
         })
       })
     );

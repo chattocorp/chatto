@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import { create } from '@bufbuild/protobuf';
   import { defineMeta } from '@storybook/addon-svelte-csf';
 
   const { Story } = defineMeta({
@@ -10,7 +11,7 @@
 </script>
 
 <script lang="ts">
-  import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+  import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
   import { UserStore } from '$lib/state/server/users.svelte';
   import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
   import MessageRowStoryFrame from './MessageRowStoryFrame.svelte';
@@ -71,7 +72,7 @@
       onclick={() =>
         lateAuthor.set(
           'author',
-          new DirectoryMember({
+          create(DirectoryMemberSchema, {
             user: { id: 'author', login: 'author', displayName: 'Resolved author' }
           })
         )}>Load author profile</button

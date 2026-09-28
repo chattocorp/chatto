@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { PresencePreference, PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import {
+  type PresencePreference,
+  PresenceStatus,
+  PresencePreferenceSchema
+} from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import {
   initPresenceTracking,
@@ -8,11 +12,12 @@ import {
   setPresenceStatus,
   type PresenceReporter
 } from './presenceTracking';
+import { create } from '@bufbuild/protobuf';
 
 const origin = { serverId: 'origin', userId: 'user' };
 const remote = { serverId: 'remote', userId: 'user' };
 const choice = (mode: PresenceStatus, revision = 'one') =>
-  new PresencePreference({ status: mode, revision });
+  create(PresencePreferenceSchema, { status: mode, revision });
 function reporter(
   scope = origin,
   initial: PresencePreference | null = choice(PresenceStatus.ONLINE)

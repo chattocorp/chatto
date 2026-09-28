@@ -1,6 +1,9 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
+import {
+  type RoomWithViewerState,
+  RoomWithViewerStateSchema
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { MessageSearchOrder } from '$lib/api-client/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -189,6 +192,7 @@ vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
 });
 
 import QuickSwitcher from './QuickSwitcher.svelte';
+import { create } from '@bufbuild/protobuf';
 
 const stores = new SvelteMap<string, typeof mocks.store>();
 
@@ -589,7 +593,7 @@ describe('QuickSwitcher', () => {
   it('searches known users locally only while typing and starts their DM destination', async () => {
     mocks.store.projection.users.set(
       'known',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'known', login: 'cedar_handle', displayName: 'Cedar Person' }
       })
     );
@@ -604,7 +608,7 @@ describe('QuickSwitcher', () => {
   });
 
   it('finds a bot loaded only by the room directory and opens its DM', async () => {
-    const bot = new DirectoryMember({
+    const bot = create(DirectoryMemberSchema, {
       user: {
         id: 'test-bot',
         login: 'test_bot',
@@ -629,7 +633,7 @@ describe('QuickSwitcher', () => {
   });
 
   it('updates cached profiles and respects removal markers and session cleanup', async () => {
-    const profile = new DirectoryMember({
+    const profile = create(DirectoryMemberSchema, {
       user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
     });
     mocks.store.projection.users.set('known', profile);
@@ -638,7 +642,7 @@ describe('QuickSwitcher', () => {
     expect(resultButtons(container)).toHaveLength(1);
     getUserStore('origin', 'test-session').set(
       'known',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'known', login: 'maple', displayName: 'Maple' }
       })
     );
@@ -663,7 +667,7 @@ describe('QuickSwitcher', () => {
   it('rejects a cached user selection after access is lost before the row updates', async () => {
     getUserStore('origin', 'test-session').set(
       'known',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
       })
     );
@@ -681,7 +685,7 @@ describe('QuickSwitcher', () => {
     for (const member of [currentUser, teammate, user('group-peer', 'rivergroup', 'River Group')]) {
       mocks.store.projection.users.set(
         member.id,
-        new DirectoryMember({
+        create(DirectoryMemberSchema, {
           user: { id: member.id, login: member.login, displayName: member.displayName }
         })
       );
@@ -707,7 +711,9 @@ describe('QuickSwitcher', () => {
     // One group participant has not loaded; membership must still identify a group.
     mocks.store.projection.rooms.set(
       'group',
-      new RoomWithViewerState({ memberUserIds: ['user-current', 'group-peer', 'unloaded'] })
+      create(RoomWithViewerStateSchema, {
+        memberUserIds: ['user-current', 'group-peer', 'unloaded']
+      })
     );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'river');
@@ -724,7 +730,7 @@ describe('QuickSwitcher', () => {
   it('does not treat a DM with a deleted partner as the self-DM', async () => {
     mocks.store.projection.users.set(
       currentUser.id,
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: currentUser.id, login: currentUser.login, displayName: currentUser.displayName }
       })
     );
@@ -738,7 +744,7 @@ describe('QuickSwitcher', () => {
     });
     mocks.store.projection.rooms.set(
       'deleted-partner',
-      new RoomWithViewerState({ memberUserIds: ['user-current', 'gone'] })
+      create(RoomWithViewerStateSchema, { memberUserIds: ['user-current', 'gone'] })
     );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'alice');
@@ -748,7 +754,7 @@ describe('QuickSwitcher', () => {
   });
 
   it('refreshes known profiles and removes them after deletion, reset, or loss of access', async () => {
-    const member = new DirectoryMember({
+    const member = create(DirectoryMemberSchema, {
       user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
     });
     mocks.store.projection.users.set('known', member);
@@ -757,7 +763,7 @@ describe('QuickSwitcher', () => {
     expect(resultButtons(container)).toHaveLength(1);
     mocks.store.projection.users.set(
       'known',
-      new DirectoryMember({ user: { id: 'known', login: 'maple', displayName: 'Maple' } })
+      create(DirectoryMemberSchema, { user: { id: 'known', login: 'maple', displayName: 'Maple' } })
     );
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
@@ -771,7 +777,7 @@ describe('QuickSwitcher', () => {
     expect(resultButtons(container)).toHaveLength(1);
     mocks.store.projection.users.set(
       'known',
-      new DirectoryMember({ user: { ...member.user, deleted: true } })
+      create(DirectoryMemberSchema, { user: { ...member.user!, deleted: true } })
     );
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
@@ -791,7 +797,7 @@ describe('QuickSwitcher', () => {
     mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
     mocks.store.projection.users.set(
       'known',
-      new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } })
+      create(DirectoryMemberSchema, { user: { id: 'known', login: 'cedar', displayName: 'Cedar' } })
     );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');

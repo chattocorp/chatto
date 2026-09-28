@@ -9,8 +9,9 @@
  */
 
 import { SvelteSet } from 'svelte/reactivity';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { type RealtimeEvent, RealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RealtimeResource, RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import { create } from '@bufbuild/protobuf';
 
 /** One ordered public event or canonical resource response consumed by the frontend. */
 export class RealtimeProjectionUpdate {
@@ -49,7 +50,9 @@ export class RealtimeProjectionUpdate {
     this.retainView = init.retainView ?? false;
     this.event =
       init.event ??
-      (init.id || init.actorId ? new RealtimeEvent({ id: init.id, actorId: init.actorId }) : null);
+      (init.id || init.actorId
+        ? create(RealtimeEventSchema, { id: init.id, actorId: init.actorId })
+        : null);
   }
 }
 export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;

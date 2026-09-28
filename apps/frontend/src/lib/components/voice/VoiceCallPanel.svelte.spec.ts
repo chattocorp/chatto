@@ -3,9 +3,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomWithViewerStateSchema } from '@chatto/api-types/api/v1/room_directory_pb';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
 import { serverIdToSegment } from '$lib/navigation';
+import { create } from '@bufbuild/protobuf';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
 vi.mock('$app/navigation', async (original) => ({
@@ -110,7 +111,7 @@ it('gates entry and media controls from the current room permissions', async () 
     store.voiceCall.isMuted = true;
     store.projection.rooms.set(
       roomId,
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: room.room,
         viewerState: {
           isMember: true,

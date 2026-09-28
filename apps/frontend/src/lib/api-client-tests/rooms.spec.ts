@@ -1,18 +1,20 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import {
+  PresenceStatus,
+  PresenceStatus as APIPresenceStatus
+} from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomThreadingMode } from '$lib/roomThreading';
 
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 import {
   normalizeRoomName,
   roomNameCharacterCount,
   roomNameValidationError
 } from '$lib/utils/roomName';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 describe('room name helpers', () => {
   it('normalizes Unicode names and counts code points', () => {
@@ -168,13 +170,14 @@ describe('createRoomCommandAPI', () => {
 
     await api.updateRoom({ roomId: 'room-1', universal: false });
 
-    expect(mocks.updateRoom.mock.lastCall?.[0]).toMatchObject({
+    const request = mocks.updateRoom.mock.lastCall?.[0];
+    expect(request).toMatchObject({
       roomId: 'room-1',
-      name: undefined,
-      description: undefined,
       universal: false,
       updateMask: { paths: ['universal'] }
     });
+    expect(request?.name).toBeUndefined();
+    expect(request?.description).toBeUndefined();
   });
 
   it('uses Connect room and directory membership commands', async () => {
@@ -258,7 +261,7 @@ describe('createRoomCommandAPI', () => {
       reason: 'policy',
       suspension: {
         case: 'suspensionExpiresAt',
-        value: expect.objectContaining({ toDate: expect.any(Function) })
+        value: expect.objectContaining({ $typeName: 'google.protobuf.Timestamp' })
       }
     });
     expect(receivedRequest(mocks.liftSuspension)).toMatchObject({
@@ -294,7 +297,7 @@ describe('createRoomCommandAPI', () => {
               presenceStatus: APIPresenceStatus.AWAY
             },
             roles: [],
-            createdAt: Timestamp.fromDate(new Date('2026-01-01T09:00:00Z'))
+            createdAt: timestampFromDate(new Date('2026-01-01T09:00:00Z'))
           },
           moderatorId: 'mod-1',
           moderator: {
@@ -308,8 +311,8 @@ describe('createRoomCommandAPI', () => {
             roles: []
           },
           reason: 'policy',
-          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
-          expiresAt: Timestamp.fromDate(new Date('2026-06-02T12:00:00Z'))
+          createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
+          expiresAt: timestampFromDate(new Date('2026-06-02T12:00:00Z'))
         }
       ],
       page: { totalCount: 1n, hasMore: false }

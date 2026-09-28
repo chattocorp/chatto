@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { timestampDate } from '@bufbuild/protobuf/wkt';
   import type { BotOutboundWebhook } from '@chatto/api-types/api/v1/bots_pb';
   import { createBotAPI } from '$lib/api-client/bots';
   import { m } from '$lib/i18n/messages';
@@ -207,7 +208,7 @@
         <dt class="text-muted">{m('settings.bots.webhook_created_at')}</dt>
         <dd>
           {webhook.createdAt
-            ? formatDateTime(webhook.createdAt.toDate(), timeSettings, activeLocale)
+            ? formatDateTime(timestampDate(webhook.createdAt), timeSettings, activeLocale)
             : '—'}
         </dd>
       </div>

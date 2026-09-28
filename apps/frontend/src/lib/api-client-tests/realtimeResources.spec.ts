@@ -1,11 +1,11 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
-import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
+import { NotificationService } from '@chatto/api-types/api/v1/notifications_pb';
+import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_pb';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_pb';
+import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { createRealtimeResourceAPI } from '$lib/api-client/realtimeResources';
 import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 

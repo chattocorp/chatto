@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import {
+  type DirectoryMember,
+  DirectoryMemberSchema
+} from '@chatto/api-types/api/v1/member_directory_pb';
 import { UserStore, getUserStore, disposeUserStore, resetUserStoresForTests } from './users.svelte';
 import { ServerProjectionStore } from './projection.svelte';
 import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
-import { Timestamp } from '@bufbuild/protobuf';
 import { RoomMembersStore } from '../room/members.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const member = (id: string, name = id) =>
-  new DirectoryMember({
+  create(DirectoryMemberSchema, {
     user: { id, login: id, displayName: name, avatarUrl: '/avatar', bot: { ownerUserId: 'owner' } },
     roles: ['everyone']
   });
@@ -128,12 +132,12 @@ describe('connection user store', () => {
     try {
       const store = new UserStore();
       const profile = member('id');
-      profile.user!.customStatus = new DirectoryMember({
+      profile.user!.customStatus = create(DirectoryMemberSchema, {
         user: {
           customStatus: {
             emoji: '☕',
             text: 'Away',
-            expiresAt: Timestamp.fromDate(new Date(Date.now() + 1000))
+            expiresAt: timestampFromDate(new Date(Date.now() + 1000))
           }
         }
       }).user!.customStatus;

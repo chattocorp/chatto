@@ -10,8 +10,9 @@ import ThreadPane from './ThreadPane.svelte';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
-import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { MessagePostedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema as PublicRealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { create } from '@bufbuild/protobuf';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -414,12 +415,12 @@ describe('ThreadPane', () => {
     const post = (id: string, actorId: string, roomId: string, threadRootEventId: string) =>
       mocks.projectionEventHandler?.(
         new RealtimeProjectionUpdate({
-          event: new PublicRealtimeEvent({
+          event: create(PublicRealtimeEventSchema, {
             id,
             actorId,
             event: {
               case: 'messagePosted',
-              value: new MessagePostedEvent({ roomId, threadRootEventId })
+              value: create(MessagePostedEventSchema, { roomId, threadRootEventId })
             }
           })
         })

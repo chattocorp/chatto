@@ -1,11 +1,13 @@
 import { updateMask } from './updateMask';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_pb';
 import {
   TimeFormat,
   type UserSettings as APIUserSettings
 } from '@chatto/api-types/api/v1/viewer_pb';
 import { timeFormatOrAuto } from './timeFormat.js';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { timestampToISO } from './timestamps.js';
 
 export type AccountUserSettings = {
   timezone?: string | null;
@@ -88,12 +90,12 @@ export function createAccountAPI(config: ConnectAPIConfig) {
 
 function verifiedEmail(value: {
   email: string;
-  verifiedAt?: { toDate(): Date };
+  verifiedAt?: Timestamp;
   primary: boolean;
 }): VerifiedEmail {
   return {
     email: value.email,
-    verifiedAt: value.verifiedAt?.toDate().toISOString() ?? null,
+    verifiedAt: timestampToISO(value.verifiedAt),
     primary: value.primary
   };
 }

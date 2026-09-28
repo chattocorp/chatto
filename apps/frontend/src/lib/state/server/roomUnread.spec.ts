@@ -1,21 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { GetViewerResponse, ServerViewerState } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  RoomViewerStateSchema,
+  RoomWithViewerStateSchema
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomSchema } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  GetViewerResponseSchema,
+  ServerViewerStateSchema
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
+import { create } from '@bufbuild/protobuf';
 
 describe('RoomUnreadStore', () => {
   it('reads authoritative room and aggregate unread state directly from the projection', () => {
     const projection = new ServerProjectionStore();
-    projection.viewer = new GetViewerResponse({
-      viewerState: new ServerViewerState({ hasUnreadRooms: true })
+    projection.viewer = create(GetViewerResponseSchema, {
+      viewerState: create(ServerViewerStateSchema, { hasUnreadRooms: true })
     });
     projection.rooms.set(
       'room-1',
-      new RoomWithViewerState({
-        room: new Room({ id: 'room-1' }),
-        viewerState: new RoomViewerState({ hasUnread: true })
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'room-1' }),
+        viewerState: create(RoomViewerStateSchema, { hasUnread: true })
       })
     );
     const store = new RoomUnreadStore(() => projection);
@@ -23,8 +30,10 @@ describe('RoomUnreadStore', () => {
     expect(store.roomIsUnread('room-1')).toBe(true);
     expect(store.hasAnyUnread).toBe(true);
 
-    projection.rooms.get('room-1')!.viewerState = new RoomViewerState({ hasUnread: false });
-    projection.viewer.viewerState = new ServerViewerState({ hasUnreadRooms: false });
+    projection.rooms.get('room-1')!.viewerState = create(RoomViewerStateSchema, {
+      hasUnread: false
+    });
+    projection.viewer.viewerState = create(ServerViewerStateSchema, { hasUnreadRooms: false });
 
     expect(store.roomIsUnread('room-1')).toBe(false);
     expect(store.hasAnyUnread).toBe(false);
@@ -32,14 +41,14 @@ describe('RoomUnreadStore', () => {
 
   it('lets concrete projected room state supersede a stale viewer aggregate', () => {
     const projection = new ServerProjectionStore();
-    projection.viewer = new GetViewerResponse({
-      viewerState: new ServerViewerState({ hasUnreadRooms: true })
+    projection.viewer = create(GetViewerResponseSchema, {
+      viewerState: create(ServerViewerStateSchema, { hasUnreadRooms: true })
     });
     projection.rooms.set(
       'room-1',
-      new RoomWithViewerState({
-        room: new Room({ id: 'room-1' }),
-        viewerState: new RoomViewerState({ hasUnread: false })
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'room-1' }),
+        viewerState: create(RoomViewerStateSchema, { hasUnread: false })
       })
     );
     const store = new RoomUnreadStore(() => projection);
@@ -234,9 +243,9 @@ describe('RoomUnreadStore', () => {
     const projection = new ServerProjectionStore();
     projection.rooms.set(
       'room-1',
-      new RoomWithViewerState({
-        room: new Room({ id: 'room-1' }),
-        viewerState: new RoomViewerState({ hasUnread: true })
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'room-1' }),
+        viewerState: create(RoomViewerStateSchema, { hasUnread: true })
       })
     );
     const store = new RoomUnreadStore(() => projection);
@@ -253,7 +262,9 @@ describe('RoomUnreadStore', () => {
 
     const nextRead = store.beginOptimisticRead('room-1');
     store.acknowledgeRoomProjection('room-1', false);
-    projection.rooms.get('room-1')!.viewerState = new RoomViewerState({ hasUnread: false });
+    projection.rooms.get('room-1')!.viewerState = create(RoomViewerStateSchema, {
+      hasUnread: false
+    });
     nextRead.commit();
     expect(store.roomIsUnread('room-1')).toBe(false);
   });

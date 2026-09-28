@@ -1,7 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { createEffectivePermissionAPI } from '$lib/api-client/effectivePermissions';
-import { PermissionService } from '@chatto/api-types/api/v1/permissions_connect';
-import { EffectivePermissionScopeKind } from '@chatto/api-types/api/v1/permissions_pb';
+import {
+  PermissionService,
+  EffectivePermissionScopeKind
+} from '@chatto/api-types/api/v1/permissions_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
 const mocks = mockService(PermissionService);

@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
+import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_pb';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
@@ -158,9 +158,9 @@ describe('createAdminRoomLayoutAPI', () => {
     expect(receivedRequest(mocks.updateRoomGroup)).toMatchObject({
       groupId: 'g2',
       name: 'Renamed',
-      description: undefined,
       updateMask: { paths: ['name'] }
     });
+    expect(receivedRequest(mocks.updateRoomGroup)?.description).toBeUndefined();
     expect(receivedRequest(mocks.deleteRoomGroup)).toMatchObject({ groupId: 'g2' });
     expect(receivedRequest(mocks.reorderRoomGroups)).toMatchObject({
       orderedGroupIds: ['g2', 'g1']

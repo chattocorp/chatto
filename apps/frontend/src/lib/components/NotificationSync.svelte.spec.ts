@@ -3,10 +3,11 @@ import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
-import { NotificationOccurrencesChangedEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { NotificationOccurrencesChangedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationAttentionLevel } from '$lib/api-client/notifications';
+import { create } from '@bufbuild/protobuf';
 
 const { mocks } = vi.hoisted(() => {
   const createBus = () => {
@@ -147,11 +148,11 @@ function dispatch(
   notificationId = 'notification-id'
 ) {
   const event = new RealtimeProjectionUpdate({
-    event: new RealtimeEvent({
+    event: create(RealtimeEventSchema, {
       id: eventId,
       event: {
         case: 'notificationOccurrencesChanged',
-        value: new NotificationOccurrencesChangedEvent({
+        value: create(NotificationOccurrencesChangedEventSchema, {
           createdNotificationId: playNotificationSound ? notificationId : undefined
         })
       }

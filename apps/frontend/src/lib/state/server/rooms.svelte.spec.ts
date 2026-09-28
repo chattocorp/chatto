@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
+import { PermissionGrantSchema } from '@chatto/api-types/api/v1/permissions_pb';
 import {
-  RoomGroup,
-  RoomGroupItem,
-  RoomGroupViewerState,
-  RoomViewerState,
-  RoomWithViewerState
+  type RoomWithViewerState,
+  RoomGroupSchema,
+  RoomGroupItemSchema,
+  RoomGroupViewerStateSchema,
+  RoomViewerStateSchema,
+  RoomWithViewerStateSchema
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
-import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
+import { RoomKind, RoomSchema } from '@chatto/api-types/api/v1/rooms_pb';
+import { UserSchema } from '@chatto/api-types/api/v1/users_pb';
+import { GetViewerResponseSchema, ViewerUserSchema } from '@chatto/api-types/api/v1/viewer_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import { isNavigationVisibleRoom, NavigationStore } from './rooms.svelte';
+import { create } from '@bufbuild/protobuf';
 
 function navigationFor(
   projection: ServerProjectionStore,
@@ -40,14 +42,14 @@ function projectedRoom(
     canReadMessages?: boolean;
   } = {}
 ): RoomWithViewerState {
-  return new RoomWithViewerState({
-    room: new Room({ id, name: id, kind }),
-    viewerState: new RoomViewerState({
+  return create(RoomWithViewerStateSchema, {
+    room: create(RoomSchema, { id, name: id, kind }),
+    viewerState: create(RoomViewerStateSchema, {
       isMember: member,
       permissions: [
-        new PermissionGrant({ permission: 'room.join', granted: true }),
-        new PermissionGrant({ permission: 'room.manage', granted: id === 'managed' }),
-        new PermissionGrant({ permission: 'message.read', granted: canReadMessages })
+        create(PermissionGrantSchema, { permission: 'room.join', granted: true }),
+        create(PermissionGrantSchema, { permission: 'room.manage', granted: id === 'managed' }),
+        create(PermissionGrantSchema, { permission: 'message.read', granted: canReadMessages })
       ]
     }),
     memberUserIds,
@@ -58,12 +60,12 @@ function projectedRoom(
 describe('NavigationStore', () => {
   it('resolves a deleted DM participant to a deleted placeholder', () => {
     const projection = new ServerProjectionStore();
-    projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) })
     });
     projection.users.set(
       'gone',
-      new DirectoryMember({ user: new User({ id: 'gone', deleted: true }) })
+      create(DirectoryMemberSchema, { user: create(UserSchema, { id: 'gone', deleted: true }) })
     );
     projection.rooms.set(
       'dm',
@@ -83,13 +85,13 @@ describe('NavigationStore', () => {
 
   it('selects rooms, members, permissions, counts, and viewer identity from the projection', () => {
     const projection = new ServerProjectionStore();
-    projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) })
     });
     projection.users.set(
       'U2',
-      new DirectoryMember({
-        user: new User({ id: 'U2', login: 'ada', displayName: 'Ada' })
+      create(DirectoryMemberSchema, {
+        user: create(UserSchema, { id: 'U2', login: 'ada', displayName: 'Ada' })
       })
     );
     projection.rooms.set(
@@ -131,14 +133,14 @@ describe('NavigationStore', () => {
     projection.rooms.set('older', projectedRoom('older'));
     projection.rooms.set('newer', projectedRoom('newer'));
     projection.roomGroups = [
-      new RoomGroup({
+      create(RoomGroupSchema, {
         id: 'G1',
         name: 'Projects',
-        viewerState: new RoomGroupViewerState({
-          permissions: [new PermissionGrant({ permission: 'room.create', granted: true })]
+        viewerState: create(RoomGroupViewerStateSchema, {
+          permissions: [create(PermissionGrantSchema, { permission: 'room.create', granted: true })]
         }),
         items: [
-          new RoomGroupItem({
+          create(RoomGroupItemSchema, {
             item: { case: 'room', value: projectedRoom('newer') }
           })
         ]
@@ -187,7 +189,7 @@ describe('NavigationStore', () => {
 
   it('becomes empty immediately when the canonical projection resets', () => {
     const projection = new ServerProjectionStore();
-    projection.viewer = new GetViewerResponse();
+    projection.viewer = create(GetViewerResponseSchema);
     projection.rooms.set('R1', projectedRoom('R1'));
     const { navigation, sync } = navigationFor(projection);
 
@@ -203,8 +205,8 @@ describe('NavigationStore', () => {
     const projection = new ServerProjectionStore();
     const sync = new RealtimeProjectionSyncState();
     sync.beginCatchUp();
-    projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) })
     });
     projection.rooms.set('R1', projectedRoom('R1'));
     const navigation = new NavigationStore(projection, sync, {

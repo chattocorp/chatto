@@ -1,18 +1,19 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createThreadAPI } from '$lib/api-client/threads';
-import { Timestamp } from '@bufbuild/protobuf';
-import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
+import { MessageSchema, ThreadSummarySchema } from '@chatto/api-types/api/v1/message_types_pb';
+import { UserSchema } from '@chatto/api-types/api/v1/users_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 import {
+  MessageSearchService,
   MessageSearchScope,
   MessageSearchGroupBy,
   MessageSearchOrder
 } from '@chatto/api-types/api/v1/message_search_pb';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_pb';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const threads = mockService(ThreadService);
 const search = mockService(MessageSearchService);
@@ -71,7 +72,7 @@ describe('createThreadAPI', () => {
           thread: {
             threadRootEventId: 'root-1',
             replyCount: 2,
-            lastReplyAt: Timestamp.fromDate(lastReplyAt),
+            lastReplyAt: timestampFromDate(lastReplyAt),
             viewerState: { hasUnreadReplies: true }
           },
           rootMessage: undefined
@@ -174,19 +175,19 @@ describe('createThreadAPI', () => {
             participantCount: 1,
             viewerState: {}
           },
-          rootMessage: new Message({
+          rootMessage: create(MessageSchema, {
             id: 'root-1',
             roomId: 'room-1',
             actorId: 'u1',
-            createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+            createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
             body: 'Root body',
-            thread: new ThreadSummary({ participantPreviewUserIds: ['u2'] })
+            thread: create(ThreadSummarySchema, { participantPreviewUserIds: ['u2'] })
           }),
-          latestReply: new Message({
+          latestReply: create(MessageSchema, {
             id: 'reply-1',
             roomId: 'room-1',
             actorId: 'u2',
-            createdAt: Timestamp.fromDate(new Date('2026-06-01T12:01:00Z')),
+            createdAt: timestampFromDate(new Date('2026-06-01T12:01:00Z')),
             body: 'Latest body',
             threadRootEventId: 'root-1'
           })
@@ -195,8 +196,8 @@ describe('createThreadAPI', () => {
       page: {},
       includes: {
         users: {
-          u1: new User({ id: 'u1', login: 'alice', displayName: 'Alice' }),
-          u2: new User({ id: 'u2', login: 'bob', displayName: 'Bob' })
+          u1: create(UserSchema, { id: 'u1', login: 'alice', displayName: 'Alice' }),
+          u2: create(UserSchema, { id: 'u2', login: 'bob', displayName: 'Bob' })
         }
       }
     });
@@ -232,8 +233,8 @@ describe('createThreadAPI', () => {
       page: {},
       includes: {
         users: {
-          viewer: new User({ id: 'viewer', login: 'viewer', displayName: 'Viewer' }),
-          other: new User({ id: 'other', login: 'other', displayName: 'Other' })
+          viewer: create(UserSchema, { id: 'viewer', login: 'viewer', displayName: 'Viewer' }),
+          other: create(UserSchema, { id: 'other', login: 'other', displayName: 'Other' })
         }
       }
     });

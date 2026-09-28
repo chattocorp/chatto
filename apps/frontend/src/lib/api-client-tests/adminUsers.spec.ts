@@ -1,8 +1,8 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
+import { AdminUserService } from '@chatto/api-types/admin/v1/members_pb';
 import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const mocks = mockService(AdminUserService);
 
@@ -35,7 +35,7 @@ describe('createAdminUserManagementAPI', () => {
             bot: { ownerUserId: 'owner' }
           },
           roles: ['admin'],
-          createdAt: Timestamp.fromDate(createdAt),
+          createdAt: timestampFromDate(createdAt),
           hasVerifiedEmail: true,
           verifiedEmails: ['first@example.test', 'alice@example.test'],
           primaryVerifiedEmail: 'alice@example.test',
@@ -118,7 +118,7 @@ describe('createAdminUserManagementAPI', () => {
         hasVerifiedEmail: false,
         verifiedEmails: [],
         viewerCanDeleteAccount: false,
-        lastLoginChange: Timestamp.fromDate(lastLoginChange)
+        lastLoginChange: timestampFromDate(lastLoginChange)
       },
       roles: [
         {

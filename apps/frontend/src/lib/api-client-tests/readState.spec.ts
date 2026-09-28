@@ -1,10 +1,10 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createReadStateAPI } from '$lib/api-client/readState';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const rooms = mockService(RoomService);
 const threads = mockService(ThreadService);
@@ -22,8 +22,8 @@ describe('createReadStateAPI', () => {
 
   it('marks a room read and converts timestamp fields', async () => {
     rooms.markRoomAsRead.mockReturnValue({
-      lastReadAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
-      previousLastReadAt: Timestamp.fromDate(new Date('2026-06-01T11:00:00Z'))
+      lastReadAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
+      previousLastReadAt: timestampFromDate(new Date('2026-06-01T11:00:00Z'))
     });
 
     const result = await readStateAPI().markRoomAsRead({
@@ -43,8 +43,8 @@ describe('createReadStateAPI', () => {
 
   it('marks a thread read up to the latest event', async () => {
     threads.markThreadAsRead.mockReturnValue({
-      lastReadAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
-      previousLastReadAt: Timestamp.fromDate(new Date('2026-06-01T10:00:00Z'))
+      lastReadAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
+      previousLastReadAt: timestampFromDate(new Date('2026-06-01T10:00:00Z'))
     });
 
     const result = await readStateAPI().markThreadAsRead({

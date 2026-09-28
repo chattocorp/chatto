@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import {
+  type DirectoryMember,
+  DirectoryMemberSchema
+} from '@chatto/api-types/api/v1/member_directory_pb';
 import { UserStore, getUserStore, resetUserStoresForTests } from './users.svelte';
 import { removeServerQueries } from '$lib/query/client';
+import { create } from '@bufbuild/protobuf';
 
 const member = (id: string, displayName = id) =>
-  new DirectoryMember({
+  create(DirectoryMemberSchema, {
     user: { id, login: id, displayName }
   });
 

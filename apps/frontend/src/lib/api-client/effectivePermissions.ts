@@ -1,5 +1,7 @@
-import { PermissionService } from '@chatto/api-types/api/v1/permissions_connect';
-import { EffectivePermissionScopeKind } from '@chatto/api-types/api/v1/permissions_pb';
+import {
+  PermissionService,
+  EffectivePermissionScopeKind
+} from '@chatto/api-types/api/v1/permissions_pb';
 import { createChattoClient, type ConnectAPIConfig } from './connect';
 
 /** One effective grant. Child coverage includes scopes hidden from the viewer. */

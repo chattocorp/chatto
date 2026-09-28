@@ -22,6 +22,7 @@
     "runling": "workspace:*"
   },
   "devDependencies": {
+    "@bufbuild/protobuf": "^2.15.0",
     "@types/node": "^22",
     "typescript": "~5.9.3",
     "vitest": "^3.2.0"

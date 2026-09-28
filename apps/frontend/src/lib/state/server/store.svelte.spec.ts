@@ -9,66 +9,80 @@ import type { RoomFileItem } from '$lib/api-client/attachments';
 import type { MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import type { MessageResource } from '$lib/api-client/messageResources';
-import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
+import {
+  type Message,
+  MessageSchema,
+  MessageAttachmentSchema
+} from '@chatto/api-types/api/v1/message_types_pb';
 import { messageToTimelineEvent } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import { ServerPublicProfileSchema } from '@chatto/api-types/api/v1/server_pb';
 import {
-  GetMotdResponse,
-  GetRuntimeConfigResponse,
-  ServerRuntimeConfig
+  GetMotdResponseSchema,
+  GetRuntimeConfigResponseSchema,
+  ServerRuntimeConfigSchema
 } from '@chatto/api-types/api/v1/server_state_pb';
 import {
-  ActiveCall,
-  CallParticipant,
-  ListActiveCallsResponse
+  ActiveCallSchema,
+  CallParticipantSchema,
+  ListActiveCallsResponseSchema
 } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
-import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { Room, RoomKind, PinnedMessage, RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
+import { type User, UserSchema } from '@chatto/api-types/api/v1/users_pb';
+import { ListNotificationOccurrencesResponseSchema } from '@chatto/api-types/api/v1/notifications_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import {
-  ListRoomsResponse,
-  ListRoomGroupsResponse,
-  RoomGroup,
-  RoomGroupViewerState,
-  RoomViewerState,
-  RoomWithViewerState
+  RoomKind,
+  RoomSchema,
+  PinnedMessageSchema,
+  RoomSummarySchema
+} from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  type RoomWithViewerState,
+  ListRoomsResponseSchema,
+  ListRoomGroupsResponseSchema,
+  RoomGroupSchema,
+  RoomGroupViewerStateSchema,
+  RoomViewerStateSchema,
+  RoomWithViewerStateSchema
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
-  GetViewerResponse,
-  PrivilegedModeState,
-  ServerViewerPermissions,
-  ViewerCapabilities,
-  ViewerUser
+  type GetViewerResponse,
+  GetViewerResponseSchema,
+  PrivilegedModeStateSchema,
+  ServerViewerPermissionsSchema,
+  ViewerCapabilitiesSchema,
+  ViewerUserSchema
 } from '@chatto/api-types/api/v1/viewer_pb';
-import { CapabilityGrant, PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
+import {
+  CapabilityGrantSchema,
+  PermissionGrantSchema
+} from '@chatto/api-types/api/v1/permissions_pb';
 import {
   RealtimeResourceUpdate,
   type RealtimeResourceFamily
 } from '$lib/api-client/realtimeResources';
-import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
+import { ListUsersResponseSchema } from '@chatto/api-types/api/v1/user_service_pb';
 import {
-  AssetProcessingStartedEvent,
-  AssetProcessingSucceededEvent,
-  AssetProcessingFailedEvent,
-  AssetDeletedEvent,
-  VoiceCallParticipantJoinedEvent,
-  RoomThreadingModeChangedEvent,
-  UserJoinedRoomEvent,
-  UserLeftRoomEvent,
-  MessagePostedEvent,
-  MessageEditedEvent,
-  MessageRetractedEvent,
-  ReactionAddedEvent,
-  UserAccountDeletedEvent,
-  UserProfileChangedEvent,
-  PresenceChangedEvent,
-  NotificationUnreadStateChangedEvent,
-  NotificationOccurrencesChangedEvent,
-  ThreadViewerStateChangedEvent
+  AssetProcessingStartedEventSchema,
+  AssetProcessingSucceededEventSchema,
+  AssetProcessingFailedEventSchema,
+  AssetDeletedEventSchema,
+  VoiceCallParticipantJoinedEventSchema,
+  RoomThreadingModeChangedEventSchema,
+  UserJoinedRoomEventSchema,
+  UserLeftRoomEventSchema,
+  MessagePostedEventSchema,
+  MessageEditedEventSchema,
+  MessageRetractedEventSchema,
+  ReactionAddedEventSchema,
+  UserAccountDeletedEventSchema,
+  UserProfileChangedEventSchema,
+  PresenceChangedEventSchema,
+  NotificationUnreadStateChangedEventSchema,
+  NotificationOccurrencesChangedEventSchema,
+  ThreadViewerStateChangedEventSchema
 } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -114,19 +128,19 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     leaveCall: vi.fn(() => Promise.resolve(true)),
     activatePrivilegedMode: vi.fn(() =>
       Promise.resolve({
-        privilegedMode: new PrivilegedModeState({ available: true, active: true }),
-        capabilities: new ViewerCapabilities(),
-        viewerPermissions: new ServerViewerPermissions()
+        privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true }),
+        capabilities: create(ViewerCapabilitiesSchema),
+        viewerPermissions: create(ServerViewerPermissionsSchema)
       })
     ),
     deactivatePrivilegedMode: vi.fn(() =>
       Promise.resolve({
-        privilegedMode: new PrivilegedModeState({ available: true, active: false }),
-        capabilities: new ViewerCapabilities(),
-        viewerPermissions: new ServerViewerPermissions()
+        privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false }),
+        capabilities: create(ViewerCapabilitiesSchema),
+        viewerPermissions: create(ServerViewerPermissionsSchema)
       })
     ),
-    refreshPrivilegedMode: vi.fn(() => Promise.resolve(new GetViewerResponse())),
+    refreshPrivilegedMode: vi.fn(() => Promise.resolve(create(GetViewerResponseSchema))),
     getAuthenticatedServerState: vi.fn<() => Promise<AuthenticatedServerState>>(() =>
       Promise.resolve({
         name: 'Store Event Test',
@@ -366,6 +380,7 @@ import { eventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTra
 import { queryCaches } from '$lib/query/cacheRegistry';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
+import { create, clone } from '@bufbuild/protobuf';
 
 class FakeServerConnection {
   invalidatePrivateData = vi.fn();
@@ -430,9 +445,9 @@ function connectUnavailable() {
 /** A realtime presence change of one user. */
 function presenceChanged(userId: string, status: PresenceStatus) {
   return new RealtimeProjectionUpdate({
-    event: new RealtimeEvent({
+    event: create(RealtimeEventSchema, {
       actorId: userId,
-      event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status }) }
+      event: { case: 'presenceChanged', value: create(PresenceChangedEventSchema, { status }) }
     })
   });
 }
@@ -443,7 +458,7 @@ function usersResource(users: User[], replace: boolean) {
     resource: new RealtimeResourceUpdate({
       resource: {
         case: 'users',
-        value: { users: users.map((user) => new DirectoryMember({ user })) }
+        value: { users: users.map((user) => create(DirectoryMemberSchema, { user })) }
       },
       replace
     })
@@ -499,24 +514,27 @@ function deferred<T>() {
 
 function roomResource(rooms: RoomWithViewerState[]): RealtimeResourceUpdate {
   return new RealtimeResourceUpdate({
-    resource: { case: 'rooms', value: new ListRoomsResponse({ rooms }) }
+    resource: { case: 'rooms', value: create(ListRoomsResponseSchema, { rooms }) }
   });
 }
 
 function userDeleted(userId: string): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new RealtimeEvent({
-      event: { case: 'userAccountDeleted', value: new UserAccountDeletedEvent({ userId }) }
+    event: create(RealtimeEventSchema, {
+      event: {
+        case: 'userAccountDeleted',
+        value: create(UserAccountDeletedEventSchema, { userId })
+      }
     })
   });
 }
 
 function userLeftRoom(roomId: string, actorId: string, eventId = ''): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new RealtimeEvent({
+    event: create(RealtimeEventSchema, {
       id: eventId,
       actorId,
-      event: { case: 'userLeftRoom', value: new UserLeftRoomEvent({ roomId }) }
+      event: { case: 'userLeftRoom', value: create(UserLeftRoomEventSchema, { roomId }) }
     })
   });
 }
@@ -579,18 +597,18 @@ beforeEach(() => {
   apiMocks.leaveCall.mockResolvedValue(true);
   apiMocks.activatePrivilegedMode.mockReset();
   apiMocks.activatePrivilegedMode.mockResolvedValue({
-    privilegedMode: new PrivilegedModeState({ available: true, active: true }),
-    capabilities: new ViewerCapabilities(),
-    viewerPermissions: new ServerViewerPermissions()
+    privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true }),
+    capabilities: create(ViewerCapabilitiesSchema),
+    viewerPermissions: create(ServerViewerPermissionsSchema)
   });
   apiMocks.deactivatePrivilegedMode.mockReset();
   apiMocks.deactivatePrivilegedMode.mockResolvedValue({
-    privilegedMode: new PrivilegedModeState({ available: true, active: false }),
-    capabilities: new ViewerCapabilities(),
-    viewerPermissions: new ServerViewerPermissions()
+    privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false }),
+    capabilities: create(ViewerCapabilitiesSchema),
+    viewerPermissions: create(ServerViewerPermissionsSchema)
   });
   apiMocks.refreshPrivilegedMode.mockReset();
-  apiMocks.refreshPrivilegedMode.mockResolvedValue(new GetViewerResponse());
+  apiMocks.refreshPrivilegedMode.mockResolvedValue(create(GetViewerResponseSchema));
   apiMocks.getAuthenticatedServerState.mockResolvedValue({
     name: 'Store Event Test',
     version: 'test',
@@ -734,18 +752,20 @@ describe('ServerStateStore projected server state', () => {
 
     publish({
       case: 'runtimeConfig',
-      value: new GetRuntimeConfigResponse({
-        runtime: new ServerRuntimeConfig({ livekitUrl: 'wss://livekit.example.test' })
+      value: create(GetRuntimeConfigResponseSchema, {
+        runtime: create(ServerRuntimeConfigSchema, { livekitUrl: 'wss://livekit.example.test' })
       })
     });
     publish({
       case: 'activeCalls',
-      value: new ListActiveCallsResponse({
+      value: create(ListActiveCallsResponseSchema, {
         calls: [
-          new ActiveCall({
-            room: new RoomSummary({ id: 'R1' }),
+          create(ActiveCallSchema, {
+            room: create(RoomSummarySchema, { id: 'R1' }),
             callId: 'call-1',
-            participants: [new CallParticipant({ user: new User({ id: 'U1' }) })]
+            participants: [
+              create(CallParticipantSchema, { user: create(UserSchema, { id: 'U1' }) })
+            ]
           })
         ]
       })
@@ -755,7 +775,7 @@ describe('ServerStateStore projected server state', () => {
     expect(store.activeCallRooms.has('R1')).toBe(true);
     expect(store.activeCallRooms.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U1']);
 
-    publish({ case: 'activeCalls', value: new ListActiveCallsResponse({ calls: [] }) });
+    publish({ case: 'activeCalls', value: create(ListActiveCallsResponseSchema, { calls: [] }) });
 
     expect(store.activeCallRooms.has('R1')).toBe(false);
   });
@@ -763,13 +783,13 @@ describe('ServerStateStore projected server state', () => {
 
 describe('ServerStateStore permissions', () => {
   function adminViewer(userId: string): GetViewerResponse {
-    return new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: userId }) }),
-      capabilities: new ViewerCapabilities({
-        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+    return create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: userId }) }),
+      capabilities: create(ViewerCapabilitiesSchema, {
+        grants: [create(CapabilityGrantSchema, { capability: 'admin.view-system', granted: true })]
       }),
-      viewerPermissions: new ServerViewerPermissions({
-        permissions: [new PermissionGrant({ permission: 'server.manage', granted: true })]
+      viewerPermissions: create(ServerViewerPermissionsSchema, {
+        permissions: [create(PermissionGrantSchema, { permission: 'server.manage', granted: true })]
       })
     });
   }
@@ -818,9 +838,9 @@ describe('ServerStateStore privileged mode', () => {
   it('reads snapshots with current permissions while reconnect is still pending', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false })
     });
     const readPermissions = vi.fn();
     cacheMocks.refreshRegisteredAdminQueries.mockImplementationOnce(() => {
@@ -843,18 +863,18 @@ describe('ServerStateStore privileged mode', () => {
   it('applies the activation result and refreshes realtime projections', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false })
     });
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.activatePrivilegedMode.mockResolvedValueOnce({
-      privilegedMode: new PrivilegedModeState({ available: true, active: true }),
-      capabilities: new ViewerCapabilities({
-        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true }),
+      capabilities: create(ViewerCapabilitiesSchema, {
+        grants: [create(CapabilityGrantSchema, { capability: 'admin.view-system', granted: true })]
       }),
-      viewerPermissions: new ServerViewerPermissions()
+      viewerPermissions: create(ServerViewerPermissionsSchema)
     });
     fake.forceReconnect.mockImplementationOnce(() =>
       store.realtimeSync.markCaughtUp(
@@ -877,19 +897,19 @@ describe('ServerStateStore privileged mode', () => {
   it('removes admin queries when deactivation drops only an effective permission', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      viewerPermissions: new ServerViewerPermissions({
-        permissions: [new PermissionGrant({ permission: 'room.manage', granted: true })]
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      viewerPermissions: create(ServerViewerPermissionsSchema, {
+        permissions: [create(PermissionGrantSchema, { permission: 'room.manage', granted: true })]
       }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true })
     });
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     expect(store.permissions.canManageRooms).toBe(true);
     apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
-      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
-      capabilities: new ViewerCapabilities(),
-      viewerPermissions: new ServerViewerPermissions()
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false }),
+      capabilities: create(ViewerCapabilitiesSchema),
+      viewerPermissions: create(ServerViewerPermissionsSchema)
     });
     fake.forceReconnect.mockImplementationOnce(() =>
       store.realtimeSync.markCaughtUp(
@@ -909,21 +929,21 @@ describe('ServerStateStore privileged mode', () => {
   it('applies deactivation permissions before completing the projection refresh', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      capabilities: new ViewerCapabilities({
-        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      capabilities: create(ViewerCapabilitiesSchema, {
+        grants: [create(CapabilityGrantSchema, { capability: 'admin.view-system', granted: true })]
       }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true })
     });
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
-      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
-      capabilities: new ViewerCapabilities({
-        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: false })]
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false }),
+      capabilities: create(ViewerCapabilitiesSchema, {
+        grants: [create(CapabilityGrantSchema, { capability: 'admin.view-system', granted: false })]
       }),
-      viewerPermissions: new ServerViewerPermissions()
+      viewerPermissions: create(ServerViewerPermissionsSchema)
     });
     fake.forceReconnect.mockImplementationOnce(() =>
       store.realtimeSync.markCaughtUp(
@@ -945,19 +965,19 @@ describe('ServerStateStore privileged mode', () => {
   it('refreshes navigation group permissions on activation and deactivation without a layout event', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false })
     });
     store.realtimeSync.markCaughtUp('cursor-before');
     const group = (granted: boolean) =>
-      new RoomGroup({
+      create(RoomGroupSchema, {
         id: 'G1',
         name: 'Lobby',
-        viewerState: new RoomGroupViewerState({
+        viewerState: create(RoomGroupViewerStateSchema, {
           permissions: [
-            new PermissionGrant({ permission: 'room.create', granted }),
-            new PermissionGrant({ permission: 'room.manage', granted })
+            create(PermissionGrantSchema, { permission: 'room.create', granted }),
+            create(PermissionGrantSchema, { permission: 'room.manage', granted })
           ]
         })
       });
@@ -968,7 +988,7 @@ describe('ServerStateStore privileged mode', () => {
             new RealtimeResourceUpdate({
               resource: {
                 case: 'roomGroups',
-                value: new ListRoomGroupsResponse({
+                value: create(ListRoomGroupsResponseSchema, {
                   groups: [group(store.projection.viewer?.privilegedMode?.active ?? false)]
                 })
               }
@@ -1001,13 +1021,13 @@ describe('ServerStateStore privileged mode', () => {
   it('adds and removes rooms whose visibility follows privileged mode', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false })
     });
     store.realtimeSync.markCaughtUp('cursor-before');
     const room = (id: string, name: string) =>
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: { id, name },
         viewerState: {
           isMember: false,
@@ -1045,19 +1065,19 @@ describe('ServerStateStore privileged mode', () => {
   it('clears expired activation and refreshes effective permissions', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      capabilities: new ViewerCapabilities({
-        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      capabilities: create(ViewerCapabilitiesSchema, {
+        grants: [create(CapabilityGrantSchema, { capability: 'admin.view-system', granted: true })]
       }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true })
     });
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     apiMocks.refreshPrivilegedMode.mockResolvedValueOnce({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
-      capabilities: new ViewerCapabilities({
-        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: false })]
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false }),
+      capabilities: create(ViewerCapabilitiesSchema, {
+        grants: [create(CapabilityGrantSchema, { capability: 'admin.view-system', granted: false })]
       })
     } as GetViewerResponse);
 
@@ -1074,14 +1094,14 @@ describe('ServerStateStore privileged mode', () => {
   it('refreshes expired room-scoped grants without a server capability change', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true })
     });
     apiMocks.refreshPrivilegedMode.mockResolvedValueOnce(
-      new GetViewerResponse({
-        user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-        privilegedMode: new PrivilegedModeState({ available: true, active: false })
+      create(GetViewerResponseSchema, {
+        user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+        privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: false })
       })
     );
 
@@ -1093,9 +1113,9 @@ describe('ServerStateStore privileged mode', () => {
   it('rechecks admin reads and reconnects when the expiry viewer refresh fails', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
-      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) }),
+      privilegedMode: create(PrivilegedModeStateSchema, { available: true, active: true })
     });
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
     apiMocks.refreshPrivilegedMode.mockRejectedValueOnce(new Error('viewer unavailable'));
@@ -1132,8 +1152,8 @@ describe('ServerStateStore room search state', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.projection.rooms.set(
       'dm',
-      new RoomWithViewerState({
-        room: new Room({ id: 'dm', kind: RoomKind.DM }),
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'dm', kind: RoomKind.DM }),
         memberUserIds: ['U2', 'U3']
       })
     );
@@ -1148,14 +1168,14 @@ describe('ServerStateStore room search state', () => {
 
     store.projection.users.set(
       'U2',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'U2', login: 'alice', displayName: 'Alice' }
       })
     );
     expect(members.members.map((member) => member.displayName)).toEqual(['Alice']);
     store.projection.users.set(
       'U3',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'U3', login: 'bob', displayName: 'Bob' }
       })
     );
@@ -1174,14 +1194,14 @@ describe('ServerStateStore room search state', () => {
     closeRoute();
     store.projection.users.set(
       'U2',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'U2', login: 'two', displayName: 'Two' }
       })
     );
     store.projection.rooms.set(
       'a',
-      new RoomWithViewerState({
-        room: new Room({ id: 'a', kind: RoomKind.DM }),
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'a', kind: RoomKind.DM }),
         memberUserIds: ['U2']
       })
     );
@@ -1210,13 +1230,19 @@ describe('ServerStateStore room search state', () => {
     store.realtimeProjectionHandler(presenceChanged('U2', PresenceStatus.AWAY));
 
     store.realtimeProjectionHandler(
-      usersResource([new User({ id: 'U2', displayName: 'Two' })], false)
+      usersResource([create(UserSchema, { id: 'U2', displayName: 'Two' })], false)
     );
     expect(store.presence.get('U2')).toBe(PresenceStatus.AWAY);
 
     store.realtimeProjectionHandler(
       usersResource(
-        [new User({ id: 'U2', displayName: 'Two', presenceStatus: PresenceStatus.ONLINE })],
+        [
+          create(UserSchema, {
+            id: 'U2',
+            displayName: 'Two',
+            presenceStatus: PresenceStatus.ONLINE
+          })
+        ],
         false
       )
     );
@@ -1232,8 +1258,8 @@ describe('ServerStateStore room search state', () => {
     store.realtimeProjectionHandler(
       usersResource(
         [
-          new User({ id: 'U3', presenceStatus: PresenceStatus.DO_NOT_DISTURB }),
-          new User({ id: 'U4' })
+          create(UserSchema, { id: 'U3', presenceStatus: PresenceStatus.DO_NOT_DISTURB }),
+          create(UserSchema, { id: 'U4' })
         ],
         true
       )
@@ -1286,10 +1312,10 @@ describe('ServerStateStore room search state', () => {
     const requests = apiMocks.listRoomMembers.mock.calls.length;
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'leave-a',
           actorId: 'U2',
-          event: { case: 'userLeftRoom', value: new UserLeftRoomEvent({ roomId: 'a' }) }
+          event: { case: 'userLeftRoom', value: create(UserLeftRoomEventSchema, { roomId: 'a' }) }
         })
       })
     );
@@ -1364,7 +1390,7 @@ describe('ServerStateStore unified realtime resources', () => {
       ];
       store.projection.rooms.set(
         'R1',
-        new RoomWithViewerState({
+        create(RoomWithViewerStateSchema, {
           room: { id: 'R1', name: 'general' },
           viewerState: { isMember: true, permissions: grants(true, true) }
         })
@@ -1399,7 +1425,7 @@ describe('ServerStateStore unified realtime resources', () => {
             access === 'removed'
               ? []
               : [
-                  new RoomWithViewerState({
+                  create(RoomWithViewerStateSchema, {
                     room: { id: 'R1', name: 'general' },
                     viewerState: {
                       isMember: access !== 'not a member',
@@ -1427,7 +1453,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('keeps retained rows through a failed warm snapshot read and replaces them on retry', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const room = new RoomWithViewerState({
+    const room = create(RoomWithViewerStateSchema, {
       room: { id: 'R1', name: 'Live room' },
       viewerState: {
         isMember: true,
@@ -1486,11 +1512,11 @@ describe('ServerStateStore unified realtime resources', () => {
   it('keeps the normal room projection and timeline during a warm snapshot', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    const viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } } });
+    const viewer = create(GetViewerResponseSchema, { user: { profile: { id: 'U1' } } });
     store.projection.viewer = viewer;
     store.projection.rooms.set(
       'R1',
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: { id: 'R1' },
         viewerState: {
           isMember: true,
@@ -1533,11 +1559,13 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         resource: roomResource([
-          new RoomWithViewerState({
-            room: new Room({ id: 'R1' }),
-            viewerState: new RoomViewerState({
+          create(RoomWithViewerStateSchema, {
+            room: create(RoomSchema, { id: 'R1' }),
+            viewerState: create(RoomViewerStateSchema, {
               isMember: true,
-              permissions: [new PermissionGrant({ permission: 'call.join', granted: join })]
+              permissions: [
+                create(PermissionGrantSchema, { permission: 'call.join', granted: join })
+              ]
             })
           })
         ])
@@ -1561,7 +1589,7 @@ describe('ServerStateStore unified realtime resources', () => {
   ])('reconciles permission changes without resetting the view: %s', async (change) => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    const viewer = new GetViewerResponse({
+    const viewer = create(GetViewerResponseSchema, {
       user: { profile: { id: 'U1' } },
       privilegedMode: { active: true },
       capabilities: {
@@ -1572,7 +1600,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.projection.viewer = viewer;
     store.projection.rooms.set(
       'R1',
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: { id: 'R1' },
         viewerState: {
           isMember: true,
@@ -1601,9 +1629,12 @@ describe('ServerStateStore unified realtime resources', () => {
               case: 'viewer',
               value:
                 change === 'revoked'
-                  ? new GetViewerResponse({ user: viewer.user })
+                  ? create(GetViewerResponseSchema, { user: viewer.user })
                   : change === 'privilege expired'
-                    ? new GetViewerResponse({ ...viewer, privilegedMode: { active: false } })
+                    ? create(GetViewerResponseSchema, {
+                        ...viewer,
+                        privilegedMode: create(PrivilegedModeStateSchema, { active: false })
+                      })
                     : viewer
             }
           })
@@ -1614,7 +1645,7 @@ describe('ServerStateStore unified realtime resources', () => {
             change === 'room revoked'
               ? []
               : [
-                  new RoomWithViewerState({
+                  create(RoomWithViewerStateSchema, {
                     room: { id: 'R1' },
                     viewerState: {
                       isMember: true,
@@ -1635,7 +1666,7 @@ describe('ServerStateStore unified realtime resources', () => {
           new RealtimeResourceUpdate({
             resource: {
               case: 'roomGroups',
-              value: new ListRoomGroupsResponse()
+              value: create(ListRoomGroupsResponseSchema)
             }
           })
         ];
@@ -1644,7 +1675,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'permission-event',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'rolePermissionsChanged',
             value: { roleName: 'everyone' }
@@ -1708,7 +1739,7 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
           cursor,
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             event: { case: 'roomReadStateChanged', value: { roomId: 'R1' } }
           })
         })
@@ -1718,7 +1749,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'permission',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: { case: 'viewerPermissionsChanged', value: {} }
         })
       })
@@ -1734,7 +1765,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('restores the same room store after a failed authority read is retried', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    const room = new RoomWithViewerState({
+    const room = create(RoomWithViewerStateSchema, {
       room: { id: 'R1' },
       viewerState: {
         isMember: true,
@@ -1753,7 +1784,7 @@ describe('ServerStateStore unified realtime resources', () => {
     });
     const event = new RealtimeProjectionUpdate({
       cursor: 'retry',
-      event: new RealtimeEvent({
+      event: create(RealtimeEventSchema, {
         event: { case: 'viewerPermissionsChanged', value: {} }
       })
     });
@@ -1773,7 +1804,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it.each(['deactivate', 'dispose'])('fences a pending permission check on %s', async (action) => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    store.projection.viewer = new GetViewerResponse({
+    store.projection.viewer = create(GetViewerResponseSchema, {
       user: { profile: { id: 'U1' } },
       privilegedMode: { active: true }
     });
@@ -1788,7 +1819,7 @@ describe('ServerStateStore unified realtime resources', () => {
             new RealtimeResourceUpdate({
               resource: {
                 case: 'viewer',
-                value: new GetViewerResponse({
+                value: create(GetViewerResponseSchema, {
                   user: { profile: { id: 'U1' } },
                   privilegedMode: { active: true }
                 })
@@ -1799,7 +1830,7 @@ describe('ServerStateStore unified realtime resources', () => {
     });
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: { case: 'viewerPermissionsChanged', value: {} }
         })
       })
@@ -1834,7 +1865,7 @@ describe('ServerStateStore unified realtime resources', () => {
         new RealtimeResourceUpdate({
           resource: {
             case: 'viewer',
-            value: new GetViewerResponse({
+            value: create(GetViewerResponseSchema, {
               user: { profile: { id: 'U1' } },
               viewerPermissions: {
                 permissions: [{ permission: 'role.manage', granted: cursor === 'older' }]
@@ -1848,7 +1879,9 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
           cursor,
-          event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+          event: create(RealtimeEventSchema, {
+            event: { case: 'viewerPermissionsChanged', value: {} }
+          })
         })
       );
     change('older');
@@ -1866,7 +1899,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.projection.users.set(
       'U1',
-      new DirectoryMember({ user: { id: 'U1' }, roles: ['first', 'second'] })
+      create(DirectoryMemberSchema, { user: { id: 'U1' }, roles: ['first', 'second'] })
     );
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -1880,7 +1913,9 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
           cursor: roleName,
-          event: new RealtimeEvent({ event: { case: 'roleDeleted', value: { roleName } } })
+          event: create(RealtimeEventSchema, {
+            event: { case: 'roleDeleted', value: { roleName } }
+          })
         })
       );
     }
@@ -1901,7 +1936,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'permission-event',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'rolePermissionsChanged',
             value: { roleName: 'everyone' }
@@ -1922,7 +1957,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const resetMessages = vi.spyOn(store.rooms.messages('room'), 'resetProjectionState');
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: { case: 'roleAssigned', value: { userId: 'U2', roleName: 'helper' } }
         })
       })
@@ -1937,9 +1972,9 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         resource: roomResource([
-          new RoomWithViewerState({
-            room: new Room({ id: 'R1', name: 'General' }),
-            viewerState: new RoomViewerState({ isMember: true }),
+          create(RoomWithViewerStateSchema, {
+            room: create(RoomSchema, { id: 'R1', name: 'General' }),
+            viewerState: create(RoomViewerStateSchema, { isMember: true }),
             memberUserIds: ['U1', 'U2'],
             hasMessageHistory: true
           })
@@ -1961,7 +1996,7 @@ describe('ServerStateStore unified realtime resources', () => {
         resource: new RealtimeResourceUpdate({
           resource: {
             case: 'server',
-            value: new ServerPublicProfile({ name: 'Canonical Server', version: '0.5.0' })
+            value: create(ServerPublicProfileSchema, { name: 'Canonical Server', version: '0.5.0' })
           }
         })
       })
@@ -1975,7 +2010,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.projection.users.set(
       'U2',
-      new DirectoryMember({ user: new User({ id: 'U2', login: 'bob' }) })
+      create(DirectoryMemberSchema, { user: create(UserSchema, { id: 'U2', login: 'bob' }) })
     );
 
     store.realtimeProjectionHandler(userDeleted('U2'));
@@ -1992,7 +2027,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'z-post',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'POST',
           event: {
             case: 'messagePosted',
@@ -2004,7 +2039,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'n-notification',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'notificationUnreadStateChanged',
             value: { roomId: 'R1' }
@@ -2015,7 +2050,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'a-read',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'roomReadStateChanged',
             value: { roomId: 'R1' }
@@ -2037,14 +2072,14 @@ describe('ServerStateStore unified realtime resources', () => {
       const store = makeStore(new FakeServerConnection([]));
       store.projection.rooms.set(
         'R1',
-        new RoomWithViewerState({
+        create(RoomWithViewerStateSchema, {
           room: { id: 'R1' },
           viewerState: { isMember: true, hasUnread: false }
         })
       );
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             id: 'POST',
             actorId: 'U1',
             event: {
@@ -2057,7 +2092,7 @@ describe('ServerStateStore unified realtime resources', () => {
       for (const hint of ['notificationUnreadStateChanged', 'roomReadStateChanged'] as const) {
         store.realtimeProjectionHandler(
           new RealtimeProjectionUpdate({
-            event: new RealtimeEvent({
+            event: create(RealtimeEventSchema, {
               actorId: 'U1',
               event: { case: hint, value: { roomId: 'R1' } }
             })
@@ -2076,14 +2111,14 @@ describe('ServerStateStore unified realtime resources', () => {
       if (state !== 'unknown')
         store.projection.rooms.set(
           'R1',
-          new RoomWithViewerState({
+          create(RoomWithViewerStateSchema, {
             room: { id: 'R1', slowModeSeconds: state === 'slow mode' ? 30 : 0 },
             viewerState: { isMember: true, hasUnread: state === 'unread' }
           })
         );
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             actorId: state === 'other actor' ? 'U2' : state === 'unknown actor' ? '' : 'U1',
             event: { case: 'notificationUnreadStateChanged', value: { roomId: 'R1' } }
           })
@@ -2099,7 +2134,7 @@ describe('ServerStateStore unified realtime resources', () => {
     for (const actorId of ['U1', 'U2', '']) {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             actorId,
             event: {
               case: 'notificationOccurrencesChanged',
@@ -2116,7 +2151,7 @@ describe('ServerStateStore unified realtime resources', () => {
   it('follows an in-flight room read when a self-read hint arrives', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const row = (hasUnread: boolean) =>
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: { id: 'R1' },
         viewerState: { isMember: true, hasUnread }
       });
@@ -2127,7 +2162,7 @@ describe('ServerStateStore unified realtime resources', () => {
       .mockResolvedValueOnce([roomResource([row(false)])]);
     const hint = (actorId: string) =>
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           actorId,
           event: {
             case: 'notificationUnreadStateChanged',
@@ -2153,7 +2188,7 @@ describe('ServerStateStore unified realtime resources', () => {
       const store = makeStore(new FakeServerConnection([]));
       store.projection.rooms.set(
         'R1',
-        new RoomWithViewerState({
+        create(RoomWithViewerStateSchema, {
           room: { id: 'R1' },
           viewerState: { isMember: true, hasUnread: unread }
         })
@@ -2163,7 +2198,7 @@ describe('ServerStateStore unified realtime resources', () => {
           resource: new RealtimeResourceUpdate({
             resource: {
               case: 'notifications',
-              value: new ListNotificationOccurrencesResponse({
+              value: create(ListNotificationOccurrencesResponseSchema, {
                 unreadCount: unread ? 1 : 0,
                 roomUnreadCounts: unread ? [{ roomId: 'R1', unreadCount: 1 }] : []
               })
@@ -2198,7 +2233,9 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({ event: { case: 'userProfileChanged', value: { userId: 'U2' } } })
+        event: create(RealtimeEventSchema, {
+          event: { case: 'userProfileChanged', value: { userId: 'U2' } }
+        })
       })
     );
     expect(store.projection.users.has('U2')).toBe(false);
@@ -2229,7 +2266,7 @@ describe('ServerStateStore unified realtime resources', () => {
         store.realtimeProjectionHandler(
           new RealtimeProjectionUpdate({
             cursor,
-            event: new RealtimeEvent({
+            event: create(RealtimeEventSchema, {
               event: { case: 'roomReadStateChanged', value: { roomId: 'R1' } }
             })
           })
@@ -2256,10 +2293,10 @@ describe('ServerStateStore unified realtime resources', () => {
     for (const userId of ['U2', 'U3']) {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             event: {
               case: 'userProfileChanged',
-              value: new UserProfileChangedEvent({ userId })
+              value: create(UserProfileChangedEventSchema, { userId })
             }
           })
         })
@@ -2279,8 +2316,8 @@ describe('ServerStateStore unified realtime resources', () => {
     const response = deferred<RealtimeResourceUpdate[]>();
     apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
     const store = makeStore(new FakeServerConnection([]));
-    const cached = new DirectoryMember({
-      user: new User({ id: 'U2', displayName: 'Cached name' })
+    const cached = create(DirectoryMemberSchema, {
+      user: create(UserSchema, { id: 'U2', displayName: 'Cached name' })
     });
     store.projection.users.set('U2', cached);
     store.realtimeProjectionHandler(
@@ -2289,7 +2326,11 @@ describe('ServerStateStore unified realtime resources', () => {
           resource: {
             case: 'users',
             value: {
-              users: [new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Viewer' }) })]
+              users: [
+                create(DirectoryMemberSchema, {
+                  user: create(UserSchema, { id: 'U1', displayName: 'Viewer' })
+                })
+              ]
             }
           }
         })
@@ -2306,7 +2347,11 @@ describe('ServerStateStore unified realtime resources', () => {
         resource: {
           case: 'users',
           value: {
-            users: [new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Viewer' }) })]
+            users: [
+              create(DirectoryMemberSchema, {
+                user: create(UserSchema, { id: 'U1', displayName: 'Viewer' })
+              })
+            ]
           }
         },
         replace: false
@@ -2325,8 +2370,8 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.projection.users.set(
       'U2',
-      new DirectoryMember({
-        user: new User({ id: 'U2', displayName: 'Old name' })
+      create(DirectoryMemberSchema, {
+        user: create(UserSchema, { id: 'U2', displayName: 'Old name' })
       })
     );
     const catchUp = store.completeRealtimeCatchUp('cursor-current');
@@ -2338,7 +2383,9 @@ describe('ServerStateStore unified realtime resources', () => {
             case: 'users',
             value: {
               users: [
-                new DirectoryMember({ user: new User({ id: 'U2', displayName: 'New name' }) })
+                create(DirectoryMemberSchema, {
+                  user: create(UserSchema, { id: 'U2', displayName: 'New name' })
+                })
               ]
             }
           },
@@ -2369,10 +2416,10 @@ describe('ServerStateStore unified realtime resources', () => {
       });
       const observer = vi.fn<(update: RealtimeProjectionUpdate) => void>();
       eventBusManager.getBus(store.serverId)!.subscribe(observer);
-      const deleted = new DirectoryMember({
-        user: new User({ id: 'U2', displayName: 'Old profile' })
+      const deleted = create(DirectoryMemberSchema, {
+        user: create(UserSchema, { id: 'U2', displayName: 'Old profile' })
       });
-      const retained = new DirectoryMember({ user: new User({ id: 'U3' }) });
+      const retained = create(DirectoryMemberSchema, { user: create(UserSchema, { id: 'U3' }) });
       let completion: Promise<void> | undefined;
       if (path === 'catch-up') {
         store.projection.users.set('U2', deleted);
@@ -2380,17 +2427,20 @@ describe('ServerStateStore unified realtime resources', () => {
       } else if (path === 'dm') {
         apiMocks.readRealtimeResource.mockResolvedValueOnce([
           roomResource([
-            new RoomWithViewerState({ room: new Room({ id: 'DM1' }), memberUserIds: ['U2', 'U3'] })
+            create(RoomWithViewerStateSchema, {
+              room: create(RoomSchema, { id: 'DM1' }),
+              memberUserIds: ['U2', 'U3']
+            })
           ])
         ]);
         store.realtimeProjectionHandler(userLeftRoom('R1', 'U3'));
       } else {
         store.realtimeProjectionHandler(
           new RealtimeProjectionUpdate({
-            event: new RealtimeEvent({
+            event: create(RealtimeEventSchema, {
               event: {
                 case: 'userProfileChanged',
-                value: new UserProfileChangedEvent({ userId: 'U2' })
+                value: create(UserProfileChangedEventSchema, { userId: 'U2' })
               }
             })
           })
@@ -2423,7 +2473,7 @@ describe('ServerStateStore unified realtime resources', () => {
       apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
       const store = makeStore(new FakeServerConnection([]));
       const member = (id: string, presenceStatus: PresenceStatus) =>
-        new DirectoryMember({ user: new User({ id, presenceStatus }) });
+        create(DirectoryMemberSchema, { user: create(UserSchema, { id, presenceStatus }) });
       let completion: Promise<void> | undefined;
       if (path === 'catch-up') {
         store.projection.users.set('U2', member('U2', PresenceStatus.ONLINE));
@@ -2431,17 +2481,20 @@ describe('ServerStateStore unified realtime resources', () => {
       } else if (path === 'dm') {
         apiMocks.readRealtimeResource.mockResolvedValueOnce([
           roomResource([
-            new RoomWithViewerState({ room: new Room({ id: 'DM1' }), memberUserIds: ['U2', 'U3'] })
+            create(RoomWithViewerStateSchema, {
+              room: create(RoomSchema, { id: 'DM1' }),
+              memberUserIds: ['U2', 'U3']
+            })
           ])
         ]);
         store.realtimeProjectionHandler(userLeftRoom('R1', 'U3'));
       } else {
         store.realtimeProjectionHandler(
           new RealtimeProjectionUpdate({
-            event: new RealtimeEvent({
+            event: create(RealtimeEventSchema, {
               event: {
                 case: 'userProfileChanged',
-                value: new UserProfileChangedEvent({ userId: 'U2' })
+                value: create(UserProfileChangedEventSchema, { userId: 'U2' })
               }
             })
           })
@@ -2500,7 +2553,7 @@ describe('ServerStateStore unified realtime resources', () => {
       );
       apiMocks.readMessages.mockImplementation(async (_roomId, ids) =>
         ids.map((id) => ({
-          message: new Message({ id, roomId: 'R1' }),
+          message: create(MessageSchema, { id, roomId: 'R1' }),
           timeline: id === 'ROOT' ? null : row(Number(id.slice(1)), true)
         }))
       );
@@ -2508,16 +2561,22 @@ describe('ServerStateStore unified realtime resources', () => {
         store.realtimeProjectionHandler(
           new RealtimeProjectionUpdate({
             cursor: `cursor-${id}`,
-            event: new RealtimeEvent({
+            event: create(RealtimeEventSchema, {
               event:
                 id === 140
                   ? {
                       case: 'reactionAdded',
-                      value: new ReactionAddedEvent({ roomId: 'R1', messageEventId: `M${id}` })
+                      value: create(ReactionAddedEventSchema, {
+                        roomId: 'R1',
+                        messageEventId: `M${id}`
+                      })
                     }
                   : {
                       case: 'messageEdited',
-                      value: new MessageEditedEvent({ roomId: 'R1', messageEventId: `M${id}` })
+                      value: create(MessageEditedEventSchema, {
+                        roomId: 'R1',
+                        messageEventId: `M${id}`
+                      })
                     }
             })
           })
@@ -2541,8 +2600,8 @@ describe('ServerStateStore unified realtime resources', () => {
   it('converges after join, leave, and join overlap one room resource read', async () => {
     const firstRooms = deferred<RealtimeResourceUpdate[]>();
     const finalRooms = roomResource([
-      new RoomWithViewerState({
-        room: new Room({ id: 'R1' }),
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'R1' }),
         memberUserIds: ['U1', 'U2']
       })
     ]);
@@ -2557,18 +2616,18 @@ describe('ServerStateStore unified realtime resources', () => {
       new RealtimeProjectionUpdate({
         cursor,
         event: joined
-          ? new RealtimeEvent({
+          ? create(RealtimeEventSchema, {
               actorId: 'U2',
               event: {
                 case: 'userJoinedRoom',
-                value: new UserJoinedRoomEvent({ roomId: 'R1' })
+                value: create(UserJoinedRoomEventSchema, { roomId: 'R1' })
               }
             })
-          : new RealtimeEvent({
+          : create(RealtimeEventSchema, {
               actorId: 'U2',
               event: {
                 case: 'userLeftRoom',
-                value: new UserLeftRoomEvent({ roomId: 'R1' })
+                value: create(UserLeftRoomEventSchema, { roomId: 'R1' })
               }
             })
       });
@@ -2579,10 +2638,10 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(membership(true, 'cursor-join-2'));
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'notificationUnreadStateChanged',
-            value: new NotificationUnreadStateChangedEvent({ roomId: 'R1' })
+            value: create(NotificationUnreadStateChangedEventSchema, { roomId: 'R1' })
           }
         })
       })
@@ -2603,8 +2662,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('loads a joining user at the event cursor without a retained room store', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const profile = new DirectoryMember({
-      user: new User({ id: 'U2', login: 'newcomer', displayName: 'Newcomer' })
+    const profile = create(DirectoryMemberSchema, {
+      user: create(UserSchema, { id: 'U2', login: 'newcomer', displayName: 'Newcomer' })
     });
     apiMocks.readRealtimeUsers.mockResolvedValueOnce([
       new RealtimeResourceUpdate({
@@ -2616,9 +2675,12 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'join-cursor',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           actorId: 'U2',
-          event: { case: 'userJoinedRoom', value: new UserJoinedRoomEvent({ roomId: 'R1' }) }
+          event: {
+            case: 'userJoinedRoom',
+            value: create(UserJoinedRoomEventSchema, { roomId: 'R1' })
+          }
         })
       })
     );
@@ -2636,9 +2698,12 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'join-cursor',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           actorId: 'U2',
-          event: { case: 'userJoinedRoom', value: new UserJoinedRoomEvent({ roomId: 'R1' }) }
+          event: {
+            case: 'userJoinedRoom',
+            value: create(UserJoinedRoomEventSchema, { roomId: 'R1' })
+          }
         })
       })
     );
@@ -2652,8 +2717,8 @@ describe('ServerStateStore unified realtime resources', () => {
           case: 'users',
           value: {
             users: [
-              new DirectoryMember({
-                user: new User({ id: 'U2', login: 'removed' })
+              create(DirectoryMemberSchema, {
+                user: create(UserSchema, { id: 'U2', login: 'removed' })
               })
             ]
           }
@@ -2671,7 +2736,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const oldState = deferred<RealtimeResourceUpdate[]>();
     const stateResource = (motd: string) =>
       new RealtimeResourceUpdate({
-        resource: { case: 'motd', value: new GetMotdResponse({ motd }) }
+        resource: { case: 'motd', value: create(GetMotdResponseSchema, { motd }) }
       });
     apiMocks.readRealtimeResource.mockImplementation((family, cursor) => {
       if (family !== 'serverState') return Promise.resolve([]);
@@ -2707,7 +2772,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
     store.projection.users.set(
       'U2',
-      new DirectoryMember({ user: new User({ id: 'U2', login: 'bob' }) })
+      create(DirectoryMemberSchema, { user: create(UserSchema, { id: 'U2', login: 'bob' }) })
     );
 
     const bootstrap = store.completeRealtimeCatchUp('opaque-reset-cursor');
@@ -2768,10 +2833,12 @@ describe('ServerStateStore unified realtime resources', () => {
     const changed = () =>
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             event: {
               case: 'notificationOccurrencesChanged',
-              value: new NotificationOccurrencesChangedEvent({ createdNotificationId: 'N1' })
+              value: create(NotificationOccurrencesChangedEventSchema, {
+                createdNotificationId: 'N1'
+              })
             }
           })
         })
@@ -2804,11 +2871,11 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'opaque-message-cursor',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'E-POST',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'new body' })
+            value: create(MessagePostedEventSchema, { roomId: 'R1', bodyPlaintext: 'new body' })
           }
         })
       })
@@ -2855,21 +2922,21 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'post-cursor',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'POST',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1' })
+            value: create(MessagePostedEventSchema, { roomId: 'R1' })
           }
         })
       })
     );
     const edit = new RealtimeProjectionUpdate({
       cursor: 'edit-cursor',
-      event: new RealtimeEvent({
+      event: create(RealtimeEventSchema, {
         event: {
           case: 'messageEdited',
-          value: new MessageEditedEvent({ roomId: 'R1', messageEventId: 'POST' })
+          value: create(MessageEditedEventSchema, { roomId: 'R1', messageEventId: 'POST' })
         }
       })
     });
@@ -2950,10 +3017,10 @@ describe('ServerStateStore unified realtime resources', () => {
     const users = new RealtimeResourceUpdate({
       resource: {
         case: 'users',
-        value: new ListUsersResponse({
+        value: create(ListUsersResponseSchema, {
           users: [
-            new DirectoryMember({
-              user: new User({ id: 'U2', login: 'bob', displayName: 'Robert' })
+            create(DirectoryMemberSchema, {
+              user: create(UserSchema, { id: 'U2', login: 'bob', displayName: 'Robert' })
             })
           ]
         })
@@ -2974,10 +3041,10 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'userProfileChanged',
-            value: new UserProfileChangedEvent({ userId: 'U2' })
+            value: create(UserProfileChangedEventSchema, { userId: 'U2' })
           }
         })
       })
@@ -3103,8 +3170,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('revokes room access when the projection viewer leaves before the account loads', async () => {
     const store = makeStore(new FakeServerConnection([]), { ...registered, userId: null });
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    store.projection.viewer = create(GetViewerResponseSchema, {
+      user: create(ViewerUserSchema, { profile: create(UserSchema, { id: 'U1' }) })
     });
     store.realtimeSync.markCaughtUp(undefined);
     expect(store.accountId).toBeNull();
@@ -3122,11 +3189,15 @@ describe('ServerStateStore unified realtime resources', () => {
   it.each([
     {
       case: 'assetProcessingStarted',
-      value: new AssetProcessingStartedEvent({ assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
+      value: create(AssetProcessingStartedEventSchema, {
+        assetId: 'A1',
+        roomId: 'R1',
+        messageEventId: 'M1'
+      })
     },
     {
       case: 'assetProcessingSucceeded',
-      value: new AssetProcessingSucceededEvent({
+      value: create(AssetProcessingSucceededEventSchema, {
         assetId: 'A1',
         roomId: 'R1',
         messageEventId: 'M1'
@@ -3134,11 +3205,15 @@ describe('ServerStateStore unified realtime resources', () => {
     },
     {
       case: 'assetProcessingFailed',
-      value: new AssetProcessingFailedEvent({ assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
+      value: create(AssetProcessingFailedEventSchema, {
+        assetId: 'A1',
+        roomId: 'R1',
+        messageEventId: 'M1'
+      })
     },
     {
       case: 'assetDeleted',
-      value: new AssetDeletedEvent({ assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
+      value: create(AssetDeletedEventSchema, { assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
     }
   ] as const)('scopes $case reads to the affected room and message', async (event) => {
     const store = makeStore(new FakeServerConnection([]));
@@ -3168,7 +3243,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'asset-cursor',
-        event: new RealtimeEvent({ id: 'asset-event', event })
+        event: create(RealtimeEventSchema, { id: 'asset-event', event })
       })
     );
     await store.waitForRealtimeReconciliation();
@@ -3191,12 +3266,12 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'E-JOIN',
           actorId: 'U2',
           event: {
             case: 'userJoinedRoom',
-            value: new UserJoinedRoomEvent({ roomId: 'R1' })
+            value: create(UserJoinedRoomEventSchema, { roomId: 'R1' })
           }
         })
       })
@@ -3222,11 +3297,11 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'E-THREADING-MODE',
           event: {
             case: 'roomThreadingModeChanged',
-            value: new RoomThreadingModeChangedEvent({ roomId: 'R1' })
+            value: create(RoomThreadingModeChangedEventSchema, { roomId: 'R1' })
           }
         })
       })
@@ -3264,10 +3339,10 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'threadViewerStateChanged',
-            value: new ThreadViewerStateChangedEvent({
+            value: create(ThreadViewerStateChangedEventSchema, {
               roomId: 'R1',
               threadRootEventId: 'E-ROOT',
               isFollowing: true
@@ -3282,11 +3357,11 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'E-REPLY',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1', threadRootEventId: 'E-ROOT' })
+            value: create(MessagePostedEventSchema, { roomId: 'R1', threadRootEventId: 'E-ROOT' })
           }
         })
       })
@@ -3308,10 +3383,10 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'messageRetracted',
-            value: new MessageRetractedEvent({ roomId: 'R1', messageEventId: 'E-REPLY' })
+            value: create(MessageRetractedEventSchema, { roomId: 'R1', messageEventId: 'E-REPLY' })
           }
         })
       })
@@ -3409,12 +3484,12 @@ describe('ServerStateStore unified realtime resources', () => {
     const post = () =>
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             id: 'cached-post',
             actorId: 'cached-author',
             event: {
               case: 'messagePosted',
-              value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'hello' })
+              value: create(MessagePostedEventSchema, { roomId: 'R1', bodyPlaintext: 'hello' })
             }
           })
         })
@@ -3461,17 +3536,21 @@ describe('ServerStateStore unified realtime resources', () => {
       const unrelated = store.rooms.thread('R1', 'OTHER');
       const files = store.rooms.files('R1');
       const pins = store.rooms.pins('R1');
-      const message = new Message({
+      const message = create(MessageSchema, {
         id: 'REPLY',
         roomId: 'R1',
         threadRootEventId: 'ROOT',
         body: 'file',
         attachments: [
-          new MessageAttachment({ id: 'ASSET', filename: 'file.txt', contentType: 'text/plain' })
+          create(MessageAttachmentSchema, {
+            id: 'ASSET',
+            filename: 'file.txt',
+            contentType: 'text/plain'
+          })
         ]
       });
       apiMocks.listPins.mockResolvedValue({
-        items: [new PinnedMessage({ message })],
+        items: [create(PinnedMessageSchema, { message })],
         totalCount: 1,
         hasMore: false,
         latestPinMarker: 'PIN'
@@ -3488,11 +3567,11 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
           cursor: 'post',
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             id: 'REPLY',
             event: {
               case: 'messagePosted',
-              value: new MessagePostedEvent({
+              value: create(MessagePostedEventSchema, {
                 roomId: 'R1',
                 threadRootEventId: 'ROOT',
                 bodyPlaintext: 'file'
@@ -3518,16 +3597,16 @@ describe('ServerStateStore unified realtime resources', () => {
       const existingRows = files.items;
 
       apiMocks.readMessages.mockResolvedValue([
-        resource(new Message({ id: 'TEXT', roomId: 'R1', body: 'text only' }))
+        resource(create(MessageSchema, { id: 'TEXT', roomId: 'R1', body: 'text only' }))
       ]);
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
           cursor: 'text',
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             id: 'TEXT',
             event: {
               case: 'messagePosted',
-              value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'text only' })
+              value: create(MessagePostedEventSchema, { roomId: 'R1', bodyPlaintext: 'text only' })
             }
           })
         })
@@ -3536,7 +3615,7 @@ describe('ServerStateStore unified realtime resources', () => {
       expect(files.items).toBe(existingRows);
       expect(files.isInitialLoading).toBe(false);
 
-      const edited = message.clone();
+      const edited = clone(MessageSchema, message);
       edited.body = 'edited';
       edited.attachments = [];
       cacheMocks.refreshFollowedThreads.mockClear();
@@ -3544,10 +3623,10 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
           cursor: 'edit',
-          event: new RealtimeEvent({
+          event: create(RealtimeEventSchema, {
             event: {
               case: 'messageEdited',
-              value: new MessageEditedEvent({ roomId: 'R1', messageEventId: 'REPLY' })
+              value: create(MessageEditedEventSchema, { roomId: 'R1', messageEventId: 'REPLY' })
             }
           })
         })
@@ -3572,21 +3651,21 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'post',
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'POST',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1' })
+            value: create(MessagePostedEventSchema, { roomId: 'R1' })
           }
         })
       })
     );
     await vi.waitFor(() => expect(apiMocks.readMessages).toHaveBeenCalledOnce());
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
-    const message = new Message({
+    const message = create(MessageSchema, {
       id: 'POST',
       roomId: 'R1',
-      attachments: [new MessageAttachment({ id: 'SECRET' })]
+      attachments: [create(MessageAttachmentSchema, { id: 'SECRET' })]
     });
     pending.resolve([{ message, timeline: messageToTimelineEvent(message, {}) }]);
     await store.waitForRealtimeReconciliation();
@@ -3609,11 +3688,11 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'E-POST',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'new body' })
+            value: create(MessagePostedEventSchema, { roomId: 'R1', bodyPlaintext: 'new body' })
           }
         })
       })
@@ -3650,12 +3729,12 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           id: 'E-CALL-JOIN',
           actorId: 'U2',
           event: {
             case: 'voiceCallParticipantJoined',
-            value: new VoiceCallParticipantJoinedEvent({ roomId: 'R1', callId: 'CALL-1' })
+            value: create(VoiceCallParticipantJoinedEventSchema, { roomId: 'R1', callId: 'CALL-1' })
           }
         })
       })
@@ -3679,7 +3758,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     rooms.resolve([
       roomResource([
-        new RoomWithViewerState({
+        create(RoomWithViewerStateSchema, {
           room: { id: 'DM1' },
           memberUserIds: ['U2'],
           viewerState: { isMember: true }
@@ -3718,7 +3797,10 @@ describe('ServerStateStore unified realtime resources', () => {
             ? [roomResource([])]
             : [
                 roomResource([
-                  new RoomWithViewerState({ room: { id: 'DM1' }, viewerState: { isMember: true } })
+                  create(RoomWithViewerStateSchema, {
+                    room: { id: 'DM1' },
+                    viewerState: { isMember: true }
+                  })
                 ])
               ]
         );
@@ -3733,10 +3815,10 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: create(RealtimeEventSchema, {
           event: {
             case: 'notificationUnreadStateChanged',
-            value: new NotificationUnreadStateChangedEvent({ roomId: 'R1' })
+            value: create(NotificationUnreadStateChangedEventSchema, { roomId: 'R1' })
           }
         })
       })

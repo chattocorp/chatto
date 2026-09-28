@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { mapOptionalUserSummary, mapUserPresenceView, mapUserSummary } from './userSummary';
@@ -17,9 +18,6 @@ function apiUser(overrides: Partial<APIUser> = {}): APIUser {
 }
 
 // Stand-in for a generated protobuf Timestamp in fixture data.
-function protoTimestamp(date: Date): unknown {
-  return { toDate: () => date };
-}
 
 describe('mapUserSummary', () => {
   it('normalizes unset and empty avatar URLs to null', () => {
@@ -50,7 +48,7 @@ describe('mapUserPresenceView', () => {
       customStatus: {
         emoji: 'coffee',
         text: 'brewing',
-        expiresAt: protoTimestamp(expiresAt)
+        expiresAt: timestampFromDate(expiresAt)
       }
     } as APIUser);
     expect(view.customStatus).toEqual({

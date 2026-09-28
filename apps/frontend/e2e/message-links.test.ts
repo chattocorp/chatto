@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { GetRoomEventsAroundRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
+import { GetRoomEventsAroundRequestSchema } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
@@ -13,6 +13,7 @@ import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 import { MessageComponent } from './pages/MessageComponent';
 import { withServerUser } from './fixtures/serverUser';
+import { fromBinary } from '@bufbuild/protobuf';
 
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
@@ -56,7 +57,7 @@ test.describe('Message links', () => {
     page.on('request', (request) => {
       if (
         request.url().endsWith('/GetRoomEventsAround') &&
-        GetRoomEventsAroundRequest.fromBinary(request.postDataBuffer()!).eventId === targetId
+        fromBinary(GetRoomEventsAroundRequestSchema, request.postDataBuffer()!).eventId === targetId
       ) {
         previewRequests.push(request.url());
       }

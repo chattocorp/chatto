@@ -1,12 +1,15 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { MessageSearchOrder, MessageSearchState } from '@chatto/api-types/api/v1/message_search_pb';
+import {
+  MessageSearchService,
+  MessageSearchOrder,
+  MessageSearchState
+} from '@chatto/api-types/api/v1/message_search_pb';
+import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
 import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const search = mockService(MessageSearchService);
 const rooms = mockService(RoomDirectoryService);
@@ -53,7 +56,7 @@ describe('createMessageSearchAPI', () => {
             roomId: 'room-2',
             actorId: 'user-2',
             body: 'second',
-            createdAt: Timestamp.fromDate(new Date('2026-02-02T12:00:00Z')),
+            createdAt: timestampFromDate(new Date('2026-02-02T12:00:00Z')),
             threadRootEventId: 'root-1',
             attachments: [{ id: 'attachment-1' }]
           }
@@ -65,7 +68,7 @@ describe('createMessageSearchAPI', () => {
             roomId: 'room-1',
             actorId: 'user-1',
             body: 'first',
-            createdAt: Timestamp.fromDate(new Date('2026-01-01T12:00:00Z')),
+            createdAt: timestampFromDate(new Date('2026-01-01T12:00:00Z')),
             threadRootEventId: '',
             attachments: []
           }

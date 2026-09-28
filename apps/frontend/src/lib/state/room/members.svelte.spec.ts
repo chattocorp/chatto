@@ -1,5 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
@@ -7,6 +7,7 @@ import type { ServerConnection } from '$lib/state/server/serverConnection.svelte
 import { disposeUserStore, getUserStore } from '$lib/state/server/users.svelte';
 import { ServerPresence } from '$lib/state/server/presence.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
+import { create } from '@bufbuild/protobuf';
 
 class FakeMemberDirectoryAPI {
   listRoomMembers: MemberDirectoryAPI['listRoomMembers'];
@@ -269,7 +270,7 @@ describe('RoomMembersStore', () => {
     const profiles = getUserStore('member-join-test', 'connection');
     profiles.set(
       'first',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'first', login: 'first', displayName: 'First' }
       })
     );
@@ -288,7 +289,7 @@ describe('RoomMembersStore', () => {
 
     profiles.set(
       'second',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'second', login: 'second', displayName: 'Second' }
       })
     );
@@ -298,7 +299,7 @@ describe('RoomMembersStore', () => {
     await store.applyMembership('third', false);
     profiles.set(
       'third',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'third', login: 'third', displayName: 'Third' }
       })
     );
@@ -312,7 +313,7 @@ describe('RoomMembersStore', () => {
     const profiles = getUserStore('member-profile-test', 'connection');
     profiles.set(
       'first',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'first', login: 'current', displayName: 'Current' }
       })
     );
@@ -330,7 +331,7 @@ describe('RoomMembersStore', () => {
 
     profiles.set(
       'first',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'first', login: 'updated', displayName: 'Updated' }
       })
     );
@@ -362,7 +363,7 @@ describe('RoomMembersStore', () => {
 
     profiles.set(
       'late-profile',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'late-profile', login: 'alice', displayName: 'Alice Smith' }
       })
     );
@@ -404,7 +405,7 @@ describe('RoomMembersStore', () => {
 
     profiles.set(
       'pending',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'pending', login: 'alice', displayName: 'Alice' }
       })
     );
@@ -422,7 +423,7 @@ describe('RoomMembersStore', () => {
     const profiles = getUserStore('late-search-profile-test', 'connection');
     profiles.set(
       'first',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'first', login: 'first', displayName: 'First' }
       })
     );
@@ -440,7 +441,7 @@ describe('RoomMembersStore', () => {
 
     profiles.set(
       'late-profile',
-      new DirectoryMember({
+      create(DirectoryMemberSchema, {
         user: { id: 'late-profile', login: 'alice', displayName: 'Alice Smith' }
       })
     );

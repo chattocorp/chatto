@@ -4,8 +4,8 @@ import {
   type ConnectAPIConfig,
   skipAuthenticationRequired
 } from './connect.js';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import {
+  ViewerService,
   TimeFormat,
   type GetViewerResponse,
   type PrivilegedModeState,
@@ -15,6 +15,7 @@ import {
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import type { CustomUserStatus } from './userSummary.js';
 import { timeFormatOrAuto } from './timeFormat.js';
+import { timestampToISO } from './timestamps.js';
 
 export type CurrentUser = {
   id: string;
@@ -173,14 +174,14 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
         ? {
             emoji: user.customStatus.emoji,
             text: user.customStatus.text,
-            expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
+            expiresAt: timestampToISO(user.customStatus.expiresAt)
           }
         : null,
       presenceStatus: presenceStatusOrOffline(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       hasPassword: response.user.hasPassword ?? false,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
-      lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
+      lastLoginChange: timestampToISO(response.user.lastLoginChange),
       settings: response.user.settings
         ? {
             timezone: response.user.settings.timezone ?? null,
@@ -205,7 +206,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     privilegedMode: {
       available: response.privilegedMode?.available ?? false,
       active: response.privilegedMode?.active ?? false,
-      expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null
+      expiresAt: timestampToISO(response.privilegedMode?.expiresAt)
     }
   };
 }

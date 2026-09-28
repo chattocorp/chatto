@@ -1,5 +1,5 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { MessageService } from '@chatto/api-types/api/v1/messages_pb';
 import type { MessageReaction } from '@chatto/api-types/api/v1/message_types_pb';
 
 export type ReactionInput = {

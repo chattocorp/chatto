@@ -1,14 +1,15 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import {
-  ListRoomsResponse,
-  RoomViewerState,
-  RoomWithViewerState
+  type RoomWithViewerState,
+  ListRoomsResponseSchema,
+  RoomViewerStateSchema,
+  RoomWithViewerStateSchema
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomSchema } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
-import { UserAccountDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { UserAccountDeletedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema as PublicRealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
@@ -24,6 +25,7 @@ import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { accountNameToken } from '$lib/render/accountName';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
+import { create } from '@bufbuild/protobuf';
 
 const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
@@ -200,7 +202,7 @@ function roomSnapshot(room: RoomWithViewerState | null): RealtimeProjectionUpdat
     resource: new RealtimeResourceUpdate({
       resource: {
         case: 'rooms',
-        value: new ListRoomsResponse({ rooms: room ? [room] : [] })
+        value: create(ListRoomsResponseSchema, { rooms: room ? [room] : [] })
       }
     })
   });
@@ -208,10 +210,10 @@ function roomSnapshot(room: RoomWithViewerState | null): RealtimeProjectionUpdat
 
 function userRemoved(userId: string): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new PublicRealtimeEvent({
+    event: create(PublicRealtimeEventSchema, {
       event: {
         case: 'userAccountDeleted',
-        value: new UserAccountDeletedEvent({ userId })
+        value: create(UserAccountDeletedEventSchema, { userId })
       }
     })
   });
@@ -359,9 +361,9 @@ describe('RoomMembersPanel', () => {
 
     mocks.projectionHandler?.(
       roomSnapshot(
-        new RoomWithViewerState({
-          room: new Room({ id: 'room-1' }),
-          viewerState: new RoomViewerState({ isMember: false })
+        create(RoomWithViewerStateSchema, {
+          room: create(RoomSchema, { id: 'room-1' }),
+          viewerState: create(RoomViewerStateSchema, { isMember: false })
         })
       )
     );

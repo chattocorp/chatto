@@ -1,4 +1,4 @@
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { MessageService } from '@chatto/api-types/api/v1/messages_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { createChattoClient, minimumCursorHeaders, type ConnectAPIConfig } from './connect';
 import { messageToTimelineEvent, timelineUsersForMessages } from './roomTimeline';

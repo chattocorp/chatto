@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
 import { createMessageResourcesAPI } from './messageResources';
 import { REALTIME_MINIMUM_CURSOR_HEADER } from './connect';
+import { create } from '@bufbuild/protobuf';
 
 const mocks = vi.hoisted(() => ({ messages: vi.fn(), users: vi.fn() }));
 vi.mock('./connect', async (actual) => ({
@@ -17,16 +18,14 @@ describe('shared message resource reads', () => {
   });
 
   it('shares the raw message and normalized view and bounds user batches', async () => {
-    const messages = Array.from(
-      { length: 100 },
-      (_, i) =>
-        new Message({
-          id: `M${i}`,
-          roomId: 'R',
-          actorId: `U${i}`,
-          body: 'hello',
-          thread: { participantPreviewUserIds: [`V${i}`] }
-        })
+    const messages = Array.from({ length: 100 }, (_, i) =>
+      create(MessageSchema, {
+        id: `M${i}`,
+        roomId: 'R',
+        actorId: `U${i}`,
+        body: 'hello',
+        thread: { participantPreviewUserIds: [`V${i}`] }
+      })
     );
     mocks.messages.mockResolvedValue({ messages });
     const api = createMessageResourcesAPI({ baseUrl: 'http://localhost', bearerToken: null });
@@ -46,7 +45,9 @@ describe('shared message resource reads', () => {
   });
 
   it('propagates user-read failure instead of committing incomplete reconciliation', async () => {
-    mocks.messages.mockResolvedValue({ messages: [new Message({ id: 'M', actorId: 'U' })] });
+    mocks.messages.mockResolvedValue({
+      messages: [create(MessageSchema, { id: 'M', actorId: 'U' })]
+    });
     mocks.users.mockRejectedValue(new Error('users unavailable'));
     const api = createMessageResourcesAPI({ baseUrl: 'http://localhost', bearerToken: null });
     await expect(api.read('R', ['M'])).rejects.toThrow('users unavailable');

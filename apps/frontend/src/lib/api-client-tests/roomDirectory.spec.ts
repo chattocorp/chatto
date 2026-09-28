@@ -1,9 +1,11 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomDirectoryScope,
+  RoomDirectoryService
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 import { RoomThreadingMode } from '$lib/roomThreading';
 

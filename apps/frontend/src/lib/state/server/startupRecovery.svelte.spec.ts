@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomWithViewerStateSchema } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import { GetViewerResponseSchema } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 
@@ -38,6 +38,7 @@ vi.mock('$lib/api-client/server', () => ({
 import { serverRegistry } from './registry.svelte';
 import { ServerConnection } from './serverConnection.svelte';
 import { emptyServerSession } from './sessions.svelte';
+import { create } from '@bufbuild/protobuf';
 
 describe('origin startup recovery', () => {
   beforeEach(() => {
@@ -66,7 +67,7 @@ describe('origin startup recovery', () => {
     store.currentUser.loading = false;
     store.projection.rooms.set(
       'R1',
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: { id: 'R1', name: 'general' },
         viewerState: { isMember: true }
       })
@@ -207,7 +208,7 @@ describe('origin startup recovery', () => {
         resource: new RealtimeResourceUpdate({
           resource: {
             case: 'viewer',
-            value: new GetViewerResponse({
+            value: create(GetViewerResponseSchema, {
               user: { profile: { id: 'U2', login: 'two', displayName: 'Two' } }
             })
           }

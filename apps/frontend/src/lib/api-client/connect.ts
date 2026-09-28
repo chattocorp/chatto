@@ -10,7 +10,7 @@ import {
   type Transport
 } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import type { ServiceType } from '@bufbuild/protobuf';
+import type { DescService } from '@bufbuild/protobuf';
 import { notifyAuthenticationRequired } from './hooks.js';
 
 /** Request header for a read that must include an accepted realtime boundary. */
@@ -144,7 +144,7 @@ export function createChattoTransport(
   });
 }
 
-export function createChattoClient<T extends ServiceType>(
+export function createChattoClient<T extends DescService>(
   service: T,
   config: { baseUrl: string } & Partial<ConnectAPIConfig>
 ): Client<T> {
@@ -196,7 +196,7 @@ export function bearerRenewalInterceptor(config: {
   };
 }
 
-export function createPublicChattoClient<T extends ServiceType>(
+export function createPublicChattoClient<T extends DescService>(
   service: T,
   baseUrl: string
 ): Client<T> {

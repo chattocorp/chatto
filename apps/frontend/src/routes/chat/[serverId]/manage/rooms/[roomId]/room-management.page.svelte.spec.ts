@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomSchema } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  ListRoomsResponseSchema,
+  RoomWithViewerStateSchema
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
-import { RoomDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RoomDeletedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema as PublicRealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -95,6 +98,7 @@ vi.mock('$lib/ui/toast', () => ({
 
 import RoomManagementPage from './+page.svelte';
 import { RoomThreadingMode } from '$lib/roomThreading';
+import { create } from '@bufbuild/protobuf';
 
 function managedRoom(
   name: string,
@@ -143,11 +147,11 @@ function roomSnapshot(present = true): RealtimeProjectionUpdate {
     resource: new RealtimeResourceUpdate({
       resource: {
         case: 'rooms',
-        value: new ListRoomsResponse({
+        value: create(ListRoomsResponseSchema, {
           rooms: present
             ? [
-                new RoomWithViewerState({
-                  room: new Room({ id: 'shared-room', name: 'general' })
+                create(RoomWithViewerStateSchema, {
+                  room: create(RoomSchema, { id: 'shared-room', name: 'general' })
                 })
               ]
             : []
@@ -159,10 +163,10 @@ function roomSnapshot(present = true): RealtimeProjectionUpdate {
 
 function roomRemoved(): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new PublicRealtimeEvent({
+    event: create(PublicRealtimeEventSchema, {
       event: {
         case: 'roomDeleted',
-        value: new RoomDeletedEvent({ roomId: 'shared-room' })
+        value: create(RoomDeletedEventSchema, { roomId: 'shared-room' })
       }
     })
   });

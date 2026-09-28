@@ -1,7 +1,8 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { MessageService } from '@chatto/api-types/api/v1/messages_pb';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
+import { timestampToISO } from './timestamps.js';
 
 export type ComposerLinkPreview = {
   url: string;
@@ -61,7 +62,7 @@ function socialPostView(
         }
       : null,
     text: post.text,
-    publishedAt: post.publishedAt?.toDate().toISOString() ?? null,
+    publishedAt: timestampToISO(post.publishedAt),
     externalLink: post.externalLink
       ? {
           url: post.externalLink.url,

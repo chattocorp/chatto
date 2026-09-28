@@ -10,18 +10,20 @@ import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '$lib
 import {
   RealtimeInitialState,
   RealtimeCloseCode,
-  RealtimeServerFrame,
-  RealtimeSubscribe,
-  type RealtimeEvent
+  type RealtimeServerFrame,
+  type RealtimeEvent,
+  RealtimeServerFrameSchema,
+  RealtimeSubscribeSchema
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import {
-  ListRoomGroupsResponse,
-  ListRoomsResponse
+  ListRoomGroupsResponseSchema,
+  ListRoomsResponseSchema
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { ListActiveCallsResponseSchema } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
@@ -92,12 +94,15 @@ async function messageDataToBytes(data: RealtimeMessageEvent['data']): Promise<U
 }
 
 function subscribeFrame(token: string | null, resumeCursor: string | null): Uint8Array {
-  return new RealtimeSubscribe({
-    protocolVersion: REALTIME_PROTOCOL_VERSION,
-    bearerToken: token ?? undefined,
-    resumeCursor: resumeCursor ?? undefined,
-    initialState: RealtimeInitialState.SNAPSHOT
-  }).toBinary();
+  return toBinary(
+    RealtimeSubscribeSchema,
+    create(RealtimeSubscribeSchema, {
+      protocolVersion: REALTIME_PROTOCOL_VERSION,
+      bearerToken: token ?? undefined,
+      resumeCursor: resumeCursor ?? undefined,
+      initialState: RealtimeInitialState.SNAPSHOT
+    })
+  );
 }
 
 class EventBusManager {
@@ -357,7 +362,7 @@ class EventBusManager {
             if (stopped || socket !== nextSocket) return;
             let frame: RealtimeServerFrame;
             try {
-              frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
+              frame = fromBinary(RealtimeServerFrameSchema, await messageDataToBytes(message.data));
             } catch (error) {
               console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
               // Never continue past a frame we could not understand: a later
@@ -401,16 +406,20 @@ class EventBusManager {
                     { case: 'server' as const, value: frame.frame.value.server },
                     {
                       case: 'rooms' as const,
-                      value: new ListRoomsResponse({ rooms: frame.frame.value.rooms })
+                      value: create(ListRoomsResponseSchema, { rooms: frame.frame.value.rooms })
                     },
                     {
                       case: 'roomGroups' as const,
-                      value: new ListRoomGroupsResponse({ groups: frame.frame.value.roomGroups })
+                      value: create(ListRoomGroupsResponseSchema, {
+                        groups: frame.frame.value.roomGroups
+                      })
                     },
                     { case: 'users' as const, value: { users: frame.frame.value.users } },
                     {
                       case: 'activeCalls' as const,
-                      value: new ListActiveCallsResponse({ calls: frame.frame.value.activeCalls })
+                      value: create(ListActiveCallsResponseSchema, {
+                        calls: frame.frame.value.activeCalls
+                      })
                     }
                   ];
                   for (const resource of resources) {

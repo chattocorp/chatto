@@ -1,7 +1,7 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_pb';
 import {
+  MessageSearchService,
   MessageSearchScope,
   MessageSearchGroupBy,
   MessageSearchOrder
@@ -12,6 +12,7 @@ import { messageToTimelineEvent } from './roomTimeline.js';
 import type { UserAvatarUserView } from '$lib/render/users';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { timestampToISO } from './timestamps.js';
 
 export type FollowedThread = {
   roomId: string;
@@ -123,7 +124,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
               ? messageToTimelineEvent(thread.latestReply, users as Record<string, User>)
               : null,
             replyCount: thread.thread?.replyCount ?? 0,
-            lastReplyAt: timestampToISOOrNull(thread.thread?.lastReplyAt),
+            lastReplyAt: timestampToISO(thread.thread?.lastReplyAt),
             participants:
               rootMessage?.event.kind === 'messagePosted'
                 ? rootMessage.event.threadParticipants
@@ -170,8 +171,4 @@ function mapThreadFollowState(state: {
     threadRootEventId: state.threadRootEventId,
     following: state.following
   };
-}
-
-function timestampToISOOrNull(timestamp: { toDate(): Date } | undefined): string | null {
-  return timestamp ? timestamp.toDate().toISOString() : null;
 }

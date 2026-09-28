@@ -50,11 +50,17 @@ import { ServerProjectionStore } from './projection.svelte';
 import { getUserStore } from './users.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { RoomStores, type RoomStoreAccess } from './roomStores.svelte';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import type { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  type GetViewerResponse,
+  type PrivilegedModeState,
+  PrivilegedModeStateSchema,
+  GetViewerResponseSchema
+} from '@chatto/api-types/api/v1/viewer_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
 import {
   createPrivilegedModeAPI,
   viewerResponseToState,
@@ -63,7 +69,6 @@ import {
 import { directMessageParticipant } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
@@ -75,6 +80,8 @@ import {
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries
 } from '$lib/query/cacheRegistry';
+import { clone, create } from '@bufbuild/protobuf';
+import { timestampToDate } from '$lib/api-client/timestamps';
 
 /**
  * What kind of indicator a server (or the DM area) should display.
@@ -347,8 +354,9 @@ export class ServerStateStore {
     const update = active
       ? await this.#privilegedModeAPI.activate()
       : await this.#privilegedModeAPI.deactivate();
-    const viewer = this.projection.viewer?.clone();
-    if (!viewer) throw new Error('privileged-mode update has no viewer projection');
+    const current = this.projection.viewer;
+    if (!current) throw new Error('privileged-mode update has no viewer projection');
+    const viewer = clone(GetViewerResponseSchema, current);
     viewer.privilegedMode = update.privilegedMode;
     viewer.capabilities = update.capabilities;
     viewer.viewerPermissions = update.viewerPermissions;
@@ -365,7 +373,7 @@ export class ServerStateStore {
    * effective permissions and catches role changes made during activation. */
   async expirePrivilegedMode(): Promise<void> {
     this.applyPrivilegedModeState(
-      new PrivilegedModeState({
+      create(PrivilegedModeStateSchema, {
         available: this.projection.viewer?.privilegedMode?.available ?? false,
         active: false
       })
@@ -385,8 +393,9 @@ export class ServerStateStore {
   private applyPrivilegedModeState(state: PrivilegedModeState): void {
     this.#permissionCheckGeneration++;
     this.checkingPermissions = false;
-    const viewer = this.projection.viewer?.clone();
-    if (!viewer) return;
+    const current = this.projection.viewer;
+    if (!current) return;
+    const viewer = clone(GetViewerResponseSchema, current);
     viewer.privilegedMode = state;
     this.projection.viewer = viewer;
   }
@@ -1210,7 +1219,7 @@ export class ServerStateStore {
           this.#timelines.retract(
             roomId,
             payload.value.messageEventId,
-            event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
+            timestampToDate(event.createdAt)?.toISOString() ?? new SvelteDate().toISOString()
           );
         }
         if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
@@ -1368,7 +1377,7 @@ export class ServerStateStore {
   private setProjectedUserRole(userId: string, roleName: string, assigned: boolean): void {
     const member = this.projection.users.get(userId);
     if (!member) return;
-    const updated = member.clone();
+    const updated = clone(DirectoryMemberSchema, member);
     updated.roles = updated.roles.filter((role) => role !== roleName);
     if (assigned) updated.roles.push(roleName);
     this.projection.users.set(userId, updated);

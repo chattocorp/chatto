@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { RealtimeEvent, RoomKind, type ConsumeRealtimeOptions } from '@chatto/client';
+import { create } from '@bufbuild/protobuf';
+import { RealtimeEventSchema, RoomKind, type ConsumeRealtimeOptions } from '@chatto/client';
 import type { EventSourceContext } from 'runling/web';
 import { chattoSource } from './realtime.ts';
 import { RegistrationError } from './routing.ts';
@@ -63,7 +64,7 @@ test.each(['bot', 'human', 'wrong-thread', 'missing', 'unavailable'])(
     mocks.consumeRealtime.mockImplementation(async (options: ConsumeRealtimeOptions) => {
       for (const actorId of ['other', 'bot', 'allowed'])
         await options.onEvent(
-          new RealtimeEvent({
+          create(RealtimeEventSchema, {
             id: actorId,
             actorId,
             event: {
@@ -105,7 +106,7 @@ test.each([undefined, '', '  allowed-user  '])(
         for (const roomKind of [RoomKind.DM, RoomKind.CHANNEL]) {
           for (const bodyPlaintext of ['hello', 'follow-up', '/cancel']) {
             await options.onEvent(
-              new RealtimeEvent({
+              create(RealtimeEventSchema, {
                 id: `${actorId}-${roomKind}-${bodyPlaintext}`,
                 actorId,
                 event: {
@@ -259,7 +260,7 @@ test.each(['recover', 'exhaust', 'abort', 'other'])('registration retry: %s', as
   });
   mocks.consumeRealtime.mockImplementation(async (options: ConsumeRealtimeOptions) => {
     await options.onEvent(
-      new RealtimeEvent({
+      create(RealtimeEventSchema, {
         id: 'message',
         actorId: 'human',
         event: {

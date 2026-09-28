@@ -4,13 +4,24 @@ import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { readFile } from 'fs/promises';
 import { sha256 } from 'js-sha256';
-import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
-import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import {
+  AssetUploadService,
+  CompleteUploadResponseSchema,
+  CreateUploadResponseSchema
+} from '@chatto/api-types/api/v1/asset_uploads_pb';
+import { CreateMessageResponseSchema, MessageService } from '@chatto/api-types/api/v1/messages_pb';
+import {
+  ListRoomsResponseSchema,
+  RoomDirectoryService
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  AdminServerService,
+  UpdateServerConfigResponseSchema
+} from '@chatto/api-types/admin/v1/server_pb';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_pb';
+import { GetViewerResponseSchema, ViewerService } from '@chatto/api-types/api/v1/viewer_pb';
+import { toJsonString } from '@bufbuild/protobuf';
 import { startServer, stopServer, type ServerInfo } from './server';
 
 function connectBaseUrl(remoteBaseURL: string): string {
@@ -96,7 +107,9 @@ function postedEventId(
 ) {
   const message = response.message;
   if (!message?.id) {
-    throw new Error(`CreateMessage did not return a message: ${JSON.stringify(response.toJson())}`);
+    throw new Error(
+      `CreateMessage did not return a message: ${toJsonString(CreateMessageResponseSchema, response)}`
+    );
   }
   return message.id;
 }
@@ -264,7 +277,7 @@ export async function postMessageAttachmentOnRemote(
   const upload = created.upload;
   if (!upload?.uploadId) {
     throw new Error(
-      `No upload returned from remote CreateUpload: ${JSON.stringify(created.toJson())}`
+      `No upload returned from remote CreateUpload: ${toJsonString(CreateUploadResponseSchema, created)}`
     );
   }
 
@@ -292,7 +305,7 @@ export async function postMessageAttachmentOnRemote(
   const assetId = completed.asset?.id;
   if (!assetId) {
     throw new Error(
-      `No asset returned from remote CompleteUpload: ${JSON.stringify(completed.toJson())}`
+      `No asset returned from remote CompleteUpload: ${toJsonString(CompleteUploadResponseSchema, completed)}`
     );
   }
 
@@ -311,7 +324,7 @@ export async function postMessageAttachmentOnRemote(
   const attachmentUrl = message?.attachments[0]?.assetUrl?.url;
   if (!eventId || !attachmentUrl) {
     throw new Error(
-      `No attachment returned from remote CreateMessage: ${JSON.stringify(response.toJson())}`
+      `No attachment returned from remote CreateMessage: ${toJsonString(CreateMessageResponseSchema, response)}`
     );
   }
 
@@ -386,7 +399,9 @@ export async function getRoomOnRemote(
   );
   const room = data.rooms.find((entry) => entry.room?.name === roomName)?.room;
   if (!room?.id) {
-    throw new Error(`Room "${roomName}" not found in instance: ${JSON.stringify(data.toJson())}`);
+    throw new Error(
+      `Room "${roomName}" not found in instance: ${toJsonString(ListRoomsResponseSchema, data)}`
+    );
   }
 
   return room.id;
@@ -419,7 +434,7 @@ export async function loginAdminOnRemote(
   const userId = viewer.user?.profile?.id;
   if (!userId) {
     throw new Error(
-      `No userId returned from remote viewer RPC: ${JSON.stringify(viewer.toJson())}`
+      `No userId returned from remote viewer RPC: ${toJsonString(GetViewerResponseSchema, viewer)}`
     );
   }
   await viewerClient(remoteBaseURL).activatePrivilegedMode(
@@ -452,7 +467,9 @@ export async function setMotdOnRemote(
     { headers: authHeaders(token) }
   );
   if (response.config?.motd !== motd) {
-    throw new Error(`Failed to set MOTD on remote: ${JSON.stringify(response.toJson())}`);
+    throw new Error(
+      `Failed to set MOTD on remote: ${toJsonString(UpdateServerConfigResponseSchema, response)}`
+    );
   }
 }
 

@@ -1,10 +1,11 @@
-import { AdminOAuthClientService } from '@chatto/api-types/admin/v1/oauth_clients_connect';
 import {
+  AdminOAuthClientService,
   OauthClientPolicy,
   OauthClientSource,
   type OAuthClient as APIOAuthClient
 } from '@chatto/api-types/admin/v1/oauth_clients_pb';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { timestampToDate } from './timestamps.js';
 
 export type EditableOAuthClientPolicyName = 'default' | 'trusted' | 'blocked';
 export type OAuthClientPolicyName = EditableOAuthClientPolicyName | 'unknown';
@@ -59,8 +60,8 @@ export function mapOAuthClient(client: APIOAuthClient): OAuthClient {
     sourceCode: client.source,
     policy: policyName(client.policy),
     policyCode: client.policy,
-    firstAuthorizationAt: client.firstAuthorizationAt?.toDate().toISOString() ?? '',
-    lastAuthorizationAt: client.lastAuthorizationAt?.toDate().toISOString() ?? '',
+    firstAuthorizationAt: timestampToDate(client.firstAuthorizationAt)?.toISOString() ?? '',
+    lastAuthorizationAt: timestampToDate(client.lastAuthorizationAt)?.toISOString() ?? '',
     redirectOrigins: [...client.redirectOrigins],
     authorizedUserCount: client.authorizedUserCount
   };

@@ -1,8 +1,11 @@
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
+import {
+  AdminPermissionService,
+  PermissionDecision,
+  PermissionScopeKind
+} from '@chatto/api-types/admin/v1/permissions_pb';
 import { createPermissionAPI } from '$lib/api-client/permissions';
-import { PermissionDecision, PermissionScopeKind } from '@chatto/api-types/admin/v1/permissions_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
 const mocks = mockService(AdminPermissionService);

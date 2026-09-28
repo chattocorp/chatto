@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
-import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
+import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
 const mocks = mockService(VoiceCallService);

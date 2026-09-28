@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { createAccountAPI } from '$lib/api-client/account';
 import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
@@ -76,12 +76,10 @@ describe('createAccountAPI', () => {
       shareTimezone: undefined
     });
 
-    expect(receivedRequest(mocks.updateSettings)).toMatchObject({
-      timezone: '',
-      timeFormat: undefined,
-      shareTimezone: undefined,
-      updateMask: { paths: ['timezone'] }
-    });
+    const request = receivedRequest(mocks.updateSettings);
+    expect(request).toMatchObject({ timezone: '', updateMask: { paths: ['timezone'] } });
+    expect(request?.timeFormat).toBeUndefined();
+    expect(request?.shareTimezone).toBeUndefined();
   });
 
   it('requests and confirms account deletion', async () => {

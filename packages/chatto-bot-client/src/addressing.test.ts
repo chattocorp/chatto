@@ -1,9 +1,10 @@
 import { expect, test, vi } from 'vitest';
-import { createChattoClient, RealtimeEvent, RoomKind } from '@chatto/client';
+import { create } from '@bufbuild/protobuf';
+import { createChattoClient, RealtimeEventSchema, RoomKind } from '@chatto/client';
 import { addressedMessage } from './index.js';
 
 const event = () =>
-  new RealtimeEvent({
+  create(RealtimeEventSchema, {
     id: 'incoming',
     actorId: 'human',
     event: {

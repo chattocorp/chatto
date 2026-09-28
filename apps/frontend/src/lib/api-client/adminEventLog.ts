@@ -1,7 +1,10 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
-import type { AdminEventLogEntry as APIAdminEventLogEntry } from '@chatto/api-types/admin/v1/event_log_pb';
+import {
+  AdminEventLogService,
+  type AdminEventLogEntry as APIAdminEventLogEntry
+} from '@chatto/api-types/admin/v1/event_log_pb';
+import { timestampFromDate, type Timestamp } from '@bufbuild/protobuf/wkt';
+import { timestampToDate } from './timestamps.js';
 
 export type AdminEventLogFilter = {
   eventType: string;
@@ -108,7 +111,7 @@ function hasActiveEventLogFilter(filter: AdminEventLogFilter): boolean {
 
 function timestampFromISO(value: string): Timestamp | undefined {
   if (!value) return undefined;
-  return Timestamp.fromDate(new Date(value));
+  return timestampFromDate(new Date(value));
 }
 
 function adminEventLogEntry(entry: APIAdminEventLogEntry): AdminEventLogEntry {
@@ -120,7 +123,7 @@ function adminEventLogEntry(entry: APIAdminEventLogEntry): AdminEventLogEntry {
     eventType: entry.eventType,
     eventId: entry.eventId,
     actorId: entry.actorId,
-    createdAt: entry.createdAt?.toDate().toISOString() ?? '',
+    createdAt: timestampToDate(entry.createdAt)?.toISOString() ?? '',
     payloadJson: entry.payloadJson
   };
 }

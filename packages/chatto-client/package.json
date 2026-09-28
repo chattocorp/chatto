@@ -18,6 +18,7 @@
     "LICENSE"
   ],
   "dependencies": {
+    "@bufbuild/protobuf": "^2.15.0",
     "@chatto/api-types": "workspace:*"
   },
   "scripts": {

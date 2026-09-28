@@ -1,8 +1,8 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
-import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
-import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { AdminServerService } from '@chatto/api-types/admin/v1/server_pb';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_pb';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_pb';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_pb';
 import { mapServerProfile, type ServerProfile } from './serverProfile.js';
 
 export type AuthenticatedServerState = {

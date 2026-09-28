@@ -1,6 +1,6 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
 import {
+  AdminPermissionService,
   PermissionDecision,
   PermissionScopeKind,
   type PermissionMatrixCell as APIPermissionMatrixCell,

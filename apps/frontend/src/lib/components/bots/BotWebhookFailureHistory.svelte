@@ -1,5 +1,6 @@
 <!-- @component Retained webhook failures. Mounted on demand; the query owns paging. -->
 <script lang="ts">
+  import { timestampDate } from '@bufbuild/protobuf/wkt';
   import { createBotAPI } from '$lib/api-client/bots';
   import { m } from '$lib/i18n/messages';
   import { createInfiniteQuery } from '$lib/query/client';
@@ -43,7 +44,7 @@
   {#each failures as failure (failure.id)}
     <div class="space-y-1">
       {#if failure.completedAt}
-        <p>{failure.completedAt.toDate().toLocaleString()}</p>
+        <p>{timestampDate(failure.completedAt).toLocaleString()}</p>
       {/if}
       <BotWebhookFailureDetails {failure} />
     </div>

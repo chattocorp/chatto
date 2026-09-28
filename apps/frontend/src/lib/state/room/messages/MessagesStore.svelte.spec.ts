@@ -6,18 +6,21 @@ import {
   type EventConnectionPage,
   type RoomTimelineAPI
 } from '$lib/api-client/roomTimeline';
-import { Timestamp } from '@bufbuild/protobuf';
 import {
-  RoomMessagePosted,
-  RoomTimelineEvent,
-  RoomTimelinePage
+  type RoomTimelineEvent,
+  type RoomTimelinePage,
+  RoomMessagePostedSchema,
+  RoomTimelineEventSchema,
+  RoomTimelinePageSchema
 } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { MessageSchema } from '@chatto/api-types/api/v1/message_types_pb';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { MessagesStore } from './MessagesStore.svelte';
 import { JumpToMessageState } from '../composerContext.svelte';
 import { Code, ConnectError, StaleResponseError } from '$lib/api-client/connect';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 class FakeQueryClient {
   reconnectCount = 0;
@@ -106,15 +109,15 @@ function deletedTimelineEvent(
   messageEventId: string,
   deletedAt = '2026-05-27T00:00:02Z'
 ): RoomTimelineEvent {
-  return new RoomTimelineEvent({
+  return create(RoomTimelineEventSchema, {
     id: messageEventId,
     event: {
       case: 'messagePosted',
-      value: new RoomMessagePosted({
-        message: new Message({
+      value: create(RoomMessagePostedSchema, {
+        message: create(MessageSchema, {
           id: messageEventId,
           roomId: 'room-1',
-          deletedAt: Timestamp.fromDate(new Date(deletedAt))
+          deletedAt: timestampFromDate(new Date(deletedAt))
         })
       })
     }
@@ -303,20 +306,20 @@ function pageFromEvent(event: unknown): EventConnectionPage {
 }
 
 function projectedMessagePage(id: string): RoomTimelinePage {
-  return new RoomTimelinePage({
+  return create(RoomTimelinePageSchema, {
     events: [
-      new RoomTimelineEvent({
+      create(RoomTimelineEventSchema, {
         id,
         actorId: 'u1',
-        createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+        createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
         event: {
           case: 'messagePosted',
-          value: new RoomMessagePosted({
-            message: new Message({
+          value: create(RoomMessagePostedSchema, {
+            message: create(MessageSchema, {
               id,
               roomId: 'room-1',
               actorId: 'u1',
-              createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+              createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
               body: id
             })
           })
@@ -929,7 +932,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('historical-target', jumpState);
-    await hydrateRoomPage(store, timeline, new RoomTimelinePage());
+    await hydrateRoomPage(store, timeline, create(RoomTimelinePageSchema));
     expect(store.isInitialLoading).toBe(true);
     resolveAround?.({
       events: [threadMessageEvent('historical-target') as never],
@@ -2132,15 +2135,15 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.upsertRoomProjectionEvent('room-1', deletedTimelineEvent('original'), undefined);
     store.upsertRoomProjectionEvent(
       'room-1',
-      new RoomTimelineEvent({
+      create(RoomTimelineEventSchema, {
         id: 'retained',
         event: {
           case: 'messagePosted',
-          value: new RoomMessagePosted({
-            message: new Message({
+          value: create(RoomMessagePostedSchema, {
+            message: create(MessageSchema, {
               id: 'retained',
               roomId: 'room-1',
-              deletedAt: Timestamp.fromDate(new Date('2026-05-27T00:00:03Z'))
+              deletedAt: timestampFromDate(new Date('2026-05-27T00:00:03Z'))
             })
           })
         }
@@ -2242,19 +2245,19 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     store.upsertRoomProjectionEvent(
       'room-1',
-      new RoomTimelineEvent({
+      create(RoomTimelineEventSchema, {
         id: 'm1',
-        createdAt: Timestamp.fromDate(new Date('2026-05-27T00:00:00Z')),
+        createdAt: timestampFromDate(new Date('2026-05-27T00:00:00Z')),
         actorId: 'u1',
         event: {
           case: 'messagePosted',
-          value: new RoomMessagePosted({
-            message: new Message({
+          value: create(RoomMessagePostedSchema, {
+            message: create(MessageSchema, {
               id: 'm1',
               roomId: 'room-1',
               actorId: 'u1',
               body: 'after',
-              updatedAt: Timestamp.fromDate(new Date('2026-05-27T00:00:01Z'))
+              updatedAt: timestampFromDate(new Date('2026-05-27T00:00:01Z'))
             })
           })
         }

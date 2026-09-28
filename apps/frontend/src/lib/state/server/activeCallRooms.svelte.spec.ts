@@ -1,23 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
+import {
+  type ActiveCall,
+  ActiveCallSchema,
+  CallParticipantSchema
+} from '@chatto/api-types/api/v1/voice_calls_pb';
+import { RoomSummarySchema } from '@chatto/api-types/api/v1/rooms_pb';
+import { UserSchema } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
+import { create } from '@bufbuild/protobuf';
 
 function call(roomId: string, callId: string, userIds: string[], isBot = false): ActiveCall {
-  return new ActiveCall({
-    room: new RoomSummary({ id: roomId }),
+  return create(ActiveCallSchema, {
+    room: create(RoomSummarySchema, { id: roomId }),
     callId,
-    participants: userIds.map(
-      (userId) =>
-        new CallParticipant({
-          user: new User({
-            id: userId,
-            login: userId.toLowerCase(),
-            displayName: userId,
-            bot: isBot ? { ownerUserId: 'owner' } : undefined
-          })
+    participants: userIds.map((userId) =>
+      create(CallParticipantSchema, {
+        user: create(UserSchema, {
+          id: userId,
+          login: userId.toLowerCase(),
+          displayName: userId,
+          bot: isBot ? { ownerUserId: 'owner' } : undefined
         })
+      })
     )
   });
 }

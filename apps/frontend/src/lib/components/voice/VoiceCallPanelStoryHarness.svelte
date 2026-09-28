@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { create } from '@bufbuild/protobuf';
   import { onMount } from 'svelte';
-  import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+  import { RoomWithViewerStateSchema } from '@chatto/api-types/api/v1/room_directory_pb';
   import type { Component } from 'svelte';
   import type { Track } from 'livekit-client';
   import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
@@ -207,7 +208,7 @@
 
     store.projection.rooms.set(
       roomId,
-      new RoomWithViewerState({
+      create(RoomWithViewerStateSchema, {
         room: { id: roomId },
         viewerState: {
           isMember: true,

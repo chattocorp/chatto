@@ -1,12 +1,12 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { Timestamp } from '@bufbuild/protobuf';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_pb';
 
 export type CustomUserStatusAPIConfig = ConnectAPIConfig & {
   serverId: string;
 };
 
 import type { CustomUserStatus } from './userSummary.js';
+import { timestampFromDate, timestampDate, type Timestamp } from '@bufbuild/protobuf/wkt';
 
 export async function setCustomStatus(
   config: CustomUserStatusAPIConfig,
@@ -20,7 +20,7 @@ export async function setCustomStatus(
   const response = await client.setCustomStatus({
     emoji: input.emoji,
     text: input.text,
-    expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+    expiresAt: input.expiresAt ? timestampFromDate(new Date(input.expiresAt)) : undefined
   });
   return apiStatus(response.status);
 }
@@ -38,7 +38,7 @@ function apiStatus(
     | {
         emoji: string;
         text: string;
-        expiresAt?: { toDate(): Date };
+        expiresAt?: Timestamp;
       }
     | undefined
 ): CustomUserStatus | null {
@@ -46,6 +46,6 @@ function apiStatus(
   return {
     emoji: status.emoji,
     text: status.text,
-    expiresAt: status.expiresAt ? status.expiresAt.toDate().toISOString() : null
+    expiresAt: status.expiresAt ? timestampDate(status.expiresAt).toISOString() : null
   };
 }

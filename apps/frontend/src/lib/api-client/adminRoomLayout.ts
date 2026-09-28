@@ -1,7 +1,7 @@
 import { updateMask } from './updateMask';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import {
+  AdminRoomLayoutService,
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';

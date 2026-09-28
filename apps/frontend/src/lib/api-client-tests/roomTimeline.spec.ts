@@ -1,27 +1,27 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { MessageService } from '@chatto/api-types/api/v1/messages_pb';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_pb';
+import { UserService } from '@chatto/api-types/api/v1/user_service_pb';
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
-import { Timestamp } from '@bufbuild/protobuf';
 import {
-  RoomTimelineEvent,
-  RoomTimelinePage,
-  RoomTimelineCallEvent,
-  RoomTimelineRoomEvent,
-  RoomMessagePosted
+  type RoomTimelinePage,
+  RoomTimelineEventSchema,
+  RoomTimelinePageSchema,
+  RoomTimelineCallEventSchema,
+  RoomTimelineRoomEventSchema,
+  RoomMessagePostedSchema
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
-  Message,
-  MessageAssetUrl,
-  MessageAttachment,
-  MessageVideoProcessing,
   MessageVideoProcessingStatus,
-  MessageVideoVariant
+  MessageSchema,
+  MessageAssetUrlSchema,
+  MessageAttachmentSchema,
+  MessageVideoProcessingSchema,
+  MessageVideoVariantSchema
 } from '@chatto/api-types/api/v1/message_types_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
+import { UserSchema } from '@chatto/api-types/api/v1/users_pb';
 import {
   disposeUserStore,
   getUserStore,
@@ -32,6 +32,8 @@ import {
   roomTimelinePageToEventConnectionPage
 } from '$lib/api-client/roomTimeline';
 import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const messages = mockService(MessageService);
 const threads = mockService(ThreadService);
@@ -77,10 +79,10 @@ describe('createRoomTimelineAPI', () => {
       if (boundary === 'reset') store.clear();
       else disposeUserStore('remote', 'session');
       finish({
-        page: new RoomTimelinePage({
+        page: create(RoomTimelinePageSchema, {
           includes: {
             users: {
-              bot: new User({ id: 'bot', login: 'bot' })
+              bot: create(UserSchema, { id: 'bot', login: 'bot' })
             }
           }
         })
@@ -93,21 +95,29 @@ describe('createRoomTimelineAPI', () => {
 
   it('does not turn a timeline deletion include into a shared user tombstone', async () => {
     threads.getThreadEvents.mockReturnValue({
-      page: new RoomTimelinePage({
+      page: create(RoomTimelinePageSchema, {
         includes: {
           users: {
-            author: new User({ id: 'author', deleted: true }),
-            colleague: new User({ id: 'colleague', login: 'colleague', displayName: 'Colleague' })
+            author: create(UserSchema, { id: 'author', deleted: true }),
+            colleague: create(UserSchema, {
+              id: 'colleague',
+              login: 'colleague',
+              displayName: 'Colleague'
+            })
           }
         },
         events: [
-          new RoomTimelineEvent({
+          create(RoomTimelineEventSchema, {
             id: 'message-1',
             actorId: 'author',
             event: {
               case: 'messagePosted',
-              value: new RoomMessagePosted({
-                message: new Message({ id: 'message-1', roomId: 'room', actorId: 'author' })
+              value: create(RoomMessagePostedSchema, {
+                message: create(MessageSchema, {
+                  id: 'message-1',
+                  roomId: 'room',
+                  actorId: 'author'
+                })
               })
             }
           })
@@ -131,7 +141,7 @@ describe('createRoomTimelineAPI', () => {
 
   it('sends thread page requests with opaque cursors', async () => {
     threads.getThreadEvents.mockReturnValue({
-      page: new RoomTimelinePage({
+      page: create(RoomTimelinePageSchema, {
         startCursor: 'tl:opaque-start',
         endCursor: 'tl:opaque-end',
         hasOlder: false,
@@ -164,7 +174,7 @@ describe('createRoomTimelineAPI', () => {
 
   it('sends thread-around requests with the anchor event id', async () => {
     threads.getThreadEventsAround.mockReturnValue({
-      page: new RoomTimelinePage({ hasOlder: true, hasNewer: true })
+      page: create(RoomTimelinePageSchema, { hasOlder: true, hasNewer: true })
     });
 
     const api = timelineAPI();
@@ -186,7 +196,7 @@ describe('createRoomTimelineAPI', () => {
 
   it('gets messages and hydrates their authors', async () => {
     messages.getMessage.mockReturnValue({
-      message: new Message({
+      message: create(MessageSchema, {
         id: 'reply-1',
         actorId: 'u1',
         roomId: 'room-1',
@@ -228,7 +238,7 @@ describe('createRoomTimelineAPI', () => {
 
   it('bounds realtime-triggered message reads by the event cursor', async () => {
     messages.getMessage.mockReturnValue({
-      message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
+      message: create(MessageSchema, { id: 'message-1', actorId: 'u1', roomId: 'room-1' })
     });
     const api = timelineAPI();
 
@@ -252,7 +262,7 @@ describe('createRoomTimelineAPI', () => {
     'fails message hydration without inventing a deleted author (cursor: %s)',
     async (minimumCursor) => {
       messages.getMessage.mockReturnValue({
-        message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
+        message: create(MessageSchema, { id: 'message-1', actorId: 'u1', roomId: 'room-1' })
       });
       users.batchGetUsers.mockImplementation(() => {
         throw new ConnectError('user projection unavailable', Code.Unavailable);
@@ -272,21 +282,21 @@ describe('createRoomTimelineAPI', () => {
 
 describe('roomTimelinePageToEventConnectionPage', () => {
   it('maps hydrated protobuf room timeline pages into the message render shape', () => {
-    const page = new RoomTimelinePage({
+    const page = create(RoomTimelinePageSchema, {
       startCursor: 'tl:opaque-start',
       endCursor: 'tl:opaque-end',
       hasOlder: true,
       hasNewer: false,
       includes: {
         users: {
-          u1: new User({
+          u1: create(UserSchema, {
             id: 'u1',
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: '/avatars/u1',
             deleted: false
           }),
-          u2: new User({
+          u2: create(UserSchema, {
             id: 'u2',
             login: 'bob',
             displayName: 'Bob',
@@ -295,53 +305,53 @@ describe('roomTimelinePageToEventConnectionPage', () => {
         }
       },
       events: [
-        new RoomTimelineEvent({
+        create(RoomTimelineEventSchema, {
           id: 'm1',
-          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+          createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
           actorId: 'u1',
           event: {
             case: 'messagePosted',
-            value: new RoomMessagePosted({
-              message: new Message({
+            value: create(RoomMessagePostedSchema, {
+              message: create(MessageSchema, {
                 id: 'm1',
                 roomId: 'room-1',
                 actorId: 'u1',
-                createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+                createdAt: timestampFromDate(new Date('2026-06-01T12:00:00Z')),
                 body: 'hello',
                 attachments: [
-                  new MessageAttachment({
+                  create(MessageAttachmentSchema, {
                     id: 'a-video',
                     filename: 'clip.mp4',
                     contentType: 'video/mp4',
                     width: 1280,
                     height: 720,
-                    assetUrl: new MessageAssetUrl({
+                    assetUrl: create(MessageAssetUrlSchema, {
                       url: '/assets/files/a-video',
-                      expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                      expiresAt: timestampFromDate(new Date('2026-06-01T13:00:00Z'))
                     }),
-                    thumbnailAssetUrl: new MessageAssetUrl({
+                    thumbnailAssetUrl: create(MessageAssetUrlSchema, {
                       url: '/assets/files/a-video/image/960x800/contain',
-                      expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                      expiresAt: timestampFromDate(new Date('2026-06-01T13:00:00Z'))
                     }),
-                    videoProcessing: new MessageVideoProcessing({
+                    videoProcessing: create(MessageVideoProcessingSchema, {
                       status: MessageVideoProcessingStatus.COMPLETED,
                       durationMs: 1234n,
                       width: 1280,
                       height: 720,
                       sourceAvailable: true,
-                      thumbnailAssetUrl: new MessageAssetUrl({
+                      thumbnailAssetUrl: create(MessageAssetUrlSchema, {
                         url: '/assets/files/a-thumb',
-                        expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                        expiresAt: timestampFromDate(new Date('2026-06-01T13:00:00Z'))
                       }),
                       variants: [
-                        new MessageVideoVariant({
+                        create(MessageVideoVariantSchema, {
                           quality: '720p',
                           width: 1280,
                           height: 720,
                           size: 4567n,
-                          assetUrl: new MessageAssetUrl({
+                          assetUrl: create(MessageAssetUrlSchema, {
                             url: '/assets/files/a-variant',
-                            expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                            expiresAt: timestampFromDate(new Date('2026-06-01T13:00:00Z'))
                           })
                         })
                       ]
@@ -366,31 +376,31 @@ describe('roomTimelinePageToEventConnectionPage', () => {
             })
           }
         }),
-        new RoomTimelineEvent({
+        create(RoomTimelineEventSchema, {
           id: 'join1',
-          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:01Z')),
+          createdAt: timestampFromDate(new Date('2026-06-01T12:00:01Z')),
           actorId: 'u2',
           event: {
             case: 'userJoinedRoom',
-            value: new RoomTimelineRoomEvent({ roomId: 'room-1' })
+            value: create(RoomTimelineRoomEventSchema, { roomId: 'room-1' })
           }
         }),
-        new RoomTimelineEvent({
+        create(RoomTimelineEventSchema, {
           id: 'call-started-1',
-          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:02Z')),
+          createdAt: timestampFromDate(new Date('2026-06-01T12:00:02Z')),
           actorId: 'u1',
           event: {
             case: 'callStarted',
-            value: new RoomTimelineCallEvent({ roomId: 'room-1', callId: 'call-1' })
+            value: create(RoomTimelineCallEventSchema, { roomId: 'room-1', callId: 'call-1' })
           }
         }),
-        new RoomTimelineEvent({
+        create(RoomTimelineEventSchema, {
           id: 'call-ended-1',
-          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:03Z')),
+          createdAt: timestampFromDate(new Date('2026-06-01T12:00:03Z')),
           actorId: 'u1',
           event: {
             case: 'callEnded',
-            value: new RoomTimelineCallEvent({ roomId: 'room-1', callId: 'call-1' })
+            value: create(RoomTimelineCallEventSchema, { roomId: 'room-1', callId: 'call-1' })
           }
         })
       ]

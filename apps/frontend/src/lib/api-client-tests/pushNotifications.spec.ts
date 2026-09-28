@@ -1,8 +1,8 @@
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
-import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
-import { PushSubscriptionCleanupService } from '@chatto/api-types/chatto/auth/v1/push_subscription_cleanup_connect';
+import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_pb';
+import { PushSubscriptionCleanupService } from '@chatto/api-types/chatto/auth/v1/push_subscription_cleanup_pb';
 import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
 const push = mockService(PushNotificationService);

@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
+import { type PinnedMessage, PinnedMessageSchema } from '@chatto/api-types/api/v1/rooms_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import type {
   MessagePinnedEvent,
@@ -9,6 +9,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { serverStorageKey } from '$lib/storage/serverStorage';
+import { clone } from '@bufbuild/protobuf';
 
 export const ROOM_PINS_PAGE_SIZE = 50;
 
@@ -177,7 +178,7 @@ export class RoomPinsStore {
     }
     this.items = this.items.map((item) => {
       if (item.message?.id !== messageEventId) return item;
-      const updated = item.clone();
+      const updated = clone(PinnedMessageSchema, item);
       updated.message = message;
       return updated;
     });

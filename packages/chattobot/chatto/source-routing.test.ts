@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { RealtimeEvent, RoomKind, type ConsumeRealtimeOptions } from '@chatto/client';
+import { create } from '@bufbuild/protobuf';
+import { RealtimeEventSchema, RoomKind, type ConsumeRealtimeOptions } from '@chatto/client';
 import { dispatchRoute } from '../../runling/src/runtime/routing.ts';
 import { chattoSource } from './realtime.ts';
 
@@ -27,7 +28,7 @@ test('source retries failed registration through Runling dispatch and ignores ac
     .fn()
     .mockRejectedValueOnce(new Error('Temporary journal failure'))
     .mockResolvedValue({ id: 'run' });
-  const event = new RealtimeEvent({
+  const event = create(RealtimeEventSchema, {
     id: 'message',
     actorId: 'human',
     event: {

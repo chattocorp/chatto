@@ -1,22 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
-import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  ListRoomsResponseSchema,
+  RoomWithViewerStateSchema
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomSchema, RoomSummarySchema } from '@chatto/api-types/api/v1/rooms_pb';
+import { MessagePostedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
-import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
-import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
+import { ListUsersResponseSchema } from '@chatto/api-types/api/v1/user_service_pb';
+import { DirectoryMemberSchema } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserSchema } from '@chatto/api-types/api/v1/users_pb';
+import { ActiveCallSchema, CallParticipantSchema } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { create } from '@bufbuild/protobuf';
 
 describe('ServerProjectionStore', () => {
   it('keeps a deleted account in DM membership as a tombstoned participant', () => {
     const store = new ServerProjectionStore();
-    store.users.set('gone', new DirectoryMember({ user: new User({ id: 'gone', login: 'gone' }) }));
-    store.rooms.set('dm', new RoomWithViewerState({ memberUserIds: ['viewer', 'gone'] }));
+    store.users.set(
+      'gone',
+      create(DirectoryMemberSchema, { user: create(UserSchema, { id: 'gone', login: 'gone' }) })
+    );
+    store.rooms.set('dm', create(RoomWithViewerStateSchema, { memberUserIds: ['viewer', 'gone'] }));
 
     store.removeUser('gone');
 
@@ -29,8 +35,8 @@ describe('ServerProjectionStore', () => {
     const store = new ServerProjectionStore();
     store.users.set(
       'cached',
-      new DirectoryMember({
-        user: new User({ id: 'cached', displayName: 'Retained name' })
+      create(DirectoryMemberSchema, {
+        user: create(UserSchema, { id: 'cached', displayName: 'Retained name' })
       })
     );
     store.apply(
@@ -38,9 +44,11 @@ describe('ServerProjectionStore', () => {
         resource: new RealtimeResourceUpdate({
           resource: {
             case: 'users',
-            value: new ListUsersResponse({
+            value: create(ListUsersResponseSchema, {
               users: [
-                new DirectoryMember({ user: new User({ id: 'viewer', displayName: 'Viewer' }) })
+                create(DirectoryMemberSchema, {
+                  user: create(UserSchema, { id: 'viewer', displayName: 'Viewer' })
+                })
               ]
             })
           }
@@ -54,17 +62,20 @@ describe('ServerProjectionStore', () => {
   });
   it('applies canonical room responses as complete replacements', () => {
     const store = new ServerProjectionStore();
-    store.rooms.set('removed', new RoomWithViewerState({ room: new Room({ id: 'removed' }) }));
+    store.rooms.set(
+      'removed',
+      create(RoomWithViewerStateSchema, { room: create(RoomSchema, { id: 'removed' }) })
+    );
 
     store.apply(
       new RealtimeProjectionUpdate({
         resource: new RealtimeResourceUpdate({
           resource: {
             case: 'rooms',
-            value: new ListRoomsResponse({
+            value: create(ListRoomsResponseSchema, {
               rooms: [
-                new RoomWithViewerState({
-                  room: new Room({ id: 'dm' }),
+                create(RoomWithViewerStateSchema, {
+                  room: create(RoomSchema, { id: 'dm' }),
                   memberUserIds: ['viewer', 'peer'],
                   hasMessageHistory: false
                 })
@@ -84,12 +95,18 @@ describe('ServerProjectionStore', () => {
     const store = new ServerProjectionStore();
     store.rooms.set(
       'dm',
-      new RoomWithViewerState({ room: new Room({ id: 'dm' }), hasMessageHistory: false })
+      create(RoomWithViewerStateSchema, {
+        room: create(RoomSchema, { id: 'dm' }),
+        hasMessageHistory: false
+      })
     );
     store.apply(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
-          event: { case: 'messagePosted', value: new MessagePostedEvent({ roomId: 'dm' }) }
+        event: create(RealtimeEventSchema, {
+          event: {
+            case: 'messagePosted',
+            value: create(MessagePostedEventSchema, { roomId: 'dm' })
+          }
         })
       })
     );
@@ -98,10 +115,12 @@ describe('ServerProjectionStore', () => {
 
   describe('active calls', () => {
     const call = (roomId: string, userIds: string[]) =>
-      new ActiveCall({
-        room: new RoomSummary({ id: roomId }),
+      create(ActiveCallSchema, {
+        room: create(RoomSummarySchema, { id: roomId }),
         callId: `call-${roomId}`,
-        participants: userIds.map((id) => new CallParticipant({ user: new User({ id }) }))
+        participants: userIds.map((id) =>
+          create(CallParticipantSchema, { user: create(UserSchema, { id }) })
+        )
       });
     const participants = (projection: ServerProjectionStore, roomId: string) =>
       projection.activeCalls

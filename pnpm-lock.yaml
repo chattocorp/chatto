@@ -347,6 +347,9 @@ importers:
 
   packages/chatto-bot-client:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.15.0
+        version: 2.15.0
       '@chatto/client':
         specifier: workspace:*
         version: link:../chatto-client
@@ -363,6 +366,9 @@ importers:
 
   packages/chatto-client:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.15.0
+        version: 2.15.0
       '@chatto/api-types':
         specifier: workspace:*
         version: link:../api-types
@@ -392,6 +398,9 @@ importers:
         specifier: workspace:*
         version: link:../runling
     devDependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.15.0
+        version: 2.15.0
       '@types/node':
         specifier: ^22
         version: 22.20.1

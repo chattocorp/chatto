@@ -5,6 +5,7 @@ import {
   type UserPresenceView,
   type UserSummary
 } from './userSummary';
+import { timestampToISO } from './timestamps.js';
 
 export type DirectoryMember = UserSummary &
   UserPresenceView & {
@@ -22,6 +23,6 @@ export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember 
     ...summary,
     ...mapUserPresenceView(user),
     roles: [...member.roles],
-    createdAt: member.createdAt?.toDate().toISOString() ?? null
+    createdAt: timestampToISO(member.createdAt)
   };
 }

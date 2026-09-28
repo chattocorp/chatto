@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { ListRoomGroupsResponse, RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  ListRoomGroupsResponseSchema,
+  RoomGroupSchema
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -58,6 +61,7 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import RoomGroupPage from './+page.svelte';
+import { create } from '@bufbuild/protobuf';
 
 let routeGroupId = $state('group-a');
 
@@ -96,8 +100,8 @@ function dispatchGroups(groupIds: string[]): void {
     resource: new RealtimeResourceUpdate({
       resource: {
         case: 'roomGroups',
-        value: new ListRoomGroupsResponse({
-          groups: groupIds.map((id) => new RoomGroup({ id, name: id }))
+        value: create(ListRoomGroupsResponseSchema, {
+          groups: groupIds.map((id) => create(RoomGroupSchema, { id, name: id }))
         })
       }
     })

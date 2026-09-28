@@ -1,3 +1,4 @@
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import {
   RoomKind,
   type ChattoClient,
@@ -72,7 +73,7 @@ export async function addressedMessage(
     body: message.bodyPlaintext,
     ...(message.threadRootEventId ? { threadRootId: message.threadRootEventId } : {}),
     ...(message.inReplyTo ? { inReplyTo: message.inReplyTo } : {}),
-    ...(event.createdAt ? { occurredAt: event.createdAt.toDate().toISOString() } : {}),
+    ...(event.createdAt ? { occurredAt: timestampDate(event.createdAt).toISOString() } : {}),
     reasons
   };
 }

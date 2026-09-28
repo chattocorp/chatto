@@ -1,8 +1,10 @@
 import { updateMask } from './updateMask';
 import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { Timestamp } from '@bufbuild/protobuf';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import type { Room, RoomSuspension as APIRoomSuspension } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  RoomService,
+  type Room,
+  type RoomSuspension as APIRoomSuspension
+} from '@chatto/api-types/api/v1/rooms_pb';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
 import {
   normalizeRoomName,
@@ -10,6 +12,8 @@ import {
   roomNameCharacterCount
 } from '$lib/utils/roomName';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { timestampToISO } from './timestamps.js';
 
 export type { ConnectAPIConfig } from './connect.js';
 
@@ -74,8 +78,8 @@ function roomSuspension(ban: APIRoomSuspension): RoomSuspensionSummary {
     moderatorId: ban.moderatorId,
     moderator: ban.moderator ? mapDirectoryMember(ban.moderator) : null,
     reason: ban.reason,
-    createdAt: ban.createdAt?.toDate().toISOString() ?? null,
-    expiresAt: ban.expiresAt?.toDate().toISOString() ?? null
+    createdAt: timestampToISO(ban.createdAt),
+    expiresAt: timestampToISO(ban.expiresAt)
   };
 }
 
@@ -236,7 +240,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
               ? { case: 'suspendIndefinitely', value: true }
               : {
                   case: 'suspensionExpiresAt',
-                  value: Timestamp.fromDate(new Date(input.suspension.expiresAt))
+                  value: timestampFromDate(new Date(input.suspension.expiresAt))
                 }
       });
       return true;

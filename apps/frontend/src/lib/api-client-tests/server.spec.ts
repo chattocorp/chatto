@@ -5,9 +5,12 @@ import {
   listNeighborhoodServers
 } from '$lib/api-client/server';
 import {
-  GetServerResponse,
-  ListNeighborhoodServersResponse
+  type GetServerResponse,
+  type ListNeighborhoodServersResponse,
+  GetServerResponseSchema,
+  ListNeighborhoodServersResponseSchema
 } from '@chatto/api-types/chatto/discovery/v1/server_pb';
+import { create, toJsonString } from '@bufbuild/protobuf';
 
 /**
  * Public discovery uses its own HTTP transport without Chatto's interceptors.
@@ -16,8 +19,12 @@ import {
 const browserFetch = vi.fn<typeof fetch>();
 
 function respondWith(message: GetServerResponse | ListNeighborhoodServersResponse) {
+  const body =
+    message.$typeName === 'chatto.discovery.v1.GetServerResponse'
+      ? toJsonString(GetServerResponseSchema, message)
+      : toJsonString(ListNeighborhoodServersResponseSchema, message);
   browserFetch.mockResolvedValueOnce(
-    new Response(message.toJsonString(), { headers: { 'Content-Type': 'application/json' } })
+    new Response(body, { headers: { 'Content-Type': 'application/json' } })
   );
 }
 
@@ -37,7 +44,7 @@ describe('public server discovery', () => {
 
   it('loads the cached Neighborhood without authentication', async () => {
     respondWith(
-      new ListNeighborhoodServersResponse({
+      create(ListNeighborhoodServersResponseSchema, {
         servers: [
           {
             origin: 'https://one.example',
@@ -81,7 +88,7 @@ describe('public server discovery', () => {
 
   it('loads public server metadata and maps the shared profile', async () => {
     respondWith(
-      new GetServerResponse({
+      create(GetServerResponseSchema, {
         profile: {
           name: 'Remote Chatto',
           version: '9.8.7',
@@ -142,7 +149,7 @@ describe('public server discovery', () => {
   });
 
   it('omits browser credentials, referrers, and redirects from public discovery', async () => {
-    respondWith(new GetServerResponse({ profile: { name: 'Chatto', version: '0.5.0' } }));
+    respondWith(create(GetServerResponseSchema, { profile: { name: 'Chatto', version: '0.5.0' } }));
 
     await getPublicServerInfo('https://chat.example.test');
 
@@ -154,7 +161,9 @@ describe('public server discovery', () => {
   });
 
   it('uses profile defaults when optional public profile fields are absent', async () => {
-    respondWith(new GetServerResponse({ profile: { name: 'Chatto', version: '' }, login: {} }));
+    respondWith(
+      create(GetServerResponseSchema, { profile: { name: 'Chatto', version: '' }, login: {} })
+    );
 
     await expect(getPublicServerInfo('https://chat.example.test')).resolves.toMatchObject({
       name: 'Chatto',
@@ -167,7 +176,7 @@ describe('public server discovery', () => {
   });
 
   it('rejects a response without a public server profile', async () => {
-    respondWith(new GetServerResponse());
+    respondWith(create(GetServerResponseSchema));
 
     await expect(getPublicServerInfo('https://invalid.example')).rejects.toBeInstanceOf(
       InvalidPublicServerError

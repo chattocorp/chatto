@@ -1,10 +1,13 @@
 import { createChattoClient, minimumCursorHeaders, type ConnectAPIConfig } from './connect.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
-import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
+import {
+  ImageFitMode,
+  type ImageTransformOptions,
+  ImageTransformOptionsSchema
+} from '@chatto/api-types/api/v1/common_pb';
 import { imageFitModeOrCover } from './enumDefaults.js';
-import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
-import type { Asset } from '@chatto/api-types/api/v1/attachments_pb';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { AssetService, type Asset } from '@chatto/api-types/api/v1/attachments_pb';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   type Message,
   type MessageAttachment,
@@ -13,6 +16,9 @@ import {
   type MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
+import { create } from '@bufbuild/protobuf';
+import { timestampToISO } from './timestamps.js';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 export type AttachmentRefreshOptions = {
   width: number;
@@ -137,7 +143,7 @@ function refreshedAttachmentUrlMap(
 }
 
 function thumbnailOptions(options: AttachmentRefreshOptions): ImageTransformOptions {
-  return new ImageTransformOptions({
+  return create(ImageTransformOptionsSchema, {
     width: options.width,
     height: options.height,
     fit: imageFitModeOrCover(options.fit)
@@ -147,14 +153,14 @@ function thumbnailOptions(options: AttachmentRefreshOptions): ImageTransformOpti
 function roomFileItem(item: {
   messageEventId: string;
   threadRootEventId: string;
-  createdAt?: { toDate(): Date };
+  createdAt?: Timestamp;
   attachment?: Asset;
   description?: string;
 }): RoomFileItem {
   return {
     messageEventId: item.messageEventId,
     threadRootEventId: item.threadRootEventId || null,
-    createdAt: timestampToISO(item.createdAt),
+    createdAt: timestampToISOOrEmpty(item.createdAt),
     attachment: roomFileAttachment(item.attachment, item.description)
   };
 }
@@ -167,7 +173,7 @@ export function roomFileItemsForTimelineEvent(event: RoomTimelineEvent): RoomFil
     ? roomFileItemsForMessage(message).map((item) => ({
         ...item,
         messageEventId: event.id,
-        createdAt: timestampToISO(event.createdAt)
+        createdAt: timestampToISOOrEmpty(event.createdAt)
       }))
     : [];
 }
@@ -178,7 +184,7 @@ export function roomFileItemsForMessage(message: Message): RoomFileItem[] {
   return message.attachments.map((attachment) => ({
     messageEventId: message.id,
     threadRootEventId: message.threadRootEventId || null,
-    createdAt: timestampToISO(message.createdAt),
+    createdAt: timestampToISOOrEmpty(message.createdAt),
     attachment: roomFileAttachment(attachment, attachment.description)
   }));
 }
@@ -244,10 +250,10 @@ function assetUrl(value?: MessageAssetUrl): ExpiringAssetUrl | null {
   if (!value) return null;
   return {
     url: value.url,
-    expiresAt: timestampToISO(value.expiresAt)
+    expiresAt: timestampToISOOrEmpty(value.expiresAt)
   };
 }
 
-function timestampToISO(timestamp: { toDate(): Date } | undefined): string {
-  return timestamp ? timestamp.toDate().toISOString() : '';
+function timestampToISOOrEmpty(timestamp: Timestamp | undefined): string {
+  return timestampToISO(timestamp) ?? '';
 }

@@ -1,17 +1,17 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  RealtimeEvent,
-  RealtimeClose,
-  RealtimeCaughtUp,
-  RealtimeHeartbeat,
-  RealtimeServerFrame,
-  RealtimeSnapshot,
-  RealtimeSubscribe,
-  RealtimeCloseCode
+  type RealtimeServerFrame,
+  RealtimeCloseCode,
+  RealtimeEventSchema,
+  RealtimeCloseSchema,
+  RealtimeCaughtUpSchema,
+  RealtimeHeartbeatSchema,
+  RealtimeServerFrameSchema,
+  RealtimeSnapshotSchema,
+  RealtimeSubscribeSchema
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
-import { UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { ServerPublicProfileSchema } from '@chatto/api-types/api/v1/server_pb';
+import { UserTypingEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
 import {
   eventBusManager,
   setRealtimePollRandomForTests,
@@ -20,6 +20,8 @@ import {
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { EventBus, ProjectionHandler } from '$lib/eventBus.svelte';
+import { timestampNow } from '@bufbuild/protobuf/wkt';
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -49,7 +51,7 @@ class FakeRealtimeSocket {
   }
 
   async receive(frame: RealtimeServerFrame): Promise<void> {
-    this.onmessage?.({ data: frame.toBinary() });
+    this.onmessage?.({ data: toBinary(RealtimeServerFrameSchema, frame) });
     for (let index = 0; index < 8; index++) await Promise.resolve();
   }
 
@@ -139,14 +141,14 @@ async function flushPromises(): Promise<void> {
 }
 
 function serverFrame(frame: RealtimeServerFrame['frame']): RealtimeServerFrame {
-  return new RealtimeServerFrame({ frame });
+  return create(RealtimeServerFrameSchema, { frame });
 }
 
 function snapshotFrame(): RealtimeServerFrame {
   return serverFrame({
     case: 'snapshot',
-    value: new RealtimeSnapshot({
-      server: new ServerPublicProfile({ name: 'Snapshot Server' })
+    value: create(RealtimeSnapshotSchema, {
+      server: create(ServerPublicProfileSchema, { name: 'Snapshot Server' })
     })
   });
 }
@@ -154,7 +156,7 @@ function snapshotFrame(): RealtimeServerFrame {
 function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
-    value: new RealtimeEvent({
+    value: create(RealtimeEventSchema, {
       cursor
     })
   });
@@ -163,13 +165,13 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
 function cursorlessFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
-    value: new RealtimeEvent({
+    value: create(RealtimeEventSchema, {
       id,
-      createdAt: Timestamp.now(),
+      createdAt: timestampNow(),
       actorId: 'user-1',
       event: {
         case: 'userTyping',
-        value: new UserTypingEvent({ roomId: 'room-1' })
+        value: create(UserTypingEventSchema, { roomId: 'room-1' })
       }
     })
   });
@@ -178,7 +180,7 @@ function cursorlessFrame(id = 'evt-1'): RealtimeServerFrame {
 function heartbeatFrame(resumeCursor?: string): RealtimeServerFrame {
   return serverFrame({
     case: 'heartbeat',
-    value: new RealtimeHeartbeat({
+    value: create(RealtimeHeartbeatSchema, {
       cursor: resumeCursor
     })
   });
@@ -262,13 +264,13 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets[0].url).toBe(fake.realtimeUrl);
     sockets[0].open();
     expect(sockets[0].sent).toHaveLength(1);
-    const subscribe = RealtimeSubscribe.fromBinary(sockets[0].sent[0]);
+    const subscribe = fromBinary(RealtimeSubscribeSchema, sockets[0].sent[0]);
     expect(subscribe.protocolVersion).toBe(4);
     expect(subscribe.bearerToken).toBe('token-1');
     expect(subscribe.initialState).toBe(2);
     expect(fake.status).toBe('connecting');
     await sockets[0].receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
+      serverFrame({ case: 'caughtUp', value: create(RealtimeCaughtUpSchema, { cursor: 'ready' }) })
     );
     expect(fake.status).toBe('connected');
   });
@@ -318,14 +320,17 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(projectionFrame('cursor-applied'));
     expect(projectionHandler).toHaveBeenCalledTimes(1);
     await socket.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'cursor-boundary' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'cursor-boundary' })
+      })
     );
     socket.serverClose();
     await vi.advanceTimersByTimeAsync(0);
 
     const resumed = sockets.at(-1)!;
     resumed.open();
-    const subscribe = RealtimeSubscribe.fromBinary(resumed.sent[0]);
+    const subscribe = fromBinary(RealtimeSubscribeSchema, resumed.sent[0]);
     expect(subscribe.resumeCursor).toBe('cursor-boundary');
   });
 
@@ -346,9 +351,14 @@ describe('eventBusManager realtime transport', () => {
     startLiveBus(fake, { sync, reducer: updates, completeProjectionCatchUp: reconcile });
     const socket = sockets[0];
     socket.open();
-    expect(RealtimeSubscribe.fromBinary(socket.sent[0]).resumeCursor).toBe('retained-cursor');
+    expect(fromBinary(RealtimeSubscribeSchema, socket.sent[0]).resumeCursor).toBe(
+      'retained-cursor'
+    );
     await socket.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'current-cursor' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'current-cursor' })
+      })
     );
     expect(sync.phase).toBe('stale');
     expect(sync.authorizationRefreshRequired).toBe(true);
@@ -370,7 +380,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED,
           reconnect: true
         })
@@ -407,7 +417,10 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({ code: RealtimeCloseCode.RESYNC_REQUIRED, reconnect: true })
+        value: create(RealtimeCloseSchema, {
+          code: RealtimeCloseCode.RESYNC_REQUIRED,
+          reconnect: true
+        })
       })
     );
     expect(cleared).toHaveBeenCalledOnce();
@@ -417,7 +430,7 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(0);
     sockets[1].open();
-    expect(RealtimeSubscribe.fromBinary(sockets[1].sent[0]).resumeCursor).toBeUndefined();
+    expect(fromBinary(RealtimeSubscribeSchema, sockets[1].sent[0]).resumeCursor).toBeUndefined();
   });
 
   it('does not commit an event cursor after the client chooses a permission reload', async () => {
@@ -435,7 +448,7 @@ describe('eventBusManager realtime transport', () => {
     await sockets[0].receive(
       serverFrame({
         case: 'event',
-        value: new RealtimeEvent({
+        value: create(RealtimeEventSchema, {
           cursor: 'must-not-resume',
           event: { case: 'viewerPermissionsChanged', value: {} }
         })
@@ -444,7 +457,7 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBeNull();
     await vi.advanceTimersByTimeAsync(0);
     sockets[1].open();
-    expect(RealtimeSubscribe.fromBinary(sockets[1].sent[0]).resumeCursor).toBeUndefined();
+    expect(fromBinary(RealtimeSubscribeSchema, sockets[1].sent[0]).resumeCursor).toBeUndefined();
   });
 
   it('replaces retained state when a resume cursor falls back to a snapshot', async () => {
@@ -471,7 +484,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'caughtUp',
-        value: new RealtimeCaughtUp({ cursor: 'cursor-reset-caught-up' })
+        value: create(RealtimeCaughtUpSchema, { cursor: 'cursor-reset-caught-up' })
       })
     );
 
@@ -529,7 +542,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'snapshot',
-        value: new RealtimeSnapshot()
+        value: create(RealtimeSnapshotSchema)
       })
     );
 
@@ -683,7 +696,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.TEMPORARILY_UNAVAILABLE,
           message: 'realtime replay is temporarily unavailable',
           reconnect: true
@@ -709,7 +722,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.UNSUPPORTED_PROTOCOL,
           message: 'unsupported realtime protocol version',
           reconnect: false
@@ -730,7 +743,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.AUTHENTICATION_REQUIRED,
           message: 'session expired',
           reconnect: true
@@ -753,7 +766,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.SESSION_TERMINATED,
           message: 'session terminated: admin_boot',
           reconnect: false
@@ -775,7 +788,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.AUTHENTICATION_REQUIRED,
           message: 'access token expired',
           reconnect: true
@@ -788,7 +801,7 @@ describe('eventBusManager realtime transport', () => {
     expect(fake.statusUpdates).not.toContain('disconnected');
     expect(sockets).toHaveLength(2);
     sockets[1].open();
-    const subscribe = RealtimeSubscribe.fromBinary(sockets[1].sent[0]);
+    const subscribe = fromBinary(RealtimeSubscribeSchema, sockets[1].sent[0]);
     expect(subscribe.bearerToken).toBe('token-2');
   });
 
@@ -799,7 +812,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({
         case: 'close',
-        value: new RealtimeClose({
+        value: create(RealtimeCloseSchema, {
           code: RealtimeCloseCode.SESSION_RENEWAL_REQUIRED,
           message: 'browser session ready for renewal',
           reconnect: true
@@ -900,7 +913,10 @@ describe('eventBusManager realtime transport', () => {
       await socket.receive(projectionFrame(`event-${index}`));
     await socket.receive(heartbeatFrame('heartbeat-before-caught-up'));
     await socket.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'caught-up' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'caught-up' })
+      })
     );
     expect(completeCatchUp).not.toHaveBeenCalled();
     expect(sync.resumeCursor).toBe('before-replay');
@@ -932,7 +948,10 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(heartbeatFrame('snapshot-heartbeat'));
     expect(sync.resumeCursor).toBeNull();
     await socket.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'hydrated' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'hydrated' })
+      })
     );
     expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('hydrated');
     expect(sync.resumeCursor).toBeNull();
@@ -997,7 +1016,10 @@ describe('eventBusManager realtime transport', () => {
     inactiveSocket.open();
     await inactiveSocket.receive(projectionFrame('inactive-event'));
     await inactiveSocket.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'inactive-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'inactive-ready' })
+      })
     );
 
     expect(inactiveSocket.closeCalls.at(-1)?.reason).toBe('caught_up');
@@ -1034,20 +1056,26 @@ describe('eventBusManager realtime transport', () => {
     const firstLive = sockets[0];
     firstLive.open();
     await firstLive.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'first-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'first-ready' })
+      })
     );
     const inactivePoll = sockets[1];
     inactivePoll.open();
     await inactivePoll.receive(projectionFrame('second-event'));
     await inactivePoll.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'second-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'second-ready' })
+      })
     );
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'second-server');
     expect(firstLive.closeCalls.at(-1)?.reason).toBe('dormant');
     const promoted = sockets.at(-1)!;
     promoted.open();
-    const subscribe = RealtimeSubscribe.fromBinary(promoted.sent[0]);
+    const subscribe = fromBinary(RealtimeSubscribeSchema, promoted.sent[0]);
 
     expect(subscribe.resumeCursor).toBe('second-ready');
     expect(firstSync.phase).toBe('stale');
@@ -1088,7 +1116,10 @@ describe('eventBusManager realtime transport', () => {
     expect(replacement).not.toBe(pollingSocket);
     replacement.open();
     await replacement.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'promoted-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'promoted-ready' })
+      })
     );
 
     await vi.advanceTimersByTimeAsync(30_000);
@@ -1135,7 +1166,10 @@ describe('eventBusManager realtime transport', () => {
     const pollA = sockets[1];
     pollA.open();
     await pollA.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'a-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'a-ready' })
+      })
     );
     await vi.waitFor(() => expect(sockets).toHaveLength(3));
     expect(sockets[2].url).toBe(inactiveB.realtimeUrl);
@@ -1182,7 +1216,10 @@ describe('eventBusManager realtime transport', () => {
     const poll = sockets[2];
     poll.open();
     await poll.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'remote-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'remote-ready' })
+      })
     );
     expect(remoteSync.hasUsableProjection).toBe(true);
   });
@@ -1231,7 +1268,10 @@ describe('eventBusManager realtime transport', () => {
     const otherPoll = sockets[1];
     otherPoll.open();
     await otherPoll.receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'other-ready' }) })
+      serverFrame({
+        case: 'caughtUp',
+        value: create(RealtimeCaughtUpSchema, { cursor: 'other-ready' })
+      })
     );
     await vi.waitFor(() => expect(sockets).toHaveLength(4));
     expect(sockets[3].url).toBe(remote.realtimeUrl);
@@ -1319,7 +1359,7 @@ describe('eventBusManager realtime transport', () => {
 
     sockets[3].open();
     await sockets[3].receive(
-      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'woken' }) })
+      serverFrame({ case: 'caughtUp', value: create(RealtimeCaughtUpSchema, { cursor: 'woken' }) })
     );
     expect(inactive.statusUpdates.at(-1)).toBe('dormant');
     expect(inactive.statusUpdates.filter((status) => status === 'disconnected')).toHaveLength(1);
@@ -1384,7 +1424,7 @@ describe('eventBusManager realtime transport', () => {
 
     const poll = sockets[1];
     poll.open();
-    const subscribe = RealtimeSubscribe.fromBinary(poll.sent[0]);
+    const subscribe = fromBinary(RealtimeSubscribeSchema, poll.sent[0]);
     expect(subscribe.resumeCursor).toBe('periodic-cursor');
   });
 });

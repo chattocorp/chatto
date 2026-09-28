@@ -1,10 +1,11 @@
-import { Timestamp } from '@bufbuild/protobuf';
-import { AdminInviteLinkService } from '@chatto/api-types/admin/v1/invitations_connect';
 import {
+  AdminInviteLinkService,
   InviteLinkStatus,
   type InviteLink as APIInviteLink
 } from '@chatto/api-types/admin/v1/invitations_pb';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { timestampToDate, timestampToISO } from './timestamps.js';
 
 export type InviteLink = {
   id: string;
@@ -35,7 +36,7 @@ export function createInviteLinkAPI(config: ConnectAPIConfig) {
     async create(input: { maxUses: number | null; expiresAt: string | null }) {
       const response = await client.createInviteLink({
         maxUses: input.maxUses ?? undefined,
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+        expiresAt: input.expiresAt ? timestampFromDate(new Date(input.expiresAt)) : undefined
       });
       if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
       return mapInviteLink(response.inviteLink);
@@ -53,12 +54,12 @@ function mapInviteLink(inviteLink: APIInviteLink): InviteLink {
     id: inviteLink.id,
     link: inviteLink.link,
     createdBy: inviteLink.createdBy,
-    createdAt: inviteLink.createdAt?.toDate().toISOString() ?? '',
+    createdAt: timestampToDate(inviteLink.createdAt)?.toISOString() ?? '',
     maxUses: inviteLink.maxUses ?? null,
-    expiresAt: inviteLink.expiresAt?.toDate().toISOString() ?? null,
+    expiresAt: timestampToISO(inviteLink.expiresAt),
     useCount: inviteLink.useCount,
     status: mapInviteLinkStatus(inviteLink.status),
-    revokedAt: inviteLink.revokedAt?.toDate().toISOString() ?? null
+    revokedAt: timestampToISO(inviteLink.revokedAt)
   };
 }
 

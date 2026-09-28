@@ -1,16 +1,17 @@
 import { listAllDirectoryRooms } from './roomPages';
 import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
-import type {
-  RoomGroup,
-  RoomGroupItem,
-  RoomGroupViewerState,
-  RoomViewerState,
-  RoomWithViewerState
+import {
+  RoomDirectoryService,
+  type RoomGroup,
+  type RoomGroupItem,
+  type RoomGroupViewerState,
+  type RoomViewerState,
+  type RoomWithViewerState,
+  RoomDirectoryScope
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
+import { timestampToISO } from './timestamps.js';
 
 export type DirectoryRoomSummary = {
   id: string;
@@ -185,7 +186,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     isUniversal: entry.room.universal,
     slowModeSeconds: entry.room.slowModeSeconds ?? 0,
     threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
-    slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
+    slowModeNextPostAt: timestampToISO(entry.viewerState?.slowModeNextPostAt),
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
     canReadMessages: anyRoomPermissionDecision(entry.viewerState, [

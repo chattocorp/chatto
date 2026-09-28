@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
-import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
+import { ServerRuntimeConfigSchema } from '@chatto/api-types/api/v1/server_state_pb';
 import type { ProjectedServerState } from './projection.svelte';
 import { ServerInfoState } from './state.svelte';
+import { create } from '@bufbuild/protobuf';
 
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
@@ -189,7 +190,7 @@ describe('ServerInfoState.init()', () => {
 
     projected = {
       motd: 'Hello',
-      runtime: new ServerRuntimeConfig({
+      runtime: create(ServerRuntimeConfigSchema, {
         livekitUrl: 'wss://livekit.acme.test',
         videoProcessingEnabled: true,
         maxUploadSize: 1024n,

@@ -1,10 +1,15 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
-import { RoomMessagePosted, RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
+import { MessageSchema, MessageAttachmentSchema } from '@chatto/api-types/api/v1/message_types_pb';
+import {
+  type RoomTimelineEvent,
+  RoomMessagePostedSchema,
+  RoomTimelineEventSchema
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 import { RoomFilesStore, type RoomFileItem } from './files.svelte';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 const attachmentMocks = vi.hoisted(() => ({
   listRoomAttachments: vi.fn(),
@@ -62,23 +67,22 @@ function timelineMessage(
   attachmentIds: string[],
   createdAt = new Date('2026-07-03T12:00:00.000Z')
 ): RoomTimelineEvent {
-  return new RoomTimelineEvent({
+  return create(RoomTimelineEventSchema, {
     id: eventId,
-    createdAt: Timestamp.fromDate(createdAt),
+    createdAt: timestampFromDate(createdAt),
     event: {
       case: 'messagePosted',
-      value: new RoomMessagePosted({
-        message: new Message({
+      value: create(RoomMessagePostedSchema, {
+        message: create(MessageSchema, {
           roomId: 'room-1',
-          attachments: attachmentIds.map(
-            (id) =>
-              new MessageAttachment({
-                id,
-                filename: `${id}.jpg`,
-                contentType: 'image/jpeg',
-                width: 800,
-                height: 600
-              })
+          attachments: attachmentIds.map((id) =>
+            create(MessageAttachmentSchema, {
+              id,
+              filename: `${id}.jpg`,
+              contentType: 'image/jpeg',
+              width: 800,
+              height: 600
+            })
           )
         })
       })

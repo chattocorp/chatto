@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomWithViewerStateSchema } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { CurrentUser } from '$lib/api-client/viewer';
 
@@ -15,6 +15,7 @@ vi.mock('$lib/api-client/viewer', async (original) => ({
 
 import { serverRegistry as registry } from './registry.svelte';
 import { emptyServerSession } from './sessions.svelte';
+import { create } from '@bufbuild/protobuf';
 
 const profile = {
   name: 'Recovered server',
@@ -137,7 +138,7 @@ describe('registered server recovery', () => {
     previous.currentUser.loading = false;
     previous.projection.rooms.set(
       'private-room',
-      new RoomWithViewerState({ room: { id: 'private-room', name: 'private' } })
+      create(RoomWithViewerStateSchema, { room: { id: 'private-room', name: 'private' } })
     );
     mocks.viewer.mockResolvedValue(user);
     await registry.recoverServer('retry-test');

@@ -1,10 +1,10 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { Timestamp } from '@bufbuild/protobuf';
+import {
+  PresenceStatus,
+  PresenceStatus as APIPresenceStatus
+} from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import { ViewerService, TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
 import {
   createPrivilegedModeAPI,
@@ -14,6 +14,7 @@ import {
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { fakeServer, mockService, receivedContext } from '$lib/test-utils';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 
 const mocks = mockService(ViewerService);
 
@@ -38,14 +39,14 @@ describe('getCurrentUserViaConnect', () => {
           customStatus: {
             emoji: ':wave:',
             text: 'here',
-            expiresAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z'))
+            expiresAt: timestampFromDate(new Date('2026-06-01T12:00:00Z'))
           },
           presenceStatus: APIPresenceStatus.AWAY
         },
         hasVerifiedEmail: true,
         hasPassword: true,
         viewerCanDeleteAccount: true,
-        lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
+        lastLoginChange: timestampFromDate(new Date('2026-05-20T09:30:00Z')),
         settings: {
           timezone: 'Europe/Berlin',
           timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,

@@ -1,5 +1,5 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 export function createPresenceAPI(config: ConnectAPIConfig) {

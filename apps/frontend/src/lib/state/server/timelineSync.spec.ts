@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { MessagePostedEventSchema } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { UserAvatarUserView } from '$lib/render/users';
 import type { RoomStores } from './roomStores.svelte';
 import { TimelineSync, type TimelineSyncOptions } from './timelineSync';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 
 function deferred() {
   let resolve!: () => void;
@@ -195,13 +196,13 @@ describe('TimelineSync', () => {
     );
 
     sync.ingestPost(
-      new RealtimeEvent({
+      create(RealtimeEventSchema, {
         id: 'E1',
         actorId: 'U1',
-        createdAt: Timestamp.fromDate(new Date('2026-09-27T12:00:00.000Z')),
+        createdAt: timestampFromDate(new Date('2026-09-27T12:00:00.000Z')),
         event: {
           case: 'messagePosted',
-          value: new MessagePostedEvent({
+          value: create(MessagePostedEventSchema, {
             roomId: 'R1',
             bodyPlaintext: 'hello',
             inReplyTo: 'E0',
@@ -258,12 +259,12 @@ describe('TimelineSync', () => {
     );
 
     sync.ingestPost(
-      new RealtimeEvent({
+      create(RealtimeEventSchema, {
         id: 'E1',
         actorId: 'U1',
         event: {
           case: 'messagePosted',
-          value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'hello' })
+          value: create(MessagePostedEventSchema, { roomId: 'R1', bodyPlaintext: 'hello' })
         }
       })
     );

@@ -6,8 +6,11 @@ import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
-import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  MessagePostedEventSchema,
+  UserJoinedRoomEventSchema
+} from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEventSchema as PublicRealtimeEventSchema } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
@@ -284,6 +287,7 @@ vi.mock('$lib/ui', async () => {
 
 import Room from './Room.svelte';
 import { AppUiState } from '$lib/state/appUi.svelte';
+import { create } from '@bufbuild/protobuf';
 
 let appUi: AppUiState;
 
@@ -524,10 +528,10 @@ describe('Room interaction bundles', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
+        event: create(PublicRealtimeEventSchema, {
           event: {
             case: 'userJoinedRoom',
-            value: new UserJoinedRoomEvent({ roomId: 'room-1' })
+            value: create(UserJoinedRoomEventSchema, { roomId: 'room-1' })
           }
         })
       })
@@ -892,12 +896,12 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
+        event: create(PublicRealtimeEventSchema, {
           id: 'message-event-id',
           actorId: 'system',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-1' })
+            value: create(MessagePostedEventSchema, { roomId: 'room-1' })
           }
         })
       })
@@ -913,12 +917,12 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
+        event: create(PublicRealtimeEventSchema, {
           id: 'away-event-id',
           actorId: 'user-1',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-1' })
+            value: create(MessagePostedEventSchema, { roomId: 'room-1' })
           }
         })
       })
@@ -935,12 +939,12 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
+        event: create(PublicRealtimeEventSchema, {
           id: 'own-event-id',
           actorId: 'test-user',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-1' })
+            value: create(MessagePostedEventSchema, { roomId: 'room-1' })
           }
         })
       })
@@ -957,12 +961,15 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
+        event: create(PublicRealtimeEventSchema, {
           id: 'reply-event-id',
           actorId: 'user-1',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-1', threadRootEventId: 'root-1' })
+            value: create(MessagePostedEventSchema, {
+              roomId: 'room-1',
+              threadRootEventId: 'root-1'
+            })
           }
         })
       })
@@ -978,12 +985,12 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new PublicRealtimeEvent({
+        event: create(PublicRealtimeEventSchema, {
           id: 'other-room-event-id',
           actorId: 'user-1',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'room-2' })
+            value: create(MessagePostedEventSchema, { roomId: 'room-2' })
           }
         })
       })
