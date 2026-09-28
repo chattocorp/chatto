@@ -871,13 +871,15 @@ describe('eventBusManager realtime transport', () => {
   });
 
   it('does NOT reconnect when stopBus is called', async () => {
-    await startAndSubscribe();
+    const { fake } = await startAndSubscribe();
     expect(sockets).toHaveLength(1);
 
     eventBusManager.stopBus(TEST_SERVER);
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].closeCalls).toHaveLength(1);
+    // A stopped transport is not a failed attempt.
+    expect(fake.showConnectionLostIcon).toBe(false);
   });
 
   it('refreshes auxiliary state once per catch-up, not per replay event or heartbeat', async () => {

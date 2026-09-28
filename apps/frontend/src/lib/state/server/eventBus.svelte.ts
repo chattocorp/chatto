@@ -653,7 +653,7 @@ class EventBusManager {
         unregisterReconnect();
         detachSocket(true, 'stopped');
         resolvePoll(false);
-        serverConnection.setRealtimeConnectionStatus('disconnected');
+        serverConnection.setRealtimeConnectionStatus('dormant');
       }
     };
 
