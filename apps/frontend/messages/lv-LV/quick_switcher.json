@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Ierakstiet pēc ? lai meklētu ziņojumus savos serveros",
       "no_results": "Nav atrasts neviens ziņojums"
-    }
+    },
+    "start_dm_failed": "Neizdevās sākt DM"
   }
 }

@@ -55,6 +55,7 @@
       "level_server": "Servidor",
       "level_group": "Grupo",
       "level_room": "Quarto",
+      "level_dm": "DM",
       "empty_category": "Nenhuma permissão nesta categoria",
       "filter_label": "Filtrar permissões",
       "filter_placeholder": "Filtrar permissões...",
@@ -100,6 +101,29 @@
           "title": "Permissões do usuário",
           "description": "Controle a conta do usuário e as operações de permissão por usuário"
         }
+      },
+      "cell": {
+        "subject": "sujeito",
+        "role_subject": "função",
+        "user_subject": "usuário",
+        "allow": "Permitir",
+        "deny": "Negar",
+        "owner_always_granted": "O proprietário sempre tem {permission}",
+        "subject_always_granted": "{permission} é sempre concedida em {scope} ({subject})",
+        "override_for_role": "Substituição para {role} em {permission}: {state}",
+        "no_override_for_role": "Nenhuma substituição para {role} em {permission}",
+        "override_at_scope": "Substituição para {permission} em {scope}: {state}",
+        "no_override_at_scope": "Nenhuma substituição para {permission} em {scope}, efetivo: {state}",
+        "inheriting_from": "herdado de {source}: {state}",
+        "owner_allow": "Permitir (os proprietários sempre recebem todas as permissões)",
+        "owner_not_editable": "As permissões do proprietário não são editáveis",
+        "override_here": "{state} (substituição neste nível)",
+        "subject_override_at_scope": "{state} (substituição de {subject} em {scope})",
+        "inherits_from": "{state}, herdado de {source}",
+        "effective_included_by": "Efetivo: Permitir (incluído em {permission})",
+        "effective_inherited": "Efetivo: {state} (herdado)",
+        "manage_role": "Gerenciar {role}",
+        "no_scopes": "Nenhum escopo disponível para este tipo ({subject})."
       }
     },
     "permission_categories": {

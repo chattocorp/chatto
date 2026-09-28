@@ -136,7 +136,9 @@
       "open_delete_account": "Eliminar conta",
       "delete_account_entry_description": "Elimina definitivamente a conta deste membro. As mensagens ficam ilegíveis. Isto não pode ser anulado.",
       "bio_placeholder": "Conte aos outros um pouco sobre este membro",
-      "bio_description": "Até {max} caracteres, apresentados no perfil do membro."
+      "bio_description": "Até {max} caracteres, apresentados no perfil do membro.",
+      "update_failed": "Falha ao atualizar utilizador",
+      "cooldown_clear_failed": "Falha ao remover o tempo de espera para alteração do nome de utilizador"
     },
     "member_delete": {
       "title": "Eliminar membro",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Nenhum utilizador tem esta função",
       "server_tier_intro": "Esta página é para permissões de funções na camada de servidor: padrões amplos que se aplicam antes de substituições específicas de salas.",
       "server_tier_rooms_hint": "Utilize Salas para substituições por grupo e por sala.",
-      "resolution_hint": "Para cada utilizador ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo âmbito ou num mais específico."
+      "resolution_hint": "Para cada utilizador ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo âmbito ou num mais específico.",
+      "update_role_failed": "Falha ao atualizar função",
+      "update_ping_failed": "Falha ao atualizar a configuração de menção da função",
+      "delete_role_failed": "Falha ao eliminar função"
     },
     "rooms_admin": {
       "title": "Quartos",
@@ -288,7 +293,10 @@
       "member_added": "{name} foi adicionado à sala",
       "add_member_failed": "Falha ao adicionar membro: {error}",
       "member_removed": "{name} foi removido da sala",
-      "remove_member_failed": "Falha ao remover membro: {error}"
+      "remove_member_failed": "Falha ao remover membro: {error}",
+      "move_room_failed": "Falha ao mover sala: {error}",
+      "move_link_failed": "Falha ao mover link: {error}",
+      "reorder_rooms_failed": "Falha ao reordenar salas: {error}"
     },
     "security": {
       "title": "Segurança",

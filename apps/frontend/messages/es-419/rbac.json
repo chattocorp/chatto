@@ -55,6 +55,7 @@
       "level_server": "Servidor",
       "level_group": "Grupo",
       "level_room": "Habitación",
+      "level_dm": "DM",
       "empty_category": "No hay permisos en esta categoría",
       "filter_label": "Filtrar permisos",
       "filter_placeholder": "Filtrar permisos...",
@@ -100,6 +101,29 @@
           "title": "Permisos de Usuario",
           "description": "Controlar cuentas de usuario y operaciones de permisos por usuario"
         }
+      },
+      "cell": {
+        "subject": "sujeto",
+        "role_subject": "rol",
+        "user_subject": "usuario",
+        "allow": "Permitir",
+        "deny": "Denegar",
+        "owner_always_granted": "El propietario siempre tiene {permission}",
+        "subject_always_granted": "Este {subject} siempre tiene {permission} en {scope}",
+        "override_for_role": "Anulación para {role} en {permission}: {state}",
+        "no_override_for_role": "Sin anulación para {role} en {permission}",
+        "override_at_scope": "Anulación para {permission} en {scope}: {state}",
+        "no_override_at_scope": "Sin anulación para {permission} en {scope}, efectivo: {state}",
+        "inheriting_from": "heredado de {source}: {state}",
+        "owner_allow": "Permitir (los propietarios siempre tienen todos los permisos)",
+        "owner_not_editable": "Los permisos del propietario no se pueden editar",
+        "override_here": "{state} (anulación en este nivel)",
+        "subject_override_at_scope": "{state} (anulación de {subject} en {scope})",
+        "inherits_from": "{state}, heredado de {source}",
+        "effective_included_by": "Efectivo: Permitir (incluido en {permission})",
+        "effective_inherited": "Efectivo: {state} (heredado)",
+        "manage_role": "Administrar {role}",
+        "no_scopes": "No hay ámbitos disponibles para este {subject}."
       }
     },
     "permission_categories": {

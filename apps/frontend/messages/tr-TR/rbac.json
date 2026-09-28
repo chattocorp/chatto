@@ -55,6 +55,7 @@
       "level_server": "Sunucu",
       "level_group": "Grup",
       "level_room": "Oda",
+      "level_dm": "DM",
       "empty_category": "Bu kategoride izin yok",
       "filter_label": "İzinleri filtrele",
       "filter_placeholder": "İzinleri filtrele...",
@@ -100,6 +101,29 @@
           "title": "Kullanıcı İzinleri",
           "description": "Kullanıcı hesabını ve kullanıcı başına izin işlemlerini kontrol edin"
         }
+      },
+      "cell": {
+        "subject": "özne",
+        "role_subject": "rol",
+        "user_subject": "kullanıcı",
+        "allow": "İzin ver",
+        "deny": "Reddet",
+        "owner_always_granted": "Sahibe her zaman {permission} verilir",
+        "subject_always_granted": "{subject}: {scope} kapsamında {permission} her zaman verilir",
+        "override_for_role": "{role} rolü için {permission} geçersiz kılması: {state}",
+        "no_override_for_role": "{role} rolü için {permission} geçersiz kılması yok",
+        "override_at_scope": "{scope} kapsamında {permission} geçersiz kılması: {state}",
+        "no_override_at_scope": "{scope} kapsamında {permission} geçersiz kılması yok, geçerli: {state}",
+        "inheriting_from": "{source} kaynağından devralındı: {state}",
+        "owner_allow": "İzin ver (sahiplere her zaman tüm izinler verilir)",
+        "owner_not_editable": "Sahip izinleri düzenlenemez",
+        "override_here": "{state} (bu katmanda geçersiz kılma)",
+        "subject_override_at_scope": "{state} ({scope} kapsamında {subject} geçersiz kılması)",
+        "inherits_from": "{state}, {source} kaynağından devralındı",
+        "effective_included_by": "Geçerli: İzin ver ({permission} kapsamında)",
+        "effective_inherited": "Geçerli: {state} (devralındı)",
+        "manage_role": "{role} rolünü yönet",
+        "no_scopes": "Bu {subject} için kullanılabilir kapsam yok."
       }
     },
     "permission_categories": {

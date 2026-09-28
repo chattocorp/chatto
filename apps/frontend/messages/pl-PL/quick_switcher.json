@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Wpisz tekst po ?, aby przeszukać wiadomości na wszystkich serwerach",
       "no_results": "Nie znaleziono wiadomości"
-    }
+    },
+    "start_dm_failed": "Nie udało się rozpocząć czatu DM"
   }
 }

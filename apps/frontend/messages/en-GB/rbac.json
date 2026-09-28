@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Group",
       "level_room": "Room",
+      "level_dm": "DM",
       "empty_category": "No permissions in this category",
       "filter_label": "Filter permissions",
       "filter_placeholder": "Filter permissions...",
@@ -100,6 +101,29 @@
           "title": "User Permissions",
           "description": "Control user account and per-user permission operations"
         }
+      },
+      "cell": {
+        "subject": "subject",
+        "role_subject": "role",
+        "user_subject": "user",
+        "allow": "Allow",
+        "deny": "Deny",
+        "owner_always_granted": "Owner is always granted {permission}",
+        "subject_always_granted": "{subject} is always granted {permission} at {scope}",
+        "override_for_role": "Override {state} for {role} on {permission}",
+        "no_override_for_role": "No override for {role} on {permission}",
+        "override_at_scope": "Override {state} for {permission} at {scope}",
+        "no_override_at_scope": "No override for {permission} at {scope}, effective {state}",
+        "inheriting_from": "inheriting {state} from {source}",
+        "owner_allow": "Allow (owners are always granted all permissions)",
+        "owner_not_editable": "Owner permissions are not editable",
+        "override_here": "{state} (override at this tier)",
+        "subject_override_at_scope": "{state} ({subject} override at {scope})",
+        "inherits_from": "Inherits {state} from {source}",
+        "effective_included_by": "Effective Allow (included by {permission})",
+        "effective_inherited": "Effective {state} (inherited)",
+        "manage_role": "Manage {role}",
+        "no_scopes": "No scopes available for this {subject}."
       }
     },
     "permission_categories": {

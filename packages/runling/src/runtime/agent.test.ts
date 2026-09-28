@@ -1039,6 +1039,86 @@ describe('agent', () => {
     }
   });
 
+  test('blocks selected tools after untrusted content, including in forks', async () => {
+    const onBlocked = vi.fn();
+    const installTrust = () => {
+      const handlers = new Map<string, (event: any) => any>();
+      const trust = resourceOptions.extensionFactories.find(
+        (extension: { name: string }) => extension.name === 'runling-trust'
+      );
+      trust.factory({
+        on: (name: string, handler: (event: any) => any) => handlers.set(name, handler)
+      });
+      return {
+        call: async (toolName: string) =>
+          await handlers.get('tool_call')!({ type: 'tool_call', toolName, input: {} }),
+        result: (toolName: string, isError = false) =>
+          handlers.get('tool_result')!({ type: 'tool_result', toolName, isError, content: [] })
+      };
+    };
+    const instance = await agent({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5',
+      tools: ['search', 'implement', 'read'],
+      trust: {
+        untrusted: ['search'],
+        blockAfterUntrusted: ['implement'],
+        onBlocked: async (toolName) => {
+          onBlocked(toolName);
+          throw new Error('Host notice failed');
+        }
+      }
+    });
+    const tools = installTrust();
+    try {
+      expect(await tools.call('implement')).toBeUndefined();
+      tools.result('read');
+      expect(await tools.call('implement')).toBeUndefined();
+      tools.result('search', true);
+      const events: RunlingEvent[] = [];
+      const blockedCall = await observeRunlingEvents(
+        (event) => events.push(event),
+        () => tools.call('implement')
+      );
+      expect(blockedCall).toMatchObject({
+        block: true,
+        reason: expect.stringContaining('untrusted content')
+      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'agent.action',
+          action: expect.stringContaining('Blocked-tool callback failed for implement')
+        })
+      );
+      expect(JSON.stringify(events)).not.toContain('Host notice failed');
+      expect(onBlocked).toHaveBeenCalledWith('implement');
+      expect(await tools.call('read')).toBeUndefined();
+      expect(onBlocked).toHaveBeenCalledOnce();
+
+      const fork = await instance.fork();
+      try {
+        expect(await installTrust().call('implement')).toMatchObject({ block: true });
+      } finally {
+        fork.dispose();
+      }
+    } finally {
+      instance.dispose();
+    }
+  });
+
+  test('does not install the trust extension without a policy', async () => {
+    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    try {
+      expect(
+        resourceOptions.extensionFactories.some(
+          (extension: { name: string }) => extension.name === 'runling-trust'
+        )
+      ).toBe(false);
+    } finally {
+      instance.dispose();
+    }
+  });
+
   test('keeps inherited summaries in Pi history across further compaction', async () => {
     const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
     createdSessions[0].agent.state.messages = [

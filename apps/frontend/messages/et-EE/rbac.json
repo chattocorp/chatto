@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Grupp",
       "level_room": "Tuba",
+      "level_dm": "DM",
       "empty_category": "Selles kategoorias pole õigusi",
       "filter_label": "Filtri õigused",
       "filter_placeholder": "Filtreeri õigused...",
@@ -100,6 +101,29 @@
           "title": "Kasutaja õigused",
           "description": "Kontrollige kasutajakonto ja kasutajate lubade toiminguid"
         }
+      },
+      "cell": {
+        "subject": "subjekt",
+        "role_subject": "roll",
+        "user_subject": "kasutaja",
+        "allow": "Luba",
+        "deny": "Keela",
+        "owner_always_granted": "Omanikul on alati õigus {permission}",
+        "subject_always_granted": "{subject}: õigus {permission} on ulatuses {scope} alati antud",
+        "override_for_role": "Erand rollile {role} õiguse {permission} jaoks: {state}",
+        "no_override_for_role": "Rollile {role} pole õiguse {permission} jaoks erandit",
+        "override_at_scope": "Erand õigusele {permission} ulatuses {scope}: {state}",
+        "no_override_at_scope": "Õigusele {permission} pole ulatuses {scope} erandit, kehtiv: {state}",
+        "inheriting_from": "päritud allikast {source}: {state}",
+        "owner_allow": "Luba (omanikel on alati kõik õigused)",
+        "owner_not_editable": "Omaniku õigusi ei saa muuta",
+        "override_here": "{state} (erand sellel tasandil)",
+        "subject_override_at_scope": "{state} (erand: {subject}, ulatus {scope})",
+        "inherits_from": "{state}, päritud allikast {source}",
+        "effective_included_by": "Kehtiv: Luba (sisaldub õiguses {permission})",
+        "effective_inherited": "Kehtiv: {state} (päritud)",
+        "manage_role": "Halda rolli {role}",
+        "no_scopes": "Selle tüübi ({subject}) jaoks pole ühtegi ulatust saadaval."
       }
     },
     "permission_categories": {

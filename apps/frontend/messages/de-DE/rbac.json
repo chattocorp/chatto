@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Gruppe",
       "level_room": "Raum",
+      "level_dm": "DM",
       "empty_category": "Keine Berechtigungen in dieser Kategorie",
       "filter_label": "Berechtigungen filtern",
       "filter_placeholder": "Berechtigungen filtern...",
@@ -100,6 +101,29 @@
           "title": "Benutzerberechtigungen",
           "description": "Steuert Benutzerkonto- und benutzerbezogene Berechtigungsvorgänge"
         }
+      },
+      "cell": {
+        "subject": "Subjekt",
+        "role_subject": "Rolle",
+        "user_subject": "Benutzer",
+        "allow": "Erlauben",
+        "deny": "Verweigern",
+        "owner_always_granted": "Der Owner erhält {permission} immer",
+        "subject_always_granted": "{subject} erhält {permission} in {scope} immer",
+        "override_for_role": "Überschreibung für {role} bei {permission}: {state}",
+        "no_override_for_role": "Keine Überschreibung für {role} bei {permission}",
+        "override_at_scope": "Überschreibung für {permission} in {scope}: {state}",
+        "no_override_at_scope": "Keine Überschreibung für {permission} in {scope}, wirksam: {state}",
+        "inheriting_from": "von {source} geerbt: {state}",
+        "owner_allow": "Erlauben (Owner erhalten immer alle Berechtigungen)",
+        "owner_not_editable": "Owner-Berechtigungen können nicht bearbeitet werden",
+        "override_here": "{state} (Überschreibung auf dieser Ebene)",
+        "subject_override_at_scope": "{state} (Überschreibung für {subject} in {scope})",
+        "inherits_from": "{state}, von {source} geerbt",
+        "effective_included_by": "Wirksam: Erlauben (enthalten in {permission})",
+        "effective_inherited": "Wirksam: {state} (geerbt)",
+        "manage_role": "{role} verwalten",
+        "no_scopes": "Keine Bereiche für {subject} verfügbar."
       }
     },
     "permission_categories": {

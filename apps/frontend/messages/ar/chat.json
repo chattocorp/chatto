@@ -27,7 +27,9 @@
         "followed_thread": "ردّ {actor} في سلسلة تتابعها.",
         "new_message": "نشر {actor} رسالة جديدة.",
         "activity": "أرسل إليك {actor} إشعارًا."
-      }
+      },
+      "load_failed": "فشل في تحميل الإشعارات",
+      "room_load_failed": "فشل في تحميل إشعارات الغرفة"
     },
     "sign_out": {
       "title": "تسجيل الخروج",
@@ -95,7 +97,8 @@
       "no_unread": "لا توجد سلاسل غير مقروءة الآن.",
       "message_missing": "لم تعد الرسالة متاحة",
       "in_room": "في",
-      "in_room_capitalized": "في"
+      "in_room_capitalized": "في",
+      "load_failed": "فشل في تحميل المواضيع"
     },
     "profile": {
       "title": "الملف الشخصي",

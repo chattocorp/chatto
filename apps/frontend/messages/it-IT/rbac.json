@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Gruppo",
       "level_room": "Stanza",
+      "level_dm": "DM",
       "empty_category": "Nessuna autorizzazione in questa categoria",
       "filter_label": "Filtra i permessi",
       "filter_placeholder": "Filtra autorizzazioni...",
@@ -100,6 +101,29 @@
           "title": "Autorizzazioni utente",
           "description": "Controlla le operazioni relative all'account utente e alle autorizzazioni per utente"
         }
+      },
+      "cell": {
+        "subject": "soggetto",
+        "role_subject": "ruolo",
+        "user_subject": "utente",
+        "allow": "Consenti",
+        "deny": "Nega",
+        "owner_always_granted": "Al proprietario viene sempre concesso {permission}",
+        "subject_always_granted": "A questo {subject} viene sempre concesso {permission} in {scope}",
+        "override_for_role": "Sostituzione per {role} su {permission}: {state}",
+        "no_override_for_role": "Nessuna sostituzione per {role} su {permission}",
+        "override_at_scope": "Sostituzione per {permission} in {scope}: {state}",
+        "no_override_at_scope": "Nessuna sostituzione per {permission} in {scope}, effettivo: {state}",
+        "inheriting_from": "ereditato da {source}: {state}",
+        "owner_allow": "Consenti (ai proprietari vengono sempre concesse tutte le autorizzazioni)",
+        "owner_not_editable": "Le autorizzazioni del proprietario non sono modificabili",
+        "override_here": "{state} (sostituzione a questo livello)",
+        "subject_override_at_scope": "{state} (sostituzione per questo {subject} in {scope})",
+        "inherits_from": "{state}, ereditato da {source}",
+        "effective_included_by": "Effettivo: Consenti (incluso in {permission})",
+        "effective_inherited": "Effettivo: {state} (ereditato)",
+        "manage_role": "Gestisci {role}",
+        "no_scopes": "Nessun ambito disponibile per questo {subject}."
       }
     },
     "permission_categories": {

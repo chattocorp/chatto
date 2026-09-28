@@ -136,7 +136,9 @@
       "open_delete_account": "Account verwijderen",
       "delete_account_entry_description": "Verwijdert het account van dit lid definitief. De berichten worden onleesbaar. Dit kan niet ongedaan worden gemaakt.",
       "bio_placeholder": "Vertel anderen iets over dit lid",
-      "bio_description": "Maximaal {max} tekens, getoond op het profiel van het lid."
+      "bio_description": "Maximaal {max} tekens, getoond op het profiel van het lid.",
+      "update_failed": "Kan gebruiker niet bijwerken",
+      "cooldown_clear_failed": "Kan wachttijd voor gebruikersnaamwijziging niet wissen"
     },
     "member_delete": {
       "title": "Lid verwijderen",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Er zijn geen gebruikers met deze rol",
       "server_tier_intro": "Deze pagina is bedoeld voor rolmachtigingen op serverniveau: brede standaardwaarden die van toepassing zijn vóór kamerspecifieke overschrijvingen.",
       "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer.",
-      "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau."
+      "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau.",
+      "update_role_failed": "Kan rol niet bijwerken",
+      "update_ping_failed": "Kan vermeldingsinstelling van rol niet bijwerken",
+      "delete_role_failed": "Kan rol niet verwijderen"
     },
     "rooms_admin": {
       "title": "Kamers",
@@ -288,7 +293,10 @@
       "member_added": "{name} is aan de ruimte toegevoegd",
       "add_member_failed": "Kan lid niet toevoegen: {error}",
       "member_removed": "{name} is uit de ruimte verwijderd",
-      "remove_member_failed": "Kan lid niet verwijderen: {error}"
+      "remove_member_failed": "Kan lid niet verwijderen: {error}",
+      "move_room_failed": "Kan kamer niet verplaatsen: {error}",
+      "move_link_failed": "Kan link niet verplaatsen: {error}",
+      "reorder_rooms_failed": "Kan kamers niet opnieuw rangschikken: {error}"
     },
     "security": {
       "title": "Beveiliging",

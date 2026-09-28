@@ -27,7 +27,9 @@
         "followed_thread": "{actor} replied in a thread you follow.",
         "new_message": "{actor} posted a new message.",
         "activity": "{actor} sent you a notification."
-      }
+      },
+      "load_failed": "Failed to load notifications",
+      "room_load_failed": "Failed to load room notifications"
     },
     "sign_out": {
       "title": "Sign Out",
@@ -87,7 +89,8 @@
       "no_unread": "No unread threads right now.",
       "message_missing": "Message no longer available",
       "in_room": "in",
-      "in_room_capitalized": "In"
+      "in_room_capitalized": "In",
+      "load_failed": "Failed to load threads"
     },
     "profile": {
       "title": "Profile",

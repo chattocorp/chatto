@@ -27,7 +27,9 @@
         "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst.",
         "new_message": "{actor} hat eine neue Nachricht gepostet.",
         "activity": "{actor} hat dir eine Benachrichtigung gesendet."
-      }
+      },
+      "load_failed": "Benachrichtigungen konnten nicht geladen werden",
+      "room_load_failed": "Raumbenachrichtigungen konnten nicht geladen werden"
     },
     "sign_out": {
       "title": "Abmelden",
@@ -87,7 +89,8 @@
       "no_unread": "Derzeit keine ungelesenen Threads.",
       "message_missing": "Nachricht nicht mehr verfügbar",
       "in_room": "in",
-      "in_room_capitalized": "In"
+      "in_room_capitalized": "In",
+      "load_failed": "Threads konnten nicht geladen werden"
     },
     "profile": {
       "title": "Profil",

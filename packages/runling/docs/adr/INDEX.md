@@ -9,3 +9,4 @@ These records belong to Runling and use independent numbering. See the
 | ADR-002 | [Explicit agent connections and child ownership](ADR-002-agent-ownership.md) | Accepted | 2026-09-22 |
 | ADR-003 | [Separate task state, output, and notifications](ADR-003-task-context.md)    | Accepted | 2026-09-22 |
 | ADR-004 | [Transport-neutral event sources](ADR-004-event-sources.md)                  | Accepted | 2026-09-22 |
+| ADR-005 | [Block tools after untrusted context](ADR-005-untrusted-context.md)          | Accepted | 2026-09-27 |

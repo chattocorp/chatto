@@ -10,6 +10,7 @@ import {
   type NotificationPolicyPatch,
   NotificationSignalKind
 } from '$lib/api-client/notifications';
+import { m } from '$lib/i18n/messages';
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -438,7 +439,7 @@ export class NotificationStore {
       this.replaceOccurrenceProjection(page);
     } catch (e) {
       if (generation !== this.#fetchGeneration) return;
-      this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
+      this.error = e instanceof Error ? e.message : m('chat.notifications.load_failed');
       console.error('Failed to fetch notifications:', e);
     } finally {
       if (showLoading && generation === this.#fetchGeneration) {
@@ -703,7 +704,7 @@ export class NotificationStore {
         notification
       };
     } catch (e) {
-      this.error = e instanceof Error ? e.message : 'Failed to fetch room notification';
+      this.error = e instanceof Error ? e.message : m('chat.notifications.room_load_failed');
       console.error('Failed to fetch room notification:', e);
       return { ok: false, totalCount: null, notification: null };
     }

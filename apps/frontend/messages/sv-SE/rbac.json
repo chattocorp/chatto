@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Grupp",
       "level_room": "Rum",
+      "level_dm": "DM",
       "empty_category": "Inga behörigheter i denna kategori",
       "filter_label": "Filtrera behörigheter",
       "filter_placeholder": "Filtrera behörigheter...",
@@ -100,6 +101,29 @@
           "title": "Användarbehörigheter",
           "description": "Kontrollera användarkonto och per-användares behörighetsoperationer"
         }
+      },
+      "cell": {
+        "subject": "subjekt",
+        "role_subject": "roll",
+        "user_subject": "användare",
+        "allow": "Tillåt",
+        "deny": "Neka",
+        "owner_always_granted": "Ägaren har alltid {permission}",
+        "subject_always_granted": "{subject} har alltid {permission} i {scope}",
+        "override_for_role": "Åsidosättning för {role} på {permission}: {state}",
+        "no_override_for_role": "Ingen åsidosättning för {role} på {permission}",
+        "override_at_scope": "Åsidosättning för {permission} i {scope}: {state}",
+        "no_override_at_scope": "Ingen åsidosättning för {permission} i {scope}, gäller: {state}",
+        "inheriting_from": "ärvd från {source}: {state}",
+        "owner_allow": "Tillåt (ägare beviljas alltid alla behörigheter)",
+        "owner_not_editable": "Ägarbehörigheter kan inte redigeras",
+        "override_here": "{state} (åsidosättning på den här nivån)",
+        "subject_override_at_scope": "{state} (åsidosättning för {subject} i {scope})",
+        "inherits_from": "{state}, ärvd från {source}",
+        "effective_included_by": "Gäller: Tillåt (ingår i {permission})",
+        "effective_inherited": "Gäller: {state} (ärvd)",
+        "manage_role": "Hantera {role}",
+        "no_scopes": "Inga omfång tillgängliga för {subject}."
       }
     },
     "permission_categories": {

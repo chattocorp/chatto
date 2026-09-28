@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Skupina",
       "level_room": "Místnost",
+      "level_dm": "DM",
       "empty_category": "V této kategorii nejsou žádná oprávnění",
       "filter_label": "Oprávnění filtrovat",
       "filter_placeholder": "Oprávnění filtrovat...",
@@ -100,6 +101,29 @@
           "title": "Uživatelská oprávnění",
           "description": "Řízení uživatelských účtů a oprávnění jednotlivých uživatelů"
         }
+      },
+      "cell": {
+        "subject": "subjekt",
+        "role_subject": "role",
+        "user_subject": "uživatel",
+        "allow": "Povolit",
+        "deny": "Zakázat",
+        "owner_always_granted": "Vlastník má oprávnění {permission} vždy uděleno",
+        "subject_always_granted": "{subject} má oprávnění {permission} v rozsahu {scope} vždy uděleno",
+        "override_for_role": "Přepsání pro {role} u {permission}: {state}",
+        "no_override_for_role": "Žádné přepsání pro {role} u {permission}",
+        "override_at_scope": "Přepsání pro {permission} v rozsahu {scope}: {state}",
+        "no_override_at_scope": "Žádné přepsání pro {permission} v rozsahu {scope}, výsledně: {state}",
+        "inheriting_from": "zděděno z {source}: {state}",
+        "owner_allow": "Povolit (vlastníkům jsou vždy udělena všechna oprávnění)",
+        "owner_not_editable": "Oprávnění vlastníka nelze upravit",
+        "override_here": "{state} (přepsání na této úrovni)",
+        "subject_override_at_scope": "{state} (přepsání pro {subject} v rozsahu {scope})",
+        "inherits_from": "{state}, zděděno z {source}",
+        "effective_included_by": "Výsledně: Povolit (zahrnuto v {permission})",
+        "effective_inherited": "Výsledně: {state} (zděděno)",
+        "manage_role": "Spravovat {role}",
+        "no_scopes": "Pro tento typ ({subject}) nejsou k dispozici žádné rozsahy."
       }
     },
     "permission_categories": {

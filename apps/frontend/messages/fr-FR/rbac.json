@@ -55,6 +55,7 @@
       "level_server": "Serveur",
       "level_group": "Groupe",
       "level_room": "Chambre",
+      "level_dm": "DM",
       "empty_category": "Aucune autorisation dans cette catégorie",
       "filter_label": "Filtrer les autorisations",
       "filter_placeholder": "Filtrer les autorisations...",
@@ -100,6 +101,29 @@
           "title": "Autorisations utilisateur",
           "description": "Contrôlez les opérations de compte utilisateur et d'autorisation par utilisateur"
         }
+      },
+      "cell": {
+        "subject": "sujet",
+        "role_subject": "rôle",
+        "user_subject": "utilisateur",
+        "allow": "Autoriser",
+        "deny": "Refuser",
+        "owner_always_granted": "Le propriétaire dispose toujours de {permission}",
+        "subject_always_granted": "Ce {subject} dispose toujours de {permission} dans {scope}",
+        "override_for_role": "Remplacement pour {role} sur {permission} : {state}",
+        "no_override_for_role": "Aucun remplacement pour {role} sur {permission}",
+        "override_at_scope": "Remplacement pour {permission} dans {scope} : {state}",
+        "no_override_at_scope": "Aucun remplacement pour {permission} dans {scope}, effectif : {state}",
+        "inheriting_from": "hérité de {source} : {state}",
+        "owner_allow": "Autoriser (les propriétaires disposent toujours de toutes les autorisations)",
+        "owner_not_editable": "Les autorisations du propriétaire ne sont pas modifiables",
+        "override_here": "{state} (remplacement à ce niveau)",
+        "subject_override_at_scope": "{state} (remplacement pour ce {subject} dans {scope})",
+        "inherits_from": "{state}, hérité de {source}",
+        "effective_included_by": "Effectif : Autoriser (inclus dans {permission})",
+        "effective_inherited": "Effectif : {state} (hérité)",
+        "manage_role": "Gérer {role}",
+        "no_scopes": "Aucune portée disponible pour ce {subject}."
       }
     },
     "permission_categories": {

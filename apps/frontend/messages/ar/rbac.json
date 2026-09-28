@@ -55,6 +55,7 @@
       "level_server": "الخادم",
       "level_group": "المجموعة",
       "level_room": "الغرفة",
+      "level_dm": "الرسائل المباشرة",
       "empty_category": "لا توجد أذونات في هذه الفئة",
       "filter_label": "أذونات التصفية",
       "filter_placeholder": "تصفية الأذونات...",
@@ -100,6 +101,29 @@
           "title": "أذونات المستخدم",
           "description": "التحكم في حساب المستخدم وعمليات الإذن لكل مستخدم"
         }
+      },
+      "cell": {
+        "subject": "الجهة",
+        "role_subject": "الدور",
+        "user_subject": "المستخدم",
+        "allow": "سماح",
+        "deny": "رفض",
+        "owner_always_granted": "يُمنح المالك {permission} دائمًا",
+        "subject_always_granted": "يُمنح {subject} الإذن {permission} دائمًا في {scope}",
+        "override_for_role": "تجاوز لـ {role} على {permission}: {state}",
+        "no_override_for_role": "لا يوجد تجاوز لـ {role} على {permission}",
+        "override_at_scope": "تجاوز لـ {permission} في {scope}: {state}",
+        "no_override_at_scope": "لا يوجد تجاوز لـ {permission} في {scope}، الفعلي: {state}",
+        "inheriting_from": "موروث من {source}: {state}",
+        "owner_allow": "سماح (يُمنح المالكون جميع الأذونات دائمًا)",
+        "owner_not_editable": "لا يمكن تعديل أذونات المالك",
+        "override_here": "{state} (تجاوز في هذا المستوى)",
+        "subject_override_at_scope": "{state} (تجاوز لـ {subject} في {scope})",
+        "inherits_from": "{state}، موروث من {source}",
+        "effective_included_by": "الفعلي: سماح (مُضمَّن في {permission})",
+        "effective_inherited": "الفعلي: {state} (موروث)",
+        "manage_role": "إدارة {role}",
+        "no_scopes": "لا توجد نطاقات متاحة لـ {subject}."
       }
     },
     "permission_categories": {

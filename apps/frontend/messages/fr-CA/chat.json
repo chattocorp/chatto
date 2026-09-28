@@ -27,7 +27,9 @@
         "followed_thread": "{actor} a répondu dans un fil que vous suivez.",
         "new_message": "{actor} a publié un nouveau message.",
         "activity": "{actor} vous a envoyé une notification."
-      }
+      },
+      "load_failed": "Échec du chargement des notifications",
+      "room_load_failed": "Échec du chargement des notifications du salon"
     },
     "sign_out": {
       "title": "Se déconnecter",
@@ -87,7 +89,8 @@
       "no_unread": "Aucun fil de discussion non lu pour le moment.",
       "message_missing": "Le message n'est plus disponible",
       "in_room": "dans",
-      "in_room_capitalized": "Dans"
+      "in_room_capitalized": "Dans",
+      "load_failed": "Échec du chargement des discussions"
     },
     "profile": {
       "title": "Profil",

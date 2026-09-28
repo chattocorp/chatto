@@ -27,7 +27,9 @@
         "followed_thread": "{actor} 回覆了你追蹤的討論串。",
         "new_message": "{actor} 發布了一則新訊息。",
         "activity": "{actor} 傳送了一則通知給你。"
-      }
+      },
+      "load_failed": "無法載入通知",
+      "room_load_failed": "無法載入聊天室通知"
     },
     "sign_out": {
       "title": "登出",
@@ -87,7 +89,8 @@
       "no_unread": "目前沒有未讀討論串。",
       "message_missing": "訊息已無法使用",
       "in_room": "位於",
-      "in_room_capitalized": "位於"
+      "in_room_capitalized": "位於",
+      "load_failed": "無法載入討論串"
     },
     "profile": {
       "title": "個人資料",

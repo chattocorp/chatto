@@ -136,7 +136,9 @@
       "open_delete_account": "Forigi konton",
       "delete_account_entry_description": "Por ĉiam forigas la konton de tiu ĉi membro. Ĝiaj mesaĝoj fariĝas nelegeblaj. Ne eblas revenigi tion.",
       "bio_placeholder": "Rakontu al aliaj iomete pri ĉi tiu membro",
-      "bio_description": "Ĝis {max} signoj, montrataj en la profilo de la membro."
+      "bio_description": "Ĝis {max} signoj, montrataj en la profilo de la membro.",
+      "update_failed": "Malsukcesis ĝisdatigi uzanton",
+      "cooldown_clear_failed": "Malsukcesis nuligi la malvarmigon de uzantnoma ŝanĝo"
     },
     "member_delete": {
       "title": "Forigi membron",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Neniuj uzantoj havas ĉi tiun rolon",
       "server_tier_intro": "Ĉi tiu paĝo estas por servil-nivelaj rolpermesoj: larĝaj defaŭltoj kiuj validas antaŭ ĉambrospecifaj anstataŭaĵoj.",
       "server_tier_rooms_hint": "Uzu Ĉambrojn por po-grupoj kaj po-ĉambraj anstataŭoj.",
-      "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo."
+      "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo.",
+      "update_role_failed": "Malsukcesis ĝisdatigi rolon",
+      "update_ping_failed": "Malsukcesis ĝisdatigi la ping-agordon de la rolo",
+      "delete_role_failed": "Malsukcesis forigi rolon"
     },
     "rooms_admin": {
       "title": "Ĉambroj",
@@ -288,7 +293,10 @@
       "member_added": "{name} estis aldonita al la ĉambro",
       "add_member_failed": "Malsukcesis aldoni membron: {error}",
       "member_removed": "{name} estis forigita el la ĉambro",
-      "remove_member_failed": "Malsukcesis forigi membron: {error}"
+      "remove_member_failed": "Malsukcesis forigi membron: {error}",
+      "move_room_failed": "Malsukcesis movi ĉambron: {error}",
+      "move_link_failed": "Malsukcesis movi ligilon: {error}",
+      "reorder_rooms_failed": "Malsukcesis reordigi ĉambrojn: {error}"
     },
     "security": {
       "title": "Sekureco",

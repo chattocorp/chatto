@@ -55,6 +55,7 @@
       "level_server": "Servilo",
       "level_group": "Grupo",
       "level_room": "Ĉambro",
+      "level_dm": "DM",
       "empty_category": "Neniuj permesoj en ĉi tiu kategorio",
       "filter_label": "Filtri permesojn",
       "filter_placeholder": "Filtri permesojn...",
@@ -100,6 +101,29 @@
           "title": "Permesoj de uzanto",
           "description": "Kontrolu uzantkonton kaj per-uzantajn permesajn operaciojn"
         }
+      },
+      "cell": {
+        "subject": "subjekto",
+        "role_subject": "rolo",
+        "user_subject": "uzanto",
+        "allow": "Permesi",
+        "deny": "Rifuzi",
+        "owner_always_granted": "Posedanto ĉiam ricevas {permission}",
+        "subject_always_granted": "{subject} ĉiam ricevas {permission} ĉe {scope}",
+        "override_for_role": "Superrego por {role} pri {permission}: {state}",
+        "no_override_for_role": "Neniu superrego por {role} pri {permission}",
+        "override_at_scope": "Superrego por {permission} ĉe {scope}: {state}",
+        "no_override_at_scope": "Neniu superrego por {permission} ĉe {scope}, efektive: {state}",
+        "inheriting_from": "heredita de {source}: {state}",
+        "owner_allow": "Permesi (posedantoj ĉiam ricevas ĉiujn permesojn)",
+        "owner_not_editable": "Permesoj de posedantoj ne estas redakteblaj",
+        "override_here": "{state} (superrego ĉe ĉi tiu nivelo)",
+        "subject_override_at_scope": "{state} (superrego por {subject} ĉe {scope})",
+        "inherits_from": "{state}, heredita de {source}",
+        "effective_included_by": "Efektive: Permesi (inkluzivita de {permission})",
+        "effective_inherited": "Efektive: {state} (heredita)",
+        "manage_role": "Administri {role}",
+        "no_scopes": "Neniuj ampleksoj disponeblaj por ĉi tiu {subject}."
       }
     },
     "permission_categories": {

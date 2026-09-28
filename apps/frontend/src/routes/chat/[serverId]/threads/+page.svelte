@@ -163,7 +163,7 @@
     threadsQuery.isError
       ? threadsQuery.error instanceof Error
         ? threadsQuery.error.message
-        : 'Failed to load threads'
+        : m('chat.threads.load_failed')
       : null
   );
   const hasMore = $derived(threadsQuery.hasNextPage);

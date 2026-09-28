@@ -27,7 +27,9 @@
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete.",
         "new_message": "Uživatel {actor} zveřejnil novou zprávu.",
         "activity": "Uživatel {actor} vám poslal oznámení."
-      }
+      },
+      "load_failed": "Nepodařilo se načíst oznámení",
+      "room_load_failed": "Nepodařilo se načíst oznámení místnosti"
     },
     "sign_out": {
       "title": "Odhlásit se",
@@ -87,7 +89,8 @@
       "no_unread": "Momentálně žádná nepřečtená vlákna.",
       "message_missing": "Zpráva již není dostupná",
       "in_room": "v",
-      "in_room_capitalized": "In"
+      "in_room_capitalized": "In",
+      "load_failed": "Nepodařilo se načíst vlákna"
     },
     "profile": {
       "title": "Profil",

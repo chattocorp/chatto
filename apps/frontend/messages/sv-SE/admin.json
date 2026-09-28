@@ -136,7 +136,9 @@
       "open_delete_account": "Ta bort konto",
       "delete_account_entry_description": "Tar bort medlemmens konto permanent. Deras meddelanden blir oläsbara. Detta går inte att ångra.",
       "bio_placeholder": "Berätta lite om den här medlemmen för andra",
-      "bio_description": "Upp till {max} tecken, visas i medlemmens profil."
+      "bio_description": "Upp till {max} tecken, visas i medlemmens profil.",
+      "update_failed": "Det gick inte att uppdatera användaren",
+      "cooldown_clear_failed": "Det gick inte att rensa väntetiden för byte av användarnamn"
     },
     "member_delete": {
       "title": "Ta bort medlem",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Inga användare har den här rollen",
       "server_tier_intro": "Den här sidan är för rollbehörigheter på servernivå: breda standardinställningar som gäller före rumsspecifika åsidosättningar.",
       "server_tier_rooms_hint": "Använd rum för åsidosättningar per grupp och per rum.",
-      "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå."
+      "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå.",
+      "update_role_failed": "Det gick inte att uppdatera rollen",
+      "update_ping_failed": "Det gick inte att uppdatera rollens inställning för omnämnanden",
+      "delete_role_failed": "Det gick inte att ta bort rollen"
     },
     "rooms_admin": {
       "title": "Rum",
@@ -288,7 +293,10 @@
       "member_added": "{name} lades till i rummet",
       "add_member_failed": "Det gick inte att lägga till medlemmen: {error}",
       "member_removed": "{name} togs bort från rummet",
-      "remove_member_failed": "Det gick inte att ta bort medlemmen: {error}"
+      "remove_member_failed": "Det gick inte att ta bort medlemmen: {error}",
+      "move_room_failed": "Det gick inte att flytta rummet: {error}",
+      "move_link_failed": "Det gick inte att flytta länken: {error}",
+      "reorder_rooms_failed": "Det gick inte att ändra ordning på rummen: {error}"
     },
     "security": {
       "title": "Säkerhet",

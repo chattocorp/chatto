@@ -55,6 +55,7 @@
       "level_server": "Serwer",
       "level_group": "Grupa",
       "level_room": "Pokój",
+      "level_dm": "DM",
       "empty_category": "Brak uprawnień w tej kategorii",
       "filter_label": "Filtruj uprawnienia",
       "filter_placeholder": "Filtruj uprawnienia...",
@@ -100,6 +101,29 @@
           "title": "Uprawnienia użytkownika",
           "description": "Kontroluj operacje na koncie użytkownika i uprawnieniach poszczególnych użytkowników"
         }
+      },
+      "cell": {
+        "subject": "podmiot",
+        "role_subject": "rola",
+        "user_subject": "użytkownik",
+        "allow": "Zezwól",
+        "deny": "Odmów",
+        "owner_always_granted": "Właściciel zawsze ma uprawnienie {permission}",
+        "subject_always_granted": "{subject}: uprawnienie {permission} w zakresie {scope} jest zawsze przyznane",
+        "override_for_role": "Nadpisanie dla roli {role} w uprawnieniu {permission}: {state}",
+        "no_override_for_role": "Brak nadpisania dla roli {role} w uprawnieniu {permission}",
+        "override_at_scope": "Nadpisanie uprawnienia {permission} w zakresie {scope}: {state}",
+        "no_override_at_scope": "Brak nadpisania uprawnienia {permission} w zakresie {scope}, obowiązuje: {state}",
+        "inheriting_from": "odziedziczone z {source}: {state}",
+        "owner_allow": "Zezwól (właściciele zawsze otrzymują wszystkie uprawnienia)",
+        "owner_not_editable": "Uprawnień właściciela nie można edytować",
+        "override_here": "{state} (nadpisanie na tym poziomie)",
+        "subject_override_at_scope": "{state} (nadpisanie: {subject}, zakres {scope})",
+        "inherits_from": "{state}, odziedziczone z {source}",
+        "effective_included_by": "Obowiązuje: Zezwól (zawarte w {permission})",
+        "effective_inherited": "Obowiązuje: {state} (odziedziczone)",
+        "manage_role": "Zarządzaj rolą {role}",
+        "no_scopes": "Brak dostępnych zakresów dla tego typu ({subject})."
       }
     },
     "permission_categories": {

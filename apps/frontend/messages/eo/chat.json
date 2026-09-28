@@ -27,7 +27,9 @@
         "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas.",
         "new_message": "{actor} afiŝis novan mesaĝon.",
         "activity": "{actor} sendis al vi sciigon."
-      }
+      },
+      "load_failed": "Malsukcesis ŝargi sciigojn",
+      "room_load_failed": "Malsukcesis ŝargi ĉambrajn sciigojn"
     },
     "sign_out": {
       "title": "Eliru",
@@ -87,7 +89,8 @@
       "no_unread": "Neniuj nelegitaj fadenoj nun.",
       "message_missing": "Mesaĝo ne plu havebla",
       "in_room": "en",
-      "in_room_capitalized": "En"
+      "in_room_capitalized": "En",
+      "load_failed": "Malsukcesis ŝargi fadenojn"
     },
     "profile": {
       "title": "Profilo",

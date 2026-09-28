@@ -55,6 +55,7 @@
       "level_server": "伺服器",
       "level_group": "群組",
       "level_room": "聊天室",
+      "level_dm": "私訊",
       "empty_category": "此類別沒有權限",
       "filter_label": "篩選權限",
       "filter_placeholder": "篩選權限...",
@@ -100,6 +101,29 @@
           "title": "使用者權限",
           "description": "控制使用者帳號及個別使用者的權限操作"
         }
+      },
+      "cell": {
+        "subject": "主體",
+        "role_subject": "角色",
+        "user_subject": "使用者",
+        "allow": "允許",
+        "deny": "拒絕",
+        "owner_always_granted": "擁有者一律具有 {permission}",
+        "subject_always_granted": "此{subject}在 {scope} 一律具有 {permission}",
+        "override_for_role": "{role} 的 {permission} 覆寫：{state}",
+        "no_override_for_role": "{role} 的 {permission} 沒有覆寫",
+        "override_at_scope": "{scope} 中 {permission} 的覆寫：{state}",
+        "no_override_at_scope": "{scope} 中 {permission} 沒有覆寫，目前生效：{state}",
+        "inheriting_from": "繼承自 {source}：{state}",
+        "owner_allow": "允許（擁有者一律獲授所有權限）",
+        "owner_not_editable": "擁有者權限無法編輯",
+        "override_here": "{state}（在此層級覆寫）",
+        "subject_override_at_scope": "{state}（{subject}在 {scope} 的覆寫）",
+        "inherits_from": "{state}，繼承自 {source}",
+        "effective_included_by": "目前生效：允許（包含於 {permission}）",
+        "effective_inherited": "目前生效：{state}（繼承）",
+        "manage_role": "管理 {role}",
+        "no_scopes": "此{subject}沒有可用的範圍。"
       }
     },
     "permission_categories": {

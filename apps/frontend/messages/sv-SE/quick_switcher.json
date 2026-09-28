@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Skriv efter ? för att söka meddelanden på alla dina servrar",
       "no_results": "Inga meddelanden hittades"
-    }
+    },
+    "start_dm_failed": "Det gick inte att starta DM"
   }
 }

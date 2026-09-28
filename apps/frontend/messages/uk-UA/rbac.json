@@ -55,6 +55,7 @@
       "level_server": "Сервер",
       "level_group": "Група",
       "level_room": "Кімната",
+      "level_dm": "DM",
       "empty_category": "У цій категорії немає дозволів",
       "filter_label": "Фільтрувати дозволи",
       "filter_placeholder": "Фільтрувати дозволи...",
@@ -100,6 +101,29 @@
           "title": "Дозволи користувача",
           "description": "Керуйте обліковим записом користувача та операціями з дозволами для кожного користувача"
         }
+      },
+      "cell": {
+        "subject": "суб’єкт",
+        "role_subject": "роль",
+        "user_subject": "користувач",
+        "allow": "Дозволити",
+        "deny": "Заборонити",
+        "owner_always_granted": "Власнику завжди надано дозвіл {permission}",
+        "subject_always_granted": "{subject}: дозвіл {permission} в області {scope} надано завжди",
+        "override_for_role": "Перевизначення для ролі {role} у дозволі {permission}: {state}",
+        "no_override_for_role": "Немає перевизначення для ролі {role} у дозволі {permission}",
+        "override_at_scope": "Перевизначення дозволу {permission} в області {scope}: {state}",
+        "no_override_at_scope": "Немає перевизначення дозволу {permission} в області {scope}, діє: {state}",
+        "inheriting_from": "успадковано від {source}: {state}",
+        "owner_allow": "Дозволити (власникам завжди надаються всі дозволи)",
+        "owner_not_editable": "Дозволи власника не можна змінити",
+        "override_here": "{state} (перевизначення на цьому рівні)",
+        "subject_override_at_scope": "{state} (перевизначення: {subject}, область {scope})",
+        "inherits_from": "{state}, успадковано від {source}",
+        "effective_included_by": "Діє: Дозволити (входить до {permission})",
+        "effective_inherited": "Діє: {state} (успадковано)",
+        "manage_role": "Керувати роллю {role}",
+        "no_scopes": "Для цього типу ({subject}) немає доступних областей."
       }
     },
     "permission_categories": {

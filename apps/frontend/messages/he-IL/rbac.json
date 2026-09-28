@@ -55,6 +55,7 @@
       "level_server": "שרת",
       "level_group": "קבוצה",
       "level_room": "חדר",
+      "level_dm": "הודעות פרטיות",
       "empty_category": "אין הרשאות בקטגוריה זו",
       "filter_label": "הרשאות סינון",
       "filter_placeholder": "הרשאות מסנן...",
@@ -100,6 +101,29 @@
           "title": "הרשאות משתמש",
           "description": "שלוט בחשבון משתמש ופעולות הרשאות לכל משתמש"
         }
+      },
+      "cell": {
+        "subject": "ישות",
+        "role_subject": "תפקיד",
+        "user_subject": "משתמש",
+        "allow": "אפשר",
+        "deny": "דחה",
+        "owner_always_granted": "לבעלים מוענקת תמיד ההרשאה {permission}",
+        "subject_always_granted": "{subject}: ההרשאה {permission} מוענקת תמיד בתחום {scope}",
+        "override_for_role": "דריסה עבור {role} בהרשאה {permission}: {state}",
+        "no_override_for_role": "אין דריסה עבור {role} בהרשאה {permission}",
+        "override_at_scope": "דריסה עבור {permission} בתחום {scope}: {state}",
+        "no_override_at_scope": "אין דריסה עבור {permission} בתחום {scope}, בתוקף: {state}",
+        "inheriting_from": "עובר בירושה מ-{source}: {state}",
+        "owner_allow": "אפשר (לבעלים מוענקות תמיד כל ההרשאות)",
+        "owner_not_editable": "לא ניתן לערוך את הרשאות הבעלים",
+        "override_here": "{state} (דריסה ברמה זו)",
+        "subject_override_at_scope": "{state} (דריסה עבור {subject} בתחום {scope})",
+        "inherits_from": "{state}, עובר בירושה מ-{source}",
+        "effective_included_by": "בתוקף: אפשר (כלול ב-{permission})",
+        "effective_inherited": "בתוקף: {state} (בירושה)",
+        "manage_role": "ניהול {role}",
+        "no_scopes": "אין תחומים זמינים עבור סוג זה ({subject})."
       }
     },
     "permission_categories": {

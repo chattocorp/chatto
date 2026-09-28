@@ -428,3 +428,41 @@ it.each([
   button.click();
   expect(onMembershipChange).toHaveBeenCalledTimes(membership.disabled ? 0 : 1);
 });
+
+it('localizes tri-state cell labels, titles, and scope headings', async () => {
+  await loadLocaleMessages('de-DE');
+  setReactiveLocale('de-DE');
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: {
+      data: {
+        ...data,
+        scopes: [...data.scopes, { id: 'dm', label: 'DMs', kind: 'DM', parentGroupId: '' }],
+        cells: [
+          ...data.cells,
+          { permission: 'message.post', scopeId: 'dm', override: 'NONE', effective: 'ALLOW' }
+        ]
+      },
+      onCycle: vi.fn(),
+      subjectKind: 'Rolle'
+    }
+  });
+  const cellButton = (permission: string, scopeId: string) =>
+    container.querySelector(
+      `td[data-scope="${scopeId}"][data-permission="${permission}"] button`
+    ) as HTMLButtonElement;
+
+  const override = cellButton('message.post', 'server');
+  expect(override.ariaLabel).toBe('Überschreibung für message.post in Server: erlauben');
+  expect(override.title).toBe('Erlauben (Überschreibung für Rolle in Server)');
+
+  const inherited = cellButton('message.post', 'group:general');
+  expect(inherited.ariaLabel).toBe(
+    'Keine Überschreibung für message.post in General, wirksam: erlauben'
+  );
+  expect(inherited.title).toBe('Wirksam: Erlauben (geerbt)');
+
+  expect(cellButton('message.delete', 'server').title).toBe('Keine Entscheidung');
+  expect(container.querySelector('span[title="General (Gruppe)"]')).not.toBeNull();
+  expect(container.querySelector('span[title="DMs (DM)"]')).not.toBeNull();
+  expect(container.textContent).toContain('Berechtigung');
+});

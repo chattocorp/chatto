@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Gruppe",
       "level_room": "Rom",
+      "level_dm": "DM",
       "empty_category": "Ingen tillatelser i denne kategorien",
       "filter_label": "Filtrer tillatelser",
       "filter_placeholder": "Filtrer tillatelser...",
@@ -100,6 +101,29 @@
           "title": "Brukertillatelser",
           "description": "Kontroller brukerkontoer og tillatelsesoperasjoner per bruker"
         }
+      },
+      "cell": {
+        "subject": "subjekt",
+        "role_subject": "rolle",
+        "user_subject": "bruker",
+        "allow": "Tillat",
+        "deny": "Avvis",
+        "owner_always_granted": "Eieren har alltid {permission}",
+        "subject_always_granted": "{subject} har alltid {permission} i {scope}",
+        "override_for_role": "Overstyring for {role} på {permission}: {state}",
+        "no_override_for_role": "Ingen overstyring for {role} på {permission}",
+        "override_at_scope": "Overstyring for {permission} i {scope}: {state}",
+        "no_override_at_scope": "Ingen overstyring for {permission} i {scope}, gjeldende: {state}",
+        "inheriting_from": "arvet fra {source}: {state}",
+        "owner_allow": "Tillat (eiere får alltid alle tillatelser)",
+        "owner_not_editable": "Eiertillatelser kan ikke redigeres",
+        "override_here": "{state} (overstyring på dette nivået)",
+        "subject_override_at_scope": "{state} (overstyring for {subject} i {scope})",
+        "inherits_from": "{state}, arvet fra {source}",
+        "effective_included_by": "Gjeldende: Tillat (inkludert i {permission})",
+        "effective_inherited": "Gjeldende: {state} (arvet)",
+        "manage_role": "Administrer {role}",
+        "no_scopes": "Ingen områder tilgjengelig for {subject}."
       }
     },
     "permission_categories": {

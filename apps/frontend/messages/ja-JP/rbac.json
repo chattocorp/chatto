@@ -55,6 +55,7 @@
       "level_server": "サーバー",
       "level_group": "グループ",
       "level_room": "部屋",
+      "level_dm": "DM",
       "empty_category": "このカテゴリには権限がありません",
       "filter_label": "権限を絞り込む",
       "filter_placeholder": "権限を絞り込む...",
@@ -100,6 +101,29 @@
           "title": "ユーザー権限",
           "description": "ユーザーアカウントとユーザーごとの権限操作を制御します"
         }
+      },
+      "cell": {
+        "subject": "対象",
+        "role_subject": "ロール",
+        "user_subject": "ユーザー",
+        "allow": "許可",
+        "deny": "拒否",
+        "owner_always_granted": "所有者には常に {permission} が付与されます",
+        "subject_always_granted": "この{subject}には {scope} で常に {permission} が付与されます",
+        "override_for_role": "{role} の {permission} の上書き：{state}",
+        "no_override_for_role": "{role} の {permission} に上書きはありません",
+        "override_at_scope": "{scope} での {permission} の上書き：{state}",
+        "no_override_at_scope": "{scope} での {permission} に上書きはありません。適用値：{state}",
+        "inheriting_from": "{source} から継承：{state}",
+        "owner_allow": "許可（所有者には常にすべての権限が付与されます）",
+        "owner_not_editable": "所有者の権限は編集できません",
+        "override_here": "{state}（この階層での上書き）",
+        "subject_override_at_scope": "{state}（{scope} での{subject}の上書き）",
+        "inherits_from": "{state}（{source} から継承）",
+        "effective_included_by": "適用値：許可（{permission} に含まれる）",
+        "effective_inherited": "適用値：{state}（継承）",
+        "manage_role": "{role} を管理",
+        "no_scopes": "この{subject}で利用できるスコープはありません。"
       }
     },
     "permission_categories": {

@@ -55,6 +55,7 @@
       "level_server": "Serveris",
       "level_group": "Grupa",
       "level_room": "Istaba",
+      "level_dm": "DM",
       "empty_category": "Šajā kategorijā nav atļauju",
       "filter_label": "Filtra atļaujas",
       "filter_placeholder": "Filtrēt atļaujas...",
@@ -100,6 +101,29 @@
           "title": "Lietotāja atļaujas",
           "description": "Kontrolējiet lietotāja konta un katra lietotāja atļauju darbības"
         }
+      },
+      "cell": {
+        "subject": "subjekts",
+        "role_subject": "loma",
+        "user_subject": "lietotājs",
+        "allow": "Atļaut",
+        "deny": "Aizliegt",
+        "owner_always_granted": "Īpašniekam vienmēr ir piešķirta atļauja {permission}",
+        "subject_always_granted": "{subject}: atļauja {permission} tvērumā {scope} vienmēr ir piešķirta",
+        "override_for_role": "Pārrakstīšana lomai {role} atļaujai {permission}: {state}",
+        "no_override_for_role": "Nav pārrakstīšanas lomai {role} atļaujai {permission}",
+        "override_at_scope": "Pārrakstīšana atļaujai {permission} tvērumā {scope}: {state}",
+        "no_override_at_scope": "Nav pārrakstīšanas atļaujai {permission} tvērumā {scope}, spēkā: {state}",
+        "inheriting_from": "mantots no {source}: {state}",
+        "owner_allow": "Atļaut (īpašniekiem vienmēr ir piešķirtas visas atļaujas)",
+        "owner_not_editable": "Īpašnieka atļaujas nevar rediģēt",
+        "override_here": "{state} (pārrakstīšana šajā līmenī)",
+        "subject_override_at_scope": "{state} (pārrakstīšana: {subject}, tvērums {scope})",
+        "inherits_from": "{state}, mantots no {source}",
+        "effective_included_by": "Spēkā: Atļaut (ietverts atļaujā {permission})",
+        "effective_inherited": "Spēkā: {state} (mantots)",
+        "manage_role": "Pārvaldīt lomu {role}",
+        "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu."
       }
     },
     "permission_categories": {

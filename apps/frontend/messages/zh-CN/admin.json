@@ -136,7 +136,9 @@
       "open_delete_account": "删除账号",
       "delete_account_entry_description": "永久删除该成员的账号。其消息将变为无法读取。此操作无法撤消。",
       "bio_placeholder": "向其他人简单介绍一下此成员",
-      "bio_description": "最多 {max} 个字符，显示在成员的个人资料中。"
+      "bio_description": "最多 {max} 个字符，显示在成员的个人资料中。",
+      "update_failed": "更新用户失败",
+      "cooldown_clear_failed": "清除用户名更改冷却期失败"
     },
     "member_delete": {
       "title": "删除成员",
@@ -190,7 +192,10 @@
       "no_users_with_role": "没有用户拥有此角色",
       "server_tier_intro": "此页面用于设置服务器层级的角色权限，即应用聊天室特定覆盖项之前的通用默认值。",
       "server_tier_rooms_hint": "请前往“聊天室”设置各群组和聊天室的覆盖项。",
-      "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。"
+      "resolution_hint": "对于每位用户或具名角色，会应用最近一级聊天室、群组或服务器的值。如有冲突，以拒绝为准。只有在相同或更具体的作用域内，允许项才能覆盖 everyone 的拒绝项。",
+      "update_role_failed": "更新角色失败",
+      "update_ping_failed": "更新角色提及设置失败",
+      "delete_role_failed": "删除角色失败"
     },
     "rooms_admin": {
       "title": "聊天室",
@@ -288,7 +293,10 @@
       "member_added": "已将 {name} 添加到聊天室",
       "add_member_failed": "添加成员失败：{error}",
       "member_removed": "已将 {name} 从聊天室移除",
-      "remove_member_failed": "移除成员失败：{error}"
+      "remove_member_failed": "移除成员失败：{error}",
+      "move_room_failed": "移动聊天室失败：{error}",
+      "move_link_failed": "移动链接失败：{error}",
+      "reorder_rooms_failed": "调整聊天室顺序失败：{error}"
     },
     "security": {
       "title": "安全",

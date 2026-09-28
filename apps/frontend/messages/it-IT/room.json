@@ -225,7 +225,9 @@
       "in_voice_call": "In una chiamata vocale",
       "in_video_call": "In una videochiamata",
       "remove_failed": "Impossibile rimuovere l’utente dalla stanza",
-      "remove_success": "{name} è stato rimosso dalla stanza"
+      "remove_success": "{name} è stato rimosso dalla stanza",
+      "members_load_failed": "Impossibile caricare i membri della stanza",
+      "members_refresh_failed": "Impossibile aggiornare i membri della stanza"
     },
     "pins": {
       "show": "Mostra i messaggi fissati",

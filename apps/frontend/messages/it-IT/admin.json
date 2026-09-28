@@ -136,7 +136,9 @@
       "open_delete_account": "Elimina account",
       "delete_account_entry_description": "Elimina definitivamente l'account di questo membro. I suoi messaggi diventano illeggibili. Questa azione non può essere annullata.",
       "bio_placeholder": "Racconta agli altri qualcosa su questo membro",
-      "bio_description": "Fino a {max} caratteri, mostrati nel profilo del membro."
+      "bio_description": "Fino a {max} caratteri, mostrati nel profilo del membro.",
+      "update_failed": "Impossibile aggiornare l'utente",
+      "cooldown_clear_failed": "Impossibile azzerare il tempo di attesa per il cambio del nome utente"
     },
     "member_delete": {
       "title": "Elimina membro",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Nessun utente ha questo ruolo",
       "server_tier_intro": "Questa pagina riguarda le autorizzazioni dei ruoli a livello di server: impostazioni predefinite generali che si applicano prima delle sostituzioni specifiche della sala.",
       "server_tier_rooms_hint": "Utilizzare le stanze per le sostituzioni per gruppo e per stanza.",
-      "resolution_hint": "Per ciascun utente o ruolo denominato si applica il valore della sala, del gruppo o del server più vicino. Nega la vittoria tra loro. Un'autorizzazione prevale su una negazione per tutti solo nello stesso ambito o in un ambito più specifico."
+      "resolution_hint": "Per ciascun utente o ruolo denominato si applica il valore della sala, del gruppo o del server più vicino. Nega la vittoria tra loro. Un'autorizzazione prevale su una negazione per tutti solo nello stesso ambito o in un ambito più specifico.",
+      "update_role_failed": "Impossibile aggiornare il ruolo",
+      "update_ping_failed": "Impossibile aggiornare l'impostazione delle menzioni del ruolo",
+      "delete_role_failed": "Impossibile eliminare il ruolo"
     },
     "rooms_admin": {
       "title": "Camere",
@@ -288,7 +293,10 @@
       "member_added": "Aggiunto {name} alla stanza",
       "add_member_failed": "Impossibile aggiungere il membro: {error}",
       "member_removed": "Rimosso {name} dalla stanza",
-      "remove_member_failed": "Impossibile rimuovere il membro: {error}"
+      "remove_member_failed": "Impossibile rimuovere il membro: {error}",
+      "move_room_failed": "Impossibile spostare la stanza: {error}",
+      "move_link_failed": "Impossibile spostare il collegamento: {error}",
+      "reorder_rooms_failed": "Impossibile riordinare le stanze: {error}"
     },
     "security": {
       "title": "Sicurezza",

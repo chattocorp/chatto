@@ -136,7 +136,9 @@
       "open_delete_account": "Kustuta konto",
       "delete_account_entry_description": "Kustutab selle liikme konto jäädavalt. Tema sõnumid muutuvad loetamatuks. Seda ei saa tagasi võtta.",
       "bio_placeholder": "Räägi teistele sellest liikmest veidi",
-      "bio_description": "Kuni {max} märki, kuvatakse liikme profiilis."
+      "bio_description": "Kuni {max} märki, kuvatakse liikme profiilis.",
+      "update_failed": "Kasutaja uuendamine ebaõnnestus",
+      "cooldown_clear_failed": "Kasutajanime muutmise ooteaja tühistamine ebaõnnestus"
     },
     "member_delete": {
       "title": "Kustuta liige",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Seda rolli ei ole ühelgi kasutajal",
       "server_tier_intro": "See leht on mõeldud serveritasandi rolliõiguste jaoks: üldised vaikeväärtused, mis rakenduvad enne ruumispetsiifilisi alistamisi.",
       "server_tier_rooms_hint": "Kasutage ruume rühma- ja ruumipõhiseks alistamiseks.",
-      "resolution_hint": "Iga kasutaja või nimega rolli puhul kehtib lähim ruumi, rühma või serveri väärtus. Eitab nende vahel võitu. Lubamine alistab kõik keelamise ainult samas või konkreetsemas ulatuses."
+      "resolution_hint": "Iga kasutaja või nimega rolli puhul kehtib lähim ruumi, rühma või serveri väärtus. Eitab nende vahel võitu. Lubamine alistab kõik keelamise ainult samas või konkreetsemas ulatuses.",
+      "update_role_failed": "Rolli uuendamine ebaõnnestus",
+      "update_ping_failed": "Rolli mainimisseade uuendamine ebaõnnestus",
+      "delete_role_failed": "Rolli kustutamine ebaõnnestus"
     },
     "rooms_admin": {
       "title": "Toad",
@@ -288,7 +293,10 @@
       "member_added": "Lisati ruumi {name}",
       "add_member_failed": "Liikme lisamine ebaõnnestus: {error}",
       "member_removed": "{name} eemaldati ruumist",
-      "remove_member_failed": "Liikme eemaldamine ebaõnnestus: {error}"
+      "remove_member_failed": "Liikme eemaldamine ebaõnnestus: {error}",
+      "move_room_failed": "Toa teisaldamine ebaõnnestus: {error}",
+      "move_link_failed": "Lingi teisaldamine ebaõnnestus: {error}",
+      "reorder_rooms_failed": "Tubade ümberjärjestamine ebaõnnestus: {error}"
     },
     "security": {
       "title": "Turvalisus",

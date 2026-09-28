@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Tajpu post ? por serĉi mesaĝojn en ĉiuj viaj serviloj",
       "no_results": "Neniuj mesaĝoj trovitaj"
-    }
+    },
+    "start_dm_failed": "Malsukcesis komenci DM"
   }
 }

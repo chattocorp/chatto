@@ -14,6 +14,7 @@ import type { ServerConnection } from '$lib/state/server/serverConnection.svelte
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 import { getUserStore, type UserStore } from '$lib/state/server/users.svelte';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { m } from '$lib/i18n/messages';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
@@ -242,7 +243,8 @@ export class RoomMembersStore {
       await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.#loadError = error instanceof Error ? error.message : 'Failed to load room members';
+        this.#loadError =
+          error instanceof Error ? error.message : m('room.sidebar.members_load_failed');
         console.error('Failed to load room members:', error);
       }
     } finally {
@@ -277,7 +279,8 @@ export class RoomMembersStore {
       await this.loadPages(loadId, this.#hasFirstPage);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.#loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
+        this.#loadError =
+          error instanceof Error ? error.message : m('room.sidebar.members_refresh_failed');
         if (
           reauthorize ||
           isConnectCode(error, Code.PermissionDenied) ||

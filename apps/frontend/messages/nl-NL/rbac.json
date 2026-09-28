@@ -55,6 +55,7 @@
       "level_server": "Server",
       "level_group": "Groep",
       "level_room": "Kamer",
+      "level_dm": "DM",
       "empty_category": "Geen rechten in deze categorie",
       "filter_label": "Machtigingen filteren",
       "filter_placeholder": "Machtigingen filteren...",
@@ -100,6 +101,29 @@
           "title": "Gebruikersrechten",
           "description": "Beheer bewerkingen voor gebruikersaccounts en machtigingen per gebruiker"
         }
+      },
+      "cell": {
+        "subject": "subject",
+        "role_subject": "rol",
+        "user_subject": "gebruiker",
+        "allow": "Toestaan",
+        "deny": "Weigeren",
+        "owner_always_granted": "Eigenaar heeft altijd {permission}",
+        "subject_always_granted": "{subject} heeft altijd {permission} in {scope}",
+        "override_for_role": "Overschrijving voor {role} bij {permission}: {state}",
+        "no_override_for_role": "Geen overschrijving voor {role} bij {permission}",
+        "override_at_scope": "Overschrijving voor {permission} in {scope}: {state}",
+        "no_override_at_scope": "Geen overschrijving voor {permission} in {scope}, effectief: {state}",
+        "inheriting_from": "overgenomen van {source}: {state}",
+        "owner_allow": "Toestaan (eigenaren krijgen altijd alle rechten)",
+        "owner_not_editable": "Rechten van eigenaren kunnen niet worden bewerkt",
+        "override_here": "{state} (overschrijving op dit niveau)",
+        "subject_override_at_scope": "{state} (overschrijving voor {subject} in {scope})",
+        "inherits_from": "{state}, overgenomen van {source}",
+        "effective_included_by": "Effectief: Toestaan (inbegrepen in {permission})",
+        "effective_inherited": "Effectief: {state} (overgenomen)",
+        "manage_role": "{role} beheren",
+        "no_scopes": "Geen bereiken beschikbaar voor dit type ({subject})."
       }
     },
     "permission_categories": {

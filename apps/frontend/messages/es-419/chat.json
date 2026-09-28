@@ -27,7 +27,9 @@
         "followed_thread": "{actor} respondió en un hilo que sigues.",
         "new_message": "{actor} publicó un mensaje nuevo.",
         "activity": "{actor} te envió una notificación."
-      }
+      },
+      "load_failed": "No se pudieron cargar las notificaciones",
+      "room_load_failed": "No se pudieron cargar las notificaciones de la sala"
     },
     "sign_out": {
       "title": "Cerrar sesión",
@@ -87,7 +89,8 @@
       "no_unread": "No hay hilos sin leer en este momento.",
       "message_missing": "Mensaje ya no disponible",
       "in_room": "en",
-      "in_room_capitalized": "En"
+      "in_room_capitalized": "En",
+      "load_failed": "No se pudieron cargar los hilos"
     },
     "profile": {
       "title": "Perfil",
