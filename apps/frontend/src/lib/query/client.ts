@@ -1,7 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
 import type { RoomSuspensionList } from '$lib/api-client/rooms';
-import { registerServerQueryCache } from './cacheRegistry';
+import { queryCaches } from './cacheRegistry';
 import { serverQueryRoot } from './keys';
 import { clearUserStores } from '$lib/state/server/users.svelte';
 
@@ -244,27 +244,6 @@ function permissionTierScope(key: QueryKey): { roomId?: unknown; groupId?: unkno
   return scope && typeof scope === 'object' ? scope : null;
 }
 
-/** Keep every cached session's room detail coherent even when its route is not mounted. */
-export function reconcileAdminRoomQueries(
-  serverId: string,
-  roomId: string,
-  removed: boolean
-): void {
-  const isRoomDetail = (key: QueryKey): boolean =>
-    isAdminQueryForServer(key, serverId) && key[5] === 'room' && key[6] === roomId;
-  const isRoomPermissions = (key: QueryKey): boolean =>
-    isAdminQueryForServer(key, serverId) && permissionTierScope(key)?.roomId === roomId;
-
-  if (removed) {
-    void queryClient.cancelQueries({ predicate: (query) => isRoomDetail(query.queryKey) });
-    void queryClient.cancelQueries({ predicate: (query) => isRoomPermissions(query.queryKey) });
-    queryClient.setQueriesData({ predicate: (query) => isRoomDetail(query.queryKey) }, null);
-    queryClient.setQueriesData({ predicate: (query) => isRoomPermissions(query.queryKey) }, null);
-    queryClient.removeQueries({ predicate: (query) => isRoomPermissions(query.queryKey) });
-  }
-  void queryClient.invalidateQueries({ predicate: (query) => isRoomDetail(query.queryKey) });
-}
-
 /** Invalidate visible groups and purge snapshots no longer present in the viewer projection. */
 export function reconcileAdminRoomGroupQueries(
   serverId: string,
@@ -309,13 +288,12 @@ export function reconcileAdminRoomGroupQueries(
   });
 }
 
-registerServerQueryCache({
-  server: removeServerQueries,
-  refreshServer: refreshServerQueries,
-  admin: removeAdminQueries,
+queryCaches.server = {
+  remove: removeServerQueries,
+  refresh: refreshServerQueries,
+  removeAdmin: removeAdminQueries,
   refreshAdmin: refreshAdminQueries,
-  roles: refreshRoleQueries,
-  adminUser: removeAdminUserQueries,
-  adminRoom: reconcileAdminRoomQueries,
-  adminRoomGroups: reconcileAdminRoomGroupQueries
-});
+  refreshRoles: refreshRoleQueries,
+  removeAdminUser: removeAdminUserQueries,
+  reconcileAdminRoomGroups: reconcileAdminRoomGroupQueries
+};
