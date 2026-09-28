@@ -151,6 +151,9 @@ thread IDs can change while the pane stays mounted.
   const atLatest = $derived(!highlightPending && (currentReadPosition?.latest ?? true));
 
   const readThrough = new ReadThroughTracker((upToEventId) => {
+    // A read scheduled for a previous conversation names an event of that
+    // conversation. Drop it.
+    if (readThroughKey !== targetKey) return;
     void unread.markAsRead(threadRootEventId ?? roomId, upToEventId);
   });
   let readThroughKey = untrack(() => targetKey);
