@@ -674,7 +674,7 @@
         </div>
         <div
           aria-hidden="true"
-          data-testid="message-image-gallery-left-fade"
+          data-testid="message-image-gallery-start-fade"
           class={[
             'pointer-events-none absolute inset-y-0 start-0 z-10 w-8 bg-gradient-to-r from-background to-transparent transition-opacity group-hover/msg:from-surface rtl:bg-gradient-to-l',
             !galleryEdges.start && 'opacity-0'
@@ -682,7 +682,7 @@
         ></div>
         <div
           aria-hidden="true"
-          data-testid="message-image-gallery-right-fade"
+          data-testid="message-image-gallery-end-fade"
           class={[
             'pointer-events-none absolute inset-y-0 end-0 z-10 w-8 bg-gradient-to-l from-background to-transparent transition-opacity group-hover/msg:from-surface rtl:bg-gradient-to-r',
             !galleryEdges.end && 'opacity-0'
