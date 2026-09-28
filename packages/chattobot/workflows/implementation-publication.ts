@@ -132,6 +132,7 @@ export async function publishPullRequest({
       throw new Error('PR verification failed');
     metadata.prUrl = published.url;
     metadata.stage = 'published';
+    await ctx.emit({ type: 'finding', text: `Opened the pull request: ${published.url}` });
     await ctx.emit({
       type: 'state',
       value: {
