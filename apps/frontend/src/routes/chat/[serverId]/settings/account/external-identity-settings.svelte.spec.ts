@@ -560,6 +560,33 @@ describe('identity link popup and continuation', () => {
     }
   );
 
+  it('opens the password dialog ready for input', async () => {
+    // A field that renders disabled and enables a tick later can lose typing
+    // that starts in between.
+    const disabledStates: boolean[] = [];
+    const observer = new MutationObserver(() => {
+      const input = document.getElementById('sso-link-current-password');
+      if (input instanceof HTMLInputElement) disabledStates.push(input.disabled);
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['disabled']
+    });
+    try {
+      continuation();
+      renderSettings();
+      await expect
+        .element(browserPage.getByLabelText('Current Password', { exact: true }))
+        .toBeEnabled();
+    } finally {
+      observer.disconnect();
+    }
+    expect(disabledStates.length).toBeGreaterThan(0);
+    expect(disabledStates).not.toContain(true);
+  });
+
   it('shows a repeated freshness failure in the password dialog', async () => {
     continuation();
     renderSettings();

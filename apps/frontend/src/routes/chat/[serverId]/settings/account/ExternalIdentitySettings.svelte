@@ -16,7 +16,7 @@
   } from '$lib/api-client/externalIdentities';
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { createMutation, createQuery } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -200,39 +200,11 @@
   let blockedDisconnectProviderLabel = $state('');
   let showDisconnectBlockedModal = $state(false);
 
-  const linkMutation = createMutation(() => ({
-    mutationFn: ({
-      connection: activeConnection,
-      provider,
-      currentPassword,
-      redirectPath
-    }: LinkVariables) =>
-      activeConnection.getAPI(createExternalIdentityAPI).startLink({
-        providerId: provider.id,
-        redirectPath,
-        currentPassword
-      })
-  }));
-
-  const disconnectMutation = createMutation(() => ({
-    mutationFn: ({
-      connection: activeConnection,
-      subjectHash,
-      currentPassword
-    }: DisconnectVariables) =>
-      activeConnection.getAPI(createExternalIdentityAPI).disconnect(subjectHash, currentPassword)
-  }));
-
-  const linkingProviderId = $derived(
-    linkMutation.isPending && session.isCurrent(linkMutation.variables)
-      ? linkMutation.variables.provider.id
-      : ''
-  );
-  const disconnectingSubjectHash = $derived(
-    disconnectMutation.isPending && session.isCurrent(disconnectMutation.variables)
-      ? disconnectMutation.variables.subjectHash
-      : ''
-  );
+  // Track requests in flight here, not with mutation state: an observer reports
+  // the settled state a tick after the request promise, so a dialog opened in
+  // the rejection handler would first render disabled.
+  let linkingProviderId = $state('');
+  let disconnectingSubjectHash = $state('');
   const error = $derived.by(() => {
     if (actionError) return actionError;
     const queryError = identitiesQuery.error;
@@ -279,8 +251,13 @@
       redirectPath: returnURL.pathname + returnURL.search + returnURL.hash
     };
     actionError = '';
+    linkingProviderId = provider.id;
     try {
-      const startUrl = await linkMutation.mutateAsync(variables);
+      const startUrl = await variables.connection.getAPI(createExternalIdentityAPI).startLink({
+        providerId: provider.id,
+        redirectPath: variables.redirectPath,
+        currentPassword
+      });
       if (!session.isCurrent(variables)) return;
       window.location.href = startUrl;
     } catch (err) {
@@ -305,6 +282,8 @@
       } else {
         actionError = errorMessage(err, m('settings.account.sso.link_failed'));
       }
+    } finally {
+      linkingProviderId = '';
     }
   }
 
@@ -379,8 +358,12 @@
       currentPassword
     };
     actionError = '';
+    disconnectingSubjectHash = subjectHash;
     try {
-      await disconnectMutation.mutateAsync(variables);
+      await variables.connection
+        .getAPI(createExternalIdentityAPI)
+        .disconnect(subjectHash, currentPassword);
+      disconnectingSubjectHash = '';
       if (!session.isCurrent(variables)) {
         return;
       }
@@ -390,6 +373,7 @@
       disconnectFreshAuthError = '';
       await identitiesQuery.refetch();
     } catch (err) {
+      disconnectingSubjectHash = '';
       if (!session.isCurrent(variables)) {
         return;
       }
