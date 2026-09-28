@@ -2,6 +2,7 @@ import { createTimeout } from './timeout.ts';
 import {
   createObservedWorkflowContext,
   type WorkflowContext,
+  type RunIdentity,
   type TextHandler
 } from './context.ts';
 import { withExecutionServices } from './execution.ts';
@@ -94,6 +95,8 @@ export interface RunWorkflowOptions<Input = unknown> {
   onInput?: InputHandler;
   onText?: TextHandler;
   onEvent?: RunlingEventListener;
+  /** The run that `ctx.run` identifies. Hosts that record runs pass it. */
+  run?: RunIdentity;
 }
 
 export function formatWorkflowDetails(
@@ -144,7 +147,8 @@ export async function runWorkflow<Input, Output>(
     onText,
     onEvent = () => {},
     timeout,
-    signal
+    signal,
+    run: identity
   }: RunWorkflowOptions<Input>
 ): Promise<WorkflowExecution<Awaited<Output>>> {
   return withExecutionServices({ verbose }, () =>
@@ -155,7 +159,9 @@ export async function runWorkflow<Input, Output>(
           onInput,
           timeout,
           signal,
-          onText
+          onText,
+          false,
+          identity
         )
       )
     )
@@ -170,7 +176,9 @@ async function reportExecution(
     log.info(
       journal ? `Runling starting run ${log.highlight(journal.run.reference!)}` : 'Runling starting'
     );
-    const capture = () => captureExecution(run, onInput, undefined, signal, undefined, true);
+    const identity = journal && { id: journal.run.id, reference: journal.run.reference };
+    const capture = () =>
+      captureExecution(run, onInput, undefined, signal, undefined, true, identity);
     const base = performance.now();
     const execution = await (journal
       ? observeRunlingEvents(
@@ -280,14 +288,16 @@ async function captureExecution<Output>(
   timeout?: number,
   signal?: AbortSignal,
   onText?: TextHandler,
-  logUpdates = false
+  logUpdates = false,
+  identity?: RunIdentity
 ): Promise<WorkflowExecution<Awaited<Output>>> {
   const deadline = createTimeout(timeout, 'Workflow');
   const ctx = createObservedWorkflowContext(
     bindRunlingContext((usage: TokenUsage) => emitRunlingEvent({ type: 'usage.updated', usage })),
     signal && deadline.signal
       ? AbortSignal.any([signal, deadline.signal])
-      : (signal ?? deadline.signal)
+      : (signal ?? deadline.signal),
+    identity
   );
   ctx.onInput = onInput;
   ctx.onText = onText;

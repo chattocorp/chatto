@@ -57,6 +57,11 @@ directory.
 Journal filenames and run URLs still use UUIDs. Older runs without a reference
 show their UUID in the details instead.
 
+A workflow reads its run's ID and reference from `ctx.run`, for example to tell
+a user which run to report. Spawned tasks share the run of their parent.
+`ctx.run` is absent in a direct task call and in `runWorkflow` without its
+`run` option.
+
 ## Non-Features
 
 Runling is defined more through what it does _not_ do. Here's some stuff that's not in and also not planned:

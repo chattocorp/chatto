@@ -260,6 +260,7 @@ export class RunStore {
     const execution = await runWorkflow(workflow, {
       input,
       signal,
+      run: { id, reference: this.runs.get(id)?.reference },
       onEvent: (event) => {
         activityLog(event);
         // A write failure is handled when the finished record is written.

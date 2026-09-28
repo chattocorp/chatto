@@ -817,3 +817,13 @@ test('does not start a workflow when the host signal is already aborted', async 
   expect(called).toBe(false);
   expect(execution).toMatchObject({ ok: false, error: 'Cancelled by host' });
 });
+
+test('ctx.run identifies the run in the workflow and its spawned tasks', async () => {
+  const run = { id: 'run-id', reference: 'funky-comics-8426' };
+  const execution = await runWorkflow(
+    async (ctx) => [ctx.run, await ctx.spawn((child) => child.run).result],
+    { input: undefined, run }
+  );
+  expect(execution.output).toEqual([run, run]);
+  expect(createWorkflowContext().run).toBeUndefined();
+});
