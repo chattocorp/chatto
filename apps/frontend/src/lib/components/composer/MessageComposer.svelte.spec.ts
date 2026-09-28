@@ -1532,6 +1532,40 @@ describe('MessageComposer', () => {
   });
 
   describe('send button', () => {
+    describe.each(['visual', 'markdown'] as const)('%s /shrug command', (kind) => {
+      it.each([
+        ['/shrug', '¯\\_(ツ)_/¯'],
+        ['/shrug hello there', 'hello there ¯\\_(ツ)_/¯'],
+        ['/shrugging hello', '/shrugging hello'],
+        ['hello /shrug', 'hello /shrug']
+      ])('sends %s as %s', async (draft, body) => {
+        userPreferences.composerEditor = kind;
+        const { container } = renderMessageComposer({ roomId: 'shrug-room' });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, draft);
+        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+        await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+        expect(createMessageConnectMock.mock.calls[0][0].body).toBe(body);
+      });
+
+      it('keeps the command in the draft while the post is pending', async () => {
+        userPreferences.composerEditor = kind;
+        const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> }>();
+        createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+        const { container, roomId } = renderMessageComposer({ roomId: 'shrug-pending' });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, '/shrug maybe');
+        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+        await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+        expect(createMessageConnectMock.mock.calls[0][0].body).toBe('maybe ¯\\_(ツ)_/¯');
+        expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBe('/shrug maybe');
+        pendingSend.resolve({ event: postedMessageEvent() });
+        await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+      });
+    });
+
     describe.each(['visual', 'markdown'] as const)('%s post-send focus', (kind) => {
       it.each([
         ['keyboard', 'thread'],
@@ -2321,6 +2355,20 @@ describe('MessageComposer', () => {
 
       await pressEditorKey(editor, 'Escape');
       expect(onEscape).toHaveBeenCalledOnce();
+    });
+
+    it('does not expand /shrug in a message edit', async () => {
+      const editState = new EditState();
+      roomStateMock.reactiveEditState = editState;
+      editState.startEdit('evt_shrug_edit', '/shrug maybe');
+      const { container } = renderMessageComposer({ roomId: 'shrug-edit' });
+      const editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('/shrug maybe');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock.mock.calls[0][0].body).toBe('/shrug maybe');
+      expect(createMessageConnectMock).not.toHaveBeenCalled();
     });
 
     it('cancels an edit and restores the next room draft when the room changes', async () => {
