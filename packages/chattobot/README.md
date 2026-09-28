@@ -561,6 +561,18 @@ checks), `implementation-publication.ts` (commit, push, and PR),
 `implementation-artifacts.ts` (retained state), `implementation-safety.ts`
 (redaction and protected paths), and `implementation-settings.ts`.
 
+To run an implementation without Chatto, use `workflows/implement-cli.ts` with
+the same `.env` settings:
+
+```sh
+mise x -- pnpm exec runling run workflows/implement-cli.ts \
+  --input '{"request":"Fix the typo on the login page"}'
+```
+
+Add `"context"` for more detail. The host posts no chat messages; follow the run
+in the terminal. Artifacts from these runs have no owner key, so the bot cannot
+resume them.
+
 Retained implementation metadata stores an owner key: the SHA-256 hash of the
 conversation key from `deliveryConversationKey`. A resume request succeeds only
 when the hash matches the current conversation. If you change how the conversation
