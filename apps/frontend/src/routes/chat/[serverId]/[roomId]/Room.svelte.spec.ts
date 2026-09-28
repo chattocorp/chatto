@@ -931,6 +931,70 @@ describe('Room local message echo', () => {
     expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
   });
 
+  it('does not place the unread separator for the viewer own message while away', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'own-event-id',
+          actorId: 'test-user',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+  });
+
+  it('does not place the room unread separator for a thread reply while away', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'reply-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1', threadRootEventId: 'root-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+  });
+
+  it('does not place the unread separator for a message in another room', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'other-room-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-2' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+  });
+
   it('opens and highlights the explicit message from a nested thread route', async () => {
     const { container } = render(Room, {
       props: {

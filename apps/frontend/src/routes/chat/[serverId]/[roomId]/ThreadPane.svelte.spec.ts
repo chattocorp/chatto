@@ -9,6 +9,9 @@ import { getToasts, toast } from '$lib/ui/toast';
 import ThreadPane from './ThreadPane.svelte';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -47,6 +50,8 @@ const { mocks } = vi.hoisted(() => {
       } | null,
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
+      markArrivalWhileAway: vi.fn(),
+      projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       unreadMarkerEventId: null as string | null,
       canMarkThreadAsRead: null as (() => boolean) | null,
       appState: {
@@ -74,7 +79,9 @@ vi.mock('$lib/api-client/threads', () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useProjectionEvent: vi.fn(),
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
+    mocks.projectionEventHandler = handler;
+  },
   // ConversationPane uses this only for the room timeline.
   useRoomUnread: vi.fn(),
   useUnreadMarker: (
@@ -94,7 +101,7 @@ vi.mock('$lib/hooks', () => ({
       unreadMarkerEventId: mocks.unreadMarkerEventId,
       markAsRead: options.markAsRead,
       clearUnreadMarker: mocks.clearUnreadMarker,
-      markArrivalWhileAway: vi.fn()
+      markArrivalWhileAway: mocks.markArrivalWhileAway
     };
   },
   createTypingIndicator: () => ({
@@ -249,6 +256,8 @@ describe('ThreadPane', () => {
       })
     });
     mocks.appState.isPresent = true;
+    mocks.markArrivalWhileAway.mockClear();
+    mocks.projectionEventHandler = null;
     mocks.unreadMarkerEventId = null;
     mocks.editingEventId = null;
     toast.clear();
@@ -395,6 +404,41 @@ describe('ThreadPane', () => {
       expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
     }
   );
+
+  it('places the thread unread separator only for replies in this thread while away', async () => {
+    mocks.appState.isPresent = false;
+    render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+    await tick();
+
+    const post = (id: string, actorId: string, roomId: string, threadRootEventId: string) =>
+      mocks.projectionEventHandler?.(
+        new RealtimeProjectionUpdate({
+          event: new PublicRealtimeEvent({
+            id,
+            actorId,
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId, threadRootEventId })
+            }
+          })
+        })
+      );
+
+    post('room-message', 'user-1', 'room-1', '');
+    post('other-thread-reply', 'user-1', 'room-1', 'other-root');
+    post('own-reply', 'test-user', 'room-1', 'thread-root');
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+
+    post('reply-while-away', 'user-1', 'room-1', 'thread-root');
+    expect(mocks.markArrivalWhileAway).toHaveBeenCalledExactlyOnceWith('reply-while-away');
+  });
 
   it('resets jump state when the pane switches to another thread', async () => {
     const props = {

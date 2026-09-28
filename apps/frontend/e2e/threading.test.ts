@@ -1331,15 +1331,26 @@ test.describe('Message Threading', () => {
           document.dispatchEvent(new Event('visibilitychange'));
         });
 
-        // User A posts a reply while User B's tab is still hidden.
+        // User A posts two replies while User B's tab is still hidden.
         const replyMessage = `Reply while hidden ${Date.now()}`;
+        const secondReply = `Second reply while hidden ${Date.now()}`;
         await roomPage.postThreadReply(replyMessage);
+        await roomPage.postThreadReply(secondReply);
 
-        // The reply streams in over the live subscription and the separator
-        // appears above it at once, before User B returns.
-        await roomPage2.expectTextInThreadPane(replyMessage);
-        await roomPage2.expectUnreadSeparatorInThreadPane();
+        // The replies stream in over the live subscription. The separator
+        // appears above the first one at once, before User B returns.
+        await roomPage2.expectTextInThreadPane(secondReply);
+        await roomPage2.expectUnreadSeparatorBetween(rootMessage, replyMessage, {
+          timeline: 'thread'
+        });
 
+        // The read on return resolves the separator from the server read
+        // state. It stays above the first reply.
+        const readOnReturn = page2.waitForResponse(
+          (response) =>
+            response.url().endsWith('/chatto.api.v1.ThreadService/MarkThreadAsRead') &&
+            response.ok()
+        );
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'visible',
@@ -1348,8 +1359,11 @@ test.describe('Message Threading', () => {
           });
           document.dispatchEvent(new Event('visibilitychange'));
         });
+        await readOnReturn;
 
-        await roomPage2.expectUnreadSeparatorInThreadPane();
+        await roomPage2.expectUnreadSeparatorBetween(rootMessage, replyMessage, {
+          timeline: 'thread'
+        });
       }
     );
   });
