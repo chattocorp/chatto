@@ -426,7 +426,9 @@ Ordinary clarifications still use `task_send`.
 Each new implementation fetches the configured base branch and creates a new
 `chattobot/<id>` branch in a separate worktree. It does not include uncommitted
 changes from the supplied checkout. The host first runs
-`mise x -- pnpm install --frozen-lockfile` in that worktree. The worker uses
+`mise x -- pnpm install --frozen-lockfile` in that worktree. Then it builds the
+workspace packages that the frontend imports, such as the generated API types,
+so that focused frontend tests can load. The worker uses
 `apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
 to read the current diff, including new files, or select one changed path when
 the complete diff is too long. `runCheck` runs an approved repository check,
@@ -507,8 +509,9 @@ and the end of up to three failed GitHub Actions job logs, redacted like other
 diagnostics, to the same worker. The worker either fixes the failure or, when
 the failure is unrelated to its change, calls `rerunFailedChecks`. The host
 validates a fix with typecheck and lint, commits it, and pushes it to the same
-branch. For a rerun, it waits until the workflow runs finish, reruns their
-failed jobs, and reads CI again. The worker gets at most three CI failures
+branch. GitHub reruns jobs only in finished workflow runs. For a rerun, the host
+waits until the runs finish, reruns their failed jobs, and reads CI again.
+While it waits, a new failure still goes to the worker at once. The worker gets at most three CI failures
 (`MAX_CI_REPAIRS`). A message that arrives while CI runs interrupts the wait and
 goes to the worker's next turn; its validated edits are also pushed.
 The host posts the final CI result when checks pass, still fail after three

@@ -16,7 +16,7 @@ const implement = createImplementation(settings);
 /** Run one implementation and state its outcome, PR, and CI result at the end of the log. */
 export default task(
   {
-    name: 'Implement Chatto change',
+    name: 'ChattoBot implementation',
     input: implementationInput,
     output: Type.Object({
       summary: Type.String(),

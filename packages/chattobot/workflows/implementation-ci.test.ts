@@ -73,6 +73,24 @@ test('stopOnFailure returns the first failure while other checks are pending', a
   );
 });
 
+test('known failures do not end observation early; a new failure does', async () => {
+  let polls = 0;
+  const execute = vi.fn<ImplementationProcess>(async (_command, args) => {
+    if (args[1] === 'view') return JSON.stringify({ headRefOid: common.headCommit });
+    return ++polls < 3
+      ? '[{"bucket":"pending"},{"bucket":"fail","name":"lint","link":"known"}]'
+      : '[{"bucket":"pending"},{"bucket":"fail","name":"lint","link":"known"},{"bucket":"fail","name":"e2e","link":"new"}]';
+  });
+  const result = await observePullRequestChecks({
+    ...common,
+    execute,
+    stopOnFailure: true,
+    knownFailures: new Set(['known'])
+  });
+  expect(polls).toBe(3);
+  expect(result).toMatchObject({ status: 'failed', failed: 2, pending: 1 });
+});
+
 test('failed job logs keep the failure and drop timestamps, runner paths, and cleanup', async () => {
   const log = [
     '2026-07-13T23:39:40.1Z Run pnpm test',

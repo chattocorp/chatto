@@ -24,6 +24,9 @@ export interface FailedCheck {
 /** Observed checks, with the failed checks for repair. */
 export type ObservedChecks = PullRequestChecks & { failures: FailedCheck[] };
 
+/** Identify one failed check run. A rerun gets a new link. */
+export const failureKey = (check: FailedCheck) => check.link || check.name;
+
 /** GitHub access shared by the functions in this module. */
 export interface GitHubAccess {
   execute: ImplementationProcess;
@@ -38,6 +41,8 @@ interface CheckOptions extends GitHubAccess {
   headCommit: string;
   /** Return as soon as one check fails, before other checks finish. */
   stopOnFailure?: boolean;
+  /** Failures, by `failureKey`, that do not end observation early. */
+  knownFailures?: ReadonlySet<string>;
   /** Wait before the first poll, so that GitHub can register a rerun. */
   initialDelayMs?: number;
   /** Defaults to a 30-minute observation window. */
@@ -96,7 +101,8 @@ function parseChecks(output: string): ObservedChecks | undefined {
   };
 }
 
-/** Poll a verified PR until checks settle, a check fails with `stopOnFailure`, or the window ends. */
+/** Poll a verified PR until checks settle, a new check fails with `stopOnFailure`, or the window
+ * ends. */
 export async function observePullRequestChecks(options: CheckOptions): Promise<ObservedChecks> {
   const deadline = Date.now() + (options.timeoutMs ?? 30 * 60_000);
   const interval = options.intervalMs ?? 30_000;
@@ -148,7 +154,10 @@ export async function observePullRequestChecks(options: CheckOptions): Promise<O
       if (!checks) throw new Error('Check response was unavailable');
       errors = 0;
       last = checks;
-      if (checks.status !== 'pending' || (options.stopOnFailure && checks.failed)) {
+      const newFailure = checks.failures.some(
+        (check) => !options.knownFailures?.has(failureKey(check))
+      );
+      if (checks.status !== 'pending' || (options.stopOnFailure && newFailure)) {
         if ((await readHead()) !== options.headCommit) return { ...checks, status: 'head_changed' };
         return checks.failed ? { ...checks, status: 'failed' } : checks;
       }

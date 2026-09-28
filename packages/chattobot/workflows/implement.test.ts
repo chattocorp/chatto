@@ -60,7 +60,12 @@ async function fixture() {
     calls.push({ command, args });
     if (command === 'mise') {
       // Setup and formatting are host preparation, not checks.
-      if (args.includes('install') || args.includes('prettier') || args.includes('gofmt'))
+      if (
+        args.includes('install') ||
+        args.includes('turbo') ||
+        args.includes('prettier') ||
+        args.includes('gofmt')
+      )
         return '';
       return implementationProcess('bash', ['-c', check], options);
     }
@@ -584,9 +589,12 @@ test('a failed worker report stops immediately and preserves the worktree for us
   });
   expect(result.notes).toContain('Host final validation did not run. No PR was created.');
   expect(await readFile(join(result.worktree, 'example.txt'), 'utf8')).toBe('fixed\n');
-  expect(f.calls.some((call) => call.command === 'mise' && !call.args.includes('install'))).toBe(
-    false
-  );
+  expect(
+    f.calls.some(
+      (call) =>
+        call.command === 'mise' && !call.args.includes('install') && !call.args.includes('turbo')
+    )
+  ).toBe(false);
   expect(f.calls.some((call) => call.args.includes('push') || call.args[1] === 'create')).toBe(
     false
   );
@@ -720,8 +728,8 @@ test('setup, worker checks, and final validation use the isolated command enviro
     })
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
-  // Setup, the worker check, formatting, and two final checks.
-  expect(checkEnvironments).toHaveLength(5);
+  // Setup, the dependency build, the worker check, formatting, and two final checks.
+  expect(checkEnvironments).toHaveLength(6);
   expect(checkEnvironments.every((keys) => keys?.includes('CHATTO_ALLOWED_USER_ID'))).toBe(true);
 });
 
@@ -770,7 +778,7 @@ test.each([
         formatted.push(args.includes('prettier') ? 'prettier' : 'gofmt');
         return '';
       }
-      if (command === 'mise' && !args.includes('install')) {
+      if (command === 'mise' && !args.includes('install') && !args.includes('turbo')) {
         validation.push(args.at(-1)!);
         return '';
       }
@@ -1120,16 +1128,28 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
   }
 });
 
-test('a CI failure that the worker calls unrelated is rerun after its workflow finishes', async () => {
+test('unrelated CI failures are rerun when their runs finish, and new failures reach the worker first', async () => {
   const f = await fixture();
-  const observed: { stopOnFailure?: boolean; initialDelayMs?: number }[] = [];
+  const job = (id: number, name: string) => ({
+    name,
+    link: `https://github.com/example/chatto/actions/runs/12/job/${id}`
+  });
+  const license = job(1, 'license-check');
+  const e2e = job(2, 'test-e2e');
+  const sequence = [
+    { ...failedChecks, failures: [license] },
+    { ...failedChecks, failed: 2, failures: [license, e2e] },
+    { ...failedChecks, failed: 2, pending: 0, failures: [license, e2e] },
+    passedChecks
+  ];
+  const observed: { known: string[]; initialDelayMs?: number }[] = [];
   const observeChecks = vi.fn(
-    async (options: { stopOnFailure?: boolean; initialDelayMs?: number }) => {
+    async (options: { knownFailures?: ReadonlySet<string>; initialDelayMs?: number }) => {
       observed.push({
-        stopOnFailure: options.stopOnFailure,
+        known: [...(options.knownFailures ?? [])],
         initialDelayMs: options.initialDelayMs
       });
-      return observed.length < 3 ? failedChecks : passedChecks;
+      return sequence[observed.length - 1]!;
     }
   );
   const execute = vi.fn<ImplementationProcess>(async (command, args, options) =>
@@ -1137,33 +1157,41 @@ test('a CI failure that the worker calls unrelated is rerun after its workflow f
       ? 'flaky'
       : f.execute(command, args, options)
   );
-  let turns = 0;
+  const prompts: string[] = [];
   const result = await createImplementation(f.settings, {
     execute,
     observeChecks,
     rerunDelayMs: 5,
-    createAgent: worker(async (_options, call) => {
-      const rerun = await call('rerunFailedChecks', {});
-      if (++turns > 1) {
-        expect(rerun.content[0]?.text).toContain('Rerun requested');
-        return;
+    createAgent: async (options: AgentOptions) => ({
+      dispose: vi.fn(),
+      async runOutcome(_ctx: unknown, prompt: string) {
+        prompts.push(prompt);
+        const call = await workerTools(options);
+        const rerun = await call('rerunFailedChecks', {});
+        if (prompts.length === 1) {
+          expect(rerun.content[0]?.text).toContain('No CI failure');
+          await call('apply_patch', { patch });
+          await call('preparePullRequest', proposal);
+        } else expect(rerun.content[0]?.text).toContain('Rerun requested');
+        return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
       }
-      expect(rerun.content[0]?.text).toContain('No CI failure');
-      await call('apply_patch', { patch });
-      await call('preparePullRequest', proposal);
     })
   })(createWorkflowContext(), { request: 'Fix' });
-  expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'passed', repairs: 1 } });
+  expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'passed', repairs: 2 } });
+  // The second failure reaches the worker while the first one waits for its run to finish.
+  expect(JSON.parse(prompts[1]!.split('\n')[1]!).failedChecks).toEqual(['license-check']);
+  expect(JSON.parse(prompts[2]!.split('\n')[1]!).failedChecks).toEqual(['test-e2e']);
   expect(observed).toEqual([
-    { stopOnFailure: true, initialDelayMs: 0 },
-    { stopOnFailure: undefined, initialDelayMs: undefined },
-    { stopOnFailure: true, initialDelayMs: 5 }
+    { known: [], initialDelayMs: 0 },
+    { known: [license.link], initialDelayMs: 0 },
+    { known: [license.link, e2e.link], initialDelayMs: 0 },
+    { known: [], initialDelayMs: 5 }
   ]);
-  expect(execute).toHaveBeenCalledWith(
-    'gh',
-    ['run', 'rerun', '12', '--failed', '--repo', 'example/chatto'],
-    expect.anything()
-  );
+  expect(
+    execute.mock.calls.filter(([command, args]) => command === 'gh' && args[1] === 'rerun')
+  ).toEqual([
+    ['gh', ['run', 'rerun', '12', '--failed', '--repo', 'example/chatto'], expect.anything()]
+  ]);
   expect(await remoteSubjects(f, result.branch)).toEqual([proposal.title, 'fixture']);
 });
 
@@ -1172,12 +1200,19 @@ test.each(['limit', 'stopped'])(
   async (mode) => {
     const f = await fixture();
     let turns = 0;
+    let jobs = 0;
     const result = await createImplementation(f.settings, {
       execute: async (command, args, options) =>
         command === 'gh' && (args[0] === 'api' || args[1] === 'rerun')
           ? ''
           : f.execute(command, args, options),
-      observeChecks: async () => failedChecks,
+      // Each observation reports a new failed job, so every one goes to the worker.
+      observeChecks: async () => ({
+        ...failedChecks,
+        failures: [
+          { name: 'e2e', link: `https://github.com/example/chatto/actions/runs/12/job/${++jobs}` }
+        ]
+      }),
       rerunDelayMs: 0,
       createAgent: async (options: AgentOptions) => ({
         dispose: vi.fn(),
