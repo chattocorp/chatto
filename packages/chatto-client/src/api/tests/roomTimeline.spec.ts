@@ -21,16 +21,14 @@ import {
   MessageVideoVariant
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { disposeUserStore, getUserStore, resetUserStoresForTests } from '../../server/users.js';
+import { createRoomTimelineAPI, roomTimelinePageToEventConnectionPage } from '../roomTimeline.js';
 import {
-  disposeUserStore,
-  getUserStore,
-  resetUserStoresForTests
-} from '../../server/users.js';
-import {
-  createRoomTimelineAPI,
-  roomTimelinePageToEventConnectionPage
-} from '../roomTimeline.js';
-import { fakeServer, mockService, receivedContext, receivedRequest } from '../../testing/fakeServer.js';
+  fakeServer,
+  mockService,
+  receivedContext,
+  receivedRequest
+} from '../../testing/fakeServer.js';
 
 const messages = mockService(MessageService);
 const threads = mockService(ThreadService);

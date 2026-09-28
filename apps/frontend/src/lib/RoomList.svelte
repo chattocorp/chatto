@@ -34,7 +34,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type ContextMenuTriggerDetails
   } from '$lib/ui';
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
-  import { buildDirectMessagePresentation, type UserAvatarUserView } from '@chatto/client/timeline/users';
+  import {
+    buildDirectMessagePresentation,
+    type UserAvatarUserView
+  } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { BOT_ACCOUNT_LABEL, accountNameToken, isBotAccount } from '@chatto/client/timeline/accountName';
+  import {
+    BOT_ACCOUNT_LABEL,
+    accountNameToken,
+    isBotAccount
+  } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import BotBadge from '$lib/components/users/BotBadge.svelte';

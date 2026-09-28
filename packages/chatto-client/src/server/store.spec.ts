@@ -43,10 +43,7 @@ import {
   ViewerUser
 } from '@chatto/api-types/api/v1/viewer_pb';
 import { CapabilityGrant, PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
-import {
-  RealtimeResourceUpdate,
-  type RealtimeResourceFamily
-} from '../api/realtimeResources.js';
+import { RealtimeResourceUpdate, type RealtimeResourceFamily } from '../api/realtimeResources.js';
 import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import {
   AssetProcessingStartedEvent,

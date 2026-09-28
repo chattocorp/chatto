@@ -15,7 +15,10 @@ import { startDMWith } from '$lib/dm/startDM';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
-import { buildDirectMessagePresentation, type UserAvatarUserView } from '@chatto/client/timeline/users';
+import {
+  buildDirectMessagePresentation,
+  type UserAvatarUserView
+} from '@chatto/client/timeline/users';
 import { directMessageLabels } from '$lib/render/directMessageLabels';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';

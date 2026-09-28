@@ -6,24 +6,27 @@ Key files:
 - [`events.proto`](../../proto/chatto/realtime/v1/events.proto)
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
-- [`realtimeTransport.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeTransport.svelte.ts)
-- [`realtimeResources.ts`](../../apps/frontend/src/lib/api-client/realtimeResources.ts)
+- [`realtimeTransport.ts`](../../packages/chatto-client/src/server/realtimeTransport.ts)
+- [`realtimeResources.ts`](../../packages/chatto-client/src/api/realtimeResources.ts)
+- [`runtime.ts`](../../packages/chatto-client/src/server/runtime.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
 [ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md),
 [ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md),
 [ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md), and
-[ADR-095](../adr/ADR-095-direct-message-permission-scope-and-threads.md).
+[ADR-095](../adr/ADR-095-direct-message-permission-scope-and-threads.md), and
+[ADR-110](../adr/ADR-110-move-client-state-into-chatto-client.md).
 
 ## Public protocol
 
-The integration client [`@chatto/client`](../../packages/chatto-client/README.md)
-also consumes this protocol. It uses bearer authentication, live-only fallback,
-ordered async event acceptance, bounded buffering, and process-local resume
-cursors. Terminal errors stop consumption; unavailable replay reports a gap.
-The [bot client](../../packages/chatto-bot-client/README.md) supplies addressing
-recognition and process-local accepted-delivery tracking. The
+The client in [`@chatto/client`](../../packages/chatto-client/README.md)
+consumes this protocol for the bundled frontend and for headless hosts. Bots
+connect with `connectChatto` and a bearer API key. They use the same realtime
+transport, projection, and recovery as the frontend. The
+[bot client](../../packages/chatto-bot-client/README.md) handles events in
+order, reports a gap when a later snapshot replaces the stream, and supplies
+addressing recognition and process-local accepted-delivery tracking. The
 [ChattoBot package](../../packages/chattobot/README.md) routes message events
 into new or active Runling conversations. It accepts a delivery after inbox
 insertion or successful run registration. Runling itself has no Chatto runtime
@@ -120,9 +123,9 @@ timeline row from the event ID, actor, time, reply references, and plaintext
 body. Values that belong only to the complete message resource start empty.
 These values include attachments, link previews, reactions, pin state, thread
 counts, thread participants, and the timeline cursor. The server-scoped
-[`TimelineSync`](../../apps/frontend/src/lib/state/server/timelineSync.ts)
+[`TimelineSync`](../../packages/chatto-client/src/server/timelineSync.ts)
 keeps the loaded timelines, files, and pins current. Its
-[`MessageReconciler`](../../apps/frontend/src/lib/state/server/messageReconciler.ts)
+[`MessageReconciler`](../../packages/chatto-client/src/server/messageReconciler.ts)
 collects affected message IDs for 10 milliseconds, then reads at most 100 IDs
 per room with `BatchGetMessages`. It uses the latest received event cursor as
 the minimum read boundary. Opaque cursor strings are never sorted.
@@ -389,7 +392,7 @@ The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
 
-Each server has one [`EventBus`](../../apps/frontend/src/lib/eventBus.svelte.ts).
+Each server has one [`EventBus`](../../packages/chatto-client/src/realtime/eventBus.ts).
 The bus sends every update to the `ServerStateStore` reducer first. Then it sends
 the same update to the listeners, in the order that they subscribed. A semantic
 event, such as a typing or presence change, is the update's `event` field.
@@ -428,7 +431,7 @@ the membership read with the event's minimum cursor. Recovery resets and room
 access loss clear retained membership. Universal-room eligibility changes require
 a new authoritative read rather than client-side permission calculations.
 
-[UserStore](../../apps/frontend/src/lib/state/server/users.svelte.ts) stores
+[UserStore](../../packages/chatto-client/src/server/users.ts) stores
 public profiles by server, connection scope, and user ID. Directory and timeline
 hydration share reads in batches of at most 100 IDs. Realtime updates supersede
 pending reads; per-user revisions fence list/detail responses. Deletion markers
@@ -527,7 +530,7 @@ state. Ambient, unknown, and legacy unclassified pushes do not set a badge.
 Outgoing push payloads omit numeric app badge values.
 
 Each server store owns a RAM-only
-[`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.svelte.ts).
+[`ReadViewRegistry`](../../packages/chatto-client/src/server/readViews.ts).
 Mounted thread panes register independently and remove their own registration
 when they unmount. Exact room and thread targets permit concurrent views;
 a room view does not cover its threads. App focus and visibility gate the shared

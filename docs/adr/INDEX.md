@@ -114,7 +114,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-097](ADR-097-durable-outbound-bot-webhooks.md)                      | Deliver Best-Effort Outbound Bot Webhooks from EVT               | Accepted             | 2026-09-05 |
 | [ADR-098](ADR-098-retained-operational-log.md)                           | Retain Operational Diagnostics in LOG                            | Accepted             | 2026-09-08 |
 | [ADR-099](ADR-099-capacitor-mobile-client.md)                            | Package Chatto Mobile with Capacitor                             | Accepted             | 2026-09-19 |
-| [ADR-100](ADR-100-shared-chatto-integration-client.md)                   | Share Chatto Integration Client Helpers                          | Accepted             | 2026-09-21 |
+| [ADR-100](ADR-100-shared-chatto-integration-client.md)                   | Share Chatto Integration Client Helpers                          | Partially superseded | 2026-09-21 |
 | [ADR-101](ADR-101-shared-client-user-profiles.md)                        | Share Public User Profiles Within Each Client Connection         | Accepted             | 2026-09-21 |
 | [ADR-102](ADR-102-turborepo-workspace-tasks.md)                          | Order Workspace Tasks with Turborepo                             | Accepted             | 2026-09-21 |
 | [ADR-103](ADR-103-cached-first-client-startup.md)                        | Open a Saved Chat View Before Client Connection                  | Superseded           | 2026-09-23 |
@@ -124,3 +124,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)               | Keep Chat Data Out of Device Storage                             | Accepted             | 2026-09-26 |
 | [ADR-108](ADR-108-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |
 | [ADR-109](ADR-109-compute-badge-attention-from-projections.md)           | Compute Badge Attention from Projections                         | Accepted             | 2026-09-27 |
+| [ADR-110](ADR-110-move-client-state-into-chatto-client.md)               | Move the Client State Layer into `@chatto/client`                | Accepted             | 2026-09-28 |

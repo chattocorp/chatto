@@ -2,7 +2,10 @@
 
 **Date:** 2026-09-21
 
-**Status:** Accepted
+**Status:** Partially superseded by
+[ADR-110](ADR-110-move-client-state-into-chatto-client.md). `@chatto/client`
+now contains the frontend's client, and its old helpers are removed. The bot
+conventions of `@chatto/bot-client` remain; they now use the new client.
 
 ## Context
 

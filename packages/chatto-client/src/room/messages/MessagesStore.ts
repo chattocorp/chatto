@@ -89,9 +89,7 @@ function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEven
   return true;
 }
 
-function snapshotEventFingerprints(
-  events: readonly TimelineEventView[]
-): Map<string, string> {
+function snapshotEventFingerprints(events: readonly TimelineEventView[]): Map<string, string> {
   return new Map(events.map((event) => [event.id, eventFingerprint(event)]));
 }
 

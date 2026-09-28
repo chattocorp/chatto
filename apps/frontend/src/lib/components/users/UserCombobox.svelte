@@ -2,7 +2,10 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { BOT_ACCOUNT_LABEL, isBotAccount } from '@chatto/client/timeline/accountName';
   import BotBadge from '$lib/components/users/BotBadge.svelte';
-  import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/client/api/memberDirectory';
+  import {
+    createMemberDirectoryAPI,
+    type DirectoryMember
+  } from '@chatto/client/api/memberDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { createQuery } from '$lib/query/client';

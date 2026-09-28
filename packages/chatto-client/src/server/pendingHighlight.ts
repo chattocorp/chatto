@@ -16,7 +16,10 @@ import { ReactiveMap } from '../reactivity/index.js';
  * permalinks; the room view checks both, with this store taking precedence.
  */
 export class PendingHighlightStore {
-  private highlights = new ReactiveMap<string, { eventId: string; notificationId: string | null }>();
+  private highlights = new ReactiveMap<
+    string,
+    { eventId: string; notificationId: string | null }
+  >();
 
   set(
     roomId: string,

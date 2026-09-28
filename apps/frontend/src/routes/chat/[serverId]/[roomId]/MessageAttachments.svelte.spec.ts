@@ -4,7 +4,10 @@ import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import { VideoProcessingStatus, type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+import {
+  VideoProcessingStatus,
+  type MessageAttachmentView
+} from '@chatto/client/timeline/messageAttachments';
 import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({

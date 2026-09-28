@@ -20,11 +20,7 @@ import { NotificationStore } from './notifications.js';
 import { RoomUnreadStore } from './roomUnread.js';
 import { ReadViewRegistry } from './readViews.js';
 import { PendingHighlightStore } from './pendingHighlight.js';
-import {
-  createVoiceCall,
-  type RegisteredVoiceCall,
-  type VoiceCallContext
-} from './voiceCall.js';
+import { createVoiceCall, type RegisteredVoiceCall, type VoiceCallContext } from './voiceCall.js';
 import { ServerPresence } from './presence.js';
 import { ActiveCallRoomsState } from './activeCallRooms.js';
 import { NavigationStore } from './rooms.js';

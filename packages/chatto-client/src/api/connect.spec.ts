@@ -95,26 +95,26 @@ describe('bearerRenewalInterceptor', () => {
   it('keeps a renewed bearer session after an API retry is rejected', async () => {
     const onAuthenticationRequired = vi.fn();
     const renewBearerToken = vi
-        .fn<(force: boolean) => Promise<string | null>>()
-        .mockResolvedValueOnce('access-1')
-        .mockResolvedValueOnce('access-2');
-      const error = new ConnectError('authentication required', Code.Unauthenticated);
-      const next = vi.fn().mockRejectedValue(error);
-      const request = { stream: false, header: new Headers() };
-      const config = { onAuthenticationRequired, renewBearerToken };
+      .fn<(force: boolean) => Promise<string | null>>()
+      .mockResolvedValueOnce('access-1')
+      .mockResolvedValueOnce('access-2');
+    const error = new ConnectError('authentication required', Code.Unauthenticated);
+    const next = vi.fn().mockRejectedValue(error);
+    const request = { stream: false, header: new Headers() };
+    const config = { onAuthenticationRequired, renewBearerToken };
 
-      await expect(bearerRenewalInterceptor(config)(next as never)(request as never)).rejects.toBe(
-        error
-      );
-      expect(renewBearerToken.mock.calls).toEqual([[false], [true]]);
-      expect(request.header.get('Authorization')).toBe('Bearer access-2');
-      expect(next).toHaveBeenCalledTimes(2);
-      await expect(
-        authenticationRequiredInterceptor(config)(() => Promise.reject(error))({
-          contextValues: createContextValues()
-        } as never)
-      ).rejects.toBe(error);
-      expect(onAuthenticationRequired).not.toHaveBeenCalled();
+    await expect(bearerRenewalInterceptor(config)(next as never)(request as never)).rejects.toBe(
+      error
+    );
+    expect(renewBearerToken.mock.calls).toEqual([[false], [true]]);
+    expect(request.header.get('Authorization')).toBe('Bearer access-2');
+    expect(next).toHaveBeenCalledTimes(2);
+    await expect(
+      authenticationRequiredInterceptor(config)(() => Promise.reject(error))({
+        contextValues: createContextValues()
+      } as never)
+    ).rejects.toBe(error);
+    expect(onAuthenticationRequired).not.toHaveBeenCalled();
   });
 });
 

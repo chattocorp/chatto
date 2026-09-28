@@ -2,7 +2,10 @@
 
 **Date:** 2026-07-31
 
-**Updated:** 2026-09-23
+**Updated:** 2026-09-28. [ADR-110](ADR-110-move-client-state-into-chatto-client.md)
+moves the query client, keys, and cache purges into `@chatto/client/query/*`
+on `@tanstack/query-core`. The frontend keeps the Svelte `create*` bindings in
+`$lib/query/client`.
 
 ## Status
 
@@ -34,7 +37,7 @@ The cache has the following boundaries:
 - Every private key starts with the server ID and an opaque scope owned by the
   current `ServerConnection`. Replacing credentials or transport creates a new
   scope even when the server and user IDs are unchanged. Use
-  `serverSessionQueryRoot` from `$lib/query/keys` to make this prefix. A key
+  `serverSessionQueryRoot` from `@chatto/client/query/keys` to make this prefix. A key
   outside the prefix is not purged.
 - The query cache is memory-only. Disposing a server store removes every query
   under that server's key prefix during logout, credential replacement, and

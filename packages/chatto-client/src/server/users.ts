@@ -208,9 +208,7 @@ export class UserStore {
         });
       for (const id of batch) this.#pending.set(id, { completion: request, cursor });
     }
-    await Promise.all([
-      ...new Set(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))
-    ]);
+    await Promise.all([...new Set(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))]);
     if (generation !== this.#generation) throw new StaleResponseError(false);
     if (this.missing(weaker).length) return this.resolve(ids, read, cursor);
     return [...new Set(ids)].flatMap((id) => this.get(id) ?? []);

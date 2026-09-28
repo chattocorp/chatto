@@ -6,7 +6,11 @@
  */
 
 import { ReactiveMap } from '../reactivity/index.js';
-import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '../realtime/eventBus.js';
+import {
+  EventBus,
+  RealtimeProjectionUpdate,
+  type ProjectionHandler
+} from '../realtime/eventBus.js';
 import {
   RealtimeInitialState,
   RealtimeCloseCode,

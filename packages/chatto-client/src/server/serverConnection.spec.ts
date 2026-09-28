@@ -38,11 +38,7 @@ vi.mock('./registry.js', () => ({
   }
 }));
 
-import {
-  httpToWsUrl,
-  ServerConnection,
-  type ServerConnectionConfig
-} from './serverConnection.js';
+import { httpToWsUrl, ServerConnection, type ServerConnectionConfig } from './serverConnection.js';
 
 function makeConfig(overrides: Partial<ServerConnectionConfig> = {}): ServerConnectionConfig {
   return {

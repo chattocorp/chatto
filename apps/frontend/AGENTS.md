@@ -16,12 +16,20 @@ Do not generate playground links for code written into this repository.
 
 - Prefer store classes and small components. Stores own the data lifecycle.
   Components render state and call named store methods.
-- Server-scoped state belongs in `ServerStateStore` or related per-server
-  stores under `src/lib/state/server/`.
+- The client state layer lives in `@chatto/client`
+  (`packages/chatto-client/`): connections, sessions, the realtime projection,
+  and the server and room stores. Follow
+  [its instructions](../../packages/chatto-client/AGENTS.md) when you change it.
+  Import its modules as `@chatto/client/<path>`. Server-scoped state belongs in
+  `ServerStateStore` or a related per-server store there (ADR-110).
+- The frontend keeps UI state, Svelte context, routing, translated text,
+  toasts, sounds, and the LiveKit voice-call implementation. Client stores keep
+  error objects; format them with `errorMessage()` where you show them.
 - Component-local `$state` is fine for UI-only state such as open/closed, hover,
   focus, draft text, and drag position.
-- Component render DTOs live in focused modules under `$lib/render`; keep them
-  narrow and normalize generated protobuf data at API boundaries.
+- Component render DTOs live in focused modules under `$lib/render`, or under
+  `@chatto/client/timeline` when client stores produce them; keep them narrow
+  and normalize generated protobuf data at API boundaries.
 - The URL is the source of truth for the active server. Pass explicit `serverId`
   values through helpers rather than relying on a global current server.
 - Descendants of a `[serverId]` route should obtain that server's store and
@@ -101,14 +109,14 @@ Do not generate playground links for code written into this repository.
 
 ## ConnectRPC And Generated Types
 
-- Use the per-server compatibility state under `src/lib/state/server/` for
+- Use the per-server compatibility state in `@chatto/client/server/compatibility` for
   version-skew warnings and the supported-version check. The client has one
   `MINIMUM_SUPPORTED_SERVER_VERSION` and does not gate individual features by
   server version. When the client needs a newer server feature, raise the
   minimum instead of adding a per-feature gate (FDR-031). Do not conflate
   version support with enabled server features or viewer permissions.
 - Use the app's connection surface from
-  `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
+  `@chatto/client/server/serverConnection` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
   reconnect/status UI state.
 - Keep the known-server catalogue and per-server sessions device-local and as
@@ -128,7 +136,7 @@ Do not generate playground links for code written into this repository.
   normal and warning. Only a failed attempt (transport, auth, protocol, or
   compatibility) shows the warning, and only a successful attempt removes it.
   Connection attempts in progress do not change the state (FDR-031).
-- `$lib/render/timelineEvents` contains the hand-owned timeline presentation
+- `@chatto/client/timeline/timelineEvents` contains the hand-owned timeline presentation
   model. Realtime handlers consume the generated public `RealtimeEvent`
   catalogue directly. Do not add a second frontend event taxonomy or calls for
   the retired legacy API.
@@ -316,7 +324,8 @@ Do not generate playground links for code written into this repository.
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Import
   `createQuery`, `createInfiniteQuery`, and `createMutation` from
-  `$lib/query/client`, which binds them to the shared client. Scope private query
+  `$lib/query/client`, which binds them to the shared client in
+  `@chatto/client/query/client`. Scope private query
   keys by server and connection session, keep the cache memory-only, and purge
   it at authentication and privacy boundaries. Keep realtime projections,
   timelines, notifications, presence, calls, and message search in their
@@ -419,9 +428,12 @@ Do not generate playground links for code written into this repository.
   `serverScopeModule` of that file, call `createTestServerScope` in
   `beforeEach`, and change the fixture's state in tests. Do not write a new
   `useServerScope` mock by hand.
-- `vitest-setup-client.ts` imports `$lib/query/client` before each browser
-  spec. Because of this, `vi.mock` of `$lib/query/client` or
-  `@tanstack/svelte-query` in a browser spec has no effect. Test against the
+- `vitest-setup-client.ts` imports `@chatto/client/svelte` and
+  `$lib/query/client` before each browser spec. Because of this, `vi.mock` of
+  `$lib/query/client`, `@chatto/client/query/client`, or
+  `@tanstack/svelte-query` in a browser spec has no effect. Keep the setup
+  imports small: a module that the setup file imports cannot be mocked by a
+  spec. Test against the
   real `queryClient`: control the reads through the mocked API, and let the
   setup file clear the cache after each test.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state

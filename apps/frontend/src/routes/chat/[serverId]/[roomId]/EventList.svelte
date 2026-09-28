@@ -5,7 +5,10 @@
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { isMessagePostedEvent, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+  import {
+    isMessagePostedEvent,
+    type TimelineEventView
+  } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomMembers, getRoomPermissions } from '$lib/state/room';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';

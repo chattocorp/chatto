@@ -174,8 +174,8 @@ events reconcile other devices; heartbeat responses recover missed updates.
 After the initial read and migration, each refresh needs only the heartbeat RPC.
 Local choices remain migration fallbacks. DND applies across devices, including
 push suppression while disconnected. See
-[`presencePreference.svelte.ts`](../../apps/frontend/src/lib/state/server/presencePreference.svelte.ts)
-and [`presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts).
+[`presencePreference.ts`](../../packages/chatto-client/src/server/presencePreference.ts)
+and [`presenceTracking.ts`](../../packages/chatto-client/src/server/presenceTracking.ts).
 
 Ephemeral `lease.{name}` records coordinate singleton background work and
 periodic cooldowns across replicas without adding durable state. Active voice

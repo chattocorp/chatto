@@ -5,8 +5,9 @@ Chatto direct messages, mentions, and direct replies to its own messages.
 It owns its realtime source configuration and Chatto transport adapter.
 It is the private workspace package `@chattocorp/chattobot` under
 `packages/chattobot/`. It depends on the public Runling package API and
-`@chatto/client` and `@chatto/bot-client`. The client owns API and realtime
-transport. The bot client supplies identity, addressing, thread roles,
+`@chatto/client` and `@chatto/bot-client`. The client owns API requests, the
+realtime transport, and the server's projection; it is the same client that
+the Chatto frontend uses. The bot client supplies identity, addressing, thread roles,
 conversation keys, and acceptance tracking. ChattoBot owns Runling routing,
 inboxes, cancellation, and conversation lifetime. See the
 [bot client guide](../chatto-bot-client/README.md).
@@ -542,11 +543,13 @@ when the hash matches the current conversation. If you change how the conversati
 key is built, keep its value unchanged for existing conversations. Otherwise,
 retained implementations cannot be resumed.
 
-Short disconnects resume from the last accepted event. Unavailable replay
-reports a recovery gap and continues live. A process restart starts live.
-There is no durable inbox or exactly-once delivery. Changing the API key clears
-the checkpoint; changing server or bot identity also starts separate conversation
-state. Failed run registration gets up to three attempts, with delays of 250 ms
+Short disconnects resume from the last received event. Unavailable replay
+reports a recovery gap and continues from a new snapshot. Each source
+generation opens its own connection and closes it when the generation ends, so
+a config reload or a process restart starts from a new snapshot. Messages that
+arrive while no generation runs are not replayed. There is no durable inbox or
+exactly-once delivery. Changing server or bot identity starts separate
+conversation state. Failed run registration gets up to three attempts, with delays of 250 ms
 and 500 ms. Shutdown or reload cancels the wait. Inbox deliveries are not retried.
 If all attempts fail, the event remains unaccepted and the source stops.
 Terminal connection or routing errors stop the source until a valid

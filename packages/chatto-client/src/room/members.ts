@@ -79,7 +79,9 @@ export class RoomMembersStore {
   }
   readonly #standaloneProfiles = new ReactiveMap<string, StandaloneProfile>();
   readonly #users?: UserStore;
-  readonly #resolvedMembersComputed = computed(() => this.resolveIds(this.#projected ?? this.#memberIds));
+  readonly #resolvedMembersComputed = computed(() =>
+    this.resolveIds(this.#projected ?? this.#memberIds)
+  );
   get #resolvedMembers() {
     return this.#resolvedMembersComputed.get();
   }

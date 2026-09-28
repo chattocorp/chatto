@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AdminMember } from '../api/adminUsers.js';
-import { adminMemberRowKey, createAdminMemberLoader, type AdminMemberBatch } from './adminMembers.js';
+import {
+  adminMemberRowKey,
+  createAdminMemberLoader,
+  type AdminMemberBatch
+} from './adminMembers.js';
 import {
   queryClient,
   removeAdminQueries,

@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '@chatto/client/timeline/timelineEvents';
   import {
     createComposerContext,
     createRoomMembers,

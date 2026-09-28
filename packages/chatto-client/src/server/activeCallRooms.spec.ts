@@ -36,7 +36,10 @@ const calls = signal<ActiveCall[]>([]);
 
 function activeCallRooms(voice = voiceCall()): ActiveCallRoomsState {
   calls.set([]);
-  return new ActiveCallRoomsState(() => voice, () => calls.get());
+  return new ActiveCallRoomsState(
+    () => voice,
+    () => calls.get()
+  );
 }
 
 describe('ActiveCallRoomsState', () => {

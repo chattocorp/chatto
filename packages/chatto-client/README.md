@@ -1,127 +1,125 @@
-# Chatto client helpers
+# Chatto client
 
-`@chatto/client` is an internal workspace package for Chatto 0.5
-integrations. It supplies authenticated ConnectRPC JSON requests, message
-delivery, complete thread reads, reactions, typing refresh helpers, and realtime events.
-It is not published to npm. Realtime uses `@chatto/api-types` and its protobuf runtime.
-The host must provide Fetch and `AbortSignal.any`/`AbortSignal.timeout`.
+`@chatto/client` is the client for Chatto 0.5 servers. It connects to one or
+more servers, keeps their state current through the realtime API, and exposes
+that state as reactive stores. It has no dependency on a UI framework. The
+bundled Chatto frontend and ChattoBot use it.
 
-```ts
-import { createChattoClient } from '@chatto/client';
+It is an internal workspace package and is not published to npm yet. Module
+paths can change.
 
-const client = createChattoClient({ serverUrl, apiKey: botApiKey });
-await client.postMessage({ roomId, threadRootId }, 'Hello from the bot', signal);
-```
+## Headless hosts
 
-The host supplies credentials and can inject `fetch`. The package does not
-read `.env`, start a server, or depend on Runling. Requests contact only the
-configured Chatto server, which receives the caller's IP address, bearer token,
-and request data. Redirects are rejected. Transport errors omit response bodies,
-credentials, and URLs. The package does not log requests or responses.
-
-## Behavior
-
-- `getViewer({ signal })` returns `{ id }` for the authenticated viewer. Missing
-  identity is an error. The helper does not cache identity across credential changes.
-- `getMessage({ roomId, messageId, signal })` returns a normalized message with
-  `id`, `roomId`, `authorId`, and optional `body`, `threadRootId`, and `inReplyTo`.
-  It is a projection for integrations, not a complete renderable message.
-  Missing or mismatched message identity returns `undefined`; RPC failures reject.
-- `rpc<T>` calls a resource service such as `ViewerService/GetViewer` with
-  protobuf JSON. `T` is the caller's response type, not runtime validation.
-  Use `@chatto/api-types` for generated protocol definitions.
-- `createMessage` sends one message and returns the response. It can set
-  `inReplyTo` separately from the thread root.
-- `postMessage` splits text at 8000 Unicode code points and sends chunks in
-  order. A failed chunk stops delivery. Earlier chunks can already have been
-  delivered; the helper does not roll them back. Set `destination.inReplyTo` to
-  associate every chunk with its prompting message. The thread root stays separate.
-  `createMessage` also accepts this destination field; its explicit reply argument
-  takes precedence. Existing destinations need no changes.
-- `readThread({ roomId, threadRootId }, signal)` reads all history pages, puts
-  the root first, and removes page overlap. It returns textual messages with
-  IDs and authors, without bot-specific roles.
-  It rejects missing pages and repeated or missing pagination cursors.
-- `addReaction` targets a message event. The host chooses the emoji.
-- `refreshTyping` makes one presence request. `withTyping` refreshes during
-  work without overlapping requests and aborts the current refresh when work
-  ends. Typing failures do not fail the primary work.
-- `startTyping` waits for the initial update and returns a stop function. It
-  stops future refreshes but does not cancel an update already in flight.
-  The host must bound that update with a timeout.
-
-Requests have a ten-second timeout. A complete thread read has a thirty-second
-total timeout. Caller cancellation also reaches the transport. The client never
-retries requests: a failed connection can leave delivery uncertain.
-
-Bot conventions live in [`@chatto/bot-client`](../chatto-bot-client/README.md).
-This includes addressing recognition, bot-relative thread roles, reply context,
-conversation keys, and process-local deduplication. OAuth login, webhook
-authentication, workflow routing, and agent behavior remain host responsibilities.
-
-Migration: `client.addressedMessage` and its addressing types moved to the bot
-package. Thread reads now take `{ roomId, threadRootId }` instead of a webhook
-delivery and no longer return bot/human roles. Use the bot adapter when needed.
-
-## Realtime events
-
-The host must supply WebSocket support. Node 22.19 and later provide it. Tests
-can pass `webSocket` to `createChattoClient`; this factory must reject redirects.
+`connectChatto` connects one server with a fixed bearer token, such as a bot
+API key. It uses the same stores, recovery, and realtime transport as the
+frontend.
 
 ```ts
-const checkpoint = {}; // Keep only in memory, for this server and API key.
-await client.consumeRealtime({
-  signal,
-  checkpoint,
-  async onEvent(event) {
-    if (event.event.case === 'messagePosted') await acceptMessage(event);
-  },
-  onStatus(status) {
-    if (status.state === 'ready' && status.gap) reportMissedMessages();
-  }
+import { connectChatto } from '@chatto/client';
+
+const chatto = connectChatto({ serverUrl, apiKey });
+const { viewerId } = await chatto.ready({ signal });
+chatto.onEvent((event) => {
+  if (event.event.case === 'messagePosted') handle(event);
 });
+const rooms = [...chatto.store.projection.rooms.values()];
+// Close the connection when the host stops.
+chatto.close();
 ```
 
-`acceptMessage` and `reportMissedMessages` represent host functions. The client
-connects to `/api/realtime` with protocol v4 and sends the API key in the first
-binary frame. Only the configured server receives the caller's IP address and key.
+- A process can have one open connection. Close it before you connect again.
+- `chatto.service(Service)` creates a typed Connect client with the
+  connection's authentication.
+- `onEvent` listeners run in order after the store applied an event. They must
+  not throw. `onReset` reports projection resets; a reset after the first one
+  means that events can be missing.
+- The token is kept only in memory and is never renewed. When the server
+  rejects it, `ready()` rejects.
 
-Events arrive in order. Resolve `onEvent` after accepting the delivery, for
-example after registering a run or inserting a message into an inbox. The
-client then advances the checkpoint. It does not wait for downstream work.
-Unknown semantic events can be skipped. Invalid or unknown top-level frames
-stop consumption without advancing past them.
+`createChattoApi` makes stateless requests without a realtime connection, for
+example in a webhook handler:
 
-Transient failures reconnect with backoff and the last accepted cursor.
-Server retry delays are respected. The queue is limited to 256 pending frames
-and 8 MiB; overflow reconnects after the current handler settles. Set
-`maxPendingFrames` to change the frame limit. Handlers must settle promptly.
-Cancellation closes the transport and waits for any current handler.
+```ts
+import { createChattoApi } from '@chatto/client';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 
-A new process starts live. An expired cursor or unavailable replay also starts
-live. A `ready` status with `gap: true` reports possible missed messages after
-a prior connection or resume attempt. Cursors expire after 15 minutes. There
-is no automatic history fetch, durable inbox, or exactly-once delivery.
-Handler failures and terminal protocol errors reject consumption with a safe
-error. Resolve the cause before restarting. Failed handlers retain the prior cursor.
+const api = createChattoApi({ serverUrl, apiKey });
+const viewer = await api.service(ViewerService).getViewer({}, { signal });
+```
+
+It uses Connect JSON, rejects redirects, and never retries requests.
+
+Bot conventions, such as message splitting, thread reads, and addressing, are
+in [`@chatto/bot-client`](../chatto-bot-client/README.md).
+
+## Privacy
+
+Requests contact only the configured servers. Each server receives the host's
+IP address, its credentials, and the request data. The client does not log
+tokens or message content. Private query data is fenced by connection and
+purged at authentication and privacy boundaries (ADR-062).
+
+## Applications with a UI
+
+Applications use the module entries directly, for example
+`@chatto/client/server/registry` and `@chatto/client/server/runtime`. They
+start the client runtime once and report the server that the user looks at:
+
+```ts
+import { startClientRuntime } from '@chatto/client/server/runtime';
+
+const runtime = startClientRuntime();
+runtime.setActiveServer(serverId);
+```
+
+### Svelte
+
+Import `@chatto/client/svelte` once, before a component reads a store. Svelte
+then tracks store reads in components, `$derived`, and `$effect`:
+
+```svelte
+<script lang="ts">
+  import '@chatto/client/svelte';
+  import { serverRegistry } from '@chatto/client/server/registry';
+
+  let { serverId } = $props();
+  const store = $derived(serverRegistry.getStore(serverId));
+</script>
+
+{#each store.navigation.rooms as room (room.id)}
+  <p>{room.name}</p>
+{/each}
+```
+
+Other frameworks can use `setReadHook` and `subscribe` from
+`@chatto/client/reactivity` in the same way.
+
+### Voice calls
+
+The client tracks active calls but contains no media implementation. Install
+one with `setVoiceCallFactory` from `@chatto/client/server/voiceCall` and
+register its type:
+
+```ts
+declare module '@chatto/client/register' {
+  interface Register {
+    voiceCall: MyVoiceCall;
+  }
+}
+```
+
+## Reactivity
+
+The package has a small signal library in `@chatto/client/reactivity`:
+`signal`, `computed`, `effect`, `effectRoot`, `batch`, `untrack`,
+`subscribe`, `ReactiveMap`, and `ReactiveSet`. Computed values are lazy.
+Effects run synchronously when the outermost write ends.
 
 ## Development
 
-From the monorepo root:
-
 ```sh
-mise build-chatto-client
-mise test-chatto-client
-mise check-runling
-mise test-runling
-mise test-runling-bot
+mise test-chatto-client   # type checks and tests
+mise build-chatto-client  # compile dist/ for Node hosts
 ```
 
-Runling's examples use this package as a development dependency; the published
-Runling runtime has no Chatto dependency. Root build and verification tasks
-build this package before consumers resolve its exports.
-
-## License
-
-MIT, preserving the license of the helpers extracted from Runling.
-See [LICENSE](LICENSE) and [ADR-100](../../docs/adr/ADR-100-shared-chatto-integration-client.md).
+The package keeps its MIT license.

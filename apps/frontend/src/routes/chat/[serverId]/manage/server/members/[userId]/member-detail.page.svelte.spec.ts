@@ -482,9 +482,7 @@ describe('server member detail queries', () => {
     const rendered = renderSection('permissions');
     await settle();
 
-    expect(
-      rendered.container.querySelector('[data-testid="user-permissions"]')
-    ).not.toBeNull();
+    expect(rendered.container.querySelector('[data-testid="user-permissions"]')).not.toBeNull();
   });
 
   it('denies a section that the viewer cannot use', async () => {
