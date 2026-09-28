@@ -460,6 +460,47 @@ describe('MessageComposer', () => {
     vi.restoreAllMocks();
   });
 
+  describe('/shrug posts', () => {
+    it.each(['visual', 'markdown'] as const)(
+      'appends the shrug when sending from the %s editor',
+      async (kind) => {
+        userPreferences.composerEditor = kind;
+        const { container } = renderMessageComposer({ roomId: `shrug-${kind}` });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, '/shrug Not sure');
+
+        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+        expect(createMessageConnectMock.mock.calls[0][0].body).toBe('Not sure ¯\\_(ツ)_/¯');
+      }
+    );
+
+    it('posts a standalone shrug and leaves other slash text unchanged', async () => {
+      const { container } = renderMessageComposer({ roomId: 'shrug-boundary' });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, '/shrug');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      expect(createMessageConnectMock.mock.calls[0][0].body).toBe('¯\\_(ツ)_/¯');
+
+      const other = renderMessageComposer({ roomId: 'shrug-prefix' });
+      await typeInEditor(await findEditor(other.container), '/shrugging is not a command');
+      (q(other.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledTimes(2));
+      expect(createMessageConnectMock.mock.calls[1][0].body).toBe('/shrugging is not a command');
+    });
+
+    it('does not expand the command when editing a message', async () => {
+      roomStateMock.editState.eventId = 'edit-shrug';
+      roomStateMock.editState.originalBody = '/shrug Not sure';
+      const { container } = renderMessageComposer({ roomId: 'shrug-edit' });
+      await findEditor(container);
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock.mock.calls[0][0].body).toBe('/shrug Not sure');
+    });
+  });
+
   describe('form rendering', () => {
     it('renders the TipTap editor', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });

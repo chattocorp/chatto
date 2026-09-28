@@ -117,6 +117,13 @@ export function bodyForSend(text: string): string {
   return hasStructuralBody ? normalized : text.trim().replace(/\n{3,}/g, '\n\n');
 }
 
+/** Expand /shrug only at the start of a new post, not in saved drafts or edits. */
+export function expandPostCommand(body: string): string {
+  if (!/^\/shrug(?=$|\s)/u.test(body)) return body;
+  const message = body.slice('/shrug'.length).trim();
+  return message ? `${message} ¯\\_(ツ)_/¯` : '¯\\_(ツ)_/¯';
+}
+
 /**
  * Owns the state transitions for one mounted room or thread composer.
  *
@@ -600,7 +607,7 @@ export class MessageComposerState {
   }
 
   async #createMessage(): Promise<void> {
-    const bodyToSend = bodyForSend(this.message);
+    const bodyToSend = expandPostCommand(bodyForSend(this.message));
     const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
     if (!hasVisibleContent(bodyToSend) && !filesToSend) return;
 
