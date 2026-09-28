@@ -10,13 +10,12 @@ import {
 } from 'runling/agents';
 import { implementationProcess } from './implementation-process.ts';
 import type { InvestigationPlans } from './plan.ts';
-import { observePullRequestChecks } from './implementation-ci.ts';
 import { implementationInput } from './implementation-artifacts.ts';
 import { ownerQuestionPrefix } from './implementation-safety.ts';
 import type { ImplementationSettings } from './implementation-settings.ts';
-import { createImplementation } from './implementation-task.ts';
+import { createImplementation, MAX_CI_REPAIRS } from './implementation-task.ts';
 
-export { createImplementation } from './implementation-task.ts';
+export { createImplementation, MAX_CI_REPAIRS } from './implementation-task.ts';
 export {
   implementationCommandEnvKeys,
   implementationSettings,
@@ -43,12 +42,10 @@ export function implementationExtension(
     onStopped?: (message: string) => Promise<void>;
     /** Post the host-verified PR URL before waiting for CI. */
     onPublished?: (message: string) => Promise<void>;
-    /** Post the observed CI result after publication. */
+    /** Post CI repair attempts and the final CI result after publication. */
     onCiResult?: (message: string) => Promise<void>;
-    observeChecks?: typeof observePullRequestChecks;
   } = {}
 ) {
-  const implement = createImplementation(settings, dependencies);
   let attemptedVersion: number | undefined;
   return defineAgentExtension((pi) => {
     pi.registerTool({
@@ -79,7 +76,7 @@ export function implementationExtension(
           name: 'implementChatto',
           label: 'Implement Chatto change',
           description:
-            'Implement an explicitly requested fix or feature, run checks, and publish a ready-for-review PR in the configured repository. Returns a background task handle. The final result contains the verified PR URL. Do not invoke for a question or investigation alone. Do not start a duplicate task for the same request.',
+            'Implement an explicitly requested fix or feature, run typecheck and lint, publish a ready-for-review PR in the configured repository, then fix CI failures on it until CI finishes. Returns a background task handle. The final result contains the verified PR URL and the CI result. Do not invoke for a question or investigation alone. Do not start a duplicate task for the same request.',
           parameters: Type.Object({
             request: implementationInput.properties.request,
             context: implementationInput.properties.context,
@@ -128,6 +125,35 @@ export function implementationExtension(
           await announce(announcement, context.signal);
           context.signal.throwIfAborted();
           const run = ctx.spawn(async (ctx: WorkflowContext<string, AgentTaskUpdate>) => {
+            let publicationNoticeDelivered = false;
+            const post = async (
+              send: ((message: string) => Promise<void>) | undefined,
+              message: string
+            ) => {
+              if (!send) return false;
+              try {
+                await send(message);
+                return true;
+              } catch {
+                console.warn('ChattoBot could not post an implementation update.');
+                return false;
+              }
+            };
+            const implement = createImplementation(settings, {
+              ...dependencies,
+              onPublished: async (prUrl) => {
+                publicationNoticeDelivered = await post(
+                  dependencies.onPublished,
+                  `Opened [the pull request](${prUrl}). Local typecheck and lint passed. I will fix CI failures and report when CI finishes.`
+                );
+              },
+              onCiRepair: async (attempt) => {
+                await post(
+                  dependencies.onCiResult,
+                  `CI failed for the pull request. I am working on it (attempt ${attempt} of ${MAX_CI_REPAIRS}).`
+                );
+              }
+            });
             let result;
             try {
               result = await implement(ctx, {
@@ -150,10 +176,11 @@ export function implementationExtension(
                 prUrl: undefined,
                 ...(input.resumeArtifactId ? { artifactId: input.resumeArtifactId } : {}),
                 checks: [],
-                workerChecks: []
+                workerChecks: [],
+                ci: undefined
               };
             }
-            if (result.outcome !== 'completed') {
+            if (result.outcome !== 'completed' || !result.ci) {
               const failedChecks = result.checks
                 .filter((check) => !check.passed)
                 .map((check) => check.command);
@@ -165,84 +192,31 @@ export function implementationExtension(
                 result.outcome === 'publication_unknown'
                   ? 'The implementation finished locally, but I could not verify publication. A branch or PR may exist; check GitHub before retrying.'
                   : `The implementation stopped: ${result.summary}${workerCheckCount ? ` The worker ran ${workerCheckCount} check${workerCheckCount === 1 ? '' : 's'}; ${failedWorkerChecks} failed at the time. These were not final host checks.` : ''}${failedChecks.length ? ` Failed final check: ${failedChecks.join(', ')}. See the workflow result for details.` : ''}${result.worktree ? ` The worktree was kept for review${result.artifactId ? ` as ${result.artifactId}` : ''}.` : ''} Please tell me how you want to proceed.`;
-              try {
-                if (dependencies.onStopped) {
-                  await dependencies.onStopped(message);
-                  return { ...result, noticeDelivered: true };
-                }
-              } catch {
-                console.warn('ChattoBot could not post the implementation result.');
-              }
-              return { ...result, noticeDelivered: false };
+              const noticeDelivered = await post(dependencies.onStopped, message);
+              return { ...result, noticeDelivered };
             }
-            let publicationNoticeDelivered = false;
-            try {
-              if (dependencies.onPublished && result.prUrl) {
-                await dependencies.onPublished(
-                  `Opened [the pull request](${result.prUrl}). ${result.checks.length} local checks passed. I will report the CI result when it is available.`
-                );
-                publicationNoticeDelivered = true;
-              }
-            } catch {
-              console.warn('ChattoBot could not post the verified pull request.');
-            }
-            await ctx.emit({
-              type: 'state',
-              value: { phase: 'ci_waiting', prUrl: result.prUrl! },
-              activity: 'Waiting for pull request checks'
-            });
-            let ci;
-            try {
-              ci = await (dependencies.observeChecks ?? observePullRequestChecks)({
-                execute: dependencies.execute ?? implementationProcess,
-                repository: settings.repository,
-                prUrl: result.prUrl!,
-                headCommit: result.commit!,
-                cwd: result.worktree,
-                signal: ctx.signal,
-                onPending: async (checks) => {
-                  await ctx.emit({
-                    type: 'state',
-                    value: { phase: 'ci_waiting', prUrl: result.prUrl!, checks: { ...checks } },
-                    activity: 'Waiting for pull request checks'
-                  });
-                }
-              });
-            } catch {
-              ctx.signal.throwIfAborted();
-              ci = { status: 'unavailable' as const, passed: 0, failed: 0, pending: 0, skipped: 0 };
-            }
-            await ctx.emit({
-              type: 'state',
-              value: { phase: `ci_${ci.status}`, prUrl: result.prUrl!, checks: { ...ci } },
-              activity: `Pull request checks ${ci.status}`,
-              activityLevel:
-                ci.status === 'passed' ? 'success' : ci.status === 'failed' ? 'error' : undefined
-            });
+            const { ci } = result;
+            const pr = `[the pull request](${result.prUrl})`;
+            const fixes = ci.repairs
+              ? ` after ${ci.repairs} repair attempt${ci.repairs === 1 ? '' : 's'}`
+              : '';
             const ciMessage =
               ci.status === 'passed'
-                ? `CI passed for [the pull request](${result.prUrl}): ${ci.passed} checks.`
+                ? `CI passed for ${pr}${fixes}: ${ci.passed} checks.`
                 : ci.status === 'failed'
-                  ? `CI failed for [the pull request](${result.prUrl}): ${ci.failed} checks failed or were cancelled. Please review its Checks tab.`
-                  : ci.status === 'pending'
-                    ? `CI is still pending for [the pull request](${result.prUrl}) after 30 minutes.${ci.failed ? ` ${ci.failed} checks have already failed or been cancelled.` : ''} Please review its Checks tab.`
-                    : ci.status === 'skipped'
-                      ? `All reported CI checks were skipped for [the pull request](${result.prUrl}). Please review its Checks tab.`
-                      : ci.status === 'head_changed'
-                        ? `The head commit changed on [the pull request](${result.prUrl}) before I could report CI for ChattoBot's commit. Please review its Checks tab.`
-                        : `I could not read CI for [the pull request](${result.prUrl}). Please review its Checks tab.`;
-            let ciNoticeDelivered = false;
-            try {
-              if (dependencies.onCiResult) {
-                await dependencies.onCiResult(ciMessage);
-                ciNoticeDelivered = true;
-              }
-            } catch {
-              console.warn('ChattoBot could not post the pull request check result.');
-            }
+                  ? `CI still fails for ${pr} after ${ci.repairs} repair attempts: ${ci.failed} checks failed or were cancelled. Please review its Checks tab.`
+                  : ci.status === 'unfixed'
+                    ? `CI failed for ${pr}, and I could not publish a fix: ${ci.reason ?? 'the repair stopped.'} Please review its Checks tab.`
+                    : ci.status === 'pending'
+                      ? `CI is still pending for ${pr} after 30 minutes.${ci.failed ? ` ${ci.failed} checks have already failed or been cancelled.` : ''} Please review its Checks tab.`
+                      : ci.status === 'skipped'
+                        ? `All reported CI checks were skipped for ${pr}. Please review its Checks tab.`
+                        : ci.status === 'head_changed'
+                          ? `Someone else pushed to ${pr}, so I stopped following its CI. Please review its Checks tab.`
+                          : `I could not read CI for ${pr}. Please review its Checks tab.`;
+            const ciNoticeDelivered = await post(dependencies.onCiResult, ciMessage);
             return {
               ...result,
-              ci,
               publicationNoticeDelivered,
               ciNoticeDelivered,
               noticeDelivered: publicationNoticeDelivered && ciNoticeDelivered

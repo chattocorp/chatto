@@ -15,6 +15,8 @@ export type ImplementationProcess = (
     unsetEnv?: string[];
     /** Return local patch/validation diagnostics to the worker. Auth/publication output stays private. */
     captureDiagnostics?: boolean;
+    /** Keep the end of large standard output instead of failing at the output limit, for logs. */
+    keepTail?: boolean;
   }
 ) => Promise<string>;
 
@@ -68,7 +70,8 @@ export const implementationProcess: ImplementationProcess = async (command, args
       escalation = setTimeout(() => kill('SIGKILL'), 1000);
     };
     const receive = (data: Buffer, stderr = false) => {
-      if (output.length + errors.length + data.length > 1_000_000) {
+      if (options.keepTail && !stderr) output = (output + data.toString()).slice(-1_000_000);
+      else if (output.length + errors.length + data.length > 1_000_000) {
         failure = new Error('Command output limit exceeded');
         stop();
       } else if (stderr) errors += data.toString();

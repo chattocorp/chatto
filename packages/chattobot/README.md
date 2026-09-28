@@ -409,11 +409,13 @@ Ask the bot to implement a specific change, for example: “Implement the fix we
 discussed and open a PR.” The owner announces the task, then starts a separate
 implementation worker. Questions and investigation requests do not authorize
 implementation. The investigator stays read-only. Follow-up messages can steer
-the implementation through the same `task_send` channel. If the worker does not
-consume a forwarded clarification, publication stops. Use `/cancel` to stop the
-whole flow, including after the worker finishes editing. The host reports check
-and publication progress. It posts the verified PR link as soon as publication
-is confirmed, then posts a separate CI result.
+the implementation through the same `task_send` channel. Before publication, if
+the worker does not consume a forwarded clarification, publication stops. After
+publication, the worker waits for CI, and a forwarded message starts its next
+turn. Use `/cancel` to stop the whole flow, including while CI runs. The host
+reports check and publication progress. It posts the verified PR link as soon as
+publication is confirmed, a short message for each CI repair attempt, and the
+final CI result.
 
 When a user asks the owner to ask the implementation worker a question, the owner
 uses `askImplementation`. The worker's answer wakes the owner, which can reply
@@ -431,11 +433,8 @@ the complete diff is too long. `runCheck` runs an approved repository check,
 including frontend lint and build. `runFocusedTests` runs selected existing
 frontend test or spec files in one Vitest project. The worker can save brief
 handoff notes for a later attempt.
-Patch and check failures return bounded diagnostics to the worker. After a
-worker-requested check fails, the host runs it on the base commit and reports
-whether the base passed, failed, or could not be checked. A failed base check
-does not establish the cause. Worker checks are recorded separately from the
-final host checks because edits can make earlier results stale. Repository
+Patch and check failures return bounded diagnostics to the worker. Worker checks
+are recorded separately from the final host checks because edits can make earlier results stale. Repository
 setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final
 checks before publication. To continue, ask the bot to resume the exact
@@ -451,13 +450,15 @@ handoff against the retained diff.
 After the worker reports its edits, the host prepares the tree as the
 repository expects. It regenerates protobuf code with `mise run codegen-proto`
 when files under `proto/` changed, and formats the changed files with Prettier
-and gofmt. Then it runs the checks that CI runs for the affected area:
-`check:frontend`, `lint:frontend`, and `test:frontend` for changes limited to
-`apps/frontend/`, and the root `check`, `lint`, and `test` scripts otherwise.
-Commands run through `mise x -- pnpm run`. Protobuf changes also run
-`mise run lint-proto`, and changes to Go source or module files also run
-`mise run lint-cli` and `mise run test-cli`. CI also builds Storybook and runs
-end-to-end tests, which the host does not run.
+and gofmt. Then it runs typecheck and lint for the affected area:
+`check:frontend` and `lint:frontend` for changes limited to `apps/frontend/`,
+and the root `check` and `lint` scripts otherwise. Commands run through
+`mise x -- pnpm run`. Protobuf changes also run `mise run lint-proto`, and
+changes to Go source or module files also run `mise run lint-cli`. These checks
+are fast and do not fail intermittently. The host does not run test suites: CI
+runs them on the pull request, and the worker runs focused tests for the code it
+changed. Some local browser tests fail intermittently, so a local test failure
+would often block a correct change.
 The worker must finish its edits before it requests final validation. For a
 large, actionable change, it can save progress with `checkpointWork` and get
 another work turn in the same implementation. A checkpoint does not start
@@ -468,12 +469,8 @@ reviewer or approval does not stop it; it lists review needs in the PR notes,
 unless the user requires that review before publication. A blocked or failed worker report ends the attempt
 and requires a new user request. The host reports the worker's bounded,
 redacted reason and the number of worker checks it ran. It says when final host
-validation did not run. After a failed final check, the host runs the same
-command on a clean worktree at the base commit. If it also fails, the host
-stops and reports that the cause is not known. If it passes, the host sends
-bounded diagnostic output to the same
-worker, with at most two repair turns. If the base check cannot run, the host
-reports that the comparison is unknown and lets the worker try to repair.
+validation did not run. After a failed final check, the host sends bounded
+diagnostic output to the same worker, with at most two repair turns.
 The final result also retains failed-check diagnostics
 for supervisor questions, with known host credentials, URLs, email addresses,
 and IPv4 addresses removed. These private diagnostics are not operational logs
@@ -503,11 +500,23 @@ The host commits the changes with a Conventional Commit title, pushes only the
 new branch, and creates a ready-for-review PR. Its body describes what changed,
 why, verification, and limitations. It does not merge or deploy. The host reads
 back the PR URL, branch, base branch, state, and commit before reporting success.
-It watches GitHub checks for up to 30 minutes and posts a second message when
-they pass, fail, are all skipped, stay pending, or cannot be read. It verifies
-that the PR still points to ChattoBot's published commit before it reports a
-CI result. If the head changes, it reports that change instead. CI failure
-does not undo the published PR. Review the PR Checks tab for individual failures.
+
+Then the host follows CI on the PR. It polls GitHub checks every 30 seconds and
+stops at the first failed or cancelled check. It gives the failed check names
+and the end of up to three failed GitHub Actions job logs, redacted like other
+diagnostics, to the same worker. The worker either fixes the failure or, when
+the failure is unrelated to its change, calls `rerunFailedChecks`. The host
+validates a fix with typecheck and lint, commits it, and pushes it to the same
+branch. For a rerun, it waits until the workflow runs finish, reruns their
+failed jobs, and reads CI again. The worker gets at most three CI failures
+(`MAX_CI_REPAIRS`). A message that arrives while CI runs interrupts the wait and
+goes to the worker's next turn; its validated edits are also pushed.
+The host posts the final CI result when checks pass, still fail after three
+repair attempts, are all skipped, stay pending for 30 minutes, or cannot be
+read. It also reports when the worker cannot produce a fix or the push fails.
+Before each result, it verifies that the PR still points to ChattoBot's last
+commit. If someone else pushes to the branch, it stops following CI. CI failure
+does not undo the published PR.
 If a publication response is lost, it checks for the existing PR rather than
 creating another one. An unverified result is reported as uncertain and is not
 automatically retried.
@@ -520,8 +529,10 @@ retrying an interrupted publication. Remove retained worktrees with
 `git worktree remove` when no longer needed, then remove their local branches
 and artifact directories. There is no automatic cleanup or restart recovery.
 Stopping the bot interrupts a running implementation, so avoid restarts, including
-reloads in `mise dev-chattobot`, while one runs. After a restart, ask the bot to
-continue the stopped artifact.
+reloads in `mise dev-chattobot`, while one runs. An implementation keeps running
+until CI on its PR finishes. After a restart, ask the bot to continue a stopped
+artifact that has no PR. A restart after publication stops CI repair; the PR
+stays open.
 
 The host executes dependency setup and repository validation scripts. Although
 the worker has no shell tool, edited code can run during validation.
@@ -530,7 +541,8 @@ trusted maintainers; set `CHATTO_MAINTAINER_USER_IDS` to control who can start
 work, and `CHATTO_ALLOWED_USER_ID` to restrict who can address the bot at all.
 Do not place production credentials on that host. The model provider receives
 relevant request context, source content, and check output. GitHub receives the
-host's network address, Git credentials, commits, and PR content; public
+host's network address, Git credentials, commits, PR content, and CI log and rerun
+requests; public
 repositories make the published changes and PR notes public. Commands for
 dependency installation or verification can contact package registries and
 other services used by the checkout. Package registries receive the host's
@@ -545,6 +557,7 @@ and typing indicators. `workflows/implement.ts` owns the `implementChatto` tool.
 The implementation run is in `implementation-task.ts`, which uses
 `implementation-tools.ts` (worker tools), `implementation-validation.ts` (host
 checks), `implementation-publication.ts` (commit, push, and PR),
+`implementation-ci.ts` (PR checks, failed job logs, and reruns),
 `implementation-artifacts.ts` (retained state), `implementation-safety.ts`
 (redaction and protected paths), and `implementation-settings.ts`.
 

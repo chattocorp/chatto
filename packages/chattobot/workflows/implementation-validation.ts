@@ -1,4 +1,4 @@
-/** Host-owned validation of an implementation worktree, with comparison against the base commit. */
+/** Host-owned validation of an implementation worktree before each push. CI runs the tests. */
 import type { WorkflowContext } from 'runling';
 import type { AgentTaskUpdate } from 'runling/agents';
 import {
@@ -26,12 +26,7 @@ export interface ValidationContext {
   signal: AbortSignal;
   execute: ImplementationProcess;
   git: Git;
-  /** The operator's checkout, used to add the baseline worktree. */
-  directory: string;
   worktree: string;
-  /** Detached worktree at the base commit, created only when a check fails. */
-  baselineWorktree: string;
-  baseCommit: string;
   /** Environment variables removed from repository commands. */
   unsetEnv: string[];
 }
@@ -42,63 +37,13 @@ export function createValidation({
   signal,
   execute,
   git,
-  directory,
   worktree,
-  baselineWorktree,
-  baseCommit,
   unsetEnv
 }: ValidationContext) {
   const checks = new Map<string, Check>();
-  const baselineChecks = new Map<string, 'passed' | 'failed' | 'unknown'>();
-  let baselineReady = false;
-  let baselineUnavailable = false;
   const stageTree = async () => {
     await git(worktree, ['add', '-A']);
     return (await git(worktree, ['write-tree'])).trim();
-  };
-  /** Compare a failed worker or final check with the pristine base commit. */
-  const checkBaseline = async (command: string, args: string[], comparisonSignal = signal) => {
-    const cached = baselineChecks.get(command);
-    if (cached) return cached;
-    if (!baselineReady && !baselineUnavailable) {
-      try {
-        await git(
-          directory,
-          ['worktree', 'add', '--detach', baselineWorktree, baseCommit],
-          comparisonSignal
-        );
-        await execute('mise', ['x', '--', 'pnpm', 'install', '--frozen-lockfile'], {
-          cwd: baselineWorktree,
-          signal: comparisonSignal,
-          timeoutMs: 10 * 60_000,
-          unsetEnv
-        });
-        if ((await git(baselineWorktree, ['status', '--porcelain'], comparisonSignal)).trim())
-          throw new Error('Baseline setup changed source files');
-        baselineReady = true;
-      } catch {
-        comparisonSignal.throwIfAborted();
-        baselineUnavailable = true;
-      }
-    }
-    let comparison: 'passed' | 'failed' | 'unknown' = 'unknown';
-    if (baselineReady) {
-      try {
-        await execute('mise', args, {
-          cwd: baselineWorktree,
-          signal: comparisonSignal,
-          timeoutMs: 10 * 60_000,
-          captureDiagnostics: true,
-          unsetEnv
-        });
-        comparison = 'passed';
-      } catch (error) {
-        comparisonSignal.throwIfAborted();
-        if (error instanceof ImplementationCommandError) comparison = 'failed';
-      }
-    }
-    baselineChecks.set(command, comparison);
-    return comparison;
   };
   // Commands are host-owned. The worker receives failure output, but cannot
   // substitute an easier command or declare its own checks successful.
@@ -157,8 +102,8 @@ export function createValidation({
     return undefined;
   };
 
-  /** Host checks for a change: the repository's typecheck, lint, and tests for the affected area,
-   * matching what CI runs for those paths. */
+  /** Host checks for a change: the repository's typecheck and lint for the affected area. They are
+   * fast and deterministic. Tests run in CI on the pull request, where failures return to the worker. */
   const commandsFor = (paths: string[]) => {
     const frontendOnly = paths.every((path) => path.startsWith('apps/frontend/'));
     const goChanged = paths.some(
@@ -167,14 +112,8 @@ export function createValidation({
     return [
       ['x', '--', 'pnpm', 'run', frontendOnly ? 'check:frontend' : 'check'],
       ['x', '--', 'pnpm', 'run', frontendOnly ? 'lint:frontend' : 'lint'],
-      ['x', '--', 'pnpm', 'run', frontendOnly ? 'test:frontend' : 'test'],
       ...(paths.some((path) => path.startsWith('proto/')) ? [['run', 'lint-proto']] : []),
-      ...(goChanged
-        ? [
-            ['run', 'lint-cli'],
-            ['run', 'test-cli']
-          ]
-        : [])
+      ...(goChanged ? [['run', 'lint-cli']] : [])
     ];
   };
 
@@ -221,29 +160,18 @@ export function createValidation({
         text: `Host validation ${passed ? 'passed' : 'failed'}: ${command}.`
       });
       if (!passed) {
-        const baseline = await checkBaseline(command, args);
         await ctx.emit({
           type: 'state',
           value: {
             phase: 'validation_failed',
             failedCheck: command,
-            baseline,
             completedChecks: [...completed],
             pendingChecks: [...pending]
           },
           activity: `Validation failed · ${command}`,
           activityLevel: 'error'
         });
-        if (baseline === 'failed') {
-          await ctx.emit({
-            type: 'finding',
-            text: `The same check also failed on the base commit: ${command}. Cause is not established.`
-          });
-          return {
-            blocked: `The check ${command} also failed on the base commit. The cause is not established; review the check before continuing.`
-          };
-        }
-        return `Validation failed: ${command}\nBase comparison: ${baseline}.\n${diagnostic}`;
+        return `Validation failed: ${command}\n${diagnostic}`;
       }
       completed.push(command);
       pending.shift();
@@ -262,5 +190,5 @@ export function createValidation({
       return 'Validation changed source files. Review those changes; all checks must run again on the final tree.';
     return undefined;
   };
-  return { checks, stageTree, checkBaseline, validate };
+  return { checks, stageTree, validate };
 }
