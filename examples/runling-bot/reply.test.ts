@@ -57,19 +57,13 @@ function fixture(
           messagePosted: { message: { body, actorId } }
         });
         return Response.json({
-          page: body.before
-            ? {
-                events: [event('earlier', 'An earlier request')]
-              }
-            : {
-                events: [
-                  event(body.threadRootEventId, 'Thread root'),
-                  event('bot-reply', 'Previous joke', 'bot'),
-                  event('source-ping', '@test_bot')
-                ],
-                hasOlder: true,
-                startCursor: 'older-token'
-              }
+          page: {
+            events: [
+              event(body.threadRootEventId, 'Thread root'),
+              event('bot-reply', 'Previous joke', 'bot'),
+              event('source-ping', '@test_bot')
+            ]
+          }
         });
       }
       assert.ok(path.endsWith('CreateMessage'));
@@ -161,7 +155,7 @@ test('notifies the user when the model fails and keeps the run failed', async ()
   ]);
 });
 
-test('channel pings preload every page in order, including the root and bot replies', async () => {
+test('channel pings preload the thread in order, including the root and bot replies', async () => {
   const { workflow, contexts } = fixture();
   const result = await runWorkflow(workflow, {
     input: {
@@ -174,7 +168,6 @@ test('channel pings preload every page in order, including the root and bot repl
   assert.deepEqual(contexts, [
     [
       { role: 'human', body: 'Thread root' },
-      { role: 'human', body: 'An earlier request' },
       { role: 'bot', body: 'Previous joke' },
       { role: 'human', body: '@test_bot' }
     ]
@@ -191,8 +184,8 @@ test('DMs preload their thread even when also mentioned', async () => {
     ).ok,
     true
   );
-  assert.equal((contexts[0] as unknown[]).length, 4);
-  assert.deepEqual((contexts[0] as unknown[])[2], {
+  assert.equal((contexts[0] as unknown[]).length, 3);
+  assert.deepEqual((contexts[0] as unknown[])[1], {
     role: 'bot',
     body: 'Previous joke'
   });
@@ -226,7 +219,7 @@ test('repeated final delivery shares one POST even when it fails', async () => {
   }
 });
 
-test('a DM thread summary receives earlier messages and bot replies before the model runs', async () => {
+test('a DM thread summary receives the thread and bot replies before the model runs', async () => {
   const { workflow, contexts } = fixture();
   const result = await runWorkflow(workflow, {
     input: {
@@ -240,7 +233,6 @@ test('a DM thread summary receives earlier messages and bot replies before the m
   assert.deepEqual(contexts, [
     [
       { role: 'human', body: 'Thread root' },
-      { role: 'human', body: 'An earlier request' },
       { role: 'bot', body: 'Previous joke' },
       { role: 'human', body: '@test_bot' }
     ]

@@ -69,12 +69,23 @@ test("bot thread roles are separate from the API client's message data", async (
     { id: 'one', authorId: 'bot', body: 'hi' },
     { id: 'two', authorId: 'other', body: 'hello' }
   ];
-  vi.spyOn(client, 'readThread').mockResolvedValue(messages);
+  const read = vi
+    .spyOn(client, 'readThread')
+    .mockResolvedValue({ messages, cursor: 'c2', olderOmitted: false });
   const bot = await createBotClient(client);
-  expect(await bot.readThread({ roomId: 'room', threadRootId: 'one' })).toEqual([
-    { ...messages[0], role: 'bot' },
-    { ...messages[1], role: 'human' }
-  ]);
+  expect(
+    await bot.readThread({ roomId: 'room', threadRootId: 'one' }, undefined, { after: 'c1' })
+  ).toEqual({
+    messages: [
+      { ...messages[0], role: 'bot' },
+      { ...messages[1], role: 'human' }
+    ],
+    cursor: 'c2',
+    olderOmitted: false
+  });
+  expect(read).toHaveBeenCalledWith({ roomId: 'room', threadRootId: 'one' }, undefined, {
+    after: 'c1'
+  });
   expect(messages[0]).not.toHaveProperty('role');
 });
 

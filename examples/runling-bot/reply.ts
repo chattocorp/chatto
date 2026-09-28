@@ -101,7 +101,7 @@ export function createReplyWorkflow(
             },
             r.signal
           )
-        ).map(({ authorId, body }) => ({
+        ).messages.map(({ authorId, body }) => ({
           role: authorId === input.bot_id ? ('bot' as const) : ('human' as const),
           body
         }));
@@ -140,7 +140,7 @@ export function createReplyWorkflow(
       );
 
       try {
-        const thread = await step('Load complete thread', readThread);
+        const thread = await step('Load thread', readThread);
 
         await step('Compose reply', () =>
           answer(r, {

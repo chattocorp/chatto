@@ -48,9 +48,11 @@ The bot package adds no external service or logging.
 - `bot.conversationKey(message)` scopes a conversation to the bot, room,
   thread, and sender. Hosts can use a different key. Store keys separately for
   each server. `conversationKey(viewerId, message)` is the standalone form.
-- `bot.readThread(location, signal)` adds bot/human roles to thread text.
-  Here, `human` means any author other than this bot; it is not an account-type
-  check. `readBotThread(client, viewerId, location, signal)` accepts a known identity.
+- `bot.readThread(location, signal, { after, limit })` reads a thread like
+  `client.readThread` and adds bot/human roles to its messages. Here, `human`
+  means any author other than this bot; it is not an account-type check.
+  `readBotThread(client, viewerId, location, signal, options)` accepts a known
+  identity.
 - `addressedMessage(client, event, { viewerId, signal, reasons })` is the
   standalone addressing helper. Obtain `viewerId` from that client's `getViewer()`.
 
@@ -77,6 +79,8 @@ acceptance state, and recovery gaps do not trigger automatic history reads.
 helper. Import `AddressedMessage` and `AddressingReason` from this package.
 `client.readThread` now takes `{ roomId, threadRootId }` and returns messages
 without bot/human roles. Use `bot.readThread` when those roles are required.
+Both return `{ messages, cursor, olderOmitted }`: read the newest replies first,
+then pass `cursor` as `after` to read only newer messages.
 
 ## Development
 
