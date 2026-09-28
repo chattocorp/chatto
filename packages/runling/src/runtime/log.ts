@@ -69,7 +69,9 @@ function write(
   const colored = terminalColors(stderr ? process.stderr : process.stdout);
   const ansi = ansiColor(color);
   const marker = colored && ansi ? `${ansi}${symbol}\x1b[0m` : symbol;
-  const line = `${indent()}${marker} ${colored ? message : stripVTControlCharacters(message)}`;
+  const body = colored ? message : stripVTControlCharacters(message);
+  // Continuation lines align with the first line's text, under the marker.
+  const line = `${indent()}${marker} ${body.replace(/\n/g, `\n${indent()}  `)}`;
   if (stderr) {
     console.error(line);
   } else {

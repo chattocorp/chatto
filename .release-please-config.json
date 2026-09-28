@@ -20,6 +20,7 @@
         "apps/desktop",
         "authling",
         "packages/runling",
+        "packages/chattobot",
         "pkg/appconfig",
         "pkg/datacrypto",
         "pkg/events",

@@ -80,7 +80,7 @@ test('splits long messages at 8000 code points and sends them in order', async (
   expect(bodies).toHaveLength(3);
 });
 
-test('reads all thread pages root first, with bot roles kept separate', async () => {
+test('reads the root and newest replies with names, then only newer messages', async () => {
   const requests: GetThreadEventsRequest[] = [];
   const posted = (id: string, actorId: string, body: string) => ({
     id,
@@ -91,37 +91,87 @@ test('reads all thread pages root first, with bot roles kept separate', async ()
     router.service(ThreadService, {
       getThreadEvents(request) {
         requests.push(request);
-        return request.cursor.case === 'before'
-          ? { page: { events: [posted('root', 'human', 'question')], hasOlder: false } }
-          : {
-              page: {
-                events: [posted('one', 'bot', 'answer'), posted('two', 'human', 'thanks')],
-                hasOlder: true,
-                startCursor: 'older'
+        if (request.cursor.case !== 'after')
+          return {
+            page: {
+              events: [posted('root', 'human', 'question'), posted('one', 'bot', 'answer')],
+              hasOlder: true,
+              endCursor: 'c1',
+              includes: {
+                users: {
+                  human: { login: 'alice', displayName: 'Alice Doe', bio: 'private' },
+                  bot: { login: 'chatto_bot' }
+                }
               }
+            }
+          };
+        return request.cursor.value === 'c1'
+          ? {
+              page: { events: [posted('two', 'human', 'thanks')], hasNewer: true, endCursor: 'c2' }
+            }
+          : {
+              page: { events: [posted('three', 'human', 'bye')], hasNewer: false, endCursor: 'c3' }
             };
       }
     })
   );
   const bot = await createBotClient(fake.chatto);
-  const messages = await bot.readThread({ roomId: 'room', threadRootId: 'root' });
-  expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two']);
-  expect(requests.map((request) => request.cursor.value)).toEqual([undefined, 'older']);
-  const roles = await bot.readBotThread({ roomId: 'room', threadRootId: 'root' });
-  expect(roles.map((message) => message.role)).toEqual(['human', 'bot', 'human']);
-  expect(messages[1]).not.toHaveProperty('role');
+  const first = await bot.readThread({ roomId: 'room', threadRootId: 'root' });
+  expect(first).toEqual({
+    messages: [
+      {
+        id: 'root',
+        authorId: 'human',
+        authorName: 'Alice Doe',
+        authorLogin: 'alice',
+        body: 'question'
+      },
+      {
+        id: 'one',
+        authorId: 'bot',
+        authorName: 'chatto_bot',
+        authorLogin: 'chatto_bot',
+        body: 'answer'
+      }
+    ],
+    cursor: 'c1',
+    olderOmitted: true
+  });
+  expect(JSON.stringify(first)).not.toContain('private');
+  const next = await bot.readBotThread({ roomId: 'room', threadRootId: 'root' }, undefined, {
+    after: first.cursor
+  });
+  expect(next.messages.map(({ id, role }) => [id, role])).toEqual([
+    ['two', 'human'],
+    ['three', 'human']
+  ]);
+  expect(next).toMatchObject({ cursor: 'c3', olderOmitted: false });
+  expect(requests.map((request) => request.cursor.value)).toEqual([undefined, 'c1', 'c2']);
+  expect(requests[0]?.limit).toBe(100);
+});
+
+test('an up-to-date thread keeps its cursor', async () => {
+  const fake = fakeConnection((router) =>
+    router.service(ThreadService, {
+      getThreadEvents: () => ({ page: { events: [], hasNewer: false } })
+    })
+  );
+  const bot = await createBotClient(fake.chatto);
+  await expect(
+    bot.readThread({ roomId: 'room', threadRootId: 'root' }, undefined, { after: 'c3' })
+  ).resolves.toEqual({ messages: [], cursor: 'c3', olderOmitted: false });
 });
 
 test('rejects thread pagination that does not advance', async () => {
   const fake = fakeConnection((router) =>
     router.service(ThreadService, {
-      getThreadEvents: () => ({ page: { events: [], hasOlder: true, startCursor: 'same' } })
+      getThreadEvents: () => ({ page: { events: [], hasNewer: true, endCursor: 'same' } })
     })
   );
   const bot = await createBotClient(fake.chatto);
-  await expect(bot.readThread({ roomId: 'room', threadRootId: 'root' })).rejects.toThrow(
-    'did not advance'
-  );
+  await expect(
+    bot.readThread({ roomId: 'room', threadRootId: 'root' }, undefined, { after: 'same' })
+  ).rejects.toThrow('did not advance');
 });
 
 test('consumes events in order, reports status and gaps, and stops on abort', async () => {

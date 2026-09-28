@@ -12,11 +12,12 @@ import {
   type AgentTasks,
   type AgentTaskUpdate,
   type AgentOptions,
-  type RunlingAgent
+  type RunlingAgent,
+  type ThinkingLevel
 } from 'runling/agents';
-import { evidenceCollector, findingSchema, renderFindings } from './evidence.ts';
+import { evidenceCollector, findingSchema, renderFindings, withoutExcerpts } from './evidence.ts';
 import type { ImplementationSettings } from './implement.ts';
-import { setting } from '../settings.ts';
+import { setting, thinkingSetting } from '../settings.ts';
 import {
   implementationPlanSchema,
   planContentSchema,
@@ -49,6 +50,8 @@ export interface InvestigationSettings {
   directory: string;
   baseRef?: string;
   model?: string;
+  /** Reasoning effort of the investigator. Defaults to `medium`. */
+  thinkingLevel?: ThinkingLevel;
   timeoutMs?: number;
   artifactsDirectory?: string;
 }
@@ -66,7 +69,8 @@ export function investigationSettings(
     baseRef: implementation?.baseBranch
       ? `refs/remotes/origin/${implementation.baseBranch}`
       : (setting('CHATTO_SOURCE_REF') ?? 'HEAD'),
-    model: setting('CHATTO_INVESTIGATION_MODEL') ?? 'openai-codex/gpt-5.6-sol'
+    model: setting('CHATTO_INVESTIGATION_MODEL') ?? 'openai-codex/gpt-5.6-sol',
+    thinkingLevel: thinkingSetting('CHATTO_INVESTIGATION_THINKING', 'medium')
   };
 }
 
@@ -196,7 +200,7 @@ export function createInvestigation(
           onActivity: (activity) => {
             void ctx.emit(activity).catch(() => {});
           },
-          thinkingLevel: 'medium',
+          thinkingLevel: settings.thinkingLevel ?? 'medium',
           tools: ['read', 'grep', 'find', 'ls', 'recordFinding', 'prepareImplementationPlan'],
           extensions: [evidence.extension, planning],
           resources: {
@@ -298,8 +302,9 @@ export function createInvestigation(
               : summary,
           ...(failureReason ? { failureReason } : {}),
           ...(plan && outcome === 'completed' ? { plan } : {}),
-          details: renderFindings(evidence.findings),
-          findings: evidence.findings,
+          // The progress output kept the checked excerpts; the result carries claims and locations.
+          details: renderFindings(withoutExcerpts(evidence.findings)),
+          findings: withoutExcerpts(evidence.findings),
           validation: {
             citationsChecked: evidence.findings.length > 0,
             reproduced: false as const,

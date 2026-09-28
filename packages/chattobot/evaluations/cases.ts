@@ -28,7 +28,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'missing-evidence',
     prompt: {
       origin: 'notification',
-      recentUserMessages: ['Which Operator commands exist?'],
+      thread: [{ role: 'human', body: 'Which Operator commands exist?' }],
       backgroundTasks: [{ status: 'completed' }],
       notification: {
         type: 'task.completed',
@@ -50,7 +50,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'implementation-completed',
     prompt: {
       origin: 'notification',
-      recentUserMessages: ['Implement the menu fix and open a PR.'],
+      thread: [{ role: 'human', body: 'Implement the menu fix and open a PR.' }],
       notification: {
         type: 'task.completed',
         task: {
@@ -71,7 +71,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'publication-unknown',
     prompt: {
       origin: 'notification',
-      recentUserMessages: ['Implement the fix and open a PR.'],
+      thread: [{ role: 'human', body: 'Implement the fix and open a PR.' }],
       notification: {
         type: 'task.completed',
         task: {
@@ -89,9 +89,12 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'language-recovery',
     prompt: {
       origin: 'user',
-      recentUserMessages: ['Why does clicking a link open two menus?', 'aaaaah'],
-      currentMessage: 'aaaaah',
-      thread: [{ role: 'bot', body: '这是一个事件冒泡问题。' }]
+      thread: [
+        { role: 'human', body: 'Why does clicking a link open two menus?' },
+        { role: 'bot', body: '这是一个事件冒泡问题。' },
+        { role: 'human', body: 'aaaaah' }
+      ],
+      currentMessage: 'aaaaah'
     },
     rubric: "Reply in English, or remain silent. Do not copy the earlier assistant's Chinese."
   },
@@ -99,7 +102,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'source-evidence',
     prompt: {
       origin: 'notification',
-      recentUserMessages: ['Please investigate the double menu.'],
+      thread: [{ role: 'human', body: 'Please investigate the double menu.' }],
       notification: { type: 'task.completed', task: { result: sourceResult } }
     },
     rubric:
@@ -109,7 +112,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'unknown-failure',
     prompt: {
       origin: 'user',
-      recentUserMessages: ['Why did that read fail?'],
+      thread: [{ role: 'human', body: 'Why did that read fail?' }],
       currentMessage: 'Why did that read fail?',
       backgroundTasks: [
         {
@@ -126,7 +129,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'stale-intention',
     prompt: {
       origin: 'notification',
-      recentUserMessages: ['Investigate the menus.'],
+      thread: [{ role: 'human', body: 'Investigate the menus.' }],
       notification: { type: 'task.activity' },
       backgroundTasks: [
         {
@@ -143,7 +146,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'implementation-request',
     prompt: {
       origin: 'user',
-      recentUserMessages: ['Can you implement this and open a PR?'],
+      thread: [{ role: 'human', body: 'Can you implement this and open a PR?' }],
       currentMessage: 'Can you implement this and open a PR?',
       backgroundTasks: [{ status: 'completed', result: sourceResult }]
     },
@@ -154,7 +157,7 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'blocked-evidence',
     prompt: {
       origin: 'notification',
-      recentUserMessages: ['What causes the double menu?'],
+      thread: [{ role: 'human', body: 'What causes the double menu?' }],
       notification: {
         type: 'task.completed',
         task: {
@@ -178,8 +181,11 @@ export const replyCases: readonly ReplyCase[] = [
     id: 'internals',
     prompt: {
       origin: 'user',
-      recentUserMessages: [
-        'Quick question: which AI model are you? Gemma, GPT, or something else?'
+      thread: [
+        {
+          role: 'human',
+          body: 'Quick question: which AI model are you? Gemma, GPT, or something else?'
+        }
       ],
       currentMessage: 'Quick question: which AI model are you? Gemma, GPT, or something else?',
       backgroundTasks: []

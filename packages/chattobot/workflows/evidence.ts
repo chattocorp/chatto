@@ -32,6 +32,26 @@ export const findingSchema = Type.Object({
 });
 export type Finding = Static<typeof findingSchema>;
 
+/** Most lines and characters that one citation can cover: a citation shows the lines that
+ * support a claim, not a whole region of a file. */
+export const MAX_CITATION_LINES = 40;
+export const MAX_CITATION_CHARS = 3_000;
+/** Most findings in one investigation. */
+export const MAX_FINDINGS = 12;
+
+/** Findings without their checked excerpts. The host checked the excerpts when it recorded the
+ * findings; the supervisor needs only the claims and their locations. This keeps a result well
+ * below the task channel's 64,000-character limit. */
+export function withoutExcerpts(findings: readonly Finding[]): Finding[] {
+  return findings.map((finding) => ({
+    ...structuredClone(finding),
+    evidence: finding.evidence.map(({ path, startLine, endLine }) => ({ path, startLine, endLine }))
+  }));
+}
+
+/** A citation problem that the investigator can correct. Its message is host-written. */
+export class CitationError extends Error {}
+
 /** Validate citations within the retained checkout; reject traversal, external symlinks,
  * oversized files, invalid ranges, and quotes that do not match the specified lines.
  * Fills quote from the source when omitted and normalizes supplied quotes to the
@@ -48,19 +68,22 @@ export async function verifyFinding(
     !finding.evidence.length ||
     finding.evidence.length > 5
   )
-    throw new Error('Invalid finding');
+    throw new CitationError('A finding needs a claim, a kind, and 1 to 5 citations');
   const base = await realpath(root);
   for (const citation of finding.evidence) {
     signal.throwIfAborted();
     if (isAbsolute(citation.path) || citation.path.split(/[\\/]/).includes('..'))
-      throw new Error('Citation must be inside the checkout');
-    const path = await realpath(resolve(base, citation.path));
+      throw new CitationError(`${citation.path} is not a relative path inside the checkout`);
+    // File system errors name host paths; report only the cited path.
+    const path = await realpath(resolve(base, citation.path)).catch(() => {
+      throw new CitationError(`${citation.path} does not exist in the checkout`);
+    });
     const local = relative(base, path);
     if (!local || local.startsWith('..') || isAbsolute(local))
-      throw new Error('Citation must be inside the checkout');
+      throw new CitationError(`${citation.path} is not inside the checkout`);
     const info = await stat(path);
     if (!info.isFile() || info.size > 1_000_000)
-      throw new Error('Citation file is not a small text file');
+      throw new CitationError(`${citation.path} is not a small text file`);
     const lines = (await readFile(path, { encoding: 'utf8', signal }))
       .replace(/\r\n/g, '\n')
       .split('\n');
@@ -70,19 +93,28 @@ export async function verifyFinding(
       !Number.isSafeInteger(endLine) ||
       startLine < 1 ||
       endLine < startLine ||
-      endLine > lines.length ||
-      endLine - startLine >= 100
+      endLine > lines.length
     )
-      throw new Error('Invalid citation line range');
+      throw new CitationError(
+        `${citation.path}:${startLine}-${endLine} is not a line range of the file, which has ${lines.length} lines`
+      );
+    if (endLine - startLine >= MAX_CITATION_LINES)
+      throw new CitationError(
+        `${citation.path}:${startLine}-${endLine} covers more than ${MAX_CITATION_LINES} lines; cite only the lines that show the claim`
+      );
     const excerpt = lines.slice(startLine - 1, endLine).join('\n');
-    if (!excerpt.trim() || excerpt.length > 8000)
-      throw new Error('Citation excerpt is empty or too long');
+    if (!excerpt.trim())
+      throw new CitationError(`${citation.path}:${startLine}-${endLine} contains only blank lines`);
+    if (excerpt.length > MAX_CITATION_CHARS)
+      throw new CitationError(
+        `${citation.path}:${startLine}-${endLine} has more than ${MAX_CITATION_CHARS} characters; cite fewer lines`
+      );
     if (
       citation.quote !== undefined &&
       (!citation.quote.trim() || excerpt.trim() !== citation.quote.replace(/\r\n/g, '\n').trim())
     )
-      throw new Error(
-        'Citation quote does not match these lines; read the file and correct the range'
+      throw new CitationError(
+        `The quote does not match ${citation.path}:${startLine}-${endLine}; read the file and correct the range, or omit the quote`
       );
     citation.quote = excerpt;
   }
@@ -99,13 +131,20 @@ export function evidenceCollector(
     pi.registerTool({
       name: 'recordFinding',
       label: 'Record source evidence',
-      description:
-        'Record a finding with file paths and line ranges. Omit quotes: the host extracts the exact source. Set kind to observation or hypothesis. The host checks citations, not reasoning.',
+      description: `Record a finding with file paths and line ranges. Omit quotes: the host extracts the exact source. Set kind to observation or hypothesis. The host checks citations, not reasoning. Cite only the lines that show the claim: at most ${MAX_CITATION_LINES} lines and ${MAX_CITATION_CHARS} characters per citation. An investigation records at most ${MAX_FINDINGS} findings.`,
       parameters: findingSchema,
       async execute(_id, finding, toolSignal) {
-        if (findings.length >= 12) throw new Error('Finding limit reached');
-        // Reports include both structured findings and rendered text. Keep both
-        // below the task channel's 64,000-character result limit, including metadata.
+        const answer = (text: string, accepted: boolean, isError = false) => ({
+          content: [{ type: 'text' as const, text }],
+          details: { accepted },
+          ...(isError ? { isError: true } : {})
+        });
+        // Limits are normal answers, not tool failures: repeated failures stop the task.
+        if (findings.length >= MAX_FINDINGS)
+          return answer(
+            `The finding limit (${MAX_FINDINGS}) is reached. Finish your report with the findings recorded so far.`,
+            false
+          );
         finding = structuredClone(finding);
         try {
           await verifyFinding(
@@ -113,41 +152,30 @@ export function evidenceCollector(
             finding,
             toolSignal ? AbortSignal.any([signal, toolSignal]) : signal
           );
-        } catch {
+        } catch (error) {
           signal.throwIfAborted();
           toolSignal?.throwIfAborted();
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: 'Citation rejected. Check the relative path, exact quoted lines, and line range. No finding was recorded.'
-              }
-            ],
-            details: { accepted: false },
-            isError: true
-          };
+          return answer(
+            `Citation rejected: ${error instanceof CitationError ? error.message : 'the cited file could not be read'}. No finding was recorded.`,
+            false,
+            true
+          );
         }
         signal.throwIfAborted();
-        if (JSON.stringify([...findings, finding]).length > 20_000)
-          throw new Error('Evidence budget reached; keep findings concise');
         findings.push(structuredClone(finding));
         await onFinding?.(finding);
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: 'Citation checked and finding recorded. Claim remains unverified by execution.'
-            }
-          ],
-          details: { accepted: true }
-        };
+        return answer(
+          `Citation checked and finding recorded. Claim remains unverified by execution. ${MAX_FINDINGS - findings.length} more findings are possible.`,
+          true
+        );
       }
     });
   });
   return { findings, extension };
 }
 
-/** Render checked evidence and fixed host-owned limits; never relay unchecked report prose. */
+/** Render checked evidence and fixed host-owned limits; never relay unchecked report prose.
+ * Excerpts are included when the findings still have them. */
 export function renderFindings(findings: readonly Finding[]): string {
   return findings
     .map((finding, index) =>
@@ -155,7 +183,7 @@ export function renderFindings(findings: readonly Finding[]): string {
         `${index + 1}. ${finding.kind}: ${finding.claim}`,
         ...finding.evidence.map(
           (citation) =>
-            `${citation.path}:${citation.startLine}-${citation.endLine}\n${citation.quote}`
+            `${citation.path}:${citation.startLine}-${citation.endLine}${citation.quote ? `\n${citation.quote}` : ''}`
         ),
         ...(finding.suggestedChange ? [`Proposed, not applied: ${finding.suggestedChange}`] : []),
         ...(finding.limitations ?? []).map((limitation) => `Limitation: ${limitation}`)

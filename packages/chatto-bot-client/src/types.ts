@@ -36,7 +36,19 @@ export interface ThreadLocation {
 export interface ThreadMessage {
   id: string;
   authorId?: string;
+  /** The author's display name, or login when no display name is set. */
+  authorName?: string;
+  authorLogin?: string;
   body: string;
+}
+
+/** Messages from one thread read, with a cursor for reading newer messages later. */
+export interface ThreadRead {
+  messages: ThreadMessage[];
+  /** Pass as `after` to read only newer messages. Absent when the thread has no messages. */
+  cursor?: string;
+  /** True when older replies exist that this read left out. */
+  olderOmitted: boolean;
 }
 
 /** Safe realtime diagnostics, without remote messages or connection details. */

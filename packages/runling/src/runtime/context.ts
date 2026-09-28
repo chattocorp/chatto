@@ -18,6 +18,14 @@ export class WorkflowAbortError extends Error {
   }
 }
 
+/** Identifies the run that a workflow context belongs to. */
+export interface RunIdentity {
+  /** The run's stable ID. */
+  id: string;
+  /** The run's human-readable name, such as `funky-comics-8426`. Older runs have none. */
+  reference?: string;
+}
+
 export type TextHandler = (text: string) => void | Promise<void>;
 
 export interface WorkflowContext<Incoming = never, Update = unknown> {
@@ -43,6 +51,10 @@ export interface WorkflowContext<Incoming = never, Update = unknown> {
   /** Signals cancellation to agents and other cooperative work. */
   readonly signal: AbortSignal;
 
+  /** The run of this context. Spawned tasks share their parent's run. Absent for direct task
+   * calls and for hosts that do not record runs. */
+  readonly run?: RunIdentity;
+
   /** Abort this workflow and throw its abort error. The first reason is retained. */
   abort(reason?: string): never;
 
@@ -64,7 +76,8 @@ export function createWorkflowContext(): WorkflowContext {
 /** Internal bridge from context accounting to runner events. */
 export function createObservedWorkflowContext(
   onUsage?: (usage: TokenUsage) => void,
-  cancellation?: AbortSignal
+  cancellation?: AbortSignal,
+  run?: RunIdentity
 ): WorkflowContext {
   const total = emptyTokenUsage();
   const controller = new AbortController();
@@ -104,6 +117,7 @@ export function createObservedWorkflowContext(
     onInput: undefined,
     onText: undefined,
     signal,
+    ...(run ? { run } : {}),
     usage,
 
     abort(reason) {

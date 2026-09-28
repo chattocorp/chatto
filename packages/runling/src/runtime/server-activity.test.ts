@@ -1,13 +1,13 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { serverLog } from './server-log.ts';
+import { serverLog, terminalRunLog } from './server-log.ts';
 import { createServerActivityLog } from './server-activity.ts';
 
-vi.mock('./server-log.ts', () => ({ serverLog: vi.fn() }));
+vi.mock('./server-log.ts', () => ({ serverLog: vi.fn(), terminalRunLog: vi.fn() }));
 afterEach(() => vi.clearAllMocks());
 
 test('concurrent runs and nested tasks retain distinct stable prefixes without payloads', () => {
-  const first = createServerActivityLog('run-a', 'bright-waves-1234');
-  const second = createServerActivityLog('run-b', 'happy-toes-5678');
+  const first = createServerActivityLog('run-a', 'bright-waves-1234', { detailed: false });
+  const second = createServerActivityLog('run-b', 'happy-toes-5678', { detailed: false });
   first({ type: 'step.started', id: 'outer', label: 'private label', timestamp: 0 });
   first({
     type: 'step.started',
@@ -55,7 +55,7 @@ test('concurrent runs and nested tasks retain distinct stable prefixes without p
 });
 
 test('throttles agent activity but always reports tool failures and completion', () => {
-  const write = createServerActivityLog('run');
+  const write = createServerActivityLog('run', undefined, { detailed: false });
   write({ type: 'agent.started', agentId: 'agent', model: 'model', color: 'blue', timestamp: 0 });
   for (const timestamp of [1, 2, 14_999, 15_000, 15_001]) {
     write({ type: 'agent.action', agentId: 'agent', action: 'secret text', timestamp });
@@ -78,7 +78,7 @@ test('throttles agent activity but always reports tool failures and completion',
 });
 
 test('summarizes successful calls, reports failures immediately, and associates host milestones', () => {
-  const write = createServerActivityLog('run', 'sunny-poems-5431');
+  const write = createServerActivityLog('run', 'sunny-poems-5431', { detailed: false });
   write({ type: 'task.linked', taskId: 'step', channelId: 'channel', timestamp: 0 });
   write({
     type: 'agent.started',
@@ -146,7 +146,8 @@ test('summarizes successful calls, reports failures immediately, and associates 
   expect(vi.mocked(serverLog).mock.calls[3]).toMatchObject([
     'error',
     'run.activity',
-    { activityLevel: 'error' }
+    { activityLevel: 'error' },
+    { terminal: true }
   ]);
   write.dispose();
 });
@@ -155,7 +156,7 @@ test('reports silence without claiming progress and stops reminders after agent 
   vi.useFakeTimers();
   vi.setSystemTime(0);
   try {
-    const write = createServerActivityLog('run', 'quiet-run-1234');
+    const write = createServerActivityLog('run', 'quiet-run-1234', { detailed: false });
     write({
       type: 'agent.started',
       agentId: 'agent',
@@ -207,4 +208,56 @@ test('reports silence without claiming progress and stops reminders after agent 
   } finally {
     vi.useRealTimers();
   }
+});
+
+test('detailed mode shows every run log line and failed task errors in the terminal only', () => {
+  const write = createServerActivityLog('run', 'busy-bees-1234', { detailed: true });
+  write({ type: 'step.started', id: 'task', label: 'Implement change', timestamp: 0 });
+  write({
+    type: 'agent.started',
+    agentId: 'ripe-apes-1855',
+    label: 'implement',
+    model: 'test/model',
+    color: 'red',
+    activityId: 'task',
+    timestamp: 1
+  });
+  write({
+    type: 'log',
+    level: 'info',
+    message: '[ripe-apes-1855] Thinking **Adding the command**',
+    depth: 2,
+    color: 'red',
+    source: 'agent',
+    sourceId: 'ripe-apes-1855',
+    activityId: 'task',
+    timestamp: 2
+  });
+  write({
+    type: 'step.finished',
+    id: 'task',
+    status: 'failed',
+    durationMs: 5,
+    error: 'Error: Command failed (exit 128)',
+    timestamp: 3
+  });
+  expect(vi.mocked(terminalRunLog).mock.calls).toEqual([
+    [
+      'info',
+      { runReference: 'busy-bees-1234', taskReference: 'task-1', agentLabel: 'implement' },
+      '[ripe-apes-1855] Thinking **Adding the command**'
+    ],
+    [
+      'error',
+      { runReference: 'busy-bees-1234', agentLabel: 'implement', taskReference: 'task-1' },
+      'Task failed · 5 ms · Error: Command failed (exit 128)'
+    ]
+  ]);
+  // Routine summaries stay in the file; the error never reaches it.
+  expect(vi.mocked(serverLog).mock.calls.map((call) => [call[2]?.activity, call[3]])).toEqual([
+    ['Task started', { terminal: false }],
+    ['Agent started · test/model', { terminal: false }],
+    ['Task failed · 5 ms', { terminal: false }]
+  ]);
+  expect(JSON.stringify(vi.mocked(serverLog).mock.calls)).not.toContain('exit 128');
 });

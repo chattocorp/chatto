@@ -2,7 +2,11 @@ import { expect, test } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { createBotClient } from '@chatto/bot-client';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import type { GetThreadEventsRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
+import type {
+  GetThreadEventsRequest,
+  RoomTimelinePage
+} from '@chatto/api-types/api/v1/room_timeline_pb';
+import type { PartialMessage } from '@bufbuild/protobuf';
 import { createThreadReader } from './thread.ts';
 import type { Delivery } from './chatto/routing.ts';
 import { fakeChatto } from './chatto/fake-chatto.ts';
@@ -18,8 +22,11 @@ const delivery: Delivery = {
   thread_root_id: 'root',
   message: { id: 'ping', author_id: 'alice', body: "What's next?" }
 };
-type Page = { events: ReturnType<typeof event>[]; hasOlder?: boolean; startCursor?: string };
-async function reader(pages: (request: GetThreadEventsRequest) => Page) {
+
+/** A thread reader backed by an in-memory server that answers with `pages`. */
+async function reader(
+  pages: (request: GetThreadEventsRequest) => PartialMessage<RoomTimelinePage>
+) {
   const requests: GetThreadEventsRequest[] = [];
   const { connectChatto } = fakeChatto({
     viewerId: 'bot',
@@ -36,36 +43,48 @@ async function reader(pages: (request: GetThreadEventsRequest) => Page) {
   );
   return { read: createThreadReader(bot, 'bot'), requests };
 }
+
 const event = (id: string, body: string, actorId = 'alice') => ({
   id,
   actorId,
   event: { case: 'messagePosted' as const, value: { message: { id, actorId, body } } }
 });
 
-test('loads all pages in order with one root and no overlapping messages', async () => {
+test('reads the newest replies with roles and names, then only messages after the cursor', async () => {
   const { read, requests } = await reader((request) =>
-    request.cursor.case === 'before'
-      ? { events: [event('one', 'eins'), event('two', 'zwei', 'bot'), event('three', 'drei')] }
+    request.cursor.case === 'after'
+      ? { events: [event('three', 'drei')], hasNewer: false, endCursor: 'c2' }
       : {
-          events: [event('root', 'Hello'), event('three', 'drei'), event('ping', "What's next?")],
+          events: [
+            event('root', 'Hello'),
+            event('two', 'zwei', 'bot'),
+            event('ping', "What's next?")
+          ],
           hasOlder: true,
-          startCursor: 'older'
+          endCursor: 'c1',
+          includes: { users: { alice: { login: 'alice', displayName: 'Alice Doe' } } }
         }
   );
-  const messages = await read(delivery, new AbortController().signal);
-  expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two', 'three', 'ping']);
-  expect(messages[2]?.role).toBe('bot');
+  const first = await read(delivery, new AbortController().signal);
+  expect(first).toMatchObject({ cursor: 'c1', olderOmitted: true });
+  expect(first.messages.map(({ id, role, authorName }) => [id, role, authorName])).toEqual([
+    ['root', 'human', 'Alice Doe'],
+    ['two', 'bot', undefined],
+    ['ping', 'human', 'Alice Doe']
+  ]);
+  const next = await read(delivery, new AbortController().signal, first.cursor);
+  expect(next.messages.map((message) => message.id)).toEqual(['three']);
   expect(requests[1]).toMatchObject({
     roomId: 'room',
     threadRootEventId: 'root',
     limit: 100,
-    cursor: { case: 'before', value: 'older' }
+    cursor: { case: 'after', value: 'c1' }
   });
 });
 
 test('fails when pagination repeats instead of returning incomplete history', async () => {
-  const { read } = await reader(() => ({ events: [], hasOlder: true, startCursor: 'same' }));
-  await expect(read(delivery, new AbortController().signal)).rejects.toThrow(
+  const { read } = await reader(() => ({ events: [], hasNewer: true, endCursor: 'same' }));
+  await expect(read(delivery, new AbortController().signal, 'same')).rejects.toThrow(
     'pagination did not advance'
   );
 });
@@ -83,7 +102,7 @@ test.each([null, 'existing-root'])('reads DM thread context for root %s', async 
   const { read, requests } = await reader(() => ({
     events: [event('one', 'Hello'), event('two', 'Hi', 'bot')]
   }));
-  const messages = await read(
+  const { messages } = await read(
     { ...delivery, triggers: ['direct_message'], thread_root_id: threadRoot },
     new AbortController().signal
   );

@@ -1,6 +1,7 @@
 import type { WorkflowContext } from './context.ts';
 import { requireDirectory } from './directory.ts';
 import { stripVTControlCharacters } from 'node:util';
+import { dirname } from 'node:path';
 import {
   createAgentSession,
   convertToLlm,
@@ -196,6 +197,11 @@ export interface RunAgentOptions {
   signal?: AbortSignal;
   /** Block selected tools after untrusted content enters this agent's context. */
   trust?: AgentTrustPolicy;
+  /** Keep the agent's conversation in this JSONL file. When the file exists, the agent
+   * continues that conversation, for example after a cancellation or restart. The file holds
+   * the complete model context, so keep it private. A fork does not use it. It cannot be
+   * combined with `trust`, because the untrusted mark is not stored in the file. */
+  sessionFile?: string;
 }
 
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
@@ -277,6 +283,40 @@ export async function runAgent(
   } finally {
     instance.dispose();
   }
+}
+
+/** The phase of a text part, when the provider marks it. OpenAI's Responses API separates
+ * preliminary `commentary` from the `final_answer`; Pi keeps the phase in `textSignature`. */
+function textPhase(part: { textSignature?: string }): string | undefined {
+  if (!part.textSignature?.startsWith('{')) return undefined;
+  try {
+    const phase: unknown = JSON.parse(part.textSignature).phase;
+    return typeof phase === 'string' ? phase : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+type ContentPart = { type: string; text?: string; textSignature?: string };
+const textParts = (content: readonly ContentPart[]) =>
+  content.filter((part): part is ContentPart & { text: string } => part.type === 'text');
+
+/** A message's answer text. When the provider marks a final answer, preliminary commentary is
+ * left out, so the answer is not delivered twice in different words. */
+export function answerText(content: readonly ContentPart[]): string {
+  const parts = textParts(content);
+  const final = parts.filter((part) => textPhase(part) === 'final_answer');
+  return (final.length ? final : parts).map((part) => part.text).join('\n');
+}
+
+/** Preliminary commentary that `answerText` leaves out, for debug logs. */
+function commentaryText(content: readonly ContentPart[]): string {
+  const parts = textParts(content);
+  if (!parts.some((part) => textPhase(part) === 'final_answer')) return '';
+  return parts
+    .filter((part) => textPhase(part) !== 'final_answer')
+    .map((part) => part.text)
+    .join('\n');
 }
 
 export async function agent(options: AgentOptions): Promise<RunlingAgent> {
@@ -403,7 +443,12 @@ async function createRunlingAgent(
   });
   await resourceLoader.reload();
 
-  const sessionManager = SessionManager.inMemory(cwd);
+  if (options.sessionFile && options.trust)
+    throw new Error('An agent session file cannot be combined with a trust policy');
+  // A session file continues its conversation when it exists and starts a new one otherwise.
+  const sessionManager = options.sessionFile
+    ? SessionManager.open(options.sessionFile, dirname(options.sessionFile), cwd)
+    : SessionManager.inMemory(cwd);
   // Persist the inherited model context so Pi can compact and restore it.
   // Pi converts existing compaction/branch summaries into normal messages.
   for (const message of inheritedMessages) {
@@ -665,11 +710,14 @@ async function createRunlingAgent(
             event.message.stopReason === 'error' || event.message.stopReason === 'aborted'
               ? event.message.errorMessage || 'Agent response failed'
               : undefined;
-          finalText = event.message.content
-            .filter((part) => part.type === 'text')
-            .map((part) => part.text)
-            .join('\n');
+          finalText = answerText(event.message.content);
+          const commentary = commentaryText(event.message.content);
+          if (commentary) agentLog.debug(`Commentary: ${commentary}`);
 
+          // Reasoning summaries are often the only account of what the agent is doing.
+          for (const part of event.message.content)
+            if (part.type === 'thinking' && !part.redacted && part.thinking.trim())
+              agentLog.info(`${log.highlight('Thinking')} ${part.thinking.trim()}`);
           if (finalText.trim()) agentLog.info(finalText);
 
           accumulateTokenUsage(usage, event.message.usage);
@@ -837,7 +885,12 @@ async function createRunlingAgent(
         throw new Error(`Agent ${agentId} is already running`);
       }
 
-      return createRunlingAgent(options, session.agent.state.messages, trust?.untrusted ?? false);
+      // A fork has its own history; it must not write into the parent's session file.
+      return createRunlingAgent(
+        { ...options, sessionFile: undefined },
+        session.agent.state.messages,
+        trust?.untrusted ?? false
+      );
     },
 
     dispose,

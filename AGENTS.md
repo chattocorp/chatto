@@ -59,6 +59,8 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
   framework-neutral Chatto client: stores, realtime projection, sessions,
   reactivity, and its Svelte adapter.
+- [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
+  only the supervisor talks to users, with no hardcoded user-facing text.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,

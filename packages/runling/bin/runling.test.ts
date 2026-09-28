@@ -1,10 +1,16 @@
 import { spawnProcess } from '../test/process.ts';
-import { describe, expect, test } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { afterAll, describe, expect, test } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const executable = resolve(import.meta.dirname, 'runling.js');
 const fixture = resolve(import.meta.dirname, '../test/fixtures/echo-workflow.ts');
+// runling run writes a journal below its working directory; keep it out of the repository.
+const workdir = mkdtempSync(join(tmpdir(), 'runling-cli-'));
+afterAll(() => rmSync(workdir, { recursive: true, force: true }));
+const runCli = (argv: string[], options: { stdout?: string; stderr?: string } = {}) =>
+  spawnProcess(argv, { cwd: workdir, ...options });
 
 describe.each([
   { mode: 'compiled', flags: [] },
@@ -22,8 +28,7 @@ describe.each([
         .version
     }
   ])('prints help or version for $args', async ({ args, expected }) => {
-    const child = spawnProcess([process.execPath, ...flags, executable, ...args], {
-      cwd: import.meta.dirname,
+    const child = runCli([process.execPath, ...flags, executable, ...args], {
       stdout: 'pipe',
       stderr: 'pipe'
     });
@@ -39,7 +44,7 @@ describe.each([
   });
 
   test('rejects a missing file before workflow execution', async () => {
-    const child = spawnProcess([process.execPath, ...flags, executable, 'run', '--json'], {
+    const child = runCli([process.execPath, ...flags, executable, 'run', '--json'], {
       stdout: 'pipe',
       stderr: 'pipe'
     });
@@ -55,7 +60,7 @@ describe.each([
   });
 
   test('treats a flag-like prompt as input after --', async () => {
-    const child = spawnProcess(
+    const child = runCli(
       [process.execPath, ...flags, executable, 'run', fixture, '--json', '--', '--verbose'],
       {
         stdout: 'pipe',
@@ -69,7 +74,7 @@ describe.each([
 
   test('passes structured input and an explicit directory to a task', async () => {
     const directory = import.meta.dirname;
-    const child = spawnProcess(
+    const child = runCli(
       [
         process.execPath,
         ...flags,
@@ -92,7 +97,7 @@ describe.each([
   });
 
   test('reports malformed JSON input without starting the task', async () => {
-    const child = spawnProcess(
+    const child = runCli(
       [process.execPath, ...flags, executable, 'run', fixture, '--input', '{', '--json'],
       { stdout: 'pipe', stderr: 'pipe' }
     );
@@ -106,10 +111,9 @@ describe.each([
   });
 
   test('loads a task file and passes context and input', async () => {
-    const child = spawnProcess(
+    const child = runCli(
       [process.execPath, ...flags, executable, 'run', fixture, 'A workflow result'],
       {
-        cwd: import.meta.dirname,
         stdout: 'pipe',
         stderr: 'pipe'
       }
@@ -128,7 +132,7 @@ describe.each([
   });
 
   test('runs a workflow without a prompt', async () => {
-    const child = spawnProcess([process.execPath, ...flags, executable, 'run', fixture, '--json'], {
+    const child = runCli([process.execPath, ...flags, executable, 'run', fixture, '--json'], {
       stdout: 'pipe',
       stderr: 'pipe'
     });
@@ -140,7 +144,7 @@ describe.each([
   });
 
   test('reports invalid invocations without a stack trace', async () => {
-    const child = spawnProcess(
+    const child = runCli(
       [process.execPath, ...flags, executable, 'serve', '--port', 'not-a-port'],
       {
         stdout: 'pipe',
@@ -156,7 +160,7 @@ describe.each([
   });
 
   test('prints one structured document to stdout in JSON mode', async () => {
-    const child = spawnProcess(
+    const child = runCli(
       [process.execPath, ...flags, executable, 'run', fixture, '--json', 'A JSON result'],
       {
         stdout: 'pipe',
@@ -188,7 +192,7 @@ describe.each([
   });
 
   test('reports failures as JSON with a nonzero exit status', async () => {
-    const child = spawnProcess(
+    const child = runCli(
       [process.execPath, ...flags, executable, 'run', 'missing-workflow.ts', '--json'],
       {
         stdout: 'pipe',

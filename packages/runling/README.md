@@ -35,7 +35,7 @@ limits, ownership, and compatibility with the standalone `spawn` function.
 
 ## Features
 
-- Runs single workflows with a nice TUI visualization and/or logging
+- Runs single workflows from the terminal with a readable log
 - Listens to webhooks (and other triggers) to execute workflows
 - Workflows are simple functions, optionally decorated with input/output schemas
 - Embeds the Pi SDK for easy peasy agent/LLM integration
@@ -43,7 +43,7 @@ limits, ownership, and compatibility with the standalone `spawn` function.
 
 ## Run references
 
-Each run started by `runling serve` has a readable reference such as
+Each run started by `runling serve` or `runling run` has a readable reference such as
 `brave-otters-4821`. The console shows it in the run list and provides a copy
 button in the run details. Use it when discussing a run or searching its logs:
 
@@ -51,9 +51,16 @@ button in the run details. Use it when discussing a run or searching its logs:
 rg -l '"reference":"brave-otters-4821"' .runling/runs
 ```
 
-References are unique within one journal directory and survive server restarts.
+References from `runling serve` are unique within one journal directory and survive
+server restarts. `runling run` picks a random reference without checking the
+directory.
 Journal filenames and run URLs still use UUIDs. Older runs without a reference
 show their UUID in the details instead.
+
+A workflow reads its run's ID and reference from `ctx.run`, for example to tell
+a user which run to report. Spawned tasks share the run of their parent.
+`ctx.run` is absent in a direct task call and in `runWorkflow` without its
+`run` option.
 
 ## Non-Features
 
@@ -83,7 +90,17 @@ import { z } from 'zod';
 export default task({ name: 'Echo', input: z.string(), output: z.string() }, (ctx, input) => input);
 ```
 
-Run it with `pnpm runling run workflows/echo.ts "hello"`.
+Run it with `pnpm runling run workflows/echo.ts "hello"`. The command writes a log:
+agent reasoning, tool use, and messages, plus the updates that the workflow emits
+with `ctx.emit`, such as findings and state activity. Use `--json` to print the
+result as JSON. When a workflow asks for input on an interactive terminal, the
+command asks on the terminal. The first Ctrl-C cancels the workflow and lets its
+cleanup run; a second Ctrl-C exits at once. Each run writes its journal to
+`.runling/runs/<id>.jsonl` in the working directory, through the same code as
+`runling serve`. The log names the run and, at the end, the journal path. A
+server started in that directory shows these runs in its history. It reads them
+when it starts, and it does not mark a run interrupted while the process that
+writes it is still alive.
 
 Much more exciting though is Runling's ability to spin up a long-running process that will automatically execute workflows in response to webhooks being sent to it.
 

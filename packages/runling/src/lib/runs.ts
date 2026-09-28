@@ -1,6 +1,12 @@
-import type { RunlingEvent, TokenUsage } from 'runling';
+import type {
+  RunDetail as JournalRunDetail,
+  RunSummary as JournalRunSummary
+} from '../runtime/run-journal.ts';
 
-export type RunStatus = 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
+// Journal records are defined with the journal writer that `runling run` and `runling serve` share.
+export type { RunRecord, RunSource, RunStatus } from '../runtime/run-journal.ts';
+import type { RunRecord } from '../runtime/run-journal.ts';
+
 export interface RunActivity {
   label: string;
   step?: string;
@@ -9,44 +15,11 @@ export interface RunActivity {
   pendingInputs: number;
   parallel: number;
 }
-export interface RunSummary {
+/** A journal summary with the server's live activity preview. */
+export interface RunSummary extends JournalRunSummary {
   activity?: RunActivity | null;
-  id: string;
-  /** Human-readable, journal-local reference. Older journals use their UUID. */
-  reference?: string;
-  /** Read-only compatibility with journals written by the removed resume feature. */
-  recovery?: { name: string; version: number };
-  attempt?: number;
-  webhook: string;
-  workflow: string;
-  source: 'webhook' | 'web' | 'source';
-  /** Named event source; absent in older journals and HTTP-started runs. */
-  sourceName?: string;
-  status: RunStatus;
-  startedAt: number;
-  finishedAt?: number;
-  durationMs?: number;
-  usage: TokenUsage;
 }
-export interface RunDetail extends RunSummary {
-  input: unknown;
-  output: unknown;
-  error: string | null;
-  events: RunlingEvent[];
-}
-export type RunRecord =
-  | { type: 'started'; run: RunDetail }
-  | { type: 'resumed'; attempt: number; resumedAt: number }
-  | { type: 'event'; event: RunlingEvent }
-  | {
-      type: 'finished';
-      status: Exclude<RunStatus, 'running'>;
-      finishedAt: number;
-      durationMs: number;
-      usage: TokenUsage;
-      output: unknown;
-      error: string | null;
-    };
+export type RunDetail = JournalRunDetail & { activity?: RunActivity | null };
 
 export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
   if (record.type === 'started') return record.run;

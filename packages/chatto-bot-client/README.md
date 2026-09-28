@@ -55,11 +55,15 @@ helpers as the bot client.
   code points and sends the chunks in order. A failed chunk stops delivery;
   earlier chunks can already have been delivered. `bot.createMessage` sends
   one message. Neither retries a request.
-- `bot.readThread(location, signal)` reads all history pages within 30
-  seconds and puts the root first. It rejects missing pages and pagination
-  that does not advance. `bot.readBotThread(location, signal)` adds bot/human
-  roles. Here, `human` means any author other than this bot; it is not an
-  account-type check.
+- `bot.readThread(location, signal, { after, limit })` reads a thread within
+  30 seconds. Without `after`, it returns the root and the newest `limit`
+  replies (100 by default), and `olderOmitted` tells whether older replies
+  exist. With `after`, a `cursor` from an earlier read, it returns only newer
+  messages. Messages carry the author's ID, display name, and login. It
+  rejects missing pages and pagination that does not advance.
+  `bot.readBotThread(location, signal, options)` adds bot/human roles. Here,
+  `human` means any author other than this bot; it is not an account-type
+  check.
 - `bot.refreshTyping(destination, signal)` refreshes the typing indicator once.
   `withTyping` and `startTyping` refresh it during work without blocking it.
 - `bot.addReaction(roomId, messageEventId, emoji, signal)` reacts to a message.

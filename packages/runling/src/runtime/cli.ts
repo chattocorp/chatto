@@ -14,6 +14,8 @@ export interface ServeOptions {
   open: boolean;
   /** Reload project configuration and sources when files change. Disabled by default. */
   watch: boolean;
+  /** Show only safe activity summaries in the terminal instead of each run's detailed log. */
+  quietLog: boolean;
 }
 
 function parsePort(value: string): number {
@@ -33,6 +35,11 @@ export function createServeCommand(): Command {
     .option('--host <host>', 'Hostname to listen on', 'localhost')
     .option('--port <port>', 'Port to listen on', parsePort, 5173)
     .option('--watch', 'Reload configuration and sources when project files change', false)
+    .option(
+      '--quiet-log',
+      "Show only activity summaries in the terminal, not each run's detailed log",
+      false
+    )
     .option('--open', 'Open the app in a browser', false);
 }
 
@@ -57,7 +64,7 @@ export function createCli(version: string, actions: CliActions): Command {
     .argument('[prompt]', 'Input passed to the workflow', '')
     .option('--input <json>', 'Task input as JSON (instead of prompt)')
     .option('--json', 'Write the result as JSON', false)
-    .option('--log', 'Use append-only logs instead of the TUI', false)
+    .option('--log', 'Accepted for compatibility; logs are the only output', false)
     .option('-v, --verbose', 'Show debug logs', false)
     .action(async (file: string, prompt: string, options: RunOptions, command: Command) => {
       if (options.input !== undefined && command.args.length > 1) {

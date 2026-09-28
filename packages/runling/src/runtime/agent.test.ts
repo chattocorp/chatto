@@ -101,7 +101,7 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
   };
 });
 
-const { agent, AgentOutcomeError, describeTool, runAgent, toolFailureCategory } =
+const { agent, AgentOutcomeError, answerText, describeTool, runAgent, toolFailureCategory } =
   await import('./agent.ts');
 
 test.each([
@@ -260,6 +260,27 @@ test('previews report-only output such as the joke workflow', async () => {
   expect(
     events.some((e) => e.type === 'agent.action' && e.action === 'A joke\nwith a punchline.')
   ).toBe(true);
+});
+
+describe('answerText', () => {
+  const part = (text: string, phase?: string) => ({
+    type: 'text',
+    text,
+    ...(phase ? { textSignature: JSON.stringify({ v: 1, id: text, phase }) } : {})
+  });
+  test('keeps only the final answer when the provider marks one', () => {
+    expect(
+      answerText([
+        part('Checking the diff first.', 'commentary'),
+        { type: 'thinking' },
+        part('The diff is clean.', 'final_answer')
+      ])
+    ).toBe('The diff is clean.');
+  });
+  test('keeps all text when no part is marked as the final answer', () => {
+    expect(answerText([part('One.'), part('Two.', 'commentary')])).toBe('One.\nTwo.');
+    expect(answerText([{ type: 'text', text: 'Plain', textSignature: 'legacy-id' }])).toBe('Plain');
+  });
 });
 
 describe('describeTool', () => {
@@ -574,6 +595,56 @@ describe('runAgent', () => {
       retry: { enabled: true, maxRetries: 5, baseDelayMs: 2000 }
     });
     expect(resourceOptions.settingsManager).toBe(sessionOptions.settingsManager);
+  });
+
+  test('a session file keeps the conversation for a later agent, but not for a fork', async () => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const directory = await mkdtemp(join(tmpdir(), 'runling-session-'));
+    const sessionFile = join(directory, 'worker.jsonl');
+    try {
+      const first = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      const manager = sessionOptions.sessionManager;
+      manager.appendMessage({ role: 'user', content: 'Add /shrug', timestamp: 1 });
+      manager.appendMessage({
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Reading the composer.' }],
+        api: 'anthropic-messages',
+        provider: 'anthropic',
+        model: 'claude-opus-4-5',
+        usage: {
+          ...emptyUsage,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+        },
+        stopReason: 'stop',
+        timestamp: 2
+      });
+      first.dispose();
+      expect(await readFile(sessionFile, 'utf8')).toContain('Reading the composer.');
+
+      const resumed = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      expect(
+        sessionOptions.sessionManager
+          .buildSessionContext()
+          .messages.map((message: { role: string }) => message.role)
+      ).toEqual(['user', 'assistant']);
+      const fork = await resumed.fork();
+      expect(sessionOptions.sessionManager.getSessionFile()).toBeUndefined();
+      fork.dispose();
+      resumed.dispose();
+      await expect(
+        agent({
+          model: 'anthropic/claude-opus-4-5',
+          cwd: '.',
+          sessionFile,
+          trust: { untrusted: ['fetch'], blockAfterUntrusted: ['write'] }
+        })
+      ).rejects.toThrow('cannot be combined with a trust policy');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   test('returns the structured outcome reported by the agent', async () => {

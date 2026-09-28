@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
-import { taskContext, taskNotification, userFacingTaskNotifications } from './task-context.ts';
+import {
+  notificationUrls,
+  taskContext,
+  taskNotification,
+  userFacingTaskNotifications
+} from './task-context.ts';
 
 test('new host phase supersedes an old setup announcement without changing retained history', () => {
   const task = {
@@ -79,22 +84,13 @@ test('decoded results are detached from the original retained snapshot', () => {
   expect(JSON.parse(task.result).plan.goal).toBe('Original');
 });
 
-test('only requested answers and unreported terminal results wake the owner', async () => {
+test('answers, notices, and terminal results wake the owner; routine updates do not', async () => {
   const messages = [
     { type: 'task.progress', task: { id: 'implementation' } },
     { type: 'task.tool_failed', task: { id: 'implementation' } },
     { type: 'task.reply', task: { id: 'implementation' } },
-    {
-      type: 'task.completed',
-      task: {
-        name: 'Chatto implementation',
-        result: JSON.stringify({ outcome: 'blocked', noticeDelivered: true })
-      }
-    },
-    {
-      type: 'task.completed',
-      task: { name: 'Chatto implementation', result: JSON.stringify({ outcome: 'completed' }) }
-    },
+    { type: 'task.notice', text: 'Tests pass.', task: { id: 'implementation' } },
+    { type: 'task.completed', task: { name: 'Chatto implementation', result: '{}' } },
     { type: 'task.failed', task: { name: 'Chatto investigation' } }
   ];
   async function* source() {
@@ -103,5 +99,99 @@ test('only requested answers and unreported terminal results wake the owner', as
   const received: unknown[] = [];
   for await (const message of userFacingTaskNotifications(source()))
     received.push(JSON.parse(message));
-  expect(received).toEqual(messages.slice(2, 3).concat(messages.slice(4)));
+  expect(received).toEqual(messages.slice(2));
+});
+
+test('only a new pull request and a final result carry URLs that the user must receive', () => {
+  const url = 'https://github.com/example/chatto/pull/7';
+  const notice = (data: object) => JSON.stringify({ type: 'task.notice', text: 'x', data });
+  expect(notificationUrls(notice({ milestone: 'published', prUrl: url }))).toEqual([url]);
+  expect(notificationUrls(notice({ milestone: 'ci_failed', prUrl: url }))).toEqual([]);
+  expect(
+    notificationUrls(
+      JSON.stringify({
+        type: 'task.completed',
+        task: { result: JSON.stringify({ outcome: 'completed', prUrl: url }) }
+      })
+    )
+  ).toEqual([url]);
+  expect(
+    notificationUrls(notice({ milestone: 'published', prUrl: 'javascript:alert(1)' }))
+  ).toEqual([]);
+  expect(notificationUrls('not json')).toEqual([]);
+});
+
+test('a notice notification carries its text for the owner', () => {
+  expect(
+    JSON.parse(
+      taskNotification(
+        JSON.stringify({ type: 'task.notice', text: 'Tests pass.', task: { id: 'worker' } })
+      )
+    )
+  ).toEqual({ type: 'task.notice', taskId: 'worker', text: 'Tests pass.' });
+  expect(
+    JSON.parse(
+      taskNotification(
+        JSON.stringify({
+          type: 'task.notice',
+          text: 'The pull request is open.',
+          data: { milestone: 'published', prUrl: 'https://github.com/example/chatto/pull/7' },
+          task: { id: 'worker' }
+        })
+      )
+    )
+  ).toMatchObject({ data: { milestone: 'published' } });
+});
+
+test('a finished implementation wakes the owner with its result and a request for a full report', () => {
+  const result = {
+    outcome: 'completed',
+    summary: 'Expand /shrug when sending.',
+    notes: ['Browser review was not done.'],
+    prUrl: 'https://github.com/example/chatto/pull/7',
+    ci: { status: 'passed', passed: 21 },
+    checks: [
+      { command: 'check', passed: true },
+      { command: 'lint', passed: false }
+    ],
+    workerChecks: [],
+    worktree: '/private/worktree'
+  };
+  const notification = JSON.parse(
+    taskNotification(
+      JSON.stringify({
+        type: 'task.completed',
+        task: {
+          id: 'implementation',
+          name: 'Chatto implementation',
+          result: JSON.stringify(result)
+        }
+      })
+    )
+  );
+  expect(notification).toMatchObject({
+    type: 'task.completed',
+    taskId: 'implementation',
+    result: {
+      outcome: 'completed',
+      summary: 'Expand /shrug when sending.',
+      notes: ['Browser review was not done.'],
+      prUrl: 'https://github.com/example/chatto/pull/7',
+      ci: { status: 'passed', passed: 21 },
+      failedChecks: ['lint']
+    },
+    report: expect.stringContaining('Write it in full, not briefly')
+  });
+  // Host paths stay out of the prompt.
+  expect(JSON.stringify(notification)).not.toContain('/private/worktree');
+  expect(
+    JSON.parse(
+      taskNotification(
+        JSON.stringify({
+          type: 'task.completed',
+          task: { id: 'x', name: 'Chatto source investigation' }
+        })
+      )
+    )
+  ).toEqual({ type: 'task.completed', taskId: 'x' });
 });

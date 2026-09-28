@@ -14,13 +14,15 @@ import { effect, effectRoot, untrack } from '@chatto/client/reactivity';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import type { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { addressedMessage, type AddressingOptions } from './addressing.js';
 import type {
   ChattoMessage,
   Destination,
   RealtimeStatus,
   ThreadLocation,
-  ThreadMessage
+  ThreadMessage,
+  ThreadRead
 } from './types.js';
 
 export {
@@ -38,7 +40,8 @@ export type {
   Destination,
   RealtimeStatus,
   ThreadLocation,
-  ThreadMessage
+  ThreadMessage,
+  ThreadRead
 } from './types.js';
 
 /** Timeout of one request. The client never retries requests. */
@@ -61,17 +64,44 @@ export interface BotThreadMessage extends ThreadMessage {
   role: 'bot' | 'human';
 }
 
-/** Read thread text with roles relative to a known bot identity. */
+/** A thread read whose messages carry roles relative to this bot. */
+export interface BotThreadRead extends Omit<ThreadRead, 'messages'> {
+  messages: BotThreadMessage[];
+}
+
+/** Options for a thread read; see {@link BotApi.readThread}. */
+export interface ThreadReadOptions {
+  /** A `cursor` from an earlier read: return only newer messages. */
+  after?: string;
+  /** Most replies to return without `after`. Default: 100. */
+  limit?: number;
+}
+
+/**
+ * Read thread text with roles relative to a known bot identity. `options`
+ * selects the newest replies or, with `after`, only newer messages.
+ */
 export async function readBotThread(
-  client: { readThread(location: ThreadLocation, signal?: AbortSignal): Promise<ThreadMessage[]> },
+  client: {
+    readThread(
+      location: ThreadLocation,
+      signal?: AbortSignal,
+      options?: ThreadReadOptions
+    ): Promise<ThreadRead>;
+  },
   viewerId: string,
   location: ThreadLocation,
-  signal?: AbortSignal
-): Promise<BotThreadMessage[]> {
-  return (await client.readThread(location, signal)).map((message) => ({
-    ...message,
-    role: message.authorId === viewerId ? 'bot' : 'human'
-  }));
+  signal?: AbortSignal,
+  options?: ThreadReadOptions
+): Promise<BotThreadRead> {
+  const read = await client.readThread(location, signal, options);
+  return {
+    ...read,
+    messages: read.messages.map((message) => ({
+      ...message,
+      role: message.authorId === viewerId ? 'bot' : 'human'
+    }))
+  };
 }
 
 /** Reply in the original thread and reference the message that prompted the reply. */
@@ -223,58 +253,89 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
     await messages.addReaction({ roomId, messageEventId, emoji }, callOptions(signal));
   }
 
-  /** Read all history pages within 30 seconds, root first. Returns textual
-   * messages; rejects missing pages and pagination that does not advance. */
+  /**
+   * Read a thread within 30 seconds. Without `after`, returns the root and the
+   * newest `limit` replies (100 by default); `olderOmitted` tells whether older
+   * replies exist. With `after`, a `cursor` from an earlier read, returns only
+   * newer messages and reads as many pages as needed. Messages carry the
+   * author's display name and login from the page. Rejects missing pages and
+   * pagination that does not advance.
+   */
   async function readThread(
     location: ThreadLocation,
-    signal?: AbortSignal
-  ): Promise<ThreadMessage[]> {
+    signal?: AbortSignal,
+    { after, limit = THREAD_PAGE_SIZE }: { after?: string; limit?: number } = {}
+  ): Promise<ThreadRead> {
     const readSignal = AbortSignal.any([
       ...(signal ? [signal] : []),
       AbortSignal.timeout(THREAD_READ_TIMEOUT_MS)
     ]);
     const rootId = location.threadRootId;
-    let root: ThreadMessage | undefined;
-    let replies: ThreadMessage[] = [];
-    let before: string | undefined;
-    const cursors = new Set<string>();
-    const seen = new Set<string>();
-    const textOf = (event: {
-      id: string;
-      event: { case: string | undefined; value?: unknown };
-    }): ThreadMessage[] => {
-      if (event.event.case !== 'messagePosted') return [];
-      const message = (event.event.value as { message?: { actorId: string; body?: string } })
-        .message;
-      if (!message?.body) return [];
-      return [{ id: event.id, authorId: message.actorId || undefined, body: message.body }];
-    };
-    while (true) {
+    const readPage = async (cursor?: string) => {
       const { page } = await threads.getThreadEvents(
         {
           roomId: location.roomId,
           threadRootEventId: rootId,
-          limit: THREAD_PAGE_SIZE,
-          cursor: before ? { case: 'before', value: before } : { case: undefined }
+          limit,
+          cursor: cursor ? { case: 'after', value: cursor } : { case: undefined }
         },
         callOptions(readSignal)
       );
       if (!page) throw new Error('Chatto did not return the thread page');
-      const pageReplies: ThreadMessage[] = [];
-      for (const event of page.events) {
-        if (!event.id || seen.has(event.id)) continue;
-        seen.add(event.id);
-        const [text] = textOf(event);
-        if (event.id === rootId) root = text ?? root;
-        else if (text) pageReplies.push(text);
+      return page;
+    };
+    const pages: RoomTimelinePage[] = [];
+    let cursor = after;
+    let olderOmitted = false;
+    if (after === undefined) {
+      const page = await readPage();
+      pages.push(page);
+      cursor = page.endCursor || undefined;
+      olderOmitted = page.hasOlder;
+    } else {
+      const seen = new Set<string>();
+      while (true) {
+        if (seen.has(cursor!)) throw new Error('Thread pagination did not advance');
+        seen.add(cursor!);
+        const page = await readPage(cursor);
+        pages.push(page);
+        if (!page.hasNewer) {
+          cursor = page.endCursor || cursor;
+          break;
+        }
+        if (!page.endCursor) throw new Error('Thread pagination did not advance');
+        cursor = page.endCursor;
       }
-      replies = [...pageReplies, ...replies];
-      if (!page.hasOlder) break;
-      before = page.startCursor;
-      if (!before || cursors.has(before)) throw new Error('Thread pagination did not advance');
-      cursors.add(before);
     }
-    return [...(root ? [root] : []), ...replies];
+
+    const users = Object.assign({}, ...pages.map((page) => page.includes?.users ?? {})) as Record<
+      string,
+      { login: string; displayName: string }
+    >;
+    const events = pages.flatMap((page) => page.events);
+    const root = events.find((event) => event.id === rootId);
+    const seen = new Set<string>();
+    const messages = [
+      ...(root ? [root] : []),
+      ...events.filter((event) => event.id !== rootId)
+    ].flatMap((event): ThreadMessage[] => {
+      if (!event.id || seen.has(event.id) || event.event.case !== 'messagePosted') return [];
+      seen.add(event.id);
+      const message = event.event.value.message;
+      if (!message?.body) return [];
+      const user = message.actorId ? users[message.actorId] : undefined;
+      const name = user?.displayName || user?.login;
+      return [
+        {
+          id: event.id,
+          authorId: message.actorId || undefined,
+          ...(name ? { authorName: name } : {}),
+          ...(user?.login ? { authorLogin: user.login } : {}),
+          body: message.body
+        }
+      ];
+    });
+    return { messages, ...(cursor ? { cursor } : {}), olderOmitted };
   }
 
   const client = { getMessage, readThread };
@@ -292,8 +353,8 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
     conversationKey: (message: ChattoMessage) => conversationKey(viewerId, message),
     reply: (message: ChattoMessage, body: string, signal?: AbortSignal) =>
       postMessage(replyDestination(message), body, signal),
-    readBotThread: (location: ThreadLocation, signal?: AbortSignal) =>
-      readBotThread(client, viewerId, location, signal)
+    readBotThread: (location: ThreadLocation, signal?: AbortSignal, options?: ThreadReadOptions) =>
+      readBotThread(client, viewerId, location, signal, options)
   };
 }
 

@@ -2,12 +2,19 @@
 import type { WebhookTask } from 'runling/web';
 import { serverLog } from '../../runtime/server-log.ts';
 import { createServerActivityLog } from '../../runtime/server-activity.ts';
-import { mkdir, readdir, appendFile, writeFile, truncate, stat } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import { mkdir, readdir, appendFile, truncate } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { randomId } from '../../runtime/id.ts';
-import { emptyTokenUsage, runWorkflow, type WorkflowExecution } from 'runling';
+import {
+  createRunJournal,
+  eventRecord,
+  newRun,
+  readRunJournal,
+  runJournalDirectory,
+  runOwnerAlive,
+  type RunJournal
+} from '../../runtime/run-journal.ts';
+import { runWorkflow, type WorkflowExecution } from 'runling';
 import { type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';
@@ -46,28 +53,12 @@ function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = t
   }
 }
 
-// Ignore an incomplete final line, but preserve its byte offset for recovery.
-async function* journalRecords(path: string) {
-  let buffer = '';
-  for await (const chunk of createReadStream(path, { encoding: 'utf8' })) {
-    buffer += chunk;
-    let end: number;
-    while ((end = buffer.indexOf('\n')) !== -1) {
-      const line = buffer.slice(0, end);
-      buffer = buffer.slice(end + 1);
-      yield {
-        record: line ? (JSON.parse(line) as RunRecord) : undefined,
-        bytes: Buffer.byteLength(line) + 1
-      };
-    }
-  }
-}
-
-/** One server process owns this journal directory. */
+/** Keeps the run history of one journal directory. The server writes its own runs; runs that
+ * `runling run` writes are read at startup. */
 export class RunStore {
   private runs = new Map<string, RunSummary>();
   private details = new Map<string, RunDetail>();
-  private pending = new Map<string, Promise<void>>();
+  private journals = new Map<string, RunJournal>();
   private controllers = new Map<string, AbortController>();
   private executions = new Set<Promise<WorkflowExecution>>();
   private listeners = new Set<Listener>();
@@ -90,7 +81,8 @@ export class RunStore {
         const { run, end, lastTimestamp } = await this.read(id, false);
         if (!run) continue;
         if (run.reference) this.references.add(run.reference);
-        if (run.status === 'running') {
+        // Another process, such as `runling run`, can still write this journal.
+        if (run.status === 'running' && !runOwnerAlive(run)) {
           // A crash can leave the final JSON line incomplete.
           await truncate(path, end);
           const record: RunRecord = {
@@ -153,7 +145,7 @@ export class RunStore {
     let run: RunDetail | undefined;
     let end = 0;
     let lastTimestamp = 0;
-    for await (const line of journalRecords(resolve(this.directory, `${id}.jsonl`))) {
+    for await (const line of readRunJournal(resolve(this.directory, `${id}.jsonl`))) {
       end += line.bytes;
       const record = line.record;
       if (!record) continue;
@@ -188,16 +180,17 @@ export class RunStore {
   }
 
   private append(id: string, record: RunRecord): Promise<void> {
-    const next = (this.pending.get(id) ?? Promise.resolve()).then(async () => {
-      await appendFile(resolve(this.directory, `${id}.jsonl`), `${JSON.stringify(record)}\n`);
-      const run = this.details.get(id)!;
-      applyStoredRecord(run, record);
-      this.runs.set(id, summary(run));
-      this.publish(id, record);
-      if (record.type === 'finished') this.details.delete(id);
-    });
-    this.pending.set(id, next);
-    return next;
+    // Journal writes finish in order, so their callbacks apply records in order.
+    return this.journals
+      .get(id)!
+      .append(record)
+      .then(() => {
+        const run = this.details.get(id)!;
+        applyStoredRecord(run, record);
+        this.runs.set(id, summary(run));
+        this.publish(id, record);
+        if (record.type === 'finished') this.details.delete(id);
+      });
   }
 
   async start<Input, Output>(
@@ -207,38 +200,28 @@ export class RunStore {
     source: 'webhook' | 'web' | 'source'
   ) {
     if (this.closing) throw new Error('Run store is stopping');
-    const id = randomUUID();
-    const run: RunDetail = {
-      id,
+    // Reserve before the first await so concurrent starts cannot share a reference.
+    let reference: string | undefined;
+    for (let attempt = 0; attempt < 100 && !reference; attempt++) {
+      const candidate = this.createReference();
+      if (!this.references.has(candidate)) reference = candidate;
+    }
+    if (!reference) throw new Error('Cannot allocate a unique run reference');
+    this.references.add(reference);
+    const run = newRun({
       webhook,
       workflow: workflow.name,
       source,
       ...(source === 'source' ? { sourceName: webhook } : {}),
-      input: input === undefined ? null : JSON.parse(JSON.stringify(input)),
-      status: 'running',
-      startedAt: Date.now(),
-      output: null,
-      error: null,
-      events: [],
-      usage: emptyTokenUsage()
-    };
+      input,
+      reference
+    });
+    const { id } = run;
     const started: RunRecord = { type: 'started', run };
-    // Reserve before the first await so concurrent starts cannot share a reference.
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const reference = this.createReference();
-      if (this.references.has(reference)) continue;
-      run.reference = reference;
-      this.references.add(reference);
-      break;
-    }
-    if (!run.reference) throw new Error('Cannot allocate a unique run reference');
     try {
-      await writeFile(resolve(this.directory, `${id}.jsonl`), `${JSON.stringify(started)}\n`, {
-        flag: 'wx',
-        mode: 0o600
-      });
+      this.journals.set(id, await createRunJournal(this.directory, run));
     } catch (error) {
-      this.references.delete(run.reference);
+      this.references.delete(reference);
       throw error;
     }
     this.runs.set(id, summary(run));
@@ -277,12 +260,11 @@ export class RunStore {
     const execution = await runWorkflow(workflow, {
       input,
       signal,
+      run: { id, reference: this.runs.get(id)?.reference },
       onEvent: (event) => {
         activityLog(event);
-        void this.append(id, {
-          type: 'event',
-          event: { ...event, timestamp: Math.max(0, event.timestamp - base) }
-        }).catch(() => {}); // The same write failure is handled when completion flushes the queue.
+        // A write failure is handled when the finished record is written.
+        void this.append(id, eventRecord(event, base)).catch(() => {});
       }
     }).finally(() => activityLog.dispose());
     this.controllers.delete(id);
@@ -319,7 +301,7 @@ export class RunStore {
       this.publish(id, record);
       throw new Error(record.error!);
     } finally {
-      this.pending.delete(id);
+      this.journals.delete(id);
     }
     serverLog(
       status === 'failed'
@@ -344,26 +326,12 @@ export class RunStore {
 const state = globalThis as typeof globalThis & {
   __runlingRunStore?: Promise<RunStore>;
 };
-export async function historyDirectory(cwd: string): Promise<string> {
-  const current = resolve(cwd, '.runling/runs');
-  const legacy = resolve(cwd, '.factory/runs');
-  for (const path of [current, legacy]) {
-    try {
-      if ((await stat(path)).isDirectory()) return path;
-      throw new Error(`Run history path is not a directory: ${path}`);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-  }
-  return current;
-}
-
 export function getRunStore(): Promise<RunStore> {
   state.__runlingRunStore ??= (async () => {
     const configPath = process.env.RUNLING_WEB_CONFIG;
     if (!configPath) throw new Error('RUNLING_WEB_CONFIG is required for run history');
     const cwd = dirname(configPath);
-    const store = new RunStore(await historyDirectory(cwd));
+    const store = new RunStore(await runJournalDirectory(cwd));
     await store.init();
     return store;
   })();
