@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Det här verkar inte vara en Chatto-server.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Serverkatalog",
+      "subtitle": "Upptäck andra Chatto-servrar",
+      "lookup_description": "Ange adressen till valfri Chatto-server för att gå med i den.",
+      "find": "Hitta server",
+      "connect_by_address": "Anslut med adress",
+      "servers_title": "Rekommenderade servrar",
+      "servers_description": "Rekommenderade av servrar som du har gått med i. Resultaten är inte rangordnade.",
       "recommended_by": "Rekommenderas av {servers}",
       "more_recommenders_count": {
         "other": "{count} till"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Gick med",
+      "join": "Gå med",
+      "open": "Öppna",
       "open_in_new_tab": "Öppna i en ny flik",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Inloggning inte tillgänglig",
+      "profile_unavailable": "Den här serverns offentliga profil kunde inte läsas in.",
+      "partial": "Vissa servrar som du har gått med i kunde inte ge sina rekommendationer.",
+      "unavailable_title": "Katalogen är inte tillgänglig",
+      "unavailable_body": "Servrarna som du har gått med i kunde inte ge sina rekommendationer. Du kan fortfarande ansluta direkt.",
+      "empty_title": "Inga rekommenderade servrar än",
+      "empty_body": "Du kan fortfarande ansluta direkt med en serveradress."
     }
   }
 }

@@ -11,28 +11,28 @@
     "url_placeholder": "sohbet.example.com",
     "not_chatto_server": "Bu bir Chatto sunucusu gibi görünmüyor.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Sunucu Dizini",
+      "subtitle": "Diğer Chatto sunucularını keşfedin",
+      "lookup_description": "Katılmak için herhangi bir Chatto sunucusunun adresini girin.",
+      "find": "Sunucu bul",
+      "connect_by_address": "Adresle bağlan",
+      "servers_title": "Önerilen sunucular",
+      "servers_description": "Katıldığınız sunucuların önerileri. Sonuçlar sıralanmamıştır.",
       "recommended_by": "Önerenler: {servers}",
       "more_recommenders_count": {
         "other": "{count} tane daha"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Katıldı",
+      "join": "Katıl",
+      "open": "Aç",
       "open_in_new_tab": "Yeni sekmede aç",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Giriş kullanılamıyor",
+      "profile_unavailable": "Bu sunucunun herkese açık profili yüklenemedi.",
+      "partial": "Katıldığınız bazı sunucular önerilerini sağlayamadı.",
+      "unavailable_title": "Dizin kullanılamıyor",
+      "unavailable_body": "Katıldığınız sunucular önerilerini sağlayamadı. Yine de doğrudan bağlanabilirsiniz.",
+      "empty_title": "Henüz önerilen sunucu yok",
+      "empty_body": "Yine de bir sunucu adresiyle doğrudan bağlanabilirsiniz."
     }
   }
 }

@@ -11,28 +11,28 @@
     "url_placeholder": "babilejo.ekzemplo.com",
     "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Servila katalogo",
+      "subtitle": "Malkovru aliajn Chatto-servilojn",
+      "lookup_description": "Enigu la adreson de iu ajn Chatto-servilo por aliĝi al ĝi.",
+      "find": "Trovi servilon",
+      "connect_by_address": "Konekti per adreso",
+      "servers_title": "Rekomenditaj serviloj",
+      "servers_description": "Rekomendite de serviloj, al kiuj vi aliĝis. La rezultoj ne estas rangigitaj.",
       "recommended_by": "Rekomendita de {servers}",
       "more_recommenders_count": {
         "other": "{count} pliaj"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Aliĝis",
+      "join": "Aliĝi",
+      "open": "Malfermi",
       "open_in_new_tab": "Malfermi en nova langeto",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Ensaluto ne disponeblas",
+      "profile_unavailable": "Ne eblis ŝargi la publikan profilon de ĉi tiu servilo.",
+      "partial": "Kelkaj serviloj, al kiuj vi aliĝis, ne povis doni siajn rekomendojn.",
+      "unavailable_title": "Katalogo ne disponeblas",
+      "unavailable_body": "La serviloj, al kiuj vi aliĝis, ne povis doni siajn rekomendojn. Vi ankoraŭ povas konekti rekte.",
+      "empty_title": "Ankoraŭ neniuj rekomenditaj serviloj",
+      "empty_body": "Vi ankoraŭ povas konekti rekte per servila adreso."
     }
   }
 }

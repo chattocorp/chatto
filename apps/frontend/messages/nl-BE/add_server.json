@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Servergids",
+      "subtitle": "Ontdek andere Chatto-servers",
+      "lookup_description": "Voer het adres van een Chatto-server in om lid te worden.",
+      "find": "Server zoeken",
+      "connect_by_address": "Verbinden via adres",
+      "servers_title": "Aanbevolen servers",
+      "servers_description": "Aanbevolen door servers waarvan je lid bent. De resultaten zijn niet gerangschikt.",
       "recommended_by": "Aanbevolen door {servers}",
       "more_recommenders_count": {
         "other": "nog {count}"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Lid geworden",
+      "join": "Lid worden",
+      "open": "Openen",
       "open_in_new_tab": "Openen in een nieuw tabblad",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Inloggen niet beschikbaar",
+      "profile_unavailable": "Het openbare profiel van deze server kon niet worden geladen.",
+      "partial": "Sommige servers waarvan je lid bent, konden geen aanbevelingen geven.",
+      "unavailable_title": "Gids niet beschikbaar",
+      "unavailable_body": "De servers waarvan je lid bent, konden geen aanbevelingen geven. Je kunt nog steeds rechtstreeks verbinden.",
+      "empty_title": "Nog geen aanbevolen servers",
+      "empty_body": "Je kunt nog steeds rechtstreeks verbinden met een serveradres."
     }
   }
 }

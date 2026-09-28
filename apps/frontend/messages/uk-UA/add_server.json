@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Це не схоже на сервер Chatto.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Каталог серверів",
+      "subtitle": "Відкрийте для себе інші сервери Chatto",
+      "lookup_description": "Введіть адресу будь-якого сервера Chatto, щоб приєднатися до нього.",
+      "find": "Знайти сервер",
+      "connect_by_address": "Підключитися за адресою",
+      "servers_title": "Рекомендовані сервери",
+      "servers_description": "Рекомендації серверів, до яких ви приєдналися. Результати не ранжовано.",
       "recommended_by": "Рекомендують {servers}",
       "more_recommenders_count": {
         "other": "ще {count}"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Ви учасник",
+      "join": "Приєднатися",
+      "open": "Відкрити",
       "open_in_new_tab": "Відкрити в новій вкладці",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Вхід недоступний",
+      "profile_unavailable": "Не вдалося завантажити публічний профіль цього сервера.",
+      "partial": "Деякі сервери, до яких ви приєдналися, не змогли надати рекомендації.",
+      "unavailable_title": "Каталог недоступний",
+      "unavailable_body": "Сервери, до яких ви приєдналися, не змогли надати рекомендації. Ви все одно можете підключитися напряму.",
+      "empty_title": "Рекомендованих серверів поки немає",
+      "empty_body": "Ви все одно можете підключитися напряму за адресою сервера."
     }
   }
 }
