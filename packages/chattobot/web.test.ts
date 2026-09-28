@@ -1,13 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import type { AgentExtensionAPI } from 'runling/agents';
-import {
-  browseWeb,
-  createUrlAllowlist,
-  searchWeb,
-  webExtension,
-  webSettings,
-  webTools
-} from './web.ts';
+import { browseWeb, searchWeb, webExtension, webSettings, webTools } from './web.ts';
 import { ConfigurationError } from './settings.ts';
 
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
@@ -107,42 +100,8 @@ test.each(['file:///etc/passwd', 'ftp://example.com/', 'https://user:pw@example.
   }
 );
 
-test('the browse allowlist keeps exact trusted URLs and only the latest page links', () => {
-  const allowlist = createUrlAllowlist();
-  allowlist.addTrusted('Read https://example.com/guide, then (https://example.com/faq#top).');
-  expect(allowlist.has('https://example.com/guide')).toBe(true);
-  expect(allowlist.has('https://example.com/faq')).toBe(true);
-  expect(allowlist.has('https://example.com/guide?leak=thread-text')).toBe(false);
-  expect(allowlist.has('https://attacker.example/')).toBe(false);
-  allowlist.setPageLinks(
-    '[Install](/docs/install) and [Next](next.md)',
-    'https://example.com/docs/'
-  );
-  expect(allowlist.has('https://example.com/docs/install')).toBe(true);
-  expect(allowlist.has('https://example.com/docs/next.md')).toBe(true);
-  const many = Array.from({ length: 80 }, (_, index) => `[${index}](/c/${index})`).join(' ');
-  allowlist.setPageLinks(many, 'https://attacker.example/');
-  expect(allowlist.has('https://example.com/docs/install')).toBe(false);
-  expect(allowlist.has('https://attacker.example/c/49')).toBe(true);
-  expect(allowlist.has('https://attacker.example/c/50')).toBe(false);
-  expect(allowlist.has('https://example.com/guide')).toBe(true);
-});
-
-test('allowed site prefixes admit their pages but not look-alike paths', () => {
-  const allowlist = createUrlAllowlist(['https://github.com/chattocorp/chatto/']);
-  expect(allowlist.has('https://github.com/chattocorp/chatto/pull/2654')).toBe(true);
-  expect(allowlist.has('https://github.com/chattocorp/chatto/issues/1#comment')).toBe(true);
-  expect(allowlist.has('https://github.com/chattocorp/chatto')).toBe(true);
-  expect(allowlist.has('https://github.com/chattocorp/chatto-evil/pull/1')).toBe(false);
-  expect(allowlist.has('https://github.com/chattocorp/chatto/../other/repo')).toBe(false);
-  expect(allowlist.has('http://github.com/chattocorp/chatto/pull/1')).toBe(false);
-  expect(allowlist.has('https://github.com/attacker/repo')).toBe(false);
-});
-
-test('web tools enforce the allowlist and request budget', async () => {
+test('web tools enforce the request budget and report source URLs', async () => {
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
-  const allowlist = createUrlAllowlist();
-  allowlist.addTrusted('https://example.com/start');
   const onWebContent = vi.fn();
   const request = vi.fn<typeof fetch>().mockImplementation(async (url) =>
     String(url).includes('tavily')
@@ -154,7 +113,7 @@ test('web tools enforce the allowlist and request budget', async () => {
   const budget = { search: 1, browse: 2 };
   const extension = webExtension(
     { tavilyApiKey: 'tvly-key', cloudflare },
-    { onWebContent, allowlist, take: (kind) => budget[kind]-- > 0 },
+    { onWebContent, take: (kind) => budget[kind]-- > 0 },
     request
   );
   const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -165,17 +124,12 @@ test('web tools enforce the allowlist and request budget', async () => {
   } as AgentExtensionAPI);
   const browse = (url: string) => tools.get('browsePage')!.execute('call', { url } as never);
   const search = () => tools.get('webSearch')!.execute('call', { query: 'q' } as never);
-  await expect(browse('https://attacker.example/?d=secret')).rejects.toThrow(
-    /^Permission denied: browsePage can open only/
-  );
-  expect(request).not.toHaveBeenCalled();
-  expect(onWebContent).not.toHaveBeenCalled();
   await search();
-  expect(allowlist.has('https://found.example/')).toBe(true);
+  expect(onWebContent).toHaveBeenLastCalledWith(['https://found.example/']);
   await expect(search()).rejects.toThrow('search limit');
   await browse('https://example.com/start');
-  await browse('https://example.com/next');
-  expect(onWebContent).toHaveBeenCalledTimes(3);
+  await browse('https://other.example/built-by-the-agent');
+  expect(onWebContent).toHaveBeenLastCalledWith(['https://other.example/built-by-the-agent']);
   await expect(browse('https://found.example/')).rejects.toThrow('page limit');
   expect(request).toHaveBeenCalledTimes(3);
 });

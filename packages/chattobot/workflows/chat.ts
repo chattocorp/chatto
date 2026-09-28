@@ -149,7 +149,6 @@ export const conversation = task(
           ? [
               researchExtension(ctx, research, {
                 model: options.model,
-                userText: () => recentUserMessages.join('\n'),
                 take: () => researchCallsLeft-- > 0
               })
             ]

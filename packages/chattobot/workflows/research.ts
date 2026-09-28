@@ -9,15 +9,13 @@ import {
   type AgentOptions,
   type RunlingAgent
 } from 'runling/agents';
-import { createUrlAllowlist, webExtension, webTools, type WebSettings } from '../web.ts';
+import { webExtension, webTools, type WebSettings } from '../web.ts';
 
 /** Searches and page reads for one research request. This also bounds the link-choice channel. */
 const MAX_WEB_REQUESTS = 5;
 const RESEARCH_TIMEOUT_MS = 180_000;
 const MAX_ANSWER = 8_000;
 const MAX_SOURCES = 20;
-/** Sites the research agent may open directly, for example a PR URL built from its number. */
-const ALLOWED_SITES = ['https://github.com/chattocorp/chatto/'];
 
 type ResearchAgent = Pick<RunlingAgent, 'runOutcome' | 'dispose'>;
 
@@ -26,7 +24,7 @@ const researchParameters = Type.Object({
     minLength: 1,
     maxLength: 2_000,
     description:
-      'A self-contained research question. Include URLs the user supplied; other URLs cannot be opened. Do not include personal data, secrets, or private conversation details.'
+      'A self-contained research question. Include URLs the user supplied. Do not include personal data, secrets, or private conversation details.'
   })
 });
 
@@ -46,9 +44,6 @@ export function createResearch(
     request?: typeof fetch;
     /** Research deadline. Defaults to three minutes. */
     timeoutMs?: number;
-    /** Text written by the user, such as recent messages. Only URLs in it can be opened
-     * directly; the model-written question cannot add URLs. */
-    userText?: () => string;
   } = {}
 ) {
   const createAgent = dependencies.createAgent ?? agent;
@@ -59,8 +54,6 @@ export function createResearch(
         ctx.signal,
         AbortSignal.timeout(dependencies.timeoutMs ?? RESEARCH_TIMEOUT_MS)
       ]);
-      const allowlist = createUrlAllowlist(ALLOWED_SITES);
-      allowlist.addTrusted(dependencies.userText?.() ?? '');
       const budget = { search: MAX_WEB_REQUESTS, browse: MAX_WEB_REQUESTS };
       const sources = new Set<string>();
       const worker = await createAgent({
@@ -79,7 +72,6 @@ export function createResearch(
               onWebContent: (urls) => {
                 for (const url of urls) if (sources.size < MAX_SOURCES) sources.add(url);
               },
-              allowlist,
               take: (kind) => budget[kind]-- > 0
             },
             dependencies.request
@@ -94,7 +86,6 @@ export function createResearch(
         },
         instructions: [
           `Use at most ${MAX_WEB_REQUESTS} searches and ${MAX_WEB_REQUESTS} page reads. Prefer primary sources.`,
-          `You can open any page under ${ALLOWED_SITES.join(', ')} directly, for example https://github.com/chattocorp/chatto/pull/123 for a pull request or https://github.com/chattocorp/chatto/issues/123 for an issue. Other pages must come from the question, search results, or links on the page you read last.`,
           'Put the answer in the report details: concise facts with the URL of each source. Say what you could not find or verify. Report blocked if the web does not answer the question.'
         ]
       });
