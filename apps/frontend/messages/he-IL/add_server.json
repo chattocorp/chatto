@@ -12,12 +12,12 @@
     "not_chatto_server": "זה לא נראה כשרת Chatto.",
     "directory": {
       "title": "מדריך השרתים",
-      "subtitle": "גלו שרתי Chatto נוספים",
-      "lookup_description": "הזינו את הכתובת של שרת Chatto כלשהו כדי להצטרף אליו.",
+      "subtitle": "גלה שרתי Chatto נוספים",
+      "lookup_description": "הזן את הכתובת של שרת Chatto כלשהו כדי להצטרף אליו.",
       "find": "חיפוש שרת",
       "connect_by_address": "התחברות לפי כתובת",
       "servers_title": "שרתים מומלצים",
-      "servers_description": "המלצות מהשרתים שהצטרפתם אליהם. התוצאות אינן מדורגות.",
+      "servers_description": "המלצות מהשרתים שהצטרפת אליהם. התוצאות אינן מדורגות.",
       "recommended_by": "מומלץ על ידי {servers}",
       "more_recommenders_count": {
         "other": "עוד {count}"
@@ -28,9 +28,9 @@
       "open_in_new_tab": "פתיחה בכרטיסייה חדשה",
       "sign_in_unavailable": "ההתחברות אינה זמינה",
       "profile_unavailable": "לא ניתן היה לטעון את הפרופיל הציבורי של שרת זה.",
-      "partial": "חלק מהשרתים שהצטרפתם אליהם לא הצליחו לספק המלצות.",
+      "partial": "חלק מהשרתים שהצטרפת אליהם לא הצליחו לספק המלצות.",
       "unavailable_title": "המדריך אינו זמין",
-      "unavailable_body": "השרתים שהצטרפתם אליהם לא הצליחו לספק המלצות. עדיין אפשר להתחבר ישירות.",
+      "unavailable_body": "השרתים שהצטרפת אליהם לא הצליחו לספק המלצות. עדיין אפשר להתחבר ישירות.",
       "empty_title": "עדיין אין שרתים מומלצים",
       "empty_body": "עדיין אפשר להתחבר ישירות באמצעות כתובת שרת."
     }
