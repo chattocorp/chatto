@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
@@ -84,7 +85,7 @@
     const users = (membersQuery.data?.pages ?? []).flatMap((page) => page.users);
     return [...new Map(users.map((user) => [user.id, user])).values()];
   });
-  const membersError = $derived(membersQuery.error?.message ?? null);
+  const membersError = $derived(membersQuery.error ? errorMessage(membersQuery.error) : null);
   async function loadMoreMembers() {
     if (membersQuery.hasNextPage && !membersQuery.isFetching && !membersError) {
       await membersQuery.fetchNextPage();
@@ -211,22 +212,16 @@
   const deleting = $derived(deleteMutation.isPending && isCurrentRole(deleteMutation.variables));
   const error = $derived.by(() => {
     if (roleQuery.error) {
-      return roleQuery.error instanceof Error ? roleQuery.error.message : String(roleQuery.error);
+      return errorMessage(roleQuery.error);
     }
     if (metadataMutation.isError && isCurrentRole(metadataMutation.variables)) {
-      return metadataMutation.error instanceof Error
-        ? metadataMutation.error.message
-        : m('admin.permissions.update_role_failed');
+      return errorMessage(metadataMutation.error, m('admin.permissions.update_role_failed'));
     }
     if (pingableMutation.isError && isCurrentRole(pingableMutation.variables)) {
-      return pingableMutation.error instanceof Error
-        ? pingableMutation.error.message
-        : m('admin.permissions.update_ping_failed');
+      return errorMessage(pingableMutation.error, m('admin.permissions.update_ping_failed'));
     }
     if (deleteMutation.isError && isCurrentRole(deleteMutation.variables)) {
-      return deleteMutation.error instanceof Error
-        ? deleteMutation.error.message
-        : m('admin.permissions.delete_role_failed');
+      return errorMessage(deleteMutation.error, m('admin.permissions.delete_role_failed'));
     }
     return null;
   });

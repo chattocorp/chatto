@@ -2,6 +2,7 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
+import { errorMessage } from '$lib/utils/errorMessage';
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.svelte';
@@ -138,7 +139,7 @@ export class ServerInfoState {
       } catch (err) {
         // Defensive: anything thrown during the query or above .then body.
         // Don't re-throw — failure is isolated to this server.
-        this.error = err instanceof Error ? err.message : String(err);
+        this.error = errorMessage(err);
         console.error(`[server:${this.#label}] failed to load server info`, err);
       } finally {
         this.loading = false;
@@ -166,7 +167,7 @@ export class ServerInfoState {
       this.directRegistrationEnabled = info.directRegistrationEnabled;
       this.directLoginEnabled = info.directLoginEnabled;
     } catch (err) {
-      this.error = err instanceof Error ? err.message : String(err);
+      this.error = errorMessage(err);
       console.error(`[server:${this.#label}] failed to load server info`, err);
     }
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import Interval from '$lib/lifecycle/Interval.svelte';
@@ -248,11 +249,7 @@
   const error = $derived.by(() => {
     if (actionError) return actionError;
     const queryError = identitiesQuery.error;
-    return queryError
-      ? queryError instanceof Error
-        ? queryError.message
-        : m('settings.account.sso.load_failed')
-      : '';
+    return queryError ? errorMessage(queryError, m('settings.account.sso.load_failed')) : '';
   });
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
@@ -317,10 +314,9 @@
       ) {
         actionError = m('settings.account.sso.fresh_auth_required');
       } else if (currentPassword !== undefined) {
-        linkFreshAuthError =
-          err instanceof Error ? err.message : m('settings.account.sso.link_failed');
+        linkFreshAuthError = errorMessage(err, m('settings.account.sso.link_failed'));
       } else {
-        actionError = err instanceof Error ? err.message : m('settings.account.sso.link_failed');
+        actionError = errorMessage(err, m('settings.account.sso.link_failed'));
       }
     }
   }
@@ -424,11 +420,9 @@
           actionError = m('settings.account.sso.disconnect_fresh_auth_required');
         }
       } else if (currentPassword !== undefined) {
-        disconnectFreshAuthError =
-          err instanceof Error ? err.message : m('settings.account.sso.disconnect_failed');
+        disconnectFreshAuthError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
       } else {
-        actionError =
-          err instanceof Error ? err.message : m('settings.account.sso.disconnect_failed');
+        actionError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
         disconnectTarget = null;
       }
     }

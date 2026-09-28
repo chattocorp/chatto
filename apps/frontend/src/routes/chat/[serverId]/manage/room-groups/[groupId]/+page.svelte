@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
@@ -114,7 +115,7 @@
         if (!isCurrentGroup(variables)) return;
         toast.error(
           m('admin.rooms_admin.rename_group_failed', {
-            error: error instanceof Error ? error.message : String(error)
+            error: errorMessage(error)
           })
         );
       }

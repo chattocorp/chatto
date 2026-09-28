@@ -566,7 +566,7 @@ describe('identity link popup and continuation', () => {
     await browserPage.getByLabelText('Current Password', { exact: true }).fill('test-password');
     await browserPage.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect
-      .element(browserPage.getByText('[failed_precondition] fresh authentication is required'))
+      .element(browserPage.getByText('fresh authentication is required', { exact: true }))
       .toBeVisible();
     expect(mocks.startLink).toHaveBeenLastCalledWith(
       expect.objectContaining({ currentPassword: 'test-password' })

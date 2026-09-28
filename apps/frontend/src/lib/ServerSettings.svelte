@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -231,11 +232,7 @@
       },
       onError: (mutationError, variables) => {
         if (!session.isCurrent(variables)) return;
-        toast.error(
-          mutationError instanceof Error
-            ? mutationError.message
-            : assetErrorMessage(variables.operation)
-        );
+        toast.error(errorMessage(mutationError, assetErrorMessage(variables.operation)));
       },
       onSettled: (_profile, _error, variables) => {
         if (!session.isCurrent(variables)) return;
@@ -270,14 +267,10 @@
   );
   const error = $derived.by(() => {
     if (settingsQuery.error) {
-      return settingsQuery.error instanceof Error
-        ? settingsQuery.error.message
-        : m('server_settings.load_failed');
+      return errorMessage(settingsQuery.error, m('server_settings.load_failed'));
     }
     if (saveMutation.isError && session.isCurrent(saveMutation.variables)) {
-      return saveMutation.error instanceof Error
-        ? saveMutation.error.message
-        : m('server_settings.save_failed');
+      return errorMessage(saveMutation.error, m('server_settings.save_failed'));
     }
     return null;
   });

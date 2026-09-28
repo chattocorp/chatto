@@ -25,6 +25,7 @@ headers are clickable when `onRoleClick` is provided
 focusing a cell highlights its permission row and role column.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { onDestroy, type Snippet } from 'svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
@@ -172,7 +173,7 @@ focusing a cell highlights its permission row and role column.
 
   const data = $derived(matrixQuery.data ?? null);
   const loading = $derived(matrixQuery.isPending);
-  const loadError = $derived(matrixQuery.error instanceof Error ? matrixQuery.error.message : null);
+  const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
   let mutationError = $state<{ context: string; message: string } | null>(null);
   let updating = $state<string[]>([]);
   let disposed = false;

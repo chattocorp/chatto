@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { beforeNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
@@ -118,7 +119,7 @@
       await goto(accountPath, { replaceState: true });
     } catch (reason) {
       if (!isCurrentEmailContext(scope)) return;
-      error = reason instanceof Error ? reason.message : m('settings.account.email.confirm_failed');
+      error = errorMessage(reason, m('settings.account.email.confirm_failed'));
     } finally {
       if (isCurrentEmailContext(scope)) confirming = false;
     }
@@ -146,9 +147,7 @@
       error =
         reason instanceof ConnectError && reason.code === Code.AlreadyExists
           ? m('settings.account.email.already_verified')
-          : reason instanceof Error
-            ? reason.message
-            : m('settings.account.email.request_failed');
+          : errorMessage(reason, m('settings.account.email.request_failed'));
     } finally {
       if (isCurrentEmailContext(scope)) resending = false;
     }

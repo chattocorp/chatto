@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -164,7 +165,7 @@
       });
     } catch (error) {
       if (!componentActive) return;
-      createError = error instanceof Error ? error.message : m('settings.bots.create_failed');
+      createError = errorMessage(error, m('settings.bots.create_failed'));
     } finally {
       if (componentActive) createLoading = false;
     }
@@ -198,7 +199,7 @@
       {/if}
 
       {#if botsQuery.error}
-        <Hint tone="danger">{botsQuery.error.message}</Hint>
+        <Hint tone="danger">{errorMessage(botsQuery.error)}</Hint>
       {/if}
 
       <Panel title={m('settings.bots.list_title')} count={totalCount} noPadding>

@@ -1,3 +1,4 @@
+import { errorMessage } from '$lib/utils/errorMessage';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { ServerPresence } from '$lib/state/server/presence.svelte';
 import { createContext } from 'svelte';
@@ -243,8 +244,7 @@ export class RoomMembersStore {
       await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.#loadError =
-          error instanceof Error ? error.message : m('room.sidebar.members_load_failed');
+        this.#loadError = errorMessage(error, m('room.sidebar.members_load_failed'));
         console.error('Failed to load room members:', error);
       }
     } finally {
@@ -279,8 +279,7 @@ export class RoomMembersStore {
       await this.loadPages(loadId, this.#hasFirstPage);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.#loadError =
-          error instanceof Error ? error.message : m('room.sidebar.members_refresh_failed');
+        this.#loadError = errorMessage(error, m('room.sidebar.members_refresh_failed'));
         if (
           reauthorize ||
           isConnectCode(error, Code.PermissionDenied) ||

@@ -4,6 +4,7 @@
 Edits the description of one message attachment.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { untrack } from 'svelte';
   import type { EditAttachmentDescriptionModalState } from '$lib/modal';
   import { createMessageAPI } from '$lib/api-client/messages';
@@ -44,8 +45,7 @@ Edits the description of one message attachment.
         ?.applyLocalMessageMutation(modal.roomId, modal.eventId, 'attachment-description-updated');
       onclose();
     } catch (cause) {
-      error =
-        cause instanceof Error ? cause.message : m('room.attachment.description_update_failed');
+      error = errorMessage(cause, m('room.attachment.description_update_failed'));
     } finally {
       loading = false;
     }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
@@ -155,11 +156,7 @@
   const loading = $derived(threadsQuery.isPending);
   const loadingMore = $derived(threadsQuery.isFetchingNextPage);
   const error = $derived(
-    threadsQuery.isError
-      ? threadsQuery.error instanceof Error
-        ? threadsQuery.error.message
-        : m('chat.threads.load_failed')
-      : null
+    threadsQuery.isError ? errorMessage(threadsQuery.error, m('chat.threads.load_failed')) : null
   );
   const hasMore = $derived(threadsQuery.hasNextPage);
 

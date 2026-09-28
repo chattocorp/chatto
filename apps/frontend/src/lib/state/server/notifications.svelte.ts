@@ -1,3 +1,4 @@
+import { errorMessage } from '$lib/utils/errorMessage';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
@@ -439,7 +440,7 @@ export class NotificationStore {
       this.replaceOccurrenceProjection(page);
     } catch (e) {
       if (generation !== this.#fetchGeneration) return;
-      this.error = e instanceof Error ? e.message : m('chat.notifications.load_failed');
+      this.error = errorMessage(e, m('chat.notifications.load_failed'));
       console.error('Failed to fetch notifications:', e);
     } finally {
       if (showLoading && generation === this.#fetchGeneration) {
@@ -704,7 +705,7 @@ export class NotificationStore {
         notification
       };
     } catch (e) {
-      this.error = e instanceof Error ? e.message : m('chat.notifications.room_load_failed');
+      this.error = errorMessage(e, m('chat.notifications.room_load_failed'));
       console.error('Failed to fetch room notification:', e);
       return { ok: false, totalCount: null, notification: null };
     }

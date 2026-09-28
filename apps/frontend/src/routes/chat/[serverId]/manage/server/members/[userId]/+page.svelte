@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '$lib/render/accountName';
   import { onDestroy } from 'svelte';
@@ -266,7 +267,7 @@
       if (isCurrentTarget(target)) {
         roleError = {
           targetKey,
-          message: error instanceof Error ? error.message : m('admin.members.role_update_failed')
+          message: errorMessage(error, m('admin.members.role_update_failed'))
         };
       }
       return false;
@@ -280,10 +281,7 @@
       if (isCurrentTarget(target) && memberQuery.isError) {
         roleError = {
           targetKey,
-          message:
-            memberQuery.error instanceof Error
-              ? memberQuery.error.message
-              : m('admin.members.load_failed')
+          message: errorMessage(memberQuery.error, m('admin.members.load_failed'))
         };
       }
     }

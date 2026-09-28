@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import {
     createInfiniteQuery,
     createMutation,
@@ -106,7 +107,7 @@
       },
       onError: (mutationError, variables) => {
         if (!session.isCurrent(variables)) return;
-        toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
+        toastError(mutationError);
       }
     }),
     () => queryClient
@@ -139,7 +140,7 @@
       },
       onError: (mutationError, variables) => {
         if (!session.isCurrent(variables)) return;
-        toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
+        toastError(mutationError);
       },
       onSettled: (_client, _mutationError, variables) => {
         pendingOAuthClientPolicies.delete(oauthClientPolicyMutationKey(variables));
@@ -159,11 +160,9 @@
   );
   const error = $derived.by(() => {
     const queryError = securityQuery.error;
-    if (queryError) return queryError instanceof Error ? queryError.message : String(queryError);
+    if (queryError) return errorMessage(queryError);
     if (securityMutation.isError && session.isCurrent(securityMutation.variables)) {
-      return securityMutation.error instanceof Error
-        ? securityMutation.error.message
-        : String(securityMutation.error);
+      return errorMessage(securityMutation.error);
     }
     return null;
   });
@@ -286,7 +285,7 @@
         noPadding
       >
         {#if oauthClientsQuery.error}
-          <div class="p-5"><Hint tone="danger">{String(oauthClientsQuery.error)}</Hint></div>
+          <div class="p-5"><Hint tone="danger">{errorMessage(oauthClientsQuery.error)}</Hint></div>
         {/if}
         {#if oauthClientsQuery.data !== undefined}
           <DataTable

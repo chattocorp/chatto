@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -77,9 +78,7 @@
   const loadingMore = $derived(membersQuery.isFetchingNextPage);
   // The first page replaces the table body with a loading block.
   const initialLoading = $derived(loading && users.length === 0);
-  const error = $derived(
-    membersQuery.error instanceof Error ? membersQuery.error.message : membersQuery.error
-  );
+  const error = $derived(membersQuery.error ? errorMessage(membersQuery.error) : null);
 
   function scheduleSearch(event: Event) {
     const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : '';

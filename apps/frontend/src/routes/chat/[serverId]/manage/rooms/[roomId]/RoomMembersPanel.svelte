@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { BOT_ACCOUNT_LABEL, accountNameToken, isBotAccount } from '$lib/render/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
@@ -146,13 +147,7 @@
   const hasMore = $derived(membersQuery.hasNextPage);
   const loading = $derived(membersQuery.isPending);
   const loadingMore = $derived(membersQuery.isFetchingNextPage);
-  const loadError = $derived(
-    membersQuery.error instanceof Error
-      ? membersQuery.error.message
-      : membersQuery.error
-        ? String(membersQuery.error)
-        : null
-  );
+  const loadError = $derived(membersQuery.error ? errorMessage(membersQuery.error) : null);
   const directoryResults = $derived(
     activeDirectorySearch && !directoryDebouncePending ? (eligibleMembersQuery.data ?? []) : []
   );
@@ -160,11 +155,7 @@
     directoryDebouncePending || (!!activeDirectorySearch && eligibleMembersQuery.isFetching)
   );
   const directoryError = $derived(
-    eligibleMembersQuery.error instanceof Error
-      ? eligibleMembersQuery.error.message
-      : eligibleMembersQuery.error
-        ? String(eligibleMembersQuery.error)
-        : null
+    eligibleMembersQuery.error ? errorMessage(eligibleMembersQuery.error) : null
   );
   const addingUserId = $derived(
     addMemberMutation.isPending && isCurrentTarget(addMemberMutation.variables)
@@ -282,7 +273,7 @@
       if (!isCurrentTarget(target)) return;
       toast.error(
         m('admin.rooms_admin.add_member_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }
@@ -308,7 +299,7 @@
       if (!isCurrentTarget(target)) return;
       toast.error(
         m('admin.rooms_admin.remove_member_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }

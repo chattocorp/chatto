@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { accountNameToken, formatAccountName } from '$lib/render/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
@@ -197,7 +198,7 @@
       return created.apiKey;
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
-        toast.error(error instanceof Error ? error.message : m('settings.bots.key_create_failed'));
+        toastError(error, m('settings.bots.key_create_failed'));
       }
       return null;
     }
@@ -214,7 +215,7 @@
       return true;
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
-        toast.error(error instanceof Error ? error.message : m('settings.bots.key_revoke_failed'));
+        toastError(error, m('settings.bots.key_revoke_failed'));
       }
       return false;
     }
@@ -236,9 +237,7 @@
       return url.toString();
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
-        toast.error(
-          error instanceof Error ? error.message : m('settings.bots.webhook_create_failed')
-        );
+        toastError(error, m('settings.bots.webhook_create_failed'));
       }
       return null;
     }
@@ -255,9 +254,7 @@
       return true;
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
-        toast.error(
-          error instanceof Error ? error.message : m('settings.bots.webhook_revoke_failed')
-        );
+        toastError(error, m('settings.bots.webhook_revoke_failed'));
       }
       return false;
     }
@@ -291,8 +288,7 @@
       toast.success(m('settings.bots.owner_reassigned'));
     } catch (error) {
       if (!isCurrentTarget(mutationTarget)) return;
-      reassignError =
-        error instanceof Error ? error.message : m('settings.bots.owner_reassign_failed');
+      reassignError = errorMessage(error, m('settings.bots.owner_reassign_failed'));
     } finally {
       if (isCurrentTarget(mutationTarget)) reassignLoading = false;
     }
@@ -320,7 +316,7 @@
       );
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
-        toast.error(error instanceof Error ? error.message : m('settings.bots.delete_failed'));
+        toastError(error, m('settings.bots.delete_failed'));
       }
     } finally {
       if (isCurrentTarget(mutationTarget)) deleteLoading = false;
@@ -392,7 +388,7 @@
 
   <PaneContent>
     {#if botQuery.error}
-      <Hint tone="danger">{botQuery.error.message}</Hint>
+      <Hint tone="danger">{errorMessage(botQuery.error)}</Hint>
     {:else}
       <div class="flex flex-col gap-6">
         {#if bot}

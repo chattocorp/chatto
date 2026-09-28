@@ -518,7 +518,7 @@ describe('RoomMembersPanel', () => {
         accounts: [expect.objectContaining({ name: 'Bob' })]
       })
     );
-    expect(rendered.container.textContent).toContain('projection temporarily unavailable');
+    expect(rendered.container.textContent).toContain('You do not have permission to do that.');
     expect(rendered.container.textContent).not.toContain('Bob');
   });
 

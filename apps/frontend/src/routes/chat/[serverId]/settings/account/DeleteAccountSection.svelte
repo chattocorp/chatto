@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import type { AccountAPI } from '$lib/api-client/account';
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { csrfFetch } from '$lib/auth/csrf';
@@ -66,7 +67,7 @@
         error = m('settings.account.delete_failed');
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m('settings.account.delete_failed');
+      error = errorMessage(err, m('settings.account.delete_failed'));
     } finally {
       isDeleting = false;
     }

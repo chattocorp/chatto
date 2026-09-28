@@ -1,3 +1,4 @@
+import { toastError } from '$lib/utils/errorMessage';
 import { SvelteMap } from 'svelte/reactivity';
 import type {
   AttachmentUploadUpdate,
@@ -127,7 +128,7 @@ export class ComposerSubmissionState {
       await this.#dependencies.getAPI().updateMessage(input);
       this.#dependencies.onEditSuccess(input);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : m('composer.edit_failed'));
+      toastError(error, m('composer.edit_failed'));
     } finally {
       this.loading = false;
     }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -98,7 +99,7 @@
       hasOlder: eventLogQuery.hasNextPage,
       loading: eventLogQuery.isPending,
       loadingMore: eventLogQuery.isFetchingNextPage,
-      error: eventLogQuery.error instanceof Error ? eventLogQuery.error.message : null,
+      error: eventLogQuery.error ? errorMessage(eventLogQuery.error) : null,
       activeFilter,
       hasActiveFilter: hasActiveFilter(activeFilter),
       eventTypes: eventTypesQuery.data ?? [],

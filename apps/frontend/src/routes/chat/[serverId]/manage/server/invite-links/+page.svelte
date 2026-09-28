@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
   import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
   import Panel from '$lib/ui/Panel.svelte';
@@ -69,7 +70,7 @@
         });
         toast.success(m('admin.invitations.created'));
       },
-      onError: showError
+      onError: (error) => toastError(error)
     }),
     () => queryClient
   );
@@ -85,7 +86,7 @@
         });
         toast.success(m('admin.invitations.revoked'));
       },
-      onError: showError
+      onError: (error) => toastError(error)
     }),
     () => queryClient
   );
@@ -102,10 +103,6 @@
 
   function formatTimestamp(value: string): string {
     return formatDateTime(value, userSettings, activeLocale);
-  }
-
-  function showError(error: unknown) {
-    toast.error(error instanceof Error ? error.message : String(error));
   }
 
   async function loadMore() {
@@ -176,7 +173,7 @@
 
       <Panel title={m('admin.invitations.list_title')} noPadding>
         {#if invitationsQuery.error}
-          <div class="p-5"><Hint tone="danger">{String(invitationsQuery.error)}</Hint></div>
+          <div class="p-5"><Hint tone="danger">{errorMessage(invitationsQuery.error)}</Hint></div>
         {/if}
         <DataTable
           items={invitations}

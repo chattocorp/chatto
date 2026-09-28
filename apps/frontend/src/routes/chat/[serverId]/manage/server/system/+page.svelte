@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
   import { formatBytes, formatNumber } from '$lib/components/admin';
   import DataTable from '$lib/ui/DataTable.svelte';
@@ -31,13 +32,7 @@
 
   const systemInfo = $derived(systemInfoQuery.data ?? null);
   const loading = $derived(systemInfoQuery.isPending);
-  const error = $derived(
-    systemInfoQuery.error instanceof Error
-      ? systemInfoQuery.error.message
-      : systemInfoQuery.error == null
-        ? null
-        : String(systemInfoQuery.error)
-  );
+  const error = $derived(systemInfoQuery.error ? errorMessage(systemInfoQuery.error) : null);
 
   const streams = $derived(systemInfo?.nats?.streams ?? []);
   const consumers = $derived(systemInfo?.nats?.consumers ?? []);

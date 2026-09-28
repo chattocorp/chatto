@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -123,7 +124,7 @@
       toast.success(m('settings.preferences.saved'));
     } catch (err) {
       if (!serverScope.isCurrent()) return;
-      error = err instanceof Error ? err.message : m('settings.preferences.save_failed');
+      error = errorMessage(err, m('settings.preferences.save_failed'));
     } finally {
       if (serverScope.isCurrent()) isSaving = false;
     }

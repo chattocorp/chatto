@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { onDestroy } from 'svelte';
@@ -155,7 +156,7 @@
         if (!isCurrentRoom(variables)) return;
         toast.error(
           m('admin.rooms_admin.update_room_failed', {
-            error: error instanceof Error ? error.message : String(error)
+            error: errorMessage(error)
           })
         );
       }

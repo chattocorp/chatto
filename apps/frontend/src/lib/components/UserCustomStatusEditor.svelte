@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { Button, Select, TextInput } from '$lib/ui/form';
@@ -236,7 +237,7 @@
       toast.success(m('settings.profile.status.saved'));
       onClose?.();
     } catch (err) {
-      error = err instanceof Error ? err.message : m('settings.profile.status.save_failed');
+      error = errorMessage(err, m('settings.profile.status.save_failed'));
     } finally {
       isSaving = false;
     }
@@ -258,7 +259,7 @@
       toast.success(m('settings.profile.status.cleared'));
       onClose?.();
     } catch (err) {
-      error = err instanceof Error ? err.message : m('settings.profile.status.clear_failed');
+      error = errorMessage(err, m('settings.profile.status.clear_failed'));
     } finally {
       isClearing = false;
     }

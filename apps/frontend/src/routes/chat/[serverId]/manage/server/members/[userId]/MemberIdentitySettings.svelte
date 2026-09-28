@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
@@ -158,8 +159,7 @@
         toast.success(m('admin.members.cooldown_cleared'));
       }
     } catch (error) {
-      identityError =
-        error instanceof Error ? error.message : m('admin.members.cooldown_clear_failed');
+      identityError = errorMessage(error, m('admin.members.cooldown_clear_failed'));
     } finally {
       clearingCooldown = false;
     }
@@ -184,8 +184,7 @@
         toast.success(m('admin.members.password_set'));
       }
     } catch (error) {
-      passwordError =
-        error instanceof Error ? error.message : m('admin.members.set_password_failed');
+      passwordError = errorMessage(error, m('admin.members.set_password_failed'));
     } finally {
       settingPassword = false;
     }

@@ -8,6 +8,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   Mutations go through the admin permission API via `setRolePermission`.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { onDestroy } from 'svelte';
   import { Button } from '$lib/ui/form';
   import { Hint } from '$lib/ui';
@@ -68,7 +69,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     )
   );
   const loading = $derived(matrixQuery.isPending);
-  const loadError = $derived(matrixQuery.error instanceof Error ? matrixQuery.error.message : null);
+  const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
   let mutationError = $state<{ context: string; message: string } | null>(null);
   let updatingKey = $state<string | null>(null);
   let mutationContext = $state<string | null>(null);

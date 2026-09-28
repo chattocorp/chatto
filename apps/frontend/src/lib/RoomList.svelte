@@ -5,6 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -256,7 +257,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       optimisticGroupSections = null;
       toast.error(
         m('admin.rooms_admin.reorder_groups_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }
@@ -404,7 +405,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch (error) {
       toast.error(
         m('admin.rooms_admin.save_link_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }
@@ -431,7 +432,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch (error) {
       toast.error(
         m('admin.rooms_admin.delete_group_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }
@@ -454,7 +455,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch (error) {
       toast.error(
         m('admin.rooms_admin.delete_link_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }
@@ -476,7 +477,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch (error) {
       toast.error(
         m('admin.rooms_admin.archive_room_failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: errorMessage(error)
         })
       );
     }

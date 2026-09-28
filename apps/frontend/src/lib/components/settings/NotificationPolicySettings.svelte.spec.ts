@@ -415,7 +415,7 @@ describe('NotificationPolicySettings', () => {
     const loadFailure = render(NotificationPolicySettings);
 
     await vi.waitFor(() =>
-      expect(loadFailure.container.textContent).toContain('Policy service unavailable')
+      expect(loadFailure.container.textContent).toContain('You do not have permission to do that.')
     );
     expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
     loadFailure.unmount();

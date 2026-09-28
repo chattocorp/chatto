@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -66,9 +67,7 @@
         <LoadingFog class="h-40 w-full" label={m('admin.event_log.loading_event')} />
       {:else if entryQuery.error}
         <Hint tone="danger">
-          {entryQuery.error instanceof Error
-            ? entryQuery.error.message
-            : m('admin.event_log.unavailable')}
+          {errorMessage(entryQuery.error, m('admin.event_log.unavailable'))}
         </Hint>
       {:else if !entryQuery.data}
         <Hint tone="warning">{m('admin.event_log.not_found', { sequence })}</Hint>

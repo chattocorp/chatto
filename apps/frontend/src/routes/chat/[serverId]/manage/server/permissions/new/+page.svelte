@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
@@ -90,9 +91,7 @@
     roleCatalogQuery.isError
       ? m('admin.permissions.load_instance_failed')
       : createRoleMutation.isError && session.isCurrent(createRoleMutation.variables)
-        ? createRoleMutation.error instanceof Error
-          ? createRoleMutation.error.message
-          : m('admin.permissions.load_instance_failed')
+        ? errorMessage(createRoleMutation.error, m('admin.permissions.load_instance_failed'))
         : null
   );
 </script>
