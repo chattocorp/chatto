@@ -30,6 +30,7 @@ import {
 } from './editorTypes';
 import { LinkPreviewState } from './linkPreviews.svelte';
 import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
+import { expandPostCommand } from './postCommands';
 
 const emptyFormattingState: ComposerFormattingState = {
   bold: false,
@@ -600,7 +601,7 @@ export class MessageComposerState {
   }
 
   async #createMessage(): Promise<void> {
-    const bodyToSend = bodyForSend(this.message);
+    const bodyToSend = expandPostCommand(bodyForSend(this.message));
     const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
     if (!hasVisibleContent(bodyToSend) && !filesToSend) return;
 

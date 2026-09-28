@@ -918,6 +918,19 @@ describe('MessageComposer', () => {
       await expect.element(editor).toHaveTextContent('**saved** draft');
     });
 
+    it('expands /shrug in a Markdown source post', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-shrug' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '/shrug not sure');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'not sure ¯\\_(ツ)_/¯'
+      });
+    });
+
     it('keeps input and HTTP submission available when realtime is disconnected', async () => {
       connectionAttempts.set('failed', 6);
       const { container, roomId } = renderMessageComposer({ roomId: 'disconnected-send' });
@@ -2723,6 +2736,19 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '\\o/ C:\\Users\\foo'
+      });
+    });
+
+    it('expands /shrug without text in a Visual editor post', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'visual-shrug' });
+      const editor = await findEditor(container);
+      await typeEditorLiteralText(editor, '/shrug');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '¯\\_(ツ)_/¯'
       });
     });
 
