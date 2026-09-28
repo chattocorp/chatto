@@ -14,7 +14,7 @@ import { implementationInput } from './implementation-artifacts.ts';
 import { ownerQuestionPrefix } from './implementation-safety.ts';
 import type { ImplementationSettings } from './implementation-settings.ts';
 import { createImplementation } from './implementation-task.ts';
-import { ciRepairMessage, publishedMessage } from './implementation-messages.ts';
+import { milestoneMessage, ONCE_MILESTONES } from './implementation-messages.ts';
 
 export { createImplementation, MAX_CI_REPAIRS } from './implementation-task.ts';
 export {
@@ -149,17 +149,19 @@ export function implementationExtension(
               };
             }
           });
-          /** Post verified facts that the implementation reports as state. */
+          /** Post the milestones that the implementation reports as state phases: once per phase
+           * change, and once per run for `ONCE_MILESTONES`. */
+          let previousPhase: unknown;
+          const announced = new Set<unknown>();
           const onUpdate = async (update: AgentTaskUpdate) => {
             if (typeof update === 'string' || update.type !== 'state') return;
-            const { phase, prUrl, attempt } = update.value;
-            const message =
-              phase === 'published' && typeof prUrl === 'string'
-                ? publishedMessage(prUrl)
-                : phase === 'ci_repairing' && typeof attempt === 'number'
-                  ? ciRepairMessage(attempt)
-                  : undefined;
+            const { phase } = update.value;
+            const changed = phase !== previousPhase;
+            previousPhase = phase;
+            if (!changed || announced.has(phase)) return;
+            const message = milestoneMessage(update.value);
             if (!message || !dependencies.post) return;
+            if (ONCE_MILESTONES.has(phase as string)) announced.add(phase);
             try {
               await dependencies.post(message);
             } catch {

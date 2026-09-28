@@ -1088,7 +1088,8 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
   const observeChecks = vi.fn(async (options: { headCommit: string; stopOnFailure?: boolean }) => {
     observed.push({ headCommit: options.headCommit, stopOnFailure: options.stopOnFailure });
     if (observed.length === 1) {
-      expect(messages).toHaveLength(1);
+      // Validation and the PR link reach the user before CI is read.
+      expect(messages).toHaveLength(2);
       return failedChecks;
     }
     return passedChecks;
@@ -1137,16 +1138,20 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
       (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
         .text!
     );
-    await vi.waitFor(() => expect(messages).toHaveLength(3));
+    await vi.waitFor(() => expect(messages).toHaveLength(5));
     expect(forwarded).not.toContain('task.completed');
     expect(messages).toEqual([
+      'The change is ready. I am running typecheck and lint before I open the pull request.',
+      expect.stringContaining('Opened the pull request: https://github.com/example/chatto/pull/7'),
+      'CI failed: `test-frontend-unit`. I am working on a fix (attempt 1 of 3).',
+      'Pushed a fix to the pull request. CI is running again.',
       expect.stringContaining(
-        'Opened [the pull request](https://github.com/example/chatto/pull/7)'
-      ),
-      expect.stringContaining('attempt 1 of 3'),
-      expect.stringContaining('CI passed for [the pull request]')
+        '**CI passed** for the pull request (3 checks passed, after 1 repair attempt): https://github.com/example/chatto/pull/7'
+      )
     ]);
-    expect(messages[2]).toContain('after 1 repair attempt:');
+    // The final message summarizes the change and keeps the PR notes.
+    expect(messages[4]).toContain(`**What changed**\n${proposal.summary}`);
+    expect(messages[4]).toContain('**Notes**\n- Browser behavior was not checked.');
     expect(createAgent).toHaveBeenCalledOnce();
     expect(prompts[1]).toContain('test-frontend-unit');
     expect(prompts[1]).toContain('FAIL src/a.spec.ts');

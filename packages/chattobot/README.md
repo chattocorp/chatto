@@ -422,9 +422,13 @@ per minute to the supervisor as a task notice. An earlier update waits until the
 minute ends, and a newer one replaces it. After four minutes without an update,
 the host sends the number of changed files and test runs so far. The supervisor
 model tells the user about each notice in its own words. The supervisor task's
-host code posts verified facts itself, without the model: the PR link when the
-implementation reports it, a short message for each CI repair attempt, and the
-final result. The model hears about the final result only if that post fails.
+host code posts milestones itself, without the model, when the implementation
+reports them as state phases: the start of validation, the PR URL, each CI
+failure with the failed check names, a rerun of unrelated failures, and each
+pushed fix. `milestoneMessage` in `implementation-messages.ts` lists them; new
+stages, such as planning or review, add a phase there. The final message shows
+the CI result with the PR URL, the worker's summary of the change, and its PR
+notes. The model hears about the final result only if that post fails.
 
 When a user asks the owner to ask the implementation worker a question, the owner
 uses `askImplementation`. The worker's answer wakes the owner, which can reply

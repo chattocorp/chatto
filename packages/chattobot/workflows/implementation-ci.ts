@@ -15,7 +15,7 @@ export interface PullRequestChecks {
   skipped: number;
 }
 
-/** A failed or cancelled check. Names and links are worker context, never chat content. */
+/** A failed or cancelled check. Names can reach chat; links and logs are worker context only. */
 export interface FailedCheck {
   name: string;
   link: string;

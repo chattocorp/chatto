@@ -91,8 +91,8 @@ export type CiResult = Static<typeof ciResult>;
 /** Edit in a new or verified retained worktree, validate, then publish through host-owned Git/gh calls.
  * After publication, the same worker stays available until CI settles: the host returns CI failures
  * and later user messages to it and pushes its validated fixes to the pull request.
- * The task communicates only with its parent: progress as `notice` updates, publication and CI
- * repairs as `state` updates (phases `published` and `ci_repairing`), and its result.
+ * The task communicates only with its parent: progress as `notice` updates, milestones as `state`
+ * phases (see `milestoneMessage`), and its result.
  * Worktrees are not a shell sandbox. Only run with trusted users on an isolated host.
  * Cancellation retains local artifacts; a push or PR already accepted remotely is not undone.
  */
@@ -484,8 +484,13 @@ export function createImplementation(
                 return unfixed('Could not rerun the failed checks.');
               }
               await ctx.emit({
-                type: 'finding',
-                text: `Rerunning ${checks.failed} failed CI jobs that the worker judged unrelated to the change.`
+                type: 'state',
+                value: {
+                  phase: 'ci_rerunning',
+                  prUrl,
+                  failedChecks: checks.failures.map((failure) => failure.name)
+                },
+                activity: `Rerunning ${checks.failed} failed CI jobs`
               });
               toRerun.clear();
               initialDelayMs = dependencies.rerunDelayMs ?? 30_000;
@@ -508,7 +513,13 @@ export function createImplementation(
             repairs++;
             await ctx.emit({
               type: 'state',
-              value: { phase: 'ci_repairing', prUrl, attempt: repairs, checks: counts(checks) },
+              value: {
+                phase: 'ci_repairing',
+                prUrl,
+                attempt: repairs,
+                checks: counts(checks),
+                failedChecks: fresh.map((failure) => failure.name)
+              },
               activity: `Repairing CI failures · attempt ${repairs}`,
               activityLevel: 'error'
             });
@@ -525,6 +536,15 @@ export function createImplementation(
           if (typeof outcome === 'object') return unfixed(outcome.stopped);
           if (outcome === 'rerun') {
             for (const failure of fresh) toRerun.add(failureKey(failure));
+            await ctx.emit({
+              type: 'state',
+              value: {
+                phase: 'ci_rerun_pending',
+                prUrl,
+                failedChecks: fresh.map((failure) => failure.name)
+              },
+              activity: 'Rerun requested after CI finishes'
+            });
             continue;
           }
           if ((await stageTree()) === (await committedTree())) continue;
@@ -552,8 +572,9 @@ export function createImplementation(
           }
           toRerun.clear();
           await ctx.emit({
-            type: 'finding',
-            text: 'The worker pushed a validated fix to the pull request. Waiting for CI again.'
+            type: 'state',
+            value: { phase: 'ci_fix_pushed', prUrl, commit: head },
+            activity: 'Pushed a fix for CI'
           });
         }
       };
