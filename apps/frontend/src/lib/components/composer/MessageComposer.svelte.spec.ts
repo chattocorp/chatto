@@ -2639,6 +2639,24 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
+    it.each([
+      ['/shrug', '¯\\_(ツ)_/¯'],
+      ['/shrug I do not know', 'I do not know ¯\\_(ツ)_/¯'],
+      ['/shrugging is a word', '/shrugging is a word']
+    ])('sends %s as %s', async (draft, expectedBody) => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, draft);
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: expectedBody
+      });
+    });
+
     it('inserts a raw timestamp token from the picker before sending', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);

@@ -17,6 +17,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
+- In a new message, `/shrug` at the start of the body adds `¯\_(ツ)_/¯` after the following text when the user sends it. `/shrug` alone sends only the shrug. Edits do not use this command.
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.
 - Each rendered code block has a button to copy its code without the Markdown fence, line numbers, or display-only tab spacing.
