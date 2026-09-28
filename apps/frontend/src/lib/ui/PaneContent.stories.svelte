@@ -26,3 +26,15 @@
     </PaneContent>
   </div>
 </Story>
+
+<Story name="Wide browsing grid" asChild>
+  <div class="h-80 w-full bg-background">
+    <PaneContent wide>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="panel-shell p-6">Group</div>
+        <div class="panel-shell p-6">Group</div>
+        <div class="panel-shell p-6">Group</div>
+      </div>
+    </PaneContent>
+  </div>
+</Story>

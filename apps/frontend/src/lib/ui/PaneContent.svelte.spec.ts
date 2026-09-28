@@ -19,6 +19,16 @@ describe('PaneContent', () => {
     expect(content.className).toContain('w-full');
   });
 
+  it('allows a wider column for browsing grids', () => {
+    const { container } = render(PaneContent, {
+      props: { wide: true, children: testSnippet('<div data-testid="content">Content</div>') }
+    });
+    const content = container.querySelector('[data-testid="content"]')!.parentElement!;
+
+    expect(content.className).toContain('max-w-6xl');
+    expect(content.className).not.toContain('max-w-5xl');
+  });
+
   it('can give a primary child the available page height', () => {
     const { container } = render(PaneContent, {
       props: {
