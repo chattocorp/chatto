@@ -20,8 +20,6 @@ plugins:
       - paths=source_relative
   - local: ../packages/api-types/node_modules/.bin/protoc-gen-es
     out: ../packages/api-types/src
-    # Embedded v2 descriptors import the protovalidate options that they use.
-    include_imports: true
     opt:
       - target=ts
       - import_extension=js
@@ -31,6 +29,10 @@ plugins:
       - chatto.auth.v1
       - chatto.discovery.v1
       - chatto.realtime.v1
+    # Validation runs on the server. Omit protovalidate options from the
+    # embedded descriptors, so browser bundles do not include their schema.
+    exclude_types:
+      - buf.validate
   - local: ['go', 'tool', '-C', '../cli', 'protoc-gen-doc']
     out: ../apps/docs-website/src/generated/connectrpc-api
     strategy: all

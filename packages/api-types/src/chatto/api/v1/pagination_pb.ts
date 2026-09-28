@@ -4,14 +4,13 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import { file_buf_validate_validate } from "../../../buf/validate/validate_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file chatto/api/v1/pagination.proto.
  */
 export const file_chatto_api_v1_pagination: GenFile = /*@__PURE__*/
-  fileDesc("Ch5jaGF0dG8vYXBpL3YxL3BhZ2luYXRpb24ucHJvdG8SDWNoYXR0by5hcGkudjEiQQoLUGFnZVJlcXVlc3QSGQoFbGltaXQYASABKAVCCrpIBxoFGPQDKAASFwoGb2Zmc2V0GAIgASgFQge6SAQaAigAIjEKCFBhZ2VJbmZvEhMKC3RvdGFsX2NvdW50GAEgASgDEhAKCGhhc19tb3JlGAIgASgIQqsBChFjb20uY2hhdHRvLmFwaS52MUIPUGFnaW5hdGlvblByb3RvUAFaL2htYW5zLmRlL2NoYXR0by9pbnRlcm5hbC9wYi9jaGF0dG8vYXBpL3YxO2FwaXYxogIDQ0FYqgINQ2hhdHRvLkFwaS5WMcoCDUNoYXR0b1xBcGlcVjHiAhlDaGF0dG9cQXBpXFYxXEdQQk1ldGFkYXRh6gIPQ2hhdHRvOjpBcGk6OlYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Ch5jaGF0dG8vYXBpL3YxL3BhZ2luYXRpb24ucHJvdG8SDWNoYXR0by5hcGkudjEiLAoLUGFnZVJlcXVlc3QSDQoFbGltaXQYASABKAUSDgoGb2Zmc2V0GAIgASgFIjEKCFBhZ2VJbmZvEhMKC3RvdGFsX2NvdW50GAEgASgDEhAKCGhhc19tb3JlGAIgASgIQqsBChFjb20uY2hhdHRvLmFwaS52MUIPUGFnaW5hdGlvblByb3RvUAFaL2htYW5zLmRlL2NoYXR0by9pbnRlcm5hbC9wYi9jaGF0dG8vYXBpL3YxO2FwaXYxogIDQ0FYqgINQ2hhdHRvLkFwaS5WMcoCDUNoYXR0b1xBcGlcVjHiAhlDaGF0dG9cQXBpXFYxXEdQQk1ldGFkYXRh6gIPQ2hhdHRvOjpBcGk6OlYxYgZwcm90bzM");
 
 /**
  * Offset-based page request for list RPCs whose result order is stable enough

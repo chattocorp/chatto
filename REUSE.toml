@@ -71,8 +71,3 @@ path = [
 ]
 SPDX-FileCopyrightText = "2004 Apache Software Foundation"
 SPDX-License-Identifier = "Apache-2.0"
-
-[[annotations]]
-path = "packages/api-types/src/buf/**"
-SPDX-FileCopyrightText = "2023-2026 Buf Technologies, Inc."
-SPDX-License-Identifier = "Apache-2.0"
