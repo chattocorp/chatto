@@ -255,6 +255,38 @@ for (const file of await sourceFiles(sourceRoot)) {
   }
 }
 
+// Outside src/lib/ui, import Svelte components and `.svelte.ts` modules of the
+// design system through a public entry point. Specs and stories may import
+// implementation modules directly, for example to mock them.
+const uiRoot = resolve(sourceRoot, 'lib/ui');
+const publicUiEntries =
+  '$lib/ui, $lib/ui/form, $lib/ui/toast, $lib/ui/matrix, $lib/ui/attachments, or $lib/ui/code';
+for (const file of await sourceFiles(sourceRoot)) {
+  const path = relative(frontendRoot, file);
+  if (
+    file.startsWith(`${uiRoot}/`) ||
+    /\.(?:spec|test)\.[cm]?[jt]s$/.test(path) ||
+    path.endsWith('.stories.svelte')
+  ) {
+    continue;
+  }
+  const source = await readFile(file, 'utf8');
+  for (const match of source.matchAll(
+    /(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+)['"]([^'"]+)['"]/g
+  )) {
+    const specifier = match[1];
+    if (!/\.svelte(?:\.[cm]?[jt]s)?$/.test(specifier)) continue;
+    const target = specifier.startsWith('$lib/')
+      ? resolve(sourceRoot, 'lib', specifier.slice('$lib/'.length))
+      : specifier.startsWith('.')
+        ? resolve(file, '..', specifier)
+        : null;
+    if (!target?.startsWith(`${uiRoot}/`)) continue;
+    const line = source.slice(0, match.index).split('\n').length;
+    failures.push(`${path}:${line}: import design-system modules through ${publicUiEntries}`);
+  }
+}
+
 for (const file of await svelteFiles(sourceRoot)) {
   const path = relative(frontendRoot, file);
   const source = await readFile(file, 'utf8');
@@ -296,14 +328,6 @@ for (const file of await svelteFiles(sourceRoot)) {
     failures.push(
       `${path}: raw <dialog> is reserved for reviewed foundations and specialized overlays; use Dialog, FormDialog, or ConfirmDialog`
     );
-  }
-
-  const directModalImport = utilitySource.match(
-    /(?:from\s+|import\s*\(\s*)['"][^'"]*\/(?:Dialog|FormDialog|ConfirmDialog)\.svelte['"]/
-  );
-  if (directModalImport && !path.startsWith('src/lib/ui/')) {
-    const line = utilitySource.slice(0, directModalImport.index).split('\n').length;
-    failures.push(`${path}:${line}: import public modal primitives from $lib/ui`);
   }
 
   if (
@@ -382,6 +406,8 @@ const storyIndexes = [
   'src/lib/ui/form/index.ts',
   'src/lib/ui/toast/index.ts',
   'src/lib/ui/matrix/index.ts',
+  'src/lib/ui/attachments.ts',
+  'src/lib/ui/code.ts',
   'src/lib/components/admin/index.ts'
 ];
 const parentStories = new Map([
