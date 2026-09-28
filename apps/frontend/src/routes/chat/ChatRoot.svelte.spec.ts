@@ -105,7 +105,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/eventBus.svelte', () => ({
+vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
   eventBusManager: {
     synchronizeAuthenticatedServers: (registrations: unknown[], activeServerId: string | null) => {
       mocks.lifecycle.push('synchronize');

@@ -13,7 +13,7 @@ Include this component once in the application root so signed-out pages also cle
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+  import { eventBusManager } from '$lib/state/server/realtimeTransport.svelte';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import { NotificationAttentionLevel } from '$lib/api-client/notifications';

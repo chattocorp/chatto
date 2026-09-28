@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { observeCanvas } from '$lib/attachments/observeCanvas';
+  import { observeCanvas } from '$lib/dom/observeCanvas';
   import { m } from '$lib/i18n/messages';
   import {
     ballisticDisplacement,

@@ -34,8 +34,9 @@ export {
   DEFAULT_ROOM_PERMISSIONS
 } from './permissions.svelte';
 export type { RoomPermissions } from './permissions.svelte';
-export { MessagesStore, isRootRoomEvent, isThreadEvent } from './messages.svelte';
-export type { RefreshCurrentWindowResult } from './messages.svelte';
+export { MessagesStore } from './messages/MessagesStore.svelte';
+export type { RefreshCurrentWindowResult } from './messages/MessagesStore.svelte';
+export { isRootRoomEvent, isThreadEvent } from './messages/filters';
 export { RoomFilesStore, ROOM_FILES_PAGE_SIZE } from './files.svelte';
 export type { RoomFileItem } from './files.svelte';
 export { RoomPinsStore, ROOM_PINS_PAGE_SIZE } from './pins.svelte';

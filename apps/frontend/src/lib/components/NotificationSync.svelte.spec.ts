@@ -107,7 +107,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/eventBus.svelte', () => ({
+vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
   eventBusManager: {
     getBus: vi.fn((serverId: 'origin' | 'remote') => mocks.buses[serverId])
   }

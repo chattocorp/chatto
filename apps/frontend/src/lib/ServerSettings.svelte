@@ -24,8 +24,8 @@
   import { Panel, Hint, LoadingFog } from '$lib/ui';
   import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { dropZone } from '$lib/attachments/dropZone.svelte';
-  import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
+  import { dropZone } from '$lib/dom/dropZone.svelte';
+  import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
 
   const MAX_SERVER_DESCRIPTION_BYTES = 500;
 

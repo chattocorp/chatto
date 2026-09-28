@@ -34,8 +34,8 @@ thread IDs can change while the pane stays mounted.
   import { tick, untrack, type Snippet } from 'svelte';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
-  import { dropZone } from '$lib/attachments/dropZone.svelte';
-  import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
+  import { dropZone } from '$lib/dom/dropZone.svelte';
+  import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';

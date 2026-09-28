@@ -6,7 +6,7 @@ Key files:
 - [`events.proto`](../../proto/chatto/realtime/v1/events.proto)
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
-- [`eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
+- [`realtimeTransport.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeTransport.svelte.ts)
 - [`realtimeResources.ts`](../../apps/frontend/src/lib/api-client/realtimeResources.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),

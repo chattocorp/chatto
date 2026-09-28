@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { initialPageReveal } from '$lib/attachments/initialPageReveal';
+  import { initialPageReveal } from '$lib/dom/initialPageReveal';
   import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';

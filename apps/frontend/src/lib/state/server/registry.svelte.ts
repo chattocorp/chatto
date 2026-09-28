@@ -1,7 +1,7 @@
 import { SvelteMap, SvelteURL } from 'svelte/reactivity';
 import { ServerStateStore } from './store.svelte';
 import { serverConnectionManager } from './serverConnection.svelte';
-import { eventBusManager } from './eventBus.svelte';
+import { eventBusManager } from './realtimeTransport.svelte';
 import { Codecs, globalSlot, serverSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import type { PublicServerInfo } from '$lib/api-client/server';

@@ -362,7 +362,7 @@ vi.mock('$lib/api-client/attachments', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.svelte';
-import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
+import { eventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTransport.svelte';
 import { queryCaches } from '$lib/query/cacheRegistry';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';

@@ -56,7 +56,7 @@ vi.mock('./serverConnection.svelte', () => ({
   serverConnectionManager: { getClient: mocks.getClient }
 }));
 
-vi.mock('./eventBus.svelte', () => ({
+vi.mock('./realtimeTransport.svelte', () => ({
   eventBusManager: {
     synchronizeAuthenticatedServers: mocks.synchronizeAuthenticatedServers,
     getBus: (serverId: string) =>

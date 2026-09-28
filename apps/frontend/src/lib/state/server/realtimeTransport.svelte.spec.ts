@@ -16,7 +16,7 @@ import {
   eventBusManager,
   setRealtimePollRandomForTests,
   setRealtimeSocketFactoryForTests
-} from './eventBus.svelte';
+} from './realtimeTransport.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { EventBus, ProjectionHandler } from '$lib/eventBus.svelte';

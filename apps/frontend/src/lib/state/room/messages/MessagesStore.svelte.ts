@@ -19,7 +19,6 @@ import type {
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { Code, isConnectCode, StaleResponseError } from '$lib/api-client/connect';
 import type { JumpToMessageState } from '../composerContext.svelte';
-import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { getActorId, unmask } from './helpers';
 import { MessageTimelineSource } from './MessageTimelineSource';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
@@ -34,6 +33,11 @@ import {
   clearOptimisticThreadFollowForEvent,
   type OptimisticThreadFollowHandle
 } from './optimisticThreadFollow';
+
+/** Messages requested per timeline page. */
+export const PAGE_SIZE = 50;
+/** Messages to backfill before an initial room window is considered filled. */
+export const INITIAL_ROOM_MESSAGE_BACKFILL_TARGET = 10;
 
 export type {
   OptimisticReactionAction,

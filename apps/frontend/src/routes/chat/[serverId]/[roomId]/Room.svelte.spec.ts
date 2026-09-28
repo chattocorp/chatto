@@ -215,7 +215,7 @@ vi.mock('$lib/storage/lastRoom', () => ({
   setLastRoom: vi.fn()
 }));
 
-vi.mock('$lib/attachments/dropZone.svelte', () => ({
+vi.mock('$lib/dom/dropZone.svelte', () => ({
   dropZone: vi.fn()
 }));
 
@@ -247,7 +247,7 @@ vi.mock('./RoomSidebarToggle.svelte', async () => {
   return { default: EmptyMock };
 });
 
-vi.mock('$lib/attachments/DropZoneOverlay.svelte', async () => {
+vi.mock('$lib/dom/DropZoneOverlay.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };
 });

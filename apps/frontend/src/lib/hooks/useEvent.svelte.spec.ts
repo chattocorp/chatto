@@ -13,7 +13,7 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/server/eventBus.svelte', () => ({
+vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
   eventBusManager: { getBus: mocks.getBus }
 }));
 

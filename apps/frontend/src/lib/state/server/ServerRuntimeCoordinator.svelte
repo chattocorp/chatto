@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { eventBusManager } from './eventBus.svelte';
+  import { eventBusManager } from './realtimeTransport.svelte';
   import { serverRegistry } from './registry.svelte';
   import { serverConnectionManager } from './serverConnection.svelte';
   import { startServerRecovery } from './serverRecovery';

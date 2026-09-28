@@ -40,7 +40,7 @@ import {
   type RealtimeResourceAPI,
   type RealtimeResourceFamily
 } from '$lib/api-client/realtimeResources';
-import { eventBusManager } from './eventBus.svelte';
+import { eventBusManager } from './realtimeTransport.svelte';
 import { RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { ServerRegistration } from './catalog.svelte';

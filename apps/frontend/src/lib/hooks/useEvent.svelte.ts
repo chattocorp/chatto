@@ -1,5 +1,5 @@
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
-import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+import { eventBusManager } from '$lib/state/server/realtimeTransport.svelte';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 
 type ServerIdSelector = () => string;
