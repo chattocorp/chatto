@@ -1235,9 +1235,11 @@ export class ServerStateStore {
           if (payload.value.threadRootEventId)
             refreshRegisteredFollowedThreadQueries(this.serverId);
         }
-        if (payload.case === 'messageEdited' || payload.case === 'messageRetracted') {
-          refreshRegisteredFollowedThreadQueries(this.serverId);
-        }
+        if (payload.case === 'messageEdited') refreshRegisteredFollowedThreadQueries(this.serverId);
+        // A retraction is a privacy boundary. A refresh keeps the cached feed,
+        // including the retracted text, until its refetch lands; a reset drops it.
+        if (payload.case === 'messageRetracted')
+          resetRegisteredFollowedThreadQueries(this.serverId);
         return;
       }
       case 'assetProcessingStarted':

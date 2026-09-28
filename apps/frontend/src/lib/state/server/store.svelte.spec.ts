@@ -59,6 +59,7 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   MessageEditedEvent,
+  MessageRetractedEvent,
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
@@ -3313,6 +3314,25 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(refresh).not.toHaveBeenCalled();
     expect(refreshThread).not.toHaveBeenCalled();
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops the cached followed-thread feed when a message is retracted', () => {
+    const store = makeStore(new FakeServerConnection([]));
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          event: {
+            case: 'messageRetracted',
+            value: new MessageRetractedEvent({ roomId: 'R1', messageEventId: 'E-REPLY' })
+          }
+        })
+      })
+    );
+
+    // A refresh would keep showing the retracted text until the refetch lands.
+    expect(cacheMocks.resetFollowedThreads).toHaveBeenCalledExactlyOnceWith(store.serverId);
+    expect(cacheMocks.refreshFollowedThreads).not.toHaveBeenCalled();
   });
 
   it('keeps a long thread window when reconciling a successful read', async () => {
