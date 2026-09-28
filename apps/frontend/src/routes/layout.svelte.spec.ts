@@ -3,9 +3,9 @@ import { page } from '$app/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
-import type { PublicServerInfo } from '$lib/api-client/server';
+import type { PublicServerInfo } from '@chatto/client/api/server';
 import { sidebarNav } from '$lib/state/globals.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '@chatto/client/server/registry';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -112,7 +112,7 @@ vi.mock('$lib/state/server/ServerRuntimeCoordinator.svelte', async () => ({
   default: (await import('./chat/ChatRootTestStub.svelte')).default
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   generateServerId: vi.fn(() => 'server-id'),
   serverRegistry: {
     servers: [],
@@ -125,7 +125,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     originClient: mocks.originClient,
     getClient: vi.fn(() => mocks.originClient)

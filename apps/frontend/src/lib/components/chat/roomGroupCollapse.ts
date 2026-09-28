@@ -1,5 +1,5 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { Codecs, StorageSlot } from '$lib/storage/slot';
+import { Codecs, StorageSlot } from '@chatto/client/storage/slot';
 
 /**
  * Reactive cache of collapsed sidebar sections, keyed by their persist key.

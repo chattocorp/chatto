@@ -19,10 +19,10 @@ in the active server store so browser Back can restore the current search.
   } from '$lib/ui';
   import SearchResult from '$lib/components/search/SearchResult.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
-  import type { MessageSearchResult } from '$lib/api-client/messageSearch';
-  import { RoomKind } from '$lib/api-client/roomDirectory';
+  import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
+  import { RoomKind } from '@chatto/client/api/roomDirectory';
   import { serverIdToSegment } from '$lib/navigation';
-  import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+  import { MessageSearchOrder, MessageSearchState } from '@chatto/client/server/messageSearch';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import SearchResults from '$lib/components/search/SearchResults.svelte';

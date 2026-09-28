@@ -28,7 +28,7 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/users', () => ({
+vi.mock('@chatto/client/api/users', () => ({
   createUserAPI: () => ({
     updateUserProfile: (userId: string, input: unknown) => mocks.updateProfile(userId, input),
     uploadAvatar: mocks.uploadAvatar,

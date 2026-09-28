@@ -27,7 +27,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getStore: () => ({
       currentUser: { user: { id: 'test-user' } },
@@ -38,7 +38,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  const { serverRegistry } = await import('@chatto/client/server/registry');
   return {
     useServerScope: () => ({
       serverId: 'server-1',

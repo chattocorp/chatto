@@ -1,15 +1,15 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
+  import { createAdminUserManagementAPI } from '@chatto/client/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
-  import { adminQueryKeys } from '$lib/query/admin';
-  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { registerAdminUserRemovalListener } from '@chatto/client/query/cacheRegistry';
   import { createQuery, queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';

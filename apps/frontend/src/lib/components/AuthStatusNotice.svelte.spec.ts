@@ -16,7 +16,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServerId
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get originServer() {
       return mocks.servers.find((server) => server.id === 'origin');

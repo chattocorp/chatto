@@ -12,7 +12,7 @@
  */
 
 import { PINNED_REACTIONS, QUICK_REACTIONS_COUNT, RECENT_REACTION_FALLBACKS } from '$lib/emoji';
-import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
+import { Codecs, serverSlot, type StorageSlot } from '@chatto/client/storage/slot';
 
 const STORAGE_SUFFIX = 'recentEmojis';
 export const MAX_RECENT_EMOJIS = 16;

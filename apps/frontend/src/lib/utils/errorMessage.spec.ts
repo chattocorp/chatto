@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { StaleResponseError } from '$lib/api-client/connect';
+import { StaleResponseError } from '@chatto/client/api/connect';
 import { toast } from '$lib/ui/toast';
 import { errorMessage, toastError } from './errorMessage';
 

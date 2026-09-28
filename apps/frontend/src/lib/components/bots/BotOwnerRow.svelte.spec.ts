@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
-import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
-import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { getUserStore, resetUserStoresForTests } from '@chatto/client/server/users';
+import { userProfileFixture } from '@chatto/client/testing/userProfile';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 vi.mock(

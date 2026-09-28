@@ -4,8 +4,8 @@ import {
   TimelineEventKind,
   type MessagePostedPayload,
   type TimelineEventView
-} from '$lib/render/timelineEvents';
-import type { UserAvatarUserView } from '$lib/render/users';
+} from '@chatto/client/timeline/timelineEvents';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
 import {
   buildMessageReplyPreview,
   canEditMessage,

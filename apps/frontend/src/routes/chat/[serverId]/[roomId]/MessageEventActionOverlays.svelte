@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import type { ReactionSummaryView } from '$lib/render/reactions';
+  import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
 

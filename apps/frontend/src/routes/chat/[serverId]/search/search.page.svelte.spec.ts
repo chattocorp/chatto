@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
-import type { MessageSearchResult } from '$lib/api-client/messageSearch';
-import { RoomKind } from '$lib/api-client/roomDirectory';
-import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
+import { MessageSearchOrder, MessageSearchState } from '@chatto/client/server/messageSearch';
 import SearchPageTestHarness from './SearchPageTestHarness.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -40,7 +40,7 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (serverId: string) => serverId
 }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: mocks.activeServer }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getStore: (serverId: string) => mocks.serverStores[serverId],
     tryGetStore: (serverId: string) => mocks.serverStores[serverId]

@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { Checkbox } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import type { AdminMemberDetails } from '$lib/api-client/adminUsers';
+  import type { AdminMemberDetails } from '@chatto/client/api/adminUsers';
 
   type Props = {
     details: AdminMemberDetails;

@@ -12,7 +12,7 @@ import {
   defaultSoundId,
   notificationSounds
 } from '$lib/audio/notificationSounds';
-import { Codecs, globalSlot } from '$lib/storage/slot';
+import { Codecs, globalSlot } from '@chatto/client/storage/slot';
 import { Capacitor } from '@capacitor/core';
 import { MediaQuery } from 'svelte/reactivity';
 /** Curated app-wide accents. Keep the first-paint allowlist in app.html in sync. */

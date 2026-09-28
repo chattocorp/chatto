@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
+  import { getAdminSystemInfo } from '@chatto/client/api/adminDiagnostics';
   import { formatBytes, formatNumber } from '$lib/components/admin';
   import {
     DataTable,
@@ -14,7 +14,7 @@
     PageTitle
   } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';

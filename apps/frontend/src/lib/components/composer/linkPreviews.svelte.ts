@@ -1,7 +1,7 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { extractURLs } from '$lib/linkPreview';
 import { parseMessageLink } from '$lib/messageLinks';
-import type { ComposerLinkPreview } from '$lib/api-client/linkPreviews';
+import type { ComposerLinkPreview } from '@chatto/client/api/linkPreviews';
 
 type LinkPreviewAPI = {
   fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null>;

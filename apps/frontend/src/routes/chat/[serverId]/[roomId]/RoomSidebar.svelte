@@ -14,7 +14,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
-  import { accountNameToken, formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken, formatAccountName } from '@chatto/client/timeline/accountName';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -40,7 +40,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     RoomMembersStore,
     RoomPinsStore
   } from '$lib/state/room';
-  import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
+  import type { MessageSearchStore } from '@chatto/client/server/messageSearch';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
   import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';
@@ -48,11 +48,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
   import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import { toast } from '$lib/ui/toast';
   import RemoveRoomUserModal from '$lib/components/moderation/RemoveRoomUserModal.svelte';
-  import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import type { RoomSuspensionChoice } from '@chatto/client/api/rooms';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import RoomSidebarProfile from './RoomSidebarProfile.svelte';

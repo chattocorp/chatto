@@ -6,7 +6,7 @@ fill of their own; they sit directly on the room's work plane.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import type { AccountNameIdentity } from '$lib/render/accountName';
+  import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import { m } from '$lib/i18n/messages';
 
   let {

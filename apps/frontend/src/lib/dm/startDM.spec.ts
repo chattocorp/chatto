@@ -8,7 +8,7 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: { getClient: mocks.getClient }
 }));
 

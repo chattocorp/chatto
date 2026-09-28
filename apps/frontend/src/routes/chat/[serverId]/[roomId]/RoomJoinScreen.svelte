@@ -6,7 +6,7 @@
   import { toast } from '$lib/ui/toast';
   import { PageTitle, LoadingFog } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
+  import type { RoomsListItem } from '@chatto/client/server/rooms';
 
   let {
     room,

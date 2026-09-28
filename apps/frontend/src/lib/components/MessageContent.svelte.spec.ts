@@ -24,7 +24,7 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: mocks.segmentToServerId
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getServer: (serverId: string) =>
       serverId === 'origin'

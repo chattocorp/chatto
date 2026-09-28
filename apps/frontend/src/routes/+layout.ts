@@ -1,9 +1,10 @@
+import '$lib/state/server/voiceCallRegistration';
 import { redirect } from '@sveltejs/kit';
-import { loadCurrentUser } from '$lib/auth/loadAuth';
-import { getPublicServerInfo } from '$lib/api-client/server';
+import { loadCurrentUser } from '@chatto/client/auth/loadAuth';
+import { getPublicServerInfo } from '@chatto/client/api/server';
 import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
-import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
+import { serverRegistry } from '@chatto/client/server/registry';
 import { deleteLegacySavedViews } from '$lib/storage/legacySavedViews';
 import type { LayoutLoad } from './$types';
 

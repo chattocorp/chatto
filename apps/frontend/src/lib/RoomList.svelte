@@ -19,7 +19,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
   } from '$lib/navigation/sidebarLinkTarget';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '@chatto/client/server/registry';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import CreateRoomGroupControl from '$lib/components/chat/CreateRoomGroupControl.svelte';
@@ -33,11 +33,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     contextMenuTrigger,
     type ContextMenuTriggerDetails
   } from '$lib/ui';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
+  import { buildDirectMessagePresentation, type UserAvatarUserView } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { notificationTarget } from '@chatto/client/server/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
@@ -47,16 +47,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListItem,
     type RoomsListGroup,
     type RoomsListGroupItem
-  } from '$lib/state/server/rooms.svelte';
-  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
+  } from '@chatto/client/server/rooms';
+  import type { CallRoomParticipant } from '@chatto/client/server/activeCallRooms';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
-  import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { createAdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
+  import { notificationPath } from '$lib/notificationPath';
   import {
     dragHandle,
     dragHandleZone,
@@ -64,7 +65,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     SHADOW_PLACEHOLDER_ITEM_ID,
     type DndEvent
   } from 'svelte-dnd-action';
-  import type { AdminRoomLayoutItemMutationInput } from '$lib/api-client/adminRoomLayout';
+  import type { AdminRoomLayoutItemMutationInput } from '@chatto/client/api/adminRoomLayout';
 
   let { canReorderGroups = false }: { canReorderGroups?: boolean } = $props();
 
@@ -795,8 +796,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       );
     }
 
-    const path = notificationStore.getCleanPath(activeServerId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath returns a resolved app path.
+    const path = notificationPath(activeServerId, notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
     await goto(path);
   }
 </script>

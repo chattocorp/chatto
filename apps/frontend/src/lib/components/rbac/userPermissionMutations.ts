@@ -3,7 +3,7 @@ import type {
   PermissionAPI,
   PermissionDecisionUpdate,
   PermissionState
-} from '$lib/api-client/permissions';
+} from '@chatto/client/api/permissions';
 
 export type UserPermissionState = PermissionState;
 

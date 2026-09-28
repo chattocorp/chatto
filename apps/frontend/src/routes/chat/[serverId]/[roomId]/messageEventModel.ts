@@ -5,9 +5,9 @@ import {
   isMessagePostedEvent,
   type MessagePostedPayload,
   type TimelineEventView
-} from '$lib/render/timelineEvents';
+} from '@chatto/client/timeline/timelineEvents';
 import type { RoomMember } from '$lib/state/room';
-import type { UserAvatarUserView } from '$lib/render/users';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
 
 /** The user profiles a message row resolves authors against, such as a `UserStore`. */
 export type MessageAuthorProfiles = {

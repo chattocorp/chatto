@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -24,10 +24,10 @@
     type NotificationActor,
     type NotificationGroupItem,
     type NotificationOccurrenceItem
-  } from '$lib/api-client/notifications';
+  } from '@chatto/client/api/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverRegistry } from '@chatto/client/server/registry';
   import { serverIdToSegment } from '$lib/navigation';
   import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';

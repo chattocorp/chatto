@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { CurrentUser } from '$lib/api-client/viewer';
+import type { CurrentUser } from '@chatto/client/api/viewer';
 
 type StoreMock = {
   currentUser: { user?: CurrentUser; loading: boolean };
@@ -35,7 +35,7 @@ vi.mock('$app/state', () => ({
   page: { route: { id: '/login' } }
 }));
 
-vi.mock('./registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     needsRecovery: mocks.needsRecovery,
     recoverServer: async () => {},
@@ -52,11 +52,11 @@ vi.mock('./registry.svelte', () => ({
   }
 }));
 
-vi.mock('./serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: { getClient: mocks.getClient }
 }));
 
-vi.mock('./realtimeTransport.svelte', () => ({
+vi.mock('@chatto/client/server/realtimeTransport', () => ({
   eventBusManager: {
     synchronizeAuthenticatedServers: mocks.synchronizeAuthenticatedServers,
     getBus: (serverId: string) =>

@@ -1,4 +1,4 @@
-import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
+import { isMessagePostedEvent, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type { EditableMessage, RoomPermissions } from '$lib/state/room';
 
 type FindLastEditableMessageOptions = {

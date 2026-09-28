@@ -1,11 +1,11 @@
 <script lang="ts">
   import type { BotOutboundWebhook } from '@chatto/api-types/api/v1/bots_pb';
-  import { createBotAPI } from '$lib/api-client/bots';
+  import { createBotAPI } from '@chatto/client/api/bots';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { createQuery } from '$lib/query/client';
-  import { settingsQueryKeys } from '$lib/query/settings';
+  import { settingsQueryKeys } from '@chatto/client/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';

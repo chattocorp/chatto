@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
+  import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
-  import type { UserAvatarUserView } from '$lib/render/users';
-  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
+  import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
     event,

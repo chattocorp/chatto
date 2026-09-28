@@ -28,7 +28,7 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: () => mocks.serverId
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     tryGetStore: () => (mocks.serverId ? mocks.store : undefined),
     getServer: () =>

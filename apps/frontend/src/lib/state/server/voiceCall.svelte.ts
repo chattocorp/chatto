@@ -29,25 +29,17 @@ import type {
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
-import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import type { VoiceCallAPI } from '@chatto/client/api/voiceCalls';
 import type { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
-/** Resolved room actions. Missing permission data always denies access. */
-export type CallPermissions = {
-  start: boolean;
-  join: boolean;
-  voice: boolean;
-  camera: boolean;
-  screenshare: boolean;
-};
+import {
+  NO_CALL_PERMISSIONS,
+  type CallParticipantTransition,
+  type CallPermissions,
+  type VoiceCallController
+} from '@chatto/client/server/voiceCall';
 
-export const NO_CALL_PERMISSIONS: CallPermissions = {
-  start: false,
-  join: false,
-  voice: false,
-  camera: false,
-  screenshare: false
-};
+export { NO_CALL_PERMISSIONS, type CallPermissions };
 
 export type CallParticipantInfo = {
   identity: string;
@@ -204,7 +196,7 @@ export function getVoiceCallMediaDeviceErrorMessage(
   return m('voice.media_device_failed');
 }
 
-export class VoiceCallState {
+export class VoiceCallState implements VoiceCallController {
   #api: VoiceCallAPI;
 
   // Current call context
@@ -441,6 +433,17 @@ export class VoiceCallState {
   /** Forget which transition events played, for example at a projection reset. */
   forgetTransitionSounds(): void {
     this.playedTransitionSoundEventIds = [];
+  }
+
+  /** Play the transition sound, and leave when the server removed this viewer. */
+  handleParticipantTransition(transition: CallParticipantTransition): void {
+    const { eventId, kind, roomId, callId, actorId, viewerId } = transition;
+    this.playTransitionSound(eventId, kind, roomId, callId, actorId, viewerId);
+    if (kind === 'leave') this.handleParticipantLeftEvent(roomId, callId, actorId, viewerId);
+  }
+
+  handleProjectionReset(): void {
+    this.forgetTransitionSounds();
   }
 
   /**

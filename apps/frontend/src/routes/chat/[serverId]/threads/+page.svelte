@@ -4,7 +4,7 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
-  import { MessageSearchState } from '$lib/api-client/messageSearch';
+  import { MessageSearchState } from '@chatto/client/api/messageSearch';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -26,8 +26,8 @@
     PageTitle
   } from '$lib/ui';
 
-  import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
-  import { createReadStateAPI } from '$lib/api-client/readState';
+  import { createThreadAPI, type FollowedThread } from '@chatto/client/api/threads';
+  import { createReadStateAPI } from '@chatto/client/api/readState';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
   import { createInfiniteQuery, queryClient } from '$lib/query/client';
@@ -37,7 +37,7 @@
     threadQueryKeys,
     updateFollowedThreadSummary,
     type FollowedThreadsData
-  } from '$lib/query/threads';
+  } from '@chatto/client/query/threads';
   import { toast } from '$lib/ui/toast';
   import {
     formatRelativeTime,
@@ -47,10 +47,10 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { buildDirectMessagePresentation } from '$lib/render/users';
+  import { buildDirectMessagePresentation } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
-  import { NotificationAttentionLevel } from '$lib/api-client/notifications';
-  import { notificationAttentionForThread } from '$lib/state/server/notifications.svelte';
+  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
+  import { notificationAttentionForThread } from '@chatto/client/server/notifications';
 
   const serverScope = useServerScope();
   const serverStore = serverScope.store;

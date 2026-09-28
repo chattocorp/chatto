@@ -1,17 +1,17 @@
 import { tick, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import type { TimelineEventView } from '$lib/render/timelineEvents';
+import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type {
   ComposerContext,
   QuoteInsertionContent,
   RoomMember,
   RoomMembersStore
 } from '$lib/state/room';
-import type { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
-import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
-import type { ServerInfoState } from '$lib/state/server/state.svelte';
-import type { createMessageAPI, UpdateMessageInput } from '$lib/api-client/messages';
-import type { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
+import type { MentionRolesStore } from '@chatto/client/server/mentionRoles';
+import type { RoomUnreadStore } from '@chatto/client/server/roomUnread';
+import type { ServerInfoState } from '@chatto/client/server/state';
+import type { createMessageAPI, UpdateMessageInput } from '@chatto/client/api/messages';
+import type { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';
 import { hasVisibleContent } from '$lib/validation';
 import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
 import { prefersTouchActions } from '$lib/utils/inputCapabilities';

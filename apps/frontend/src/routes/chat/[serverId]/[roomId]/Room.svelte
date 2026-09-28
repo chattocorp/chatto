@@ -20,7 +20,7 @@
     type RoomSidebarPresentation
   } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+  import { MessageSearchState } from '@chatto/client/server/messageSearch';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { userPreferences, type ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -42,7 +42,7 @@
   import { RoomNavigationState } from './roomNavigationState.svelte';
   import { buildRoomPresentation } from './roomPresentation';
   import type { ThreadOpenOptions } from './threadOpenOptions';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { recentThreadRootCandidate } from './recentThreadRoot';
 
   let threadPaneModule: Promise<typeof import('./ThreadPane.svelte')> | null = null;

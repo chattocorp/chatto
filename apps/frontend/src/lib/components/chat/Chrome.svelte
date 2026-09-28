@@ -12,8 +12,8 @@
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { MessageSearchState } from '@chatto/client/server/messageSearch';
+  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
   import {

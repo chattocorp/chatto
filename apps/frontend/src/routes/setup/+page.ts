@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
-import { getPublicServerInfo } from '$lib/api-client/server';
-import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
+import { getPublicServerInfo } from '@chatto/client/api/server';
+import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ url }) => {

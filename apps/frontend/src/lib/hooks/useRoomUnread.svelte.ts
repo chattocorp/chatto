@@ -1,4 +1,4 @@
-import { createReadStateAPI, type MarkRoomAsReadResult } from '$lib/api-client/readState';
+import { createReadStateAPI, type MarkRoomAsReadResult } from '@chatto/client/api/readState';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelte';
 

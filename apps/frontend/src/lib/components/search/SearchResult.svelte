@@ -9,7 +9,7 @@ Enter activates the result only when the result itself has focus.
   import type { Snippet } from 'svelte';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import type { MessageSearchResult } from '$lib/api-client/messageSearch';
+  import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { m } from '$lib/i18n/messages';

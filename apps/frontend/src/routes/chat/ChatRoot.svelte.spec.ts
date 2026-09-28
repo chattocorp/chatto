@@ -3,8 +3,8 @@ import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet } from 'svelte';
-import type { CurrentUser } from '$lib/api-client/viewer';
-import { CurrentUserState } from '$lib/auth/currentUser.svelte';
+import type { CurrentUser } from '@chatto/client/api/viewer';
+import { CurrentUserState } from '@chatto/client/auth/currentUser';
 
 const mocks = vi.hoisted(() => {
   const originCurrentUser = {
@@ -68,7 +68,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     originServer: { id: 'origin' },
     get servers() {
@@ -92,7 +92,7 @@ vi.mock('$lib/auth/reauth', () => ({
   beginOriginReauthentication: mocks.beginOriginReauthentication
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: (serverId: string) => ({
       serverId,
@@ -105,7 +105,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
+vi.mock('@chatto/client/server/realtimeTransport', () => ({
   eventBusManager: {
     synchronizeAuthenticatedServers: (registrations: unknown[], activeServerId: string | null) => {
       mocks.lifecycle.push('synchronize');
@@ -134,7 +134,7 @@ vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
 }));
 
-vi.mock('$lib/presenceTracking', () => ({
+vi.mock('@chatto/client/server/presenceTracking', () => ({
   initPresenceTracking: (...args: unknown[]) => {
     mocks.initPresenceTracking(...args);
     return { sync: () => (args[0] as () => unknown[])(), stop: mocks.stopPresenceTracking };
@@ -152,19 +152,19 @@ vi.mock('$lib/auth/returnNavigation', () => ({
   resumeReturnNavigation: mocks.resumeReturnNavigation
 }));
 
-vi.mock('$lib/auth/signOut', () => ({
+vi.mock('@chatto/client/auth/signOut', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut,
   isExplicitSignOutRedirectInProgress: () => false
 }));
 
-vi.mock('$lib/auth/sessionChannel', () => ({
+vi.mock('@chatto/client/auth/sessionChannel', () => ({
   initSessionChannel: (...args: unknown[]) => {
     mocks.initSessionChannel(...args);
     return mocks.stopSessionChannel;
   }
 }));
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
+vi.mock('@chatto/client/api/memberDirectory', () => ({
   mapDirectoryMember: vi.fn()
 }));
 
@@ -183,11 +183,11 @@ vi.mock('$lib/utils/deviceTimezone', () => ({
   }
 }));
 
-vi.mock('$lib/api-client/presence', () => ({
+vi.mock('@chatto/client/api/presence', () => ({
   createPresenceAPI: vi.fn()
 }));
 
-vi.mock('$lib/api-client/viewer', () => ({
+vi.mock('@chatto/client/api/viewer', () => ({
   viewerResponseToState: vi.fn(),
   getCurrentUserViaConnect: vi.fn()
 }));

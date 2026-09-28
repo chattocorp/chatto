@@ -3,7 +3,7 @@
  * the room they were last in when they return to a server.
  */
 
-import { Codecs, serverSlot } from './slot';
+import { Codecs, serverSlot } from '@chatto/client/storage/slot';
 
 const SUFFIX = 'lastRoom';
 

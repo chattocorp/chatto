@@ -33,7 +33,7 @@ vi.mock('$app/state', () => ({
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get servers() {
       return mocks.servers;

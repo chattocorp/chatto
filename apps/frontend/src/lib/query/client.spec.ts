@@ -9,7 +9,7 @@ import {
   removeRegisteredServerQueries,
   registerQueryCacheRemovalListener,
   registerServerQueryCacheRemovalListener
-} from './cacheRegistry';
+} from '@chatto/client/query/cacheRegistry';
 import { queryClient } from './client';
 import { onlineManager, QueryObserver } from '@tanstack/svelte-query';
 

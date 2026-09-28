@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
-import { NotificationDeliveryMode } from '$lib/api-client/notifications';
+import { NotificationDeliveryMode } from '@chatto/client/api/notifications';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import NotificationPolicyCell from './NotificationPolicyCell.svelte';

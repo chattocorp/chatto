@@ -50,7 +50,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   sendTestNotification: mocks.pushNotifications.sendTestNotification
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     isOriginServer: (serverId: string) => serverId === 'origin'
   }

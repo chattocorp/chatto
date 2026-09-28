@@ -13,7 +13,7 @@ import {
   defaultSoundId,
   notificationSounds
 } from '$lib/audio/notificationSounds';
-import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
+import { Codecs, serverSlot, type StorageSlot } from '@chatto/client/storage/slot';
 import { getLegacyNotificationSoundPreferences } from '$lib/state/userPreferences.svelte';
 import { SvelteMap } from 'svelte/reactivity';
 

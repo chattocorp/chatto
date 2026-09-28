@@ -5,7 +5,7 @@ Profile section of a member: the member summary and, for the member and
 account managers, the avatar.
 -->
 <script lang="ts">
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createUserAPI } from '@chatto/client/api/users';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import MemberOverviewPanel from '../MemberOverviewPanel.svelte';
   import { useMemberDetail } from '../memberDetailContext';

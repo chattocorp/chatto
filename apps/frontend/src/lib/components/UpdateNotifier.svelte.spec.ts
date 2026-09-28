@@ -21,7 +21,7 @@ vi.mock('$lib/i18n/messages', () => ({
   m: (key: string) => key
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     originClient: {
       forceReconnect: mocks.forceReconnect

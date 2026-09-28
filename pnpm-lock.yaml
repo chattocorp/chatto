@@ -68,6 +68,9 @@ importers:
       '@chatto/api-types':
         specifier: workspace:*
         version: link:../../packages/api-types
+      '@chatto/client':
+        specifier: workspace:*
+        version: link:../../packages/chatto-client
       '@chatto/lingua':
         specifier: workspace:*
         version: link:../../packages/lingua

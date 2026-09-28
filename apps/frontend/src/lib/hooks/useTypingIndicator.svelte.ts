@@ -1,7 +1,7 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { useServerScope } from '$lib/state/server/scope.svelte';
-import { createRoomCommandAPI } from '$lib/api-client/rooms';
-import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import { createRoomCommandAPI } from '@chatto/client/api/rooms';
+import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { useTypingEvent, type TypingEventData } from './useEvent.svelte';
 
 /** How long to display typing indicator after receiving an event (ms) */

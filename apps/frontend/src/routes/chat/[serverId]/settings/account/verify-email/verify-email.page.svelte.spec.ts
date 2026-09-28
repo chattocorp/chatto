@@ -5,9 +5,9 @@ import {
   readPendingEmailVerification,
   storePendingEmailVerification
 } from '$lib/verifiedEmailChallenge';
-import { adminQueryKeys } from '$lib/query/admin';
+import { adminQueryKeys } from '@chatto/client/query/admin';
 import { queryClient } from '$lib/query/client';
-import { settingsQueryKeys } from '$lib/query/settings';
+import { settingsQueryKeys } from '@chatto/client/query/settings';
 import VerifyEmailPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({

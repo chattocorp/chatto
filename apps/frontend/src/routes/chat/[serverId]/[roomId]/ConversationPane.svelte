@@ -33,7 +33,7 @@ thread IDs can change while the pane stays mounted.
 <script lang="ts">
   import { tick, untrack, type Snippet } from 'svelte';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
-  import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
+  import { createReadStateAPI, type MarkThreadAsReadResult } from '@chatto/client/api/readState';
   import { dropZone } from '$lib/dom/dropZone.svelte';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
   import MessageComposer, {
@@ -46,7 +46,7 @@ thread IDs can change while the pane stays mounted.
     useUnreadMarker
   } from '$lib/hooks';
   import { m } from '$lib/i18n/messages';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { appState } from '$lib/state/globals.svelte';
   import { createComposerContext, getRoomMembers, type MessagesStore } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -56,7 +56,7 @@ thread IDs can change while the pane stays mounted.
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { threadParticipantIds } from './threadParticipants';
-  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
 
   let {
     roomId,

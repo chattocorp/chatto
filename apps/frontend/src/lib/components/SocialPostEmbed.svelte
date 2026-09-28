@@ -6,7 +6,7 @@ preview-card styling. Its parent owns shared link-preview actions.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
+  import type { SocialPostPreviewView } from '@chatto/client/timeline/linkPreviews';
 
   let {
     url,

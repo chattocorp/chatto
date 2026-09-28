@@ -1,7 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Toast from './Toast.svelte';
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
 
   const componentDescription = `
     Transient toast notifications use the same compact menu shell as context menus and popups,

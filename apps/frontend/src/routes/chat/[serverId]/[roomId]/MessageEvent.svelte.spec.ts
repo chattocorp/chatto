@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 import { q } from '$lib/test-utils';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 
 const mocks = vi.hoisted(() => ({

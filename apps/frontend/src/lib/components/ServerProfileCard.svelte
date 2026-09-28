@@ -5,7 +5,7 @@ One public Chatto server profile. Server-supplied content stays inside the
 card. Callers supply trusted badges and actions through explicit props.
 -->
 <script lang="ts" module>
-  import type { PublicServerInfo } from '$lib/api-client/server';
+  import type { PublicServerInfo } from '@chatto/client/api/server';
 
   /** Public profile fields that the card renders. */
   export type ServerProfileCardProfile = Pick<

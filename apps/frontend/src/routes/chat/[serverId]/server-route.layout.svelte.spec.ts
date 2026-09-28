@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page, userEvent } from 'vitest/browser';
 import { testSnippet } from '$lib/test-utils';
-import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
+import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 
 type RegisteredState = {
   reauthRequiredAt: number | null;
@@ -66,7 +66,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     originProbed: true,
     originServer: { id: 'origin' },
@@ -77,7 +77,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: () => ({
       queryScope: 'layout-test',

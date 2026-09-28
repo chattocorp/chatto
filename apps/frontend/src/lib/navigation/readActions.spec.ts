@@ -14,16 +14,16 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/api-client/readState', () => ({
+vi.mock('@chatto/client/api/readState', () => ({
   createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
 }));
 
-vi.mock('$lib/api-client/roomDirectory', () => ({
+vi.mock('@chatto/client/api/roomDirectory', () => ({
   RoomDirectoryScope: { ALL: 1 },
   createRoomDirectoryAPI: () => ({ listRooms: mocks.listRooms })
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getStore: () => ({
       roomUnread: {
@@ -37,7 +37,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: () => ({
       serverId: 'remote',

@@ -1,6 +1,6 @@
 import { CallPreferencesState } from './callPreferences.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import type { VoiceCallAPI } from '@chatto/client/api/voiceCalls';
 
 const { gameCaptureMocks, soundMocks, toastMocks } = vi.hoisted(() => ({
   gameCaptureMocks: {

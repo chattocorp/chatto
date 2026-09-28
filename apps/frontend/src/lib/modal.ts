@@ -1,5 +1,5 @@
-import type { MessageAttachmentView } from '$lib/render/messageAttachments';
-import type { ExpiringAssetUrl } from '$lib/attachments/attachmentUrls';
+import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+import type { ExpiringAssetUrl } from '@chatto/client/attachments/attachmentUrls';
 
 type RoomModalTarget = {
   serverId: string;

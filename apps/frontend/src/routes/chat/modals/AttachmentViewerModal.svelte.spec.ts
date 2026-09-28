@@ -2,9 +2,9 @@ import '../../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
-import { VideoProcessingStatus } from '$lib/render/messageAttachments';
+import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
 import type { AttachmentViewerModalState } from '$lib/modal';
-import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
+import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachmentUrls';
 
 const mocks = vi.hoisted(() => ({
   refreshUrls: vi.fn(),
@@ -12,10 +12,10 @@ const mocks = vi.hoisted(() => ({
   page: { state: {} as { modal?: AttachmentViewerModalState } }
 }));
 vi.mock('$app/state', () => ({ page: mocks.page }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: { getServer: () => ({ url: 'https://remote.example' }) }
 }));
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: () => ({
       queryScope: 'test-session',
@@ -23,8 +23,8 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
     })
   }
 }));
-vi.mock('$lib/attachments/attachmentUrls', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/attachments/attachmentUrls')>()),
+vi.mock('@chatto/client/attachments/attachmentUrls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client/attachments/attachmentUrls')>()),
   refreshAttachmentUrlsForAssets: mocks.refreshUrls
 }));
 

@@ -1,24 +1,24 @@
 <script lang="ts">
   import { onDestroy, untrack, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
-  import { createPresenceAPI } from '$lib/api-client/presence';
-  import { createAccountAPI } from '$lib/api-client/account';
+  import { createPresenceAPI } from '@chatto/client/api/presence';
+  import { createAccountAPI } from '@chatto/client/api/account';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
-  import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
-  import { initSessionChannel } from '$lib/auth/sessionChannel';
+  import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '@chatto/client/auth/signOut';
+  import { initSessionChannel } from '@chatto/client/auth/sessionChannel';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import { eventBusManager } from '$lib/state/server/realtimeTransport.svelte';
-  import { initPresenceTracking } from '$lib/presenceTracking';
+  import { eventBusManager } from '@chatto/client/server/realtimeTransport';
+  import { initPresenceTracking } from '@chatto/client/server/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import { idleState } from '$lib/state/idle.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
+  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { scheduleCustomStatusExpiry } from '@chatto/client/util/customStatusExpiry';
 
   let {
     children

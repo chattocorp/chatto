@@ -1,4 +1,4 @@
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '@chatto/client/server/registry';
 
 /** URL segment used for the home (origin) server. */
 const HOME_SEGMENT = '-';

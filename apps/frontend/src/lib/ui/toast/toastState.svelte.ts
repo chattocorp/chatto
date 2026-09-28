@@ -7,7 +7,7 @@
  *   toast.success("Message sent");
  *   toast.info("New version available", 0, { label: "Reload", onClick: () => location.reload() });
  */
-import type { AccountNameIdentity } from '$lib/render/accountName';
+import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
 
 export type ToastTone = 'error' | 'success' | 'info' | 'warning';
 

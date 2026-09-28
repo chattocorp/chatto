@@ -1,9 +1,9 @@
 import {
   registerQueryCacheRemovalListener,
   registerServerQueryCacheRemovalListener
-} from '$lib/query/cacheRegistry';
+} from '@chatto/client/query/cacheRegistry';
 import type { ServerScope } from './scope.svelte';
-import type { ServerConnection } from './serverConnection.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 
 /** The session in which a mutation started. */
 export type SessionSnapshot = {

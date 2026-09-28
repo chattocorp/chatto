@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';

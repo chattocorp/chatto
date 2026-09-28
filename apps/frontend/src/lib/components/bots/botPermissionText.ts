@@ -1,5 +1,5 @@
-import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
-import type { MatrixData, MatrixScope } from '$lib/api-client/permissions';
+import type { EffectivePermission } from '@chatto/client/api/effectivePermissions';
+import type { MatrixData, MatrixScope } from '@chatto/client/api/permissions';
 import { m } from '$lib/i18n/messages';
 import {
   getIncludingPermissions,

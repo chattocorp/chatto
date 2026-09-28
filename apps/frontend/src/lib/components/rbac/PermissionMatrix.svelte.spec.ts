@@ -4,9 +4,9 @@ import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
-import { adminQueryKeys } from '$lib/query/admin';
+import { adminQueryKeys } from '@chatto/client/query/admin';
 import { queryClient } from '$lib/query/client';
-import { refreshRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { refreshRegisteredServerQueries } from '@chatto/client/query/cacheRegistry';
 
 type TierRoles = {
   applicablePermissions: string[];
@@ -66,7 +66,7 @@ const permissionMocks = vi.hoisted(() => ({
   setRolePermission: vi.fn()
 }));
 
-vi.mock('$lib/api-client/permissions', () => ({
+vi.mock('@chatto/client/api/permissions', () => ({
   createPermissionAPI: vi.fn(() => ({
     getRolePermissionTierMatrix: permissionMocks.getRolePermissionTierMatrix,
     setRolePermission: permissionMocks.setRolePermission

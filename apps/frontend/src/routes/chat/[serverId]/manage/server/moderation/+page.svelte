@@ -5,7 +5,7 @@
     createRoomCommandAPI,
     type RoomSuspensionSummary,
     type RoomCommandAPI
-  } from '$lib/api-client/rooms';
+  } from '@chatto/client/api/rooms';
   import { Panel, DataTable, Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -15,7 +15,7 @@
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 

@@ -7,9 +7,9 @@
 <script lang="ts" module>
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { TimelineEventKind } from '$lib/render/timelineEvents';
-  import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
-  import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
+  import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+  import { createRoomTimelineAPI, type RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
+  import type { PendingHighlightStore } from '@chatto/client/server/pendingHighlight';
 
   /**
    * Fetch a message by ID and redirect to the appropriate room or thread URL.

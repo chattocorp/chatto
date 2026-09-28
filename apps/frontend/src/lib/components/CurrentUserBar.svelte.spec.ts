@@ -8,10 +8,10 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 
-import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
-import { ServerPresence } from '$lib/state/server/presence.svelte';
-import { setPresenceStatus } from '$lib/presenceTracking';
-import { deleteCustomStatus, setCustomStatus } from '$lib/api-client/userStatus';
+import { presencePreferences } from '@chatto/client/server/presencePreference';
+import { ServerPresence } from '@chatto/client/server/presence';
+import { setPresenceStatus } from '@chatto/client/server/presenceTracking';
+import { deleteCustomStatus, setCustomStatus } from '@chatto/client/api/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -20,13 +20,13 @@ import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 let presencePreference: ReturnType<typeof presencePreferences.get>;
 let presence: ServerPresence;
 
-vi.mock('$lib/api-client/userStatus', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/api-client/userStatus')>()),
+vi.mock('@chatto/client/api/userStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client/api/userStatus')>()),
   deleteCustomStatus: vi.fn(async () => null),
   setCustomStatus: vi.fn(async (_config, status) => ({ ...status }))
 }));
 
-vi.mock('$lib/presenceTracking', () => ({
+vi.mock('@chatto/client/server/presenceTracking', () => ({
   refreshPresencePreference: vi.fn(),
   setPresenceStatus: vi.fn(async (scope, mode) => {
     presencePreferences.get(scope).accept(mode, 'saved');

@@ -3,9 +3,9 @@ import { flushSync } from 'svelte';
 import {
   removeRegisteredAdminQueries,
   removeRegisteredServerQueries
-} from '$lib/query/cacheRegistry';
+} from '@chatto/client/query/cacheRegistry';
 import type { ServerScope } from './scope.svelte';
-import type { ServerConnection } from './serverConnection.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { createSessionGuard, type SessionGuard } from './sessionGuard.svelte';
 
 function makeScope(serverId = 'S1') {

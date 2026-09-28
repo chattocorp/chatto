@@ -1,4 +1,4 @@
-import { Code, ConnectError } from '$lib/api-client/connect';
+import { Code, ConnectError } from '@chatto/client/api/connect';
 import { appState } from '$lib/state/globals.svelte';
 import { onDestroy } from 'svelte';
 

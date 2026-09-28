@@ -1,7 +1,7 @@
 import '../../app.css';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { LinkPreviewView } from '$lib/render/linkPreviews';
+import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
 import LinkPreviewCard from './LinkPreviewCard.svelte';
 
 const navigation = vi.hoisted(() => ({

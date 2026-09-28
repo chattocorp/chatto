@@ -3,14 +3,14 @@
   import MessageMetaBar from './MessageMetaBar.svelte';
   import MessageAttachments from './MessageAttachments.svelte';
   import videoFixture from '../../../../../e2e/fixtures/test-video.mp4?inline';
-  import { VideoProcessingStatus } from '$lib/render/messageAttachments';
+  import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
   import MessageView from '$lib/components/messages/MessageView.svelte';
-  import { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { ServerConnection } from '@chatto/client/server/serverConnection';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerStateStore } from '$lib/state/server/store.svelte';
+  import type { ServerStateStore } from '@chatto/client/server/store';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
-  import type { ReactionSummaryView } from '$lib/render/reactions';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { MessageActionModel } from './messageActionModel';
   type Variant =
     | 'plain'

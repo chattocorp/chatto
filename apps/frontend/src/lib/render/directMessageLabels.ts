@@ -1,5 +1,5 @@
 import { m } from '$lib/i18n/messages';
-import type { DirectMessageLabels } from './users';
+import type { DirectMessageLabels } from '@chatto/client/timeline/users';
 
 /** Returns the localized labels that DM names use for the viewer and deleted accounts. */
 export function directMessageLabels(): DirectMessageLabels {

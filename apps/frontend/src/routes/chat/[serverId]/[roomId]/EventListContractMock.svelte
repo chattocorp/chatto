@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
+  import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore } from '$lib/state/room';
 
   let {

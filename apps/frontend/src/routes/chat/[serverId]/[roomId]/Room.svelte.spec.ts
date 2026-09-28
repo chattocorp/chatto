@@ -1,17 +1,17 @@
-import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { RoomThreadingMode } from '$lib/roomThreading';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import type { RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
-import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+import { MessageSearchState } from '@chatto/client/server/messageSearch';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -173,15 +173,15 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
-  const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
+vi.mock('@chatto/client/api/roomTimeline', async (importActual) => {
+  const actual = await importActual<typeof import('@chatto/client/api/roomTimeline')>();
   return {
     ...actual,
     createRoomTimelineAPI: () => mocks.timeline
   };
 });
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getStore: () => server.scope.store,
     originServer: { id: 'server-1', url: 'https://chat.example.test' },

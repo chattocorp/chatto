@@ -8,7 +8,7 @@ Include this component once at the root layout level.
 -->
 <script lang="ts">
   import { updated } from '$app/state';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
 

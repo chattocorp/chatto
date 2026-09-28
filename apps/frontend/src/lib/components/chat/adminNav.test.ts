@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '$lib/state/server/permissions';
+import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '@chatto/client/server/permissions';
 import { getAdminNavItems } from './adminNav';
 
 function permissions(overrides: Partial<ServerPermissions> = {}): ServerPermissions {

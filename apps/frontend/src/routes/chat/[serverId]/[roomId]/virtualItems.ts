@@ -2,7 +2,7 @@ import {
   TimelineEventKind,
   timelineEventKind,
   type TimelineEventView
-} from '$lib/render/timelineEvents';
+} from '@chatto/client/timeline/timelineEvents';
 import type { EventWithMeta } from './messageGrouping';
 
 export type SystemGroupKind = 'join' | 'leave';

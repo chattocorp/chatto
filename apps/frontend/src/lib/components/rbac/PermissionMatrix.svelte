@@ -31,7 +31,7 @@ focusing a cell highlights its permission row and role column.
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createPermissionAPI } from '$lib/api-client/permissions';
+  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
   import {
     getIncludingPermissions,
@@ -45,10 +45,10 @@ focusing a cell highlights its permission row and role column.
   import PermissionRowLabel from './PermissionRowLabel.svelte';
   import { decisionTitle, decisionWord } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createQuery, queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
-  import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
+  import { registerQueryCacheRemovalListener } from '@chatto/client/query/cacheRegistry';
+  import { invalidateRolePermissionDependents } from '@chatto/client/query/adminInvalidation';
 
   type State = 'allow' | 'deny' | 'neutral';
 

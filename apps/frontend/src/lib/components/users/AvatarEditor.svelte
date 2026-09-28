@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toastError } from '$lib/utils/errorMessage';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
   import { dropZone } from '$lib/dom/dropZone.svelte';

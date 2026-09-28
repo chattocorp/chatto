@@ -8,7 +8,7 @@ Request ownership stays with the caller.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
-  import { MessageSearchState } from '$lib/api-client/messageSearch';
+  import { MessageSearchState } from '@chatto/client/api/messageSearch';
   import { m } from '$lib/i18n/messages';
   import { EmptyState, LoadingFog } from '$lib/ui';
   import { Button } from '$lib/ui/form';

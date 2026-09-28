@@ -23,13 +23,13 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
-  import { deleteCustomStatus } from '$lib/api-client/userStatus';
+  import { deleteCustomStatus } from '@chatto/client/api/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveCustomStatus, getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import type { CustomUserStatus } from '$lib/api-client/userSummary';
-  import { setPresenceStatus } from '$lib/presenceTracking';
-  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
-  import { buildDirectMessagePresentation } from '$lib/render/users';
+  import type { CustomUserStatus } from '@chatto/client/api/userSummary';
+  import { setPresenceStatus } from '@chatto/client/server/presenceTracking';
+  import { presencePreferences } from '@chatto/client/server/presencePreference';
+  import { buildDirectMessagePresentation } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
 
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';

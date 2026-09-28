@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { computeEventMetadata } from './messageGrouping';
 import { buildVirtualItems } from './virtualItems';

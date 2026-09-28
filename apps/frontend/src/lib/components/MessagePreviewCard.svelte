@@ -13,7 +13,7 @@ preview on screen.
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { skipToken } from '@tanstack/svelte-query';
@@ -30,17 +30,17 @@ preview on screen.
     withRefreshedPreviewUrls,
     type MessagePreview,
     type MessagePreviewAttachment
-  } from '$lib/query/messagePreview';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  } from '@chatto/client/query/messagePreview';
+  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { createAttachmentAPI } from '$lib/api-client/attachments';
+  import { createAttachmentAPI } from '@chatto/client/api/attachments';
   import {
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
     refreshAttachmentUrlsForAssets,
     withAssetUrlRetryParam
-  } from '$lib/attachments/attachmentUrls';
+  } from '@chatto/client/attachments/attachmentUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
   import { ScrollFader } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';

@@ -4,7 +4,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { useRoomData } from './useRoomData.svelte';
 
 const { mocks } = vi.hoisted(() => ({

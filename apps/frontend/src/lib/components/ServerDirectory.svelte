@@ -19,7 +19,7 @@ dialog shows it directly on its work plane. See FDR-042.
     InvalidPublicServerError,
     type NeighborhoodServerProfile,
     type PublicServerInfo
-  } from '$lib/api-client/server';
+  } from '@chatto/client/api/server';
   import {
     startRemoteReauthentication,
     startServerOAuthFlow,
@@ -36,8 +36,8 @@ dialog shows it directly on its work plane. See FDR-042.
     type ServerDirectory,
     type ServerDirectoryEntry
   } from '$lib/serverDirectory';
-  import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
-  import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+  import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
+  import { serverRegistry, type RegisteredServer } from '@chatto/client/server/registry';
   import { EmptyState, Hint, LoadingFog, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

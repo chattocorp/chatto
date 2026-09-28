@@ -5,13 +5,13 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
+  import { createRoleAPI, type CreateRoleInput } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
-  import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { invalidatePermissionTiers } from '@chatto/client/query/adminInvalidation';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createMutation, createQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 

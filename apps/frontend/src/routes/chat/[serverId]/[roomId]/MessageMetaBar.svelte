@@ -12,7 +12,7 @@ local to the footer.
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
-  import type { MessagePostedPayload } from '$lib/render/timelineEvents';
+  import type { MessagePostedPayload } from '@chatto/client/timeline/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { UnreadDot, FloatingPopover, ConfirmDialog } from '$lib/ui';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';

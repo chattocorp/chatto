@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { createBotAPI } from '$lib/api-client/bots';
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createBotAPI } from '@chatto/client/api/bots';
+  import { createUserAPI } from '@chatto/client/api/users';
   import {
     DataTable,
     Panel,
@@ -21,7 +21,7 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { createInfiniteQuery, createQuery, queryClient } from '$lib/query/client';
-  import { settingsQueryKeys } from '$lib/query/settings';
+  import { settingsQueryKeys } from '@chatto/client/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

@@ -1,7 +1,7 @@
 <script module lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import imageAvatar from '$lib/assets/chatto-icon-maskable.png';
   import AccountName from './users/AccountName.svelte';
   import UserAvatar from './UserAvatar.svelte';

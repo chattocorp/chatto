@@ -6,8 +6,8 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
-import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
-import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
+import { RoomDirectoryStore, type DirectoryRoom } from '@chatto/client/server/roomDirectory';
+import type { RoomsListItem } from '@chatto/client/server/rooms';
 
 const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({
   id,

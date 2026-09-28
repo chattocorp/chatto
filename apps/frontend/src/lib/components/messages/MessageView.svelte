@@ -9,7 +9,7 @@ identity, body rendering, and row geometry consistent.
   import AccountName from '$lib/components/users/AccountName.svelte';
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { RoomMember } from '$lib/state/room';
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import UserAvatar from '$lib/components/UserAvatar.svelte';

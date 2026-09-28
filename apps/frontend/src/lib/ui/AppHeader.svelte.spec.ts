@@ -38,7 +38,7 @@ vi.mock('$app/environment', () => ({ version: '0.5.0-dev+f7b4e515c998' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
 }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get servers() {
       return mocks.servers;
@@ -58,7 +58,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
   }
 }));
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     originClient: {
       showConnectionLostIcon: false,

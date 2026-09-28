@@ -1,11 +1,11 @@
-import type { ConnectAPIConfig } from '$lib/api-client/connect';
-import { fakeServer, type FakeServerRoutes } from './fakeServer';
-import type { CurrentUser } from '$lib/api-client/viewer';
-import { CurrentUserState } from '$lib/auth/currentUser.svelte';
-import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '$lib/state/server/permissions';
+import type { ConnectAPIConfig } from '@chatto/client/api/connect';
+import { fakeServer, type FakeServerRoutes } from '@chatto/client/testing/fakeServer';
+import type { CurrentUser } from '@chatto/client/api/viewer';
+import { CurrentUserState } from '@chatto/client/auth/currentUser';
+import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '@chatto/client/server/permissions';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { ServerStateStore } from '$lib/state/server/store.svelte';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import type { ServerStateStore } from '@chatto/client/server/store';
 
 /** Options for {@link createTestServerScope}. Every option has a working default. */
 export type TestServerScopeOptions = {

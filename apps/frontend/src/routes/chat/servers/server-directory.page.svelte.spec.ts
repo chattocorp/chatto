@@ -1,7 +1,7 @@
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { NeighborhoodServerProfile, PublicServerInfo } from '$lib/api-client/server';
+import type { NeighborhoodServerProfile, PublicServerInfo } from '@chatto/client/api/server';
 import type { ServerDirectoryEntry } from '$lib/serverDirectory';
 
 const mocks = vi.hoisted(() => ({
@@ -45,8 +45,8 @@ vi.mock('$lib/navigation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/navigation')>();
   return { ...actual, serverIdToSegment: (serverId: string) => serverId };
 });
-vi.mock('$lib/api-client/server', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/server')>();
+vi.mock('@chatto/client/api/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/server')>();
   return { ...actual, getPublicServerInfo: mocks.getPublicServerInfo };
 });
 vi.mock('$lib/serverDirectory', async (importOriginal) => {
@@ -58,7 +58,7 @@ vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlowWhenReady: mocks.startServerOAuthFlowWhenReady,
   startRemoteReauthentication: mocks.startRemoteReauthentication
 }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get servers() {
       return mocks.servers;

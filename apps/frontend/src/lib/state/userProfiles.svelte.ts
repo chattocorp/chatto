@@ -1,10 +1,10 @@
 import { createContext } from 'svelte';
-import type { UserStore } from './server/users.svelte';
+import type { UserStore } from '@chatto/client/server/users';
 import {
   mapUserSummary,
   mapUserPresenceView,
   type CustomUserStatus
-} from '$lib/api-client/userSummary';
+} from '@chatto/client/api/userSummary';
 
 type ProfileView = {
   displayName?: string;

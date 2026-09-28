@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
+  import { createAdminEventLogAPI } from '@chatto/client/api/adminEventLog';
   import { Panel, Hint, PaneContent, Pill, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { JsonCode } from '$lib/ui/code';
   import {
@@ -12,7 +12,7 @@
     timeFormatSettingsFor
   } from '$lib/utils/formatTime';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createQuery } from '$lib/query/client';
 
   const serverScope = useServerScope();

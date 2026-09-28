@@ -1,7 +1,7 @@
-import type { DirectoryMember } from '$lib/api-client/memberDirectory';
-import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory';
-import { RoomThreadingMode } from '$lib/roomThreading';
-import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
+import type { DirectoryMember } from '@chatto/client/api/memberDirectory';
+import { mapDirectoryRoomDetails, RoomKind } from '@chatto/client/api/roomDirectory';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+import { roomKindOrChannel } from '@chatto/client/api/enumDefaults';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 
 export type RoomData = {

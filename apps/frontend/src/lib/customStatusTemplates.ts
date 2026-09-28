@@ -1,4 +1,4 @@
-import type { CustomUserStatus } from '$lib/api-client/userSummary';
+import type { CustomUserStatus } from '@chatto/client/api/userSummary';
 import { m } from '$lib/i18n/messages';
 
 export const CUSTOM_STATUS_TEMPLATE_PREFIX = 'chatto:status:';

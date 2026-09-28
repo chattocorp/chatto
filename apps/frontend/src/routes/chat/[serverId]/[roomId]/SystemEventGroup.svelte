@@ -1,7 +1,7 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { SystemGroupKind } from './virtualItems';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';

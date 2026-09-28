@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { NotificationDeliveryMode } from '$lib/api-client/notifications';
+import { NotificationDeliveryMode } from '@chatto/client/api/notifications';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {

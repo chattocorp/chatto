@@ -8,8 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 
-import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
-import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
+import type { RoomsListItem } from '@chatto/client/server/rooms';
+import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -65,7 +65,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getStore: () => ({
       realtimeSync: mocks.realtimeSync,
@@ -103,7 +103,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  const { serverRegistry } = await import('@chatto/client/server/registry');
   return {
     useServerScope: () => ({
       serverId: 'origin',

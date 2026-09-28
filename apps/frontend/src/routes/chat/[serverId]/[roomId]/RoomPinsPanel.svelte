@@ -5,17 +5,17 @@ Channel pinned messages rendered through the room timeline's canonical
 message presentation. Each message row itself opens the original message.
 -->
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import { getRoomMembers, type RoomMember, type RoomPinsStore } from '$lib/state/room';
-  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
-  import type { UserSummary } from '$lib/api-client/users';
+  import { mapOptionalUserSummary } from '@chatto/client/api/userSummary';
+  import type { UserSummary } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { EmptyState, LoadingFog, ScrollFader } from '$lib/ui';

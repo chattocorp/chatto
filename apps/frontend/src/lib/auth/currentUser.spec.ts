@@ -1,7 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CurrentUserState, type CurrentUser } from './currentUser.svelte';
-vi.mock('./originViewer', () => ({ getOriginViewer: vi.fn() }));
+import { CurrentUserState, type CurrentUser } from '@chatto/client/auth/currentUser';
+vi.mock('@chatto/client/auth/originViewer', () => ({ getOriginViewer: vi.fn() }));
 
 /**
  * CurrentUserState class structure tests.

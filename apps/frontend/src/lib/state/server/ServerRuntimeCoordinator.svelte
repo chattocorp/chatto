@@ -2,10 +2,10 @@
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { eventBusManager } from './realtimeTransport.svelte';
-  import { serverRegistry } from './registry.svelte';
-  import { serverConnectionManager } from './serverConnection.svelte';
-  import { startServerRecovery } from './serverRecovery';
+  import { eventBusManager } from '@chatto/client/server/realtimeTransport';
+  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { startServerRecovery } from '@chatto/client/server/serverRecovery';
 
   $effect(() => untrack(() => startServerRecovery(serverRegistry)));
 

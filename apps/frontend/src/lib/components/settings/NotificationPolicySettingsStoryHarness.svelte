@@ -10,7 +10,7 @@
 
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
-  import { RoomKind } from '$lib/api-client/roomDirectory';
+  import { RoomKind } from '@chatto/client/api/roomDirectory';
   import {
     NotificationDeliveryMode,
     notificationPolicyScopeKey,
@@ -21,10 +21,10 @@
     type NotificationPolicyPatch,
     type NotificationPolicyScope,
     type ScopedNotificationPolicy
-  } from '$lib/api-client/notifications';
+  } from '@chatto/client/api/notifications';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import type { ServerStateStore } from '$lib/state/server/store.svelte';
+  import type { ServerConnection } from '@chatto/client/server/serverConnection';
+  import type { ServerStateStore } from '@chatto/client/server/store';
   import NotificationPolicySettings from './NotificationPolicySettings.svelte';
 
   let { loadFailure = false }: { loadFailure?: boolean } = $props();

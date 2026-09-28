@@ -7,10 +7,10 @@ import {
   NotificationAttentionLevel,
   NotificationSignalKind,
   type NotificationOccurrenceItem
-} from '$lib/api-client/notifications';
+} from '@chatto/client/api/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
-import { NotificationStore } from '$lib/state/server/notifications.svelte';
+import { NotificationStore } from '@chatto/client/server/notifications';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -75,7 +75,7 @@ vi.mock('$app/navigation', () => ({
   replaceState: vi.fn()
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     servers: mocks.servers,
     getStore: vi.fn((serverId: string) => mocks.stores.get(serverId)),

@@ -13,11 +13,11 @@ import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { EditState, ReplyState } from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { renderMarkdown } from '$lib/markdown';
-import type { CreateMessageInput } from '$lib/api-client/messages';
-import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
-import { Code, ConnectError } from '$lib/api-client/connect';
+import type { CreateMessageInput } from '@chatto/client/api/messages';
+import { MentionRolesStore } from '@chatto/client/server/mentionRoles';
+import { Code, ConnectError } from '@chatto/client/api/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 async function expectAccentColour(button: HTMLElement) {
@@ -111,20 +111,20 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('$lib/api-client/messages', () => ({
+vi.mock('@chatto/client/api/messages', () => ({
   createMessageAPI: () => ({
     createMessage: createMessageConnectMock,
     updateMessage: updateMessageConnectMock
   })
 }));
 
-vi.mock('$lib/api-client/linkPreviews', () => ({
+vi.mock('@chatto/client/api/linkPreviews', () => ({
   createLinkPreviewAPI: () => ({
     fetchLinkPreview: fetchLinkPreviewConnectMock
   })
 }));
 
-vi.mock('$lib/api-client/roles', () => ({
+vi.mock('@chatto/client/api/roles', () => ({
   createRoleAPI: () => ({
     listRoles: listRolesConnectMock
   })

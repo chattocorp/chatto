@@ -5,10 +5,10 @@
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
+  import { isMessagePostedEvent, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomMembers, getRoomPermissions } from '$lib/state/room';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import RoomEvent from './RoomEvent.svelte';
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
@@ -21,14 +21,14 @@
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/MessagesStore.svelte';
+  import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '@chatto/client/room/messages/MessagesStore';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
   import { visibleTombstoneEvents, visibleUnreadMarkerEventId } from './tombstoneVisibility';
   import { TimelineViewportController } from './TimelineViewportController.svelte';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { appState } from '$lib/state/globals.svelte';
 
   let {

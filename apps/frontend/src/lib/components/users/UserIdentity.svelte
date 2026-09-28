@@ -7,11 +7,11 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
 -->
 <script lang="ts">
   import AccountName from './AccountName.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { ViewerTimeSettings } from '$lib/utils/formatTime';
   import UserMenu, { type UserContextMenuLoader } from './UserMenu.svelte';
   import { UserMenuState } from './UserMenuState.svelte';

@@ -62,11 +62,11 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/api-client/pushNotifications', () => ({
+vi.mock('@chatto/client/api/pushNotifications', () => ({
   createPushNotificationAPI: mocks.createPushNotificationAPI
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: (serverId: string) => ({
       connectBaseUrl: `https://${serverId}.test/api/connect`,
@@ -80,7 +80,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     servers: [{ id: 'origin' }, { id: 'remote' }],
     isOriginServer: (serverId: string) => serverId === 'origin',

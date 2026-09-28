@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createUserAPI } from '$lib/api-client/users';
+  import { createUserAPI } from '@chatto/client/api/users';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
 
   // The server route keys its subtree by server, so the current-user store is

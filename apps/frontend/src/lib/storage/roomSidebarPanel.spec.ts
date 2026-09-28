@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { serverStorageKey } from './serverStorage';
+import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 import {
   getRoomSidebarPanelState,
   roomSidebarPanelStorageSuffix,

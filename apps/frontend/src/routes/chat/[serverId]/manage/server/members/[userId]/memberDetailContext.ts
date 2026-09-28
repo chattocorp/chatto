@@ -3,8 +3,8 @@ import type {
   AdminMember,
   AdminMemberDetails,
   AdminUserManagementAPI
-} from '$lib/api-client/adminUsers';
-import type { adminQueryKeys } from '$lib/query/admin';
+} from '@chatto/client/api/adminUsers';
+import type { adminQueryKeys } from '@chatto/client/query/admin';
 import type { SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
 
 /** The session, member, and API that one member mutation targets. */

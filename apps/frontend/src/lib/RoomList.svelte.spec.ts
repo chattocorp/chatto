@@ -1,5 +1,5 @@
-import { ServerProjectionStore } from '$lib/state/server/projection.svelte';
-import { NavigationStore } from '$lib/state/server/rooms.svelte';
+import { ServerProjectionStore } from '@chatto/client/server/projection';
+import { NavigationStore } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
@@ -9,17 +9,18 @@ import { userEvent } from 'vitest/browser';
 import { SvelteMap } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import { deletedDirectMessageParticipant } from '$lib/render/users';
+import { deletedDirectMessageParticipant } from '@chatto/client/timeline/users';
 import { sidebarNav } from '$lib/state/globals.svelte';
 import '../app.css';
 
-import { NotificationSignalKind } from '$lib/api-client/notifications';
-import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
+import { NotificationSignalKind } from '@chatto/client/api/notifications';
+import type { RoomsListGroup } from '@chatto/client/server/rooms';
 import { getToasts, toast } from '$lib/ui/toast';
 import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
+    notificationPath: vi.fn().mockReturnValue('/chat/-/room'),
     activeRoomId: undefined as string | undefined,
     activeCallRoomIds: new Set<string>(),
     projectedCallParticipants: new Map<string, unknown[]>(),
@@ -65,7 +66,6 @@ const { mocks } = vi.hoisted(() => ({
           notification: null
         }),
         markRead: vi.fn(),
-        getCleanPath: vi.fn().mockReturnValue('/chat/-/room')
       },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
@@ -110,6 +110,8 @@ const { mocks } = vi.hoisted(() => ({
 
 const activeRoomRoute = new SvelteMap<string, string>();
 
+vi.mock('$lib/notificationPath', () => ({ notificationPath: mocks.notificationPath }));
+
 vi.mock('$app/state', () => ({
   page: {
     params: {
@@ -152,7 +154,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     isOriginServer: vi.fn(() => true),
     getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
@@ -319,7 +321,7 @@ beforeEach(() => {
     totalCount: 0,
     notification: null
   });
-  mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
+  mocks.notificationPath.mockReturnValue('/chat/-/room');
   mocks.store.roomDirectory.joinRoom.mockResolvedValue({ ok: true });
   mocks.markNavigationRoomAsRead.mockResolvedValue(true);
 });
@@ -2202,7 +2204,7 @@ describe('RoomList', () => {
       totalCount: 1,
       notification: roomNotification
     });
-    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/channel-1/thread-1');
+    mocks.notificationPath.mockReturnValue('/chat/-/channel-1/thread-1');
     mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
@@ -2226,7 +2228,7 @@ describe('RoomList', () => {
         mocks.goto.mock.invocationCallOrder[0]
       );
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
-      expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
+      expect(mocks.notificationPath).toHaveBeenCalledWith(
         'origin',
         roomNotification
       );
@@ -2252,7 +2254,7 @@ describe('RoomList', () => {
       totalCount: 1,
       notification: dmNotification
     });
-    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/dm-with-participants');
+    mocks.notificationPath.mockReturnValue('/chat/-/dm-with-participants');
     mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { StaleResponseError } from '$lib/api-client/connect';
+import { StaleResponseError } from '@chatto/client/api/connect';
 import { completeMutation, NavigationVisits } from './mutationCompletion';
 
 describe('mutation completion across resets', () => {

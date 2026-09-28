@@ -11,7 +11,7 @@
     type AdminEventLogPage,
     type AdminEventLogEntry,
     type AdminEventLogFilter
-  } from '$lib/api-client/adminEventLog';
+  } from '@chatto/client/api/adminEventLog';
   import { Panel, DataTable, Hint, PaneContent, Pill, PaneHeader, PageTitle } from '$lib/ui';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import { Button, Combobox } from '$lib/ui/form';
@@ -22,7 +22,7 @@
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createInfiniteQuery, createQuery } from '$lib/query/client';
 
   const serverScope = useServerScope();

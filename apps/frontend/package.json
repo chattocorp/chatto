@@ -97,6 +97,7 @@
     "@bufbuild/protobuf": "^1.10.1",
     "@capacitor/core": "8.5.2",
     "@chatto/api-types": "workspace:*",
+    "@chatto/client": "workspace:*",
     "@chatto/lingua": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",

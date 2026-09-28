@@ -1,5 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { listNeighborhoodServers, type NeighborhoodServerProfile } from '$lib/api-client/server';
+import { listNeighborhoodServers, type NeighborhoodServerProfile } from '@chatto/client/api/server';
 
 /** Request limits for public discovery requests from this client. */
 export const SERVER_DIRECTORY_LIMITS = {

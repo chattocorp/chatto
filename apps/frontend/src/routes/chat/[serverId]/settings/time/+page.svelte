@@ -3,7 +3,7 @@
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createAccountAPI, type UpdateSettingsInput } from '$lib/api-client/account';
+  import { createAccountAPI, type UpdateSettingsInput } from '@chatto/client/api/account';
   import { Panel, PageTitle, ChoiceRow, FormSection, Hint, PaneContent, PaneHeader } from '$lib/ui';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
   import { Button, Checkbox, Combobox, FormError } from '$lib/ui/form';

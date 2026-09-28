@@ -6,20 +6,20 @@ media. HTML consent is never stored in history or carried to another selection.
   import { onMount, onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/state';
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '$lib/query/keys';
+  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
   import type { AttachmentViewerModalState } from '$lib/modal';
-  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
-  import { isHtmlAttachment } from '$lib/render/messageAttachments';
-  import { createAttachmentAPI } from '$lib/api-client/attachments';
+  import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+  import { isHtmlAttachment } from '@chatto/client/timeline/messageAttachments';
+  import { createAttachmentAPI } from '@chatto/client/api/attachments';
   import {
     assetUrlNeedsRefresh,
     LIGHTBOX_ATTACHMENT_IMAGE_REFRESH,
     withAssetUrlRetryParam,
     refreshAttachmentUrlsForAssets
-  } from '$lib/attachments/attachmentUrls';
-  import { assetUrlForServer } from '$lib/assets/assetUrls';
+  } from '@chatto/client/attachments/attachmentUrls';
+  import { assetUrlForServer } from '@chatto/client/util/assetUrls';
   import { attachmentDownloadUrl } from '$lib/attachments/attachmentDownloadUrl';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
   import { m } from '$lib/i18n/messages';
   import { AttachmentModal, AttachmentPreview } from '$lib/ui/attachments';
 

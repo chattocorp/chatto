@@ -2,8 +2,8 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { notificationTarget } from '$lib/state/server/notifications.svelte';
-  import { NotificationAttentionLevel } from '$lib/api-client/notifications';
+  import { notificationTarget } from '@chatto/client/server/notifications';
+  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { UnreadDot } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 

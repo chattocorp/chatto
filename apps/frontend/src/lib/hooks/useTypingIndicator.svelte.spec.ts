@@ -1,6 +1,6 @@
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserStore } from '$lib/state/server/users.svelte';
+import { UserStore } from '@chatto/client/server/users';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { TYPING_TIMEOUT_MS, createTypingIndicator } from './useTypingIndicator.svelte';
 

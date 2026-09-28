@@ -5,13 +5,13 @@ import { render } from 'vitest-browser-svelte';
 import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
-import { adminQueryKeys } from '$lib/query/admin';
+import { adminQueryKeys } from '@chatto/client/query/admin';
 import {
   refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   refreshRegisteredServerQueries
-} from '$lib/query/cacheRegistry';
+} from '@chatto/client/query/cacheRegistry';
 
 const viewerPermissions = vi.hoisted(() => ({ canAdminManageAccounts: true }));
 
@@ -26,7 +26,7 @@ const permissionMocks = vi.hoisted(() => ({
   batchGetRoomMembers: vi.fn()
 }));
 
-vi.mock('$lib/api-client/permissions', () => ({
+vi.mock('@chatto/client/api/permissions', () => ({
   createPermissionAPI: () => permissionMocks
 }));
 

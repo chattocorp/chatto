@@ -4,7 +4,7 @@ fallbacks and live profile updates. Only the name truncates in narrow layouts.
 -->
 <script lang="ts">
   import type { ClassValue } from 'svelte/elements';
-  import { isBotAccount, type AccountNameIdentity } from '$lib/render/accountName';
+  import { isBotAccount, type AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import BotBadge from './BotBadge.svelte';
 
   let {

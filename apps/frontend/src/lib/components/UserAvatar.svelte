@@ -1,7 +1,7 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { untrack } from 'svelte';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import { m } from '$lib/i18n/messages';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';

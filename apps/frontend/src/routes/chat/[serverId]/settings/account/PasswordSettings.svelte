@@ -1,8 +1,8 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
-  import type { AccountAPI } from '$lib/api-client/account';
-  import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
+  import type { AccountAPI } from '@chatto/client/api/account';
+  import type { CurrentUserState } from '@chatto/client/auth/currentUser';
   import { Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';

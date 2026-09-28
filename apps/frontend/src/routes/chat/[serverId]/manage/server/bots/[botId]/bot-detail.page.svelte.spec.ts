@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { render } from 'vitest-browser-svelte';
-import { RoomKind } from '$lib/api-client/roomDirectory';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
-import { settingsQueryKeys } from '$lib/query/settings';
+import { settingsQueryKeys } from '@chatto/client/query/settings';
 import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 

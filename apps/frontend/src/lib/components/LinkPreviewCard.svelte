@@ -15,7 +15,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 - `eventId` - Message body ID (required when canDelete is true, for confirmation dialog)
 -->
 <script lang="ts">
-  import type { LinkPreviewView } from '$lib/render/linkPreviews';
+  import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
   import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
   import { ContextMenu, MenuItem, MenuSection, LoadingFog } from '$lib/ui';

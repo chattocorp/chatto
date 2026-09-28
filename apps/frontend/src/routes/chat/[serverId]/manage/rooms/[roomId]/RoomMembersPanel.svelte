@@ -1,13 +1,13 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { BOT_ACCOUNT_LABEL, accountNameToken, isBotAccount } from '$lib/render/accountName';
+  import { BOT_ACCOUNT_LABEL, accountNameToken, isBotAccount } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import BotBadge from '$lib/components/users/BotBadge.svelte';
   import { onDestroy } from 'svelte';
-  import type { DirectoryMember } from '$lib/api-client/memberDirectory';
-  import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import type { DirectoryMember } from '@chatto/client/api/memberDirectory';
+  import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { DataTable, LoadingFog, Panel, ConfirmDialog, Hint } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { Button, Combobox } from '$lib/ui/form';
@@ -15,7 +15,7 @@
   import { toast } from '$lib/ui/toast';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
-  import { directoryQueryKeys } from '$lib/query/directory';
+  import { directoryQueryKeys } from '@chatto/client/query/directory';
   import {
     ELIGIBLE_ROOM_MEMBER_LIMIT,
     flattenRoomMembers,
@@ -26,7 +26,7 @@
     purgeRoomMemberQueries,
     ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
     roomMembersQueryPage
-  } from '$lib/query/roomMembers';
+  } from '@chatto/client/query/roomMembers';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';

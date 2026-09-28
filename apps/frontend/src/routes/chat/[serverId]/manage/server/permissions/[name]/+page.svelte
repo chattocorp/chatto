@@ -6,7 +6,7 @@
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
+  import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { UserList } from '$lib/components/admin';
   import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
@@ -16,8 +16,8 @@
   import {
     invalidatePermissionTiers,
     removeDeletedRoleQueries
-  } from '$lib/query/adminInvalidation';
-  import { adminQueryKeys } from '$lib/query/admin';
+  } from '@chatto/client/query/adminInvalidation';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import { m } from '$lib/i18n/messages';

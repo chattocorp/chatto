@@ -2,11 +2,11 @@ import { useServerScope } from '$lib/state/server/scope.svelte';
 import { toast } from '$lib/ui/toast';
 import { pushState } from '$app/navigation';
 import { getComposerContext } from '$lib/state/room/composerContext.svelte';
-import type { MessagesStore } from '$lib/state/room/messages/MessagesStore.svelte';
+import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
-import { createReactionAPI } from '$lib/api-client/reactions';
-import { Code, isConnectCode } from '$lib/api-client/connect';
+import { createReactionAPI } from '@chatto/client/api/reactions';
+import { Code, isConnectCode } from '@chatto/client/api/connect';
 import { m } from '$lib/i18n/messages';
 
 export type MessageActionParams = {

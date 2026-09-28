@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { getPublicServerInfo } = vi.hoisted(() => ({ getPublicServerInfo: vi.fn() }));
-vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo }));
+vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo }));
 import { load } from './+page';
 
 describe('setup route', () => {

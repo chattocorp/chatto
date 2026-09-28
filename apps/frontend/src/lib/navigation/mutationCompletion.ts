@@ -1,4 +1,4 @@
-import { StaleResponseError } from '$lib/api-client/connect';
+import { StaleResponseError } from '@chatto/client/api/connect';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
 
 /** A real navigation ends the visit; rebuilding private UI does not. */

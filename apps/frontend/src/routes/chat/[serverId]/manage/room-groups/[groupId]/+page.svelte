@@ -6,7 +6,7 @@
   import {
     createAdminRoomLayoutAPI,
     type AdminManagedRoomGroup
-  } from '$lib/api-client/adminRoomLayout';
+  } from '@chatto/client/api/adminRoomLayout';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
@@ -15,12 +15,12 @@
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import {
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomGroupQuery
-  } from '$lib/query/adminInvalidation';
+  } from '@chatto/client/query/adminInvalidation';
   import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
   import type { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import { m } from '$lib/i18n/messages';

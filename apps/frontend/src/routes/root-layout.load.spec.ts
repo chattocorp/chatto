@@ -12,8 +12,8 @@ const {
   deleteLegacySavedViews: vi.fn()
 }));
 
-vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo }));
-vi.mock('$lib/auth/loadAuth', () => ({ loadCurrentUser }));
+vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo }));
+vi.mock('@chatto/client/auth/loadAuth', () => ({ loadCurrentUser }));
 vi.mock('$lib/i18n/messages', () => ({ preloadPublicLocaleMessages }));
 vi.mock('$lib/storage/legacySavedViews', () => ({ deleteLegacySavedViews }));
 

@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
+  import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
   import {
     getRoomPermissions,
     getRoomMembers,
@@ -14,7 +14,7 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
 
   const serverScope = useServerScope();
   const stores = serverScope.store;
@@ -37,7 +37,7 @@
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
   import { m } from '$lib/i18n/messages';
   import MessageReplyAttribution from './MessageReplyAttribution.svelte';
   import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
@@ -52,7 +52,7 @@
   } from './messageEventModel';
   import { ThreadFollowState } from './threadFollowState.svelte';
   import { buildMessageActionModel } from './messageActionModel';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
     event,

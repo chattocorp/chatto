@@ -92,7 +92,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
     isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
@@ -118,7 +118,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: (serverId: string) => {
       mocks.getClient(serverId);
@@ -146,11 +146,11 @@ vi.mock('$lib/storage/lastRoom', () => ({
   clearLastRoom: mocks.clearLastRoom
 }));
 
-vi.mock('$lib/auth/sessionChannel', () => ({
+vi.mock('@chatto/client/auth/sessionChannel', () => ({
   notifyLogout: mocks.notifyLogout
 }));
 
-vi.mock('$lib/auth/signOut', () => ({
+vi.mock('@chatto/client/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   signOutServer: mocks.signOutServer,
   signOutServers: mocks.signOutServers,
@@ -173,7 +173,7 @@ vi.mock('$lib/state/clientAccount', () => ({
   }
 }));
 
-vi.mock('$lib/api-client/messages', () => ({
+vi.mock('@chatto/client/api/messages', () => ({
   createMessageAPI: () => ({
     deleteMessage: mocks.deleteMessage,
     deleteAttachment: mocks.deleteAttachment,
@@ -181,7 +181,7 @@ vi.mock('$lib/api-client/messages', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/rooms', () => ({
+vi.mock('@chatto/client/api/rooms', () => ({
   createRoomCommandAPI: () => ({
     leaveRoom: mocks.leaveRoom
   })

@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { saveReturnUrl } from '$lib/auth/returnNavigation';
 import { segmentToServerId } from '$lib/navigation';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '@chatto/client/server/registry';
 import type { LayoutLoad } from './$types';
 
 function redirectToLogin(url: URL): never {

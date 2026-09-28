@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type { RoomPermissions } from '$lib/state/room';
 import { findLastEditableMessage } from './lastEditableMessage';
 

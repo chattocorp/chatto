@@ -1,7 +1,7 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { MessageSearchOrder } from '$lib/api-client/messageSearch';
+import { MessageSearchOrder } from '@chatto/client/api/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -13,7 +13,7 @@ import {
   getUserStore,
   resetUserStoresForTests,
   type UserStore
-} from '$lib/state/server/users.svelte';
+} from '@chatto/client/server/users';
 
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
@@ -109,7 +109,7 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get servers() {
       return mocks.servers;
@@ -118,7 +118,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+vi.mock('@chatto/client/server/serverConnection', () => ({
   serverConnectionManager: {
     getClient: () => ({
       connectBaseUrl: 'https://chat.example.test/api/connect',
@@ -151,14 +151,14 @@ vi.mock('$lib/ui/toast', () => ({
   }
 }));
 
-vi.mock('$lib/api-client/rooms', () => ({
+vi.mock('@chatto/client/api/rooms', () => ({
   createRoomCommandAPI: vi.fn(() => ({
     startDM: mocks.startDM
   }))
 }));
 
-vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/memberDirectory')>();
+vi.mock('@chatto/client/api/memberDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/memberDirectory')>();
   return {
     ...actual,
     createMemberDirectoryAPI: vi.fn(() => ({
@@ -168,8 +168,8 @@ vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => {
   };
 });
 
-vi.mock('$lib/api-client/messageSearch', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/messageSearch')>();
+vi.mock('@chatto/client/api/messageSearch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/messageSearch')>();
   return {
     ...actual,
     createMessageSearchAPI: vi.fn(() => ({
@@ -178,8 +178,8 @@ vi.mock('$lib/api-client/messageSearch', async (importOriginal) => {
   };
 });
 
-vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
+vi.mock('@chatto/client/api/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/client/api/roomDirectory')>();
   return {
     ...actual,
     createRoomDirectoryAPI: vi.fn(() => ({

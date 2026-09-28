@@ -6,8 +6,8 @@ keys. Only the owner and bot managers can open it.
 -->
 <script lang="ts">
   import { toastError } from '$lib/utils/errorMessage';
-  import { createBotAPI, type Bot } from '$lib/api-client/bots';
-  import { RoomKind } from '$lib/api-client/roomDirectory';
+  import { createBotAPI, type Bot } from '@chatto/client/api/bots';
+  import { RoomKind } from '@chatto/client/api/roomDirectory';
   import BotCredentialSection, {
     type BotCredentialSectionItem
   } from '$lib/components/bots/BotCredentialSection.svelte';

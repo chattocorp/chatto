@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
-import type { ProjectionHandler } from '$lib/eventBus.svelte';
+import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
 import { NotificationOccurrencesChangedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationAttentionLevel } from '$lib/api-client/notifications';
+import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 
 const { mocks } = vi.hoisted(() => {
   const createBus = () => {
@@ -98,7 +98,7 @@ const { mocks } = vi.hoisted(() => {
   };
 });
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get servers() {
       return mocks.servers;
@@ -107,7 +107,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/realtimeTransport.svelte', () => ({
+vi.mock('@chatto/client/server/realtimeTransport', () => ({
   eventBusManager: {
     getBus: vi.fn((serverId: 'origin' | 'remote') => mocks.buses[serverId])
   }
@@ -125,7 +125,7 @@ vi.mock('$lib/audio/notificationSounds', () => ({
 // Push cleanup has separate coverage; these tests exercise in-app sound and badges.
 vi.mock('./PushNotificationSync.svelte', () => ({ default: () => {} }));
 
-vi.mock('$lib/state/server/presencePreference.svelte', () => ({
+vi.mock('@chatto/client/server/presencePreference', () => ({
   presencePreferences: {
     get: ({ serverId }: { serverId: string }) =>
       serverId === 'remote' ? mocks.remotePresencePreference : mocks.presencePreference

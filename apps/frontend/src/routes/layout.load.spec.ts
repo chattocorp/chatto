@@ -16,19 +16,19 @@ vi.mock('$lib/i18n/messages', () => ({
   preloadPublicLocaleMessages: mocks.preloadPublicLocaleMessages
 }));
 
-vi.mock('$lib/api-client/server', () => ({
+vi.mock('@chatto/client/api/server', () => ({
   getPublicServerInfo: mocks.getPublicServerInfo
 }));
 
-vi.mock('$lib/auth/loadAuth', () => ({
+vi.mock('@chatto/client/auth/loadAuth', () => ({
   loadCurrentUser: mocks.loadCurrentUser
 }));
 
-vi.mock('$lib/runtimeOrigin', () => ({
+vi.mock('@chatto/client/util/runtimeOrigin', () => ({
   isBackendCapableOrigin: mocks.isBackendCapableOrigin
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     init: mocks.init,
     probeOrigin: mocks.probeOrigin,

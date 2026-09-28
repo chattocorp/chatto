@@ -1,5 +1,5 @@
 import { createContext } from 'svelte';
-import type { Bot } from '$lib/api-client/bots';
+import type { Bot } from '@chatto/client/api/bots';
 
 /**
  * The bot that the bot detail layout loads, shared with its section pages.

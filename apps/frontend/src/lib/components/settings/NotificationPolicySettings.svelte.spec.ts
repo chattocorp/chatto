@@ -4,11 +4,11 @@ import { page } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { queryClient } from '$lib/query/client';
-import { settingsQueryKeys } from '$lib/query/settings';
+import { settingsQueryKeys } from '@chatto/client/query/settings';
 import {
   refreshRegisteredServerQueries,
   removeRegisteredServerQueries
-} from '$lib/query/cacheRegistry';
+} from '@chatto/client/query/cacheRegistry';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
@@ -16,7 +16,7 @@ import {
   notificationPolicyScopeKey,
   type NotificationPolicyScope,
   type ScopedNotificationPolicy
-} from '$lib/api-client/notifications';
+} from '@chatto/client/api/notifications';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 vi.mock(

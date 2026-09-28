@@ -4,7 +4,7 @@ import { flushSync, tick } from 'svelte';
 import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 import { PINNED_REACTIONS } from '$lib/emoji';
 import { __resetRecentEmojisForTests, getRecentEmojis } from '$lib/state/recentEmojis.svelte';
-import { serverStorageKey } from '$lib/storage/serverStorage';
+import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 import MessageHoverBar from './MessageHoverBar.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 

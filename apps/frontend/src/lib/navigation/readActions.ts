@@ -1,7 +1,7 @@
-import { createReadStateAPI } from '$lib/api-client/readState';
-import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+import { createReadStateAPI } from '@chatto/client/api/readState';
+import { createRoomDirectoryAPI, RoomDirectoryScope } from '@chatto/client/api/roomDirectory';
+import { serverRegistry } from '@chatto/client/server/registry';
+import { serverConnectionManager } from '@chatto/client/server/serverConnection';
 
 /** Mark one room read while keeping the local unread indicator optimistic and race-safe. */
 export async function markNavigationRoomAsRead(serverId: string, roomId: string): Promise<boolean> {

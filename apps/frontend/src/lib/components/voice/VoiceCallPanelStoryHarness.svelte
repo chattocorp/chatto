@@ -5,9 +5,9 @@
   import type { Track } from 'livekit-client';
   import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
-  import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+  import { serverRegistry, type RegisteredServer } from '@chatto/client/server/registry';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
 
   type VoiceCallPanelProps = {
     roomId: string;

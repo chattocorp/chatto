@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+  import { serverRegistry, type RegisteredServer } from '@chatto/client/server/registry';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { TopOverlayNotice } from '$lib/ui';
   import { toast } from '$lib/ui/toast';

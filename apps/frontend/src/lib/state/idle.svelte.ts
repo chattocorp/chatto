@@ -1,4 +1,4 @@
-import { serverRegistry } from './server/registry.svelte';
+import { serverRegistry } from '@chatto/client/server/registry';
 
 /** Provides cross-server activity state for browser integrations. */
 class IdleState {

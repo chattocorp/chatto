@@ -8,19 +8,19 @@ import { q } from '$lib/test-utils';
 import { resetRoomGroupCollapseForTests } from '$lib/components/chat/roomGroupCollapse';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
-import { ServerPresence } from '$lib/state/server/presence.svelte';
+import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '@chatto/client/room/members';
+import { ServerPresence } from '@chatto/client/server/presence';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
-import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
-import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { getUserStore, resetUserStoresForTests } from '@chatto/client/server/users';
+import { userProfileFixture } from '@chatto/client/testing/userProfile';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
-import { RoomThreadingMode } from '$lib/roomThreading';
-import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+import { RoomKind as SearchRoomKind } from '@chatto/client/api/roomDirectory';
 import {
   MessageSearchOrder,
   MessageSearchState,
   MessageSearchStore
-} from '$lib/state/server/messageSearch.svelte';
+} from '@chatto/client/server/messageSearch';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { PRESENCE_GROUPING_DEBOUNCE_MS } from './RoomSidebar.svelte';
@@ -157,16 +157,16 @@ let server: TestServerScope;
 /** The presence owner of the fixture server store. */
 let presence: ServerPresence;
 
-vi.mock('$lib/api-client/attachments', async (importActual) => ({
-  ...(await importActual<typeof import('$lib/api-client/attachments')>()),
+vi.mock('@chatto/client/api/attachments', async (importActual) => ({
+  ...(await importActual<typeof import('@chatto/client/api/attachments')>()),
   createAttachmentAPI: vi.fn(() => ({
     listRoomAttachments: attachmentMocks.listRoomAttachments,
     refreshAssetUrls: attachmentMocks.refreshAssetUrls
   }))
 }));
 
-vi.mock('$lib/api-client/memberDirectory', async (importActual) => ({
-  ...(await importActual<typeof import('$lib/api-client/memberDirectory')>()),
+vi.mock('@chatto/client/api/memberDirectory', async (importActual) => ({
+  ...(await importActual<typeof import('@chatto/client/api/memberDirectory')>()),
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: async (...args: unknown[]) => {
       const result = await memberDirectoryMocks.listRoomMembers(...args);
@@ -181,7 +181,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'test-server'
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     getStore: () => server.scope.store,
     tryGetStore: () => server.scope.store,

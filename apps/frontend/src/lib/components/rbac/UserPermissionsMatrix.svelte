@@ -12,8 +12,8 @@ rendering to `SubjectPermissionsMatrix`.
   import { ConfirmDialog, Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { loadAccountMemberships } from './accountMemberships';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { createPermissionAPI } from '$lib/api-client/permissions';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
+  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import {
@@ -28,15 +28,15 @@ rendering to `SubjectPermissionsMatrix`.
     type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
   import { type InfiniteData } from '@tanstack/svelte-query';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createInfiniteQuery, queryClient } from '$lib/query/client';
   import {
     registerQueryCacheRemovalListener,
     registerServerQueryCacheRemovalListener
-  } from '$lib/query/cacheRegistry';
+  } from '@chatto/client/query/cacheRegistry';
 
   import { mergePermissionPages } from './permissionPages';
-  import type { PermissionScopePage } from '$lib/api-client/permissions';
+  import type { PermissionScopePage } from '@chatto/client/api/permissions';
 
   type Matrix = MatrixData & { page: PermissionScopePage; userId: string };
 

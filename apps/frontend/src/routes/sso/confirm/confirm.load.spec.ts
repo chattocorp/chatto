@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getPending: vi.fn()
 }));
 
-vi.mock('$lib/api-client/externalIdentities', () => ({
+vi.mock('@chatto/client/api/externalIdentities', () => ({
   createExternalIdentityFlowAPI: () => ({ getPending: mocks.getPending })
 }));
 

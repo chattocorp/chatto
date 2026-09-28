@@ -8,8 +8,8 @@
     deleteCustomStatus as deleteCustomStatusViaAPI,
     setCustomStatus as setCustomStatusViaAPI,
     type CustomUserStatusAPIConfig
-  } from '$lib/api-client/userStatus';
-  import type { CustomUserStatus } from '$lib/api-client/userSummary';
+  } from '@chatto/client/api/userStatus';
+  import type { CustomUserStatus } from '@chatto/client/api/userSummary';
   import {
     CUSTOM_STATUS_TEMPLATES,
     customStatusTemplateText,

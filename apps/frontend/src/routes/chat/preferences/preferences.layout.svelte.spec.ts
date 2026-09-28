@@ -18,7 +18,7 @@ vi.mock('$app/state', () => ({
 vi.mock('$app/environment', () => ({ browser: true, version: '' }));
 vi.mock('$app/navigation', () => ({ goto: mocks.goto, pushState: vi.fn() }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => '' }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     isAuthenticated: () => false,
     firstAuthenticatedServerId: () => mocks.authenticatedServerId,

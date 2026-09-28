@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
-import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
+import { removeRegisteredAdminQueries } from '@chatto/client/query/cacheRegistry';
 import SystemPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -20,8 +20,8 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/adminDiagnostics', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api-client/adminDiagnostics')>(
+vi.mock('@chatto/client/api/adminDiagnostics', async () => {
+  const actual = await vi.importActual<typeof import('@chatto/client/api/adminDiagnostics')>(
     '$lib/api-client/adminDiagnostics'
   );
   return {

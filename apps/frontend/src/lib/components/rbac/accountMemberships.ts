@@ -1,8 +1,8 @@
-import { Code, ConnectError } from '$lib/api-client/connect';
-import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
-import type { UserPermissionMatrix } from '$lib/api-client/permissions';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { Code, ConnectError } from '@chatto/client/api/connect';
+import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+import { createRoomDirectoryAPI } from '@chatto/client/api/roomDirectory';
+import type { UserPermissionMatrix } from '@chatto/client/api/permissions';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import type { MatrixData, MatrixScope } from './SubjectPermissionsMatrix.svelte';
 
 /** Compose account membership from room resources, without extending permission DTOs.

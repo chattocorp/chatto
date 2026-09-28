@@ -7,7 +7,7 @@ import {
   __resetRecentEmojisForTests
 } from './recentEmojis.svelte';
 import { PINNED_REACTIONS, QUICK_REACTIONS_COUNT, RECENT_REACTION_FALLBACKS } from '$lib/emoji';
-import { serverStorageKey } from '$lib/storage/serverStorage';
+import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 
 const PINNED_COUNT = PINNED_REACTIONS.length;
 const TRAILING_SLOTS = QUICK_REACTIONS_COUNT - PINNED_COUNT;

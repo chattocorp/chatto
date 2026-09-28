@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { OAuthClient } from '$lib/api-client/oauthClients';
-import { adminQueryKeys } from '$lib/query/admin';
+import type { OAuthClient } from '@chatto/client/api/oauthClients';
+import { adminQueryKeys } from '@chatto/client/query/admin';
 import { queryClient } from '$lib/query/client';
-import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
+import { removeRegisteredAdminQueries } from '@chatto/client/query/cacheRegistry';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -23,8 +23,8 @@ vi.mock(
 
 let server: TestServerScope;
 
-vi.mock('$lib/api-client/serverState', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api-client/serverState')>(
+vi.mock('@chatto/client/api/serverState', async () => {
+  const actual = await vi.importActual<typeof import('@chatto/client/api/serverState')>(
     '$lib/api-client/serverState'
   );
   return {

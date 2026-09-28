@@ -23,6 +23,6 @@ export function openProviderSignIn(loginUrl: string): OAuthPopup {
 export async function verifyProviderSignIn(popup: OAuthPopup): Promise<void> {
   const result = await popup.response;
   if (!result.completed || result.error) throw new Error(m('auth.login.failed'));
-  const { getCurrentUserViaConnect } = await import('$lib/api-client/viewer');
+  const { getCurrentUserViaConnect } = await import('@chatto/client/api/viewer');
   await getCurrentUserViaConnect({ baseUrl: '/api/connect', bearerToken: null });
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
@@ -8,7 +8,7 @@
   import { FormDialog, UserCard } from '$lib/ui';
   import { Select, TextArea, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
-  import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
+  import type { RoomSuspensionChoice } from '@chatto/client/api/rooms';
 
   type User = {
     id: string;

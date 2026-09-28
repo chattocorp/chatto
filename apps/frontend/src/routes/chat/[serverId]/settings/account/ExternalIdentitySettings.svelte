@@ -8,17 +8,17 @@
     type AuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
   import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
-  import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
+  import type { CurrentUserState } from '@chatto/client/auth/currentUser';
   import {
     createExternalIdentityAPI,
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
-  } from '$lib/api-client/externalIdentities';
+  } from '@chatto/client/api/externalIdentities';
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
-  import { settingsQueryKeys } from '$lib/query/settings';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { serverRegistry } from '@chatto/client/server/registry';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Button, TextInput } from '$lib/ui/form';

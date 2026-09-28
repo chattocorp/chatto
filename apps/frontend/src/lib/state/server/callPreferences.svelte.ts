@@ -1,6 +1,6 @@
 import { microphoneEffectsForAmount } from '$lib/audio/microphoneEffects';
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
-import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
+import { Codecs, serverSlot, type StorageSlot } from '@chatto/client/storage/slot';
 
 /** Listener-local playback levels. Percentages above 100 boost the received signal. */
 export interface ParticipantAudioPreferences {

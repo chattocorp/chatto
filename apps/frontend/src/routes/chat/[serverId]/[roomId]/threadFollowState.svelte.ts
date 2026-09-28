@@ -1,5 +1,5 @@
-import { createThreadAPI } from '$lib/api-client/threads';
-import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { createThreadAPI } from '@chatto/client/api/threads';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 
 type Target = { roomId: string; threadRootEventId: string };
 export type ThreadFollowSnapshot = Target & { following: boolean | null };

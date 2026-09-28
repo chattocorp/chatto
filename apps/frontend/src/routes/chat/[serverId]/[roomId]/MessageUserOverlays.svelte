@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { accountNameToken } from '$lib/render/accountName';
+  import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { startDMWith } from '$lib/dm/startDM';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
-  import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
+  import type { RoomSuspensionChoice } from '@chatto/client/api/rooms';
   import { ContextMenu, Dialog, LoadingFog, LoadRetry } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';

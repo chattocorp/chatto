@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$lib/oauth/pkce', () => ({ generateState: () => 'transaction-state' }));
 vi.mock('$lib/oauth/popup', () => ({ openOAuthPopup: mocks.open }));
-vi.mock('$lib/api-client/viewer', () => ({ getCurrentUserViaConnect: mocks.getCurrentUser }));
+vi.mock('@chatto/client/api/viewer', () => ({ getCurrentUserViaConnect: mocks.getCurrentUser }));
 
 describe('origin provider sign-in', () => {
   beforeEach(() => {

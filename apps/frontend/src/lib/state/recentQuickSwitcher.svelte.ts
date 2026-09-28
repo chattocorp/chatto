@@ -6,7 +6,7 @@
  * URLs already encode the instance segment, so no per-instance namespacing needed.
  */
 
-import { Codecs, globalSlot } from '$lib/storage/slot';
+import { Codecs, globalSlot } from '@chatto/client/storage/slot';
 
 const MAX_RECENTS = 15;
 

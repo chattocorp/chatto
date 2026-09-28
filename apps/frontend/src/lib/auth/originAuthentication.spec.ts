@@ -16,7 +16,7 @@ vi.mock('$app/navigation', () => ({
   invalidateAll: invalidateAllMock
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     originServer: { id: 'origin' },
     getStore: () => ({ currentUser: { reset: resetAccountMock } })

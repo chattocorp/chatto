@@ -2,7 +2,7 @@
  * Composes page, route identity, and important unread notifications for PageTitle.
  */
 
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '@chatto/client/server/registry';
 import { segmentToServerId } from '$lib/navigation';
 import { page } from '$app/state';
 

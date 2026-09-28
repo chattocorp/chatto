@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it, vi } from 'vitest';
-import type { NeighborhoodServer } from '$lib/api-client/server';
+import type { NeighborhoodServer } from '@chatto/client/api/server';
 import {
   canonicalServerOrigin,
   loadServerDirectory,

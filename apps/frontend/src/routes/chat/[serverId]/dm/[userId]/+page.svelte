@@ -4,7 +4,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';

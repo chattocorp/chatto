@@ -34,7 +34,7 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   serverRegistry: {
     get originServer() {
       return mocks.originServer;

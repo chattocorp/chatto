@@ -1,5 +1,5 @@
 import { createContext } from 'svelte';
-import type { AccountNameIdentity } from '$lib/render/accountName';
+import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
 
 // ---------------------------------------------------------------------------
 // EditState — tracks which message is being edited

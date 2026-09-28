@@ -8,9 +8,9 @@ component on selection changes so playback and consent cannot cross items.
   import { m } from '$lib/i18n/messages';
   import ZoomableImage from './ZoomableImage.svelte';
   import LoadingFog from './LoadingFog.svelte';
-  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
-  import { isHtmlAttachment } from '$lib/render/messageAttachments';
-  import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+  import { isHtmlAttachment } from '@chatto/client/timeline/messageAttachments';
+  import { assetUrlForServer } from '@chatto/client/util/assetUrls';
 
   let {
     item,

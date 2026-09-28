@@ -32,9 +32,9 @@ vi.mock('$app/paths', () => ({
   resolve: (_route: string, params?: { serverId?: string }) =>
     params?.serverId ? `/chat/${params.serverId}` : '/login'
 }));
-vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
+vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('@chatto/client/server/registry', () => ({
   generateServerId: generateServerIdMock,
   serverRegistry: {
     servers: [],

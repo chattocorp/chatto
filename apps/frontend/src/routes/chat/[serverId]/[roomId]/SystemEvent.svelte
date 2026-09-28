@@ -4,13 +4,13 @@
     TimelineEventKind,
     timelineEventKind,
     type TimelineEventView
-  } from '$lib/render/timelineEvents';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  } from '@chatto/client/timeline/timelineEvents';
+  import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import { m } from '$lib/i18n/messages';
-  import { RoomThreadingMode } from '$lib/roomThreading';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
     event,

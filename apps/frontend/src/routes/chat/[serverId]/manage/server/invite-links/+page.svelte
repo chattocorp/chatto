@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
+  import { createInviteLinkAPI, type InviteLink } from '@chatto/client/api/invitations';
   import {
     Panel,
     DataTable,
@@ -11,7 +11,7 @@
     PaneHeader,
     PageTitle
   } from '$lib/ui';
-  import { adminQueryKeys } from '$lib/query/admin';
+  import { adminQueryKeys } from '@chatto/client/query/admin';
   import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
