@@ -171,6 +171,14 @@
 /* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
    Usage: pointer-fine:select-text - enables selection only on desktop */
 @custom-variant pointer-fine (@media (pointer: fine));
+/* Focus styles follow the last input, not the browser's :focus-visible guess.
+   iOS Safari matches :focus-visible when a menu moves focus by script after a
+   tap or long-press. InputModalityTracker sets data-input-modality="pointer" on
+   the root element for pointer input and removes it on a key press. Both
+   variants use :where() so they add no specificity. */
+@custom-variant focus-visible (&:focus-visible:where(:root:not([data-input-modality='pointer']) *));
+/* Gates hand-written :focus-visible selectors, for example inside :has(). */
+@custom-variant keyboard-modality (:where(:root:not([data-input-modality='pointer'])) &);
 /* Hover affordances should follow input capability, not viewport width. */
 @custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
 /* Keep these queries in sync with utils/inputMediaQueries.ts. Width still owns
@@ -896,8 +904,10 @@
     cursor: pointer;
   }
 
-  &:has(.data-table-row-link:focus-visible) {
-    @apply bg-surface/70;
+  @variant keyboard-modality {
+    &:has(.data-table-row-link:focus-visible) {
+      @apply bg-surface/70;
+    }
   }
 }
 
@@ -1223,6 +1233,12 @@
     background-image: none;
     box-shadow: none;
   }
+  /* After pointer input, focus styles are hidden, so a focused button rests flat. */
+  :where([data-input-modality='pointer']) & > button:focus-visible:not(:hover) {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+  }
 }
 
 @utility pill-button-group-compact {
@@ -1374,8 +1390,10 @@
     --range-active: 1;
   }
 
-  &:has(.range-input:focus-visible) {
-    @apply border-action ring-2 ring-action/35;
+  @variant keyboard-modality {
+    &:has(.range-input:focus-visible) {
+      @apply border-action ring-2 ring-action/35;
+    }
   }
 }
 
@@ -1461,9 +1479,11 @@
   }
 
   /* Forced colours remove the focus ring's box shadow. */
-  .range-track:has(.range-input:focus-visible) {
-    outline: 2px solid Highlight;
-    outline-offset: 2px;
+  @variant keyboard-modality {
+    .range-track:has(.range-input:focus-visible) {
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+    }
   }
 }
 
@@ -1559,8 +1579,8 @@
       @apply bg-surface-emphasized;
     }
 
-    & option:focus-visible {
-      @apply outline-2 -outline-offset-2 outline-action;
+    & option {
+      @apply focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
     }
 
     & option::checkmark {
@@ -1932,8 +1952,10 @@
     }
   }
 
-  &:is(.icon-action, .field-action):focus-visible {
-    color: var(--color-danger);
+  @variant keyboard-modality {
+    &:is(.icon-action, .field-action):focus-visible {
+      color: var(--color-danger);
+    }
   }
 }
 
@@ -2365,6 +2387,12 @@
 }
 
 @layer base {
+  /* Match the focus-visible variant: hide the browser's default focus outline
+     after pointer input. */
+  [data-input-modality='pointer'] :focus-visible {
+    outline: none;
+  }
+
   html {
     --app-header-height: 2.75rem;
     @variant mobile-presentation {

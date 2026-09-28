@@ -793,6 +793,13 @@ only when no coarse pointer is available. `hover-actions` permits mouse hover
 actions on hybrid devices, but essential controls must also remain accessible
 through touch and keyboard input.
 
+Focus styles follow the last input. iOS Safari matches `:focus-visible` when a
+menu moves focus by script after a tap or long-press. `InputModalityTracker`
+sets `data-input-modality="pointer"` on the root element after pointer input and
+removes it on a key press. The app overrides the `focus-visible` variant, so
+`focus-visible:*` utilities need no extra condition. Put a hand-written
+`:focus-visible` selector in `@variant keyboard-modality`.
+
 Use `mobile-presentation` for the app frame and task sheets. It requires both a
 viewport below 768 px and a coarse pointer. `desktop-presentation` is its inverse:
 narrow mouse windows and all wide windows retain the padded frame, rounded inset,

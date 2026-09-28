@@ -9,6 +9,7 @@
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
+  import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
@@ -99,6 +100,7 @@
 {#if !standaloneOAuth}
   <GlobalKeyboardShortcuts />
 {/if}
+<InputModalityTracker />
 <ServerRuntimeCoordinator />
 <NotificationSync />
 <UpdateNotifier />
