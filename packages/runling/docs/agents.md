@@ -239,7 +239,8 @@ see now, such as progress or a milestone that the owner passes on to its user.
 The optional `data` object carries structured facts, such as a URL that the
 owner must pass on exactly; it is JSON of at most 16,000 serialized characters.
 Runling retains the notice as `notice` output and wakes the owner at once with
-`task.notice`; the notification includes the text and data. A newer unread notice replaces an older one.
+`task.notice`; the notification includes the text and data. Notices are not
+coalesced: each one reaches the owner, in order. Limit how often a child sends them.
 A task communicates only with its owner and its children (see
 [ADR-006](adr/ADR-006-parent-child-communication.md)). A task that has progress for a
 user sends a notice; the owner decides what reaches the user.

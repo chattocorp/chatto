@@ -51,9 +51,9 @@ export type AgentTaskUpdate =
       text: string;
     }
   | {
-      /** A message for the owner, such as progress that the owner can pass on to its own
-       * owner or user. Retain it and wake the owner immediately. The notification carries the
-       * text; a newer unread notice replaces an older one. */
+      /** A message for the owner, such as progress or a milestone that the owner can pass on to
+       * its own owner or user. Retain it and wake the owner immediately. The notification carries
+       * the text and data. Notices are not coalesced: each one reaches the owner, in order. */
       type: 'notice';
       text: string;
       /** Structured facts for the owner, such as a URL that it must pass on exactly. JSON, at
@@ -141,12 +141,14 @@ export function observeAgentTasks(
     finding?: boolean;
   };
   const tasks = new Map<string, Entry>();
-  // At most one pending notification per task. Completion replaces stale progress.
+  // At most one pending notification per task, except notices, which queue in order.
+  // Completion replaces stale progress.
   const notices = new Map<
     string,
     { entry: Entry; type: string; text?: string; data?: { [key: string]: AgentTaskData } }
   >();
   let wake: (() => void) | undefined;
+  let noticeSequence = 0;
   let closed = false;
   let claimed = false;
   let closing: Promise<void> | undefined;
@@ -185,7 +187,9 @@ export function observeAgentTasks(
       !['task.completed', 'task.failed', 'task.cancelled'].includes(type)
     )
       return;
-    notices.set(entry.state.id, { entry, type, text, ...(data ? { data } : {}) });
+    const key =
+      type === 'task.notice' ? `${entry.state.id}#notice#${++noticeSequence}` : entry.state.id;
+    notices.set(key, { entry, type, text, ...(data ? { data } : {}) });
     if (type === 'task.progress') entry.progress = undefined;
     wake?.();
   };
