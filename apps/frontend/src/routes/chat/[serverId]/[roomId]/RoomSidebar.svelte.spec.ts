@@ -680,9 +680,10 @@ describe('RoomSidebar', () => {
     expect(renderedOnline).toBeGreaterThan(0);
     expect(renderedOnline).toBeLessThan(40);
 
+    // Row heights are estimates until rows render, so scroll to the current end on each retry.
     const viewport = q(container, '[data-testid="room-member-list"]')!;
-    viewport.scrollTop = viewport.scrollHeight;
     await vi.waitFor(() => {
+      viewport.scrollTop = viewport.scrollHeight;
       expect(memberGroupLabels(container)).toContain('Offline (300)');
       expect(renderedMemberTitles(container)).toContain('View profile of User 99');
     });
@@ -696,8 +697,8 @@ describe('RoomSidebar', () => {
         'true'
       );
     });
-    viewport.scrollTop = viewport.scrollHeight;
     await vi.waitFor(() => {
+      viewport.scrollTop = viewport.scrollHeight;
       expect(renderedMemberTitles(container)).toContain('View profile of User 499');
     });
     expect(renderedMemberTitles(container).length).toBeLessThan(40);
