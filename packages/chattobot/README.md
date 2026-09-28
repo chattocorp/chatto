@@ -440,7 +440,8 @@ as task notices that wake the supervisor model:
   and whose `data` holds its facts: `validating` (the change is ready and host
   checks run), `published` (with `prUrl`), `ci_failed` (with the failed check
   names, the attempt, and its limit), `ci_rerun_pending`, `ci_rerunning`,
-  `ci_fix_pushed`, and `change_pushed`. The notice text describes the stage for
+  `ci_fix_pushed`, `change_pushed`, and `messages_handled`, which carries the
+  worker's answer to messages that arrived while CI ran. The notice text describes the stage for
   the model, not for the user. Add later stages, such as planning or review, as
   new milestones.
 - **Progress.** While the worker works, it reports short updates with

@@ -1446,6 +1446,7 @@ test('a message that arrives while CI runs reaches the same worker, and its edit
     return passedChecks;
   });
   const prompts: string[] = [];
+  const emitted: unknown[] = [];
   const result = await createImplementation(f.settings, {
     execute: f.execute,
     observeChecks,
@@ -1464,6 +1465,7 @@ test('a message that arrives while CI runs reaches the same worker, and its edit
   })(
     {
       ...createWorkflowContext(),
+      emit: async (update: unknown) => void emitted.push(update),
       inbox: (async function* () {
         await observing.promise;
         yield 'Also add the regression file';
@@ -1478,6 +1480,12 @@ test('a message that arrives while CI runs reaches the same worker, and its edit
     proposal.title,
     'fixture'
   ]);
+  // The worker's answer to the message reaches the parent, which tells the user.
+  expect(emitted).toContainEqual({
+    type: 'notice',
+    text: 'The worker handled the forwarded messages and answered: Ready',
+    data: { milestone: 'messages_handled' }
+  });
 });
 
 test('an unexpected worker error produces one safe stopped result for the owner', async () => {

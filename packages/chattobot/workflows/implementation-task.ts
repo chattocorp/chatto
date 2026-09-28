@@ -414,6 +414,8 @@ export function createImplementation(
         await ctx.emit({ type: 'notice', text: description, data: { milestone, ...facts } });
       };
       let validationAnnounced = false;
+      // The worker's summary of its latest turn, for answering forwarded messages.
+      let lastReportSummary = '';
       let heldProgress: string | undefined;
       let heldTimer: ReturnType<typeof setTimeout> | undefined;
       /** Drop a held update, for example when the PR link replaces it. */
@@ -605,6 +607,12 @@ export function createImplementation(
             prompt = `These messages arrived while CI runs on the pull request: ${JSON.stringify(messages)}\nHandle them. Edits are validated and pushed to the same pull request. Report completed when done.`;
           const outcome = await work(prompt);
           if (typeof outcome === 'object') return unfixed(outcome.stopped);
+          // The worker's answer to forwarded messages would otherwise stay in its own turn.
+          if (!checks && lastReportSummary.trim())
+            await reportMilestone(
+              'messages_handled',
+              `The worker handled the forwarded messages and answered: ${workerStopReason(lastReportSummary, worktree)}`
+            );
           if (outcome === 'rerun') {
             for (const failure of fresh) toRerun.add(failureKey(failure));
             await ctx.emit({
@@ -772,6 +780,7 @@ export function createImplementation(
             } finally {
               clearInterval(quiet);
             }
+            lastReportSummary = report.summary;
             signal.throwIfAborted();
             if (missedClarification)
               return {
