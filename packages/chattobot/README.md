@@ -76,6 +76,13 @@ are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
 They do not start runs or trigger reactions. This filters incoming requests;
 thread history loaded for an allowed request can still include other participants.
 
+The supervisor sees the thread with each author's display name and login, so it
+can tell people apart and address them. The bot reads these names with the
+Chatto user directory and keeps them for ten minutes. It reads no other profile
+fields. If the lookup fails, the thread reaches the supervisor without names.
+The model provider receives these names with each prompt, and they can appear
+in run journals and the detailed server log when the model repeats them.
+
 ### Maintainers
 
 Source investigation and implementation are available only to maintainers. Set
@@ -566,7 +573,8 @@ A worktree is not a security sandbox. Use an isolated host and
 trusted maintainers; set `CHATTO_MAINTAINER_USER_IDS` to control who can start
 work, and `CHATTO_ALLOWED_USER_ID` to restrict who can address the bot at all.
 Do not place production credentials on that host. The model provider receives
-relevant request context, source content, and check output. GitHub receives the
+relevant request context, thread messages with their authors' display names and
+logins, source content, and check output. GitHub receives the
 host's network address, Git credentials, commits, PR content, and CI log and rerun
 requests; public
 repositories make the published changes and PR notes public. Commands for

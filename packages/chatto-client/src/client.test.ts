@@ -226,3 +226,40 @@ test('typing stays best effort, never overlaps, and cancels when work finishes',
   expect(update).toHaveBeenCalledOnce();
   expect(vi.getTimerCount()).toBe(0);
 });
+
+test('user names are read in batches of 100 and keep only public name fields', async () => {
+  const ids = Array.from({ length: 150 }, (_, index) => `user-${index}`);
+  const request = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+    const { userIds } = JSON.parse(init!.body as string) as { userIds: string[] };
+    return Response.json({
+      users: userIds.map((id, index) => ({
+        user: {
+          id,
+          login: `login-${id}`,
+          ...(index === 0 ? { displayName: 'First Person' } : {}),
+          bio: 'private profile text',
+          timezone: 'Europe/Berlin'
+        },
+        roles: ['everyone']
+      }))
+    });
+  });
+  const client = createChattoClient({
+    serverUrl: 'https://chat.example',
+    apiKey: 'key',
+    fetch: request
+  });
+  const names = await client.getUserNames([...ids, 'user-0', '']);
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(String(request.mock.calls[0]![0])).toBe(
+    'https://chat.example/api/connect/chatto.api.v1.UserService/BatchGetUsers'
+  );
+  expect(names).toHaveLength(150);
+  expect(names[0]).toEqual({ id: 'user-0', login: 'login-user-0', displayName: 'First Person' });
+  expect(names[100]).toEqual({
+    id: 'user-100',
+    login: 'login-user-100',
+    displayName: 'First Person'
+  });
+  expect(JSON.stringify(names)).not.toMatch(/private profile text|Europe\/Berlin/);
+});

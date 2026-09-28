@@ -42,6 +42,9 @@ credentials, and URLs. The package does not log requests or responses.
   the root first, and removes page overlap. It returns textual messages with
   IDs and authors, without bot-specific roles.
   It rejects missing pages and repeated or missing pagination cursors.
+- `getUserNames(userIds, signal)` reads the public login and display name of
+  visible users, at most 100 per request. Unknown and invisible users are
+  omitted. It returns no other profile fields.
 - `addReaction` targets a message event. The host chooses the emoji.
 - `refreshTyping` makes one presence request. `withTyping` refreshes during
   work without overlapping requests and aborts the current refresh when work

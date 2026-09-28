@@ -52,6 +52,16 @@ export interface ThreadMessage {
   body: string;
 }
 
+/** A user's public name fields: the stable ID, login, and display name when set. */
+export interface UserName {
+  id: string;
+  login: string;
+  displayName?: string;
+}
+
+/** Most user IDs that one BatchGetUsers request accepts. */
+const USER_BATCH_SIZE = 100;
+
 interface ThreadEvent {
   id?: string;
   messagePosted?: { message?: { actorId?: string; body?: string } };
@@ -206,6 +216,31 @@ export function createChattoClient(options: ChattoClientOptions) {
     });
   }
 
+  /** Read public names for visible users. Requests at most 100 IDs at a time; unknown and
+   * invisible users are omitted. */
+  async function getUserNames(userIds: string[], signal?: AbortSignal): Promise<UserName[]> {
+    const unique = [...new Set(userIds.filter(Boolean))];
+    const names: UserName[] = [];
+    for (let start = 0; start < unique.length; start += USER_BATCH_SIZE) {
+      const { users = [] } = await rpc<{
+        users?: { user?: { id?: string; login?: string; displayName?: string } }[];
+      }>(
+        'UserService/BatchGetUsers',
+        { userIds: unique.slice(start, start + USER_BATCH_SIZE) },
+        signal
+      );
+      for (const { user } of users) {
+        if (!user?.id || !user.login) continue;
+        names.push({
+          id: user.id,
+          login: user.login,
+          ...(user.displayName ? { displayName: user.displayName } : {})
+        });
+      }
+    }
+    return names;
+  }
+
   return {
     ...messageHelpers(rpc),
     rpc,
@@ -214,6 +249,7 @@ export function createChattoClient(options: ChattoClientOptions) {
     refreshTyping,
     addReaction,
     readThread,
+    getUserNames,
     /** Consume ordered events until cancellation or a terminal failure. */
     consumeRealtime: (settings: ConsumeRealtimeOptions) =>
       consumeRealtime(base, options.apiKey, options.webSocket, settings)
