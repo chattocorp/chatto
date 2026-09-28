@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
+import { connectPost } from './fixtures/connectHelpers';
 import { createAndLoginTestUser, loginAsAdmin, verifyAdminEmail } from './fixtures/testUser';
 import * as routes from './routes';
 
@@ -189,6 +190,12 @@ test.describe('Route accessibility', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
     const roomId = page.url().split('/').pop()!;
+    const { bot } = await connectPost<{ bot: { user: { id: string } } }>(
+      page,
+      'chatto.api.v1.BotService/CreateBot',
+      { login: 'accessibility_bot', displayName: 'Accessibility Bot' }
+    );
+    const botRoute = `${routes.serverAdminBots}/${bot.user.id}`;
 
     for (const [state, route] of [
       ['members', routes.serverAdminMembers],
@@ -196,6 +203,9 @@ test.describe('Route accessibility', () => {
       ['roles', routes.serverAdminPermissions],
       ['role permission matrix', routes.serverAdminPermission('admin')],
       ['bots', routes.serverAdminBots],
+      ['bot overview', botRoute],
+      ['bot integrations', `${botRoute}/integrations`],
+      ['bot permissions', `${botRoute}/permissions`],
       ['event log', routes.serverAdmin('event-log')],
       ['invite links', routes.serverAdmin('invite-links')],
       ['moderation', routes.serverAdmin('moderation')],
