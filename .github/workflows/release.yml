@@ -661,8 +661,11 @@ jobs:
             fi
           fi
 
-          echo "push_latest=${push_latest}" >> "$GITHUB_OUTPUT"
-          echo "is_stable=${is_stable}" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=${version}"
+            echo "push_latest=${push_latest}"
+            echo "is_stable=${is_stable}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -670,6 +673,7 @@ jobs:
       - name: Build frontend once
         run: mise build-frontend
         env:
+          CHATTO_BUILD_VERSION: ${{ steps.release_meta.outputs.version }}
           CHATTO_FRONTEND_PRECOMPRESS: '1'
 
       - name: Set up QEMU
