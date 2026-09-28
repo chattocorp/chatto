@@ -45,9 +45,8 @@ focusing a cell highlights its permission row and role column.
   import PermissionRowLabel from './PermissionRowLabel.svelte';
   import { decisionTitle, decisionWord } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
-  import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
@@ -147,30 +146,24 @@ focusing a cell highlights its permission row and role column.
 
   const serverScope = useServerScope();
 
-  const matrixQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      const activeRoomId = roomId ?? null;
-      const activeGroupId = groupId ?? null;
-      return {
-        queryKey: adminQueryKeys.permissionTier(
-          serverId,
-          activeConnection,
-          activeRoomId,
-          activeGroupId
-        ),
-        queryFn: ({ signal }) =>
-          activeConnection
-            .getAPI(createPermissionAPI)
-            .getRolePermissionTierMatrix(
-              { roomId: activeRoomId, groupId: activeGroupId },
-              { signal }
-            )
-      };
-    },
-    () => queryClient
-  );
+  const matrixQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeRoomId = roomId ?? null;
+    const activeGroupId = groupId ?? null;
+    return {
+      queryKey: adminQueryKeys.permissionTier(
+        serverId,
+        activeConnection,
+        activeRoomId,
+        activeGroupId
+      ),
+      queryFn: ({ signal }) =>
+        activeConnection
+          .getAPI(createPermissionAPI)
+          .getRolePermissionTierMatrix({ roomId: activeRoomId, groupId: activeGroupId }, { signal })
+    };
+  });
 
   const data = $derived(matrixQuery.data ?? null);
   const loading = $derived(matrixQuery.isPending);

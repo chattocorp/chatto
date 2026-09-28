@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
@@ -13,7 +12,7 @@
   import { RoleForm } from '$lib/components/rbac';
   import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -30,37 +29,31 @@
     canComplete: () => boolean;
   };
 
-  const roleCatalogQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.roleCatalog(serverId, connection),
-        queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
-      };
-    },
-    () => queryClient
-  );
+  const roleCatalogQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.roleCatalog(serverId, connection),
+      queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
+    };
+  });
 
-  const createRoleMutation = createMutation(
-    () => ({
-      mutationFn: (variables: CreateRoleVariables) =>
-        completeMutation(
-          () => variables.api.createRole(variables.input),
-          variables.canComplete,
-          () => {
-            invalidatePermissionTiers(variables.serverId, variables.connection);
-            void goto(
-              resolve('/chat/[serverId]/manage/server/permissions/[name]', {
-                serverId: serverIdToSegment(variables.serverId),
-                name: variables.input.name
-              })
-            );
-          }
-        )
-    }),
-    () => queryClient
-  );
+  const createRoleMutation = createMutation(() => ({
+    mutationFn: (variables: CreateRoleVariables) =>
+      completeMutation(
+        () => variables.api.createRole(variables.input),
+        variables.canComplete,
+        () => {
+          invalidatePermissionTiers(variables.serverId, variables.connection);
+          void goto(
+            resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+              serverId: serverIdToSegment(variables.serverId),
+              name: variables.input.name
+            })
+          );
+        }
+      )
+  }));
 
   function createRole() {
     const targetName = name.trim();

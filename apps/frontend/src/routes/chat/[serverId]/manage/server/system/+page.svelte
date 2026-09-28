@@ -14,26 +14,22 @@
     PageTitle
   } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';
   import DurableWorkersPanel from './DurableWorkersPanel.svelte';
 
   const serverScope = useServerScope();
 
-  const systemInfoQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.systemInfo(serverId, activeConnection),
-        queryFn: ({ signal }) => getAdminSystemInfo(activeConnection.apiConfig, { signal })
-      };
-    },
-    () => queryClient
-  );
+  const systemInfoQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.systemInfo(serverId, activeConnection),
+      queryFn: ({ signal }) => getAdminSystemInfo(activeConnection.apiConfig, { signal })
+    };
+  });
 
   const systemInfo = $derived(systemInfoQuery.data ?? null);
   const loading = $derived(systemInfoQuery.isPending);

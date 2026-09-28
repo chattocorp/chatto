@@ -5,13 +5,12 @@
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { createQuery } from '@tanstack/svelte-query';
   import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
   import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
-  import { queryClient, removeAdminUserQueries } from '$lib/query/client';
+  import { createQuery, queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Hint, PaneContent, PageTitle, LoadingFog, PaneHeader } from '$lib/ui';
@@ -52,22 +51,19 @@
   );
   // Shares the member-detail page's cache entry, so data is fresh if the
   // viewer came straight from there and stays consistent while they type.
-  const memberQuery = createQuery(
-    () => {
-      const serverId = activeServerId;
-      const connection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.member(serverId, connection, userId),
-        queryFn: ({ signal }) =>
-          connection.getAPI(createAdminUserManagementAPI).getMember(userId, { signal }),
-        enabled:
-          !!serverId &&
-          !!userId &&
-          !(removedMember?.serverId === serverId && removedMember.userId === userId)
-      };
-    },
-    () => queryClient
-  );
+  const memberQuery = createQuery(() => {
+    const serverId = activeServerId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.member(serverId, connection, userId),
+      queryFn: ({ signal }) =>
+        connection.getAPI(createAdminUserManagementAPI).getMember(userId, { signal }),
+      enabled:
+        !!serverId &&
+        !!userId &&
+        !(removedMember?.serverId === serverId && removedMember.userId === userId)
+    };
+  });
 
   const details = $derived(memberQuery.data ?? null);
   const member = $derived(details?.member ?? null);

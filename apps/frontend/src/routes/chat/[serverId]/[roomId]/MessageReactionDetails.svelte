@@ -7,7 +7,6 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { SvelteSet } from 'svelte/reactivity';
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { Code, ConnectError } from '$lib/api-client/connect';
   import { createReactionAPI } from '$lib/api-client/reactions';
   import { createUserAPI, type UserSummary } from '$lib/api-client/users';
@@ -16,7 +15,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -66,46 +65,43 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   // pagination again so live offset changes cannot mix old and new pages.
   const selectedRevision = $derived(selectedReaction ? JSON.stringify(selectedReaction) : '');
 
-  const usersQuery = createInfiniteQuery(
-    () => {
-      const connection = serverScope.connection;
-      const emoji = activeEmoji;
-      return {
-        queryKey: [
-          ...serverSessionQueryRoot(serverScope.serverId, connection),
-          'message-reaction-users',
-          roomId,
-          messageEventId,
+  const usersQuery = createInfiniteQuery(() => {
+    const connection = serverScope.connection;
+    const emoji = activeEmoji;
+    return {
+      queryKey: [
+        ...serverSessionQueryRoot(serverScope.serverId, connection),
+        'message-reaction-users',
+        roomId,
+        messageEventId,
+        emoji,
+        selectedRevision
+      ],
+      enabled: !!emoji && serverScope.isCurrent(),
+      initialPageParam: 0,
+      gcTime: 0,
+      refetchOnMount: 'always' as const,
+      queryFn: async ({ pageParam, signal }): Promise<ReactionUserPage> => {
+        const page = await connection
+          .getAPI(createReactionAPI)
+          .listReactionUsers({ roomId, messageEventId, emoji }, pageParam, PAGE_SIZE, signal);
+        signal.throwIfAborted();
+        const profiles = page.userIds.length
+          ? await connection.getAPI(createUserAPI).batchGetUsers(page.userIds)
+          : [];
+        signal.throwIfAborted();
+        const byId = new Map(profiles.map((user) => [user.id, user]));
+        return {
           emoji,
-          selectedRevision
-        ],
-        enabled: !!emoji && serverScope.isCurrent(),
-        initialPageParam: 0,
-        gcTime: 0,
-        refetchOnMount: 'always' as const,
-        queryFn: async ({ pageParam, signal }): Promise<ReactionUserPage> => {
-          const page = await connection
-            .getAPI(createReactionAPI)
-            .listReactionUsers({ roomId, messageEventId, emoji }, pageParam, PAGE_SIZE, signal);
-          signal.throwIfAborted();
-          const profiles = page.userIds.length
-            ? await connection.getAPI(createUserAPI).batchGetUsers(page.userIds)
-            : [];
-          signal.throwIfAborted();
-          const byId = new Map(profiles.map((user) => [user.id, user]));
-          return {
-            emoji,
-            rows: page.userIds.map((id) => ({ id, user: byId.get(id) ?? null })),
-            nextOffset: pageParam + page.userIds.length,
-            hasMore: page.hasMore && page.userIds.length > 0
-          };
-        },
-        getNextPageParam: (lastPage: ReactionUserPage) =>
-          lastPage.hasMore ? lastPage.nextOffset : undefined
-      };
-    },
-    () => queryClient
-  );
+          rows: page.userIds.map((id) => ({ id, user: byId.get(id) ?? null })),
+          nextOffset: pageParam + page.userIds.length,
+          hasMore: page.hasMore && page.userIds.length > 0
+        };
+      },
+      getNextPageParam: (lastPage: ReactionUserPage) =>
+        lastPage.hasMore ? lastPage.nextOffset : undefined
+    };
+  });
 
   const rows = $derived.by(() => {
     const seen = new SvelteSet<string>();

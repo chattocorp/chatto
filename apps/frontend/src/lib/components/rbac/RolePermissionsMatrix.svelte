@@ -26,9 +26,8 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     type MatrixScope,
     type CellState
   } from './SubjectPermissionsMatrix.svelte';
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, queryClient } from '$lib/query/client';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   import { mergePermissionPages } from './permissionPages';
@@ -40,27 +39,24 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
   const serverScope = useServerScope();
 
-  const matrixQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      const activeRoleName = roleName;
-      return {
-        queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName),
-        initialPageParam: 0,
-        getNextPageParam: (last: Matrix | null, pages: (Matrix | null)[]) =>
-          last?.page.hasMore
-            ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
-            : undefined,
-        queryFn: ({ signal, pageParam }) =>
-          activeConnection.getAPI(createPermissionAPI).getRolePermissionMatrix(activeRoleName, {
-            signal,
-            page: { limit: 20, offset: pageParam }
-          })
-      };
-    },
-    () => queryClient
-  );
+  const matrixQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeRoleName = roleName;
+    return {
+      queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName),
+      initialPageParam: 0,
+      getNextPageParam: (last: Matrix | null, pages: (Matrix | null)[]) =>
+        last?.page.hasMore
+          ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
+          : undefined,
+      queryFn: ({ signal, pageParam }) =>
+        activeConnection.getAPI(createPermissionAPI).getRolePermissionMatrix(activeRoleName, {
+          signal,
+          page: { limit: 20, offset: pageParam }
+        })
+    };
+  });
 
   const data = $derived<Matrix | null>(
     mergePermissionPages(

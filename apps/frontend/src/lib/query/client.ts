@@ -1,5 +1,21 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
+import {
+  createInfiniteQuery as createInfiniteQueryWithClient,
+  createMutation as createMutationWithClient,
+  createQuery as createQueryWithClient,
+  QueryCache,
+  QueryClient,
+  type Accessor,
+  type CreateInfiniteQueryOptions,
+  type CreateInfiniteQueryResult,
+  type CreateMutationOptions,
+  type CreateMutationResult,
+  type CreateQueryOptions,
+  type CreateQueryResult,
+  type DefaultError,
+  type InfiniteData,
+  type QueryKey
+} from '@tanstack/svelte-query';
 import type { RoomSuspensionList } from '$lib/api-client/rooms';
 import { queryCaches } from './cacheRegistry';
 import { serverQueryRoot } from './keys';
@@ -57,6 +73,45 @@ export const queryClient = new QueryClient({
     }
   }
 });
+
+const sharedClient = () => queryClient;
+
+/** TanStack's `createQuery`, bound to the shared {@link queryClient}. */
+export function createQuery<
+  TQueryFnData = unknown,
+  TError = DefaultError,
+  TData = TQueryFnData,
+  TQueryKey extends QueryKey = QueryKey
+>(
+  options: Accessor<CreateQueryOptions<TQueryFnData, TError, TData, TQueryKey>>
+): CreateQueryResult<TData, TError> {
+  return createQueryWithClient(options, sharedClient);
+}
+
+/** TanStack's `createInfiniteQuery`, bound to the shared {@link queryClient}. */
+export function createInfiniteQuery<
+  TQueryFnData = unknown,
+  TError = DefaultError,
+  TData = InfiniteData<TQueryFnData>,
+  TQueryKey extends QueryKey = QueryKey,
+  TPageParam = unknown
+>(
+  options: Accessor<CreateInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>>
+): CreateInfiniteQueryResult<TData, TError> {
+  return createInfiniteQueryWithClient(options, sharedClient);
+}
+
+/** TanStack's `createMutation`, bound to the shared {@link queryClient}. */
+export function createMutation<
+  TData = unknown,
+  TError = DefaultError,
+  TVariables = void,
+  TContext = unknown
+>(
+  options: Accessor<CreateMutationOptions<TData, TError, TVariables, TContext>>
+): CreateMutationResult<TData, TError, TVariables, TContext> {
+  return createMutationWithClient(options, sharedClient);
+}
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {

@@ -4,7 +4,6 @@
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import BotBadge from '$lib/components/users/BotBadge.svelte';
-  import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import type { DirectoryMember } from '$lib/api-client/memberDirectory';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
@@ -15,7 +14,7 @@
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import { directoryQueryKeys } from '$lib/query/directory';
   import {
     ELIGIBLE_ROOM_MEMBER_LIMIT,
@@ -62,81 +61,69 @@
   const canEditMembership = $derived(canManageMembers && !isUniversal && !archived);
   const columns = $derived(canEditMembership ? 3 : 2);
 
-  const membersQuery = createInfiniteQuery(
-    () => {
-      const connection = serverScope.connection;
-      const targetServerId = serverScope.serverId;
-      const targetRoomId = roomId;
-      return {
-        queryKey: directoryQueryKeys.roomMembers(targetServerId, connection, targetRoomId),
-        queryFn: async ({ pageParam, signal }) => {
-          const page = await connection
-            .getAPI(createMemberDirectoryAPI)
-            .listRoomMembers(targetRoomId, '', ROOM_MEMBER_MANAGEMENT_PAGE_SIZE, pageParam, {
-              signal
-            });
-          return roomMembersQueryPage(page, pageParam);
-        },
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          nextRoomMembersPageParam(lastPage, lastPageParam)
-      };
-    },
-    () => queryClient
-  );
+  const membersQuery = createInfiniteQuery(() => {
+    const connection = serverScope.connection;
+    const targetServerId = serverScope.serverId;
+    const targetRoomId = roomId;
+    return {
+      queryKey: directoryQueryKeys.roomMembers(targetServerId, connection, targetRoomId),
+      queryFn: async ({ pageParam, signal }) => {
+        const page = await connection
+          .getAPI(createMemberDirectoryAPI)
+          .listRoomMembers(targetRoomId, '', ROOM_MEMBER_MANAGEMENT_PAGE_SIZE, pageParam, {
+            signal
+          });
+        return roomMembersQueryPage(page, pageParam);
+      },
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, lastPageParam) =>
+        nextRoomMembersPageParam(lastPage, lastPageParam)
+    };
+  });
 
-  const eligibleMembersQuery = createQuery(
-    () => {
-      const connection = serverScope.connection;
-      const targetServerId = serverScope.serverId;
-      const targetRoomId = roomId;
-      const search = activeDirectorySearch;
-      return {
-        queryKey: directoryQueryKeys.eligibleRoomMembers(
-          targetServerId,
-          connection,
+  const eligibleMembersQuery = createQuery(() => {
+    const connection = serverScope.connection;
+    const targetServerId = serverScope.serverId;
+    const targetRoomId = roomId;
+    const search = activeDirectorySearch;
+    return {
+      queryKey: directoryQueryKeys.eligibleRoomMembers(
+        targetServerId,
+        connection,
+        targetRoomId,
+        search,
+        ELIGIBLE_ROOM_MEMBER_LIMIT
+      ),
+      queryFn: ({ signal }) =>
+        listEligibleRoomMembers(
+          connection.getAPI(createMemberDirectoryAPI),
           targetRoomId,
           search,
-          ELIGIBLE_ROOM_MEMBER_LIMIT
+          ELIGIBLE_ROOM_MEMBER_LIMIT,
+          signal
         ),
-        queryFn: ({ signal }) =>
-          listEligibleRoomMembers(
-            connection.getAPI(createMemberDirectoryAPI),
-            targetRoomId,
-            search,
-            ELIGIBLE_ROOM_MEMBER_LIMIT,
-            signal
-          ),
-        enabled: search.length > 0
-      };
-    },
-    () => queryClient
-  );
+      enabled: search.length > 0
+    };
+  });
 
   type MemberMutationScope = SessionSnapshot & {
     roomId: string;
     user: DirectoryMember;
   };
 
-  const addMemberMutation = createMutation(
-    () => ({
-      mutationFn: (target: MemberMutationScope) =>
-        target.connection
-          .getAPI(createRoomCommandAPI)
-          .addMember({ roomId: target.roomId, userId: target.user.id })
-    }),
-    () => queryClient
-  );
+  const addMemberMutation = createMutation(() => ({
+    mutationFn: (target: MemberMutationScope) =>
+      target.connection
+        .getAPI(createRoomCommandAPI)
+        .addMember({ roomId: target.roomId, userId: target.user.id })
+  }));
 
-  const removeMemberMutation = createMutation(
-    () => ({
-      mutationFn: (target: MemberMutationScope) =>
-        target.connection
-          .getAPI(createRoomCommandAPI)
-          .removeMember({ roomId: target.roomId, userId: target.user.id })
-    }),
-    () => queryClient
-  );
+  const removeMemberMutation = createMutation(() => ({
+    mutationFn: (target: MemberMutationScope) =>
+      target.connection
+        .getAPI(createRoomCommandAPI)
+        .removeMember({ roomId: target.roomId, userId: target.user.id })
+  }));
 
   const members = $derived(flattenRoomMembers(membersQuery.data));
   const totalCount = $derived(membersQuery.data?.pages.at(-1)?.totalCount ?? 0);

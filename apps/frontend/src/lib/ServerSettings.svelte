@@ -1,6 +1,5 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -19,7 +18,7 @@
     type EditableServerProfile
   } from '$lib/api-client/serverState';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
   import { Panel, Hint, LoadingFog } from '$lib/ui';
@@ -41,18 +40,15 @@
   type AssetOperation = 'upload-logo' | 'delete-logo' | 'upload-banner' | 'delete-banner';
   type AssetVariables = SettingsMutationScope & { operation: AssetOperation; file?: File };
 
-  const settingsQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.serverSettings(serverId, connection),
-        queryFn: ({ signal }) => getAuthenticatedServerState(connection.apiConfig, { signal }),
-        refetchOnMount: 'always' as const
-      };
-    },
-    () => queryClient
-  );
+  const settingsQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.serverSettings(serverId, connection),
+      queryFn: ({ signal }) => getAuthenticatedServerState(connection.apiConfig, { signal }),
+      refetchOnMount: 'always' as const
+    };
+  });
 
   const snapshot = $derived(settingsQuery.data ?? null);
   const loading = $derived(settingsQuery.isPending && snapshot === null);
@@ -143,34 +139,31 @@
       : current;
   }
 
-  const saveMutation = createMutation(
-    () => ({
-      mutationFn: ({ connection, input }: SaveVariables) =>
-        updateServerConfig(connection.apiConfig, input),
-      onSuccess: (profile, variables) => {
-        if (!session.isCurrent(variables)) return;
-        queryClient.setQueryData<AuthenticatedServerState>(variables.queryKey, (current) =>
-          mergeEditableProfile(current, profile)
-        );
+  const saveMutation = createMutation(() => ({
+    mutationFn: ({ connection, input }: SaveVariables) =>
+      updateServerConfig(connection.apiConfig, input),
+    onSuccess: (profile, variables) => {
+      if (!session.isCurrent(variables)) return;
+      queryClient.setQueryData<AuthenticatedServerState>(variables.queryKey, (current) =>
+        mergeEditableProfile(current, profile)
+      );
 
-        const nextDescription = profile.description ?? '';
-        const nextMotd = profile.motd ?? '';
-        const nextWelcomeMessage = profile.welcomeMessage ?? '';
-        if (name.trim() === variables.input.name) name = profile.name;
-        if (description.trim() === variables.input.description) description = nextDescription;
-        if (motd === variables.input.motd) motd = nextMotd;
-        if (welcomeMessage === variables.input.welcomeMessage) {
-          welcomeMessage = nextWelcomeMessage;
-        }
-        originalName = profile.name;
-        originalDescription = nextDescription;
-        originalMotd = nextMotd;
-        originalWelcomeMessage = nextWelcomeMessage;
-        toast.success(m('common.saved'));
+      const nextDescription = profile.description ?? '';
+      const nextMotd = profile.motd ?? '';
+      const nextWelcomeMessage = profile.welcomeMessage ?? '';
+      if (name.trim() === variables.input.name) name = profile.name;
+      if (description.trim() === variables.input.description) description = nextDescription;
+      if (motd === variables.input.motd) motd = nextMotd;
+      if (welcomeMessage === variables.input.welcomeMessage) {
+        welcomeMessage = nextWelcomeMessage;
       }
-    }),
-    () => queryClient
-  );
+      originalName = profile.name;
+      originalDescription = nextDescription;
+      originalMotd = nextMotd;
+      originalWelcomeMessage = nextWelcomeMessage;
+      toast.success(m('common.saved'));
+    }
+  }));
 
   function updateAssetSnapshot(variables: AssetVariables, profile: EditableServerProfile): void {
     queryClient.setQueryData<AuthenticatedServerState>(variables.queryKey, (current) => {
@@ -208,37 +201,34 @@
     }
   }
 
-  const assetMutation = createMutation(
-    () => ({
-      mutationFn: ({ connection, operation, file }: AssetVariables) => {
-        switch (operation) {
-          case 'upload-logo':
-            return uploadServerLogo(connection.apiConfig, file!);
-          case 'delete-logo':
-            return deleteServerLogo(connection.apiConfig);
-          case 'upload-banner':
-            return uploadServerBanner(connection.apiConfig, file!);
-          case 'delete-banner':
-            return deleteServerBanner(connection.apiConfig);
-        }
-      },
-      onSuccess: (profile, variables) => {
-        if (!session.isCurrent(variables)) return;
-        updateAssetSnapshot(variables, profile);
-        toast.success(assetSuccessMessage(variables.operation));
-      },
-      onError: (mutationError, variables) => {
-        if (!session.isCurrent(variables)) return;
-        toastError(mutationError, assetErrorMessage(variables.operation));
-      },
-      onSettled: (_profile, _error, variables) => {
-        if (!session.isCurrent(variables)) return;
-        if (variables.operation === 'upload-logo' && logoFileInput) logoFileInput.value = '';
-        if (variables.operation === 'upload-banner' && bannerFileInput) bannerFileInput.value = '';
+  const assetMutation = createMutation(() => ({
+    mutationFn: ({ connection, operation, file }: AssetVariables) => {
+      switch (operation) {
+        case 'upload-logo':
+          return uploadServerLogo(connection.apiConfig, file!);
+        case 'delete-logo':
+          return deleteServerLogo(connection.apiConfig);
+        case 'upload-banner':
+          return uploadServerBanner(connection.apiConfig, file!);
+        case 'delete-banner':
+          return deleteServerBanner(connection.apiConfig);
       }
-    }),
-    () => queryClient
-  );
+    },
+    onSuccess: (profile, variables) => {
+      if (!session.isCurrent(variables)) return;
+      updateAssetSnapshot(variables, profile);
+      toast.success(assetSuccessMessage(variables.operation));
+    },
+    onError: (mutationError, variables) => {
+      if (!session.isCurrent(variables)) return;
+      toastError(mutationError, assetErrorMessage(variables.operation));
+    },
+    onSettled: (_profile, _error, variables) => {
+      if (!session.isCurrent(variables)) return;
+      if (variables.operation === 'upload-logo' && logoFileInput) logoFileInput.value = '';
+      if (variables.operation === 'upload-banner' && bannerFileInput) bannerFileInput.value = '';
+    }
+  }));
 
   // Keep the form serialized even if a privacy generation fences the pending result.
   const saving = $derived(saveMutation.isPending);

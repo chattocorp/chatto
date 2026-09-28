@@ -6,7 +6,6 @@ Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { Panel, HelpTooltip, Hint } from '$lib/ui';
@@ -24,7 +23,7 @@ Rows are notification causes. Columns follow the current navigation layout.
   } from '$lib/api-client/notifications';
   import { createNotificationAPI } from '$lib/api-client/notifications';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import NotificationPolicyCell from './NotificationPolicyCell.svelte';
   import {
@@ -116,32 +115,29 @@ Rows are notification causes. Columns follow the current navigation layout.
       scopeFilter
     )
   );
-  const policiesQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const scopes = columns.map((column) => column.scope);
-      return {
-        queryKey: settingsQueryKeys.notificationPolicies(
-          serverId,
-          connection,
-          scopes.map(notificationPolicyScopeKey)
-        ),
-        queryFn: async ({ signal }) => {
-          const policies = await connection
-            .getAPI(createNotificationAPI)
-            .batchGetNotificationPolicies(scopes, { signal });
-          return Object.fromEntries(
-            policies.map((policy) => [notificationPolicyScopeKey(policy.scope), policy])
-          ) as Record<string, ScopedNotificationPolicy>;
-        },
-        refetchOnMount: 'always' as const,
-        // A changed visible scope list must not retain policies for lost rooms.
-        gcTime: 0
-      };
-    },
-    () => queryClient
-  );
+  const policiesQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const scopes = columns.map((column) => column.scope);
+    return {
+      queryKey: settingsQueryKeys.notificationPolicies(
+        serverId,
+        connection,
+        scopes.map(notificationPolicyScopeKey)
+      ),
+      queryFn: async ({ signal }) => {
+        const policies = await connection
+          .getAPI(createNotificationAPI)
+          .batchGetNotificationPolicies(scopes, { signal });
+        return Object.fromEntries(
+          policies.map((policy) => [notificationPolicyScopeKey(policy.scope), policy])
+        ) as Record<string, ScopedNotificationPolicy>;
+      },
+      refetchOnMount: 'always' as const,
+      // A changed visible scope list must not retain policies for lost rooms.
+      gcTime: 0
+    };
+  });
   const loadError = $derived(policiesQuery.error ? errorMessage(policiesQuery.error) : null);
 
   function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy | undefined {

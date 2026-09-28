@@ -1,11 +1,10 @@
 <!-- @component Public bot owner identity, outside the collapsible permission section. -->
 <script lang="ts">
   import type { ViewerTimeSettings } from '$lib/utils/formatTime';
-  import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
@@ -25,19 +24,16 @@
   } = $props();
   const scope = useServerScope();
   const users = $derived(scope.store.projection.users);
-  const query = createQuery(
-    () => ({
-      queryKey: [...serverSessionQueryRoot(scope.serverId, scope.connection), 'bot-owner', ownerId],
-      queryFn: async () => {
-        const [owner] = await scope.connection.getAPI(createUserAPI).batchGetUsers([ownerId]);
-        return owner ?? null;
-      },
-      staleTime: 30_000,
-      refetchInterval: 30_000,
-      gcTime: 0
-    }),
-    () => queryClient
-  );
+  const query = createQuery(() => ({
+    queryKey: [...serverSessionQueryRoot(scope.serverId, scope.connection), 'bot-owner', ownerId],
+    queryFn: async () => {
+      const [owner] = await scope.connection.getAPI(createUserAPI).batchGetUsers([ownerId]);
+      return owner ?? null;
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    gcTime: 0
+  }));
   const owner = $derived(mapOptionalUserSummary(users.get(ownerId)?.user));
   const identity = $derived(
     owner && !owner.deleted

@@ -5,8 +5,7 @@ URL refresh results cannot start a preview or download after this opening ends.
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/state';
-  import { createQuery } from '@tanstack/svelte-query';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { HtmlViewerModalState } from '$lib/modal';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
@@ -24,24 +23,21 @@ URL refresh results cannot start a preview or download after this opening ends.
 
   // Only metadata is read on opening. The original document still requires
   // preview consent or an explicit download, and query disposal aborts this read.
-  const metadata = createQuery(
-    () => {
-      const connection = serverConnectionManager.getClient(modal.serverId);
-      const { serverId, roomId, attachmentId } = modal;
-      return {
-        queryKey: [
-          ...serverSessionQueryRoot(serverId, connection),
-          'attachment-metadata',
-          roomId,
-          attachmentId
-        ],
-        queryFn: ({ signal }: { signal: AbortSignal }) =>
-          connection.getAPI(createAttachmentAPI).getMetadata(roomId, attachmentId, signal),
-        gcTime: 0
-      };
-    },
-    () => queryClient
-  );
+  const metadata = createQuery(() => {
+    const connection = serverConnectionManager.getClient(modal.serverId);
+    const { serverId, roomId, attachmentId } = modal;
+    return {
+      queryKey: [
+        ...serverSessionQueryRoot(serverId, connection),
+        'attachment-metadata',
+        roomId,
+        attachmentId
+      ],
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        connection.getAPI(createAttachmentAPI).getMetadata(roomId, attachmentId, signal),
+      gcTime: 0
+    };
+  });
 
   let assetUrl = $state.raw(untrack(() => modal.assetUrl));
   let previewUrl = $state<string | null>(null);

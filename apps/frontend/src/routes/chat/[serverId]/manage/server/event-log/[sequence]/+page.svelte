@@ -12,9 +12,8 @@
     timeFormatSettingsFor
   } from '$lib/utils/formatTime';
   import { m } from '$lib/i18n/messages';
-  import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
 
   const serverScope = useServerScope();
   const userSettings = $derived(
@@ -23,19 +22,16 @@
 
   const sequence = $derived(page.params.sequence!);
   const activeServerId = serverScope.serverId;
-  const entryQuery = createQuery(
-    () => {
-      const serverId = activeServerId;
-      const activeConnection = serverScope.connection;
-      const eventSequence = sequence;
-      return {
-        queryKey: adminQueryKeys.event(serverId, activeConnection, eventSequence),
-        queryFn: ({ signal }) =>
-          activeConnection.getAPI(createAdminEventLogAPI).getEvent(eventSequence, { signal })
-      };
-    },
-    () => queryClient
-  );
+  const entryQuery = createQuery(() => {
+    const serverId = activeServerId;
+    const activeConnection = serverScope.connection;
+    const eventSequence = sequence;
+    return {
+      queryKey: adminQueryKeys.event(serverId, activeConnection, eventSequence),
+      queryFn: ({ signal }) =>
+        activeConnection.getAPI(createAdminEventLogAPI).getEvent(eventSequence, { signal })
+    };
+  });
 
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/event-log', {

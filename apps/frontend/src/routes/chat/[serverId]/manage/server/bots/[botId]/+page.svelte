@@ -7,7 +7,6 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import {
     createUserAPI,
@@ -38,7 +37,7 @@
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { serverIdToSegment } from '$lib/navigation';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -60,34 +59,28 @@
     })
   );
 
-  const botQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const targetBotId = botId;
-      return {
-        queryKey: settingsQueryKeys.bot(serverId, connection, targetBotId),
-        queryFn: ({ signal }) => connection.getAPI(createBotAPI).getBot(targetBotId, { signal }),
-        enabled: !!targetBotId
-      };
-    },
-    () => queryClient
-  );
+  const botQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const targetBotId = botId;
+    return {
+      queryKey: settingsQueryKeys.bot(serverId, connection, targetBotId),
+      queryFn: ({ signal }) => connection.getAPI(createBotAPI).getBot(targetBotId, { signal }),
+      enabled: !!targetBotId
+    };
+  });
 
   const bot = $derived(botQuery.data ?? null);
-  const ownerQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const ownerUserId = bot?.ownerUserId ?? '';
-      return {
-        queryKey: [...settingsQueryKeys.bot(serverId, connection, botId), 'owner', ownerUserId],
-        queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
-        enabled: !!ownerUserId
-      };
-    },
-    () => queryClient
-  );
+  const ownerQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const ownerUserId = bot?.ownerUserId ?? '';
+    return {
+      queryKey: [...settingsQueryKeys.bot(serverId, connection, botId), 'owner', ownerUserId],
+      queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
+      enabled: !!ownerUserId
+    };
+  });
   const owner = $derived(ownerQuery.data?.[0] ?? null);
   const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
   // Owners, bot managers, and account managers can edit the bot's public identity.

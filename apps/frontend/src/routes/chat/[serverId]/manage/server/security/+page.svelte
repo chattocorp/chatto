@@ -1,11 +1,6 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import {
-    createInfiniteQuery,
-    createMutation,
-    createQuery,
-    type InfiniteData
-  } from '@tanstack/svelte-query';
+  import { type InfiniteData } from '@tanstack/svelte-query';
   import { SvelteSet } from 'svelte/reactivity';
   import {
     createOAuthClientAPI,
@@ -19,7 +14,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -61,88 +56,76 @@
     ]);
   }
 
-  const securityQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.securityConfig(serverId, connection),
-        queryFn: ({ signal }) => getServerSecurityConfig(connection.apiConfig, { signal })
-      };
+  const securityQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.securityConfig(serverId, connection),
+      queryFn: ({ signal }) => getServerSecurityConfig(connection.apiConfig, { signal })
+    };
+  });
+
+  const oauthClientsQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.oauthClients(serverId, connection),
+      queryFn: ({ pageParam, signal }) =>
+        connection.getAPI(createOAuthClientAPI).list(pageParam, PAGE_SIZE, { signal }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, lastPageParam) =>
+        lastPage.hasMore && lastPage.oauthClients.length > 0
+          ? lastPageParam + lastPage.oauthClients.length
+          : undefined
+    };
+  });
+
+  const securityMutation = createMutation(() => ({
+    mutationFn: ({ connection, blockedUsernames }: SecurityMutationVariables) =>
+      updateBlockedUsernames(connection.apiConfig, blockedUsernames),
+    onSuccess: (config, variables) => {
+      if (!session.isCurrent(variables)) return;
+      queryClient.setQueryData(variables.queryKey, config);
+      toast.success(m('admin.security.settings_saved'));
     },
-    () => queryClient
-  );
+    onError: (mutationError, variables) => {
+      if (!session.isCurrent(variables)) return;
+      toastError(mutationError);
+    }
+  }));
 
-  const oauthClientsQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.oauthClients(serverId, connection),
-        queryFn: ({ pageParam, signal }) =>
-          connection.getAPI(createOAuthClientAPI).list(pageParam, PAGE_SIZE, { signal }),
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.oauthClients.length > 0
-            ? lastPageParam + lastPage.oauthClients.length
-            : undefined
-      };
+  const oauthClientPolicyMutation = createMutation(() => ({
+    mutationFn: ({ connection, clientId, policy }: OAuthClientPolicyMutationVariables) =>
+      connection.getAPI(createOAuthClientAPI).updatePolicy(clientId, policy),
+    onSuccess: (client, variables) => {
+      if (!session.isCurrent(variables)) return;
+      const queryKey = adminQueryKeys.oauthClients(variables.serverId, variables.connection);
+      queryClient.setQueryData<InfiniteData<OAuthClientPage, number>>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              pages: current.pages.map((page) => ({
+                ...page,
+                oauthClients: page.oauthClients.map((cached) =>
+                  cached.clientId === client.clientId ? client : cached
+                )
+              }))
+            }
+          : current
+      );
+      void queryClient.invalidateQueries({
+        queryKey
+      });
+      toast.success(m('admin.security.oauth_clients.policy_saved'));
     },
-    () => queryClient
-  );
-
-  const securityMutation = createMutation(
-    () => ({
-      mutationFn: ({ connection, blockedUsernames }: SecurityMutationVariables) =>
-        updateBlockedUsernames(connection.apiConfig, blockedUsernames),
-      onSuccess: (config, variables) => {
-        if (!session.isCurrent(variables)) return;
-        queryClient.setQueryData(variables.queryKey, config);
-        toast.success(m('admin.security.settings_saved'));
-      },
-      onError: (mutationError, variables) => {
-        if (!session.isCurrent(variables)) return;
-        toastError(mutationError);
-      }
-    }),
-    () => queryClient
-  );
-
-  const oauthClientPolicyMutation = createMutation(
-    () => ({
-      mutationFn: ({ connection, clientId, policy }: OAuthClientPolicyMutationVariables) =>
-        connection.getAPI(createOAuthClientAPI).updatePolicy(clientId, policy),
-      onSuccess: (client, variables) => {
-        if (!session.isCurrent(variables)) return;
-        const queryKey = adminQueryKeys.oauthClients(variables.serverId, variables.connection);
-        queryClient.setQueryData<InfiniteData<OAuthClientPage, number>>(queryKey, (current) =>
-          current
-            ? {
-                ...current,
-                pages: current.pages.map((page) => ({
-                  ...page,
-                  oauthClients: page.oauthClients.map((cached) =>
-                    cached.clientId === client.clientId ? client : cached
-                  )
-                }))
-              }
-            : current
-        );
-        void queryClient.invalidateQueries({
-          queryKey
-        });
-        toast.success(m('admin.security.oauth_clients.policy_saved'));
-      },
-      onError: (mutationError, variables) => {
-        if (!session.isCurrent(variables)) return;
-        toastError(mutationError);
-      },
-      onSettled: (_client, _mutationError, variables) => {
-        pendingOAuthClientPolicies.delete(oauthClientPolicyMutationKey(variables));
-      }
-    }),
-    () => queryClient
-  );
+    onError: (mutationError, variables) => {
+      if (!session.isCurrent(variables)) return;
+      toastError(mutationError);
+    },
+    onSettled: (_client, _mutationError, variables) => {
+      pendingOAuthClientPolicies.delete(oauthClientPolicyMutationKey(variables));
+    }
+  }));
 
   const securityConfig = $derived(securityQuery.data ?? null);
   let blockedUsernames = $derived(securityConfig?.blockedUsernames ?? '');

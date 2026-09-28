@@ -1,6 +1,5 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
   import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
   import {
     Panel,
@@ -13,7 +12,7 @@
     PageTitle
   } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
@@ -33,23 +32,20 @@
   let expiry = $state('7d');
   let revokeTarget = $state<InviteLink | null>(null);
 
-  const invitationsQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.invitations(serverId, connection),
-        queryFn: ({ pageParam, signal }) =>
-          connection.getAPI(createInviteLinkAPI).list(pageParam, PAGE_SIZE, { signal }),
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.inviteLinks.length > 0
-            ? lastPageParam + lastPage.inviteLinks.length
-            : undefined
-      };
-    },
-    () => queryClient
-  );
+  const invitationsQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.invitations(serverId, connection),
+      queryFn: ({ pageParam, signal }) =>
+        connection.getAPI(createInviteLinkAPI).list(pageParam, PAGE_SIZE, { signal }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, lastPageParam) =>
+        lastPage.hasMore && lastPage.inviteLinks.length > 0
+          ? lastPageParam + lastPage.inviteLinks.length
+          : undefined
+    };
+  });
 
   const invitations = $derived(
     (invitationsQuery.data?.pages ?? []).flatMap((page) => page.inviteLinks)
@@ -62,39 +58,33 @@
     !unlimitedUses && (!Number.isInteger(maxUsesValue) || (maxUsesValue ?? 0) < 1)
   );
 
-  const createInvitationMutation = createMutation(
-    () => ({
-      mutationFn: () =>
-        serverScope.connection.getAPI(createInviteLinkAPI).create({
-          maxUses: maxUsesValue,
-          expiresAt: expiryDate(expiry)
-        }),
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
-        });
-        toast.success(m('admin.invitations.created'));
-      },
-      onError: (error) => toastError(error)
-    }),
-    () => queryClient
-  );
+  const createInvitationMutation = createMutation(() => ({
+    mutationFn: () =>
+      serverScope.connection.getAPI(createInviteLinkAPI).create({
+        maxUses: maxUsesValue,
+        expiresAt: expiryDate(expiry)
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
+      });
+      toast.success(m('admin.invitations.created'));
+    },
+    onError: (error) => toastError(error)
+  }));
 
-  const revokeMutation = createMutation(
-    () => ({
-      mutationFn: (invitation: InviteLink) =>
-        serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id),
-      onSuccess: async () => {
-        revokeTarget = null;
-        await queryClient.invalidateQueries({
-          queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
-        });
-        toast.success(m('admin.invitations.revoked'));
-      },
-      onError: (error) => toastError(error)
-    }),
-    () => queryClient
-  );
+  const revokeMutation = createMutation(() => ({
+    mutationFn: (invitation: InviteLink) =>
+      serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id),
+    onSuccess: async () => {
+      revokeTarget = null;
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
+      });
+      toast.success(m('admin.invitations.revoked'));
+    },
+    onError: (error) => toastError(error)
+  }));
 
   function expiryDate(value: string): string | null {
     const days = value === '1d' ? 1 : value === '30d' ? 30 : value === 'never' ? 0 : 7;

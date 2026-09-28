@@ -4,7 +4,6 @@
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
@@ -19,7 +18,7 @@
     removeDeletedRoleQueries
   } from '$lib/query/adminInvalidation';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -39,19 +38,15 @@
     input: UpdateRoleInput;
   };
 
-  const roleQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const targetRoleName = roleName;
-      return {
-        queryKey: adminQueryKeys.role(serverId, connection, targetRoleName),
-        queryFn: ({ signal }) =>
-          connection.getAPI(createRoleAPI).getRole(targetRoleName, { signal })
-      };
-    },
-    () => queryClient
-  );
+  const roleQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const targetRoleName = roleName;
+    return {
+      queryKey: adminQueryKeys.role(serverId, connection, targetRoleName),
+      queryFn: ({ signal }) => connection.getAPI(createRoleAPI).getRole(targetRoleName, { signal })
+    };
+  });
 
   const roleDetails = $derived(roleQuery.data ?? null);
   const role = $derived((roleDetails?.role ?? null) as Role | null);
@@ -59,24 +54,21 @@
   const canManageRoles = $derived(roleDetails?.viewerCanManageRoles ?? false);
   const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
   let scrollContainer = $state<HTMLDivElement>();
-  const membersQuery = createInfiniteQuery(
-    () => {
-      const connection = serverScope.connection;
-      const name = roleName;
-      return {
-        queryKey: adminQueryKeys.roleMembers(serverScope.serverId, connection, name),
-        enabled: canAssignRoles && name !== 'everyone',
-        queryFn: ({ pageParam, signal }) =>
-          connection
-            .getAPI(createRoleAPI)
-            .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, offset) =>
-          lastPage.hasMore && lastPage.users.length > 0 ? offset + lastPage.users.length : undefined
-      };
-    },
-    () => queryClient
-  );
+  const membersQuery = createInfiniteQuery(() => {
+    const connection = serverScope.connection;
+    const name = roleName;
+    return {
+      queryKey: adminQueryKeys.roleMembers(serverScope.serverId, connection, name),
+      enabled: canAssignRoles && name !== 'everyone',
+      queryFn: ({ pageParam, signal }) =>
+        connection
+          .getAPI(createRoleAPI)
+          .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, offset) =>
+        lastPage.hasMore && lastPage.users.length > 0 ? offset + lastPage.users.length : undefined
+    };
+  });
   const roleUsers = $derived.by(() => {
     const users = (membersQuery.data?.pages ?? []).flatMap((page) => page.users);
     return [...new Map(users.map((user) => [user.id, user])).values()];
@@ -103,51 +95,42 @@
     invalidatePermissionTiers(variables.serverId, variables.connection);
   }
 
-  const metadataMutation = createMutation(
-    () => ({
-      mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
-      onSuccess: (updatedRole, variables) => {
-        updateRoleSnapshot(variables, updatedRole);
-        if (isCurrentRole(variables)) metadataRevision += 1;
-      }
-    }),
-    () => queryClient
-  );
+  const metadataMutation = createMutation(() => ({
+    mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
+    onSuccess: (updatedRole, variables) => {
+      updateRoleSnapshot(variables, updatedRole);
+      if (isCurrentRole(variables)) metadataRevision += 1;
+    }
+  }));
 
-  const pingableMutation = createMutation(
-    () => ({
-      mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
-      onSuccess: (updatedRole, variables) => {
-        updateRoleSnapshot(variables, updatedRole);
-        if (isCurrentRole(variables)) {
-          toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+  const pingableMutation = createMutation(() => ({
+    mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
+    onSuccess: (updatedRole, variables) => {
+      updateRoleSnapshot(variables, updatedRole);
+      if (isCurrentRole(variables)) {
+        toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+      }
+    }
+  }));
+
+  const deleteMutation = createMutation(() => ({
+    mutationFn: (variables: RoleMutationScope) =>
+      completeMutation(
+        () => variables.api.deleteRole(variables.roleName),
+        variables.canComplete,
+        () => {
+          removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+          void goto(
+            resolve('/chat/[serverId]/manage/server/permissions', {
+              serverId: serverIdToSegment(variables.serverId)
+            })
+          );
         }
-      }
-    }),
-    () => queryClient
-  );
-
-  const deleteMutation = createMutation(
-    () => ({
-      mutationFn: (variables: RoleMutationScope) =>
-        completeMutation(
-          () => variables.api.deleteRole(variables.roleName),
-          variables.canComplete,
-          () => {
-            removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
-            void goto(
-              resolve('/chat/[serverId]/manage/server/permissions', {
-                serverId: serverIdToSegment(variables.serverId)
-              })
-            );
-          }
-        ),
-      onError: (_error, variables) => {
-        if (isCurrentRole(variables)) deleteConfirmRoleName = null;
-      }
-    }),
-    () => queryClient
-  );
+      ),
+    onError: (_error, variables) => {
+      if (isCurrentRole(variables)) deleteConfirmRoleName = null;
+    }
+  }));
 
   function mutationScope(targetRole: Role): RoleMutationScope {
     const snapshot = session.snapshot();

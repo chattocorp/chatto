@@ -8,13 +8,12 @@ polls the cache briefly after a change. See FDR-042.
 -->
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
   import { listNeighborhoodServers, type NeighborhoodServer } from '$lib/api-client/server';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { canonicalServerOrigin, serverOriginFromInput } from '$lib/serverDirectory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
@@ -54,75 +53,63 @@ polls the cache briefly after a change. See FDR-042.
   let editTarget = $state<UpdateVariables | null>(null);
   let deleteTarget = $state<DeleteVariables | null>(null);
 
-  const neighborsQuery = createQuery(
-    () => ({
-      queryKey: adminQueryKeys.neighbors(serverScope.serverId, serverScope.connection),
-      queryFn: ({ signal }) => serverScope.connection.getAPI(createNeighborAPI).list({ signal })
-    }),
-    () => queryClient
-  );
+  const neighborsQuery = createQuery(() => ({
+    queryKey: adminQueryKeys.neighbors(serverScope.serverId, serverScope.connection),
+    queryFn: ({ signal }) => serverScope.connection.getAPI(createNeighborAPI).list({ signal })
+  }));
 
-  const createMutationState = createMutation(
-    () => ({
-      mutationFn: ({ connection, origin }: CreateVariables) =>
-        connection.getAPI(createNeighborAPI).create(origin),
-      onSuccess: (neighbor, variables) => {
-        if (!serverScope.isCurrent()) return;
-        queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) => [
-          ...current,
-          neighbor
-        ]);
-        newOrigin = '';
-        expectDiscovery();
-        toast.success(m('admin.neighbors.created'));
-      },
-      onError: (error) => {
-        if (serverScope.isCurrent()) toastError(error);
-      }
-    }),
-    () => queryClient
-  );
+  const createMutationState = createMutation(() => ({
+    mutationFn: ({ connection, origin }: CreateVariables) =>
+      connection.getAPI(createNeighborAPI).create(origin),
+    onSuccess: (neighbor, variables) => {
+      if (!serverScope.isCurrent()) return;
+      queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) => [
+        ...current,
+        neighbor
+      ]);
+      newOrigin = '';
+      expectDiscovery();
+      toast.success(m('admin.neighbors.created'));
+    },
+    onError: (error) => {
+      if (serverScope.isCurrent()) toastError(error);
+    }
+  }));
 
-  const updateMutationState = createMutation(
-    () => ({
-      mutationFn: ({ connection, neighbor, origin }: UpdateVariables) =>
-        connection.getAPI(createNeighborAPI).update(neighbor, origin),
-      onSuccess: (updated, variables) => {
-        if (!serverScope.isCurrent()) return;
-        queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
-          current.map((neighbor) => (neighbor.id === updated.id ? updated : neighbor))
-        );
-        editTarget = null;
-        editOrigin = '';
-        expectDiscovery();
-        toast.success(m('admin.neighbors.updated'));
-      },
-      onError: (error) => {
-        if (serverScope.isCurrent()) toastError(error);
-      }
-    }),
-    () => queryClient
-  );
+  const updateMutationState = createMutation(() => ({
+    mutationFn: ({ connection, neighbor, origin }: UpdateVariables) =>
+      connection.getAPI(createNeighborAPI).update(neighbor, origin),
+    onSuccess: (updated, variables) => {
+      if (!serverScope.isCurrent()) return;
+      queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
+        current.map((neighbor) => (neighbor.id === updated.id ? updated : neighbor))
+      );
+      editTarget = null;
+      editOrigin = '';
+      expectDiscovery();
+      toast.success(m('admin.neighbors.updated'));
+    },
+    onError: (error) => {
+      if (serverScope.isCurrent()) toastError(error);
+    }
+  }));
 
-  const deleteMutationState = createMutation(
-    () => ({
-      mutationFn: ({ connection, neighbor }: DeleteVariables) =>
-        connection.getAPI(createNeighborAPI).delete(neighbor),
-      onSuccess: (_result, variables) => {
-        if (!serverScope.isCurrent()) return;
-        queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
-          current.filter((neighbor) => neighbor.id !== variables.neighbor.id)
-        );
-        deleteTarget = null;
-        if (editTarget?.neighbor.id === variables.neighbor.id) editTarget = null;
-        toast.success(m('admin.neighbors.deleted'));
-      },
-      onError: (error) => {
-        if (serverScope.isCurrent()) toastError(error);
-      }
-    }),
-    () => queryClient
-  );
+  const deleteMutationState = createMutation(() => ({
+    mutationFn: ({ connection, neighbor }: DeleteVariables) =>
+      connection.getAPI(createNeighborAPI).delete(neighbor),
+    onSuccess: (_result, variables) => {
+      if (!serverScope.isCurrent()) return;
+      queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
+        current.filter((neighbor) => neighbor.id !== variables.neighbor.id)
+      );
+      deleteTarget = null;
+      if (editTarget?.neighbor.id === variables.neighbor.id) editTarget = null;
+      toast.success(m('admin.neighbors.deleted'));
+    },
+    onError: (error) => {
+      if (serverScope.isCurrent()) toastError(error);
+    }
+  }));
 
   const neighbors = $derived(neighborsQuery.data ?? []);
   /** Origin of the current server. It hosts the cached profile images. */
@@ -143,23 +130,20 @@ polls the cache briefly after a change. See FDR-042.
 
   onDestroy(() => clearTimeout(discoveryTimer));
 
-  const neighborhoodQuery = createQuery(
-    () => {
-      // Read the flag here so that a Neighbor change updates the poll timer.
-      const polling = awaitingDiscovery;
-      return {
-        queryKey: ['public', 'neighborhood', serverOrigin],
-        queryFn: ({ signal }) => listNeighborhoodServers(serverOrigin, { signal }),
-        enabled: neighbors.length > 0,
-        refetchInterval: (query) =>
-          polling &&
-          neighbors.some((neighbor) => !cachedProfiles(query.state.data).has(neighbor.origin))
-            ? DISCOVERY_POLL_MS
-            : false
-      };
-    },
-    () => queryClient
-  );
+  const neighborhoodQuery = createQuery(() => {
+    // Read the flag here so that a Neighbor change updates the poll timer.
+    const polling = awaitingDiscovery;
+    return {
+      queryKey: ['public', 'neighborhood', serverOrigin],
+      queryFn: ({ signal }) => listNeighborhoodServers(serverOrigin, { signal }),
+      enabled: neighbors.length > 0,
+      refetchInterval: (query) =>
+        polling &&
+        neighbors.some((neighbor) => !cachedProfiles(query.state.data).has(neighbor.origin))
+          ? DISCOVERY_POLL_MS
+          : false
+    };
+  });
   const profilesByOrigin = $derived(cachedProfiles(neighborhoodQuery.data));
 
   /** Map cached Neighborhood profiles by canonical origin. */

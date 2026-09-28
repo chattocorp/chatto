@@ -1,11 +1,10 @@
 <script lang="ts">
   import type { BotOutboundWebhook } from '@chatto/api-types/api/v1/bots_pb';
-  import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
@@ -19,15 +18,12 @@
 
   let { botId }: { botId: string } = $props();
   const scope = useServerScope();
-  const query = createQuery(
-    () => ({
-      queryKey: [...settingsQueryKeys.bot(scope.serverId, scope.connection, botId), 'outbound'],
-      queryFn: ({ signal }) =>
-        scope.connection.getAPI(createBotAPI).listOutboundWebhooks(botId, signal),
-      refetchInterval: 5000
-    }),
-    () => queryClient
-  );
+  const query = createQuery(() => ({
+    queryKey: [...settingsQueryKeys.bot(scope.serverId, scope.connection, botId), 'outbound'],
+    queryFn: ({ signal }) =>
+      scope.connection.getAPI(createBotAPI).listOutboundWebhooks(botId, signal),
+    refetchInterval: 5000
+  }));
   const webhooks = $derived(query.data ?? []);
   const atLimit = $derived(webhooks.length >= 20);
   const timeSettings = $derived(timeFormatSettingsFor(scope.store.currentUser.user?.settings));

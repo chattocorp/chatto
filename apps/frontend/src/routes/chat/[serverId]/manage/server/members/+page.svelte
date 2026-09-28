@@ -13,9 +13,8 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -30,29 +29,23 @@
   const searchDebounce = useDebounce();
   let scrollContainer = $state<HTMLDivElement>();
 
-  const membersQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      const search = activeSearch;
-      return {
-        queryKey: adminQueryKeys.members(serverId, activeConnection, search),
-        queryFn: ({ pageParam, signal }) =>
-          activeConnection
-            .getAPI(createAdminUserManagementAPI)
-            .listMembers(
-              { search: search || null, limit: PAGE_SIZE, offset: pageParam },
-              { signal }
-            ),
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.consumedCount > 0
-            ? lastPageParam + lastPage.consumedCount
-            : undefined
-      };
-    },
-    () => queryClient
-  );
+  const membersQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const search = activeSearch;
+    return {
+      queryKey: adminQueryKeys.members(serverId, activeConnection, search),
+      queryFn: ({ pageParam, signal }) =>
+        activeConnection
+          .getAPI(createAdminUserManagementAPI)
+          .listMembers({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, lastPageParam) =>
+        lastPage.hasMore && lastPage.consumedCount > 0
+          ? lastPageParam + lastPage.consumedCount
+          : undefined
+    };
+  });
 
   const users = $derived.by(() => {
     const seen = new SvelteSet<string>();

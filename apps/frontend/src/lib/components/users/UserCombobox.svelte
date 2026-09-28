@@ -2,11 +2,10 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { BOT_ACCOUNT_LABEL, isBotAccount } from '$lib/render/accountName';
   import BotBadge from '$lib/components/users/BotBadge.svelte';
-  import { createQuery } from '@tanstack/svelte-query';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { directoryQueryKeys } from '$lib/query/directory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Combobox } from '$lib/ui/form';
@@ -43,22 +42,17 @@
   let debouncePending = $state(false);
   let selectedUser = $state<User | null>(null);
   const searchDebounce = useDebounce();
-  const usersQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const search = activeSearch;
-      return {
-        queryKey: directoryQueryKeys.users(serverId, connection, search, SEARCH_LIMIT),
-        queryFn: ({ signal }) =>
-          connection
-            .getAPI(createMemberDirectoryAPI)
-            .listUsers(search, SEARCH_LIMIT, 0, { signal }),
-        enabled: search.length > 0
-      };
-    },
-    () => queryClient
-  );
+  const usersQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const search = activeSearch;
+    return {
+      queryKey: directoryQueryKeys.users(serverId, connection, search, SEARCH_LIMIT),
+      queryFn: ({ signal }) =>
+        connection.getAPI(createMemberDirectoryAPI).listUsers(search, SEARCH_LIMIT, 0, { signal }),
+      enabled: search.length > 0
+    };
+  });
   const users = $derived<User[]>(
     activeSearch && !debouncePending
       ? (usersQuery.data?.members ?? []).filter((user) => !humanOnly || !user.isBot)

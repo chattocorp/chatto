@@ -22,9 +22,8 @@
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
-  import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createQuery } from '$lib/query/client';
 
   const serverScope = useServerScope();
   const userSettings = $derived(
@@ -43,38 +42,32 @@
 
   const activeFilter = $derived(filterFromUrl(page.url));
   const activeFilterKey = $derived(filterKey(activeFilter));
-  const eventLogQuery = createInfiniteQuery(
-    () => {
-      const serverId = activeServerId;
-      const activeConnection = serverScope.connection;
-      const filter = activeFilter;
-      return {
-        queryKey: adminQueryKeys.eventLog(serverId, activeConnection, filter),
-        queryFn: ({ pageParam, signal }) =>
-          activeConnection
-            .getAPI(createAdminEventLogAPI)
-            .listEvents({ limit: 50, before: pageParam, filter }, { signal }),
-        initialPageParam: null as string | null,
-        getNextPageParam: (lastPage) =>
-          lastPage.hasOlder
-            ? (lastPage.endCursor ?? lastPage.entries.at(-1)?.sequence ?? undefined)
-            : undefined
-      };
-    },
-    () => queryClient
-  );
-  const eventTypesQuery = createQuery(
-    () => {
-      const serverId = activeServerId;
-      const activeConnection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.eventTypes(serverId, activeConnection),
-        queryFn: ({ signal }) =>
-          activeConnection.getAPI(createAdminEventLogAPI).listEventTypes({ signal })
-      };
-    },
-    () => queryClient
-  );
+  const eventLogQuery = createInfiniteQuery(() => {
+    const serverId = activeServerId;
+    const activeConnection = serverScope.connection;
+    const filter = activeFilter;
+    return {
+      queryKey: adminQueryKeys.eventLog(serverId, activeConnection, filter),
+      queryFn: ({ pageParam, signal }) =>
+        activeConnection
+          .getAPI(createAdminEventLogAPI)
+          .listEvents({ limit: 50, before: pageParam, filter }, { signal }),
+      initialPageParam: null as string | null,
+      getNextPageParam: (lastPage) =>
+        lastPage.hasOlder
+          ? (lastPage.endCursor ?? lastPage.entries.at(-1)?.sequence ?? undefined)
+          : undefined
+    };
+  });
+  const eventTypesQuery = createQuery(() => {
+    const serverId = activeServerId;
+    const activeConnection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.eventTypes(serverId, activeConnection),
+      queryFn: ({ signal }) =>
+        activeConnection.getAPI(createAdminEventLogAPI).listEventTypes({ signal })
+    };
+  });
   const eventLog = $derived.by(() => {
     const pages = eventLogQuery.data?.pages ?? [];
     const latestPage: AdminEventLogPage | undefined = pages.at(-1);

@@ -8,7 +8,6 @@ component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
-  import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
@@ -21,7 +20,7 @@ fields as realtime changes arrive.
   import UserBio from '$lib/components/users/UserBio.svelte';
   import { m } from '$lib/i18n/messages';
   import Interval from '$lib/lifecycle/Interval.svelte';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary, mapUserPresenceView } from '$lib/api-client/userSummary';
@@ -52,22 +51,19 @@ fields as realtime changes arrive.
   );
   let localTimeNow = $state(Date.now());
 
-  const userQuery = createQuery(
-    () => {
-      const connection = serverScope.connection;
-      return {
-        queryKey: [...serverSessionQueryRoot(serverScope.serverId, connection), 'user', userId],
-        queryFn: async () => {
-          const users = await connection.getAPI(createUserAPI).batchGetUsers([userId]);
-          return users[0] ?? null;
-        },
-        enabled: !!userId,
-        staleTime: 30_000,
-        refetchInterval: (query) => (query.state.data?.isBot ? 30_000 : false)
-      };
-    },
-    () => queryClient
-  );
+  const userQuery = createQuery(() => {
+    const connection = serverScope.connection;
+    return {
+      queryKey: [...serverSessionQueryRoot(serverScope.serverId, connection), 'user', userId],
+      queryFn: async () => {
+        const users = await connection.getAPI(createUserAPI).batchGetUsers([userId]);
+        return users[0] ?? null;
+      },
+      enabled: !!userId,
+      staleTime: 30_000,
+      refetchInterval: (query) => (query.state.data?.isBot ? 30_000 : false)
+    };
+  });
 
   const projectionUser = $derived(serverScope.store.projection.users.get(userId)?.user);
   const baseUser = $derived(mapOptionalUserSummary(projectionUser));

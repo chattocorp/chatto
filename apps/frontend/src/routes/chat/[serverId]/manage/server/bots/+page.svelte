@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import {
@@ -21,7 +20,7 @@
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createQuery, queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
@@ -43,26 +42,23 @@
     componentActive = false;
   });
 
-  const botsQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const search = activeSearch;
-      return {
-        queryKey: settingsQueryKeys.bots(serverId, connection, search),
-        queryFn: ({ pageParam, signal }) =>
-          connection
-            .getAPI(createBotAPI)
-            .listBots({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.bots.length > 0
-            ? lastPageParam + lastPage.bots.length
-            : undefined
-      };
-    },
-    () => queryClient
-  );
+  const botsQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const search = activeSearch;
+    return {
+      queryKey: settingsQueryKeys.bots(serverId, connection, search),
+      queryFn: ({ pageParam, signal }) =>
+        connection
+          .getAPI(createBotAPI)
+          .listBots({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, lastPageParam) =>
+        lastPage.hasMore && lastPage.bots.length > 0
+          ? lastPageParam + lastPage.bots.length
+          : undefined
+    };
+  });
 
   const bots = $derived.by(() => {
     const seen = new SvelteSet<string>();
@@ -80,26 +76,23 @@
     for (const bot of bots) ids.add(bot.ownerUserId);
     return [...ids];
   });
-  const ownersQuery = createQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const userIds = ownerUserIds;
-      return {
-        queryKey: [...settingsQueryKeys.botsRoot(serverId, connection), 'owners', userIds],
-        queryFn: async () => {
-          const api = connection.getAPI(createUserAPI);
-          const batches = [];
-          for (let offset = 0; offset < userIds.length; offset += 100) {
-            batches.push(api.batchGetUsers(userIds.slice(offset, offset + 100)));
-          }
-          return (await Promise.all(batches)).flat();
-        },
-        enabled: userIds.length > 0
-      };
-    },
-    () => queryClient
-  );
+  const ownersQuery = createQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const userIds = ownerUserIds;
+    return {
+      queryKey: [...settingsQueryKeys.botsRoot(serverId, connection), 'owners', userIds],
+      queryFn: async () => {
+        const api = connection.getAPI(createUserAPI);
+        const batches = [];
+        for (let offset = 0; offset < userIds.length; offset += 100) {
+          batches.push(api.batchGetUsers(userIds.slice(offset, offset + 100)));
+        }
+        return (await Promise.all(batches)).flat();
+      },
+      enabled: userIds.length > 0
+    };
+  });
   const ownersById = $derived(new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner])));
 
   let createVisible = $state(false);

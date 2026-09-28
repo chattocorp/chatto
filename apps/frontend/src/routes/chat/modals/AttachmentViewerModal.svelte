@@ -5,8 +5,7 @@ media. HTML consent is never stored in history or carried to another selection.
 <script lang="ts">
   import { onMount, onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/state';
-  import { createQuery } from '@tanstack/svelte-query';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { AttachmentViewerModalState } from '$lib/modal';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
@@ -41,25 +40,22 @@ media. HTML consent is never stored in history or carried to another selection.
   const downloadUrl = $derived(
     attachmentDownloadUrl(assetUrlForServer(modal.serverId, item.assetUrl?.url))
   );
-  const metadata = createQuery(
-    () => {
-      const connection = serverConnectionManager.getClient(modal.serverId);
-      const { serverId, roomId } = modal;
-      const assetId = item.id;
-      return {
-        queryKey: [
-          ...serverSessionQueryRoot(serverId, connection),
-          'attachment-metadata',
-          roomId,
-          assetId
-        ],
-        queryFn: ({ signal }: { signal: AbortSignal }) =>
-          connection.getAPI(createAttachmentAPI).getMetadata(roomId, assetId, signal),
-        gcTime: 0
-      };
-    },
-    () => queryClient
-  );
+  const metadata = createQuery(() => {
+    const connection = serverConnectionManager.getClient(modal.serverId);
+    const { serverId, roomId } = modal;
+    const assetId = item.id;
+    return {
+      queryKey: [
+        ...serverSessionQueryRoot(serverId, connection),
+        'attachment-metadata',
+        roomId,
+        assetId
+      ],
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        connection.getAPI(createAttachmentAPI).getMetadata(roomId, assetId, signal),
+      gcTime: 0
+    };
+  });
 
   function current(target: AttachmentViewerModalState, selected: number) {
     return active && modal === target && page.state.modal === target && generation === selected;

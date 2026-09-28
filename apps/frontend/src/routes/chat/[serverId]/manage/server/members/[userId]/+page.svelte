@@ -5,7 +5,6 @@
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import {
     createAdminUserManagementAPI,
     type AdminMember,
@@ -24,7 +23,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
   import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
@@ -59,21 +58,18 @@
 
   onDestroy(removeUserRemovalListener);
 
-  const memberQuery = createQuery(
-    () => {
-      const serverId = activeServerId;
-      const connection = serverScope.connection;
-      const targetUserId = userId;
-      const removed = removedMember?.serverId === serverId && removedMember.userId === targetUserId;
-      return {
-        queryKey: adminQueryKeys.member(serverId, connection, targetUserId),
-        queryFn: ({ signal }) =>
-          connection.getAPI(createAdminUserManagementAPI).getMember(targetUserId, { signal }),
-        enabled: !!serverId && !!targetUserId && !removed
-      };
-    },
-    () => queryClient
-  );
+  const memberQuery = createQuery(() => {
+    const serverId = activeServerId;
+    const connection = serverScope.connection;
+    const targetUserId = userId;
+    const removed = removedMember?.serverId === serverId && removedMember.userId === targetUserId;
+    return {
+      queryKey: adminQueryKeys.member(serverId, connection, targetUserId),
+      queryFn: ({ signal }) =>
+        connection.getAPI(createAdminUserManagementAPI).getMember(targetUserId, { signal }),
+      enabled: !!serverId && !!targetUserId && !removed
+    };
+  });
 
   const details = $derived(memberQuery.data ?? null);
   const member = $derived(details?.member ?? null);
@@ -143,65 +139,53 @@
     });
   }
 
-  const identityMutation = createMutation(
-    () => ({
-      mutationFn: ({ connection, userId: targetUserId, input }: IdentityMutationVariables) =>
-        connection.getAPI(createUserAPI).updateUserProfile(targetUserId, input),
-      onSuccess: (updated, target) => {
-        if (!isCurrentTarget(target)) return;
-        updateCachedMember(target, (current) => ({
-          ...current,
-          login: updated.login,
-          displayName: updated.displayName,
-          bio: updated.bio ?? null
-        }));
-        invalidateMemberLists(target);
-        for (const roleName of target.roleNames) invalidateRole(target, roleName);
-      }
-    }),
-    () => queryClient
-  );
+  const identityMutation = createMutation(() => ({
+    mutationFn: ({ connection, userId: targetUserId, input }: IdentityMutationVariables) =>
+      connection.getAPI(createUserAPI).updateUserProfile(targetUserId, input),
+    onSuccess: (updated, target) => {
+      if (!isCurrentTarget(target)) return;
+      updateCachedMember(target, (current) => ({
+        ...current,
+        login: updated.login,
+        displayName: updated.displayName,
+        bio: updated.bio ?? null
+      }));
+      invalidateMemberLists(target);
+      for (const roleName of target.roleNames) invalidateRole(target, roleName);
+    }
+  }));
 
-  const cooldownMutation = createMutation(
-    () => ({
-      mutationFn: ({ api, userId: targetUserId }: MemberMutationScope) =>
-        api.clearUsernameCooldown(targetUserId),
-      onSuccess: (cleared, target) => {
-        if (!cleared || !isCurrentTarget(target)) return;
-        updateCachedMember(target, (current) => ({ ...current, lastLoginChange: null }));
-        invalidateMemberLists(target);
-      }
-    }),
-    () => queryClient
-  );
+  const cooldownMutation = createMutation(() => ({
+    mutationFn: ({ api, userId: targetUserId }: MemberMutationScope) =>
+      api.clearUsernameCooldown(targetUserId),
+    onSuccess: (cleared, target) => {
+      if (!cleared || !isCurrentTarget(target)) return;
+      updateCachedMember(target, (current) => ({ ...current, lastLoginChange: null }));
+      invalidateMemberLists(target);
+    }
+  }));
 
-  const passwordMutation = createMutation(
-    () => ({
-      mutationFn: ({ api, userId: targetUserId, password }: PasswordMutationVariables) =>
-        api.changeUserPassword(targetUserId, password),
-      onSuccess: (updated, target) => {
-        if (!isCurrentTarget(target)) return;
-        updateCachedMember(target, () => updated);
-        invalidateMemberLists(target);
-      }
-    }),
-    () => queryClient
-  );
+  const passwordMutation = createMutation(() => ({
+    mutationFn: ({ api, userId: targetUserId, password }: PasswordMutationVariables) =>
+      api.changeUserPassword(targetUserId, password),
+    onSuccess: (updated, target) => {
+      if (!isCurrentTarget(target)) return;
+      updateCachedMember(target, () => updated);
+      invalidateMemberLists(target);
+    }
+  }));
 
-  const roleMutation = createMutation(
-    () => ({
-      mutationFn: ({
-        api,
-        userId: targetUserId,
-        roleName,
-        currentlyHasRole
-      }: RoleMutationVariables) =>
-        currentlyHasRole
-          ? api.revokeRole(targetUserId, roleName)
-          : api.assignRole(targetUserId, roleName)
-    }),
-    () => queryClient
-  );
+  const roleMutation = createMutation(() => ({
+    mutationFn: ({
+      api,
+      userId: targetUserId,
+      roleName,
+      currentlyHasRole
+    }: RoleMutationVariables) =>
+      currentlyHasRole
+        ? api.revokeRole(targetUserId, roleName)
+        : api.assignRole(targetUserId, roleName)
+  }));
 
   async function updateIdentity(input: UpdateUserProfileInput): Promise<UserSummary | null> {
     const target = mutationScope();

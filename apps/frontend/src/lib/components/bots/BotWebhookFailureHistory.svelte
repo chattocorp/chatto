@@ -1,9 +1,8 @@
 <!-- @component Retained webhook failures. Mounted on demand; the query owns paging. -->
 <script lang="ts">
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
@@ -12,25 +11,22 @@
 
   let { botId, webhookId }: { botId: string; webhookId: string } = $props();
   const scope = useServerScope();
-  const query = createInfiniteQuery(
-    () => ({
-      queryKey: [
-        ...settingsQueryKeys.bot(scope.serverId, scope.connection, botId),
-        'failures',
-        webhookId
-      ],
-      initialPageParam: '',
-      refetchInterval: 30000,
-      queryFn: ({ pageParam, signal }) =>
-        scope.connection
-          .getAPI(createBotAPI)
-          .listWebhookFailures(botId, webhookId, pageParam, signal),
-      getNextPageParam: (page) => page.nextCursor || undefined,
-      // Remounting starts a fresh bounded history, rather than keeping expired rows.
-      gcTime: 0
-    }),
-    () => queryClient
-  );
+  const query = createInfiniteQuery(() => ({
+    queryKey: [
+      ...settingsQueryKeys.bot(scope.serverId, scope.connection, botId),
+      'failures',
+      webhookId
+    ],
+    initialPageParam: '',
+    refetchInterval: 30000,
+    queryFn: ({ pageParam, signal }) =>
+      scope.connection
+        .getAPI(createBotAPI)
+        .listWebhookFailures(botId, webhookId, pageParam, signal),
+    getNextPageParam: (page) => page.nextCursor || undefined,
+    // Remounting starts a fresh bounded history, rather than keeping expired rows.
+    gcTime: 0
+  }));
   const failures = $derived(query.data?.pages.flatMap((page) => page.failures) ?? []);
 </script>
 

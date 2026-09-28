@@ -5,7 +5,6 @@
   import { onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
@@ -16,7 +15,7 @@
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import {
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomQuery
@@ -52,35 +51,32 @@
     input: ReturnType<typeof buildRoomSettingsUpdate>;
   };
 
-  const roomQuery = createQuery(
-    () => {
-      const serverId = activeServerId;
-      const connection = serverScope.connection;
-      const targetRoomId = roomId;
-      return {
-        queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
-        queryFn: async ({ signal }) => {
-          const revalidation = pendingMemberRevalidation;
-          const room = await connection
-            .getAPI(createAdminRoomLayoutAPI)
-            .getRoom(targetRoomId, { signal });
-          if (
-            !signal.aborted &&
-            room &&
-            revalidation !== null &&
-            pendingMemberRevalidation === revalidation &&
-            revalidation.roomId === targetRoomId
-          ) {
-            pendingMemberRevalidation = null;
-            void invalidateRoomMemberQueries(serverId, connection, targetRoomId);
-          }
-          return room;
-        },
-        refetchOnMount: 'always' as const
-      };
-    },
-    () => queryClient
-  );
+  const roomQuery = createQuery(() => {
+    const serverId = activeServerId;
+    const connection = serverScope.connection;
+    const targetRoomId = roomId;
+    return {
+      queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
+      queryFn: async ({ signal }) => {
+        const revalidation = pendingMemberRevalidation;
+        const room = await connection
+          .getAPI(createAdminRoomLayoutAPI)
+          .getRoom(targetRoomId, { signal });
+        if (
+          !signal.aborted &&
+          room &&
+          revalidation !== null &&
+          pendingMemberRevalidation === revalidation &&
+          revalidation.roomId === targetRoomId
+        ) {
+          pendingMemberRevalidation = null;
+          void invalidateRoomMemberQueries(serverId, connection, targetRoomId);
+        }
+        return room;
+      },
+      refetchOnMount: 'always' as const
+    };
+  });
 
   const room = $derived(roomQuery.data ?? null);
   const canManageRoom = $derived(room?.canManageRoom ?? false);
@@ -109,50 +105,43 @@
     return isCurrentRoom(variables) && variables.snapshotGeneration === snapshotGeneration;
   }
 
-  const updateRoomMutation = createMutation(
-    () => ({
-      mutationFn: async ({ api, input }: RoomMutationScope) => {
-        const updated = await api.updateRoom(input);
-        if (!updated) throw new Error('Room update returned no room');
-        return updated;
-      },
-      onSuccess: (updated, variables) => {
-        if (!isCurrentRoom(variables)) return;
-        if (canApplyRoomSnapshot(variables)) {
-          queryClient.setQueryData<AdminManagedRoom | null>(variables.queryKey, (current) =>
-            current
-              ? {
-                  ...current,
-                  name: updated.name,
-                  description: updated.description || null,
-                  isUniversal: updated.universal,
-                  slowModeSeconds: updated.slowModeSeconds,
-                  threadingMode: updated.threadingMode,
-                  archived: updated.archived
-                }
-              : current
-          );
-          formRevision += 1;
-        }
-        invalidateAdminRoomLayoutQueries(
-          variables.serverId,
-          variables.connection,
-          variables.roomId
+  const updateRoomMutation = createMutation(() => ({
+    mutationFn: async ({ api, input }: RoomMutationScope) => {
+      const updated = await api.updateRoom(input);
+      if (!updated) throw new Error('Room update returned no room');
+      return updated;
+    },
+    onSuccess: (updated, variables) => {
+      if (!isCurrentRoom(variables)) return;
+      if (canApplyRoomSnapshot(variables)) {
+        queryClient.setQueryData<AdminManagedRoom | null>(variables.queryKey, (current) =>
+          current
+            ? {
+                ...current,
+                name: updated.name,
+                description: updated.description || null,
+                isUniversal: updated.universal,
+                slowModeSeconds: updated.slowModeSeconds,
+                threadingMode: updated.threadingMode,
+                archived: updated.archived
+              }
+            : current
         );
-        void serverScope.store.adminRoomLayout.refresh();
-        toast.success(m('admin.rooms_admin.room_updated'));
-      },
-      onError: (error, variables) => {
-        if (!isCurrentRoom(variables)) return;
-        toast.error(
-          m('admin.rooms_admin.update_room_failed', {
-            error: errorMessage(error)
-          })
-        );
+        formRevision += 1;
       }
-    }),
-    () => queryClient
-  );
+      invalidateAdminRoomLayoutQueries(variables.serverId, variables.connection, variables.roomId);
+      void serverScope.store.adminRoomLayout.refresh();
+      toast.success(m('admin.rooms_admin.room_updated'));
+    },
+    onError: (error, variables) => {
+      if (!isCurrentRoom(variables)) return;
+      toast.error(
+        m('admin.rooms_admin.update_room_failed', {
+          error: errorMessage(error)
+        })
+      );
+    }
+  }));
 
   function saveGeneralSettings(input: ReturnType<typeof buildRoomSettingsUpdate>): void {
     if (!canManageRoom || updateRoomMutation.isPending) return;

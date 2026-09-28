@@ -16,14 +16,14 @@ preview on screen.
   import { formatAccountName } from '$lib/render/accountName';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-  import { createQuery, skipToken } from '@tanstack/svelte-query';
+  import { skipToken } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import {
     fetchMessagePreview,
     messagePreviewQueryKey,
@@ -74,24 +74,21 @@ preview on screen.
     store && link.serverId ? serverConnectionManager.getClient(link.serverId) : undefined
   );
 
-  const previewQuery = createQuery(
-    () => {
-      const { serverId, roomId, messageId } = link;
-      const target = serverId && connection ? { serverId, client: connection } : null;
-      return {
-        queryKey: target
-          ? messagePreviewQueryKey(target.serverId, target.client, roomId, messageId)
-          : ['message-preview', 'unavailable'],
-        queryFn: target
-          ? ({ signal }: { signal: AbortSignal }) =>
-              fetchMessagePreview(target.serverId, target.client, roomId, messageId, signal)
-          : skipToken,
-        // Drop the preview when the last card that shows it unmounts.
-        gcTime: 0
-      };
-    },
-    () => queryClient
-  );
+  const previewQuery = createQuery(() => {
+    const { serverId, roomId, messageId } = link;
+    const target = serverId && connection ? { serverId, client: connection } : null;
+    return {
+      queryKey: target
+        ? messagePreviewQueryKey(target.serverId, target.client, roomId, messageId)
+        : ['message-preview', 'unavailable'],
+      queryFn: target
+        ? ({ signal }: { signal: AbortSignal }) =>
+            fetchMessagePreview(target.serverId, target.client, roomId, messageId, signal)
+        : skipToken,
+      // Drop the preview when the last card that shows it unmounts.
+      gcTime: 0
+    };
+  });
 
   // Thumbnail URLs refreshed for the loaded preview. A reload of the preview
   // brings its own URLs and replaces these.

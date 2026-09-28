@@ -6,7 +6,6 @@
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { MessageSearchState } from '$lib/api-client/messageSearch';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -31,7 +30,7 @@
   import { createReadStateAPI } from '$lib/api-client/readState';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
     nextUnreadFollowedThreadOffset,
@@ -104,47 +103,44 @@
     replaceState('', { ...page.state, threadFilter: value });
   }
 
-  const threadsQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const connection = serverScope.connection;
-      const query = searchQuery;
-      // Search results are filtered locally below.
-      const unreadOnly = !query && filter === 'unread';
-      return {
-        queryKey: threadQueryKeys.followed(serverId, connection, { query, unreadOnly }),
-        enabled: !query || searchStatus.available,
-        queryFn: async ({ pageParam, signal }) => {
-          const result = await connection.getAPI(createThreadAPI).listFollowedThreads(
-            {
-              limit: PAGE_SIZE,
-              offset: typeof pageParam === 'number' ? pageParam : 0,
-              cursor: typeof pageParam === 'string' ? pageParam : undefined,
-              query,
-              unreadOnly
-            },
-            { signal }
-          );
-          const pageData = {
-            ...result,
-            nextOffset: (typeof pageParam === 'number' ? pageParam : 0) + result.threads.length
-          };
-          if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
-          return pageData;
-        },
-        initialPageParam: query ? '' : 0,
-        getNextPageParam: (lastPage, pages, lastPageParam) => {
-          if (query) return lastPage.nextCursor || undefined;
-          if (!lastPage.hasMore || typeof lastPageParam !== 'number') return undefined;
-          if (unreadOnly) {
-            return lastPage.threads.length > 0 ? nextUnreadFollowedThreadOffset(pages) : undefined;
-          }
-          return lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined;
+  const threadsQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    const query = searchQuery;
+    // Search results are filtered locally below.
+    const unreadOnly = !query && filter === 'unread';
+    return {
+      queryKey: threadQueryKeys.followed(serverId, connection, { query, unreadOnly }),
+      enabled: !query || searchStatus.available,
+      queryFn: async ({ pageParam, signal }) => {
+        const result = await connection.getAPI(createThreadAPI).listFollowedThreads(
+          {
+            limit: PAGE_SIZE,
+            offset: typeof pageParam === 'number' ? pageParam : 0,
+            cursor: typeof pageParam === 'string' ? pageParam : undefined,
+            query,
+            unreadOnly
+          },
+          { signal }
+        );
+        const pageData = {
+          ...result,
+          nextOffset: (typeof pageParam === 'number' ? pageParam : 0) + result.threads.length
+        };
+        if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
+        return pageData;
+      },
+      initialPageParam: query ? '' : 0,
+      getNextPageParam: (lastPage, pages, lastPageParam) => {
+        if (query) return lastPage.nextCursor || undefined;
+        if (!lastPage.hasMore || typeof lastPageParam !== 'number') return undefined;
+        if (unreadOnly) {
+          return lastPage.threads.length > 0 ? nextUnreadFollowedThreadOffset(pages) : undefined;
         }
-      };
-    },
-    () => queryClient
-  );
+        return lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined;
+      }
+    };
+  });
 
   const threads = $derived(flattenFollowedThreads(threadsQuery.data));
   const loading = $derived(threadsQuery.isPending);

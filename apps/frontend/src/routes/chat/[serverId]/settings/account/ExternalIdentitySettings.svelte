@@ -1,7 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     browserAuthorizationWindow,
@@ -17,7 +16,7 @@
   } from '$lib/api-client/externalIdentities';
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -48,26 +47,22 @@
     currentPassword?: string;
   };
 
-  const identitiesQuery = createQuery(
-    () => {
-      const activeServerId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      const activeUserId = accountId ?? '';
-      return {
-        queryKey: settingsQueryKeys.externalIdentities(
-          activeServerId,
-          activeConnection,
-          activeUserId
-        ),
-        queryFn: ({ signal }) =>
-          activeConnection.getAPI(createExternalIdentityAPI).list({ signal }),
-        enabled: activeUserId !== '',
-        // A provider callback returns to this route and must not reuse the pre-link snapshot.
-        refetchOnMount: 'always' as const
-      };
-    },
-    () => queryClient
-  );
+  const identitiesQuery = createQuery(() => {
+    const activeServerId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeUserId = accountId ?? '';
+    return {
+      queryKey: settingsQueryKeys.externalIdentities(
+        activeServerId,
+        activeConnection,
+        activeUserId
+      ),
+      queryFn: ({ signal }) => activeConnection.getAPI(createExternalIdentityAPI).list({ signal }),
+      enabled: activeUserId !== '',
+      // A provider callback returns to this route and must not reuse the pre-link snapshot.
+      refetchOnMount: 'always' as const
+    };
+  });
 
   const providers = $derived(accountId ? (identitiesQuery.data?.providers ?? []) : []);
   const linkedIdentities = $derived(
@@ -205,34 +200,28 @@
   let blockedDisconnectProviderLabel = $state('');
   let showDisconnectBlockedModal = $state(false);
 
-  const linkMutation = createMutation(
-    () => ({
-      mutationFn: ({
-        connection: activeConnection,
-        provider,
-        currentPassword,
-        redirectPath
-      }: LinkVariables) =>
-        activeConnection.getAPI(createExternalIdentityAPI).startLink({
-          providerId: provider.id,
-          redirectPath,
-          currentPassword
-        })
-    }),
-    () => queryClient
-  );
-
-  const disconnectMutation = createMutation(
-    () => ({
-      mutationFn: ({
-        connection: activeConnection,
-        subjectHash,
+  const linkMutation = createMutation(() => ({
+    mutationFn: ({
+      connection: activeConnection,
+      provider,
+      currentPassword,
+      redirectPath
+    }: LinkVariables) =>
+      activeConnection.getAPI(createExternalIdentityAPI).startLink({
+        providerId: provider.id,
+        redirectPath,
         currentPassword
-      }: DisconnectVariables) =>
-        activeConnection.getAPI(createExternalIdentityAPI).disconnect(subjectHash, currentPassword)
-    }),
-    () => queryClient
-  );
+      })
+  }));
+
+  const disconnectMutation = createMutation(() => ({
+    mutationFn: ({
+      connection: activeConnection,
+      subjectHash,
+      currentPassword
+    }: DisconnectVariables) =>
+      activeConnection.getAPI(createExternalIdentityAPI).disconnect(subjectHash, currentPassword)
+  }));
 
   const linkingProviderId = $derived(
     linkMutation.isPending && session.isCurrent(linkMutation.variables)

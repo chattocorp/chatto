@@ -15,9 +15,8 @@
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
   const activeLocale = $derived(getLocale());
@@ -36,25 +35,22 @@
     unbanRequest += 1;
   });
 
-  const bansQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      return {
-        queryKey: adminQueryKeys.suspensions(serverId, activeConnection),
-        queryFn: ({ pageParam, signal }) =>
-          activeConnection
-            .getAPI(createRoomCommandAPI)
-            .listSuspensions({ limit: PAGE_SIZE, offset: pageParam }, { signal }),
-        initialPageParam: 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.suspensions.length > 0
-            ? lastPageParam + lastPage.suspensions.length
-            : undefined
-      };
-    },
-    () => queryClient
-  );
+  const bansQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.suspensions(serverId, activeConnection),
+      queryFn: ({ pageParam, signal }) =>
+        activeConnection
+          .getAPI(createRoomCommandAPI)
+          .listSuspensions({ limit: PAGE_SIZE, offset: pageParam }, { signal }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, _pages, lastPageParam) =>
+        lastPage.hasMore && lastPage.suspensions.length > 0
+          ? lastPageParam + lastPage.suspensions.length
+          : undefined
+    };
+  });
 
   const bans = $derived.by(() => {
     const seen = new SvelteSet<string>();
@@ -78,15 +74,12 @@
     reason: string;
   };
 
-  const unbanMutation = createMutation(
-    () => ({
-      mutationFn: ({ api, ban, reason }: UnbanVariables) =>
-        api.liftSuspension({ roomId: ban.roomId, userId: ban.userId, reason }),
-      onSuccess: (_unbanned, variables) =>
-        queryClient.invalidateQueries({ queryKey: variables.queryKey })
-    }),
-    () => queryClient
-  );
+  const unbanMutation = createMutation(() => ({
+    mutationFn: ({ api, ban, reason }: UnbanVariables) =>
+      api.liftSuspension({ roomId: ban.roomId, userId: ban.userId, reason }),
+    onSuccess: (_unbanned, variables) =>
+      queryClient.invalidateQueries({ queryKey: variables.queryKey })
+  }));
 
   const unbanningBanId = $derived(
     unbanMutation.isPending ? (unbanMutation.variables?.ban.id ?? null) : null

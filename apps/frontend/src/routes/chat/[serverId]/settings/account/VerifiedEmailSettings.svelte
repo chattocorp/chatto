@@ -3,12 +3,11 @@
   import { beforeNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
-  import { createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import type { VerifiedEmail } from '$lib/api-client/account';
   import { createAccountAPI } from '$lib/api-client/account';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverIdToSegment } from '$lib/navigation';
@@ -77,22 +76,19 @@
     })
   );
 
-  const emailsQuery = createQuery(
-    () => {
-      const connection = serverScope.connection;
-      const userId = viewerUserId;
-      return {
-        queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection, userId),
-        queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(userId),
-        enabled: userId !== '',
-        // A different tab can replace the origin cookie while this SPA still
-        // identifies the previous user. Remounting must assert that identity
-        // against the server instead of reusing a fresh private snapshot.
-        refetchOnMount: 'always' as const
-      };
-    },
-    () => queryClient
-  );
+  const emailsQuery = createQuery(() => {
+    const connection = serverScope.connection;
+    const userId = viewerUserId;
+    return {
+      queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection, userId),
+      queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(userId),
+      enabled: userId !== '',
+      // A different tab can replace the origin cookie while this SPA still
+      // identifies the previous user. Remounting must assert that identity
+      // against the server instead of reusing a fresh private snapshot.
+      refetchOnMount: 'always' as const
+    };
+  });
 
   const verifiedEmails = $derived(viewerUserId ? (emailsQuery.data ?? []) : []);
   const emailsMatch = $derived(

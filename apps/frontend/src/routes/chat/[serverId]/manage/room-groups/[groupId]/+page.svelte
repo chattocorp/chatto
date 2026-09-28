@@ -2,7 +2,6 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import {
     createAdminRoomLayoutAPI,
@@ -17,7 +16,7 @@
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import {
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomGroupQuery
@@ -45,20 +44,17 @@
     input: ReturnType<typeof buildRoomGroupSettingsUpdate>;
   };
 
-  const groupQuery = createQuery(
-    () => {
-      const serverId = activeServerId;
-      const connection = serverScope.connection;
-      const targetGroupId = groupId;
-      return {
-        queryKey: adminQueryKeys.roomGroup(serverId, connection, targetGroupId),
-        queryFn: ({ signal }) =>
-          connection.getAPI(createAdminRoomLayoutAPI).getRoomGroup(targetGroupId, { signal }),
-        refetchOnMount: 'always' as const
-      };
-    },
-    () => queryClient
-  );
+  const groupQuery = createQuery(() => {
+    const serverId = activeServerId;
+    const connection = serverScope.connection;
+    const targetGroupId = groupId;
+    return {
+      queryKey: adminQueryKeys.roomGroup(serverId, connection, targetGroupId),
+      queryFn: ({ signal }) =>
+        connection.getAPI(createAdminRoomLayoutAPI).getRoomGroup(targetGroupId, { signal }),
+      refetchOnMount: 'always' as const
+    };
+  });
 
   const groupDetails = $derived(groupQuery.data ?? null);
   const group = $derived(groupDetails?.group ?? null);
@@ -83,41 +79,38 @@
     return isCurrentGroup(variables) && variables.snapshotGeneration === snapshotGeneration;
   }
 
-  const updateGroupMutation = createMutation(
-    () => ({
-      mutationFn: async ({ api, input }: GroupMutationScope) => {
-        const updated = await api.updateRoomGroup(input);
-        if (!updated) throw new Error('Room group update returned no group');
-        return updated;
-      },
-      onSuccess: (updated, variables) => {
-        if (!isCurrentGroup(variables)) return;
-        if (canApplyGroupSnapshot(variables)) {
-          queryClient.setQueryData<AdminManagedRoomGroup | null>(variables.queryKey, (current) =>
-            current ? { ...current, group: updated } : current
-          );
-          formRevision += 1;
-        }
-        invalidateAdminRoomLayoutQueries(
-          variables.serverId,
-          variables.connection,
-          undefined,
-          variables.groupId
+  const updateGroupMutation = createMutation(() => ({
+    mutationFn: async ({ api, input }: GroupMutationScope) => {
+      const updated = await api.updateRoomGroup(input);
+      if (!updated) throw new Error('Room group update returned no group');
+      return updated;
+    },
+    onSuccess: (updated, variables) => {
+      if (!isCurrentGroup(variables)) return;
+      if (canApplyGroupSnapshot(variables)) {
+        queryClient.setQueryData<AdminManagedRoomGroup | null>(variables.queryKey, (current) =>
+          current ? { ...current, group: updated } : current
         );
-        void serverScope.store.adminRoomLayout.refresh();
-        toast.success(m('admin.rooms_admin.group_renamed'));
-      },
-      onError: (error, variables) => {
-        if (!isCurrentGroup(variables)) return;
-        toast.error(
-          m('admin.rooms_admin.rename_group_failed', {
-            error: errorMessage(error)
-          })
-        );
+        formRevision += 1;
       }
-    }),
-    () => queryClient
-  );
+      invalidateAdminRoomLayoutQueries(
+        variables.serverId,
+        variables.connection,
+        undefined,
+        variables.groupId
+      );
+      void serverScope.store.adminRoomLayout.refresh();
+      toast.success(m('admin.rooms_admin.group_renamed'));
+    },
+    onError: (error, variables) => {
+      if (!isCurrentGroup(variables)) return;
+      toast.error(
+        m('admin.rooms_admin.rename_group_failed', {
+          error: errorMessage(error)
+        })
+      );
+    }
+  }));
 
   function saveGeneralSettings(input: ReturnType<typeof buildRoomGroupSettingsUpdate>): void {
     if (!canManageGroup || updateGroupMutation.isPending) return;

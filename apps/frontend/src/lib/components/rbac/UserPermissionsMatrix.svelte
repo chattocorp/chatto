@@ -27,9 +27,9 @@ rendering to `SubjectPermissionsMatrix`.
     type CellState,
     type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
-  import { createInfiniteQuery, type InfiniteData } from '@tanstack/svelte-query';
+  import { type InfiniteData } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, queryClient } from '$lib/query/client';
   import {
     registerQueryCacheRemovalListener,
     registerServerQueryCacheRemovalListener
@@ -54,35 +54,32 @@ rendering to `SubjectPermissionsMatrix`.
 
   const serverScope = useServerScope();
 
-  const matrixQuery = createInfiniteQuery(
-    () => {
-      const serverId = serverScope.serverId;
-      const activeConnection = serverScope.connection;
-      const activeUserId = userId;
-      const isBot = ownerCapped;
-      return {
-        queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
-        initialPageParam: 0,
-        getNextPageParam: (last: Matrix | null, pages: (Matrix | null)[]) =>
-          last?.page.hasMore
-            ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
-            : undefined,
-        queryFn: async ({ signal, pageParam }) => {
-          // Cache refreshes can run before reactive query options update.
-          const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
-          const matrix = await activeConnection
-            .getAPI(createPermissionAPI)
-            .getUserPermissionMatrix(activeUserId, {
-              signal,
-              page: { limit: 20, offset: pageParam }
-            });
-          if (!matrix) return null;
-          return loadAccountMemberships(activeConnection, matrix, isBot, canManageAccounts, signal);
-        }
-      };
-    },
-    () => queryClient
-  );
+  const matrixQuery = createInfiniteQuery(() => {
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeUserId = userId;
+    const isBot = ownerCapped;
+    return {
+      queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
+      initialPageParam: 0,
+      getNextPageParam: (last: Matrix | null, pages: (Matrix | null)[]) =>
+        last?.page.hasMore
+          ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
+          : undefined,
+      queryFn: async ({ signal, pageParam }) => {
+        // Cache refreshes can run before reactive query options update.
+        const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
+        const matrix = await activeConnection
+          .getAPI(createPermissionAPI)
+          .getUserPermissionMatrix(activeUserId, {
+            signal,
+            page: { limit: 20, offset: pageParam }
+          });
+        if (!matrix) return null;
+        return loadAccountMemberships(activeConnection, matrix, isBot, canManageAccounts, signal);
+      }
+    };
+  });
 
   const data = $derived<Matrix | null>(
     mergePermissionPages(

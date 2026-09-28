@@ -1,11 +1,10 @@
 <!-- @component Public bot permissions. The query refreshes every 30 seconds
 while mounted and discards cached data when the profile closes. -->
 <script lang="ts">
-  import { createQuery } from '@tanstack/svelte-query';
   import { createPermissionAPI, type MatrixData } from '$lib/api-client/permissions';
   import { createEffectivePermissionAPI } from '$lib/api-client/effectivePermissions';
   import { m } from '$lib/i18n/messages';
-  import { queryClient } from '$lib/query/client';
+  import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
@@ -30,22 +29,17 @@ while mounted and discards cached data when the profile closes. -->
     class?: string;
   } = $props();
   const scope = useServerScope();
-  const query = createQuery(
-    () => ({
-      queryKey: [
-        ...serverSessionQueryRoot(scope.serverId, scope.connection),
-        'bot-permissions',
-        botId
-      ],
-      queryFn: ({ signal }) =>
-        scope.connection
-          .getAPI(createEffectivePermissionAPI)
-          .listEffectivePermissions(botId, signal),
-      refetchInterval: 30_000,
-      gcTime: 0
-    }),
-    () => queryClient
-  );
+  const query = createQuery(() => ({
+    queryKey: [
+      ...serverSessionQueryRoot(scope.serverId, scope.connection),
+      'bot-permissions',
+      botId
+    ],
+    queryFn: ({ signal }) =>
+      scope.connection.getAPI(createEffectivePermissionAPI).listEffectivePermissions(botId, signal),
+    refetchInterval: 30_000,
+    gcTime: 0
+  }));
   const active = $derived(groupBotPermissions(compactEffectivePermissions(query.data ?? [])));
   const canManage = $derived(
     !!scope.store?.projection.viewer?.user?.profile &&
@@ -53,39 +47,36 @@ while mounted and discards cached data when the profile closes. -->
       (scope.store.projection.viewer.user.profile.id === botOwnerId ||
         scope.store.permissions.canManageBots)
   );
-  const configuration = createQuery(
-    () => ({
-      queryKey: [
-        ...serverSessionQueryRoot(scope.serverId, scope.connection),
-        'bot-permission-configuration',
-        botId
-      ],
-      enabled: canManage,
-      queryFn: async ({ signal }) => {
-        const api = scope.connection.getAPI(createPermissionAPI);
-        const matrix: MatrixData = { applicablePermissions: [], scopes: [], cells: [] };
-        let offset = 0;
-        while (true) {
-          const page = await api.getUserPermissionMatrix(botId, {
-            signal,
-            page: { limit: 100, offset }
-          });
-          if (!page) throw new Error('Missing bot permission configuration');
-          matrix.applicablePermissions.push(...page.applicablePermissions);
-          matrix.scopes.push(...page.scopes);
-          matrix.cells.push(...page.cells);
-          if (!page.page.hasMore) break;
-          if (!page.scopes.length) throw new Error('Empty bot configuration scope page');
-          offset += page.scopes.length;
-        }
-        matrix.applicablePermissions = [...new Set(matrix.applicablePermissions)];
-        return matrix;
-      },
-      refetchInterval: 30_000,
-      gcTime: 0
-    }),
-    () => queryClient
-  );
+  const configuration = createQuery(() => ({
+    queryKey: [
+      ...serverSessionQueryRoot(scope.serverId, scope.connection),
+      'bot-permission-configuration',
+      botId
+    ],
+    enabled: canManage,
+    queryFn: async ({ signal }) => {
+      const api = scope.connection.getAPI(createPermissionAPI);
+      const matrix: MatrixData = { applicablePermissions: [], scopes: [], cells: [] };
+      let offset = 0;
+      while (true) {
+        const page = await api.getUserPermissionMatrix(botId, {
+          signal,
+          page: { limit: 100, offset }
+        });
+        if (!page) throw new Error('Missing bot permission configuration');
+        matrix.applicablePermissions.push(...page.applicablePermissions);
+        matrix.scopes.push(...page.scopes);
+        matrix.cells.push(...page.cells);
+        if (!page.page.hasMore) break;
+        if (!page.scopes.length) throw new Error('Empty bot configuration scope page');
+        offset += page.scopes.length;
+      }
+      matrix.applicablePermissions = [...new Set(matrix.applicablePermissions)];
+      return matrix;
+    },
+    refetchInterval: 30_000,
+    gcTime: 0
+  }));
   const inactive = $derived(
     canManage && !configuration.isError && configuration.data
       ? groupBotPermissions(inactiveBotGrants(configuration.data), true)
