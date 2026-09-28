@@ -87,14 +87,6 @@ are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
 They do not start runs or trigger reactions. This filters incoming requests;
 thread history loaded for an allowed request can still include other participants.
 
-The host detects the language of the people's messages in the thread with
-`franc-min`, locally, and tells the supervisor to reply in it (`replyLanguage`).
-The supervisor model has switched languages at random when it announced work, so
-the host also checks each announcement: when an announcement is clearly in
-another language or script, the host refuses the tool call once and asks for the
-announcement in the detected language. A second attempt in the same turn goes
-through, so a wrong detection cannot block work.
-
 The supervisor sees the thread with each author's display name and login, so it
 can tell people apart and address them. The bot reads these names with the
 Chatto user directory and keeps them for ten minutes. It reads no other profile

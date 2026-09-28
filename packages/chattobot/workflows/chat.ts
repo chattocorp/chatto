@@ -45,7 +45,6 @@ import {
   userFacingTaskNotifications
 } from './task-context.ts';
 import { webTools, type WebSettings } from '../web.ts';
-import { conversationLanguage, differentLanguage, type ConversationLanguage } from '../language.ts';
 import { researchExtension } from './research.ts';
 
 type ChattoAgentFactory = (
@@ -122,20 +121,6 @@ export const conversation = task(
     const recentUserMessages: string[] = [];
     let researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
     let refusalPosted = false;
-    // The people's language, detected from their messages. The model sometimes announces work in
-    // another language; the host refuses such an announcement once per turn.
-    let language: ConversationLanguage | undefined;
-    let languageRefused = false;
-    const announcementLanguage = (input: unknown) => {
-      const announcement = (input as { announcement?: unknown } | undefined)?.announcement;
-      if (!language || languageRefused || typeof announcement !== 'string') return;
-      if (!differentLanguage(language, announcement)) return;
-      languageRefused = true;
-      return {
-        block: true,
-        reason: `The announcement is not in ${language.name}, the language of the people in this conversation. Write the announcement in ${language.name} and call the tool again.`
-      };
-    };
     const maintainers = new Set(options.maintainers ?? []);
     const requesterIsMaintainer = () => maintainers.has(options.requester());
     // Post a host-written refusal once per user turn, so a blocked request is never described as
@@ -156,8 +141,7 @@ export const conversation = task(
           };
         if (!MAINTAINER_TOOLS.has(event.toolName)) return;
         // Notifications wake the agent but never authorize work; postRefusal stays silent there.
-        if (latestOrigin === 'user' && requesterIsMaintainer())
-          return announcementLanguage(event.input);
+        if (latestOrigin === 'user' && requesterIsMaintainer()) return;
         await postRefusal(
           'Only a maintainer can ask me to investigate the source or implement changes. A maintainer can ask in this thread.'
         ).catch(() => {});
@@ -304,14 +288,8 @@ export const conversation = task(
             }
             const thread = await readThread(options.delivery, ctx.signal);
             ctx.signal.throwIfAborted();
-            language =
-              conversationLanguage([
-                ...thread.filter((entry) => entry.role === 'human').map((entry) => entry.body),
-                ...recentUserMessages
-              ]) ?? language;
             return JSON.stringify({
               thread,
-              ...(language ? { replyLanguage: language.name } : {}),
               origin,
               recentUserMessages: [...recentUserMessages],
               requesterIsMaintainer: requesterIsMaintainer(),
@@ -343,7 +321,6 @@ export const conversation = task(
             if (busy) {
               delegationReported = false;
               refusalPosted = false;
-              languageRefused = false;
             } else if (pendingUrls.size) {
               // The supervisor stayed silent about a new URL; post it on its own.
               void ctx.emit(withPendingUrls('').trim()).catch(() => {});
