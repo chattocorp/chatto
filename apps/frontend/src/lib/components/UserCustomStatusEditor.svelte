@@ -9,7 +9,7 @@
     setCustomStatus as setCustomStatusViaAPI,
     type CustomUserStatusAPIConfig
   } from '$lib/api-client/userStatus';
-  import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+  import type { CustomUserStatus } from '$lib/api-client/userSummary';
   import {
     CUSTOM_STATUS_TEMPLATES,
     customStatusTemplateText,

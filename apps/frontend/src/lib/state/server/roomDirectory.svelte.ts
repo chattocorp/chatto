@@ -3,7 +3,7 @@ import { RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { UserAvatarUserView } from '$lib/render/users';
-import { type RoomsListGroup, type RoomsListItem } from './rooms.svelte';
+import type { RoomsListGroup, RoomsListItem } from './rooms.svelte';
 
 export type DirectoryRoom = {
   id: string;

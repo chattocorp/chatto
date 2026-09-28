@@ -9,7 +9,7 @@ independent of presence and hides itself after its expiry timestamp.
 - `showText` - Whether to show the status text next to the emoji.
 -->
 <script lang="ts">
-  import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+  import type { CustomUserStatus } from '$lib/api-client/userSummary';
   import { formatCustomStatusText } from '$lib/customStatusTemplates';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
 

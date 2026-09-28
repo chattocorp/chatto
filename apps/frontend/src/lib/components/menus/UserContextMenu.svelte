@@ -42,9 +42,9 @@ keep the compact menu without a navigation action.
     getLiveDisplayName,
     getLiveLogin,
     getLiveBotOwnerUserId,
-    getLiveTimezone,
-    type CustomUserStatus
+    getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
+  import type { CustomUserStatus } from '$lib/api-client/userSummary';
   import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import {

@@ -6,8 +6,6 @@ import {
   type CustomUserStatus
 } from '$lib/api-client/userSummary';
 
-export type { CustomUserStatus };
-
 type ProfileView = {
   displayName?: string;
   avatarUrl?: string | null;

@@ -25,11 +25,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { m } from '$lib/i18n/messages';
   import { deleteCustomStatus } from '$lib/api-client/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    getLiveCustomStatus,
-    getLiveDisplayName,
-    type CustomUserStatus
-  } from '$lib/state/userProfiles.svelte';
+  import { getLiveCustomStatus, getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import type { CustomUserStatus } from '$lib/api-client/userSummary';
   import { setPresenceStatus } from '$lib/presenceTracking';
   import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { buildDirectMessagePresentation } from '$lib/render/users';

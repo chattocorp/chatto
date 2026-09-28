@@ -6,7 +6,6 @@ export type CustomUserStatusAPIConfig = ConnectAPIConfig & {
   serverId: string;
 };
 
-export type { CustomUserStatus } from './userSummary.js';
 import type { CustomUserStatus } from './userSummary.js';
 
 export async function setCustomStatus(

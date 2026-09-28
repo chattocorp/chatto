@@ -1,4 +1,4 @@
-import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+import type { CustomUserStatus } from '$lib/api-client/userSummary';
 
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
