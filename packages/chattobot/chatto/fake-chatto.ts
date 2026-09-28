@@ -63,6 +63,9 @@ export function fakeChatto(setup: FakeChattoSetup) {
           return status.get();
         }
       },
+      get status() {
+        return fake.closed ? 'disconnected' : status.get();
+      },
       sessionEnded: false,
       get closed() {
         return fake.closed;

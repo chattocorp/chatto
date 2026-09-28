@@ -398,8 +398,12 @@ class EffectNode {
       this.#cleanup = typeof cleanup === 'function' ? cleanup : null;
     } finally {
       activeOwner = previousOwner;
-      this.#sources = sources;
-      relink(this, previousSources, sources, true);
+      // The run can dispose its own effect, for example a subscriber that
+      // unsubscribes. A disposed effect must not register with its sources.
+      if (!this.#disposed) {
+        this.#sources = sources;
+        relink(this, previousSources, sources, true);
+      }
     }
   }
 
@@ -491,7 +495,13 @@ export function computed<T>(fn: () => T, options?: ReactiveOptions<T>): Computed
  */
 export function effect(fn: () => EffectCleanup): () => void {
   const node = new EffectNode(fn, activeOwner);
-  node.run();
+  try {
+    node.run();
+  } catch (error) {
+    // The caller receives no dispose function, so do not leave a live effect.
+    node.dispose();
+    throw error;
+  }
   return () => node.dispose();
 }
 
@@ -536,11 +546,6 @@ export function untrack<T>(fn: () => T): T {
   } finally {
     untrackDepth--;
   }
-}
-
-/** Whether a computed, an effect, or an untracked scope is currently running. */
-export function isTracking(): boolean {
-  return activeSources !== null && untrackDepth === 0;
 }
 
 /**

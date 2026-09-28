@@ -1,4 +1,4 @@
-import { ReactiveMap, computed, signal } from '../reactivity/index.js';
+import { ReactiveMap, batch, computed, signal } from '../reactivity/index.js';
 import { ServerStateStore } from './store.js';
 import { serverConnectionManager } from './serverConnection.js';
 import { eventBusManager } from './realtimeTransport.js';
@@ -329,7 +329,8 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
  * Owns both registration data and per-server state stores.
  *
  * Registration and store creation are atomic — when a server is added,
- * its store is created immediately. This eliminates race conditions where
+ * its store is created immediately. Methods that write several fields run in
+ * one `batch`, so effects never observe a half-applied change. This eliminates race conditions where
  * computed values see a registered server but no store exists yet.
  *
  * The store map is a ReactiveMap, so getStore() lookups are reactive in
@@ -551,14 +552,16 @@ class ServerRegistry {
 
   /** Install a verified origin viewer and discard any legacy origin bearer session. */
   authenticateOriginCookie(user: CurrentUser): void {
-    if (typeof window === 'undefined') return;
-    this.#installOriginCookie(user);
-    const origin = this.originServer;
-    if (origin) {
-      this.getStore(origin.id).currentUser.accept(user);
-      this.clearAuthenticationRequired(origin.id);
-      serverConnectionManager.originClient.maintainBrowserSession();
-    }
+    batch(() => {
+      if (typeof window === 'undefined') return;
+      this.#installOriginCookie(user);
+      const origin = this.originServer;
+      if (origin) {
+        this.getStore(origin.id).currentUser.accept(user);
+        this.clearAuthenticationRequired(origin.id);
+        serverConnectionManager.originClient.maintainBrowserSession();
+      }
+    });
   }
 
   #installOriginCookie(user: CurrentUser): void {
@@ -622,25 +625,27 @@ class ServerRegistry {
   }
 
   clearServerAuthentication(id: string): void {
-    const server = this.getServer(id);
-    if (!server) return;
-    this.#replaceServerAuth(id, {
-      token: null,
-      refreshToken: null,
-      accessTokenExpiresAt: null,
-      refreshTokenExpiresAt: null,
-      oauthClientId: null,
-      refreshRequestId: null,
-      userId: null,
-      userLogin: null,
-      userDisplayName: null,
-      userAvatarUrl: null,
-      reauthRequiredAt: null
+    batch(() => {
+      const server = this.getServer(id);
+      if (!server) return;
+      this.#replaceServerAuth(id, {
+        token: null,
+        refreshToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        oauthClientId: null,
+        refreshRequestId: null,
+        userId: null,
+        userLogin: null,
+        userDisplayName: null,
+        userAvatarUrl: null,
+        reauthRequiredAt: null
+      });
+      const store = this.tryGetStore(id);
+      if (store) {
+        store.currentUser.reset();
+      }
     });
-    const store = this.tryGetStore(id);
-    if (store) {
-      store.currentUser.reset();
-    }
   }
 
   clearOriginAuthentication(): void {
@@ -650,21 +655,23 @@ class ServerRegistry {
   }
 
   handleAuthenticationRequired(id: string): void {
-    const session = this.sessions.get(id);
-    if (!session || session.reauthRequiredAt !== null) return;
+    batch(() => {
+      const session = this.sessions.get(id);
+      if (!session || session.reauthRequiredAt !== null) return;
 
-    eventBusManager.stopBus(id);
-    removeRegisteredServerQueries(id);
-    this.sessions.update(id, { reauthRequiredAt: Date.now() });
-    this.#persistAuthenticationPatch(id, {
-      reauthRequiredAt: this.sessions.get(id)?.reauthRequiredAt ?? null
+      eventBusManager.stopBus(id);
+      removeRegisteredServerQueries(id);
+      this.sessions.update(id, { reauthRequiredAt: Date.now() });
+      this.#persistAuthenticationPatch(id, {
+        reauthRequiredAt: this.sessions.get(id)?.reauthRequiredAt ?? null
+      });
+      this.#persist();
+      const store = this.tryGetStore(id);
+      if (store) {
+        store.currentUser.invalidateVerification();
+        store.currentUser.loading = false;
+      }
     });
-    this.#persist();
-    const store = this.tryGetStore(id);
-    if (store) {
-      store.currentUser.invalidateVerification();
-      store.currentUser.loading = false;
-    }
   }
 
   /**
@@ -730,11 +737,13 @@ class ServerRegistry {
   }
 
   clearAuthenticationRequired(id: string): void {
-    const session = this.sessions.get(id);
-    if (!session || session.reauthRequiredAt === null) return;
-    this.sessions.update(id, { reauthRequiredAt: null });
-    this.#persistAuthenticationPatch(id, { reauthRequiredAt: null });
-    this.#persist();
+    batch(() => {
+      const session = this.sessions.get(id);
+      if (!session || session.reauthRequiredAt === null) return;
+      this.sessions.update(id, { reauthRequiredAt: null });
+      this.#persistAuthenticationPatch(id, { reauthRequiredAt: null });
+      this.#persist();
+    });
   }
 
   /** Return a usable access token, rotating the persisted pair when needed. */
@@ -885,10 +894,12 @@ class ServerRegistry {
   }
 
   #updateBearerSessionInPlace(id: string, data: Partial<ServerSession>, persist = true): void {
-    if (!this.sessions.update(id, data)) return;
-    if (persist) this.#persistAuthentication(id);
-    this.#persist();
-    serverConnectionManager.updateBearerSession(id);
+    batch(() => {
+      if (!this.sessions.update(id, data)) return;
+      if (persist) this.#persistAuthentication(id);
+      this.#persist();
+      serverConnectionManager.updateBearerSession(id);
+    });
   }
 
   /**
@@ -928,73 +939,82 @@ class ServerRegistry {
       fixedToken?: boolean;
     } = {}
   ): void {
-    const publicRegistration: ServerRegistration = {
-      id: registration.id,
-      url: registration.url,
-      name: registration.name,
-      iconUrl: registration.iconUrl,
-      addedAt: registration.addedAt
-    };
-    const localSession =
-      session ?? ('token' in registration ? sessionFromServer(registration) : emptyServerSession());
-    if (!this.catalog.add(publicRegistration)) return;
-    if (options.fixedToken) this.#fixedTokenServers.add(registration.id);
-    this.sessions.replace(registration.id, localSession);
-    this.#persistAuthentication(registration.id);
-    this.#persist();
-    this.#createStore(registration.id);
+    batch(() => {
+      const publicRegistration: ServerRegistration = {
+        id: registration.id,
+        url: registration.url,
+        name: registration.name,
+        iconUrl: registration.iconUrl,
+        addedAt: registration.addedAt
+      };
+      const localSession =
+        session ??
+        ('token' in registration ? sessionFromServer(registration) : emptyServerSession());
+      if (!this.catalog.add(publicRegistration)) return;
+      if (options.fixedToken) this.#fixedTokenServers.add(registration.id);
+      this.sessions.replace(registration.id, localSession);
+      this.#persistAuthentication(registration.id);
+      this.#persist();
+      this.#createStore(registration.id);
+    });
   }
 
   /** Remove a server by ID. Disposes its event bus, store, and connection state. */
   removeServer(id: string): boolean {
-    const server = this.servers.find((s) => s.id === id);
-    if (!server) {
-      return false;
-    }
-    // Stop event bus subscription
-    eventBusManager.stopBus(id);
+    return batch(() => {
+      const server = this.servers.find((s) => s.id === id);
+      if (!server) {
+        return false;
+      }
+      // Stop event bus subscription
+      eventBusManager.stopBus(id);
 
-    // Dispose state store
-    this.#stores.get(id)?.dispose();
-    this.#stores.delete(id);
-    this.#startedServerNetwork.delete(id);
-    this.#fixedTokenServers.delete(id);
+      // Dispose state store
+      this.#stores.get(id)?.dispose();
+      this.#stores.delete(id);
+      this.#startedServerNetwork.delete(id);
+      this.#fixedTokenServers.delete(id);
 
-    // Dispose connection state
-    serverConnectionManager.destroyClient(id);
+      // Dispose connection state
+      serverConnectionManager.destroyClient(id);
 
-    this.sessions.remove(id);
-    this.catalog.remove(id);
-    persistAuthentication(id, emptyServerAuthentication());
-    this.#persist();
-    return true;
+      this.sessions.remove(id);
+      this.catalog.remove(id);
+      persistAuthentication(id, emptyServerAuthentication());
+      this.#persist();
+      return true;
+    });
   }
 
   /** Remove all local registrations and sessions without synchronizing deletions. */
   removeAll(): void {
-    const ids = this.servers.map((server) => server.id);
-    this.#disposeServers(ids);
-    for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
-    this.sessions.clear();
-    this.catalog.reset();
-    this.#persist();
+    batch(() => {
+      const ids = this.servers.map((server) => server.id);
+      this.#disposeServers(ids);
+      for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
+      this.sessions.clear();
+      this.catalog.reset();
+      this.#persist();
+    });
   }
 
   /** Clear every session and remote registration while retaining the configured origin. */
   resetToOrigin(): void {
-    const origin = this.originServer;
-    const ids = this.servers.map((server) => server.id);
-    this.#disposeServers(ids);
-    for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
-    this.sessions.clear();
-    this.catalog.reset(origin ? [registrationFromServer(origin)] : []);
-    if (origin) {
-      this.sessions.ensure(origin.id);
-      this.#persistAuthentication(origin.id);
-      this.#createStore(origin.id);
-      this.settleOriginUnauthenticated();
-    }
-    this.#persist();
+    batch(() => {
+      const origin = this.originServer;
+      const ids = this.servers.map((server) => server.id);
+      this.#disposeServers(ids);
+      for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
+      this.sessions.clear();
+      this.catalog.reset(origin ? [registrationFromServer(origin)] : []);
+      if (origin) {
+        this.sessions.ensure(origin.id);
+        this.#persistAuthentication(origin.id);
+        this.#createStore(origin.id);
+        this.settleOriginUnauthenticated();
+      }
+      this.#persist();
+    });
   }
 
   #disposeServers(ids: string[]): void {
@@ -1053,18 +1073,20 @@ class ServerRegistry {
     >,
     startNetwork = true
   ): boolean {
-    if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
-    eventBusManager.stopBus(id);
-    this.#stores.get(id)?.dispose();
-    this.#stores.delete(id);
-    this.#startedServerNetwork.delete(id);
-    serverConnectionManager.destroyClient(id);
+    return batch(() => {
+      if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
+      eventBusManager.stopBus(id);
+      this.#stores.get(id)?.dispose();
+      this.#stores.delete(id);
+      this.#startedServerNetwork.delete(id);
+      serverConnectionManager.destroyClient(id);
 
-    this.sessions.replace(id, data);
-    this.#persistAuthentication(id);
-    this.#persist();
-    this.#createStore(id, startNetwork);
-    return true;
+      this.sessions.replace(id, data);
+      this.#persistAuthentication(id);
+      this.#persist();
+      this.#createStore(id, startNetwork);
+      return true;
+    });
   }
 
   #persist(): void {
@@ -1173,37 +1195,39 @@ class ServerRegistry {
 
   /** Check the private-data boundary before publishing a complete account response. */
   #acceptViewer(id: string, owner: ServerStateStore, user: CurrentUser): void {
-    if (this.#stores.get(id) !== owner) return;
-    if (this.isOriginServer(id)) {
-      this.authenticateOriginCookie(user);
-    } else {
-      const session = this.sessions.get(id);
-      if (!session || session.reauthRequiredAt !== null) return;
-      if (session.userId && session.userId !== user.id) {
-        this.#replaceServerAuth(
-          id,
-          {
-            ...session,
-            userId: user.id,
-            userLogin: user.login,
-            userDisplayName: user.displayName,
-            userAvatarUrl: user.avatarUrl ?? null
-          },
-          false
-        );
+    batch(() => {
+      if (this.#stores.get(id) !== owner) return;
+      if (this.isOriginServer(id)) {
+        this.authenticateOriginCookie(user);
+      } else {
+        const session = this.sessions.get(id);
+        if (!session || session.reauthRequiredAt !== null) return;
+        if (session.userId && session.userId !== user.id) {
+          this.#replaceServerAuth(
+            id,
+            {
+              ...session,
+              userId: user.id,
+              userLogin: user.login,
+              userDisplayName: user.displayName,
+              userAvatarUrl: user.avatarUrl ?? null
+            },
+            false
+          );
+        }
+        const store = this.#stores.get(id);
+        if (!store) return;
+        store.currentUser.accept(user);
+        this.#startServerNetwork(id);
+        this.sessions.update(id, {
+          userId: user.id,
+          userLogin: user.login,
+          userDisplayName: user.displayName,
+          userAvatarUrl: user.avatarUrl
+        });
+        this.#persist();
       }
-      const store = this.#stores.get(id);
-      if (!store) return;
-      store.currentUser.accept(user);
-      this.#startServerNetwork(id);
-      this.sessions.update(id, {
-        userId: user.id,
-        userLogin: user.login,
-        userDisplayName: user.displayName,
-        userAvatarUrl: user.avatarUrl
-      });
-      this.#persist();
-    }
+    });
   }
 
   /** Create a state store for a server and wire up remote user sync. */

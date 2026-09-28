@@ -5,7 +5,7 @@
  * changes.
  */
 
-import { signal } from '../reactivity/index.js';
+import { batch, signal } from '../reactivity/index.js';
 
 /** Page lifecycle state: focus, visibility, foreground returns, and network recovery. */
 export class AppState {
@@ -98,34 +98,43 @@ export class AppState {
   }
 
   private markBackgrounded() {
-    this.foregroundActive = false;
-    this.isFocused = false;
-    this.isVisible = false;
+    // Observers see all lifecycle fields change together.
+    batch(() => {
+      this.foregroundActive = false;
+      this.isFocused = false;
+      this.isVisible = false;
+    });
   }
 
   private activateFromInteraction() {
-    this.isFocused = true;
-    this.isVisible = true;
-    if (!this.foregroundActive) {
-      this.foregroundActive = true;
-      this.foregroundRevision += 1;
-    }
+    // Observers see all lifecycle fields change together.
+    batch(() => {
+      this.isFocused = true;
+      this.isVisible = true;
+      if (!this.foregroundActive) {
+        this.foregroundActive = true;
+        this.foregroundRevision += 1;
+      }
+    });
   }
 
   private reconcileVisibility() {
-    const visible = document.visibilityState === 'visible';
-    this.isVisible = visible;
+    // Observers see all lifecycle fields change together.
+    batch(() => {
+      const visible = document.visibilityState === 'visible';
+      this.isVisible = visible;
 
-    if (!visible) {
-      this.foregroundActive = false;
-      return;
-    }
+      if (!visible) {
+        this.foregroundActive = false;
+        return;
+      }
 
-    this.isFocused = document.hasFocus();
-    if (!this.foregroundActive) {
-      this.foregroundActive = true;
-      this.foregroundRevision += 1;
-    }
+      this.isFocused = document.hasFocus();
+      if (!this.foregroundActive) {
+        this.foregroundActive = true;
+        this.foregroundRevision += 1;
+      }
+    });
   }
 }
 

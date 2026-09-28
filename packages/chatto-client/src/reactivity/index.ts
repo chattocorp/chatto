@@ -9,7 +9,6 @@ export {
   computed,
   effect,
   effectRoot,
-  isTracking,
   setReadHook,
   signal,
   subscribe,

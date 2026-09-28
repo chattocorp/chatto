@@ -48,8 +48,13 @@ export interface ChattoConnection {
   readonly serverId: string;
   /** The server's reactive state store, as the frontend uses it. */
   readonly store: ServerStateStore;
-  /** The server's connection: endpoints, status, and API facades. */
+  /**
+   * The server's connection: endpoints, status, and API facades. Available
+   * only while the connection is open.
+   */
   readonly connection: ServerConnection;
+  /** Realtime status of the open connection, or `disconnected` after close. Reactive. */
+  readonly status: ChattoConnectionStatus;
   /**
    * Wait until the server accepted the token and the viewer loaded. Rejects
    * when the server rejects the token, when the connection closes, or when
@@ -124,14 +129,17 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   let connectedSinceReset = false;
   const closed = signal(false);
 
+  /** Realtime status; never creates a connection for a server that close() removed. */
+  const currentStatus = (): ChattoConnectionStatus => {
+    if (closed.get() || !serverRegistry.tryGetStore(serverId)) return 'disconnected';
+    return serverConnectionManager.getClient(serverId).status;
+  };
+
   // The event bus starts once the viewer loaded. Subscribe whenever the
   // runtime creates (or replaces) this server's bus.
   const disposeBusSubscription = effectRoot(() => {
     effect(() => {
-      if (!serverRegistry.tryGetStore(serverId)) return;
-      if (serverConnectionManager.getClient(serverId).status === 'connected') {
-        connectedSinceReset = true;
-      }
+      if (currentStatus() === 'connected') connectedSinceReset = true;
     });
     effect(() => {
       const bus = eventBusManager.getBus(serverId);
@@ -160,6 +168,9 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     },
     get connection() {
       return serverConnectionManager.getClient(serverId);
+    },
+    get status(): ChattoConnectionStatus {
+      return currentStatus();
     },
     get sessionEnded() {
       return (serverRegistry.getServer(serverId)?.reauthRequiredAt ?? null) !== null;

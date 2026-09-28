@@ -22,6 +22,9 @@ export function fakeConnection(
         return status.get();
       }
     },
+    get status() {
+      return closed.get() ? 'disconnected' : status.get();
+    },
     get sessionEnded() {
       return sessionEnded.get();
     },

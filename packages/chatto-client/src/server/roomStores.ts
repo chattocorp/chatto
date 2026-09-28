@@ -30,7 +30,6 @@ type RoomEntry = {
   threads: Record<string, MessagesStore>;
   /** Mounted consumers of each thread timeline. */
   threadRefs: Record<string, number>;
-  /** Owner of the member store's derived fields. */
 };
 
 /** The part of {@link RoomStores} that components use: the store accessors. */

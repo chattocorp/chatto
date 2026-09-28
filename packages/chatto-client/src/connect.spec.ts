@@ -158,4 +158,16 @@ describe('connectChatto in Node', () => {
     controller.abort(new Error('stopped'));
     await expect(ready).rejects.toThrow('stopped');
   });
+
+  it('reports disconnected and creates no connection for a closed server', async () => {
+    const { serverConnectionManager } = await import('./server/serverConnection.js');
+    const create = vi.spyOn(serverConnectionManager, 'getClient');
+    const connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await connection.ready();
+    connection.close();
+    create.mockClear();
+    expect(connection.status).toBe('disconnected');
+    expect(create).not.toHaveBeenCalled();
+    create.mockRestore();
+  });
 });

@@ -272,3 +272,18 @@ test('deliveries remain retryable until explicitly accepted, then expire', async
 test.each([0, -1, Infinity, NaN])('rejects invalid delivery retention: %s', (retentionMs) => {
   expect(() => createDeliveryTracker({ retentionMs })).toThrow('positive and finite');
 });
+
+test('removes its abort listener when consumption fails', async () => {
+  const fake = fakeConnection();
+  const bot = await createBotClient(fake.chatto);
+  const controller = new AbortController();
+  const added = vi.spyOn(controller.signal, 'addEventListener');
+  const removed = vi.spyOn(controller.signal, 'removeEventListener');
+  const consuming = bot.consumeEvents({
+    signal: controller.signal,
+    onEvent: () => Promise.reject(new Error('handler failed'))
+  });
+  fake.emit(dmEvent());
+  await expect(consuming).rejects.toThrow('handler failed');
+  expect(removed).toHaveBeenCalledWith('abort', added.mock.calls[0]?.[1]);
+});

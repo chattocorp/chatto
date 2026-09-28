@@ -298,3 +298,25 @@ describe('effect loops', () => {
     expect(runs).toHaveBeenLastCalledWith(count.peek(), 1);
   });
 });
+
+describe('effect disposal', () => {
+  it('does not re-register an effect that disposed itself while running', () => {
+    const source = signal(0);
+    const stop: { current?: () => void } = {};
+    stop.current = subscribe(source, () => stop.current?.());
+    source.set(1);
+    expect(source.observers.size).toBe(0);
+  });
+
+  it('disposes an effect whose first run throws', () => {
+    const source = signal(0);
+    expect(() =>
+      effect(() => {
+        source.get();
+        throw new Error('boom');
+      })
+    ).toThrow('boom');
+    expect(source.observers.size).toBe(0);
+    expect(() => source.set(1)).not.toThrow();
+  });
+});

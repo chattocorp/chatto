@@ -101,6 +101,7 @@ export function conversationKey(
 
 /** Options for {@link BotClient.consumeEvents}. */
 export interface ConsumeEventsOptions {
+  /** Stops consumption. The returned promise resolves when it aborts. */
   signal: AbortSignal;
   /**
    * Handle one event. Events are handled in order; the next event waits until
@@ -108,6 +109,11 @@ export interface ConsumeEventsOptions {
    * than 1000 received events wait, they are dropped and a gap is reported.
    */
   onEvent: (event: RealtimeEvent) => void | Promise<void>;
+  /**
+   * Receive realtime status changes. Repeated statuses are not reported
+   * again, but each gap is. A throw stops consumption; the status change in
+   * the connection is not affected.
+   */
   onStatus?: (status: RealtimeStatus) => void;
 }
 
@@ -353,7 +359,7 @@ export async function createBotClient(
           fail(new Error('Chatto ended the session; the API key can be revoked'));
       });
       effect(() => {
-        const status = chatto.connection.status;
+        const status = chatto.status;
         if (status === 'connected') {
           connectedBefore = true;
           report({ state: 'ready', gap: false });
@@ -364,9 +370,11 @@ export async function createBotClient(
         }
       });
     });
-    const aborted = new Promise<void>((resolve) =>
-      signal.addEventListener('abort', () => resolve(), { once: true })
-    );
+    let onAbort: (() => void) | undefined;
+    const aborted = new Promise<void>((resolve) => {
+      onAbort = resolve;
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
     try {
       while (!signal.aborted) {
         if (failure) throw failure.error;
@@ -382,6 +390,7 @@ export async function createBotClient(
       stopEvents();
       stopResets();
       stopEffects();
+      if (onAbort) signal.removeEventListener('abort', onAbort);
     }
   }
 

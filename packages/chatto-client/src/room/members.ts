@@ -177,7 +177,6 @@ export class RoomMembersStore {
   get isBackgroundLoading(): boolean {
     return this.#projected === null && this.#isBackgroundLoading;
   }
-  /** The message of the last failed read, or null. */
   /** The error of the latest failed member load or refresh, or null. */
   get loadError(): unknown {
     return this.#projected === null ? this.#loadError : null;

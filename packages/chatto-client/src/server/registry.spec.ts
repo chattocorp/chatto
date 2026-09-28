@@ -207,6 +207,29 @@ describe('ServerRegistry', () => {
   });
 
   describe('addServer', () => {
+    it('never lets effects observe a server without its store', async () => {
+      const registry = await createRegistry();
+      const { effect } = await import('../reactivity/index.js');
+      const missing: string[] = [];
+      const stop = effect(() => {
+        for (const server of registry.servers) {
+          if (!registry.tryGetStore(server.id)) missing.push(server.id);
+        }
+      });
+      registry.addServer(makeServer({ id: 'atomic', url: 'https://atomic.example.com' }));
+      registry.replaceServerAuthentication('atomic', {
+        ...makeServer({ id: 'atomic', url: 'https://atomic.example.com', token: 'other' }),
+        refreshToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        oauthClientId: null,
+        refreshRequestId: null
+      });
+      registry.removeServer('atomic');
+      stop();
+      expect(missing).toEqual([]);
+    });
+
     it('adds an instance', async () => {
       const registry = await createRegistry();
       registry.removeAll();
