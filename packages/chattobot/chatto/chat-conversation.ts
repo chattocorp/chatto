@@ -59,7 +59,11 @@ export function chattoConversation<Settings>({
         inReplyTo = undefined;
         if (origin !== 'user') return;
         const index = messages.findIndex((message) => message.message.body === text);
-        if (index === -1) return;
+        // An unmatched message has no known author; fail closed for permission checks.
+        if (index === -1) {
+          requester = '';
+          return;
+        }
         const [prompting] = messages.splice(index, 1);
         inReplyTo = prompting!.message.id;
         requester = prompting!.message.author_id;
