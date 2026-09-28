@@ -71,6 +71,8 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
       offWindowResize();
       offScroll();
       offViewportResize();
+      // Measure again when the menu reopens instead of reusing a stale rect.
+      anchor = null;
     };
   }
 
