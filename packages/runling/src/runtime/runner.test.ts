@@ -14,6 +14,10 @@ import type { InputRequest } from './input.ts';
 import { input as askInput } from './input.ts';
 import { Type } from 'typebox';
 import { task } from './workflow.ts';
+import { createRunJournal } from './run-journal.ts';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const initialExitCode = process.exitCode;
 
@@ -432,6 +436,57 @@ describe('root workflow updates', () => {
       })
     );
     expect(lines).toContain('  ● First line\n    Second line');
+  });
+});
+
+describe('run journals', () => {
+  test('record the start, every event, and the result of a command-line run', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'runling-journal-'));
+    const originalLog = console.log;
+    const lines: string[] = [];
+    console.log = (message: string) => lines.push(stripVTControlCharacters(message));
+    try {
+      const journal = await createRunJournal('workflows/demo.ts', { request: 'Fix' }, cwd);
+      await executeWorkflow(
+        async (ctx) => {
+          await ctx.emit({ type: 'finding', text: 'Opened the pull request' });
+          return 'done';
+        },
+        { journal }
+      );
+      const records = (await readFile(join(cwd, journal.path), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(journal.path).toMatch(/^\.runling\/cli-runs\/[0-9a-f-]{36}\.jsonl$/);
+      expect(records[0]).toMatchObject({
+        type: 'started',
+        run: {
+          id: journal.id,
+          reference: journal.reference,
+          workflow: 'workflows/demo.ts',
+          source: 'cli',
+          input: { request: 'Fix' },
+          status: 'running'
+        }
+      });
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          type: 'event',
+          event: expect.objectContaining({ type: 'log', message: 'Opened the pull request' })
+        })
+      );
+      expect(records.at(-1)).toMatchObject({
+        type: 'finished',
+        status: 'completed',
+        output: 'done'
+      });
+      expect(lines[0]).toContain(`run ${journal.reference}`);
+      expect(lines.at(-1)).toContain(journal.path);
+    } finally {
+      console.log = originalLog;
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 });
 

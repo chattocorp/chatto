@@ -1,0 +1,5 @@
+{"type":"started","run":{"id":"135c7b28-9204-4f73-be60-9ca5115332c5","reference":"khaki-pianos-1656","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"","status":"running","startedAt":1790600294587,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
+{"type":"event","event":{"type":"step.started","id":"b2a7b052-1b7e-47d7-ab03-16c8d82d2389","label":"Echo","timestamp":365.30987500000003}}
+{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":365.33512500000006}}
+{"type":"event","event":{"type":"step.finished","id":"b2a7b052-1b7e-47d7-ab03-16c8d82d2389","status":"completed","durationMs":0.24624999999991815,"timestamp":365.555666}}
+{"type":"finished","finishedAt":1790600294953,"status":"completed","durationMs":364.51158399999997,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"","outputs":{"id":"empty-planets-9647"}},"error":null}

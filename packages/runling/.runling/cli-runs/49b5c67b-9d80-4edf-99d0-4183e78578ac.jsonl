@@ -1,0 +1,5 @@
+{"type":"started","run":{"id":"49b5c67b-9d80-4edf-99d0-4183e78578ac","reference":"ninety-pans-2472","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"--verbose","status":"running","startedAt":1790600296523,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
+{"type":"event","event":{"type":"step.started","id":"57202eaa-be20-48ab-8369-5188ad79bcf5","label":"Echo","timestamp":369.951375}}
+{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":369.982042}}
+{"type":"event","event":{"type":"step.finished","id":"57202eaa-be20-48ab-8369-5188ad79bcf5","status":"completed","durationMs":0.2949999999999591,"timestamp":370.24537499999997}}
+{"type":"finished","finishedAt":1790600296893,"status":"completed","durationMs":368.840333,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"--verbose","outputs":{"id":"public-peaches-2739"}},"error":null}

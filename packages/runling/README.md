@@ -88,7 +88,9 @@ agent reasoning, tool use, and messages, plus the updates that the workflow emit
 with `ctx.emit`, such as findings and state activity. Use `--json` to print the
 result as JSON. When a workflow asks for input on an interactive terminal, the
 command asks on the terminal. The first Ctrl-C cancels the workflow and lets its
-cleanup run; a second Ctrl-C exits at once.
+cleanup run; a second Ctrl-C exits at once. Each run writes a journal to
+`.runling/cli-runs/<id>.jsonl` in the working directory, in the same record format
+as server run journals. The log names the run and, at the end, the journal path.
 
 Much more exciting though is Runling's ability to spin up a long-running process that will automatically execute workflows in response to webhooks being sent to it.
 

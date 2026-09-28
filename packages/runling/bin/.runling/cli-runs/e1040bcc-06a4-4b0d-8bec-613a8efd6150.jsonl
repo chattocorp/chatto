@@ -1,0 +1,5 @@
+{"type":"started","run":{"id":"e1040bcc-06a4-4b0d-8bec-613a8efd6150","reference":"shiny-moments-6444","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"A workflow result","status":"running","startedAt":1790600293999,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
+{"type":"event","event":{"type":"step.started","id":"4c52af65-123f-445e-9d63-0e74a51298e3","label":"Echo","timestamp":361.041208}}
+{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":361.115375}}
+{"type":"event","event":{"type":"step.finished","id":"4c52af65-123f-445e-9d63-0e74a51298e3","status":"completed","durationMs":0.3606250000000273,"timestamp":361.369458}}
+{"type":"finished","finishedAt":1790600294361,"status":"completed","durationMs":360.171375,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"A workflow result","outputs":{"id":"few-papers-8564"}},"error":null}

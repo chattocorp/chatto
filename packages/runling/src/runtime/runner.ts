@@ -18,6 +18,7 @@ import {
 import type { InputHandler } from './input.ts';
 import { log } from './log.ts';
 import { renderMarkdown } from './markdown.ts';
+import { createRunJournal, type RunJournal } from './run-journal.ts';
 import {
   isJsonValue,
   type JsonValue,
@@ -72,6 +73,8 @@ export interface ExecutionOptions {
   onInput?: InputHandler;
   /** Cancels the workflow cooperatively. */
   signal?: AbortSignal;
+  /** Records every event and the final result for later review. */
+  journal?: RunJournal;
 }
 
 export interface RunWorkflowOptions<Input = unknown> {
@@ -153,11 +156,14 @@ export async function runWorkflow<Input, Output>(
 
 async function reportExecution(
   run: (ctx: WorkflowContext) => Promise<unknown> | unknown,
-  { json = false, terminal = process.stdout, onInput, signal }: ExecutionOptions = {}
+  { json = false, terminal = process.stdout, onInput, signal, journal }: ExecutionOptions = {}
 ): Promise<WorkflowExecution> {
   const execution = await log.withDestination(json ? 'stderr' : 'stdout', async () => {
-    log.info('Runling starting');
-    const execution = await captureExecution(run, onInput, undefined, signal, undefined, true);
+    log.info(
+      journal ? `Runling starting run ${log.highlight(journal.reference)}` : 'Runling starting'
+    );
+    const capture = () => captureExecution(run, onInput, undefined, signal, undefined, true);
+    const execution = await (journal ? observeRunlingEvents(journal.record, capture) : capture());
 
     if (execution.error !== null) {
       log.error(execution.error);
@@ -173,6 +179,20 @@ async function reportExecution(
       log.info(`Total token usage: ${formatTokenUsage(execution.usage)}`);
     }
     log.info(`Finished in ${formatDuration(execution.durationMs)}`);
+    if (journal) {
+      try {
+        await journal.finish({
+          status: signal?.aborted ? 'cancelled' : execution.ok ? 'completed' : 'failed',
+          durationMs: execution.durationMs,
+          usage: execution.usage,
+          output: execution.output,
+          error: execution.error
+        });
+        log.info(`Run ${journal.reference} journal: ${journal.path}`);
+      } catch (cause) {
+        log.error(`Cannot save the run journal ${journal.path}: ${String(cause)}`);
+      }
+    }
     return execution;
   });
 
@@ -302,6 +322,20 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
   };
   process.on('SIGINT', interrupt);
   process.on('SIGTERM', interrupt);
+  let journal: RunJournal | undefined;
+  try {
+    let input: unknown = prompt;
+    if (options.input !== undefined) {
+      try {
+        input = JSON.parse(options.input);
+      } catch {
+        input = options.input; // The run reports the parse error.
+      }
+    }
+    journal = await createRunJournal(workflowPath, input);
+  } catch (cause) {
+    log.error(`Cannot create a run journal: ${String(cause)}`);
+  }
   try {
     await reportExecution(
       async (ctx) => {
@@ -312,6 +346,7 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
       {
         json,
         signal: controller.signal,
+        ...(journal ? { journal } : {}),
         ...(process.stdin.isTTY ? { onInput: terminalInput } : {})
       }
     );

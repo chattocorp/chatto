@@ -1,0 +1,5 @@
+{"type":"started","run":{"id":"c6948871-4459-4fec-80cb-fc5abeaec15e","reference":"humble-ravens-8309","webhook":"cli","workflow":"/Users/hmans/conductor/workspaces/chatto/warsaw/packages/runling/test/fixtures/echo-workflow.ts","source":"cli","input":"A JSON result","status":"running","startedAt":1790600299590,"output":null,"error":null,"events":[],"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0}}}
+{"type":"event","event":{"type":"step.started","id":"a3069926-3c67-4e51-af45-63a151bd4f03","label":"Echo","timestamp":368.842125}}
+{"type":"event","event":{"type":"log","level":"info","message":"Echo","depth":1,"color":"dodgerblue","source":"step","timestamp":368.87275}}
+{"type":"event","event":{"type":"step.finished","id":"a3069926-3c67-4e51-af45-63a151bd4f03","status":"completed","durationMs":0.30224999999995816,"timestamp":369.14429199999995}}
+{"type":"finished","finishedAt":1790600299959,"status":"completed","durationMs":367.977667,"usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"output":{"summary":"A JSON result","outputs":{"id":"goofy-laws-2546"}},"error":null}
