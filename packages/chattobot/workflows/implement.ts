@@ -15,7 +15,7 @@ import { ownerQuestionPrefix } from './implementation-safety.ts';
 import type { ImplementationSettings } from './implementation-settings.ts';
 import { createImplementation } from './implementation-task.ts';
 
-export { createImplementation, MAX_CI_REPAIRS } from './implementation-task.ts';
+export { createImplementation } from './implementation-task.ts';
 export {
   implementationCommandEnvKeys,
   implementationSettings,

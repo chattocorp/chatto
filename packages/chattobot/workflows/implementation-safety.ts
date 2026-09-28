@@ -39,16 +39,6 @@ export function validationDiagnostic(output: string, worktree: string): string {
   return text.trim().slice(-8000) || 'No diagnostic output was available.';
 }
 
-/** Worker-written text for chat, such as a PR summary: redacted and bounded, with its line
- * breaks kept. */
-export function workerChatText(text: string, worktree: string, limit: number): string {
-  const redacted = redactImplementationText(text, worktree)
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-  return redacted.length > limit ? `${redacted.slice(0, limit).trimEnd()}…` : redacted;
-}
-
 /** Bounded worker explanation for the owner; no raw output or host paths enter chat. */
 export function workerStopReason(summary: string, worktree: string): string {
   return (
