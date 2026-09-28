@@ -104,6 +104,20 @@ it('checks selection after the browser click default action when needed', () => 
   expect(activate).toHaveBeenCalledTimes(1);
 });
 
+it.each(['dispose', 'another press', 'blur'])('cancels the selection check on %s', (reason) => {
+  window.getSelection()?.selectAllChildren(body);
+  click();
+  window.getSelection()?.removeAllRanges();
+  if (reason === 'dispose') {
+    cleanup?.();
+    cleanup = undefined;
+  } else {
+    window.dispatchEvent(new Event(reason === 'blur' ? 'blur' : 'pointerdown'));
+  }
+  vi.advanceTimersToNextFrame();
+  expect(activate).not.toHaveBeenCalled();
+});
+
 it('stops handling clicks after disposal', () => {
   cleanup?.();
   cleanup = undefined;

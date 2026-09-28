@@ -71,7 +71,6 @@ test('keeps links and mouse text selection independent of body activation', asyn
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).not.toBe('');
   await expect(roomPage.threadPane).not.toBeVisible();
-  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).not.toBe('');
   // A normal click clears the browser selection and must open on that same click.
   await body.click({ position: { x: 20, y: 10 } });
   await roomPage.expectThreadPaneVisible();
