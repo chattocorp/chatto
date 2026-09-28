@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1847,7 +1846,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 	})
 
-	t.Run("mention and reply remain independent occurrences", func(t *testing.T) {
+	t.Run("mention and reply select one occurrence", func(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
@@ -1864,11 +1863,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 2 {
-			t.Fatalf("expected two exact occurrences, got %d", len(occurrences))
-		}
-		if !testOccurrencesHaveKinds(occurrences, notificationTestSignalDirectMention, notificationTestSignalReply) {
-			t.Errorf("expected mention and reply signals, got %+v", occurrences)
+		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
+			t.Fatalf("expected one direct-mention occurrence, got %+v", occurrences)
 		}
 	})
 
@@ -1897,7 +1893,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 	})
 
-	t.Run("thread mention keeps existing follower notification", func(t *testing.T) {
+	t.Run("thread mention supersedes follower notification", func(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
@@ -1914,11 +1910,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 2 {
-			t.Fatalf("expected two exact occurrences, got %d", len(occurrences))
-		}
-		if !testOccurrencesHaveKinds(occurrences, notificationTestSignalDirectMention, notificationTestSignalFollowedThread) {
-			t.Errorf("expected mention and followed-thread signals, got %+v", occurrences)
+		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
+			t.Fatalf("expected one direct-mention occurrence, got %+v", occurrences)
 		}
 	})
 
@@ -1954,21 +1947,16 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		bobOccurrences := testNotificationOccurrences(t, core, bob.Id)
-		if len(bobOccurrences) != 2 || !testOccurrencesHaveKinds(bobOccurrences, notificationTestSignalReply, notificationTestSignalFollowedThread) {
-			t.Fatalf("expected Bob to get reply and followed-thread occurrences, got %+v", bobOccurrences)
+		if len(bobOccurrences) != 1 || !testOccurrenceHasKind(bobOccurrences[0], notificationTestSignalReply) {
+			t.Fatalf("expected Bob to get one reply occurrence, got %+v", bobOccurrences)
 		}
-		var target *notificationv1.NotificationMessageReference
-		for _, occurrence := range bobOccurrences {
-			if testOccurrenceHasKind(occurrence, notificationTestSignalReply) {
-				target = NotificationOccurrenceMessageReference(occurrence)
-			}
-		}
+		target := NotificationOccurrenceMessageReference(bobOccurrences[0])
 		if target.GetEventId() != charlieReply.Id || target.GetThreadRootEventId() != rootMsg.Id {
 			t.Errorf("occurrence target = %+v, want event %q and thread %q", target, charlieReply.Id, rootMsg.Id)
 		}
 	})
 
-	t.Run("in-thread inReplyTo remains independent from followed-thread activity", func(t *testing.T) {
+	t.Run("in-thread inReplyTo supersedes followed-thread activity", func(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 		testDeleteAllNotificationOccurrences(t, core, bob.Id)
@@ -1990,11 +1978,11 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 2 {
-			t.Fatalf("expected two exact occurrences, got %d", len(occurrences))
+		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], notificationTestSignalReply) {
+			t.Fatalf("expected one reply occurrence, got %+v", occurrences)
 		}
-		if !testOccurrencesHaveKinds(occurrences, notificationTestSignalReply, notificationTestSignalFollowedThread) {
-			t.Errorf("expected reply and followed-thread signals, got %+v", occurrences)
+		if occurrences[0].GetAlertExpiresAt() == nil {
+			t.Fatal("selected reply must retain push eligibility")
 		}
 	})
 }

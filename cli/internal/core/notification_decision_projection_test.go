@@ -220,6 +220,82 @@ func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
 	}
 }
 
+func TestNotificationDecisionPrecedence(t *testing.T) {
+	signal := func(kind string) *notificationv1.NotificationSignal {
+		message := newNotificationMessageReference("room", "source")
+		switch kind {
+		case "reply":
+			return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: message}}}
+		case "mention":
+			return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{Message: message}}}
+		default:
+			return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: message}}}
+		}
+	}
+	push := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	inApp := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION
+	badge := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
+	for _, tc := range []struct {
+		name, candidate, current   string
+		candidateMode, currentMode evtv1.NotificationDeliveryMode
+		better                     bool
+	}{
+		{"push beats specific in-app", "follow", "reply", push, inApp, true},
+		{"push beats specific badge", "follow", "mention", push, badge, true},
+		{"specific cause wins equal push", "mention", "reply", push, push, true},
+		{"reply wins equal in-app", "reply", "follow", inApp, inApp, true},
+		{"badge cannot replace notification", "reply", "follow", badge, inApp, false},
+		{"same cause is stable", "reply", "reply", push, push, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := notificationRecipientDecision{signal: signal(tc.candidate), mode: tc.candidateMode}
+			current := notificationRecipientDecision{signal: signal(tc.current), mode: tc.currentMode}
+			if got := notificationDecisionBetter(candidate, current); got != tc.better {
+				t.Fatalf("candidate %s vs %s: got %v, want %v", tc.candidate, tc.current, got, tc.better)
+			}
+		})
+	}
+}
+
+func TestMessageNotificationDecisionSelectsPushBeforeSpecificCause(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const roomID, recipientID = "R1", "U1"
+	source := &evtv1.Event{
+		Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(),
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+			RoomId: roomID, InThread: "root", InReplyTo: "parent",
+			Mentions: []*evtv1.MessageMention{{UserId: recipientID, Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}}},
+		}},
+	}
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+		{Id: "join", ActorId: recipientID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "policy", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
+			UserId: recipientID, Overrides: &evtv1.NotificationDeliveryModes{
+				DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
+				Replies:        evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
+			},
+		}}},
+		source,
+	})
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, recipientID, "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION || decisions[0].signal.GetReplyReceived() == nil {
+		t.Fatalf("decisions = %+v, want one push reply", decisions)
+	}
+	ref := notificationSignalMessage(decisions[0].signal)
+	if ref.GetEventId() != source.GetId() || ref.GetThreadRootEventId() != "root" {
+		t.Fatalf("selected navigation target = %+v", ref)
+	}
+}
+
 func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecisionProjection, events []*evtv1.Event) {
 	t.Helper()
 	for index, event := range events {

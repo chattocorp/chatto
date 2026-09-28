@@ -9,13 +9,67 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-// notificationRecipientDecision is one processing-time policy result. A
-// recipient can have several decisions for the same source fact because each
-// rich notification signal remains independently addressable.
+// notificationRecipientDecision is the selected processing-time policy result
+// for one recipient and source fact.
 type notificationRecipientDecision struct {
 	recipientID string
 	signal      *notificationv1.NotificationSignal
 	mode        evtv1.NotificationDeliveryMode
+}
+
+// notificationDeliveryRank orders destinations, not enum values: Badge has
+// a larger wire value than Push but must not displace a delivered occurrence.
+func notificationDeliveryRank(mode evtv1.NotificationDeliveryMode) int {
+	switch mode {
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
+		return 3
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION:
+		return 2
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// notificationCauseRank resolves equal-delivery overlaps. Specific personal
+// signals win over broad subscription activity; message signals retain the
+// same exact message and thread navigation reference.
+func notificationCauseRank(signal *notificationv1.NotificationSignal) int {
+	switch signal.GetKind().(type) {
+	case *notificationv1.NotificationSignal_DirectMentionReceived:
+		return 10
+	case *notificationv1.NotificationSignal_ReplyReceived:
+		return 9
+	case *notificationv1.NotificationSignal_DirectMessageReceived:
+		return 8
+	case *notificationv1.NotificationSignal_RoleMentionReceived:
+		return 7
+	case *notificationv1.NotificationSignal_HereMentionReceived:
+		return 6
+	case *notificationv1.NotificationSignal_AllMentionReceived:
+		return 5
+	case *notificationv1.NotificationSignal_FollowedThreadActivity:
+		return 4
+	case *notificationv1.NotificationSignal_RoomMessageReceived:
+		return 3
+	case *notificationv1.NotificationSignal_FollowedRoomActivity:
+		return 2
+	case *notificationv1.NotificationSignal_ReactionReceived:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func notificationDecisionBetter(candidate, current notificationRecipientDecision) bool {
+	if notificationDeliveryRank(candidate.mode) != notificationDeliveryRank(current.mode) {
+		return notificationDeliveryRank(candidate.mode) > notificationDeliveryRank(current.mode)
+	}
+	if notificationCauseRank(candidate.signal) != notificationCauseRank(current.signal) {
+		return notificationCauseRank(candidate.signal) > notificationCauseRank(current.signal)
+	}
+	return notificationSignalIdentity(candidate.signal) < notificationSignalIdentity(current.signal)
 }
 
 func notificationSignalForMention(mention *evtv1.MessageMention, message *notificationv1.NotificationMessageReference) *notificationv1.NotificationSignal {
@@ -160,19 +214,18 @@ func buildMessageNotificationDecisions(
 	}
 
 	recipientIDs := sortedMapKeys(signalsByRecipient)
-	decisions := make([]notificationRecipientDecision, 0)
+	decisions := make([]notificationRecipientDecision, 0, len(recipientIDs))
 	for _, userID := range recipientIDs {
-		identities := make([]string, 0, len(signalsByRecipient[userID]))
-		for identity := range signalsByRecipient[userID] {
-			identities = append(identities, identity)
-		}
-		sort.Strings(identities)
-		for _, identity := range identities {
-			signal := signalsByRecipient[userID][identity]
+		var selected notificationRecipientDecision
+		for _, signal := range signalsByRecipient[userID] {
 			mode := snapshot.effectiveNotificationMode(userID, roomID, signal)
-			if notificationModeProducesAttention(mode) {
-				decisions = append(decisions, notificationRecipientDecision{recipientID: userID, signal: signal, mode: mode})
+			candidate := notificationRecipientDecision{recipientID: userID, signal: signal, mode: mode}
+			if notificationModeProducesAttention(mode) && (selected.signal == nil || notificationDecisionBetter(candidate, selected)) {
+				selected = candidate
 			}
+		}
+		if selected.signal != nil {
+			decisions = append(decisions, selected)
 		}
 	}
 	return decisions

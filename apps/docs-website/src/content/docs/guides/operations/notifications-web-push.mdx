@@ -46,7 +46,7 @@ Members use a matrix to control each notification cause at server, room-group, a
 | Notification | Add an in-app notification. Important notifications can play the configured in-app sound, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
-Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
+Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. If a message matches several causes for you, Chatto sends one notification. It selects the strongest delivery mode first. For equal modes, it selects the more specific cause, such as a reply before followed-thread activity. A separate reaction is a separate event. The client can group separate activity for display.
 
 Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. Important notifications use orange indicators and can play your selected sound.
 
