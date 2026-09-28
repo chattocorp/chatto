@@ -35,10 +35,11 @@ test('a stopped implementation reaches Chatto even when the supervisor says noth
     for (const extension of options.extensions ?? []) {
       const factory = typeof extension === 'function' ? extension : extension.factory;
       await factory({
-        registerTool(tool) {
+        on() {},
+        registerTool(tool: { name: string }) {
           tools.set(tool.name, tool as never);
         }
-      } as AgentExtensionAPI);
+      } as unknown as AgentExtensionAPI);
     }
     return { runOutcome: vi.fn(), steer: async () => false, dispose() {} };
   };

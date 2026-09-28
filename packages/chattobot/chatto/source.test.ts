@@ -175,6 +175,7 @@ test('passes implementation configuration through the realtime source and captur
   vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', 'example/chatto');
   vi.stubEnv('CHATTO_SOURCE_REF', 'main');
   vi.stubEnv('CHATTO_IMPLEMENTATION_MODEL', 'test/worker');
+  vi.stubEnv('CHATTO_MAINTAINER_USER_IDS', ' alice, bob ');
   mocks.rpc.mockResolvedValue({ user: { profile: { id: 'bot' } } });
   mocks.consumeRealtime.mockResolvedValue(undefined);
   const ctx: EventSourceContext = {
@@ -191,6 +192,7 @@ test('passes implementation configuration through the realtime source and captur
     model: 'test/worker'
   });
   expect(original.investigation?.baseRef).toBe('refs/remotes/origin/main');
+  expect(original.maintainers).toEqual(['alice', 'bob']);
   vi.stubEnv('CHATTO_SOURCE_REF', 'next');
   await chattoSource(ctx);
   expect(mocks.bot.mock.calls[1]![0]!.implementation?.baseBranch).toBe('next');
@@ -279,6 +281,14 @@ test.each([
     'CHATTO_IMPLEMENTATION_REPOSITORY requires CHATTO_SOURCE_DIRECTORY'
   ],
   [{ CHATTO_URL: 'not a url' }, 'CHATTO_URL must be an HTTP or HTTPS URL without credentials'],
+  [
+    { CHATTO_SOURCE_DIRECTORY: '/configured/chatto', CHATTO_MAINTAINER_USER_IDS: '' },
+    'Source investigation and implementation require CHATTO_MAINTAINER_USER_IDS'
+  ],
+  [
+    { CHATTO_MAINTAINER_USER_IDS: 'alice; drop table' },
+    'CHATTO_MAINTAINER_USER_IDS must list Chatto user IDs separated by commas'
+  ],
   [
     { CHATTO_CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef' },
     'Set both CHATTO_CLOUDFLARE_ACCOUNT_ID and CHATTO_CLOUDFLARE_API_TOKEN, or neither'

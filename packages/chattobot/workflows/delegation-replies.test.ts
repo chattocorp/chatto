@@ -34,10 +34,11 @@ test.each(['accepted', 'refused'])(
       for (const extension of options.extensions ?? []) {
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
-          registerTool(tool) {
+          on() {},
+          registerTool(tool: { name: string }) {
             tools.set(tool.name, tool as never);
           }
-        } as AgentExtensionAPI);
+        } as unknown as AgentExtensionAPI);
       }
       return { runOutcome: vi.fn(), steer: async () => false, dispose() {} };
     };
@@ -87,8 +88,10 @@ test.each(['accepted', 'refused'])(
           message: { id: 'message', author_id: 'human', body: 'Assess this' }
         },
         readThread: async () => [],
+        maintainers: ['human'],
         onBusy() {},
         setReplyContext() {},
+        requester: () => 'human',
         announce: async (text) => {
           replies.push(text);
         }

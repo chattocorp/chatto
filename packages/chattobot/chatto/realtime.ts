@@ -46,6 +46,17 @@ function isServerUrl(value: string): boolean {
   return (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password;
 }
 
+/** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against
+ * server-authenticated message authors, never display names. */
+function maintainerIds(): string[] {
+  const ids = (setting('CHATTO_MAINTAINER_USER_IDS') ?? '').split(/[\s,]+/).filter(Boolean);
+  if (ids.some((id) => !/^[A-Za-z0-9_-]{1,64}$/.test(id)))
+    throw new ConfigurationError(
+      'CHATTO_MAINTAINER_USER_IDS must list Chatto user IDs separated by commas'
+    );
+  return ids;
+}
+
 /** Read and validate this source generation's settings before contacting any service.
  * Runling does not log source failure messages, so configuration errors are logged here.
  * Their messages name settings, never their values. */
@@ -57,14 +68,21 @@ function sourceSettings() {
     if (!isServerUrl(serverUrl))
       throw new ConfigurationError('CHATTO_URL must be an HTTP or HTTPS URL without credentials');
     const implementation = implementationSettings();
+    const investigation = investigationSettings(implementation);
+    const maintainers = maintainerIds();
+    if ((investigation || implementation) && !maintainers.length)
+      throw new ConfigurationError(
+        'Source investigation and implementation require CHATTO_MAINTAINER_USER_IDS'
+      );
     return {
       serverUrl,
       apiKey,
       // Match the server-authenticated actor ID, never a display name or user-supplied message field.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       model: setting('CHATTO_AGENT_MODEL'),
-      investigation: investigationSettings(implementation),
+      investigation,
       implementation,
+      maintainers,
       web: webSettings()
     };
   } catch (error) {
