@@ -115,13 +115,18 @@ export const conversation = task(
     };
     const maintainerGate = defineAgentExtension((pi) => {
       pi.on('tool_call', async (event) => {
-        if (!MAINTAINER_TOOLS.has(event.toolName) || requesterIsMaintainer()) return;
+        if (!MAINTAINER_TOOLS.has(event.toolName)) return;
+        // Notifications wake the agent but never authorize work; postRefusal stays silent there.
+        if (latestOrigin === 'user' && requesterIsMaintainer()) return;
         await postRefusal(
           'Only a maintainer can ask me to investigate the source or implement changes. A maintainer can ask in this thread.'
         ).catch(() => {});
         return {
           block: true,
-          reason: `${event.toolName} is available only when a maintainer asks for it.`
+          reason:
+            latestOrigin === 'user'
+              ? `${event.toolName} is available only when a maintainer asks for it.`
+              : `${event.toolName} cannot start from a background notification. Wait for a maintainer's request.`
         };
       });
     });
@@ -161,15 +166,11 @@ export const conversation = task(
               implementationExtension(ctx, options.implementation, announce, tasks, {
                 plans,
                 ownerKey,
-                onBlocked: async (summary) => {
-                  if (delegationReported) return;
-                  delegationReported = true;
-                  await ctx.emit(summary);
-                },
+                onBlocked: postRefusal,
                 onStopped: postImplementationUpdate,
                 onPublished: postImplementationUpdate,
                 onCiResult: postImplementationUpdate,
-                requestVersion: () => (latestOrigin === 'user' ? requestVersion : undefined)
+                requestVersion: () => requestVersion
               })
             ]
           : []),

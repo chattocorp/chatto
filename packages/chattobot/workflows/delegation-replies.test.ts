@@ -28,13 +28,16 @@ test.each(['accepted', 'refused'])(
   '%s delegation posts one host-owned reply and permits later replies',
   async (mode) => {
     const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
+    let gate: ((event: unknown) => Promise<unknown>) | undefined;
     const replies: string[] = [];
     const createAgent = async (options: AgentOptions) => {
       expect(options.textDelivery).toBe('final');
       for (const extension of options.extensions ?? []) {
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
-          on() {},
+          on(name: string, handler: (event: unknown) => Promise<unknown>) {
+            if (name === 'tool_call') gate = handler;
+          },
           registerTool(tool: { name: string }) {
             tools.set(tool.name, tool as never);
           }
@@ -44,20 +47,24 @@ test.each(['accepted', 'refused'])(
     };
     interact.mockImplementationOnce(async (ctx, _agent, _prompt, options) => {
       options.onBusy(true);
-      await options.prepareMessage('Investigation complete', 'notification');
-      if (mode === 'accepted') await tools.get('fakeInvestigate')!.execute('call', {} as never);
-      else {
+      if (mode === 'accepted') {
+        await tools.get('fakeInvestigate')!.execute('call', {} as never);
+        // The announcement owns this turn; the supervisor's second version is suppressed.
+        await ctx.emit("I'm working on the fix now.");
+        expect(replies).toEqual(['Investigation started.']);
+      } else {
+        // A notification never authorizes work. The gate blocks it without a chat message.
+        await options.prepareMessage('Investigation complete', 'notification');
         for (let i = 0; i < 2; i++)
-          await tools.get('implementChatto')!.execute('call', {
-            request: 'Implement the plan',
-            announcement: 'Starting implementation'
-          } as never);
+          expect(
+            await gate!({ type: 'tool_call', toolName: 'implementChatto', input: {} })
+          ).toMatchObject({
+            block: true,
+            reason: expect.stringContaining('background notification')
+          });
+        await ctx.emit('The investigation finished.');
+        expect(replies).toEqual(['The investigation finished.']);
       }
-      await ctx.emit("I'm working on the fix now.");
-      expect(replies).toHaveLength(1);
-      expect(replies[0]).toContain(
-        mode === 'accepted' ? 'Investigation started' : 'Implementation was not started'
-      );
       options.onBusy(false);
       options.onBusy(true);
       await ctx.emit('Here is the answer to your next question.');
