@@ -16,14 +16,18 @@ const routes = [
     // growth and build variation; eager-loading guards below remain independent.
     // Theme customisation (surface tones, palette fades, first-paint colours)
     // added about 3.6 KiB of global CSS and preference code.
-    budgetKiB: 337,
+    // protobuf-es v2 and Connect v2 added about 23 KiB: the reflection-based
+    // runtime and the embedded file descriptors of the generated schemas.
+    budgetKiB: 360,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
     name: 'overview',
     // CI baseline: 340.3 KiB, with roughly 10% headroom. Theme customisation
     // added about 3.7 KiB of global CSS and preference code.
-    budgetKiB: 379,
+    // protobuf-es v2 and Connect v2 added about 23 KiB: the reflection-based
+    // runtime and the embedded file descriptors of the generated schemas.
+    budgetKiB: 402,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
@@ -34,7 +38,9 @@ const routes = [
   {
     name: 'room',
     // CI baseline: 515.8 KiB, with roughly 10% headroom.
-    budgetKiB: 570,
+    // protobuf-es v2 and Connect v2 added about 23 KiB: the reflection-based
+    // runtime and the embedded file descriptors of the generated schemas.
+    budgetKiB: 593,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
