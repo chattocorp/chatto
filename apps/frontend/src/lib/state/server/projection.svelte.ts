@@ -6,7 +6,6 @@ import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import type { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 
 /** Authenticated server resources assembled from two canonical responses. */
@@ -101,20 +100,12 @@ export class ServerProjectionStore {
     this.activeCalls = [];
   }
 
-  /**
-   * Removes a deleted account. In DMs the account stays a deleted participant,
-   * so the conversation does not turn into the viewer's self-DM before the
-   * server's room refresh arrives.
-   */
   removeUser(userId: string): void {
     this.users.delete(userId);
     for (const [roomId, room] of this.rooms) {
       if (!room.memberUserIds.includes(userId)) continue;
       const next = room.clone();
       next.memberUserIds = next.memberUserIds.filter((candidate) => candidate !== userId);
-      if (next.room?.kind === RoomKind.DM && !next.deletedParticipantUserIds.includes(userId)) {
-        next.deletedParticipantUserIds = [...next.deletedParticipantUserIds, userId];
-      }
       this.rooms.set(roomId, next);
     }
     this.activeCalls = this.activeCalls.map((call) => {
