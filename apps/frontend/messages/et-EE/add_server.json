@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "See ei näi olevat Chatto server.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Serverite kataloog",
+      "subtitle": "Avastage teisi Chatto servereid",
+      "lookup_description": "Sisestage mis tahes Chatto serveri aadress, et sellega liituda.",
+      "find": "Otsi serverit",
+      "connect_by_address": "Ühenda aadressi kaudu",
+      "servers_title": "Soovitatud serverid",
+      "servers_description": "Soovitused serveritelt, millega olete liitunud. Tulemused ei ole järjestatud.",
       "recommended_by": "Soovitajad: {servers}",
       "more_recommenders_count": {
         "other": "veel {count}"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Liitunud",
+      "join": "Liitu",
+      "open": "Ava",
       "open_in_new_tab": "Ava uuel vahekaardil",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Sisselogimine pole saadaval",
+      "profile_unavailable": "Selle serveri avalikku profiili ei õnnestunud laadida.",
+      "partial": "Mõned serverid, millega olete liitunud, ei saanud oma soovitusi anda.",
+      "unavailable_title": "Kataloog pole saadaval",
+      "unavailable_body": "Serverid, millega olete liitunud, ei saanud oma soovitusi anda. Saate siiski otse ühendust luua.",
+      "empty_title": "Soovitatud servereid veel pole",
+      "empty_body": "Saate siiski serveri aadressiga otse ühendust luua."
     }
   }
 }

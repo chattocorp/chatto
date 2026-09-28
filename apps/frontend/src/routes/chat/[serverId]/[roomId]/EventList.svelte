@@ -29,6 +29,7 @@
   import { visibleTombstoneEvents, visibleUnreadMarkerEventId } from './tombstoneVisibility';
   import { TimelineViewportController } from './TimelineViewportController.svelte';
   import { RoomThreadingMode } from '$lib/roomThreading';
+  import { appState } from '$lib/state/globals.svelte';
 
   let {
     roomId,
@@ -326,10 +327,13 @@
   // after the entry read request, so the initial bottom scroll may already
   // have run; any explicit viewport action before then wins (see
   // TimelineViewportController.beginUnreadEntryLanding). An entry that
-  // targets a specific message skips the landing.
+  // targets a specific message skips the landing. A separator that appears
+  // while the viewer is away waits for the viewer to return, so the landing
+  // shows the first message that arrived while away.
   const unreadEntryLanding = $derived.by(() => {
     if (scrollToEventId || pendingHighlightId) return { timelineKey, skip: true };
     if (!effectiveUnreadAfterEventId || isJumpedMode) return null;
+    if (!appState.isPresent) return null;
     if (!virtualizerHandle || virtualItems.length === 0) return null;
     if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return null;
     return { timelineKey, skip: false };

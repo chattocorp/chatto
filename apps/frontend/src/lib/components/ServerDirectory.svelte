@@ -7,6 +7,7 @@ servers, and a direct server-address lookup that opens from a button. The
 dialog shows it directly on its work plane. See FDR-042.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
@@ -250,7 +251,7 @@ dialog shows it directly on its work plane. See FDR-042.
     if (error instanceof TypeError || error instanceof ConnectError) {
       return m('add_server.connection_failed');
     }
-    return error instanceof Error ? error.message : m('add_server.connect_failed');
+    return errorMessage(error, m('add_server.connect_failed'));
   }
 
   function sourceName(origin: string): string {

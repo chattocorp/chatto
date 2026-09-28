@@ -1,5 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { m } from '$lib/i18n/messages';
+import { errorMessage } from '$lib/utils/errorMessage';
 
 /**
  * Map a failed profile save to a user-facing message. A concurrent profile
@@ -10,5 +11,5 @@ export function profileSaveErrorMessage(error: unknown, fallback: string): strin
   if (error instanceof ConnectError && error.code === Code.Aborted) {
     return m('settings.profile.conflict');
   }
-  return error instanceof Error ? error.message : fallback;
+  return errorMessage(error, fallback);
 }

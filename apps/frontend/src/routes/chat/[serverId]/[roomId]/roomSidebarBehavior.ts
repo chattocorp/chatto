@@ -20,8 +20,7 @@ export function roomSidebarPanelForRoom(
   isDM: boolean,
   panel: RoomSidebarPanelState,
   livekitEnabled = true,
-  messageSearchEnabled = true,
-  pinnedMessagesEnabled = true
+  messageSearchEnabled = true
 ): RoomSidebarPanelState {
   if (panel === null) return null;
   // Profiles can return to Members in any room, including a DM. The DM
@@ -31,22 +30,17 @@ export function roomSidebarPanelForRoom(
   if (!panels.includes(panel)) return null;
   if (panel === 'call' && !livekitEnabled) return null;
   if (panel === 'search' && !messageSearchEnabled) return null;
-  if (panel === 'pins' && !pinnedMessagesEnabled) return null;
   return panel;
 }
 
 export function roomSidebarPanelsForRoom(
   isDM: boolean,
   livekitEnabled: boolean,
-  messageSearchEnabled = true,
-  pinnedMessagesEnabled = true
+  messageSearchEnabled = true
 ): RoomSidebarPanel[] {
   const panels = isDM ? DM_ROOM_SIDEBAR_PANELS : CHANNEL_ROOM_SIDEBAR_PANELS;
   return panels.filter(
-    (panel) =>
-      (livekitEnabled || panel !== 'call') &&
-      (messageSearchEnabled || panel !== 'search') &&
-      (pinnedMessagesEnabled || panel !== 'pins')
+    (panel) => (livekitEnabled || panel !== 'call') && (messageSearchEnabled || panel !== 'search')
   );
 }
 

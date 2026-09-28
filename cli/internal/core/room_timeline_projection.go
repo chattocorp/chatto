@@ -747,12 +747,28 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 		}
 		at = p.shreddedAt[userID]
 	}
-	for eventID, idx := range p.byEventID {
-		entry := p.entryAtLocked(idx)
-		if entry == nil || !entry.IsMessagePost() {
+	user, known := p.userIDs[userID]
+	if !known {
+		return
+	}
+	// Compare row handles directly. Materializing a TimelineEntry for every
+	// row made each shredding fact allocate in proportion to the timeline.
+	for idx := range p.entries {
+		row := &p.entries[idx]
+		if row.kind != timelineMessagePosted {
 			continue
 		}
-		if timelineEntryMessageAuthorID(entry) != userID {
+		// The message author falls back to the actor, as in
+		// timelineEntryMessageAuthorID.
+		author := row.author
+		if author == 0 {
+			author = row.actor
+		}
+		if author != user {
+			continue
+		}
+		eventID := row.eventID
+		if mapped, ok := p.byEventID[eventID]; !ok || mapped != idx {
 			continue
 		}
 		p.clearCurrentBodyLocked(eventID)

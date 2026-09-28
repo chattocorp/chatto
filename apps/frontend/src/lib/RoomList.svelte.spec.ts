@@ -16,6 +16,7 @@ import '../app.css';
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
+import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -85,8 +86,7 @@ const { mocks } = vi.hoisted(() => ({
         handleCallEndedEvent: vi.fn()
       },
       serverInfo: {
-        livekitUrl: null,
-        supportsFeature: vi.fn().mockReturnValue(true)
+        livekitUrl: null
       },
       navigation: {
         rooms: [],
@@ -302,7 +302,6 @@ beforeEach(() => {
   mocks.store.navigation.roomGroups = [];
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.navigation.currentUserId = 'me';
-  mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
   setRooms();
   vi.clearAllMocks();
   Object.defineProperty(navigator, 'clipboard', {
@@ -1698,68 +1697,63 @@ describe('RoomList', () => {
   });
 
   it.each([
-    { name: 'without reorder permission', canReorderGroups: false, supportsMoves: true },
-    { name: 'without relative moves', canReorderGroups: true, supportsMoves: false },
-    { name: 'with reorder permission', canReorderGroups: true, supportsMoves: true }
-  ])(
-    'keeps a room group indicator visible $name',
-    async ({ name, canReorderGroups, supportsMoves }) => {
-      mocks.store.serverInfo.supportsFeature.mockReturnValue(supportsMoves);
-      mocks.store.navigation.roomGroups = [
-        {
-          id: `indicator-${name}`,
-          name: 'Projects',
-          viewerCanManageGroup: canReorderGroups,
-          viewerCanCreateRoom: canReorderGroups,
-          roomIds: ['channel-1']
-        }
-      ];
-
-      const { container, getByRole } = render(RoomList, { props: { canReorderGroups } });
-      const heading = getByRole('button', { name: 'Projects', exact: true });
-      const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
-      const handle = q(container, '[data-testid="room-group-drag-handle"]');
-      const hasOverlay = canReorderGroups && supportsMoves;
-
-      expect(Boolean(handle)).toBe(hasOverlay);
-      await userEvent.unhover(heading);
-      await expect.poll(() => getComputedStyle(icon).opacity).toBe('1');
-      // Wait for the header's hover transition before sampling its resting colour.
-      await Promise.all(
-        heading
-          .element()
-          .parentElement!.getAnimations({ subtree: true })
-          .map((animation) => animation.finished)
-      );
-      const mutedColour = getComputedStyle(heading.element()).color;
-
-      for (const expanded of [true, false]) {
-        await expect.element(heading).toHaveAttribute('aria-expanded', String(expanded));
-        await userEvent.hover(heading);
-        await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
-        await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
-        if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
-
-        await userEvent.unhover(heading);
-        heading.element().focus();
-        await userEvent.tab();
-        await userEvent.tab({ shift: true });
-        await expect.element(heading).toHaveFocus();
-        await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
-        await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
-        if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
-
-        await userEvent.keyboard(' ');
-        await expect.element(heading).toHaveAttribute('aria-expanded', String(!expanded));
-        heading.element().blur();
+    { name: 'without reorder permission', canReorderGroups: false },
+    { name: 'with reorder permission', canReorderGroups: true }
+  ])('keeps a room group indicator visible $name', async ({ name, canReorderGroups }) => {
+    mocks.store.navigation.roomGroups = [
+      {
+        id: `indicator-${name}`,
+        name: 'Projects',
+        viewerCanManageGroup: canReorderGroups,
+        viewerCanCreateRoom: canReorderGroups,
+        roomIds: ['channel-1']
       }
+    ];
 
-      await userEvent.click(heading);
+    const { container, getByRole } = render(RoomList, { props: { canReorderGroups } });
+    const heading = getByRole('button', { name: 'Projects', exact: true });
+    const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
+    const handle = q(container, '[data-testid="room-group-drag-handle"]');
+    const hasOverlay = canReorderGroups;
+
+    expect(Boolean(handle)).toBe(hasOverlay);
+    await userEvent.unhover(heading);
+    await expect.poll(() => getComputedStyle(icon).opacity).toBe('1');
+    // Wait for the header's hover transition before sampling its resting colour.
+    await Promise.all(
+      heading
+        .element()
+        .parentElement!.getAnimations({ subtree: true })
+        .map((animation) => animation.finished)
+    );
+    const mutedColour = getComputedStyle(heading.element()).color;
+
+    for (const expanded of [true, false]) {
+      await expect.element(heading).toHaveAttribute('aria-expanded', String(expanded));
+      await userEvent.hover(heading);
+      await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
+      await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
+      if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
+
       await userEvent.unhover(heading);
+      heading.element().focus();
+      await userEvent.tab();
+      await userEvent.tab({ shift: true });
       await expect.element(heading).toHaveFocus();
-      await expect.poll(() => getComputedStyle(heading.element()).color).toBe(mutedColour);
+      await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
+      await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
+      if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
+
+      await userEvent.keyboard(' ');
+      await expect.element(heading).toHaveAttribute('aria-expanded', String(!expanded));
+      heading.element().blur();
     }
-  );
+
+    await userEvent.click(heading);
+    await userEvent.unhover(heading);
+    await expect.element(heading).toHaveFocus();
+    await expect.poll(() => getComputedStyle(heading.element()).color).toBe(mutedColour);
+  });
 
   it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {
     const channel = mocks.store.navigation.rooms.find(
@@ -1994,24 +1988,63 @@ describe('RoomList', () => {
       .toBeInTheDocument();
   });
 
-  it('keeps context-menu attachments but hides drag handles for a server without relative moves', () => {
-    mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
-    mocks.store.navigation.roomGroups = [
-      {
-        id: 'projects',
-        name: 'Projects',
-        viewerCanManageGroup: true,
-        viewerCanCreateRoom: true,
-        roomIds: ['channel-1']
-      }
-    ];
+  it('omits drag handles and zones on touch-only devices so touches reach the rows', async () => {
+    const matchMedia = window.matchMedia.bind(window);
+    const spy = vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
+      query === TOUCH_ONLY_QUERY
+        ? ({
+            matches: true,
+            media: query,
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false
+          } satisfies MediaQueryList)
+        : matchMedia(query)
+    );
+    try {
+      mocks.store.navigation.roomGroups = [
+        {
+          id: 'projects',
+          name: 'Projects',
+          viewerCanManageGroup: true,
+          viewerCanCreateRoom: true,
+          roomIds: ['channel-1'],
+          items: [
+            { id: 'room:channel-1', type: 'room', roomId: 'channel-1' },
+            {
+              id: 'link:docs',
+              type: 'link',
+              link: { id: 'docs', label: 'Docs', url: '/docs' }
+            }
+          ]
+        }
+      ];
 
-    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+      const { container } = render(RoomList, { props: { canReorderGroups: true } });
 
-    expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
-    expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
-    expect(container.querySelector('[data-testid="room-group-actions-button"]')).toBeNull();
-    expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
+      await expect
+        .element(q(container, '[data-testid="room-group-disclosure-icon"]'))
+        .toBeInTheDocument();
+      expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
+      expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
+      expect(container.querySelector('[data-testid="sidebar-link-drag-handle"]')).toBeNull();
+      expect(container.querySelector('[data-testid="room-group-items-dropzone"]')).toBeNull();
+      expect(container.querySelector('[data-testid="room-groups-dropzone"]')).toBeNull();
+
+      // Without drag zones, touches on rows must still reach app-shell gestures
+      // such as the mobile sidebar swipe.
+      const reachedContainer = vi.fn();
+      container.addEventListener('touchstart', reachedContainer);
+      q(container, '[data-testid="sidebar-link-leading-icon"]')?.dispatchEvent(
+        new Event('touchstart', { bubbles: true })
+      );
+      expect(reachedContainer).toHaveBeenCalledOnce();
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('persists a relative sidebar-item placement after a handled drop', async () => {

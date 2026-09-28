@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
@@ -67,14 +68,9 @@
   const inputScope = $derived(`${serverScope.serverId}:${serverScope.connection.queryScope}`);
   const rawQuery = $derived(searchInput.scope === inputScope ? searchInput.raw : '');
   const searchStatus = $derived(serverStore.messageSearch);
-  const supportsSearch = $derived(serverStore.serverInfo.supportsFeature('followedThreadSearch'));
-  const supportsUnreadFilter = $derived(
-    serverStore.serverInfo.supportsFeature('followedThreadUnreadFilter')
-  );
   const searchEnabled = $derived(
-    supportsSearch &&
-      (searchStatus.statusError ||
-        (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED))
+    searchStatus.statusError ||
+      (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED)
   );
   const searchQuery = $derived(
     searchEnabled && searchInput.scope === inputScope ? searchInput.submitted : ''
@@ -82,7 +78,7 @@
   const waitingForSearch = $derived(searchEnabled && rawQuery.trim() !== searchQuery);
 
   $effect(() => {
-    if (supportsSearch) void searchStatus.ensureStatus();
+    void searchStatus.ensureStatus();
   });
 
   function scheduleSearch(raw: string): void {
@@ -120,8 +116,8 @@
       const serverId = serverScope.serverId;
       const connection = serverScope.connection;
       const query = searchQuery;
-      // Search results and servers without the filter are filtered locally below.
-      const unreadOnly = !query && filter === 'unread' && supportsUnreadFilter;
+      // Search results are filtered locally below.
+      const unreadOnly = !query && filter === 'unread';
       return {
         queryKey: threadQueryKeys.followed(serverId, connection, { query, unreadOnly }),
         enabled: !query || searchStatus.available,
@@ -161,11 +157,7 @@
   const loading = $derived(threadsQuery.isPending);
   const loadingMore = $derived(threadsQuery.isFetchingNextPage);
   const error = $derived(
-    threadsQuery.isError
-      ? threadsQuery.error instanceof Error
-        ? threadsQuery.error.message
-        : 'Failed to load threads'
-      : null
+    threadsQuery.isError ? errorMessage(threadsQuery.error, m('chat.threads.load_failed')) : null
   );
   const hasMore = $derived(threadsQuery.hasNextPage);
 

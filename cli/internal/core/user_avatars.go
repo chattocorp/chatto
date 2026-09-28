@@ -341,7 +341,7 @@ func (c *ChattoCore) RecordUserAssetDeleted(ctx context.Context, actorID, userID
 	return nil
 }
 
-// GetUserAvatarURL returns the URL for a user's avatar.
+// GetUserAvatarURL returns the server-relative URL for a user's avatar.
 // If width and height are provided (non-nil), returns a URL to a resized version.
 // Returns empty string if no avatar is set.
 func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width, height *int, fit string) (string, error) {
@@ -367,5 +367,5 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 		}
 		return c.GetTransformedServerAssetURL(assetKey, *width, *height, fit), nil
 	}
-	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetKey)), nil
+	return fmt.Sprintf("/assets/server/%s", assetKey), nil
 }

@@ -94,9 +94,11 @@ Do not generate playground links for code written into this repository.
 ## ConnectRPC And Generated Types
 
 - Use the per-server compatibility state under `src/lib/state/server/` for
-  feature gating and version-skew warnings. Record each gated feature's minimum
-  server version in the shared compatibility table. Do not conflate versioned
-  protocol support with enabled server features or viewer permissions.
+  version-skew warnings and the supported-version check. The client has one
+  `MINIMUM_SUPPORTED_SERVER_VERSION` and does not gate individual features by
+  server version. When the client needs a newer server feature, raise the
+  minimum instead of adding a per-feature gate (FDR-031). Do not conflate
+  version support with enabled server features or viewer permissions.
 - Use the app's connection surface from
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
@@ -120,6 +122,12 @@ Do not generate playground links for code written into this repository.
   model. Realtime handlers consume the generated public `RealtimeEvent`
   catalogue directly. Do not add a second frontend event taxonomy or calls for
   the retired legacy API.
+- Show a failed operation to users with `errorMessage()` or `toastError()` from
+  `$lib/utils/errorMessage`, and pass a localized fallback for the operation.
+  The helper localizes access, network, and conflict errors, shows server text
+  only for validation and limit errors, and hides discarded stale responses.
+  ESLint rejects inline `error instanceof Error ? error.message : ...`
+  conversions.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package
@@ -196,6 +204,10 @@ Do not generate playground links for code written into this repository.
   popovers avoid clipping/stacking issues.
 - Use established `.menu`, `menu-section`, `btn`, dialog, toast, and chat overlay
   patterns before inventing new floating styles.
+- Render a popover or picker that belongs to an open modal inside that modal.
+  Content outside an open modal dialog is inert, so a popover rendered there
+  does not accept pointer or keyboard input. In a `FormDialog`, use the
+  `overlays` snippet.
 - When an element supports both right-click actions and touch long-press
   actions, suppress touch-synthesized `contextmenu` events while the long-press
   gesture is active so only one action surface opens.
@@ -209,6 +221,19 @@ Do not generate playground links for code written into this repository.
   Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-065.
 - German translations, including regional overlays, must address users with
   the informal `du`/`dein` forms rather than the formal `Sie`/`Ihr` forms.
+- Use the form of address that each complete locale already uses:
+  - Informal: Spanish (`tú`), Italian (`tu`), Polish (`ty`), Dutch (`je`),
+    Swedish and Norwegian (`du`), Brazilian Portuguese (`você`), and Chinese
+    (`你`).
+  - Formal: French (`vous`), Czech (`vy`), Russian (`вы`), Ukrainian (`ви`),
+    Estonian (`teie`), Latvian (`jūs`), Turkish (`-in` imperatives), and
+    European Portuguese (third person without `você`).
+  - Japanese uses polite `です`/`ます` forms. Arabic and Hebrew use the
+    masculine singular imperative. Esperanto uses `vi`.
+- `catalogs.spec.ts` fails when a complete locale copies British English text
+  with two or more words. Translate the message. If the identical text is
+  correct in that locale, add the key and locale to
+  `src/lib/i18n/identicalTranslations.ts`.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
@@ -338,6 +363,13 @@ Do not generate playground links for code written into this repository.
 - Keep debounce assertions independent of browser-suite scheduling: use fake
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.
+- Before you change the classes or markup of a shared component or utility,
+  search all specs, including route and e2e specs, for the old class names,
+  test IDs, and labels. Specs of other components often assert on them.
+- Hover styles only apply where `(hover: hover)` matches, and the headless
+  browser in CI reports no hover support. Test hover styles with
+  `it.skipIf(!matchMedia('(hover: hover)').matches)`, and test keyboard focus
+  styles without that condition.
 - Pin the clock with `vi.useFakeTimers({ toFake: ['Date'] })` and
   `vi.setSystemTime` in tests that group or label dates, such as Today,
   Yesterday, or a month. Relative instants such as "now minus 24 hours" land on

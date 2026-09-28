@@ -617,7 +617,6 @@ func TestBrowserIconRoutes(t *testing.T) {
 
 	t.Run("redirects to distinct same-origin server logo transforms", func(t *testing.T) {
 		chattoCore := setupFrontendTestCoreWithLogo(t)
-		chattoCore.AssetBaseURL = "https://assets.example.com"
 		server := newServer(t, chattoCore)
 
 		expectedSizes := map[string]int{
@@ -634,7 +633,6 @@ func TestBrowserIconRoutes(t *testing.T) {
 			assert.Equal(t, cacheControlNoCache, w.Header().Get("Cache-Control"))
 			location := w.Header().Get("Location")
 			assert.True(t, strings.HasPrefix(location, "/assets/server/logo-asset/t/"))
-			assert.NotContains(t, location, "assets.example.com")
 
 			signedPath := strings.TrimPrefix(location, "/assets/server/logo-asset/t/")
 			params, err := signedurl.ParseSignedTransformPath(
@@ -687,7 +685,6 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 	}
 	chattoCore := setupFrontendTestCoreWithLogo(t)
 	setTestServerName(t, context.Background(), chattoCore, "Engineering")
-	chattoCore.AssetBaseURL = "https://assets.example.com"
 	server := &HTTPServer{
 		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
 		core:   chattoCore,
@@ -712,7 +709,6 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 	assert.Equal(t, "Engineering", manifest["short_name"])
 	icons := manifest["icons"].([]any)
 	assert.True(t, strings.HasPrefix(icons[0].(map[string]any)["src"].(string), "/assets/server/logo-asset/t/"))
-	assert.NotContains(t, icons[0].(map[string]any)["src"], "assets.example.com")
 	assert.Equal(t, "192x192", icons[0].(map[string]any)["sizes"])
 	assert.Equal(t, "image/png", icons[0].(map[string]any)["type"])
 	assert.Equal(t, "maskable", icons[2].(map[string]any)["purpose"])
@@ -778,6 +774,27 @@ func setupFrontendTestCoreWithLogo(t *testing.T) *core.ChattoCore {
 		t.Fatalf("SetServerLogo: %v", err)
 	}
 	return chattoCore
+}
+
+func TestOpenGraphImageUsesCanonicalOrigin(t *testing.T) {
+	chattoCore := setupFrontendTestCoreWithLogo(t)
+	banner := &evtv1.AssetRecord{
+		Id:          "banner-asset",
+		Filename:    "banner.webp",
+		ContentType: "image/webp",
+		Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "banner-asset"}},
+	}
+	if err := chattoCore.SetServerBanner(context.Background(), core.SystemActorID, banner); err != nil {
+		t.Fatalf("SetServerBanner: %v", err)
+	}
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com/"}},
+		core:   chattoCore,
+	}
+
+	// Crawlers require an absolute og:image URL.
+	meta := server.getOpenGraphMeta(context.Background(), "/")
+	assert.True(t, strings.HasPrefix(meta.Image, "https://example.com/assets/server/banner-asset/t/"), "og:image = %q", meta.Image)
 }
 
 func TestFrontendFallbackAllowsRoutesWithReservedPrefixNames(t *testing.T) {

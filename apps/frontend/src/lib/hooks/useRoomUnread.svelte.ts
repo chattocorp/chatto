@@ -47,6 +47,7 @@ export function useRoomUnread(
       };
     },
     getMarkerEvents: () => getProps().events,
+    getMarkerSkipActorId: () => serverScope.store.viewerId,
     canMarkAsRead: () => serverScope.store.isAuthenticated && getProps().canReadMessages !== false,
     onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error)
   });
@@ -56,6 +57,7 @@ export function useRoomUnread(
       return unread.unreadMarkerEventId;
     },
     markAsRead: unread.markAsRead,
-    clearUnreadMarker: unread.clearUnreadMarker
+    clearUnreadMarker: unread.clearUnreadMarker,
+    markArrivalWhileAway: unread.markArrivalWhileAway
   };
 }

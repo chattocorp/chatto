@@ -15,7 +15,8 @@ Room-scoped file list for the room sidebar.
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
+  import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';
   import { EmptyState, LoadingFog } from '$lib/ui';
 
   type RoomFileListItem = {
@@ -51,7 +52,7 @@ Room-scoped file list for the room sidebar.
 
   const files = $derived(store.items);
   const fileGroups = $derived.by(() => groupFiles(files));
-  const fileSections = $derived(
+  const fileSections: VirtualListGroup<RoomFileListItem>[] = $derived(
     fileGroups.map((group) => ({
       ...group,
       persistKey: serverStorageKey(serverId, `collapsible:room-files:${roomId}:${group.id}`),
@@ -60,6 +61,7 @@ Room-scoped file list for the room sidebar.
   );
   const loading = $derived(store.isInitialLoading);
   let failedThumbnailUrls = $state.raw(new Set<string>());
+  let scrollEl = $state<HTMLElement>();
 
   function groupFiles(items: RoomFileItem[]): RoomFileGroup[] {
     const groups: RoomFileGroup[] = [];
@@ -224,7 +226,9 @@ Room-scoped file list for the room sidebar.
 {/snippet}
 
 <nav
+  bind:this={scrollEl}
   class="flex min-h-0 flex-1 flex-col overflow-y-auto"
+  data-testid="room-file-list"
   aria-label={m('room.sidebar.files')}
   aria-busy={loading}
 >
@@ -233,16 +237,7 @@ Room-scoped file list for the room sidebar.
   {:else if files.length === 0}
     <EmptyState icon="icon-[mdi--file-outline]" title={m('room.sidebar.no_files')} />
   {:else}
-    {#each fileSections as section, i (section.id)}
-      <RoomGroupSection
-        label={section.label}
-        items={section.items}
-        item={fileRow}
-        persistKey={section.persistKey}
-        testid={section.testid}
-        separated={i > 0}
-      />
-    {/each}
+    <VirtualGroupedList groups={fileSections} item={fileRow} scrollRef={scrollEl} itemSize={58} />
 
     {#if store.hasMore}
       <div

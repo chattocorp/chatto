@@ -180,6 +180,62 @@ message NotificationDecisionProjectionSnapshot {
   repeated string active_user_ids = 5;
   repeated ThreadFollowSnapshot thread_follows = 6;
   repeated NotificationThreadStateSnapshot threads = 7;
+  NotificationBadgeSourcesSnapshot badge_sources = 8;
+}
+
+// Badge source index of the notification decision projection. Room root and
+// reply lists are rebuilt from the messages, which are in stream order.
+message NotificationBadgeSourcesSnapshot {
+  repeated NotificationBadgeMessageSnapshot messages = 1;
+  // Targeted sources, grouped by room, user, and scope, in stream order
+  // within each group.
+  repeated NotificationBadgeTargetSnapshot targets = 2;
+  repeated NotificationBadgeSinceSnapshot memberships = 3;
+  // Account creation sequences; room_id is empty.
+  repeated NotificationBadgeSinceSnapshot accounts = 4;
+  // Universal-room start sequences; user_id is empty.
+  repeated NotificationBadgeSinceSnapshot universal_rooms = 5;
+  repeated NotificationBadgeFollowSnapshot follows = 6;
+  // Creation time of the newest indexed source. Sources that are older than
+  // the notification lifetime relative to it are left out.
+  int64 latest_created_at_unix_nanos = 7;
+}
+
+message NotificationBadgeMessageSnapshot {
+  string event_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  string actor_id = 4;
+  string author_id = 5;
+  uint64 sequence = 6;
+  int64 created_at_unix_nanos = 7;
+  bool retracted = 8;
+  // False for echoes and historical imports.
+  bool source = 9;
+}
+
+message NotificationBadgeTargetSnapshot {
+  string user_id = 1;
+  string room_id = 2;
+  string message_event_id = 3;
+  uint32 kind = 4;
+  uint64 sequence = 5;
+  int64 created_at_unix_nanos = 6;
+  string reactor_id = 7;
+  string emoji = 8;
+}
+
+message NotificationBadgeSinceSnapshot {
+  string user_id = 1;
+  string room_id = 2;
+  uint64 sequence = 3;
+}
+
+message NotificationBadgeFollowSnapshot {
+  string user_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  uint64 sequence = 4;
 }
 
 message NotificationThreadStateSnapshot {

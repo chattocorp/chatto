@@ -31,12 +31,12 @@ func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Requ
 	}
 
 	return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{
-		Preview:      apiLinkPreview(s.api, preview),
+		Preview:      apiLinkPreview(ctx, s.api, preview),
 		PreviewToken: token,
 	}), nil
 }
 
-func apiLinkPreview(api *API, preview *evtv1.LinkPreview) *apiv1.LinkPreview {
+func apiLinkPreview(ctx context.Context, api *API, preview *evtv1.LinkPreview) *apiv1.LinkPreview {
 	if preview == nil {
 		return nil
 	}
@@ -50,7 +50,7 @@ func apiLinkPreview(api *API, preview *evtv1.LinkPreview) *apiv1.LinkPreview {
 
 	imageURL := ""
 	if imageAssetKey != "" {
-		imageURL = api.core.GetTransformedServerAssetURL(imageAssetKey, 600, 314, "contain")
+		imageURL = api.absolutizeMediaURL(ctx, api.core.GetTransformedServerAssetURL(imageAssetKey, 600, 314, "contain"))
 	}
 
 	out := &apiv1.LinkPreview{
@@ -78,12 +78,12 @@ func apiLinkPreview(api *API, preview *evtv1.LinkPreview) *apiv1.LinkPreview {
 		out.EmbedId = stringPtr(embedID)
 	}
 	if socialPost := preview.GetSocialPost(); socialPost != nil {
-		out.SocialPost = apiSocialPostPreview(api, socialPost, 0)
+		out.SocialPost = apiSocialPostPreview(ctx, api, socialPost, 0)
 	}
 	return out
 }
 
-func apiSocialPostPreview(api *API, socialPost *evtv1.SocialPostPreview, quoteDepth int) *apiv1.SocialPostPreview {
+func apiSocialPostPreview(ctx context.Context, api *API, socialPost *evtv1.SocialPostPreview, quoteDepth int) *apiv1.SocialPostPreview {
 	if socialPost == nil {
 		return nil
 	}
@@ -99,7 +99,7 @@ func apiSocialPostPreview(api *API, socialPost *evtv1.SocialPostPreview, quoteDe
 			DisplayName: author.GetDisplayName(),
 			Handle:      author.GetHandle(),
 		}
-		mapped.Author.AvatarUrl, mapped.Author.AvatarAssetId = linkPreviewAsset(api, author.GetAvatarAsset(), 96, 96, "cover")
+		mapped.Author.AvatarUrl, mapped.Author.AvatarAssetId = linkPreviewAsset(ctx, api, author.GetAvatarAsset(), 96, 96, "cover")
 	}
 	if external := socialPost.GetExternalLink(); external != nil {
 		mapped.ExternalLink = &apiv1.SocialPostExternalLink{
@@ -107,10 +107,10 @@ func apiSocialPostPreview(api *API, socialPost *evtv1.SocialPostPreview, quoteDe
 			Title:       optionalString(external.GetTitle()),
 			Description: optionalString(external.GetDescription()),
 		}
-		mapped.ExternalLink.ImageUrl, mapped.ExternalLink.ImageAssetId = linkPreviewAsset(api, external.GetImageAsset(), 600, 314, "contain")
+		mapped.ExternalLink.ImageUrl, mapped.ExternalLink.ImageAssetId = linkPreviewAsset(ctx, api, external.GetImageAsset(), 600, 314, "contain")
 	}
 	for _, image := range socialPost.GetImages() {
-		imageURL, assetID := linkPreviewAsset(api, image.GetAsset(), 600, 600, "contain")
+		imageURL, assetID := linkPreviewAsset(ctx, api, image.GetAsset(), 600, 600, "contain")
 		if imageURL == nil || assetID == nil {
 			continue
 		}
@@ -120,17 +120,17 @@ func apiSocialPostPreview(api *API, socialPost *evtv1.SocialPostPreview, quoteDe
 		})
 	}
 	if quoteDepth == 0 {
-		mapped.QuotedPost = apiSocialPostPreview(api, socialPost.GetQuotedPost(), quoteDepth+1)
+		mapped.QuotedPost = apiSocialPostPreview(ctx, api, socialPost.GetQuotedPost(), quoteDepth+1)
 	}
 	return mapped
 }
 
-func linkPreviewAsset(api *API, asset *evtv1.AssetRecord, width, height int, fit string) (*string, *string) {
+func linkPreviewAsset(ctx context.Context, api *API, asset *evtv1.AssetRecord, width, height int, fit string) (*string, *string) {
 	if asset == nil || asset.GetId() == "" {
 		return nil, nil
 	}
 	assetID := asset.GetId()
-	url := api.core.GetTransformedServerAssetURL(core.ServerAssetDeliveryKey(asset), width, height, fit)
+	url := api.absolutizeMediaURL(ctx, api.core.GetTransformedServerAssetURL(core.ServerAssetDeliveryKey(asset), width, height, fit))
 	if url == "" {
 		return nil, &assetID
 	}

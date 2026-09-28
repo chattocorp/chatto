@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "网络错误，请重试。",
-      "generic": "出现错误"
+      "generic": "出现错误",
+      "permission_denied": "你没有执行此操作的权限。",
+      "not_found": "找不到请求的项目。",
+      "unauthenticated": "你的会话已过期。请重新登录。",
+      "conflict": "你编辑时此内容已更改。请重新加载页面，然后重试。"
     },
     "delete": "删除",
     "save": "保存",

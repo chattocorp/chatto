@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "זה לא נראה כשרת Chatto.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "מדריך השרתים",
+      "subtitle": "גלה שרתי Chatto נוספים",
+      "lookup_description": "הזן את הכתובת של שרת Chatto כלשהו כדי להצטרף אליו.",
+      "find": "חיפוש שרת",
+      "connect_by_address": "התחברות לפי כתובת",
+      "servers_title": "שרתים מומלצים",
+      "servers_description": "המלצות מהשרתים שהצטרפת אליהם. התוצאות אינן מדורגות.",
       "recommended_by": "מומלץ על ידי {servers}",
       "more_recommenders_count": {
         "other": "עוד {count}"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "הצטרף",
+      "join": "הצטרפות",
+      "open": "פתיחה",
       "open_in_new_tab": "פתיחה בכרטיסייה חדשה",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "ההתחברות אינה זמינה",
+      "profile_unavailable": "לא ניתן היה לטעון את הפרופיל הציבורי של שרת זה.",
+      "partial": "חלק מהשרתים שהצטרפת אליהם לא הצליחו לספק המלצות.",
+      "unavailable_title": "המדריך אינו זמין",
+      "unavailable_body": "השרתים שהצטרפת אליהם לא הצליחו לספק המלצות. עדיין אפשר להתחבר ישירות.",
+      "empty_title": "עדיין אין שרתים מומלצים",
+      "empty_body": "עדיין אפשר להתחבר ישירות באמצעות כתובת שרת."
     }
   }
 }

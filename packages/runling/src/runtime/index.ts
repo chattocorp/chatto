@@ -13,6 +13,7 @@ export {
   type AgentExtensionAPI,
   AgentOutcomeError,
   type AgentOptions,
+  type AgentTrustPolicy,
   type AgentReport,
   type AgentResult,
   type AgentResourceOptions,

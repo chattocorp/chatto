@@ -11,10 +11,11 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-const (
-	roomReadMarkerFilter   = "read.room.>"
-	threadReadMarkerFilter = "read.thread.>"
-)
+// readMarkerFilter covers both read-marker key families, `read.room.*` and
+// `read.thread.*`, with one filter so JetStream serves the initial snapshot
+// from its per-subject index (see watchKeyFilters). apply ignores any other
+// `read.` key.
+const readMarkerFilter = "read.>"
 
 type threadReadMarkerKey struct {
 	roomID            string
@@ -74,10 +75,7 @@ func (i *ReadStateIndex) Run(ctx context.Context) error {
 
 	var pendingResync chan error
 	for {
-		watcher, err := i.kv.WatchFiltered(ctx, []string{
-			roomReadMarkerFilter,
-			threadReadMarkerFilter,
-		})
+		watcher, err := i.kv.WatchFiltered(ctx, []string{readMarkerFilter})
 		if err != nil {
 			if pendingResync != nil {
 				select {

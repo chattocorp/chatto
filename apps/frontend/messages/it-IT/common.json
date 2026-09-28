@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Errore di rete. Per favore riprova.",
-      "generic": "Qualcosa è andato storto"
+      "generic": "Qualcosa è andato storto",
+      "permission_denied": "Non hai il permesso di farlo.",
+      "not_found": "Impossibile trovare l'elemento richiesto.",
+      "unauthenticated": "La sessione è scaduta. Accedi di nuovo.",
+      "conflict": "Questo elemento è cambiato mentre lo modificavi. Ricarica la pagina e riprova."
     },
     "delete": "Elimina",
     "save": "Salva",

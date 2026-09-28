@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
@@ -72,7 +73,7 @@
         goto(resolve(redirectPath as '/'), { replaceState: true });
       }
     } catch (err) {
-      actionError = err instanceof Error ? err.message : m('auth.sso.create_failed');
+      actionError = errorMessage(err, m('auth.sso.create_failed'));
     } finally {
       submitting = false;
     }
@@ -87,7 +88,7 @@
       await flowAPI.confirmLink(data.token);
       goto(resolve(redirectPath as '/'), { replaceState: true });
     } catch (err) {
-      actionError = err instanceof Error ? err.message : m('auth.sso.link_failed');
+      actionError = errorMessage(err, m('auth.sso.link_failed'));
     } finally {
       submitting = false;
     }

@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Netwerkfout. Probeer het opnieuw.",
-      "generic": "Er is iets misgegaan"
+      "generic": "Er is iets misgegaan",
+      "permission_denied": "Je hebt geen toestemming om dat te doen.",
+      "not_found": "Het gevraagde item is niet gevonden.",
+      "unauthenticated": "Je sessie is verlopen. Meld je opnieuw aan.",
+      "conflict": "Dit is gewijzigd terwijl je het bewerkte. Laad de pagina opnieuw en probeer het nog eens."
     },
     "delete": "Verwijderen",
     "save": "Opslaan",

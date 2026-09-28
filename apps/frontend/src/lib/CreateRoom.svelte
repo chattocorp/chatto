@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
@@ -87,7 +88,7 @@
       if (!serverScope.isCurrent()) return;
       onroomcreated?.(roomId);
     } catch (err) {
-      submitError = err instanceof Error ? err.message : m('room.create.failed');
+      submitError = errorMessage(err, m('room.create.failed'));
     } finally {
       isLoading = false;
     }

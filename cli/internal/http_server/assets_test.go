@@ -183,12 +183,23 @@ func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool
 	}
 }
 
+// url returns the test server URL for an asset path or an API-issued asset
+// URL. API responses carry absolute URLs on the configured public origin, which
+// differs from the httptest listener address.
+func (env *assetTestEnv) url(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || !parsed.IsAbs() {
+		return env.server.URL + raw
+	}
+	return env.server.URL + parsed.RequestURI()
+}
+
 // login authenticates a user
 func (env *assetTestEnv) login(t *testing.T, login, password string) {
 	t.Helper()
 
 	loginBody := fmt.Sprintf(`{"login":"%s","password":"%s"}`, login, password)
-	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/browser/login", bytes.NewReader([]byte(loginBody)))
+	req, err := http.NewRequest(http.MethodPost, env.url("/auth/browser/login"), bytes.NewReader([]byte(loginBody)))
 	if err != nil {
 		t.Fatalf("Create login request: %v", err)
 	}
@@ -390,7 +401,7 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 	}
 
 	// First request to transformed URL should be a cache MISS
-	transformResp, err := env.client.Get(env.server.URL + thumbnailURL)
+	transformResp, err := env.client.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -404,7 +415,7 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Second request should be a cache HIT
-	transformResp2, err := env.client.Get(env.server.URL + thumbnailURL)
+	transformResp2, err := env.client.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -447,7 +458,7 @@ func TestAsset_TransformedAttachmentUsesCompressedProfileAndVersionedCache(t *te
 		t.Fatalf("Failed to seed old attachment cache namespace: %v", err)
 	}
 
-	resp, err := env.client.Get(env.server.URL + thumbnailURL)
+	resp, err := env.client.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed attachment: %v", err)
 	}
@@ -519,7 +530,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Request transformed image to populate cache
-	transformResp, err := env.client.Get(env.server.URL + thumbnailURL)
+	transformResp, err := env.client.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -532,7 +543,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify cache hit
-	transformResp2, err := env.client.Get(env.server.URL + thumbnailURL)
+	transformResp2, err := env.client.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -545,7 +556,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	env.deleteAssetMessage(t, room.Id, eventID)
 
 	// Original attachment URL should now return 404
-	originalResp, err := env.client.Get(env.server.URL + attachmentURL)
+	originalResp, err := env.client.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to get original attachment: %v", err)
 	}
@@ -555,7 +566,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Transformed URL should also return 404 (not cache hit from stale cache)
-	transformResp3, err := env.client.Get(env.server.URL + thumbnailURL)
+	transformResp3, err := env.client.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed image: %v", err)
 	}
@@ -600,7 +611,7 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	}
 
 	// Get original attachment
-	originalResp, err := env.client.Get(env.server.URL + attachmentURL)
+	originalResp, err := env.client.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to get original attachment: %v", err)
 	}
@@ -630,7 +641,7 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 
 	// Chatto-backed attachments intentionally ignore Range and return the full
 	// object. Deployments that need seekable media should use S3 redirects.
-	rangeRequest, err := http.NewRequest(http.MethodGet, env.server.URL+attachmentURL, nil)
+	rangeRequest, err := http.NewRequest(http.MethodGet, env.url(attachmentURL), nil)
 	if err != nil {
 		t.Fatalf("Failed to create range request: %v", err)
 	}
@@ -684,7 +695,7 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 		t.Fatal("Expected stable attachment URL")
 	}
 
-	stableResp, err := env.client.Get(env.server.URL + attachmentURL)
+	stableResp, err := env.client.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to fetch stable attachment URL: %v", err)
 	}
@@ -721,7 +732,7 @@ func TestAsset_OriginalDownload(t *testing.T) {
 				t.Run(filename, func(t *testing.T) {
 					body := []byte("<!doctype html><h1>Shared document</h1><script>window.__ran=true</script>")
 					_, attachment := env.postAssetMessageWithAttachmentContentType(t, room.Id, "download", body, filename, "text/html; charset=utf-8")
-					assetURL, err := url.Parse(env.server.URL + attachment.GetAssetUrl().GetUrl())
+					assetURL, err := url.Parse(env.url(attachment.GetAssetUrl().GetUrl()))
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -776,7 +787,7 @@ func TestAsset_OriginalDownload(t *testing.T) {
 			if backend == "s3" {
 				body := []byte("passive audio bytes")
 				_, attachment := env.postAssetMessageWithAttachmentContentType(t, room.Id, "audio download", body, "recording.mp3", "audio/mpeg")
-				resp, err := client.Get(env.server.URL + attachment.GetAssetUrl().GetUrl() + "&download=1")
+				resp, err := client.Get(env.url(attachment.GetAssetUrl().GetUrl() + "&download=1"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -841,7 +852,7 @@ func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testi
 		},
 	}
 
-	stableResp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	stableResp, err := noRedirectClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to fetch S3 stable attachment URL: %v", err)
 	}
@@ -880,7 +891,7 @@ func TestAsset_StableS3ImageStreamsThroughChattoByDefault(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
-	resp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	resp, err := noRedirectClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to fetch S3 image attachment URL: %v", err)
 	}
@@ -931,7 +942,7 @@ func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
-	redirectResp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	redirectResp, err := noRedirectClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to fetch S3 video attachment URL: %v", err)
 	}
@@ -1000,7 +1011,7 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
-	redirectResp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	redirectResp, err := noRedirectClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to fetch storage-less S3 video attachment URL: %v", err)
 	}
@@ -1090,7 +1101,7 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	}
 
 	// Get original attachment
-	originalResp, err := env.client.Get(env.server.URL + attachmentURL)
+	originalResp, err := env.client.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to get original attachment: %v", err)
 	}
@@ -1159,7 +1170,7 @@ func TestAsset_StableURLBearerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	}
 	fetch := func() int {
 		t.Helper()
-		req, err := http.NewRequest(http.MethodGet, env.server.URL+stable.String(), nil)
+		req, err := http.NewRequest(http.MethodGet, env.url(stable.String()), nil)
 		if err != nil {
 			t.Fatalf("Failed to build request: %v", err)
 		}
@@ -1214,7 +1225,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 	}
 	withoutAccess.RawQuery = ""
 
-	unauthResp, err := unauthClient.Get(env.server.URL + withoutAccess.String())
+	unauthResp, err := unauthClient.Get(env.url(withoutAccess.String()))
 	if err != nil {
 		t.Fatalf("Failed to get stable URL without credentials: %v", err)
 	}
@@ -1223,7 +1234,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected stable URL without credentials to return 401, got %d", unauthResp.StatusCode)
 	}
 
-	ticketResp, err := unauthClient.Get(env.server.URL + attachmentURL)
+	ticketResp, err := unauthClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to get stable URL with access ticket: %v", err)
 	}
@@ -1236,7 +1247,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create auth token: %v", err)
 	}
-	req, err := http.NewRequest(http.MethodGet, env.server.URL+withoutAccess.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, env.url(withoutAccess.String()), nil)
 	if err != nil {
 		t.Fatalf("Failed to build request: %v", err)
 	}
@@ -1250,7 +1261,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected bearer stable URL request to return 200, got %d", bearerResp.StatusCode)
 	}
 
-	thumbResp, err := unauthClient.Get(env.server.URL + thumbnailURL)
+	thumbResp, err := unauthClient.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get stable thumbnail URL with access ticket: %v", err)
 	}
@@ -1263,7 +1274,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 	if mutatedThumbnailURL == thumbnailURL {
 		t.Fatalf("Expected thumbnail URL to contain transform dimensions, got %q", thumbnailURL)
 	}
-	mutatedResp, err := unauthClient.Get(env.server.URL + mutatedThumbnailURL)
+	mutatedResp, err := unauthClient.Get(env.url(mutatedThumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to get mutated stable thumbnail URL: %v", err)
 	}
@@ -1277,7 +1288,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Failed to parse stable thumbnail URL: %v", err)
 	}
 	thumbnailWithoutAccess.RawQuery = ""
-	req, err = http.NewRequest(http.MethodGet, env.server.URL+thumbnailWithoutAccess.String(), nil)
+	req, err = http.NewRequest(http.MethodGet, env.url(thumbnailWithoutAccess.String()), nil)
 	if err != nil {
 		t.Fatalf("Failed to build unsigned thumbnail request: %v", err)
 	}
@@ -1322,7 +1333,7 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	}
 
 	// Get the server asset (avatars are public, no auth needed)
-	resp, err := env.client.Get(env.server.URL + "/assets/server/" + avatarPath)
+	resp, err := env.client.Get(env.url("/assets/server/" + avatarPath))
 	if err != nil {
 		t.Fatalf("Failed to get server asset: %v", err)
 	}
@@ -1331,7 +1342,7 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected 200 OK, got %d", resp.StatusCode)
 	}
-	aliasResp, err := env.client.Get(env.server.URL + "/assets/server/" + avatar.GetId())
+	aliasResp, err := env.client.Get(env.url("/assets/server/" + avatar.GetId()))
 	if err != nil {
 		t.Fatalf("Failed to get new server asset through logical-ID alias: %v", err)
 	}
@@ -1379,7 +1390,7 @@ func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
 	}
 
 	transformURL := env.core.GetTransformedServerAssetURL(assetPath, 200, 200, "contain")
-	resp, err := env.client.Get(env.server.URL + transformURL)
+	resp, err := env.client.Get(env.url(transformURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed server asset: %v", err)
 	}
@@ -1427,7 +1438,7 @@ func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
 	}
 	assertOK := func(path string) {
 		t.Helper()
-		resp, err := (&http.Client{}).Get(env.server.URL + path)
+		resp, err := (&http.Client{}).Get(env.url(path))
 		if err != nil {
 			t.Fatalf("GET %q: %v", path, err)
 		}
@@ -1507,7 +1518,7 @@ func TestAsset_CacheOnlyLegacyLinkPreviewRemainsAvailable(t *testing.T) {
 
 	assertStatus := func(path string, want int) {
 		t.Helper()
-		resp, err := http.Get(env.server.URL + path)
+		resp, err := http.Get(env.url(path))
 		if err != nil {
 			t.Fatalf("GET %q: %v", path, err)
 		}
@@ -1570,7 +1581,7 @@ func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T
 
 	assertStatus := func(path string, want int) *http.Response {
 		t.Helper()
-		resp, err := (&http.Client{}).Get(env.server.URL + path)
+		resp, err := (&http.Client{}).Get(env.url(path))
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
 		}
@@ -1694,7 +1705,7 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 		t.Fatalf("store namespaced public image: %v", err)
 	}
 	for _, path := range []string{namespacedKey, namespacedID} {
-		resp, err := (&http.Client{}).Get(env.server.URL + "/assets/server/" + path)
+		resp, err := (&http.Client{}).Get(env.url("/assets/server/" + path))
 		if err != nil {
 			t.Fatalf("GET namespaced public image through %q: %v", path, err)
 		}
@@ -1712,7 +1723,7 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 	}
 	markPublicServerAssetForTest(t, env, assetID)
 
-	resp, err := (&http.Client{}).Get(env.server.URL + "/assets/server/" + assetID)
+	resp, err := (&http.Client{}).Get(env.url("/assets/server/" + assetID))
 	if err != nil {
 		t.Fatalf("GET public link-preview image: %v", err)
 	}
@@ -1740,7 +1751,7 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 			}},
 		}},
 	})
-	legacyResp, err := (&http.Client{}).Get(env.server.URL + "/assets/server/" + legacyID)
+	legacyResp, err := (&http.Client{}).Get(env.url("/assets/server/" + legacyID))
 	if err != nil {
 		t.Fatalf("GET historical link-preview image: %v", err)
 	}
@@ -1753,7 +1764,7 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 func TestAsset_LegacyAttachmentRouteIsGone(t *testing.T) {
 	env := setupAssetTestServer(t)
 
-	resp, err := env.client.Get(env.server.URL + "/assets/attachments/not-a-locator")
+	resp, err := env.client.Get(env.url("/assets/attachments/not-a-locator"))
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -1794,7 +1805,7 @@ func TestAsset_StableURLIsCapability(t *testing.T) {
 	// able to fetch the binary.
 	unauthClient := &http.Client{}
 
-	originalResp, err := unauthClient.Get(env.server.URL + attachmentURL)
+	originalResp, err := unauthClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -1803,7 +1814,7 @@ func TestAsset_StableURLIsCapability(t *testing.T) {
 		t.Errorf("Stable URL should authorize itself; got status %d", originalResp.StatusCode)
 	}
 
-	transformResp, err := unauthClient.Get(env.server.URL + thumbnailURL)
+	transformResp, err := unauthClient.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -1814,7 +1825,7 @@ func TestAsset_StableURLIsCapability(t *testing.T) {
 
 	// A tampered access ticket must fail.
 	tampered := strings.TrimSuffix(attachmentURL, "X") + "z"
-	tamperedResp, err := unauthClient.Get(env.server.URL + tampered)
+	tamperedResp, err := unauthClient.Get(env.url(tampered))
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -1856,7 +1867,7 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 		},
 	}
 
-	originalResp, err := unauthClient.Get(env.server.URL + attachmentURL)
+	originalResp, err := unauthClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -1865,7 +1876,7 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 		t.Errorf("S3 image stable URL: expected 200 with access ticket, got %d", originalResp.StatusCode)
 	}
 
-	transformResp, err := unauthClient.Get(env.server.URL + thumbnailURL)
+	transformResp, err := unauthClient.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
@@ -1876,7 +1887,7 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 
 	// The public server route probes only the separate instance/ namespace and
 	// must never fall through to S3 attachments/ objects.
-	publicOriginal, err := unauthClient.Get(env.server.URL + "/assets/server/" + attachment.GetId())
+	publicOriginal, err := unauthClient.Get(env.url("/assets/server/" + attachment.GetId()))
 	if err != nil {
 		t.Fatalf("S3 public original probe: %v", err)
 	}
@@ -1885,7 +1896,7 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 		t.Fatalf("S3 public original probe status = %d, want 404", publicOriginal.StatusCode)
 	}
 	publicTransformURL := env.core.GetTransformedServerAssetURL(attachment.GetId(), 64, 64, "cover")
-	publicTransform, err := unauthClient.Get(env.server.URL + publicTransformURL)
+	publicTransform, err := unauthClient.Get(env.url(publicTransformURL))
 	if err != nil {
 		t.Fatalf("S3 public transform probe: %v", err)
 	}
@@ -1941,7 +1952,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 
 			masterURL := env.core.GetStableHLSMasterPlaylistAssetURL(original.GetId(), viewer.Id).URL
 			plainClient := &http.Client{}
-			masterResp, err := plainClient.Get(env.server.URL + masterURL)
+			masterResp, err := plainClient.Get(env.url(masterURL))
 			if err != nil {
 				t.Fatalf("GET master: %v", err)
 			}
@@ -1955,7 +1966,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 				t.Fatalf("rewritten media URL = %q", mediaURL)
 			}
 
-			mediaResp, err := plainClient.Get(env.server.URL + mediaURL)
+			mediaResp, err := plainClient.Get(env.url(mediaURL))
 			if err != nil {
 				t.Fatalf("GET media: %v", err)
 			}
@@ -1965,7 +1976,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 				t.Fatalf("media status = %d, body = %s", mediaResp.StatusCode, mediaBody)
 			}
 			segmentURL := firstHLSURI(t, mediaBody)
-			segmentResp, err := plainClient.Get(env.server.URL + segmentURL)
+			segmentResp, err := plainClient.Get(env.url(segmentURL))
 			if err != nil {
 				t.Fatalf("GET segment: %v", err)
 			}
@@ -1978,7 +1989,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 			if err := env.core.LeaveRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
 				t.Fatalf("LeaveRoom: %v", err)
 			}
-			revoked, err := plainClient.Get(env.server.URL + masterURL)
+			revoked, err := plainClient.Get(env.url(masterURL))
 			if err != nil {
 				t.Fatalf("GET revoked master: %v", err)
 			}
@@ -2101,7 +2112,7 @@ func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
-	r, err := plainClient.Get(env.server.URL + attachmentURL)
+	r, err := plainClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("pre-leave GET: %v", err)
 	}
@@ -2109,7 +2120,7 @@ func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 	if r.StatusCode != http.StatusOK {
 		t.Fatalf("expected stable URL to work pre-leave, got %d", r.StatusCode)
 	}
-	thumb, err := plainClient.Get(env.server.URL + thumbnailURL)
+	thumb, err := plainClient.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("pre-leave thumbnail GET: %v", err)
 	}
@@ -2123,7 +2134,7 @@ func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 		t.Fatalf("LeaveRoom: %v", err)
 	}
 
-	r2, err := plainClient.Get(env.server.URL + attachmentURL)
+	r2, err := plainClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("post-leave GET: %v", err)
 	}
@@ -2131,7 +2142,7 @@ func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 	if r2.StatusCode != http.StatusForbidden {
 		t.Errorf("expected 403 after ticket user left the room, got %d", r2.StatusCode)
 	}
-	thumb2, err := plainClient.Get(env.server.URL + thumbnailURL)
+	thumb2, err := plainClient.Get(env.url(thumbnailURL))
 	if err != nil {
 		t.Fatalf("post-leave thumbnail GET: %v", err)
 	}
@@ -2160,7 +2171,7 @@ func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
 	attachmentURL := attachment.GetAssetUrl().GetUrl()
 	plainClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
 
-	before, err := plainClient.Get(env.server.URL + attachmentURL)
+	before, err := plainClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("GET before denial: %v", err)
 	}
@@ -2174,7 +2185,7 @@ func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
 		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
 	}
-	after, err := plainClient.Get(env.server.URL + attachmentURL)
+	after, err := plainClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("GET after denial: %v", err)
 	}
@@ -2233,7 +2244,7 @@ func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
 		t.Fatal("interaction-scoped attachment URL is empty")
 	}
 	plainClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := plainClient.Get(env.server.URL + attachmentURL)
+	response, err := plainClient.Get(env.url(attachmentURL))
 	if err != nil {
 		t.Fatalf("GET interaction-scoped attachment: %v", err)
 	}
@@ -2255,7 +2266,7 @@ func TestAsset_NeighborhoodImage(t *testing.T) {
 		t.Fatalf("store Neighborhood image: %v", err)
 	}
 
-	resp, err := http.Get(env.server.URL + core.NeighborhoodImagePath(name))
+	resp, err := http.Get(env.url(core.NeighborhoodImagePath(name)))
 	if err != nil {
 		t.Fatalf("GET Neighborhood image: %v", err)
 	}
@@ -2285,7 +2296,7 @@ func TestAsset_NeighborhoodImage(t *testing.T) {
 		core.NeighborhoodImagePath(strings.ToUpper(name)),
 		core.NeighborhoodImagePath("not-a-hash"),
 	} {
-		resp, err := http.Get(env.server.URL + path)
+		resp, err := http.Get(env.url(path))
 		if err != nil {
 			t.Fatalf("GET %q: %v", path, err)
 		}

@@ -21,6 +21,7 @@ import type {
 
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { accountNameToken } from '$lib/render/accountName';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
 
@@ -30,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   projectionHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
   directoryAPI: null as MemberDirectoryAPI | null,
   commandAPI: null as RoomCommandAPI | null,
+  serverId: 'server-1',
   queryScope: 'session-1',
   scopeCurrent: true
 }));
@@ -44,6 +46,9 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
+    get serverId() {
+      return mocks.serverId;
+    },
     get connection() {
       return {
         queryScope: mocks.queryScope,
@@ -147,9 +152,9 @@ function renderPanel(
     canManageMembers: boolean;
   }> = {}
 ) {
+  mocks.serverId = overrides.serverId ?? 'server-1';
   return render(RoomMembersPanel, {
     props: {
-      serverId: overrides.serverId ?? 'server-1',
       roomId: overrides.roomId ?? 'room-1',
       roomName: 'general',
       isUniversal: overrides.isUniversal ?? false,
@@ -513,8 +518,34 @@ describe('RoomMembersPanel', () => {
         accounts: [expect.objectContaining({ name: 'Bob' })]
       })
     );
-    expect(rendered.container.textContent).toContain('projection temporarily unavailable');
+    expect(rendered.container.textContent).toContain('You do not have permission to do that.');
     expect(rendered.container.textContent).not.toContain('Bob');
+  });
+
+  it('ignores a mutation result that settles after the server removes private data', async () => {
+    const bob = member('bob', 'Bob');
+    const pending = deferred<null>();
+    const { addMember } = setup({ directoryUsers: [bob] });
+    addMember.mockReturnValueOnce(pending.promise);
+    const rendered = renderPanel();
+    await settle();
+
+    const input = rendered.container.querySelector('#room-member-picker') as HTMLInputElement;
+    input.value = 'bob';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settleDirectorySearch();
+    (document.querySelector('[role="option"]') as HTMLButtonElement).click();
+    flushSync();
+    buttonByText(rendered.container, 'Add member').click();
+    await vi.waitFor(() => expect(addMember).toHaveBeenCalled());
+
+    removeRegisteredAdminQueries('server-1');
+    pending.resolve(null);
+    await vi.waitFor(() => expect(queryClient.isMutating()).toBe(0));
+    await settle();
+
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
   });
 
   it('suppresses a mutation error that settles after the server scope is destroyed', async () => {

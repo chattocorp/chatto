@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -291,5 +292,74 @@ func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) 
 	}
 	if !updated.GetRead() {
 		t.Fatal("reaction occurrence remains unread")
+	}
+}
+
+func TestReadStateModel_MarkRoomAsReadDoesNotRewriteUnchangedRoomState(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, err := c.CreateUser(ctx, SystemActorID, "unchanged-reader", "Unchanged Reader", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := c.CreateUser(ctx, SystemActorID, "unchanged-author", "Unchanged Author", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	quiet, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "quiet-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	busy, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "busy-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, roomID := range []string{quiet.GetId(), busy.GetId()} {
+		for _, userID := range []string{reader.GetId(), author.GetId()} {
+			if _, err := c.JoinRoom(ctx, userID, KindChannel, userID, roomID); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err := c.PostMessage(ctx, KindChannel, quiet.GetId(), author.GetId(), "quiet", nil, "", "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ReadState().MarkRoomAsRead(ctx, reader.GetId(), quiet.GetId(), ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Activity elsewhere advances every server-wide horizon but changes nothing
+	// in the quiet room.
+	if _, err := c.PostMessage(ctx, KindChannel, busy.GetId(), author.GetId(), "elsewhere", nil, "", "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	waitForNotificationMaterializer(t, c)
+	lastSeq := func() uint64 {
+		t.Helper()
+		status, err := c.storage.runtimeStateKV.Status(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return status.(interface{ StreamInfo() *jetstream.StreamInfo }).StreamInfo().State.LastSeq
+	}
+	boundaryKey := notificationReadBoundaryKey(reader.GetId(), quiet.GetId(), "")
+	boundaryRevision := func() uint64 {
+		t.Helper()
+		entry, err := c.storage.runtimeStateKV.Get(ctx, boundaryKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return entry.Revision()
+	}
+	beforeRevision := boundaryRevision()
+	before := lastSeq()
+	if _, err := c.ReadState().MarkRoomAsRead(ctx, reader.GetId(), quiet.GetId(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if after := boundaryRevision(); after != beforeRevision {
+		t.Fatalf("re-reading an unchanged room rewrote its read boundary (revision %d -> %d)", beforeRevision, after)
+	}
+	if after := lastSeq(); after != before {
+		t.Fatalf("re-reading an unchanged room wrote %d RUNTIME_STATE entries, want 0", after-before)
 	}
 }

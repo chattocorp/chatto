@@ -379,3 +379,62 @@ test('refreshes history for a later mention in the same conversation', async () 
     backgroundTasks: []
   });
 });
+
+test('web research runs in a separate agent and blocks delegation in the supervisor', async () => {
+  const created: import('runling/agents').AgentOptions[] = [];
+  const createAgent = vi.fn(async (options: import('runling/agents').AgentOptions) => {
+    created.push(options);
+    return {
+      runOutcome: async (_ctx: unknown, _prompt: string, runOptions?: AgentRunOptions) => {
+        // Simulate two blocked calls in one turn after a research result, then an answer.
+        await options.trust?.onBlocked?.('implementChatto');
+        await options.trust?.onBlocked?.('task_send');
+        runOptions?.onText?.('Here is what the research found.');
+        return { outcome: 'completed' as const, summary: 'Done', usage: emptyTokenUsage() };
+      },
+      steer: async () => false,
+      dispose: () => {}
+    };
+  });
+  const post = vi.fn(async (_destination: unknown, _text: string, _signal?: AbortSignal) => {});
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    post,
+    typing: async () => {},
+    readThread: async () => [],
+    timeout: 0,
+    createAgent,
+    implementation: { directory: '/unused', repository: 'example/chatto' },
+    web: { tavilyApiKey: 'tvly-key' }
+  });
+  await bot(createWorkflowContext(), delivery);
+  const [supervisor] = created;
+  expect(supervisor!.tools).toContain('researchWeb');
+  expect(supervisor!.tools).not.toContain('webSearch');
+  expect(supervisor!.tools).not.toContain('browsePage');
+  expect(supervisor!.trust).toMatchObject({
+    untrusted: ['researchWeb'],
+    blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send']
+  });
+  // The host posts the refusal once per turn, and the rest of the reply still posts.
+  expect(post.mock.calls.map(([, text]) => text)).toEqual([
+    expect.stringContaining('start a new thread'),
+    'Here is what the research found.'
+  ]);
+
+  created.length = 0;
+  await createChattoBot({
+    acknowledge: async () => {},
+    post: async () => {},
+    typing: async () => {},
+    readThread: async () => [],
+    timeout: 0,
+    createAgent
+  })(createWorkflowContext(), {
+    ...delivery,
+    id: 'second',
+    message: { ...delivery.message, id: 'second' }
+  });
+  expect(created[0]!.tools).not.toContain('researchWeb');
+  expect(created[0]!.trust).toBeUndefined();
+});

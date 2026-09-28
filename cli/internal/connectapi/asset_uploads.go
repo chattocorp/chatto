@@ -84,7 +84,7 @@ func (s *assetUploadService) CompleteUpload(ctx context.Context, req *connect.Re
 	}
 	return connect.NewResponse(&apiv1.CompleteUploadResponse{
 		Upload: apiAssetUpload(upload),
-		Asset:  apiAsset(s.api, attachment, caller.UserID, assetThumbnailOptions(nil)),
+		Asset:  apiAsset(ctx, s.api, attachment, caller.UserID, assetThumbnailOptions(nil)),
 	}), nil
 }
 

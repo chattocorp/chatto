@@ -15,6 +15,8 @@ import {
   type RunlingAgent
 } from 'runling/agents';
 import { evidenceCollector, findingSchema, renderFindings } from './evidence.ts';
+import type { ImplementationSettings } from './implement.ts';
+import { setting } from '../settings.ts';
 import {
   implementationPlanSchema,
   planContentSchema,
@@ -51,14 +53,20 @@ export interface InvestigationSettings {
   artifactsDirectory?: string;
 }
 
-/** Capture configuration once per source generation, preserving settings for active conversations. */
-export function investigationSettings(): InvestigationSettings | undefined {
-  const directory = process.env.CHATTO_SOURCE_DIRECTORY;
+/** Capture configuration once per source generation, preserving settings for active conversations.
+ * With implementation enabled, investigate its remote-tracking base branch so plans and changes
+ * share a base. Otherwise use `CHATTO_SOURCE_REF`, or the checkout's `HEAD` when it is unset. */
+export function investigationSettings(
+  implementation?: Pick<ImplementationSettings, 'baseBranch'>
+): InvestigationSettings | undefined {
+  const directory = setting('CHATTO_SOURCE_DIRECTORY');
   if (!directory) return;
   return {
     directory: resolve(directory),
-    baseRef: process.env.CHATTO_SOURCE_REF ?? 'HEAD',
-    model: process.env.CHATTO_INVESTIGATION_MODEL ?? 'openai-codex/gpt-5.6-sol'
+    baseRef: implementation?.baseBranch
+      ? `refs/remotes/origin/${implementation.baseBranch}`
+      : (setting('CHATTO_SOURCE_REF') ?? 'HEAD'),
+    model: setting('CHATTO_INVESTIGATION_MODEL') ?? 'openai-codex/gpt-5.6-sol'
   };
 }
 

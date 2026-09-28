@@ -20,7 +20,7 @@ describe('connection user store', () => {
     const profiles = getUserStore('server', 'session');
     profiles.set('first', member('first'));
     profiles.set('second', member('second'));
-    const room = new RoomMembersStore({
+    const room = new RoomMembersStore('room', {
       serverId: 'server',
       queryScope: 'session',
       getAPI: () => ({})

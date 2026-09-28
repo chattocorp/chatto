@@ -191,7 +191,10 @@ type PermissionMetadata struct {
 	RequiresPrivilegedMode bool              // Whether a human session must explicitly activate this permission
 }
 
-// allPermissions holds metadata for all permissions.
+// allPermissions holds metadata for all permissions. The frontend copies the
+// categories, scopes, inclusions, and privileged-mode requirements into
+// apps/frontend/src/lib/permissions.ts for its permission help. Update both
+// catalogs together.
 var allPermissions = []PermissionMetadata{
 	// Server
 	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, Includes: []Permission{PermServerManageNeighbors}, RequiresPrivilegedMode: true},

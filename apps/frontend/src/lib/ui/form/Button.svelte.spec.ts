@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
@@ -21,5 +22,22 @@ describe('Button', () => {
     await expect.element(content).toHaveClass('items-center');
     await expect.element(content).toHaveClass('gap-2');
     await expect.element(content).toHaveClass('[&>.iconify]:shrink-0');
+  });
+
+  it('renders a square icon-only button named by its label', async () => {
+    const screen = render(Button, {
+      props: {
+        size: 'icon',
+        label: 'Save status',
+        children: testSnippet('<span class="iconify icon-[uil--check]" aria-hidden="true"></span>')
+      }
+    });
+    const button = screen.getByRole('button', { name: 'Save status' });
+
+    await expect.element(button).toHaveClass('btn-icon');
+    const style = getComputedStyle(button.element());
+    expect(style.width).toBe('40px');
+    expect(style.height).toBe('40px');
+    expect(style.paddingInlineStart).toBe('0px');
   });
 });

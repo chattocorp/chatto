@@ -50,6 +50,16 @@ describe('private data response boundary', () => {
   });
 });
 
+describe('StaleResponseError', () => {
+  it('matches only discarded responses, not every ConnectError', () => {
+    const stale = new StaleResponseError(false);
+    expect(stale instanceof StaleResponseError).toBe(true);
+    expect(stale instanceof ConnectError).toBe(true);
+    expect(new ConnectError('failed', Code.Internal) instanceof StaleResponseError).toBe(false);
+    expect(new Error('failed') instanceof StaleResponseError).toBe(false);
+  });
+});
+
 describe('bearerRenewalInterceptor', () => {
   it('rotates and retries one unauthenticated unary request with the new token', async () => {
     const renewBearerToken = vi

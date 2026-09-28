@@ -48,7 +48,7 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 			continue
 		}
 		attachments = append(attachments, &apiv1.RoomAttachmentListItem{
-			Attachment:        apiAsset(s.api, item.Attachment, caller.UserID, thumbnail),
+			Attachment:        apiAsset(ctx, s.api, item.Attachment, caller.UserID, thumbnail),
 			MessageEventId:    item.MessageEventID,
 			ThreadRootEventId: item.ThreadRootEventID,
 			CreatedAt:         item.CreatedAt,
@@ -79,7 +79,7 @@ func (s *assetService) GetAsset(ctx context.Context, req *connect.Request[apiv1.
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetAssetResponse{
-		Asset: apiAsset(s.api, asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
+		Asset: apiAsset(ctx, s.api, asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
 	}), nil
 }
 
@@ -99,12 +99,12 @@ func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
 	out := make([]*apiv1.Asset, 0, len(assets))
 	for _, asset := range assets {
-		out = append(out, apiAsset(s.api, asset, caller.UserID, thumbnail))
+		out = append(out, apiAsset(ctx, s.api, asset, caller.UserID, thumbnail))
 	}
 	return connect.NewResponse(&apiv1.BatchGetAssetsResponse{Assets: out}), nil
 }
 
-func apiAsset(api *API, attachment *evtv1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
+func apiAsset(ctx context.Context, api *API, attachment *evtv1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
 	if attachment == nil {
 		return nil
 	}
@@ -115,13 +115,13 @@ func apiAsset(api *API, attachment *evtv1.Attachment, viewerID string, thumbnail
 		Size:              attachment.Size,
 		Width:             attachment.Width,
 		Height:            attachment.Height,
-		AssetUrl:          assetURLView(api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
-		ThumbnailAssetUrl: assetURLView(api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
-		VideoProcessing:   apiVideoProcessing(api, viewerID, attachment),
+		AssetUrl:          api.assetURLView(ctx, api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
+		ThumbnailAssetUrl: api.assetURLView(ctx, api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
+		VideoProcessing:   apiVideoProcessing(ctx, api, viewerID, attachment),
 	}
 }
 
-func apiVideoProcessing(api *API, viewerID string, attachment *evtv1.Attachment) *apiv1.MessageVideoProcessing {
+func apiVideoProcessing(ctx context.Context, api *API, viewerID string, attachment *evtv1.Attachment) *apiv1.MessageVideoProcessing {
 	if attachment == nil || (!strings.HasPrefix(attachment.GetContentType(), "video/") && attachment.GetContentType() != "image/gif") {
 		return nil
 	}
@@ -145,7 +145,7 @@ func apiVideoProcessing(api *API, viewerID string, attachment *evtv1.Attachment)
 			SourceAvailable: assetSourceAvailable(api, attachment.GetId(), true),
 		}
 		if thumbnailID := video.GetThumbnailAssetId(); thumbnailID != "" {
-			result.ThumbnailAssetUrl = assetURLView(api.core.GetStableAttachmentAssetURL(thumbnailID, viewerID))
+			result.ThumbnailAssetUrl = api.assetURLView(ctx, api.core.GetStableAttachmentAssetURL(thumbnailID, viewerID))
 		}
 		for _, variant := range video.GetVariants() {
 			if variant == nil {
@@ -166,12 +166,12 @@ func apiVideoProcessing(api *API, viewerID string, attachment *evtv1.Attachment)
 				Width:    width,
 				Height:   height,
 				Size:     size,
-				AssetUrl: assetURLView(api.core.GetStableAttachmentAssetURL(variant.GetAssetId(), viewerID)),
+				AssetUrl: api.assetURLView(ctx, api.core.GetStableAttachmentAssetURL(variant.GetAssetId(), viewerID)),
 			})
 		}
 		if hls := video.GetHls(); hls != nil && len(hls.GetRenditions()) > 0 {
 			result.Hls = &apiv1.MessageVideoHLS{
-				MasterPlaylistUrl: assetURLView(api.core.GetStableHLSMasterPlaylistAssetURL(attachment.GetId(), viewerID)),
+				MasterPlaylistUrl: api.assetURLView(ctx, api.core.GetStableHLSMasterPlaylistAssetURL(attachment.GetId(), viewerID)),
 			}
 		}
 		return result

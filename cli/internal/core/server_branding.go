@@ -181,7 +181,7 @@ func (cm *ConfigModel) serverBrandingAsset(kind string) *evtv1.AssetRecord {
 	return cloneAssetRecord(cm.config.Projection().server.banner)
 }
 
-// GetServerLogoURL returns the URL for the server's logo, optionally
+// GetServerLogoURL returns the server-relative URL for the server's logo, optionally
 // transformed to the given dimensions. Returns empty string when no logo
 // is set.
 func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int, fit string) (string, error) {
@@ -192,7 +192,7 @@ func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int, f
 	return c.serverAssetURL(logo, width, height, fit), nil
 }
 
-// GetServerBannerURL returns the URL for the server's banner, optionally
+// GetServerBannerURL returns the server-relative URL for the server's banner, optionally
 // transformed to the given dimensions. Returns empty string when no banner
 // is set.
 func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int, fit string) (string, error) {
@@ -203,7 +203,7 @@ func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int,
 	return c.serverAssetURL(banner, width, height, fit), nil
 }
 
-// serverAssetURL builds the public URL for an server-scoped asset,
+// serverAssetURL builds the server-relative URL for a server-scoped asset,
 // optionally with transform parameters.
 func (c *ChattoCore) serverAssetURL(asset *evtv1.AssetRecord, width, height *int, fit string) string {
 	assetKey := ServerAssetDeliveryKey(asset)
@@ -216,7 +216,7 @@ func (c *ChattoCore) serverAssetURL(asset *evtv1.AssetRecord, width, height *int
 		}
 		return c.GetTransformedServerAssetURL(assetKey, *width, *height, fit)
 	}
-	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetKey))
+	return fmt.Sprintf("/assets/server/%s", assetKey)
 }
 
 // DeleteServerLogo clears the server's logo pointer and object-store asset.

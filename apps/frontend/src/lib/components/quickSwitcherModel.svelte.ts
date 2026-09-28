@@ -1,3 +1,4 @@
+import { toastError } from '$lib/utils/errorMessage';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { accountNameToken } from '$lib/render/accountName';
 import { goto } from '$app/navigation';
@@ -12,7 +13,6 @@ import {
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { startDMWith } from '$lib/dm/startDM';
-import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
@@ -238,7 +238,7 @@ export class QuickSwitcherModel {
       try {
         await startDMWith(item.serverId, user.id);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to start DM');
+        toastError(error, m('quick_switcher.start_dm_failed'));
       }
       return;
     }
@@ -482,7 +482,7 @@ export class QuickSwitcherModel {
 
     const searches = instances.map(async (instance): Promise<QuickSwitcherItem[]> => {
       const store = serverRegistry.tryGetStore(instance.id);
-      if (!store?.serverInfo.supportsFeature('messageSearch')) return [];
+      if (!store?.serverInfo.isSupportedVersion) return [];
       await store.messageSearch.ensureStatus();
       if (!store.messageSearch.available) return [];
 

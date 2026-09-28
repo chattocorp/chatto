@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '$lib/api-client/account';
   import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
@@ -82,8 +83,7 @@
           ? m('settings.account.password.already_set')
           : m('settings.account.password.fresh_auth_required');
       } else {
-        passwordError =
-          err instanceof Error ? err.message : m('settings.account.password.save_failed');
+        passwordError = errorMessage(err, m('settings.account.password.save_failed'));
       }
     } finally {
       passwordSubmitting = false;

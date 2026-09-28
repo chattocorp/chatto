@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { csrfFetch } from '$lib/auth/csrf';
@@ -76,7 +77,7 @@
       if (err instanceof DOMException && err.name === 'AbortError') {
         error = m('auth.oauth.request_timeout');
       } else {
-        error = err instanceof Error ? err.message : m('auth.oauth.request_load_failed');
+        error = errorMessage(err, m('auth.oauth.request_load_failed'));
       }
     } finally {
       loading = false;
@@ -161,7 +162,7 @@
       if (err instanceof DOMException && err.name === 'AbortError') {
         error = m('auth.oauth.decision_timeout');
       } else {
-        error = err instanceof Error ? err.message : m('auth.oauth.submit_failed');
+        error = errorMessage(err, m('auth.oauth.submit_failed'));
       }
     } finally {
       submitting = null;

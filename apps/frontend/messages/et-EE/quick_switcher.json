@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Sisestage pärast ? et otsida sõnumeid oma serverites",
       "no_results": "Sõnumeid ei leitud"
-    }
+    },
+    "start_dm_failed": "DM-i alustamine ebaõnnestus"
   }
 }

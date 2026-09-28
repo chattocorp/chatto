@@ -167,10 +167,10 @@ func (s *HTTPServer) currentPWAServerName() string {
 	return name
 }
 
-// sameOriginServerAssetURL keeps browser metadata on the frontend origin. General
-// asset URLs may use a configured asset base, but each Chatto frontend serves
-// its own public server assets and browsers must be able to fetch metadata
-// images from the frontend's origin.
+// sameOriginServerAssetURL keeps browser metadata on the frontend origin. Each
+// Chatto frontend serves its own public server assets, and browsers must be
+// able to fetch metadata images from the frontend's origin. It accepts only
+// public server asset paths and drops any origin.
 func sameOriginServerAssetURL(rawURL string) string {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Opaque != "" || !strings.HasPrefix(parsed.Path, "/assets/server/") {

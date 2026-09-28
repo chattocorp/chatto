@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "لا يبدو أن هذا هو خادم Chatto.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "دليل الخوادم",
+      "subtitle": "اكتشف خوادم Chatto أخرى",
+      "lookup_description": "أدخل عنوان أي خادم Chatto للانضمام إليه.",
+      "find": "ابحث عن خادم",
+      "connect_by_address": "الاتصال بالعنوان",
+      "servers_title": "الخوادم الموصى بها",
+      "servers_description": "توصيات من الخوادم التي انضممت إليها. النتائج غير مرتبة.",
       "recommended_by": "موصى به من {servers}",
       "more_recommenders_count": {
         "other": "{count} آخرين"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "تم الانضمام",
+      "join": "انضمام",
+      "open": "فتح",
       "open_in_new_tab": "فتح في علامة تبويب جديدة",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "تسجيل الدخول غير متاح",
+      "profile_unavailable": "تعذر تحميل الملف التعريفي العام لهذا الخادم.",
+      "partial": "تعذر على بعض الخوادم التي انضممت إليها تقديم توصياتها.",
+      "unavailable_title": "الدليل غير متاح",
+      "unavailable_body": "تعذر على الخوادم التي انضممت إليها تقديم توصياتها. لا يزال بإمكانك الاتصال مباشرة.",
+      "empty_title": "لا توجد خوادم موصى بها بعد",
+      "empty_body": "لا يزال بإمكانك الاتصال مباشرة باستخدام عنوان خادم."
     }
   }
 }

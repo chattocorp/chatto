@@ -19,7 +19,14 @@ thread IDs can change while the pane stays mounted.
   /** Composer options that the owner decides. The pane supplies the rest. */
   export type ConversationComposerOptions = Omit<
     MessageComposerProps,
-    'roomId' | 'inThread' | 'canPost' | 'canAttach' | 'onReady' | 'onTyping' | 'onMessageSent'
+    | 'roomId'
+    | 'inThread'
+    | 'canPost'
+    | 'canAttach'
+    | 'onReady'
+    | 'onTyping'
+    | 'onMessageSent'
+    | 'mentionPriorityUserIds'
   >;
 </script>
 
@@ -48,6 +55,8 @@ thread IDs can change while the pane stays mounted.
   import EventList from './EventList.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import { threadParticipantIds } from './threadParticipants';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
 
   let {
     roomId,
@@ -108,6 +117,15 @@ thread IDs can change while the pane stays mounted.
   const { editState, replyState, jumpState, quoteInsertionState } = composerContext;
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
+  // The unread separator marks the first message from another user after the
+  // read cursor. System rows, such as the viewer's own join, never start it.
+  const markerEvents = $derived(events.filter((event) => isMessagePostedEvent(event.event)));
+  /** Other users in this thread, ranked first in @mention autocomplete. */
+  const mentionPriorityUserIds = $derived(
+    isThread && threadRootEventId
+      ? threadParticipantIds(events, threadRootEventId, stores.viewerId)
+      : undefined
+  );
   const targetKey = $derived(threadRootEventId ? `${roomId}:${threadRootEventId}` : roomId);
 
   const typingIndicator = createTypingIndicator(() => ({
@@ -146,11 +164,11 @@ thread IDs can change while the pane stays mounted.
           result.previousLastReadAt
             ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs }
             : null,
-        getMarkerEvents: () => events,
+        getMarkerEvents: () => markerEvents,
         getMarkerSkipActorId: () => stores.viewerId,
         onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
       })
-    : useRoomUnread(() => ({ roomId, events, canReadMessages }));
+    : useRoomUnread(() => ({ roomId, events: markerEvents, canReadMessages }));
 
   // A reply or a jump belongs to the conversation that started it. The server
   // store loads each timeline when it creates it, so a target change needs no
@@ -237,7 +255,8 @@ thread IDs can change while the pane stays mounted.
   });
 
   // Clear typing and mark the conversation read for messages from other users
-  // that arrive while the viewer is present.
+  // that arrive while the viewer is present. While the viewer is away, show
+  // the unread separator above the first such message at once.
   useProjectionEvent((projectionEvent) => {
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
@@ -246,9 +265,10 @@ thread IDs can change while the pane stays mounted.
     const actorId = projectionEvent.event?.actorId;
     if (actorId) typingIndicator.removeTypingUser(actorId);
     const accountId = stores.accountId;
-    if (accountId && actorId !== accountId && appState.isPresent) {
-      void unread.markAsRead(threadRootEventId ?? roomId, projectionEvent.event?.id ?? '');
-    }
+    if (!accountId || actorId === accountId) return;
+    const eventId = projectionEvent.event?.id ?? '';
+    if (appState.isPresent) void unread.markAsRead(threadRootEventId ?? roomId, eventId);
+    else if (eventId) unread.markArrivalWhileAway(eventId);
   });
 
   let isDraggingFiles = $state(false);
@@ -310,6 +330,7 @@ thread IDs can change while the pane stays mounted.
     {...composer}
     {roomId}
     inThread={threadRootEventId ?? undefined}
+    {mentionPriorityUserIds}
     {canPost}
     {canAttach}
     onReady={(api) => (composerApi = api)}

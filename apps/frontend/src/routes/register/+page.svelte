@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
@@ -107,7 +108,7 @@
       if (!active) return;
       if (!(await completeOriginAuthentication())) await goto(resolve('/'));
     } catch (err) {
-      if (active) providerError = err instanceof Error ? err.message : m('auth.register.failed');
+      if (active) providerError = errorMessage(err, m('auth.register.failed'));
     } finally {
       selectedProviderId = null;
       providerPopup = null;
@@ -147,7 +148,7 @@
       completionToken = '';
       step = 'code';
     } catch (err) {
-      error = err instanceof Error ? err.message : m('auth.register.failed');
+      error = errorMessage(err, m('auth.register.failed'));
     } finally {
       isLoading = false;
       isResending = false;
@@ -183,7 +184,7 @@
       completionToken = body.completionToken;
       step = 'details';
     } catch (err) {
-      error = err instanceof Error ? err.message : m('auth.register.failed');
+      error = errorMessage(err, m('auth.register.failed'));
     } finally {
       isLoading = false;
     }
@@ -225,7 +226,7 @@
         goto(resolve('/'), { replaceState: true });
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m('auth.register.failed');
+      error = errorMessage(err, m('auth.register.failed'));
     } finally {
       isLoading = false;
     }

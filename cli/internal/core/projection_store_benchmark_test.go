@@ -35,7 +35,7 @@ func BenchmarkProjectionRetainedHeapFromStore(b *testing.B) {
 	}
 	fixture := loadProjectionBenchmarkStoreFixture(b, storeDir)
 
-	for _, scope := range []string{"room_timeline", "threads", "reactions", "assets", "rbac", "content_keys", "infallible_content_view"} {
+	for _, scope := range []string{"room_timeline", "threads", "reactions", "assets", "rbac", "content_keys", "notification_decisions", "infallible_content_view"} {
 		b.Run(scope, func(b *testing.B) {
 			if b.N != 1 {
 				b.Skip("run with -benchtime=1x")

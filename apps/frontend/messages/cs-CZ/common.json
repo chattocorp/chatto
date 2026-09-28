@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Chyba sítě. Zkuste to prosím znovu.",
-      "generic": "Něco se pokazilo"
+      "generic": "Něco se pokazilo",
+      "permission_denied": "K této akci nemáte oprávnění.",
+      "not_found": "Požadovaná položka nebyla nalezena.",
+      "unauthenticated": "Vaše relace vypršela. Přihlaste se znovu.",
+      "conflict": "Během úprav došlo ke změně. Znovu načtěte stránku a zkuste to znovu."
     },
     "delete": "Smazat",
     "save": "Uložit",

@@ -162,7 +162,7 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	}
 }
 
-func TestAbsolutizeAssetURL(t *testing.T) {
+func TestAbsolutizeServerURL(t *testing.T) {
 	t.Run("uses the request base URL first", func(t *testing.T) {
 		// The HTTP edge sets the base URL to the configured origin that the
 		// client called, such as a hostname alias.
@@ -171,8 +171,8 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 		}, "test")
 		ctx := WithRequestBaseURL(context.Background(), "https://alias.example.com")
 
-		if got, want := api.absolutizeAssetURL(ctx, "/assets/logo.png"), "https://alias.example.com/assets/logo.png"; got != want {
-			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		if got, want := api.absolutizeServerURL(ctx, "/assets/logo.png"), "https://alias.example.com/assets/logo.png"; got != want {
+			t.Fatalf("absolutizeServerURL = %q, want %q", got, want)
 		}
 	})
 
@@ -181,8 +181,8 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 			Webserver: config.WebserverConfig{URL: "https://configured.example.com/chatto"},
 		}, "test")
 
-		if got, want := api.absolutizeAssetURL(context.Background(), "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
-			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		if got, want := api.absolutizeServerURL(context.Background(), "/assets/logo.png"), "https://configured.example.com/assets/logo.png"; got != want {
+			t.Fatalf("absolutizeServerURL = %q, want %q", got, want)
 		}
 	})
 
@@ -190,8 +190,32 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 		api := New(nil, config.ChattoConfig{}, "test")
 		ctx := WithRequestBaseURL(context.Background(), "https://remote.example.com")
 
-		if got, want := api.absolutizeAssetURL(ctx, "https://cdn.example.com/logo.png"), "https://cdn.example.com/logo.png"; got != want {
-			t.Fatalf("absolutizeAssetURL = %q, want %q", got, want)
+		if got, want := api.absolutizeServerURL(ctx, "https://cdn.example.com/logo.png"), "https://cdn.example.com/logo.png"; got != want {
+			t.Fatalf("absolutizeServerURL = %q, want %q", got, want)
+		}
+	})
+}
+
+func TestAbsolutizeMediaURL(t *testing.T) {
+	t.Run("uses the request base URL with webserver.url", func(t *testing.T) {
+		api := New(nil, config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com"},
+		}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "https://alias.example.com")
+
+		if got, want := api.absolutizeMediaURL(ctx, "/assets/files/A1"), "https://alias.example.com/assets/files/A1"; got != want {
+			t.Fatalf("absolutizeMediaURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("keeps server-relative paths without webserver.url", func(t *testing.T) {
+		// Behind a TLS-terminating proxy, the direct request origin can have
+		// the wrong scheme.
+		api := New(nil, config.ChattoConfig{}, "test")
+		ctx := WithRequestBaseURL(context.Background(), "http://chat.example.com")
+
+		if got, want := api.absolutizeMediaURL(ctx, "/assets/files/A1"), "/assets/files/A1"; got != want {
+			t.Fatalf("absolutizeMediaURL = %q, want %q", got, want)
 		}
 	})
 }
@@ -1861,7 +1885,9 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 		t.Fatalf("CreateMessage empty: %v", err)
 	}
 
-	ctx := withCaller(env.ctx, env.viewer)
+	// Asset URLs use the public origin of the request, such as a hostname alias.
+	env.api.config.Webserver.URL = "https://chat.example"
+	ctx := WithRequestBaseURL(withCaller(env.ctx, env.viewer), "https://alias.example")
 	setResponse, err := env.messages.SetAttachmentDescription(ctx, connect.NewRequest(&apiv1.SetAttachmentDescriptionRequest{
 		RoomId:       room.Id,
 		EventId:      reply.Id,
@@ -1906,8 +1932,10 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if got := first.GetDescription(); got != "A thread diagram" {
 		t.Fatalf("room attachment description = %q, want %q", got, "A thread diagram")
 	}
-	if first.GetAttachment().GetAssetUrl().GetUrl() == "" || first.GetAttachment().GetThumbnailAssetUrl().GetUrl() == "" {
-		t.Fatalf("attachment asset URLs missing: %+v", first.GetAttachment())
+	for _, got := range []string{first.GetAttachment().GetAssetUrl().GetUrl(), first.GetAttachment().GetThumbnailAssetUrl().GetUrl()} {
+		if !strings.HasPrefix(got, "https://alias.example/assets/files/") {
+			t.Fatalf("attachment asset URL = %q, want URL on the request origin", got)
+		}
 	}
 	if first.GetCreatedAt() == nil {
 		t.Fatal("created_at missing")
@@ -1931,7 +1959,7 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if got := fresh.GetDescription(); got != "A thread diagram" {
 		t.Fatalf("GetMessage attachment description = %q, want %q", got, "A thread diagram")
 	}
-	if fresh.GetAssetUrl().GetUrl() == "" || fresh.GetAssetUrl().GetExpiresAt() == nil {
+	if !strings.HasPrefix(fresh.GetAssetUrl().GetUrl(), "https://alias.example/assets/files/") || fresh.GetAssetUrl().GetExpiresAt() == nil {
 		t.Fatalf("fresh asset URL missing: %+v", fresh.GetAssetUrl())
 	}
 	if fresh.GetThumbnailAssetUrl().GetUrl() == "" || fresh.GetThumbnailAssetUrl().GetExpiresAt() == nil {
@@ -1950,7 +1978,7 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if err != nil {
 		t.Fatalf("GetAsset: %v", err)
 	}
-	if got := asset.Msg.GetAsset().GetThumbnailAssetUrl().GetUrl(); !strings.Contains(got, "/64x64/contain") {
+	if got := asset.Msg.GetAsset().GetThumbnailAssetUrl().GetUrl(); !strings.HasPrefix(got, "https://alias.example/") || !strings.Contains(got, "/64x64/contain") {
 		t.Fatalf("GetAsset thumbnail URL = %q, want 64x64 contain transform", got)
 	}
 

@@ -366,9 +366,10 @@ pre-authentication state, along with configured provider metadata and the
 independently configured direct-registration and direct-login capabilities.
 The direct-login capability uses scalar presence so a new client treats an
 older server that omits it as enabled. The bundled client refreshes discovery
-per server and owns an internal feature-to-minimum-server-version table for compatibility gates.
-The 0.5 client requires the 0.5 server baseline before opening realtime
-protocol 4, the only accepted behavioral version. The
+per server and owns one minimum supported server version. It does not gate
+individual features by server version. The 0.5 client requires a server at
+`0.5.0-beta.9` or newer before opening realtime protocol 4, the only accepted
+behavioral version. The
 `chatto.realtime.v1` suffix remains the protobuf namespace.
 
 Public server discovery includes each OIDC provider's issuer for clients that
@@ -394,10 +395,17 @@ OIDC library's validation, signature verification, and rotating-key cache.
 availability and transient provider readiness. Viewer permissions remain the
 authority for authenticated feature access.
 
-Public URL generation prefers the configured `webserver.url`. Without it, the
-HTTP edge uses only the direct request TLS state and host; forwarded protocol
-headers are not implicitly trusted. `webserver.trusted_proxies` affects client
-IP attribution and realtime same-origin comparison, not public URL authority.
+Absolute URLs in API responses use the public origin of the request. When the
+request host matches `webserver.url` or an exact `webserver.allowed_origins`
+entry, that configured origin applies. Other hosts get `webserver.url`. Without
+it, the HTTP edge uses only the direct request TLS state and host. The HTTP
+edge does not trust forwarded protocol headers. `webserver.trusted_proxies`
+controls client IP attribution and realtime same-origin comparison. It does not
+control public URLs. Core returns server-relative asset URLs. The API layer makes
+them absolute for each request, so asset URLs use the same origin as the other
+URLs in the response. Without `webserver.url`, attachment and link-preview URLs
+stay server-relative. Call participant metadata always uses the `webserver.url`
+origin because other participants read it.
 
 Chatto-streamed protected attachments are sequential full responses. They
 advertise `Accept-Ranges: none` and ignore `Range`, returning `200` with the

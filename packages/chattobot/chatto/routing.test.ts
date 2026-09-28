@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import { createChattoBot } from '../workflows/chat.ts';
-import { createChattoPoster, type Delivery, type ChattoPost } from './routing.ts';
+import { deliveryConversationKey, type Delivery, type ChattoPost } from './routing.ts';
 import { chattoConversation } from './chat-conversation.ts';
 
 test('tool announcements reach the conversation thread before work starts', async () => {
@@ -110,20 +110,6 @@ test('queued replies retain their prompting message and unmentioned replies reac
     'second',
     undefined
   ]);
-});
-
-test('posts DM replies in the triggering thread', async () => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
-  await createChattoPoster('https://chat.example', 'key', request)(
-    { roomId: 'dm', threadRootId: 'root' },
-    'Hi',
-    new AbortController().signal
-  );
-  expect(JSON.parse(request.mock.calls[0]![1]!.body as string)).toEqual({
-    roomId: 'dm',
-    body: 'Hi',
-    threadRootEventId: 'root'
-  });
 });
 
 test.each(['assistant-first', 'announcement-first', 'paraphrase'])(
@@ -305,4 +291,23 @@ test('DM thread follow-ups share a conversation but separate roots start new run
   expect(prompts).toEqual(['Hi', 'Again']);
   expect(acknowledged).toEqual(['first']);
   expect(post.mock.calls).toHaveLength(2);
+});
+
+test('conversation keys keep the tuple that retained implementation owner keys hash', () => {
+  const base = {
+    version: 1 as const,
+    id: 'ping',
+    type: 'message.created' as const,
+    triggers: ['mention'],
+    occurred_at: 'now',
+    bot_id: 'bot',
+    room_id: 'room',
+    message: { id: 'ping', author_id: 'alice', body: 'Hello' }
+  };
+  expect(deliveryConversationKey({ ...base, thread_root_id: 'root' })).toBe(
+    JSON.stringify(['bot', 'room', 'root', 'alice'])
+  );
+  expect(deliveryConversationKey({ ...base, thread_root_id: null })).toBe(
+    JSON.stringify(['bot', 'room', 'ping', 'alice'])
+  );
 });

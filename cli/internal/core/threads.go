@@ -578,7 +578,10 @@ func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg ev
 // Stores durable follow state in EVT. Idempotent.
 // Publishes a ThreadViewerStateChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL, false)
+	changed, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL, false)
+	if err == nil && changed {
+		c.hintBadgeThread(ctx, userID, roomID, threadRootEventID)
+	}
 	return err
 }
 
@@ -591,8 +594,21 @@ func (c *ChattoCore) FollowThreadWithSource(ctx context.Context, kind RoomKind, 
 // Idempotent - calling when not following is a no-op.
 // Publishes a ThreadViewerStateChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateUnfollowed, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED, false)
+	changed, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateUnfollowed, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED, false)
+	if err == nil && changed {
+		c.hintBadgeThread(ctx, userID, roomID, threadRootEventID)
+	}
 	return err
+}
+
+// hintBadgeThread tells the user's clients to re-read a thread's Badge state
+// after a manual follow change, which changes followed-thread attention.
+func (c *ChattoCore) hintBadgeThread(ctx context.Context, userID, roomID, threadRootEventID string) {
+	if err := c.notificationMaterializer.decisions.Projector().WaitForCurrent(ctx); err != nil {
+		c.logger.Warn("Failed to wait for notification decisions after a follow change", "error", err)
+		return
+	}
+	c.NotifyNotificationUnreadStateChanged(ctx, userID, userID, roomID, threadRootEventID)
 }
 
 // FollowThreadIfNeverSet follows a thread only when the user has no prior

@@ -185,6 +185,20 @@ test('source access is opt-in and captures host settings', () => {
   expect(settings).toMatchObject({ directory: '/configured/repo', baseRef: 'origin/main' });
 });
 
+test('an empty source ref uses HEAD, and implementation selects its base branch on origin', () => {
+  vi.stubEnv('CHATTO_SOURCE_DIRECTORY', '/configured/repo');
+  vi.stubEnv('CHATTO_SOURCE_REF', '');
+  vi.stubEnv('CHATTO_INVESTIGATION_MODEL', ' ');
+  expect(investigationSettings()).toMatchObject({
+    baseRef: 'HEAD',
+    model: 'openai-codex/gpt-5.6-sol'
+  });
+  vi.stubEnv('CHATTO_SOURCE_REF', 'feature');
+  expect(investigationSettings({ baseBranch: 'develop' })?.baseRef).toBe(
+    'refs/remotes/origin/develop'
+  );
+});
+
 test.each(['direct', 'tool'])(
   '%s investigation defaults to assessment without requiring a plan',
   async (entry) => {

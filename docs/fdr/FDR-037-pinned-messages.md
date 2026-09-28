@@ -114,11 +114,10 @@ The RoomService RPCs and response marker, pinned-message resource,
 `Message.pinned` field, persisted event variants, snapshot fields, and realtime
 change field are additive protobuf changes. Normal timeline, singular message,
 and batched message reads all expose authoritative pin state without a parallel
-pin-status lookup. The bundled client exposes the feature only for servers at
-`0.5.0-0` or newer.
+pin-status lookup. The bundled client supports only servers that include the
+feature (see FDR-031).
 Older clients can continue processing `server_state_upsert` and ignore its new
-field. Older servers return an unimplemented RPC, which gated clients do not
-call. Persisted message events are additive and the disposable Room Timeline
+field. Persisted message events are additive and the disposable Room Timeline
 snapshot schema receives a new fingerprinted contract namespace automatically.
 
 ## Permissions

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { beforeNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
@@ -112,11 +113,9 @@
   );
   const error = $derived(
     actionError ||
-      (emailsQuery.error instanceof Error
-        ? emailsQuery.error.message
-        : emailsQuery.error
-          ? m('settings.account.email.load_failed')
-          : '')
+      (emailsQuery.error
+        ? errorMessage(emailsQuery.error, m('settings.account.email.load_failed'))
+        : '')
   );
 
   function setEmails(scope: EmailActionScope, value: VerifiedEmail[]) {
@@ -169,9 +168,7 @@
       addEmailError =
         err instanceof ConnectError && err.code === Code.AlreadyExists
           ? m('settings.account.email.already_verified')
-          : err instanceof Error
-            ? err.message
-            : m('settings.account.email.request_failed');
+          : errorMessage(err, m('settings.account.email.request_failed'));
     } finally {
       if (isCurrentEmailContext(scope)) requesting = false;
     }
@@ -202,7 +199,7 @@
       toast.success(m('settings.account.email.primary_changed'));
     } catch (err) {
       if (!isCurrentEmailContext(scope)) return;
-      actionError = err instanceof Error ? err.message : m('settings.account.email.primary_failed');
+      actionError = errorMessage(err, m('settings.account.email.primary_failed'));
     } finally {
       if (isCurrentEmailContext(scope)) selectingEmail = '';
     }

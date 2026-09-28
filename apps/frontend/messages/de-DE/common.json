@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Netzwerkfehler. Bitte versuche es erneut.",
-      "generic": "Etwas ist schiefgelaufen"
+      "generic": "Etwas ist schiefgelaufen",
+      "permission_denied": "Du hast keine Berechtigung dafür.",
+      "not_found": "Das angeforderte Element wurde nicht gefunden.",
+      "unauthenticated": "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
+      "conflict": "Das wurde geändert, während du es bearbeitet hast. Lade die Seite neu und versuche es erneut."
     },
     "delete": "Löschen",
     "save": "Speichern",

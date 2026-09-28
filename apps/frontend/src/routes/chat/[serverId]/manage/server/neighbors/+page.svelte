@@ -7,6 +7,7 @@ Discovery picks up a Neighbor change within about fifteen seconds; the page
 polls the cache briefly after a change. See FDR-042.
 -->
 <script lang="ts">
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
@@ -70,7 +71,7 @@ polls the cache briefly after a change. See FDR-042.
         toast.success(m('admin.neighbors.created'));
       },
       onError: (error, variables) => {
-        if (isCurrent(variables)) showError(error);
+        if (isCurrent(variables)) toastError(error);
       }
     }),
     () => queryClient
@@ -91,7 +92,7 @@ polls the cache briefly after a change. See FDR-042.
         toast.success(m('admin.neighbors.updated'));
       },
       onError: (error, variables) => {
-        if (isCurrent(variables)) showError(error);
+        if (isCurrent(variables)) toastError(error);
       }
     }),
     () => queryClient
@@ -111,7 +112,7 @@ polls the cache briefly after a change. See FDR-042.
         toast.success(m('admin.neighbors.deleted'));
       },
       onError: (error, variables) => {
-        if (isCurrent(variables)) showError(error);
+        if (isCurrent(variables)) toastError(error);
       }
     }),
     () => queryClient
@@ -211,10 +212,6 @@ polls the cache briefly after a change. See FDR-042.
     if (!editTarget || !normalizedEditOrigin || normalizedEditOrigin === neighbor.origin) return;
     updateMutationState.mutate({ ...editTarget, origin: normalizedEditOrigin });
   }
-
-  function showError(error: unknown) {
-    toast.error(error instanceof Error ? error.message : String(error));
-  }
 </script>
 
 <PageTitle
@@ -263,7 +260,7 @@ polls the cache briefly after a change. See FDR-042.
 
       <Panel title={m('admin.neighbors.list_title')} count={neighbors.length || undefined}>
         {#if neighborsQuery.error}
-          <div class="mb-4"><Hint tone="danger">{String(neighborsQuery.error)}</Hint></div>
+          <div class="mb-4"><Hint tone="danger">{errorMessage(neighborsQuery.error)}</Hint></div>
         {/if}
 
         {#if neighborsQuery.isPending && neighbors.length === 0}

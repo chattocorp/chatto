@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toastError } from '$lib/utils/errorMessage';
   import { formatAccountName } from '$lib/render/accountName';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -56,9 +57,7 @@
     try {
       if (await onupload(file)) toast.success(m('settings.profile.avatar.uploaded'));
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : m('settings.profile.avatar.upload_failed')
-      );
+      toastError(error, m('settings.profile.avatar.upload_failed'));
     } finally {
       uploading = false;
       if (fileInput) fileInput.value = '';
@@ -83,9 +82,7 @@
     try {
       if (await ondelete()) toast.success(m('settings.profile.avatar.removed'));
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : m('settings.profile.avatar.delete_failed')
-      );
+      toastError(error, m('settings.profile.avatar.delete_failed'));
     } finally {
       deleting = false;
     }

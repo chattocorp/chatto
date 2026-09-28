@@ -112,6 +112,9 @@ export function useUnreadMarker<TReadResult>(
   let wasReadable = false;
   let lastForegroundRevision = 0;
   let lastOnlineRevision = 0;
+  // True after a message that arrived while the viewer was away placed the
+  // separator. Later arrivals keep it in place until the viewer returns.
+  let awayMarkerPlaced = false;
 
   function isCurrentAttempt(attempt: ReadAttempt): boolean {
     const currentAttempt = attempt.updatesMarker ? lifecycleAttempt : explicitAttempt;
@@ -186,8 +189,13 @@ export function useUnreadMarker<TReadResult>(
       if (!isCurrentAttempt(attempt)) return null;
 
       if (attempt.updatesMarker && attempt.markerGeneration === markerGeneration) {
-        unreadMarkerEventId = null;
-        unreadMarkerWindow = markerWindowFromReadResult(result, attempt.markedAtMs);
+        // Resolve the window at once when its events are loaded. A marker
+        // that goes through null for one update removes the separator row and
+        // can move the timeline.
+        const markerWindow = markerWindowFromReadResult(result, attempt.markedAtMs);
+        const eventId = markerWindow ? firstEventInWindow(markerWindow) : null;
+        unreadMarkerEventId = eventId;
+        unreadMarkerWindow = eventId === null ? markerWindow : null;
       }
       finishAttempt(attempt);
       return result;
@@ -260,6 +268,24 @@ export function useUnreadMarker<TReadResult>(
     }
   }
 
+  /** Return the first event from another user inside `markerWindow`. */
+  function firstEventInWindow(markerWindow: UnreadMarkerWindow): string | null {
+    const afterMs = Date.parse(markerWindow.afterTime);
+    const beforeMs =
+      typeof markerWindow.beforeTime === 'number'
+        ? markerWindow.beforeTime
+        : Date.parse(markerWindow.beforeTime);
+    const skipActorId = getMarkerSkipActorId?.();
+
+    for (const event of getMarkerEvents()) {
+      if (skipActorId && event.actorId === skipActorId) continue;
+
+      const eventMs = Date.parse(event.createdAt);
+      if (eventMs > afterMs && eventMs <= beforeMs) return event.id;
+    }
+    return null;
+  }
+
   function setUnreadMarkerEventId(eventId: string | null) {
     unreadMarkerEventId = eventId;
     if (eventId !== null) {
@@ -270,6 +296,21 @@ export function useUnreadMarker<TReadResult>(
   function clearUnreadMarker() {
     unreadMarkerEventId = null;
     unreadMarkerWindow = null;
+  }
+
+  /**
+   * Show the separator above a message that arrives while the viewer is not
+   * present, before the viewer returns. The first such message places it.
+   * The read on return then resolves the marker from the server read state,
+   * which normally gives the same event.
+   */
+  function markArrivalWhileAway(eventId: string) {
+    if (appState.isPresent || awayMarkerPlaced) return;
+    awayMarkerPlaced = true;
+    // A read that is still in flight covers only earlier messages. Its result
+    // must not replace this marker.
+    markerGeneration += 1;
+    setUnreadMarkerEventId(eventId);
   }
 
   $effect(() => {
@@ -290,6 +331,7 @@ export function useUnreadMarker<TReadResult>(
       cancelAllAttempts();
       clearUnreadMarker();
     }
+    if (targetChanged || present) awayMarkerPlaced = false;
 
     if (!visible || !readable || !targetId) {
       cancelAllAttempts();
@@ -320,26 +362,13 @@ export function useUnreadMarker<TReadResult>(
     lastOnlineRevision = onlineRevision;
   });
 
+  // Resolve a pending window when its events arrive later.
   $effect(() => {
     const markerWindow = unreadMarkerWindow;
     if (!markerWindow) return;
 
-    const afterMs = Date.parse(markerWindow.afterTime);
-    const beforeMs =
-      typeof markerWindow.beforeTime === 'number'
-        ? markerWindow.beforeTime
-        : Date.parse(markerWindow.beforeTime);
-    const skipActorId = getMarkerSkipActorId?.();
-
-    for (const event of getMarkerEvents()) {
-      if (skipActorId && event.actorId === skipActorId) continue;
-
-      const eventMs = Date.parse(event.createdAt);
-      if (eventMs > afterMs && eventMs <= beforeMs) {
-        setUnreadMarkerEventId(event.id);
-        return;
-      }
-    }
+    const eventId = firstEventInWindow(markerWindow);
+    if (eventId !== null) setUnreadMarkerEventId(eventId);
   });
 
   onDestroy(() => {
@@ -356,6 +385,7 @@ export function useUnreadMarker<TReadResult>(
     },
     markAsRead: markTargetAsRead,
     setUnreadMarkerEventId,
-    clearUnreadMarker
+    clearUnreadMarker,
+    markArrivalWhileAway
   };
 }

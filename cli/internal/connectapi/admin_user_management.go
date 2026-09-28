@@ -234,7 +234,7 @@ func (s *adminUserManagementService) adminMemberWithPresence(ctx context.Context
 		User:                   adminMemberUserWithPresence(member, presence),
 	}
 	if member.AvatarURL != "" {
-		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, member.AvatarURL))
+		response.User.AvatarUrl = stringPtr(s.api.absolutizeServerURL(ctx, member.AvatarURL))
 	}
 	if member.PrimaryVerifiedEmail != "" {
 		response.PrimaryVerifiedEmail = stringPtr(member.PrimaryVerifiedEmail)

@@ -21,6 +21,7 @@ import {
 } from './implementation-process.ts';
 import { implementationPlanSchema, type InvestigationPlans } from './plan.ts';
 import { observePullRequestChecks } from './implementation-ci.ts';
+import { ConfigurationError, setting } from '../settings.ts';
 
 /** Host-owned implementation, validation, recovery, and publication for one request. */
 
@@ -33,18 +34,35 @@ export interface ImplementationSettings {
   artifactsDirectory?: string;
 }
 
-/** Read opt-in publication settings from the bot process environment. */
+/** Read opt-in publication settings from the bot process environment.
+ * Throws a ConfigurationError for incomplete or invalid settings. */
 export function implementationSettings(): ImplementationSettings | undefined {
-  const repository = process.env.CHATTO_IMPLEMENTATION_REPOSITORY?.trim();
+  const repository = setting('CHATTO_IMPLEMENTATION_REPOSITORY');
   if (!repository) return;
-  const directory = process.env.CHATTO_SOURCE_DIRECTORY;
-  if (!directory) throw new Error('Implementation requires CHATTO_SOURCE_DIRECTORY');
-  return {
+  const directory = setting('CHATTO_SOURCE_DIRECTORY');
+  if (!directory)
+    throw new ConfigurationError(
+      'CHATTO_IMPLEMENTATION_REPOSITORY requires CHATTO_SOURCE_DIRECTORY'
+    );
+  return normalizeImplementationSettings({
     directory: resolve(directory),
     repository,
-    baseBranch: process.env.CHATTO_SOURCE_REF ?? 'main',
-    model: process.env.CHATTO_IMPLEMENTATION_MODEL ?? 'openai-codex/gpt-5.6-sol'
-  };
+    baseBranch: setting('CHATTO_SOURCE_REF'),
+    model: setting('CHATTO_IMPLEMENTATION_MODEL') ?? 'openai-codex/gpt-5.6-sol'
+  });
+}
+
+/** Validate the repository and resolve the base branch name. The base defaults to `main`
+ * and accepts the remote-tracking notation commonly copied from git status. */
+export function normalizeImplementationSettings(
+  settings: ImplementationSettings
+): ImplementationSettings & { baseBranch: string } {
+  const baseBranch = (settings.baseBranch ?? 'main').replace(/^(?:refs\/remotes\/)?origin\//, '');
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(settings.repository))
+    throw new ConfigurationError('CHATTO_IMPLEMENTATION_REPOSITORY must be owner/repo');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(baseBranch))
+    throw new ConfigurationError('CHATTO_SOURCE_REF must name a branch on origin');
+  return { ...settings, baseBranch };
 }
 
 const parameters = Type.Object({
@@ -226,12 +244,7 @@ export function createImplementation(
 ) {
   const execute = dependencies.execute ?? implementationProcess;
   const createAgent = dependencies.createAgent ?? agent;
-  // Accept the remote-tracking notation commonly copied from git status.
-  const baseBranch = (settings.baseBranch ?? 'main').replace(/^(?:refs\/remotes\/)?origin\//, '');
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(settings.repository))
-    throw new Error('Implementation repository must be owner/repo');
-  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(baseBranch))
-    throw new Error('Invalid implementation base branch');
+  const { baseBranch } = normalizeImplementationSettings(settings);
   const directory = resolve(settings.directory);
   const artifacts = resolve(
     settings.artifactsDirectory ??

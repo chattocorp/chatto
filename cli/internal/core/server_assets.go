@@ -14,15 +14,6 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-// assetURL prepends AssetBaseURL to an asset path.
-// When AssetBaseURL is empty, returns the path unchanged.
-func (c *ChattoCore) assetURL(path string) string {
-	if c.AssetBaseURL == "" {
-		return path
-	}
-	return c.AssetBaseURL + path
-}
-
 // AssetsConfig returns the assets configuration as an assets.Config.
 func (c *ChattoCore) AssetsConfig() assets.Config {
 	maxUploadSize := int64(c.config.Assets.MaxUploadSize)

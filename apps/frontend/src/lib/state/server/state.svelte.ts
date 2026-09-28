@@ -2,13 +2,13 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
+import { errorMessage } from '$lib/utils/errorMessage';
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.svelte';
 import {
   evaluateServerCompatibility,
-  supportsServerFeature,
-  type ServerFeature,
+  isSupportedServerVersion,
   type ServerCompatibilityResult
 } from './compatibility';
 
@@ -96,13 +96,13 @@ export class ServerInfoState {
     });
   }
 
-  supportsFeature(feature: ServerFeature): boolean {
-    return supportsServerFeature(this.version, feature);
-  }
-
-  /** Whether discovery confirmed the projection stream required by this client. */
-  get supportsRealtimeProjection(): boolean {
-    return this.supportsFeature('realtimeProjection');
+  /**
+   * Whether discovery confirmed a server release that this client supports.
+   * It stays false until the version is known. The realtime projection and
+   * every client feature require it.
+   */
+  get isSupportedVersion(): boolean {
+    return isSupportedServerVersion(this.version);
   }
 
   /**
@@ -139,7 +139,7 @@ export class ServerInfoState {
       } catch (err) {
         // Defensive: anything thrown during the query or above .then body.
         // Don't re-throw — failure is isolated to this server.
-        this.error = err instanceof Error ? err.message : String(err);
+        this.error = errorMessage(err);
         console.error(`[server:${this.#label}] failed to load server info`, err);
       } finally {
         this.loading = false;
@@ -167,7 +167,7 @@ export class ServerInfoState {
       this.directRegistrationEnabled = info.directRegistrationEnabled;
       this.directLoginEnabled = info.directLoginEnabled;
     } catch (err) {
-      this.error = err instanceof Error ? err.message : String(err);
+      this.error = errorMessage(err);
       console.error(`[server:${this.#label}] failed to load server info`, err);
     }
   }

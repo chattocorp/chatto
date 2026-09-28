@@ -2,7 +2,7 @@
   import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import { tick } from 'svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Button } from '$lib/ui/form';
+  import { Button, FormField, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import {
     createMessageTimestampToken,
@@ -22,6 +22,8 @@
   } = $props();
 
   const timezoneListId = `timestamp-timezones-${Math.random().toString(36).slice(2)}`;
+  const dateTimeInputId = $props.id();
+  const timezoneInputId = `${dateTimeInputId}-timezone`;
   const timezoneOptions = Intl.supportedValuesOf?.('timeZone') ?? [];
   let triggerElement = $state<HTMLButtonElement>();
   let dateTimeInput = $state<HTMLInputElement>();
@@ -128,21 +130,21 @@
       </header>
 
       <section class="flex flex-col gap-3 menu-section px-3 py-2">
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{m('composer.timestamp.date_time')}</span>
-          <input
-            class="input"
-            type="datetime-local"
-            name="timestamp-date-time"
-            bind:this={dateTimeInput}
-            bind:value={localValue}
-            required
-          />
-        </label>
+        <TextInput
+          id={dateTimeInputId}
+          type="datetime-local"
+          name="timestamp-date-time"
+          label={m('composer.timestamp.date_time')}
+          bind:element={dateTimeInput}
+          bind:value={localValue}
+          required
+        />
 
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{m('composer.timestamp.timezone')}</span>
+        <!-- A native datalist keeps the time zone suggestions inside this popover.
+             Combobox would open a second floating layer above the context menu. -->
+        <FormField id={timezoneInputId} label={m('composer.timestamp.timezone')} required>
           <input
+            id={timezoneInputId}
             class="input"
             name="timestamp-timezone"
             list={timezoneListId}
@@ -156,7 +158,7 @@
               <option value={timezone}></option>
             {/each}
           </datalist>
-        </label>
+        </FormField>
 
         {#if pickerError}
           <p class="form-error">{pickerError}</p>

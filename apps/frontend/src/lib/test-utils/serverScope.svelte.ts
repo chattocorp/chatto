@@ -1,7 +1,6 @@
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import type { CurrentUser } from '$lib/api-client/viewer';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
-import type { ServerFeature } from '$lib/state/server/compatibility';
 import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '$lib/state/server/permissions';
 import type { ServerScope } from '$lib/state/server/scope.svelte';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
@@ -19,11 +18,8 @@ export type TestServerScopeOptions = {
   viewer?: Partial<CurrentUser> | null;
   /** Permission flags over `NO_SERVER_PERMISSIONS`. The result is loaded unless `loaded` is false. */
   permissions?: Partial<ServerPermissions>;
-  /**
-   * Server features that `serverInfo.supportsFeature` reports. Default: every
-   * feature. A map changes only the listed features; the others stay on.
-   */
-  features?: boolean | Partial<Record<ServerFeature, boolean>>;
+  /** What `serverInfo.isSupportedVersion` reports. Default: true. */
+  isSupportedVersion?: boolean;
   /**
    * What `connection.getAPI` returns for every factory. Without it, `getAPI`
    * runs the real factory with a stub config, so `vi.mock` of an API module works.
@@ -31,8 +27,8 @@ export type TestServerScopeOptions = {
   api?: object;
   /**
    * Extra `store.serverInfo` members, such as `livekitUrl`. Getters are kept.
-   * `supportsFeature` reads `features`, unless the `store` option replaces the
-   * whole `serverInfo`.
+   * `isSupportedVersion` reads the fixture, unless the `store` option replaces
+   * the whole `serverInfo`.
    */
   serverInfo?: object;
   /**
@@ -54,7 +50,8 @@ export class TestServerScope {
   /** Result of `scope.isCurrent()`. */
   current = $state(true);
   permissions = $state<ServerPermissions>(NO_SERVER_PERMISSIONS);
-  features = $state<boolean | Partial<Record<ServerFeature, boolean>>>(true);
+  /** Result of `serverInfo.isSupportedVersion`. */
+  isSupportedVersion = $state(true);
   /** Projection viewer ID. Default: the accepted account's ID. */
   projectionViewerId = $state<string | null | undefined>(undefined);
   /**
@@ -69,7 +66,7 @@ export class TestServerScope {
   constructor(options: TestServerScopeOptions = {}) {
     this.serverId = options.serverId ?? 'server-1';
     this.permissions = { ...NO_SERVER_PERMISSIONS, loaded: true, ...options.permissions };
-    this.features = options.features ?? true;
+    this.isSupportedVersion = options.isSupportedVersion ?? true;
     this.currentUser.loading = false;
     if (options.viewer !== null) {
       this.currentUser.accept({
@@ -174,8 +171,9 @@ function buildStore(
         return t.permissions;
       },
       serverInfo: withMembers(withMembers({}, serverInfo), {
-        supportsFeature: (feature: ServerFeature) =>
-          typeof t.features === 'boolean' ? t.features : (t.features[feature] ?? true)
+        get isSupportedVersion() {
+          return t.isSupportedVersion;
+        }
       })
     },
     extra

@@ -10,12 +10,10 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
-  import {
-    registerAdminUserRemovalListener,
-    registerQueryCacheRemovalListener
-  } from '$lib/query/cacheRegistry';
+  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Hint, PaneContent, PageTitle } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -45,19 +43,10 @@
     });
     removedMember = { serverId, userId: removedUserId };
   });
+  onDestroy(removeRemovalListener);
   // Authentication or visibility changes purge all admin queries for a
-  // session; fence in-flight reads against that generation the same way the
-  // member detail page does.
-  let privacyGeneration = $state(0);
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === activeServerId) privacyGeneration += 1;
-  });
-  onDestroy(() => {
-    // Discard in-flight mutation results bound to this component instance.
-    privacyGeneration += 1;
-    removeRemovalListener();
-    removeCacheRemovalListener();
-  });
+  // session. The guard also discards results after this component is destroyed.
+  const session = createSessionGuard(serverScope);
 
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members/[userId]', {
@@ -93,32 +82,16 @@
     !!member && !member.deleted && !member.isBot && !isSelf && member.viewerCanDeleteAccount
   );
 
-  type DeletionTarget = {
-    serverId: string;
-    connection: typeof serverScope.connection;
-    userId: string;
-    privacyGeneration: number;
-  };
+  type DeletionTarget = SessionSnapshot & { userId: string };
 
   function isCurrentTarget(target: DeletionTarget): boolean {
-    return (
-      serverScope.isCurrent() &&
-      target.serverId === activeServerId &&
-      target.connection.queryScope === serverScope.connection.queryScope &&
-      target.userId === userId &&
-      target.privacyGeneration === privacyGeneration
-    );
+    return session.isCurrent(target) && target.userId === userId;
   }
 
   async function handleDelete(): Promise<void> {
     // Bind the request and all completion effects to the route target. SvelteKit
     // can reuse this component when the user or server parameter changes.
-    const target: DeletionTarget = {
-      serverId: activeServerId,
-      connection: serverScope.connection,
-      userId,
-      privacyGeneration
-    };
+    const target: DeletionTarget = { ...session.snapshot(), userId };
 
     await target.connection
       .getAPI(createAdminUserManagementAPI)

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
@@ -83,7 +84,7 @@
         goto(resolve('/'), { replaceState: true });
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m('auth.register.failed');
+      error = errorMessage(err, m('auth.register.failed'));
     } finally {
       isLoading = false;
     }

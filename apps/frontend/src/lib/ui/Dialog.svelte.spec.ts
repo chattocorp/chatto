@@ -38,6 +38,23 @@ describe('Dialog', () => {
     await page.viewport(1280, 720);
   });
 
+  it('does not report a close to its owner when the owner unmounts it', async () => {
+    const onclose = vi.fn();
+    const view = renderDialog({
+      visible: true,
+      title: 'Loading failed',
+      children: testSnippet('<p>Try again.</p>'),
+      onclose
+    });
+    await vi.waitFor(() => expect(view.container.querySelector('dialog')?.open).toBe(true));
+
+    view.unmount();
+    // Closing a detached dialog queues a native close event.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
   describe('dialog element', () => {
     it('renders a dialog element', async () => {
       const { container } = renderDialog({

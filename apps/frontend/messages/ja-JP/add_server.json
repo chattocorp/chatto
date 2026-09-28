@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "これは Chatto サーバーではないようです。",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "サーバーディレクトリ",
+      "subtitle": "ほかの Chatto サーバーを見つける",
+      "lookup_description": "参加したい Chatto サーバーのアドレスを入力してください。",
+      "find": "サーバーを探す",
+      "connect_by_address": "アドレスで接続",
+      "servers_title": "おすすめのサーバー",
+      "servers_description": "参加しているサーバーからのおすすめです。結果は順位付けされていません。",
       "recommended_by": "{servers} からのおすすめ",
       "more_recommenders_count": {
         "other": "他{count}件"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "参加済み",
+      "join": "参加",
+      "open": "開く",
       "open_in_new_tab": "新しいタブで開く",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "サインインできません",
+      "profile_unavailable": "このサーバーの公開プロフィールを読み込めませんでした。",
+      "partial": "参加している一部のサーバーから、おすすめを取得できませんでした。",
+      "unavailable_title": "ディレクトリを利用できません",
+      "unavailable_body": "参加しているサーバーからおすすめを取得できませんでした。直接接続することはできます。",
+      "empty_title": "おすすめのサーバーはまだありません",
+      "empty_body": "サーバーのアドレスを使って直接接続することはできます。"
     }
   }
 }

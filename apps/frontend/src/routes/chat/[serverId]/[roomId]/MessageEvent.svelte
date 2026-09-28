@@ -137,9 +137,6 @@
     })
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
-  const canEditAttachmentDescription = $derived(
-    canEdit && serverInfo.supportsFeature('attachmentDescriptions')
-  );
 
   const interactions = new MessageEventInteractionState();
   $effect(() => () => interactions.dispose());
@@ -259,7 +256,7 @@
   const editChannelEchoEventId = $derived(eventReferences?.editChannelEchoEventId ?? null);
   const threadRootEventId = $derived(eventReferences?.threadRootEventId ?? null);
   const pinsStore = $derived(
-    roomPermissions.canViewPinnedMessages ? stores.pinsForRoom(roomId) : null
+    roomPermissions.canViewPinnedMessages ? stores.rooms.pins(roomId) : null
   );
   const canPin = $derived(roomPermissions.canPinMessages && Boolean(pinsStore));
   const isPinned = $derived(
@@ -734,7 +731,7 @@
         {roomId}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
         canDeleteAttachment={isAuthor}
-        {canEditAttachmentDescription}
+        canEditAttachmentDescription={canEdit}
       />
 
       {#if messageEvent?.linkPreview}

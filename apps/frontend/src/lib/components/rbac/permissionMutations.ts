@@ -1,3 +1,4 @@
+import { errorMessage } from '$lib/utils/errorMessage';
 import type { PermissionAPI, PermissionState } from '$lib/api-client/permissions';
 
 export type { PermissionState };
@@ -23,6 +24,6 @@ export async function setRolePermission(
     });
     return {};
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: errorMessage(error) };
   }
 }

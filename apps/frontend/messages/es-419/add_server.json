@@ -11,28 +11,28 @@
     "url_placeholder": "chat.ejemplo.com",
     "not_chatto_server": "Este no parece ser un servidor Chatto.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Directorio de servidores",
+      "subtitle": "Descubre otros servidores de Chatto",
+      "lookup_description": "Ingresa la dirección de cualquier servidor de Chatto para unirte a él.",
+      "find": "Buscar servidor",
+      "connect_by_address": "Conectar por dirección",
+      "servers_title": "Servidores recomendados",
+      "servers_description": "Recomendados por servidores a los que te uniste. Los resultados no están ordenados por relevancia.",
       "recommended_by": "Recomendado por {servers}",
       "more_recommenders_count": {
         "other": "{count} más"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Unido",
+      "join": "Unirse",
+      "open": "Abrir",
       "open_in_new_tab": "Abrir en una pestaña nueva",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Inicio de sesión no disponible",
+      "profile_unavailable": "No se pudo cargar el perfil público de este servidor.",
+      "partial": "Algunos servidores a los que te uniste no pudieron proporcionar sus recomendaciones.",
+      "unavailable_title": "Directorio no disponible",
+      "unavailable_body": "Los servidores a los que te uniste no pudieron proporcionar sus recomendaciones. Aun así, puedes conectarte directamente.",
+      "empty_title": "Todavía no hay servidores recomendados",
+      "empty_body": "Aun así, puedes conectarte directamente con la dirección de un servidor."
     }
   }
 }

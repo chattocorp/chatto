@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { createChattoClient } from '@chatto/client';
 import { createThreadReader } from './thread.ts';
 import type { Delivery } from './chatto/routing.ts';
 
@@ -13,6 +14,11 @@ const delivery: Delivery = {
   thread_root_id: 'root',
   message: { id: 'ping', author_id: 'alice', body: "What's next?" }
 };
+const reader = (request: typeof fetch) =>
+  createThreadReader(
+    createChattoClient({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request }),
+    'bot'
+  );
 const event = (id: string, body: string, actorId = 'alice') => ({
   id,
   messagePosted: { message: { actorId, body } }
@@ -37,11 +43,7 @@ test('loads all pages in order with one root and no overlapping messages', async
         }
       })
     );
-  const messages = await createThreadReader(
-    'https://chat.example',
-    'key',
-    request
-  )(delivery, new AbortController().signal);
+  const messages = await reader(request)(delivery, new AbortController().signal);
   expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two', 'three', 'ping']);
   expect(messages[2]?.role).toBe('bot');
   expect(JSON.parse(request.mock.calls[1]![1]!.body as string)).toEqual({
@@ -59,24 +61,14 @@ test('fails when pagination repeats instead of returning incomplete history', as
       page: { events: [], hasOlder: true, startCursor: 'same' }
     })
   );
-  await expect(
-    createThreadReader(
-      'https://chat.example',
-      'key',
-      request
-    )(delivery, new AbortController().signal)
-  ).rejects.toThrow('pagination did not advance');
+  await expect(reader(request)(delivery, new AbortController().signal)).rejects.toThrow(
+    'pagination did not advance'
+  );
 });
 
 test('reports permission failures before composing a reply', async () => {
   const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 403 }));
-  await expect(
-    createThreadReader(
-      'https://chat.example',
-      'key',
-      request
-    )(delivery, new AbortController().signal)
-  ).rejects.toThrow('403');
+  await expect(reader(request)(delivery, new AbortController().signal)).rejects.toThrow('403');
 });
 
 test.each([null, 'existing-root'])('reads DM thread context for root %s', async (threadRoot) => {
@@ -85,11 +77,7 @@ test.each([null, 'existing-root'])('reads DM thread context for root %s', async 
       page: { events: [event('one', 'Hello'), event('two', 'Hi', 'bot')] }
     })
   );
-  const messages = await createThreadReader(
-    'https://chat.example',
-    'key',
-    request
-  )(
+  const messages = await reader(request)(
     { ...delivery, triggers: ['direct_message'], thread_root_id: threadRoot },
     new AbortController().signal
   );

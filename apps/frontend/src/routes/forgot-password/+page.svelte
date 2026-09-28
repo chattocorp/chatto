@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -42,7 +43,7 @@
 
       submitted = true;
     } catch (err) {
-      error = err instanceof Error ? err.message : m('common.error.network');
+      error = errorMessage(err, m('common.error.network'));
     } finally {
       isLoading = false;
     }

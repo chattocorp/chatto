@@ -1,8 +1,8 @@
-import { createChattoClient, type ChattoPost, type Destination } from '@chatto/client';
+import type { ChattoPost, Destination } from '@chatto/client';
 import { conversationKey as botConversationKey, createDeliveryTracker } from '@chatto/bot-client';
 export type { ChattoPost, Destination } from '@chatto/client';
 import type { WebhookRouter } from 'runling/web';
-import { task, Type, TimeoutError, type WorkflowContext, type TSchema, type Static } from 'runling';
+import { task, Type, type WorkflowContext, type TSchema, type Static } from 'runling';
 
 export const deliverySchema = Type.Object({
   version: Type.Literal(1),
@@ -41,6 +41,18 @@ export function createConversationState() {
 }
 export type ConversationState = ReturnType<typeof createConversationState>;
 
+/** Scope a conversation to the bot, room, thread, and sender, using the bot client's key.
+ * Retained implementation metadata stores a hash of this key to authorize resumption,
+ * so its value must stay stable for existing conversations. */
+export function deliveryConversationKey(delivery: Delivery): string {
+  return botConversationKey(delivery.bot_id, {
+    id: delivery.message.id,
+    roomId: delivery.room_id,
+    threadRootId: delivery.thread_root_id ?? undefined,
+    authorId: delivery.message.author_id
+  });
+}
+
 /** Registration failed before acceptance; the source may retry this delivery. */
 export class RegistrationError extends Error {
   constructor(cause: unknown) {
@@ -71,13 +83,6 @@ export function createChattoRouter<Output extends TSchema>({
   const deliveries = createDeliveryTracker({ accepted: seen });
   const deliveryKey = (delivery: Delivery) =>
     JSON.stringify([delivery.bot_id, delivery.message.id]);
-  const conversationKey = (delivery: Delivery) =>
-    botConversationKey(delivery.bot_id, {
-      id: delivery.message.id,
-      roomId: delivery.room_id,
-      threadRootId: delivery.thread_root_id ?? undefined,
-      authorId: delivery.message.author_id
-    });
   const routeDelivery = (
     delivery: Delivery
   ): 'start' | 'ignored' | 'duplicate' | 'queued' | 'cancelled' => {
@@ -90,7 +95,7 @@ export function createChattoRouter<Output extends TSchema>({
       return 'ignored';
     const id = deliveryKey(delivery);
     if (deliveries.has(id) || reserved.has(id)) return 'duplicate';
-    const key = conversationKey(delivery);
+    const key = deliveryConversationKey(delivery);
     const conversation = conversations.get(key);
     if (conversation) {
       if (conversation.cancelled) return 'ignored';
@@ -126,7 +131,7 @@ export function createChattoRouter<Output extends TSchema>({
     } catch (error) {
       // A failed journal creation must leave the delivery retryable.
       if (reserved.delete(id)) {
-        conversations.delete(conversationKey(delivery));
+        conversations.delete(deliveryConversationKey(delivery));
       }
       throw new RegistrationError(error);
     }
@@ -147,7 +152,7 @@ export function createChattoRouter<Output extends TSchema>({
       }
       deliveries.accept(deliveryKey(delivery));
       const threadRootId = delivery.thread_root_id ?? delivery.message.id;
-      const key = conversationKey(delivery);
+      const key = deliveryConversationKey(delivery);
       const conversation = conversations.get(key)!;
       conversation.ctx = ctx;
       const inbox: ChattoInbox = {
@@ -170,15 +175,7 @@ export function createChattoRouter<Output extends TSchema>({
             () => {}
           );
         }
-        if (error instanceof TimeoutError && !ctx.signal.aborted) {
-          // The question signal has expired. Use a fresh, bounded signal for the notice.
-          await post(
-            destination,
-            'The question timed out. Send me a new DM to try again.',
-            AbortSignal.any([ctx.signal, AbortSignal.timeout(10_000)])
-          ).catch(() => {}); // Preserve the original timeout if the notice cannot be delivered.
-        }
-        if (!conversation.cancelled && !ctx.signal.aborted && !(error instanceof TimeoutError)) {
+        if (!conversation.cancelled && !ctx.signal.aborted) {
           await post(
             destination,
             'I could not finish that reply. Please try again.',
@@ -196,30 +193,7 @@ export function createChattoRouter<Output extends TSchema>({
   return Object.assign(workflow, { route });
 }
 
-/** Bind message delivery to the shared client. */
-export function createChattoPoster(serverUrl: string, apiKey: string, request = fetch): ChattoPost {
-  return createChattoClient({ serverUrl, apiKey, fetch: request }).postMessage;
-}
-
 export const isDirectMessage = (delivery: Delivery) => delivery.triggers.includes('direct_message');
-
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Set ${name} before running ChattoBot`);
-  return value;
-}
-
-/** Read credentials when a message is sent, so unrelated workflows need no Chatto setup. */
-export const postToChatto: ChattoPost = (destination, body, signal) =>
-  configuredChattoClient().postMessage(destination, body, signal);
-
-/** Application-owned environment configuration, read only when a fallback is used. */
-export function configuredChattoClient() {
-  return createChattoClient({
-    serverUrl: required('CHATTO_URL'),
-    apiKey: required('CHATTO_API_KEY')
-  });
-}
 
 export function messageSignal(ctx: WorkflowContext): AbortSignal {
   return AbortSignal.any([ctx.signal, AbortSignal.timeout(10_000)]);

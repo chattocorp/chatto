@@ -6,7 +6,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { FormDialog, UserCard } from '$lib/ui';
-  import { FormField, Select, TextArea } from '$lib/ui/form';
+  import { Select, TextArea, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
 
@@ -148,20 +148,13 @@
   />
 
   {#if selectedPreset === 'custom'}
-    <FormField
+    <TextInput
       id="remove-room-user-suspension-expires-at"
+      type="datetime-local"
       label={m('ui.expiry.custom_label')}
       error={expiryError ?? undefined}
-    >
-      <input
-        id="remove-room-user-suspension-expires-at"
-        class="input"
-        type="datetime-local"
-        bind:value={customExpiry}
-        disabled={submitting}
-        aria-invalid={expiryError ? 'true' : undefined}
-        aria-describedby={expiryError ? 'remove-room-user-suspension-expires-at-error' : undefined}
-      />
-    </FormField>
+      bind:value={customExpiry}
+      disabled={submitting}
+    />
   {/if}
 </FormDialog>

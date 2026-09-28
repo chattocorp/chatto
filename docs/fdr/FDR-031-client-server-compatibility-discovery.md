@@ -1,14 +1,14 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-28
 
 ## Overview
 
 The multi-server client compares each registered Chatto server's software
-version with the releases that introduced the features it uses, shows the
-server's current version, and warns when the client and server cannot provide
-the expected experience. This gives people useful upgrade guidance while
+version with the oldest release that the client supports, shows the server's
+current version, and warns when the client and server cannot provide the
+expected experience. This gives people useful upgrade guidance while
 Chatto's pre-1.0 API remains experimental.
 
 ## Behavior
@@ -19,9 +19,9 @@ Chatto's pre-1.0 API remains experimental.
   and provides a final action that copies that exact host, including a
   non-default port, to the clipboard.
 - A warning marker appears when the server predates the oldest version
-  supported by the current client. The 0.5 client classifies pre-0.5 servers as
-  unsupported because they do not provide the required realtime bootstrap and
-  semantic event stream.
+  supported by the current client. The 0.5 client supports `0.5.0-beta.9` and
+  newer. It classifies older servers as unsupported and does not open their
+  realtime stream.
 - Servers with non-standard or unparseable versions remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
@@ -29,25 +29,26 @@ Chatto's pre-1.0 API remains experimental.
   connection, and compatibility warning. When an unreachable status and a lost
   connection describe the same failure, they appear as one warning.
 - Third-party clients own and test their own minimum supported server release.
-- The bundled client shows relative sidebar drag handles only when the server
-  version supports relative room-group and sidebar-item moves. Other sidebar
-  management actions continue to use the older management API when available.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown
   handshakes.
 
 ## Design Decisions
 
-### 1. The bundled client records minimum server versions per feature
+### 1. The bundled client has one minimum server version
 
-**Decision:** Features that vary across releases use one internal table mapping
-the feature to the first server version that supports it.
-**Why:** The 0.5 release is a clean compatibility baseline, and exposing
-implementation-level protocol flags would turn internal rollout details into a
-public contract. An explicit table keeps version knowledge in one place.
-**Tradeoff:** Forks and builds with non-standard version strings cannot declare
-support independently; the client treats them conservatively as unknown or
-unsupported for gated features.
+**Decision:** The bundled client records one minimum supported server release.
+Every feature that the client uses exists in that release, so the client does
+not gate individual features by server version. When the client starts to use
+a feature of a newer server, the minimum increases.
+**Why:** Per-feature version gates make each screen keep a second code path for
+servers that are already unsupported. Exposing implementation-level protocol
+flags would also turn internal rollout details into a public contract. One
+minimum keeps version knowledge in one place.
+**Tradeoff:** A client cannot use a newer feature on new servers while it still
+supports older servers. Forks and builds with non-standard version strings
+cannot declare support independently; the client treats them as unknown and
+does not open their realtime stream.
 
 ### 2. The client owns compatibility policy
 
@@ -57,7 +58,7 @@ with the discovered version before connecting.
 **Why:** Future clients know which older server contracts they still implement;
 the server cannot predict the requirements of clients that do not exist yet.
 This also avoids turning client release policy into public server metadata.
-**Tradeoff:** A client update must keep its minimum-version table accurate and
+**Tradeoff:** A client update must keep its minimum version accurate and
 cannot rely on a server to reject it on the client's behalf.
 
 ### 3. Registration data does not cache compatibility conclusions
@@ -73,7 +74,7 @@ client starts.
 
 ### 4. Pre-1.0 compatibility remains advisory
 
-**Decision:** Compatibility discovery informs feature gating and warnings but
+**Decision:** Compatibility discovery informs connection decisions and warnings but
 does not turn the experimental `v1` packages into a stability guarantee.
 **Why:** Chatto still needs room to reshape its public API in response to early
 feedback. ADR-045 requires intentional review and migration guidance for

@@ -66,7 +66,7 @@
     return stores.readViews.register({ roomId, threadRootId: threadRootEventId });
   });
 
-  const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
+  const store = $derived(stores.rooms.thread(roomId, threadRootEventId));
 
   // Track mounted consumers while the server retains the canonical timeline
   // for replay and persistence. Release viewport state when the last pane closes.
@@ -77,11 +77,11 @@
     const mountedStore = store;
     const mountedRoomId = roomId;
     const mountedThreadRootEventId = threadRootEventId;
-    mountedStores.retainMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+    mountedStores.rooms.retainThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
     untrack(() => void mountedStore.restoreLatestWindow());
     return () => {
       untrack(() => void mountedStore.restoreLatestWindow());
-      mountedStores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+      mountedStores.rooms.releaseThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
     };
   });
 

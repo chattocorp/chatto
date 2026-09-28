@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Nach ? eingeben, um Nachrichten auf allen Servern zu suchen",
       "no_results": "Keine Nachrichten gefunden"
-    }
+    },
+    "start_dm_failed": "DM konnte nicht gestartet werden"
   }
 }

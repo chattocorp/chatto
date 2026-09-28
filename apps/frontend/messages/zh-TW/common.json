@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "網路發生錯誤，請再試一次。",
-      "generic": "發生錯誤"
+      "generic": "發生錯誤",
+      "permission_denied": "你沒有執行此操作的權限。",
+      "not_found": "找不到要求的項目。",
+      "unauthenticated": "你的工作階段已過期。請重新登入。",
+      "conflict": "你編輯時此內容已變更。請重新載入頁面，然後再試一次。"
     },
     "delete": "刪除",
     "save": "儲存",

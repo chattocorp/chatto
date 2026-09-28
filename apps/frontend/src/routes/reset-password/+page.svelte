@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -58,7 +59,7 @@
       // eslint-disable-next-line svelte/no-navigation-without-resolve -- url is resolved above
       goto(url);
     } catch (err) {
-      error = err instanceof Error ? err.message : m('common.error.network');
+      error = errorMessage(err, m('common.error.network'));
     } finally {
       isLoading = false;
     }

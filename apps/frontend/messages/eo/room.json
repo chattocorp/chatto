@@ -225,7 +225,9 @@
       "in_voice_call": "En voĉvoko",
       "in_video_call": "En videovoko",
       "remove_failed": "Ne eblis forigi uzanton el ĉambro",
-      "remove_success": "{name} estis forigita el ĉambro"
+      "remove_success": "{name} estis forigita el ĉambro",
+      "members_load_failed": "Malsukcesis ŝargi ĉambranojn",
+      "members_refresh_failed": "Malsukcesis refreŝigi ĉambranojn"
     },
     "pins": {
       "show": "Montri alpinglitajn mesaĝojn",

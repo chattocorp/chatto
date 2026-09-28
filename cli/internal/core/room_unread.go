@@ -354,7 +354,7 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 }
 
 // HasUnread reports whether a room has active Badge attention for a user.
-// Thread Badge markers roll up into the parent room. The result is independent
+// Thread Badge attention rolls up into the parent room. The result is independent
 // of the user's last-read cursor and false when the user cannot see the room.
 func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)

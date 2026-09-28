@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
@@ -24,7 +25,6 @@
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomQuery
   } from '$lib/query/adminInvalidation';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { invalidateRoomMemberQueries } from '$lib/query/roomMembers';
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
@@ -38,7 +38,8 @@
   const serverSegment = $derived(serverIdToSegment(activeServerId));
 
   let scrollContainer = $state<HTMLDivElement>();
-  let privacyGeneration = 0;
+  const session = createSessionGuard(serverScope);
+  /** Increases when the room snapshot changes, so an older save does not overwrite it. */
   let snapshotGeneration = 0;
   let pendingMemberRevalidation: {
     serverId: string;
@@ -46,26 +47,15 @@
     roomId: string;
   } | null = null;
   let formRevision = $state(0);
-  const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
-
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
 
   onDestroy(() => {
-    privacyGeneration += 1;
-    snapshotGeneration += 1;
     pendingMemberRevalidation = null;
-    removeCacheRemovalListener();
   });
 
-  type RoomMutationScope = {
-    serverId: string;
-    connection: ServerConnection;
+  type RoomMutationScope = SessionSnapshot & {
     roomId: string;
     queryKey: ReturnType<typeof adminQueryKeys.room>;
     api: ReturnType<typeof createRoomCommandAPI>;
-    privacyGeneration: number;
     snapshotGeneration: number;
     input: ReturnType<typeof buildRoomSettingsUpdate>;
   };
@@ -96,7 +86,6 @@
           }
           return room;
         },
-        enabled: supportsAdminAPI,
         refetchOnMount: 'always' as const
       };
     },
@@ -106,34 +95,24 @@
   const room = $derived(roomQuery.data ?? null);
   const canManageRoom = $derived(room?.canManageRoom ?? false);
   const canManagePermissions = $derived(room?.canManagePermissions ?? false);
-  const supportsMemberManagement = $derived(
-    serverScope.store.serverInfo.supportsFeature('roomManagement')
-  );
   const backHref = $derived(
     serverScope.store.permissions.canManageRooms
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })
   );
-  const loading = $derived(supportsAdminAPI && roomQuery.isPending);
+  const loading = $derived(roomQuery.isPending);
   const classifiedLoadError = $derived(
     roomQuery.error ? classifyManagementLoadError(roomQuery.error) : null
   );
   const accessDenied = $derived(
-    !supportsAdminAPI || classifiedLoadError?.kind === 'access-denied' || (!loading && !room)
+    classifiedLoadError?.kind === 'access-denied' || (!loading && !room)
   );
   const loadFailure = $derived(
     classifiedLoadError?.kind === 'failure' ? classifiedLoadError.message : null
   );
 
   function isCurrentRoom(variables: RoomMutationScope | undefined): boolean {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === activeServerId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.roomId === roomId &&
-      variables.privacyGeneration === privacyGeneration
-    );
+    return session.isCurrent(variables) && variables.roomId === roomId;
   }
 
   function canApplyRoomSnapshot(variables: RoomMutationScope): boolean {
@@ -177,7 +156,7 @@
         if (!isCurrentRoom(variables)) return;
         toast.error(
           m('admin.rooms_admin.update_room_failed', {
-            error: error instanceof Error ? error.message : String(error)
+            error: errorMessage(error)
           })
         );
       }
@@ -187,14 +166,12 @@
 
   function saveGeneralSettings(input: ReturnType<typeof buildRoomSettingsUpdate>): void {
     if (!canManageRoom || updateRoomMutation.isPending) return;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     updateRoomMutation.mutate({
-      serverId: activeServerId,
-      connection,
+      ...snapshot,
       roomId,
-      queryKey: adminQueryKeys.room(activeServerId, connection, roomId),
-      api: connection.getAPI(createRoomCommandAPI),
-      privacyGeneration,
+      queryKey: adminQueryKeys.room(snapshot.serverId, snapshot.connection, roomId),
+      api: snapshot.connection.getAPI(createRoomCommandAPI),
       snapshotGeneration,
       input
     });
@@ -208,13 +185,13 @@
         return;
       }
       snapshotGeneration += 1;
-      privacyGeneration += 1;
+      session.invalidate();
       purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
       return;
     }
     if (event.event?.event.case === 'roomDeleted' && event.event.event.value.roomId === roomId) {
       snapshotGeneration += 1;
-      privacyGeneration += 1;
+      session.invalidate();
       pendingMemberRevalidation = {
         serverId: activeServerId,
         queryScope: serverScope.connection.queryScope,
@@ -267,10 +244,9 @@
           {/key}
         {/if}
 
-        {#if room && supportsMemberManagement}
+        {#if room}
           {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
             <RoomMembersPanel
-              serverId={activeServerId}
               {roomId}
               roomName={room.name}
               isUniversal={room.isUniversal}

@@ -346,6 +346,53 @@ export class RoomPage {
   }
 
   /**
+   * Assert that exactly one unread separator is in the room or thread
+   * timeline, that the row directly after it is the message that contains
+   * `firstUnreadText`, and that the message that contains `lastReadText` is
+   * above it. System rows, such as joins, count as rows. Rows are ordered by
+   * their rendered position, so the check does not depend on the DOM order of
+   * the virtualized list. All of these rows must be rendered.
+   */
+  async expectUnreadSeparatorBetween(
+    lastReadText: string,
+    firstUnreadText: string,
+    options?: { timeline?: 'room' | 'thread'; timeout?: number }
+  ): Promise<void> {
+    const container =
+      options?.timeline === 'thread'
+        ? this.threadPane.getByTestId('messages-container')
+        : this.page.locator(
+            '[data-testid="messages-container"]:not([data-testid="thread-pane"] *)'
+          );
+    await expect(async () => {
+      const rows = await container.evaluate((root) =>
+        Array.from(
+          root.querySelectorAll(
+            '[data-testid="unread-separator"], [data-testid="system-event-group"], [role="article"]'
+          )
+        )
+          .map((element) => ({
+            top: element.getBoundingClientRect().top,
+            label: element.matches('[data-testid="unread-separator"]')
+              ? '<separator>'
+              : (element.textContent ?? '')
+          }))
+          .sort((a, b) => a.top - b.top)
+          .map((row) => row.label)
+      );
+      expect(rows.filter((row) => row === '<separator>')).toHaveLength(1);
+      const index = rows.indexOf('<separator>');
+      expect(rows[index + 1] ?? '').toContain(firstUnreadText);
+      const lastReadIndex = rows.findIndex((row) => row.includes(lastReadText));
+      expect(lastReadIndex).toBeGreaterThanOrEqual(0);
+      expect(lastReadIndex).toBeLessThan(index);
+    }).toPass({
+      timeout: options?.timeout ?? TIMEOUTS.REALTIME_EVENT,
+      intervals: [100, 250, 500, 1000]
+    });
+  }
+
+  /**
    * Assert that the "New messages" unread separator is NOT visible.
    */
   async expectNoUnreadSeparator(): Promise<void> {
@@ -468,6 +515,9 @@ export class RoomPage {
   /**
    * Get all member display names in the order they appear in the list.
    * Returns an array of display name strings.
+   *
+   * The member list is virtualized, so this reads only mounted rows. Use it for
+   * rooms whose members fit in the visible part of the list.
    */
   async getMemberDisplayNamesInOrder(): Promise<string[]> {
     await this.openMembersPanel();

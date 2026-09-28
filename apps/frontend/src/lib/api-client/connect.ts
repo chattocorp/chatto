@@ -40,6 +40,15 @@ export class StaleResponseError extends ConnectError {
   constructor(readonly mutationSucceeded: boolean) {
     super('Response discarded after a permission reset', Code.Canceled);
   }
+
+  /**
+   * `ConnectError` accepts any error that looks like a `ConnectError`, and a
+   * subclass inherits that check. Restore the normal prototype check, so that
+   * `instanceof StaleResponseError` does not match every `ConnectError`.
+   */
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return Function.prototype[Symbol.hasInstance].call(StaleResponseError, value);
+  }
 }
 
 /** Fence reads and mutation results, including responses from uncancellable requests. */

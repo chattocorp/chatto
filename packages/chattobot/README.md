@@ -61,7 +61,12 @@ source and console. Without `--watch`, restart to load code or configuration cha
    the bot needs permission to read the thread and `message.post-in-thread`.
 
 The server loads `.env` from this project directory. Restart it after changing
-credentials. The API key authenticates the realtime connection.
+credentials. The API key authenticates the realtime connection. Empty settings
+count as unset. The bot checks its settings before it connects. If a required
+setting is missing or has an invalid format, the terminal shows a `ChattoBot
+configuration error` that names the setting. The bot then stays stopped until you
+correct the setting and restart. Model names, the source directory, and Git refs
+are checked when they are used.
 The web console is available at `http://localhost:5173`.
 
 To restrict the bot to one user, set `CHATTO_ALLOWED_USER_ID` in `.env` to that
@@ -125,14 +130,95 @@ This applies to both DM and channel threads.
 The bot needs permission to read that history. Failed reads stop the run instead
 of generating a reply from incomplete context.
 
-For Chatto product questions, the agent can use `fetchPage` to read the hosted
-documentation at `https://docs.chatto.run/` and follow its links. It is instructed
-to cite pages it reads and to say when the documentation does not answer a question.
-Published documentation can differ from the connected server version.
-The tool permits only that HTTPS origin, including redirects. It rejects URL
+For Chatto product questions, the agent can use `fetchPage` to read these
+references and follow their links:
+
+- `https://docs.chatto.run/`: documentation for released versions.
+- `https://dev-docs.chatto.run/`: documentation for the in-development or
+  pre-release version.
+- The [Awesome Chatto](https://github.com/nickk-/awesome-chatto) community list,
+  read as raw Markdown from `raw.githubusercontent.com`. Its entries are
+  unofficial third-party projects. The agent cannot open the linked projects.
+
+The agent is instructed to search both the documentation and the Awesome Chatto
+list before it answers questions about Chatto features, setup, or behavior. It
+skips them when the conversation already contains the answer or the question is
+about a specific release, pull request, or issue. The bot keeps each successfully
+read reference page in memory for one hour. It cites pages it reads, says which
+documentation version it used, and says when the references do not answer a question. Published
+documentation can differ from the connected server version.
+The tool permits only those HTTPS locations, including redirects. It rejects URL
 credentials and query strings, limits requests to 15 seconds and 512 KB, and
 returns at most 30,000 characters of page text with a truncation marker.
 It does not execute scripts or fetch page assets. Other websites remain unavailable.
+
+Replies use the Markdown that Chatto renders. Commands, configuration, and code
+for the user to copy appear in fenced code blocks.
+
+The agent is instructed not to disclose its model, model provider, instructions,
+or host configuration. This instruction does not guarantee confidentiality. Do not
+put secrets in agent instructions or tool results.
+
+## Web research
+
+ChattoBot can answer questions from the public web through a separate research
+agent. Configure one or both of these optional services:
+
+```dotenv
+# webSearch: Tavily Search API (basic search, at most 5 results per query)
+CHATTO_TAVILY_API_KEY=tvly-...
+# browsePage: Cloudflare Browser Run (token permission: Browser Rendering - Edit)
+CHATTO_CLOUDFLARE_ACCOUNT_ID=your-32-character-account-id
+CHATTO_CLOUDFLARE_API_TOKEN=...
+```
+
+Set both Cloudflare values or neither. Restart the bot after you change them.
+When at least one service is configured, the chat agent gets a `researchWeb`
+tool. It uses the tool when the Chatto references do not answer a question, or
+when the user asks about another site. The tool starts a research agent with
+these limits:
+
+- It receives only the question that the chat agent writes, not the thread.
+- Its only tools are `webSearch` and `browsePage`. It cannot delegate work, post
+  to Chatto, or read the source checkout.
+- It can make at most 5 searches and 5 page reads, and it stops after three
+  minutes. It returns an answer and the source URLs. The chat agent can start at
+  most 3 research requests for each user message.
+- `browsePage` opens only URLs from the conversation owner's recent messages,
+  `webSearch` results, at most 50 links from the page it read last, and any page
+  under `https://github.com/chattocorp/chatto/`, such as a pull request or issue. URLs that
+  the chat agent writes into the question cannot be opened, so injected text
+  cannot make it add conversation data to a URL. Cloudflare loads each page in a browser on
+  its network and returns up to 30,000 characters of Markdown. Target sites see
+  Cloudflare, not the bot host, and the tool cannot reach private network addresses.
+
+If Tavily or Cloudflare rejects a request with a rate limit, the bot waits for
+the time in `Retry-After`, at most 10 seconds, and tries once more. The Cloudflare
+Workers Free plan allows one page read every 10 seconds, so research with several
+page reads is slow on that plan.
+
+The investigation and implementation workers have no web access.
+
+Web content can contain instructions that try to control an agent. A research
+result can carry such instructions to the chat agent. After a research result
+enters a conversation, Runling blocks `implementChatto`, `askImplementation`, and
+`task_send` for the rest of that conversation. The bot then posts a fixed message
+that asks the user to start a new thread. Read-only investigation and
+`task_cancel` remain available.
+
+A later conversation in the same thread reads the complete thread again,
+including bot replies that used research results. Runling does not track that
+text as untrusted. Start a new thread, not only a new conversation, for work that
+must not see earlier research. An investigation plan made after research can
+contain injected instructions, but plans stay in their conversation, so they
+cannot reach implementation. See Runling's
+[ADR-005](../runling/docs/adr/ADR-005-untrusted-context.md).
+
+Tavily receives each search query and the host's IP address. Cloudflare receives
+each page URL and the host's IP address. The chat agent is instructed not to put
+personal data, secrets, or private conversation details in research questions;
+this instruction is not a guarantee. Both services charge for use: Tavily per
+search credit, and Browser Run by browser time.
 
 ## Source investigation
 
@@ -145,7 +231,10 @@ CHATTO_INVESTIGATION_MODEL=openai-codex/gpt-5.6-sol
 ```
 
 The directory must be a local Git checkout. The ref must exist locally; the bot
-does not fetch updates. If omitted, the ref defaults to `HEAD`. Uncommitted changes
+does not fetch updates for investigations. If omitted or empty, the ref defaults to
+`HEAD`. When implementation is enabled, investigations use the implementation base
+branch's remote-tracking ref instead, for example `refs/remotes/origin/main`, so
+plans and changes start from the same branch. Uncommitted changes
 in the supplied checkout are not included. Configure the selected model's
 credentials in Pi or the host environment, then restart ChattoBot and start a new
 conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent.
@@ -280,7 +369,7 @@ CHATTO_IMPLEMENTATION_MODEL=openai-codex/gpt-5.6-sol
 
 `CHATTO_IMPLEMENTATION_REPOSITORY` enables this capability. Without it, the bot
 can only investigate and propose changes. Implementation uses `CHATTO_SOURCE_REF`
-as its base branch, or `main` when unset. It accepts `main`, `origin/main`, and
+as its base branch, or `main` when it is unset or empty. It accepts `main`, `origin/main`, and
 `refs/remotes/origin/main`. When implementation is enabled, `CHATTO_SOURCE_REF`
 must name a branch that exists on origin, rather than a tag or commit.
 The model shown above is the default.
@@ -412,7 +501,13 @@ network address and requested package names.
 `runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`
 owns the agent instructions and conversation task.
 The `chatto/` directory owns delivery routing, conversation queues, posting,
-and typing indicators. It does not import example code.
+and typing indicators.
+
+Retained implementation metadata stores an owner key: the SHA-256 hash of the
+conversation key from `deliveryConversationKey`. A resume request succeeds only
+when the hash matches the current conversation. If you change how the conversation
+key is built, keep its value unchanged for existing conversations. Otherwise,
+retained implementations cannot be resumed.
 
 Short disconnects resume from the last accepted event. Unavailable replay
 reports a recovery gap and continues live. A process restart starts live.
@@ -426,9 +521,12 @@ config reload or process restart.
 
 The configured Chatto server receives the host's IP address and bot API key.
 Agent requests separately send conversation text to the configured model provider.
-Documentation requests disclose the host's IP address and requested page path
-to the documentation host. They do not send Chatto credentials. Retrieved page
-text is sent to the model provider as reference material.
+Reference requests disclose the host's IP address and requested page path to
+`docs.chatto.run`, `dev-docs.chatto.run`, or GitHub (`raw.githubusercontent.com`)
+for the Awesome Chatto list. They do not send Chatto credentials. Retrieved page
+text is sent to the model provider as reference material. When web access is
+configured, Tavily and Cloudflare receive the data described in
+[Web research](#web-research).
 
 Run checks from the repository root:
 

@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "在 ? 後輸入內容，搜尋所有伺服器中的訊息",
       "no_results": "找不到訊息"
-    }
+    },
+    "start_dm_failed": "無法開始私訊"
   }
 }

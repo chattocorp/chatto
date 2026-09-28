@@ -18,6 +18,8 @@ When a user is reading older messages in a room — either because they scrolled
 - The button auto-dismisses when the user is back near the bottom (within ~50px). In jumped mode, it also dismisses if the user has scrolled all the way to the bottom and all newer messages have loaded.
 - The button fades in and out smoothly to avoid flicker.
 - When the user opens a room or a thread with unread messages, the timeline shows the "New messages" separator at the top of the viewport. The button then shows, because the user is not at the latest messages. If all unread messages fit in the viewport, the timeline stays at the latest message. If the user opens the room or thread at a specific message, for example from a link, a search result, or a notification, the timeline shows that message instead.
+- The "New messages" separator sits above the first message from another user after the read position. System rows, such as joins, and the user's own messages do not start it.
+- When a message from another user arrives while the open room or thread is not in focus, the "New messages" separator appears above it at once. Later messages keep the separator in place. When the user returns, the read state from the server sets the separator again. When the user returns, the timeline scrolls to this separator as decision 6 describes.
 
 ## Design Decisions
 
@@ -53,9 +55,9 @@ When a user is reading older messages in a room — either because they scrolled
 
 ### 6. Open a room or thread at the first unread message
 
-**Decision:** When the user opens a room or a thread, the timeline scrolls to the "New messages" separator when the separator first appears. This occurs one time for each entry. Opening a different thread is a new entry. A scroll, a jump to a message, a posted message, or a click on the button before the separator appears cancels it. An entry that targets a specific message does not scroll to the separator, also when the target message cannot be shown.
+**Decision:** When the user opens a room or a thread, the timeline scrolls to the "New messages" separator when the separator first appears. This occurs one time for each entry. Opening a different thread is a new entry. A scroll, a jump to a message, a posted message, or a click on the button before the separator appears cancels it. An entry that targets a specific message does not scroll to the separator, also when the target message cannot be shown. A separator that appears while the user is away waits until the user returns. Until then, the timeline follows the latest message.
 **Why:** The user opens an unread room or thread to read the new messages, not only the latest one. A specific target message is a more precise request than the separator. The separator already marks the first unread message, so the timeline uses it as the landing position.
-**Tradeoff:** The separator position comes from the response to the entry read request. The timeline can show the latest messages for a short time and then move to the separator. The user's own action always has priority over this automatic movement. A separator that appears later, for example when the app returns to the foreground, does not move the timeline.
+**Tradeoff:** The separator position comes from the response to the entry read request. The timeline can show the latest messages for a short time and then move to the separator. The user's own action always has priority over this automatic movement. A separator that appears after this one-time scroll ran or was cancelled does not move the timeline.
 
 ## Related
 

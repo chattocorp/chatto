@@ -225,7 +225,9 @@
       "in_voice_call": "In einem Sprachanruf",
       "in_video_call": "In einem Videoanruf",
       "remove_failed": "Benutzer konnte nicht aus dem Raum entfernt werden",
-      "remove_success": "{name} wurde aus dem Raum entfernt"
+      "remove_success": "{name} wurde aus dem Raum entfernt",
+      "members_load_failed": "Raummitglieder konnten nicht geladen werden",
+      "members_refresh_failed": "Raummitglieder konnten nicht aktualisiert werden"
     },
     "pins": {
       "show": "Angepinnte Nachrichten anzeigen",

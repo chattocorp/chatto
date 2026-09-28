@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestServerScope, serverScopeModule } from './serverScope.svelte';
 
 describe('createTestServerScope', () => {
-  it('provides a loaded viewer, permissions, and every feature by default', () => {
+  it('provides a loaded viewer, permissions, and a supported version by default', () => {
     const { scope } = createTestServerScope();
 
     expect(scope.serverId).toBe('server-1');
@@ -12,7 +12,7 @@ describe('createTestServerScope', () => {
     expect(scope.store.isAuthenticated).toBe(true);
     expect(scope.store.permissions.loaded).toBe(true);
     expect(scope.store.permissions.canManageServer).toBe(false);
-    expect(scope.store.serverInfo.supportsFeature('botAccounts')).toBe(true);
+    expect(scope.store.serverInfo.isSupportedVersion).toBe(true);
     expect(scope.isCurrent()).toBe(true);
   });
 
@@ -21,14 +21,13 @@ describe('createTestServerScope', () => {
       serverId: 'server-2',
       viewer: null,
       permissions: { canManageBots: true },
-      features: { botAccounts: false }
+      isSupportedVersion: false
     });
     const { scope } = server;
 
     expect(scope.store.accountId).toBeNull();
     expect(scope.store.permissions.canManageBots).toBe(true);
-    expect(scope.store.serverInfo.supportsFeature('botAccounts')).toBe(false);
-    expect(scope.store.serverInfo.supportsFeature('userAvatars')).toBe(true);
+    expect(scope.store.serverInfo.isSupportedVersion).toBe(false);
 
     server.permissions.canManageBots = false;
     server.current = false;
@@ -73,24 +72,24 @@ describe('createTestServerScope', () => {
     expect((scope.store.navigation as unknown as { rooms: string[] }).rooms).toEqual(['R2']);
   });
 
-  it('adds server info members and keeps feature checks on the fixture', () => {
+  it('adds server info members and keeps the version check on the fixture', () => {
     let livekitUrl: string | null = null;
     const server = createTestServerScope({
-      features: false,
+      isSupportedVersion: false,
       serverInfo: {
         get livekitUrl() {
           return livekitUrl;
         },
-        supportsFeature: () => true
+        isSupportedVersion: true
       }
     });
     const { serverInfo } = server.scope.store;
     livekitUrl = 'wss://livekit.example.test';
 
     expect(serverInfo.livekitUrl).toBe('wss://livekit.example.test');
-    expect(serverInfo.supportsFeature('messageSearch')).toBe(false);
-    server.features = { messageSearch: true };
-    expect(serverInfo.supportsFeature('messageSearch')).toBe(true);
+    expect(serverInfo.isSupportedVersion).toBe(false);
+    server.isSupportedVersion = true;
+    expect(serverInfo.isSupportedVersion).toBe(true);
   });
 
   it('gives each server its own store', () => {

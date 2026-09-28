@@ -1,3 +1,4 @@
+import { errorMessage } from '$lib/utils/errorMessage';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { ServerPresence } from '$lib/state/server/presence.svelte';
 import { createContext } from 'svelte';
@@ -14,13 +15,12 @@ import type { ServerConnection } from '$lib/state/server/serverConnection.svelte
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 import { getUserStore, type UserStore } from '$lib/state/server/users.svelte';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { m } from '$lib/i18n/messages';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
 
-/**
- * Room member data for the current room.
- */
+/** A member of a room. */
 export type RoomMember = {
   id: string;
   login: string;
@@ -53,24 +53,44 @@ function pageIds(page: MemberDirectoryPage): string[] {
   return page.memberIds ?? page.members.map((member) => member.id);
 }
 
+/** Optional collaborators of a {@link RoomMembersStore}. */
+export type RoomMembersStoreOptions = {
+  /** The server's presence owner, which receives fresh presence from preview reads. */
+  presence?: ServerPresence | null;
+  /**
+   * The complete member IDs of the room from the realtime projection, or null
+   * when the projection does not have them. Today only direct messages have them.
+   */
+  projectedMemberIds?: () => readonly string[] | null;
+};
+
 /**
- * Room member store for the current room.
+ * The members of one room.
  *
  * The store publishes the first paginated Connect response immediately, then fills `members` with
  * the remaining pages in the background. `hasFirstPage` marks interactive readiness while
  * `hasLoadedAll` marks complete membership IDs; profile resolution can finish later.
  * Searches use a separate cache until their matching directory page enters canonical order.
+ * When the realtime projection has the complete membership, the store shows that membership and
+ * its loading state is complete.
  */
 export class RoomMembersStore {
+  readonly #projectedMemberIds: () => readonly string[] | null;
+  /**
+   * The complete membership from the realtime projection, or null when the
+   * projection has none for this room. While it is set, it replaces the
+   * membership that this store reads from the server.
+   */
+  readonly #projected = $derived.by(() => this.#projectedMemberIds());
   #memberIds = $state.raw<string[]>([]);
   readonly #standaloneProfiles = new SvelteMap<string, StandaloneProfile>();
   readonly #users?: UserStore;
-  readonly #resolvedMembers = $derived(this.resolveIds(this.#memberIds));
+  readonly #resolvedMembers = $derived(this.resolveIds(this.#projected ?? this.#memberIds));
   /** Membership retains IDs. Connected rooms read current profiles from the shared owner. */
   get members(): RoomMember[] {
     return this.#resolvedMembers;
   }
-  /** Accept projection or standalone fixture rows while retaining only membership IDs. */
+  /** Set the members of a standalone fixture store. A projected membership still wins. */
   set members(members: RoomMember[]) {
     this.#memberIds = members.map((member) => member.id);
     if (!this.#users) {
@@ -80,17 +100,43 @@ export class RoomMembersStore {
       }
     }
   }
-  totalCount = $state(0);
-  hasFirstPage = $state(false);
-  hasLoadedAll = $state(false);
-  isInitialLoading = $state(false);
-  isBackgroundLoading = $state(false);
-  loadError = $state<string | null>(null);
+  #totalCount = $state(0);
+  #hasFirstPage = $state(false);
+  #hasLoadedAll = $state(false);
+  #isInitialLoading = $state(false);
+  #isBackgroundLoading = $state(false);
+  #loadError = $state<string | null>(null);
   searchInput = $state('');
   activeSearch = $state('');
 
+  /** The number of members, including members whose profiles did not load yet. */
+  get totalCount(): number {
+    return this.#projected?.length ?? this.#totalCount;
+  }
+  /** Whether some members are known, so that the list can show them. */
+  get hasFirstPage(): boolean {
+    return this.#projected !== null || this.#hasFirstPage;
+  }
+  /** Whether all member IDs are known. Profiles can still load later. */
+  get hasLoadedAll(): boolean {
+    return this.#projected !== null || this.#hasLoadedAll;
+  }
+  // While the projection has the membership, nothing loads and no load error shows.
+  /** Whether the first read is in progress and no member is known yet. */
+  get isInitialLoading(): boolean {
+    return this.#projected === null && this.#isInitialLoading;
+  }
+  /** Whether more pages load after the first one. */
+  get isBackgroundLoading(): boolean {
+    return this.#projected === null && this.#isBackgroundLoading;
+  }
+  /** The message of the last failed read, or null. */
+  get loadError(): string | null {
+    return this.#projected === null ? this.#loadError : null;
+  }
+
   private readonly api: MemberDirectoryAPI | null;
-  private roomId = '';
+  private readonly roomId: string;
   #loadId = 0;
   #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
   #membershipChanges = new SvelteMap<string, boolean>();
@@ -102,10 +148,13 @@ export class RoomMembersStore {
   readonly #presence: ServerPresence | null;
 
   constructor(
+    roomId: string,
     source?: ServerConnection | MemberDirectoryAPI | null,
-    presence: ServerPresence | null = null
+    options: RoomMembersStoreOptions = {}
   ) {
-    this.#presence = presence;
+    this.roomId = roomId;
+    this.#presence = options.presence ?? null;
+    this.#projectedMemberIds = options.projectedMemberIds ?? (() => null);
     if (!source) {
       this.api = null;
     } else if ('listRoomMembers' in source) {
@@ -114,12 +163,6 @@ export class RoomMembersStore {
       this.api = source.getAPI(createMemberDirectoryAPI);
       if (source.serverId) this.#users = getUserStore(source.serverId, source.queryScope);
     }
-  }
-
-  setRoom(roomId: string): void {
-    if (this.roomId === roomId) return;
-    this.roomId = roomId;
-    this.reset();
   }
 
   get filteredMembers(): RoomMember[] {
@@ -132,7 +175,7 @@ export class RoomMembersStore {
   }
 
   /** Resolve current profiles without adding empty rows for pending identities. */
-  private resolveIds(ids: string[]): RoomMember[] {
+  private resolveIds(ids: readonly string[]): RoomMember[] {
     return ids.flatMap((id) => this.resolveProfile(id) ?? []);
   }
 
@@ -165,11 +208,6 @@ export class RoomMembersStore {
     }
   }
 
-  /** Compatibility alias for consumers that only care whether hydration is complete. */
-  get hasLoaded(): boolean {
-    return this.hasLoadedAll;
-  }
-
   ensureLoaded(): void {
     if (
       !this.roomId ||
@@ -180,31 +218,6 @@ export class RoomMembersStore {
     )
       return;
     void this.loadInitial();
-  }
-
-  /** Keep membership explicitly pending until the projection materializes it. */
-  awaitProjection(roomId: string): void {
-    if (this.roomId === roomId && this.isInitialLoading && !this.hasFirstPage) return;
-    if (this.roomId !== roomId) this.roomId = roomId;
-    this.reset();
-    this.isInitialLoading = true;
-  }
-
-  /** Replace membership IDs from the canonical server projection. Profiles may arrive later. */
-  replaceProjection(roomId: string, memberIds: readonly string[]): void {
-    if (this.roomId !== roomId) {
-      this.roomId = roomId;
-      this.reset();
-    }
-    this.#loadId++;
-    this.#memberIds = [...memberIds];
-    this.totalCount = memberIds.length;
-    this.hasFirstPage = true;
-    this.hasLoadedAll = true;
-    this.isInitialLoading = false;
-    this.isBackgroundLoading = false;
-    this.loadError = null;
-    this.#searchCache.clear();
   }
 
   async setSearch(search: string): Promise<void> {
@@ -218,26 +231,27 @@ export class RoomMembersStore {
   }
 
   async loadInitial(): Promise<void> {
-    if (!this.roomId || !this.api) return;
+    // The projection has the complete membership, so a server read adds nothing.
+    if (!this.roomId || !this.api || this.#projected !== null) return;
     const loadId = ++this.#loadId;
-    this.isInitialLoading = true;
+    this.#isInitialLoading = true;
     this.#fullScanFinished = false;
     this.#previewIds.clear();
-    this.isBackgroundLoading = false;
-    this.loadError = null;
+    this.#isBackgroundLoading = false;
+    this.#loadError = null;
     this.loadOnlinePreview(loadId);
     try {
       await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.loadError = error instanceof Error ? error.message : 'Failed to load room members';
+        this.#loadError = errorMessage(error, m('room.sidebar.members_load_failed'));
         console.error('Failed to load room members:', error);
       }
     } finally {
       if (loadId === this.#loadId) {
         this.#fullScanFinished = true;
-        this.isInitialLoading = false;
-        this.isBackgroundLoading = false;
+        this.#isInitialLoading = false;
+        this.#isBackgroundLoading = false;
       }
     }
   }
@@ -250,22 +264,22 @@ export class RoomMembersStore {
     reauthorize?: boolean;
     minimumCursor?: string;
   } = {}): Promise<void> {
-    if (!this.roomId || !this.api) return;
+    if (!this.roomId || !this.api || this.#projected !== null) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
-    this.isInitialLoading = !this.hasFirstPage;
+    this.#isInitialLoading = !this.#hasFirstPage;
     this.#fullScanFinished = false;
     this.#previewIds.clear();
-    this.isBackgroundLoading = this.hasFirstPage;
-    this.hasLoadedAll = false;
-    this.loadError = null;
+    this.#isBackgroundLoading = this.#hasFirstPage;
+    this.#hasLoadedAll = false;
+    this.#loadError = null;
     this.#searchCache.clear();
-    if (!this.hasFirstPage) this.loadOnlinePreview(loadId);
+    if (!this.#hasFirstPage) this.loadOnlinePreview(loadId);
     try {
-      await this.loadPages(loadId, this.hasFirstPage);
+      await this.loadPages(loadId, this.#hasFirstPage);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
+        this.#loadError = errorMessage(error, m('room.sidebar.members_refresh_failed'));
         if (
           reauthorize ||
           isConnectCode(error, Code.PermissionDenied) ||
@@ -273,7 +287,7 @@ export class RoomMembersStore {
         ) {
           this.#memberIds = [];
           this.#standaloneProfiles.clear();
-          this.totalCount = 0;
+          this.#totalCount = 0;
           this.#searchCache.clear();
         }
         console.error('Failed to refresh room members:', error);
@@ -281,8 +295,8 @@ export class RoomMembersStore {
     } finally {
       if (loadId === this.#loadId) {
         this.#fullScanFinished = true;
-        this.isInitialLoading = false;
-        this.isBackgroundLoading = false;
+        this.#isInitialLoading = false;
+        this.#isBackgroundLoading = false;
       }
     }
   }
@@ -293,7 +307,6 @@ export class RoomMembersStore {
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
 
-    const roomId = this.roomId;
     const loadId = this.#loadId;
     const cached = this.#searchCache.get(normalizedSearch.toLowerCase());
     if (cached && (cached.complete || cached.ids.length >= limit)) {
@@ -306,7 +319,7 @@ export class RoomMembersStore {
       console.error('Failed to search room members:', error);
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
-    if (roomId !== this.roomId || loadId !== this.#loadId) return [];
+    if (loadId !== this.#loadId) return [];
     this.recordPageProfiles(page.members);
     const ids = pageIds(page);
     this.#searchCache.set(normalizedSearch.toLowerCase(), {
@@ -331,12 +344,7 @@ export class RoomMembersStore {
         console.error('Failed to search room members:', error);
         return;
       }
-      if (
-        loadId !== this.#loadId ||
-        query !== this.activeSearch.trim().toLowerCase() ||
-        !this.roomId
-      )
-        return;
+      if (loadId !== this.#loadId || query !== this.activeSearch.trim().toLowerCase()) return;
 
       this.recordPageProfiles(page.members);
       const pageMemberIds = pageIds(page);
@@ -358,11 +366,11 @@ export class RoomMembersStore {
         fromRealtime: true
       });
     }
-    if (this.hasLoadedAll) {
+    if (this.#hasLoadedAll) {
       for (const user of users) {
         if (this.#membershipChanges.get(user.id) && !this.#memberIds.includes(user.id)) {
           this.#memberIds = [...this.#memberIds, user.id];
-          this.totalCount++;
+          this.#totalCount++;
         }
       }
     }
@@ -376,21 +384,21 @@ export class RoomMembersStore {
     this.#membershipChanges.set(userId, joined);
     if (!joined && !this.#users) this.#standaloneProfiles.delete(userId);
     this.#searchCache.clear();
-    if (this.isInitialLoading || this.isBackgroundLoading) {
+    if (this.#isInitialLoading || this.#isBackgroundLoading) {
       await this.refresh();
       return;
     }
     const exists = this.#memberIds.includes(userId);
     if (!joined) {
       this.#memberIds = this.#memberIds.filter((id) => id !== userId);
-      if (exists) this.totalCount = Math.max(0, this.totalCount - 1);
+      if (exists) this.#totalCount = Math.max(0, this.#totalCount - 1);
       return;
     }
-    if (exists || !this.hasFirstPage) return;
+    if (exists || !this.#hasFirstPage) return;
     if (this.#users) {
       // Realtime owns profile hydration. Membership can publish its ID now.
       this.#memberIds = [...this.#memberIds, userId];
-      this.totalCount++;
+      this.#totalCount++;
       return;
     }
     const loadId = this.#loadId;
@@ -407,7 +415,7 @@ export class RoomMembersStore {
     if (user && !this.#memberIds.includes(userId)) {
       this.recordPageProfiles([user]);
       this.#memberIds = [...this.#memberIds, userId];
-      this.totalCount++;
+      this.#totalCount++;
     }
   }
 
@@ -432,7 +440,7 @@ export class RoomMembersStore {
     if (!this.api) return;
     let offset = 0;
     try {
-      while (loadId === this.#loadId && !this.hasLoadedAll && !this.#fullScanFinished) {
+      while (loadId === this.#loadId && !this.#hasLoadedAll && !this.#fullScanFinished) {
         const presenceVersion = this.#presence?.version ?? 0;
         const page = await this.api.listOnlineRoomMembers(
           this.roomId,
@@ -441,7 +449,7 @@ export class RoomMembersStore {
           offset,
           this.#minimumCursor ? { minimumCursor: this.#minimumCursor } : {}
         );
-        if (loadId !== this.#loadId || this.hasLoadedAll || this.#fullScanFinished) return;
+        if (loadId !== this.#loadId || this.#hasLoadedAll || this.#fullScanFinished) return;
         this.recordPageProfiles(page.members);
         const ids = pageIds(page);
         // The filter gives fresh presence even when the profile came from cache.
@@ -452,10 +460,10 @@ export class RoomMembersStore {
         }
         this.#memberIds = appendPageIds(this.#memberIds, ids);
         if (ids.length > 0) {
-          this.hasFirstPage = true;
-          this.isInitialLoading = false;
-          this.isBackgroundLoading = true;
-          this.totalCount = Math.max(this.totalCount, this.#memberIds.length);
+          this.#hasFirstPage = true;
+          this.#isInitialLoading = false;
+          this.#isBackgroundLoading = true;
+          this.#totalCount = Math.max(this.#totalCount, this.#memberIds.length);
         }
         const consumed = page.consumedCount ?? ids.length;
         if (!page.hasMore || consumed === 0) return;
@@ -471,7 +479,7 @@ export class RoomMembersStore {
     let hasMore = true;
     let firstPage = true;
     let fullIds: string[] = [];
-    let totalCount = this.totalCount;
+    let totalCount = this.#totalCount;
 
     while (hasMore) {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
@@ -486,17 +494,17 @@ export class RoomMembersStore {
           ids
         );
       totalCount = page.totalCount;
-      if (!retainUntilComplete) this.totalCount = totalCount;
+      if (!retainUntilComplete) this.#totalCount = totalCount;
       hasMore = page.hasMore;
       const consumed = page.consumedCount ?? ids.length;
       nextOffset += consumed;
 
       if (firstPage) {
         firstPage = false;
-        this.hasFirstPage = true;
-        if (!retainUntilComplete) this.hasLoadedAll = !hasMore;
-        this.isInitialLoading = false;
-        this.isBackgroundLoading = hasMore;
+        this.#hasFirstPage = true;
+        if (!retainUntilComplete) this.#hasLoadedAll = !hasMore;
+        this.#isInitialLoading = false;
+        this.#isBackgroundLoading = hasMore;
       }
 
       if (consumed === 0) break;
@@ -504,9 +512,9 @@ export class RoomMembersStore {
 
     if (loadId === this.#loadId) {
       this.#memberIds = fullIds;
-      this.totalCount = totalCount;
-      this.hasLoadedAll = true;
-      this.isBackgroundLoading = false;
+      this.#totalCount = totalCount;
+      this.#hasLoadedAll = true;
+      this.#isBackgroundLoading = false;
     }
   }
 
@@ -536,12 +544,12 @@ export class RoomMembersStore {
     this.#loadId++;
     this.#memberIds = [];
     this.#standaloneProfiles.clear();
-    this.totalCount = 0;
-    this.hasFirstPage = false;
-    this.hasLoadedAll = false;
-    this.isInitialLoading = false;
-    this.isBackgroundLoading = false;
-    this.loadError = null;
+    this.#totalCount = 0;
+    this.#hasFirstPage = false;
+    this.#hasLoadedAll = false;
+    this.#isInitialLoading = false;
+    this.#isBackgroundLoading = false;
+    this.#loadError = null;
     this.searchInput = '';
     this.activeSearch = '';
     this.#searchCache.clear();
@@ -567,8 +575,9 @@ export function setRoomMembersStore<T extends RoomMembersStore | (() => RoomMemb
   return store;
 }
 
-export function createRoomMembers(serverConnection?: ServerConnection): RoomMembersStore {
-  return setRoomMembersStore(new RoomMembersStore(serverConnection));
+/** Provide a standalone member store without a room or a server, for fixtures. */
+export function createRoomMembers(): RoomMembersStore {
+  return setRoomMembersStore(new RoomMembersStore(''));
 }
 
 export function getRoomMembersStore(): RoomMembersStore {

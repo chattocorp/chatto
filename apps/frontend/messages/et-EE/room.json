@@ -225,7 +225,9 @@
       "in_voice_call": "Häälkõnes",
       "in_video_call": "Videokõnes",
       "remove_failed": "Kasutajat ei õnnestunud toast eemaldada",
-      "remove_success": "{name} eemaldati toast"
+      "remove_success": "{name} eemaldati toast",
+      "members_load_failed": "Toa liikmete laadimine ebaõnnestus",
+      "members_refresh_failed": "Toa liikmete värskendamine ebaõnnestus"
     },
     "pins": {
       "show": "Kuva kinnitatud sõnumid",

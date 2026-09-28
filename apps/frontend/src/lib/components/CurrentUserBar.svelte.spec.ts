@@ -11,7 +11,7 @@ import { toast } from '$lib/ui/toast';
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import { ServerPresence } from '$lib/state/server/presence.svelte';
 import { setPresenceStatus } from '$lib/presenceTracking';
-import { deleteCustomStatus } from '$lib/api-client/userStatus';
+import { deleteCustomStatus, setCustomStatus } from '$lib/api-client/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -22,7 +22,8 @@ let presence: ServerPresence;
 
 vi.mock('$lib/api-client/userStatus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/api-client/userStatus')>()),
-  deleteCustomStatus: vi.fn(async () => null)
+  deleteCustomStatus: vi.fn(async () => null),
+  setCustomStatus: vi.fn(async (_config, status) => ({ ...status }))
 }));
 
 vi.mock('$lib/presenceTracking', () => ({
@@ -582,10 +583,7 @@ describe('CurrentUserBar', () => {
     expect(server.currentUser.user?.customStatus).toEqual(status);
   });
 
-  it('loads the custom status editor only after opening the touch bottom sheet', async () => {
-    inputCapabilities.prefersTouchActions = true;
-    inputCapabilities.supportsHoverActions = false;
-
+  it('loads the custom status editor only after opening its dialog', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     await tick();
@@ -634,6 +632,137 @@ describe('CurrentUserBar', () => {
       expect(container.textContent).toContain('Clear status');
       expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
     });
+  });
+
+  it('shows a custom clear time field after choosing the custom expiry preset', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+
+    const preset = await vi.waitFor(() => {
+      const select = q(
+        container,
+        '[data-testid="settings-custom-status-expiry-preset"]'
+      ) as HTMLSelectElement;
+      expect(select).toBeTruthy();
+      return select;
+    });
+    expect(q(container, '[data-testid="settings-custom-status-expires-at"]')).toBeNull();
+
+    preset.value = 'custom';
+    preset.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(preset.value).toBe('custom');
+      const custom = q(
+        container,
+        '[data-testid="settings-custom-status-expires-at"]'
+      ) as HTMLInputElement;
+      expect(custom.type).toBe('datetime-local');
+      expect(custom.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    });
+  });
+
+  async function openStatusDialog(container: HTMLElement) {
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+    return vi.waitFor(() => {
+      const dialog = document.querySelector<HTMLDialogElement>('dialog[open]');
+      expect(dialog?.querySelector('[data-testid="custom-status-editor"]')).toBeTruthy();
+      return dialog!;
+    });
+  }
+
+  function footerButton(dialog: HTMLDialogElement, label: string) {
+    return Array.from(dialog.querySelectorAll<HTMLButtonElement>('footer button')).find(
+      (button) => button.textContent?.trim() === label
+    );
+  }
+
+  it('saves a custom status from the dialog and closes it', async () => {
+    const notify = vi.spyOn(toast, 'success');
+    vi.mocked(setCustomStatus).mockClear();
+    const { container } = render(CurrentUserBarTestHarness);
+    try {
+      const dialog = await openStatusDialog(container);
+      const text = dialog.querySelector<HTMLInputElement>(
+        '[data-testid="settings-custom-status-text"]'
+      )!;
+      await userEvent.fill(text, 'Deep work');
+      footerButton(dialog, 'Save status')!.click();
+
+      await vi.waitFor(() => {
+        expect(setCustomStatus).toHaveBeenCalledOnce();
+        expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+      });
+      expect(vi.mocked(setCustomStatus).mock.calls[0][1]).toMatchObject({ text: 'Deep work' });
+      expect(notify).toHaveBeenCalledWith('Status updated');
+    } finally {
+      notify.mockRestore();
+      toast.clear();
+    }
+  });
+
+  it('closes the status dialog with Cancel without saving', async () => {
+    vi.mocked(setCustomStatus).mockClear();
+    const { container } = render(CurrentUserBarTestHarness);
+    const dialog = await openStatusDialog(container);
+
+    footerButton(dialog, 'Cancel')!.click();
+
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+    });
+    expect(setCustomStatus).not.toHaveBeenCalled();
+  });
+
+  it('clears an active status from the status dialog footer', async () => {
+    server.currentUser.user!.customStatus = { emoji: '🍜', text: 'Lunch', expiresAt: null };
+    const { container } = render(CurrentUserBarTestHarness);
+    const dialog = await openStatusDialog(container);
+
+    footerButton(dialog, 'Clear status')!.click();
+
+    await vi.waitFor(() => {
+      expect(deleteCustomStatus).toHaveBeenCalledOnce();
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+    });
+  });
+
+  it('picks an emoji inside the status dialog without submitting it', async () => {
+    vi.mocked(setCustomStatus).mockClear();
+    const { container } = render(CurrentUserBarTestHarness);
+    const dialog = await openStatusDialog(container);
+
+    dialog
+      .querySelector<HTMLButtonElement>('[data-testid="settings-custom-status-emoji-picker"]')!
+      .click();
+    const emoji = await vi.waitFor(() => {
+      const button = dialog.querySelector<HTMLButtonElement>('.grid button[title]');
+      expect(button).toBeTruthy();
+      return button!;
+    });
+    const picked = emoji.textContent?.trim();
+    await userEvent.click(emoji);
+
+    await vi.waitFor(() => {
+      expect(
+        dialog.querySelector('[data-testid="settings-custom-status-emoji-picker"]')?.textContent
+      ).toContain(picked);
+    });
+    expect(dialog.open).toBe(true);
+    expect(setCustomStatus).not.toHaveBeenCalled();
   });
 
   it('shows the custom status emoji next to the display name, not on the avatar', () => {

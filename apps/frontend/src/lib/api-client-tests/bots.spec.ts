@@ -77,7 +77,6 @@ describe('createBotAPI', () => {
           timezone: 'Europe/Berlin',
           ownerUserId: 'U-owner',
           createdAt,
-          apiKeyCreatedAt: createdAt,
           lastLoginChange: createdAt,
           apiKeys: [],
           incomingWebhooks: []

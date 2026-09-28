@@ -5,6 +5,7 @@ User notification preferences across server, room-group, and room scopes.
 Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
@@ -142,13 +143,7 @@ Rows are notification causes. Columns follow the current navigation layout.
     },
     () => queryClient
   );
-  const loadError = $derived(
-    policiesQuery.error instanceof Error
-      ? policiesQuery.error.message
-      : policiesQuery.error
-        ? String(policiesQuery.error)
-        : null
-  );
+  const loadError = $derived(policiesQuery.error ? errorMessage(policiesQuery.error) : null);
 
   function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy | undefined {
     return policiesQuery.data?.[notificationPolicyScopeKey(scope)];
@@ -196,7 +191,7 @@ Rows are notification causes. Columns follow the current navigation layout.
         { cancelRefetch: false }
       );
     } catch (error) {
-      if (isCurrent()) saveError = error instanceof Error ? error.message : String(error);
+      if (isCurrent()) saveError = errorMessage(error);
     } finally {
       if (generation === privacyGeneration) pendingCells.delete(key);
     }

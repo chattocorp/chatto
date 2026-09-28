@@ -293,12 +293,12 @@ func TestChattoCore_GetUserAvatarURL(t *testing.T) {
 	}
 }
 
-func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
+func TestChattoCore_GetUserAvatarURL_ServerRelative(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Create a user with an avatar
-	user, err := core.CreateUser(ctx, "system", "absurl-user", "Abs URL User", "")
+	user, err := core.CreateUser(ctx, "system", "relurl-user", "Rel URL User", "")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -306,43 +306,23 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 	asset, _ := core.UploadUserAvatar(ctx, user.Id, testImage)
 	core.SetUserAvatar(ctx, user.Id, asset)
 
-	t.Run("returns relative URL when AssetBaseURL is empty", func(t *testing.T) {
-		core.AssetBaseURL = ""
-		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
-		if err != nil {
-			t.Fatalf("Failed to get avatar URL: %v", err)
-		}
-		if !bytes.HasPrefix([]byte(url), []byte("/assets/server/")) {
-			t.Errorf("Expected relative URL starting with /assets/server/, got '%s'", url)
-		}
-	})
+	// The API layer adds the public origin of each request.
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
+	if err != nil {
+		t.Fatalf("Failed to get avatar URL: %v", err)
+	}
+	if !bytes.HasPrefix([]byte(url), []byte("/assets/server/")) {
+		t.Errorf("Expected relative URL starting with /assets/server/, got '%s'", url)
+	}
 
-	t.Run("returns absolute URL when AssetBaseURL is set", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
-		if err != nil {
-			t.Fatalf("Failed to get avatar URL: %v", err)
-		}
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
-			t.Errorf("Expected absolute URL, got '%s'", url)
-		}
-	})
-
-	t.Run("returns absolute transformed URL when AssetBaseURL is set", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		w, h := 64, 64
-		url, err := core.GetUserAvatarURL(ctx, user.Id, &w, &h, "cover")
-		if err != nil {
-			t.Fatalf("Failed to get avatar URL: %v", err)
-		}
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
-			t.Errorf("Expected absolute transformed URL, got '%s'", url)
-		}
-	})
+	w, h := 64, 64
+	url, err = core.GetUserAvatarURL(ctx, user.Id, &w, &h, "cover")
+	if err != nil {
+		t.Fatalf("Failed to get avatar URL: %v", err)
+	}
+	if !bytes.HasPrefix([]byte(url), []byte("/assets/server/")) {
+		t.Errorf("Expected relative transformed URL, got '%s'", url)
+	}
 }
 
 func TestChattoCore_UploadUserAvatar_ReplacesOld(t *testing.T) {

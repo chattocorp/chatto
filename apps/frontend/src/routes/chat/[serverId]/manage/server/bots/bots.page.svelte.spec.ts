@@ -94,7 +94,6 @@ describe('Bot administration page', () => {
           timezone: null,
           ownerUserId: 'owner-user-id',
           createdAt: null,
-          apiKeyCreatedAt: null,
           apiKeys: [],
           incomingWebhooks: []
         }

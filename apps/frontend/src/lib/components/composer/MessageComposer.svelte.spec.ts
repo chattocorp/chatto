@@ -1021,6 +1021,27 @@ describe('MessageComposer', () => {
       expect(mutationMock).not.toHaveBeenCalled();
     });
 
+    it('ranks prioritized users first in the mention popup and Tab completion', async () => {
+      roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
+      const { container } = renderMessageComposer({
+        roomId: 'markdown-priority-mention',
+        mentionPriorityUserIds: new Set([roomMember('alicia').id])
+      });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '@ali');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+
+      const handles = [
+        ...container.querySelectorAll('[data-testid="mention-autocomplete"] bdi[dir="ltr"]')
+      ].map((element) => element.textContent);
+      expect(handles).toEqual(['@alicia', '@alice']);
+
+      await userEvent.keyboard('{Tab}');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alicia '));
+    });
+
     it('completes mentions before Enter can submit Markdown', async () => {
       roomStateMock.members = [roomMember('alice')];
       const { container, roomId } = renderMessageComposer({ roomId: 'markdown-mention' });
@@ -4249,18 +4270,6 @@ describe('MessageComposer', () => {
       expect(createMessageConnectMock.mock.calls[0][0].attachmentDescriptions).toEqual([
         { file, description: 'A small chart.\nThe bar is blue.' }
       ]);
-    });
-
-    it('does not offer or send descriptions to an older server', async () => {
-      server.features = false;
-      const { container } = renderMessageComposer({ roomId: 'room_456' });
-      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
-      await expect.poll(() => q(container, 'img')).toBeTruthy();
-
-      expect(container.textContent).not.toContain('Add description');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
-      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
-      expect(createMessageConnectMock.mock.calls[0][0].attachmentDescriptions).toBeUndefined();
     });
 
     it('revokes object URLs when removing staged files', async () => {

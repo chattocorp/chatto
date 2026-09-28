@@ -29,6 +29,7 @@
   let search = $state('');
   let port = $state('8080');
   let status = $state('In focus mode');
+  let expiresAt = $state('2026-10-01T17:30');
 </script>
 
 <Story
@@ -142,6 +143,17 @@
         {/if}
       {/snippet}
     </TextInput>
+  </div>
+</Story>
+
+<Story name="Date and time" asChild>
+  <div class="max-w-md">
+    <TextInput
+      id="expires-at"
+      type="datetime-local"
+      label="Clear status at"
+      bind:value={expiresAt}
+    />
   </div>
 </Story>
 

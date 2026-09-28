@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { createChattoClient } from '@chatto/client';
 import { createEyesReaction } from './reaction.ts';
 import { createChattoBot } from './workflows/chat.ts';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
@@ -19,7 +20,9 @@ const delivery: Delivery = {
 
 test('reacts to the pinging message, not the thread root', async () => {
   const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ added: true }));
-  await createEyesReaction('https://chat.example', 'key', request)(delivery);
+  await createEyesReaction(
+    createChattoClient({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request })
+  )(delivery);
 
   expect(String(request.mock.calls[0]![0])).toBe(
     'https://chat.example/api/connect/chatto.api.v1.MessageService/AddReaction'

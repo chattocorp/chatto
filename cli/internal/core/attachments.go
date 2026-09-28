@@ -298,6 +298,10 @@ type AttachmentInfo struct {
 	RoomID      string
 }
 
+// StableAssetURL is an asset URL together with the expiry of its access ticket.
+// Core asset URL methods return server-relative paths. With webserver.url, the
+// API layer makes them absolute on the public origin of each request, so a
+// client on a configured hostname alias gets URLs on that alias.
 type StableAssetURL struct {
 	URL       string
 	ExpiresAt time.Time
@@ -746,23 +750,18 @@ const assetAccessTicketIssueBucket = time.Hour
 // short-lived S3 URL only for cases where proxying the bytes would be costly.
 const S3AssetRedirectTTL = 5 * time.Minute
 
-// GetStableAttachmentURL returns the canonical URL for an asset binary. The
-// path identifies the asset; the asset-scoped access ticket authorizes the
-// viewer so browsers and standalone clients can load the URL directly from the
-// owning host without custom headers.
-func (c *MediaModel) GetStableAttachmentURL(assetID, userID string) string {
-	return c.GetStableAttachmentAssetURL(assetID, userID).URL
-}
-
 // GetStableAttachmentAssetURL returns the canonical URL for an asset binary
-// together with the exact expiry embedded in its access ticket.
+// together with the exact expiry embedded in its access ticket. The path
+// identifies the asset; the asset-scoped access ticket authorizes the viewer so
+// browsers and standalone clients can load the URL directly from the owning
+// host without custom headers.
 func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
 	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
-		URL:       c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt)),
+		URL:       c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt),
 		ExpiresAt: expiresAt,
 	}
 }
@@ -786,19 +785,13 @@ func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) 
 	values := url.Values{}
 	values.Set("access", ticket)
 	path := fmt.Sprintf("/assets/hls/%s/master.m3u8?%s", url.PathEscape(assetID), values.Encode())
-	return StableAssetURL{URL: c.assetURL(path), ExpiresAt: expiresAt}
-}
-
-// GetStableTransformedAttachmentURL returns the canonical URL for a derived
-// image form factor. The dimensions are visible in the URL; authorization is a
-// scoped access ticket.
-func (c *MediaModel) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
-	return c.GetStableTransformedAttachmentAssetURL(assetID, userID, width, height, fit).URL
+	return StableAssetURL{URL: path, ExpiresAt: expiresAt}
 }
 
 // GetStableTransformedAttachmentAssetURL returns the canonical URL for a
 // derived image form factor together with the exact expiry embedded in its
-// access ticket.
+// access ticket. The dimensions are visible in the URL; authorization is a
+// scoped access ticket.
 func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID string, width, height int, fit string) StableAssetURL {
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
@@ -812,11 +805,11 @@ func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 	)
 	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
-		URL: c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
+		URL: c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
 			Width:  width,
 			Height: height,
 			Fit:    fit,
-		}, expiresAt)),
+		}, expiresAt),
 		ExpiresAt: expiresAt,
 	}
 }
@@ -863,7 +856,7 @@ func (c *MediaModel) GetTransformedServerAssetURL(key string, width, height int,
 	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, ServerAssetSignResource, key, width, height, fit)
 
 	// Return signed transform URL
-	return c.assetURL(fmt.Sprintf("/assets/server/%s/t/%s", key, signedPath))
+	return fmt.Sprintf("/assets/server/%s/t/%s", key, signedPath)
 }
 
 // ============================================================================

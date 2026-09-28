@@ -9,6 +9,9 @@ import { getToasts, toast } from '$lib/ui/toast';
 import ThreadPane from './ThreadPane.svelte';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -19,10 +22,10 @@ const { mocks } = vi.hoisted(() => {
       followThread: vi.fn(),
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
-      retainMessagesForThread: vi.fn(),
-      releaseMessagesForThread: vi.fn(),
-      nextServerRetainMessagesForThread: vi.fn(),
-      nextServerReleaseMessagesForThread: vi.fn(),
+      retainThread: vi.fn(),
+      releaseThread: vi.fn(),
+      nextServerRetainThread: vi.fn(),
+      nextServerReleaseThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
@@ -47,6 +50,8 @@ const { mocks } = vi.hoisted(() => {
       } | null,
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
+      markArrivalWhileAway: vi.fn(),
+      projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       unreadMarkerEventId: null as string | null,
       canMarkThreadAsRead: null as (() => boolean) | null,
       appState: {
@@ -74,7 +79,9 @@ vi.mock('$lib/api-client/threads', () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useProjectionEvent: vi.fn(),
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
+    mocks.projectionEventHandler = handler;
+  },
   // ConversationPane uses this only for the room timeline.
   useRoomUnread: vi.fn(),
   useUnreadMarker: (
@@ -93,7 +100,8 @@ vi.mock('$lib/hooks', () => ({
     return {
       unreadMarkerEventId: mocks.unreadMarkerEventId,
       markAsRead: options.markAsRead,
-      clearUnreadMarker: mocks.clearUnreadMarker
+      clearUnreadMarker: mocks.clearUnreadMarker,
+      markArrivalWhileAway: mocks.markArrivalWhileAway
     };
   },
   createTypingIndicator: () => ({
@@ -224,33 +232,32 @@ describe('ThreadPane', () => {
         readViews: { register: mocks.registerReadView },
         notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
         reconcileThreadRead: mocks.reconcileThreadRead,
-        retainMessagesForThread:
-          serverId === 'server-2'
-            ? mocks.nextServerRetainMessagesForThread
-            : mocks.retainMessagesForThread,
-        releaseMessagesForThread:
-          serverId === 'server-2'
-            ? mocks.nextServerReleaseMessagesForThread
-            : mocks.releaseMessagesForThread,
-        messagesForThread: () =>
-          Object.assign(
-            serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
-            {
-              isLoadingMore: false,
-              hasReachedStart: true,
-              setThread: mocks.setThread,
-              dispose: mocks.disposeMessagesStore,
-              ingestEvent: mocks.ingestEvent,
-              refreshCurrentWindow: mocks.refreshCurrentWindow,
-              jumpToMessage: mocks.storeJumpToMessage,
-              restoreLatestWindow: mocks.restoreLatestWindow,
-              setThreadRootFollowState: mocks.setThreadRootFollowState,
-              loadMore: mocks.loadMore
-            }
-          )
+        rooms: {
+          retainThread: serverId === 'server-2' ? mocks.nextServerRetainThread : mocks.retainThread,
+          releaseThread:
+            serverId === 'server-2' ? mocks.nextServerReleaseThread : mocks.releaseThread,
+          thread: () =>
+            Object.assign(
+              serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
+              {
+                isLoadingMore: false,
+                hasReachedStart: true,
+                setThread: mocks.setThread,
+                dispose: mocks.disposeMessagesStore,
+                ingestEvent: mocks.ingestEvent,
+                refreshCurrentWindow: mocks.refreshCurrentWindow,
+                jumpToMessage: mocks.storeJumpToMessage,
+                restoreLatestWindow: mocks.restoreLatestWindow,
+                setThreadRootFollowState: mocks.setThreadRootFollowState,
+                loadMore: mocks.loadMore
+              }
+            )
+        }
       })
     });
     mocks.appState.isPresent = true;
+    mocks.markArrivalWhileAway.mockClear();
+    mocks.projectionEventHandler = null;
     mocks.unreadMarkerEventId = null;
     mocks.editingEventId = null;
     toast.clear();
@@ -398,6 +405,41 @@ describe('ThreadPane', () => {
     }
   );
 
+  it('places the thread unread separator only for replies in this thread while away', async () => {
+    mocks.appState.isPresent = false;
+    render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+    await tick();
+
+    const post = (id: string, actorId: string, roomId: string, threadRootEventId: string) =>
+      mocks.projectionEventHandler?.(
+        new RealtimeProjectionUpdate({
+          event: new PublicRealtimeEvent({
+            id,
+            actorId,
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId, threadRootEventId })
+            }
+          })
+        })
+      );
+
+    post('room-message', 'user-1', 'room-1', '');
+    post('other-thread-reply', 'user-1', 'room-1', 'other-root');
+    post('own-reply', 'test-user', 'room-1', 'thread-root');
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+
+    post('reply-while-away', 'user-1', 'room-1', 'thread-root');
+    expect(mocks.markArrivalWhileAway).toHaveBeenCalledExactlyOnceWith('reply-while-away');
+  });
+
   it('resets jump state when the pane switches to another thread', async () => {
     const props = {
       roomId: 'room-1',
@@ -474,20 +516,12 @@ describe('ThreadPane', () => {
       }
     });
 
-    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
     const mountedStore = mocks.threadStore;
-    expect(mocks.retainMessagesForThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      mountedStore
-    );
+    expect(mocks.retainThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
 
     rendered.unmount();
-    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      mountedStore
-    );
+    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
   });
 
   it('releases decrypted thread history through its owning server store', async () => {
@@ -500,21 +534,17 @@ describe('ThreadPane', () => {
       }
     });
 
-    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
     const firstServerStore = mocks.threadStore;
 
     server.serverId = 'server-2';
 
-    await vi.waitFor(() => expect(mocks.nextServerRetainMessagesForThread).toHaveBeenCalledOnce());
-    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      firstServerStore
-    );
-    expect(mocks.nextServerReleaseMessagesForThread).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.nextServerRetainThread).toHaveBeenCalledOnce());
+    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', firstServerStore);
+    expect(mocks.nextServerReleaseThread).not.toHaveBeenCalled();
 
     rendered.unmount();
-    expect(mocks.nextServerReleaseMessagesForThread).toHaveBeenCalledWith(
+    expect(mocks.nextServerReleaseThread).toHaveBeenCalledWith(
       'room-1',
       'thread-root',
       mocks.nextServerThreadStore

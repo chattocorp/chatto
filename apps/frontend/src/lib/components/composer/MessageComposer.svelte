@@ -68,7 +68,8 @@
     createThreadRequired = false,
     createThreadDefault = false,
     getRecentThreadRootCandidate = () => null,
-    threadsEncouraged = false
+    threadsEncouraged = false,
+    mentionPriorityUserIds
   }: MessageComposerProps = $props();
 
   const clock = new SvelteDate();
@@ -96,9 +97,6 @@
   const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
-  const supportsAttachmentDescriptions = $derived(
-    serverInfo.supportsFeature('attachmentDescriptions')
-  );
   let descriptionAttachmentIndex = $state<number | null>(null);
   let attachmentDescription = $state('');
   const attachmentDescriptionLength = $derived(Array.from(attachmentDescription.trim()).length);
@@ -166,6 +164,7 @@
     },
     context: composerContext,
     getMembers: () => membersStore().members,
+    getMentionPriorityUserIds: () => mentionPriorityUserIds,
     get membersStore() {
       return membersStore();
     },
@@ -236,7 +235,6 @@
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
     disabled={composer.submission.loading}
-    canDescribe={supportsAttachmentDescriptions}
     getSubmissionStatus={(file) => composer.submission.attachmentStatus(file)}
     onremove={(index) => composer.attachments.removeFile(index)}
     ondescription={openAttachmentDescription}
@@ -316,6 +314,7 @@
         query={composer.autocomplete.mention.query}
         members={composer.mentionCandidates}
         roles={composer.mentionRoles}
+        prioritizedUserIds={composer.mentionPriorityUserIds}
         onSelect={(login, viaTab) => composer.autocomplete.selectMention(login, viaTab)}
         onClose={() => composer.autocomplete.closeMention()}
       />
@@ -409,7 +408,7 @@
   </ConfirmDialog>
 {/if}
 
-{#if supportsAttachmentDescriptions && descriptionAttachmentIndex !== null}
+{#if descriptionAttachmentIndex !== null}
   <FormDialog
     visible
     title={m('room.attachment.description_title')}

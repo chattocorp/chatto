@@ -1,4 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
+import { errorMessage } from './errorMessage';
 
 export type ManagementLoadError = { kind: 'access-denied' } | { kind: 'failure'; message: string };
 
@@ -9,6 +10,6 @@ export function classifyManagementLoadError(error: unknown): ManagementLoadError
   }
   return {
     kind: 'failure',
-    message: error instanceof Error ? error.message : String(error)
+    message: errorMessage(error)
   };
 }

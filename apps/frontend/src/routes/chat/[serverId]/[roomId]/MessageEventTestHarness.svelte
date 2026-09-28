@@ -60,16 +60,18 @@
     projection: { users },
     notifications: { hasThreadNotification: () => false },
     readViews: { covers: () => false },
-    serverInfo: { messageEditWindowSeconds: 31_536_000, supportsFeature: () => true },
+    serverInfo: { messageEditWindowSeconds: 31_536_000 },
     activeCallRooms: { getParticipantCallPresence: () => null },
     viewerUser: { id: 'viewer', login: 'viewer', settings: undefined },
     viewerId: 'viewer',
     permissions: { canStartDMs: false },
-    pinsForRoom: () => ({
-      isPinned: (_messageEventId: string, hydratedStatus = false) => pinStatus ?? hydratedStatus,
-      create: async () => undefined,
-      remove: async () => undefined
-    })
+    rooms: {
+      pins: () => ({
+        isPinned: (_messageEventId: string, hydratedStatus = false) => pinStatus ?? hydratedStatus,
+        create: async () => undefined,
+        remove: async () => undefined
+      })
+    }
   } as unknown as ServerStateStore;
 
   provideServerScope({

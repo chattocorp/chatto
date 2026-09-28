@@ -225,7 +225,9 @@
       "in_voice_call": "Sesli aramada",
       "in_video_call": "Video görüşmesinde",
       "remove_failed": "Kullanıcı odadan çıkarılamadı",
-      "remove_success": "{name} odadan çıkarıldı"
+      "remove_success": "{name} odadan çıkarıldı",
+      "members_load_failed": "Oda üyeleri yüklenemedi",
+      "members_refresh_failed": "Oda üyeleri yenilenemedi"
     },
     "pins": {
       "show": "Sabitlenmiş mesajları göster",

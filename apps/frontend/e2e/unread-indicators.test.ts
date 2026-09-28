@@ -6,6 +6,7 @@ import {
   getDefaultRoomGroupIdViaConnect,
   getRoomIdByNameViaConnect,
   joinRoomViaConnect,
+  postMessageViaConnect,
   waitForRoomReadViaConnect,
   waitForRoomUnreadViaConnect
 } from './fixtures/connectHelpers';
@@ -615,7 +616,7 @@ test.describe('Room unread separator', () => {
     );
   });
 
-  test('unread separator is deferred until the hidden tab returns', async ({
+  test('unread separator appears while the tab is hidden and stays when it returns', async ({
     page,
     chatPage,
     roomPage,
@@ -648,8 +649,7 @@ test.describe('Room unread separator', () => {
         // No separator yet — User B has read everything.
         await roomPage2.expectNoUnreadSeparator();
 
-        // User B's tab goes to the background. They stay in the room, but the
-        // rendered separator should not change until they return.
+        // User B's tab goes to the background. They stay in the room.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -663,16 +663,13 @@ test.describe('Room unread separator', () => {
         const awayMessage = `Posted while hidden ${Date.now()}`;
         await roomPage.sendMessage(awayMessage);
 
-        // The message streams in over the live subscription, but the in-room
-        // separator is deferred so Chatto does not visibly repaint the marker
-        // while the user is away.
+        // The message streams in over the live subscription and the separator
+        // appears above it at once, before User B returns.
         await roomPage2.expectMessageVisible(awayMessage);
-        await expect(async () => {
-          await roomPage2.expectNoUnreadSeparator();
-        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+        await roomPage2.expectUnreadSeparator();
 
-        // Re-focusing the tab reveals the deferred separator and keeps it
-        // stable across the mark-read round-trip.
+        // Returning to the tab keeps the separator across the mark-read
+        // round-trip.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'visible',
@@ -689,7 +686,7 @@ test.describe('Room unread separator', () => {
     );
   });
 
-  test('unread separator is deferred until the blurred window is focused again', async ({
+  test('unread separator appears while the window is blurred and stays when it is focused', async ({
     page,
     chatPage,
     roomPage,
@@ -726,9 +723,7 @@ test.describe('Room unread separator', () => {
         const awayMessage = `Posted while blurred ${Date.now()}`;
         await roomPage.sendMessage(awayMessage);
         await roomPage2.expectMessageVisible(awayMessage);
-        await expect(async () => {
-          await roomPage2.expectNoUnreadSeparator();
-        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+        await roomPage2.expectUnreadSeparator();
 
         await page2.evaluate(() => {
           window.dispatchEvent(new Event('focus'));
@@ -737,6 +732,175 @@ test.describe('Room unread separator', () => {
         await expect(async () => {
           await roomPage2.expectUnreadSeparator();
         }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+      }
+    );
+  });
+
+  test('away separator stays above the first message that arrived while away', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000); // Multi-user test with real-time events needs more time
+
+    const runId = Date.now();
+    const lastRead = `Last read before away ${runId}`;
+    const firstAway = `First while away ${runId}`;
+    const secondAway = `Second while away ${runId}`;
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await roomPage.sendMessage(lastRead);
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible(lastRead);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+        await roomPage2.expectNoUnreadSeparator();
+
+        await page2.evaluate(() => window.dispatchEvent(new Event('blur')));
+
+        await roomPage.sendMessage(firstAway);
+        await roomPage.sendMessage(secondAway);
+        await roomPage2.expectMessageVisible(secondAway);
+
+        // The first message that arrived while away places the separator.
+        // The second message does not move it.
+        await roomPage2.expectUnreadSeparatorBetween(lastRead, firstAway);
+
+        // The read on return resolves the separator from the server read
+        // state. It stays on the same message.
+        await page2.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+        await roomPage2.expectUnreadSeparatorBetween(lastRead, firstAway);
+      }
+    );
+  });
+
+  test('away separator disappears on return when another session read the room', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000); // Multi-user test with real-time events needs more time
+
+    const runId = Date.now();
+    const lastRead = `Read everywhere ${runId}`;
+    const awayMessage = `Read in the other session ${runId}`;
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await roomPage.sendMessage(lastRead);
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2, user: userB }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible(lastRead);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+
+        await page2.evaluate(() => window.dispatchEvent(new Event('blur')));
+        await roomPage.sendMessage(awayMessage);
+        await roomPage2.expectMessageVisible(awayMessage);
+        await roomPage2.expectUnreadSeparatorBetween(lastRead, awayMessage);
+        await waitForRoomUnreadViaConnect(page2, generalRoomId, true);
+
+        // User B reads the room in a second session while the first one is
+        // still away.
+        await withLoggedInServerWindow(
+          browser!,
+          serverURL,
+          userB,
+          async ({ page: page3, chatPage: chatPage3, roomPage: roomPage3 }) => {
+            await chatPage3.enterRoom('general');
+            await waitForRoomReady(page3, 'general');
+            await roomPage3.expectMessageVisible(awayMessage);
+            await waitForRoomReadViaConnect(page3, generalRoomId);
+          }
+        );
+
+        // Nothing is unread when the first session returns, so its
+        // separator goes away.
+        await page2.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(page2.getByTestId('unread-separator')).toHaveCount(0, {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await roomPage2.expectMessageVisible(awayMessage);
+      }
+    );
+  });
+
+  test('timeline lands on an away separator when the viewer returns', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000); // Multi-user test with real-time events needs more time
+
+    const runId = Date.now();
+    const lastRead = `Last read before many ${runId}`;
+    const awayMessages = Array.from(
+      { length: 30 },
+      (_, i) => `Many away ${runId} #${String(i + 1).padStart(2, '0')}`
+    );
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await roomPage.sendMessage(lastRead);
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        // User B enters with nothing unread and does not scroll or post, so
+        // the one-time scroll to the separator is still pending.
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await roomPage2.expectMessageVisible(lastRead);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+        await roomPage2.expectNoUnreadSeparator();
+
+        await page2.evaluate(() => window.dispatchEvent(new Event('blur')));
+        for (const body of awayMessages) {
+          await postMessageViaConnect(page, generalRoomId, body);
+        }
+
+        // While away, the timeline keeps following the latest message.
+        const lastAway = roomPage2.getMessage(awayMessages[awayMessages.length - 1]).locator;
+        await expect(lastAway).toBeInViewport({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(page2.getByTestId('jump-to-present')).toBeHidden();
+
+        // On return, the timeline lands on the separator one time and shows
+        // the first message that arrived while away.
+        await page2.evaluate(() => window.dispatchEvent(new Event('focus')));
+        const separator = page2.getByTestId('unread-separator');
+        await expect(separator).toBeInViewport({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(roomPage2.getMessage(awayMessages[0]).locator).toBeInViewport();
+        await expect(page2.getByTestId('jump-to-present')).toBeVisible();
+        await roomPage2.expectUnreadSeparatorBetween(lastRead, awayMessages[0]);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+        await expect(separator).toBeInViewport();
       }
     );
   });

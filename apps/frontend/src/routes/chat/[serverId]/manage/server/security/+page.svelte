@@ -1,11 +1,11 @@
 <script lang="ts">
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import {
     createInfiniteQuery,
     createMutation,
     createQuery,
     type InfiniteData
   } from '@tanstack/svelte-query';
-  import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import {
     createOAuthClientAPI,
@@ -15,17 +15,16 @@
   import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { TextArea, Button } from '$lib/ui/form';
+  import { TextArea, Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -38,30 +37,16 @@
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
-  let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId === serverScope.serverId) privacyGeneration += 1;
-  });
+  const session = createSessionGuard(serverScope);
 
-  onDestroy(() => {
-    privacyGeneration += 1;
-    removeCacheRemovalListener();
-  });
-
-  type SecurityMutationVariables = {
-    serverId: string;
-    connection: ServerConnection;
+  type SecurityMutationVariables = SessionSnapshot & {
     queryKey: ReturnType<typeof adminQueryKeys.securityConfig>;
     blockedUsernames: string;
-    privacyGeneration: number;
   };
 
-  type OAuthClientPolicyMutationVariables = {
-    serverId: string;
-    connection: ServerConnection;
+  type OAuthClientPolicyMutationVariables = SessionSnapshot & {
     clientId: string;
     policy: EditableOAuthClientPolicyName;
-    privacyGeneration: number;
   };
 
   type OAuthClientPage = {
@@ -76,7 +61,7 @@
     return JSON.stringify([
       variables.serverId,
       variables.connection.queryScope,
-      variables.privacyGeneration,
+      variables.generation,
       variables.clientId
     ]);
   }
@@ -111,42 +96,18 @@
     () => queryClient
   );
 
-  function isCurrentSession(
-    variables: SecurityMutationVariables | undefined
-  ): variables is SecurityMutationVariables {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
-  function isCurrentOAuthClientSession(
-    variables: OAuthClientPolicyMutationVariables | undefined
-  ): variables is OAuthClientPolicyMutationVariables {
-    return (
-      variables !== undefined &&
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
-    );
-  }
-
   const securityMutation = createMutation(
     () => ({
       mutationFn: ({ connection, blockedUsernames }: SecurityMutationVariables) =>
         updateBlockedUsernames(connection.apiConfig, blockedUsernames),
       onSuccess: (config, variables) => {
-        if (!isCurrentSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         queryClient.setQueryData(variables.queryKey, config);
         toast.success(m('admin.security.settings_saved'));
       },
       onError: (mutationError, variables) => {
-        if (!isCurrentSession(variables)) return;
-        toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
+        if (!session.isCurrent(variables)) return;
+        toastError(mutationError);
       }
     }),
     () => queryClient
@@ -157,7 +118,7 @@
       mutationFn: ({ connection, clientId, policy }: OAuthClientPolicyMutationVariables) =>
         connection.getAPI(createOAuthClientAPI).updatePolicy(clientId, policy),
       onSuccess: (client, variables) => {
-        if (!isCurrentOAuthClientSession(variables)) return;
+        if (!session.isCurrent(variables)) return;
         const queryKey = adminQueryKeys.oauthClients(variables.serverId, variables.connection);
         queryClient.setQueryData<InfiniteData<OAuthClientPage, number>>(queryKey, (current) =>
           current
@@ -178,8 +139,8 @@
         toast.success(m('admin.security.oauth_clients.policy_saved'));
       },
       onError: (mutationError, variables) => {
-        if (!isCurrentOAuthClientSession(variables)) return;
-        toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
+        if (!session.isCurrent(variables)) return;
+        toastError(mutationError);
       },
       onSettled: (_client, _mutationError, variables) => {
         pendingOAuthClientPolicies.delete(oauthClientPolicyMutationKey(variables));
@@ -192,18 +153,16 @@
   let blockedUsernames = $derived(securityConfig?.blockedUsernames ?? '');
   const loading = $derived(securityQuery.isPending);
   const saving = $derived(
-    securityMutation.isPending && isCurrentSession(securityMutation.variables)
+    securityMutation.isPending && session.isCurrent(securityMutation.variables)
   );
   const changed = $derived(
     securityConfig !== null && blockedUsernames !== securityConfig.blockedUsernames
   );
   const error = $derived.by(() => {
     const queryError = securityQuery.error;
-    if (queryError) return queryError instanceof Error ? queryError.message : String(queryError);
-    if (securityMutation.isError && isCurrentSession(securityMutation.variables)) {
-      return securityMutation.error instanceof Error
-        ? securityMutation.error.message
-        : String(securityMutation.error);
+    if (queryError) return errorMessage(queryError);
+    if (securityMutation.isError && session.isCurrent(securityMutation.variables)) {
+      return errorMessage(securityMutation.error);
     }
     return null;
   });
@@ -217,43 +176,40 @@
   function save(e: Event) {
     e.preventDefault();
     if (!changed || saving) return;
-    const serverId = serverScope.serverId;
-    const connection = serverScope.connection;
+    const snapshot = session.snapshot();
     securityMutation.mutate({
-      serverId,
-      connection,
-      queryKey: adminQueryKeys.securityConfig(serverId, connection),
-      blockedUsernames,
-      privacyGeneration
+      ...snapshot,
+      queryKey: adminQueryKeys.securityConfig(snapshot.serverId, snapshot.connection),
+      blockedUsernames
     });
   }
 
-  function updateOAuthClientPolicy(client: OAuthClient, event: Event) {
-    const select = event.currentTarget as HTMLSelectElement;
-    const policy = select.value;
-    if (client.policy === 'unknown') {
-      select.value = client.policy;
-      return;
-    }
-    if (policy === client.policy || !isEditableOAuthClientPolicy(policy)) {
-      return;
-    }
+  /**
+   * Saves a policy chosen in the row's Select. Select keeps the last
+   * server-confirmed policy visible until this promise settles, and restores
+   * it when the save fails.
+   */
+  async function updateOAuthClientPolicy(client: OAuthClient, policy: string) {
+    if (client.policy === 'unknown') return;
+    if (policy === client.policy || !isEditableOAuthClientPolicy(policy)) return;
 
-    // Keep displaying the last server-confirmed security policy until the
-    // mutation succeeds and the authoritative list has been refreshed.
-    select.value = client.policy;
-    const variables = {
-      serverId: serverScope.serverId,
-      connection: serverScope.connection,
-      clientId: client.clientId,
-      policy,
-      privacyGeneration
-    };
+    const variables = { ...session.snapshot(), clientId: client.clientId, policy };
     const mutationKey = oauthClientPolicyMutationKey(variables);
     if (pendingOAuthClientPolicies.has(mutationKey)) return;
 
     pendingOAuthClientPolicies.add(mutationKey);
-    oauthClientPolicyMutation.mutate(variables);
+    await oauthClientPolicyMutation.mutateAsync(variables);
+  }
+
+  function oauthClientPolicyOptions(client: OAuthClient) {
+    return [
+      ...(client.policy === 'unknown'
+        ? [{ value: 'unknown', label: `${m('admin.common.unknown')} (${client.policyCode})` }]
+        : []),
+      { value: 'default', label: m('admin.security.oauth_clients.policy_default') },
+      { value: 'trusted', label: m('admin.security.oauth_clients.policy_trusted') },
+      { value: 'blocked', label: m('admin.security.oauth_clients.policy_blocked') }
+    ];
   }
 
   function isEditableOAuthClientPolicy(value: string): value is EditableOAuthClientPolicyName {
@@ -264,11 +220,9 @@
     if (client.policy === 'unknown') return false;
     return pendingOAuthClientPolicies.has(
       oauthClientPolicyMutationKey({
-        serverId: serverScope.serverId,
-        connection: serverScope.connection,
+        ...session.snapshot(),
         clientId: client.clientId,
-        policy: client.policy,
-        privacyGeneration
+        policy: client.policy
       })
     );
   }
@@ -331,7 +285,7 @@
         noPadding
       >
         {#if oauthClientsQuery.error}
-          <div class="p-5"><Hint tone="danger">{String(oauthClientsQuery.error)}</Hint></div>
+          <div class="p-5"><Hint tone="danger">{errorMessage(oauthClientsQuery.error)}</Hint></div>
         {/if}
         {#if oauthClientsQuery.data !== undefined}
           <DataTable
@@ -372,28 +326,18 @@
                 {formatTimestamp(client.lastAuthorizationAt)}
               </td>
               <td class="min-w-44 px-4 py-3 align-top">
-                <select
-                  class="input"
+                <Select
+                  id={`oauth-client-policy-${client.clientId}`}
                   name="oauth-client-policy"
-                  value={client.policy}
-                  aria-label={m('admin.security.oauth_clients.policy_for', {
+                  label={m('admin.security.oauth_clients.policy_for', {
                     client: client.clientName || client.clientId
                   })}
+                  labelHidden
+                  value={client.policy}
+                  options={oauthClientPolicyOptions(client)}
                   disabled={client.policy === 'unknown' || policySaving(client)}
-                  onchange={(event) => updateOAuthClientPolicy(client, event)}
-                >
-                  {#if client.policy === 'unknown'}
-                    <option value="unknown">
-                      {m('admin.common.unknown')} ({client.policyCode})
-                    </option>
-                  {/if}
-                  <option value="default">{m('admin.security.oauth_clients.policy_default')}</option
-                  >
-                  <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option
-                  >
-                  <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option
-                  >
-                </select>
+                  onValueChange={(policy) => updateOAuthClientPolicy(client, policy)}
+                />
               </td>
             {/snippet}
           </DataTable>

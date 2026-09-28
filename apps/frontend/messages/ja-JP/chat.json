@@ -27,7 +27,9 @@
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",
         "new_message": "{actor}さんが新しいメッセージを投稿しました。",
         "activity": "{actor}さんから通知が届きました。"
-      }
+      },
+      "load_failed": "通知の読み込みに失敗しました",
+      "room_load_failed": "ルームの通知の読み込みに失敗しました"
     },
     "sign_out": {
       "title": "サインアウト",
@@ -87,7 +89,8 @@
       "no_unread": "現在、未読のスレッドはありません。",
       "message_missing": "メッセージは利用できなくなりました",
       "in_room": "で",
-      "in_room_capitalized": "で"
+      "in_room_capitalized": "で",
+      "load_failed": "スレッドの読み込みに失敗しました"
     },
     "profile": {
       "title": "プロフィール",
@@ -117,7 +120,8 @@
         "reply": "スレッドで返信",
         "manage_messages": "メッセージを管理"
       },
-      "owned_by": "所有者"
+      "owned_by": "所有者",
+      "open_card": "{name} のプロフィールカードを開く"
     }
   }
 }

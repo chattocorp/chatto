@@ -16,9 +16,7 @@
 
   <PaneContent>
     <div class="flex flex-col gap-6">
-      {#if serverScope.store.serverInfo.supportsFeature('userAvatars')}
-        <AvatarSettings />
-      {/if}
+      <AvatarSettings />
       <ProfileDetailsSettings getUserAPI={() => serverScope.connection.getAPI(createUserAPI)} />
     </div>
   </PaneContent>

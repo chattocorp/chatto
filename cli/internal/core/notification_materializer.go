@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"slices"
 	"sync"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/parallel"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -28,9 +26,6 @@ const (
 	notificationWorkerHeartbeat    = 15 * time.Second
 	notificationWorkerRetryDelay   = 10 * time.Second
 	notificationWorkerAckTimeout   = 5 * time.Second
-	// Badge writes use distinct per-user keys. Bounded pipelining prevents a
-	// large room post from serializing one broker round trip per recipient.
-	notificationUnreadMarkerWriteConcurrency = 32
 	// Notification lifecycle is causal: one shared in-flight delivery keeps a
 	// later leave/retraction/removal behind the source it supersedes, including
 	// when several Chatto replicas share the consumer.
@@ -316,9 +311,7 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 	case *evtv1.Event_MessageRetracted:
 		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId())
 		if err == nil {
-			m.core.notificationOccurrences.publishUnreadMarkerTargetInvalidations(
-				ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), event.GetActorId(), "",
-			)
+			m.publishBadgeAudienceInvalidations(ctx, payload.MessageRetracted.GetEventId(), event.GetActorId())
 		}
 		return err
 	case *evtv1.Event_UserLeftRoom:
@@ -352,9 +345,6 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			return err
 		}
 		if err := m.core.notificationOccurrences.purgeNotificationReadBoundaries(ctx, userID); err != nil {
-			return err
-		}
-		if err := m.core.notificationOccurrences.purgeNotificationUnreadMarkers(ctx, userID); err != nil {
 			return err
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
@@ -427,22 +417,18 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 // not emit an explicit leave event, such as disabling a universal room,
 // moving it across permission scopes, or changing room.join or message.read
 // RBAC. These facts are rare administrative operations. The materializer is
-// the sole lifecycle writer. The NOTIFICATIONS projection and the Badge marker
-// index supply the complete candidate set. Selected occurrence removals and
-// visibility boundaries are committed as idempotent lifecycle facts.
+// the sole lifecycle writer. The NOTIFICATIONS projection supplies the
+// complete candidate set. Selected occurrence removals and visibility
+// boundaries are committed as idempotent lifecycle facts. Badge attention is
+// computed from current visibility, so it only needs invalidation hints.
 func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64, visibilityAt time.Time) error {
 	entries := m.core.notificationOccurrences.projection.Projection().allOccurrences(m.core.notificationOccurrences.now().UTC())
 	type recipientRoom struct {
 		recipientID string
 		roomID      string
 	}
-	type unreadMarkerCandidate struct {
-		scope  notificationReadBoundaryScope
-		marker *runtimestatev1.NotificationUnreadMarker
-	}
 	type visibilityCandidates struct {
 		occurrences []*notificationv1.NotificationOccurrence
-		markers     []unreadMarkerCandidate
 	}
 	candidatesByPair := make(map[recipientRoom]*visibilityCandidates)
 	candidatesFor := func(pair recipientRoom) *visibilityCandidates {
@@ -467,18 +453,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		candidates := candidatesFor(pair)
 		candidates.occurrences = append(candidates.occurrences, occurrence)
 	}
-	for _, scope := range m.core.notificationBoundaries.unreadMarkerScopes(userID, roomID, streamSequence) {
-		marker, _, exists, err := m.core.notificationBoundaries.unreadMarker(ctx, scope)
-		if err != nil {
-			return err
-		}
-		if !exists || marker == nil {
-			continue
-		}
-		pair := recipientRoom{recipientID: scope.userID, roomID: scope.roomID}
-		candidates := candidatesFor(pair)
-		candidates.markers = append(candidates.markers, unreadMarkerCandidate{scope: scope, marker: marker})
-	}
+	m.publishVisibilityBadgeHints(ctx, userID, roomID, visibilityAt)
 	if len(candidatesByPair) == 0 {
 		return nil
 	}
@@ -500,7 +475,6 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	}
 
 	toRemove := make([]*notificationv1.NotificationOccurrence, 0)
-	unreadInvalidations := make([]notificationUnreadInvalidation, 0)
 	for pair, candidates := range candidatesByPair {
 		visibility := visibilityByPair[pair]
 		broadVisibility := visibility.broad
@@ -516,31 +490,39 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 			}
 			toRemove = append(toRemove, occurrence)
 		}
-		if !interactionVisibility || broadVisibility {
-			continue
-		}
-		for _, candidate := range candidates.markers {
-			if m.notificationTargetHasInteraction(pair.recipientID, pair.roomID, candidate.marker.GetSignal()) {
-				continue
-			}
-			deleted, err := m.core.notificationOccurrences.deleteNotificationUnreadMarkerBefore(ctx, candidate.scope, streamSequence)
-			if err != nil {
-				return err
-			}
-			if deleted {
-				unreadInvalidations = append(unreadInvalidations, notificationUnreadInvalidation{
-					userID: pair.recipientID, roomID: pair.roomID, threadRootEventID: candidate.scope.threadRootEventID,
-				})
-			}
-		}
 	}
 	if len(toRemove) > 0 {
 		if _, err := m.core.notificationOccurrences.deleteOccurrences(ctx, toRemove); err != nil {
 			return err
 		}
 	}
-	m.core.publishNotificationUnreadInvalidations(ctx, unreadInvalidations)
 	return nil
+}
+
+// publishVisibilityBadgeHints hints the rooms whose Badge attention a
+// visibility change can affect. A user-scoped change hints the user's rooms; a
+// room-scoped change hints the room's current members. Hints go only to rooms
+// that the user belongs to or can currently join, so they reveal no other
+// rooms. Server-wide and room-group-wide changes send no hints; clients
+// converge when they next read their rooms.
+func (m *NotificationMaterializer) publishVisibilityBadgeHints(ctx context.Context, userID, roomID string, at time.Time) {
+	var invalidations []notificationUnreadInvalidation
+	_ = m.decisions.Projection().withCurrent(at, func(snapshot *notificationDecisionSnapshot) error {
+		switch {
+		case userID != "":
+			for _, candidateRoom := range snapshot.badgeRoomsForUser(userID) {
+				if roomID == "" || candidateRoom == roomID {
+					invalidations = append(invalidations, notificationUnreadInvalidation{userID: userID, roomID: candidateRoom})
+				}
+			}
+		case roomID != "":
+			for _, member := range snapshot.roomMemberIDs(roomID) {
+				invalidations = append(invalidations, notificationUnreadInvalidation{userID: member, roomID: roomID})
+			}
+		}
+		return nil
+	})
+	m.core.publishNotificationUnreadInvalidations(ctx, invalidations)
 }
 
 func (m *NotificationMaterializer) notificationTargetHasInteraction(userID, roomID string, signal *notificationv1.NotificationSignal) bool {
@@ -577,11 +559,53 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *ev
 		streamSequence,
 	)
 	if err == nil {
-		m.core.notificationOccurrences.publishUnreadMarkerTargetInvalidations(
-			ctx, reaction.GetRoomId(), reaction.GetMessageEventId(), event.GetActorId(), reaction.GetEmoji(),
-		)
+		authorID := messageAuthorID(target)
+		visible := false
+		_ = m.decisions.Projection().withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
+			visible = snapshot.badgeRoomVisible(authorID, reaction.GetRoomId())
+			return nil
+		})
+		if visible {
+			m.core.NotifyNotificationUnreadStateChanged(ctx, authorID, event.GetActorId(), reaction.GetRoomId(), target.GetMessagePosted().GetInThread())
+		}
 	}
 	return err
+}
+
+// publishBadgeAudienceInvalidations hints the users whose Badge attention a
+// retracted message ended: they had attention in its scope while the message
+// counted as not retracted and have none now.
+func (m *NotificationMaterializer) publishBadgeAudienceInvalidations(ctx context.Context, messageEventID, actorID string) {
+	decisions := m.decisions.Projection()
+	var roomID, threadRootEventID string
+	var message uint32
+	var userIDs []string
+	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
+		roomID, threadRootEventID, message, userIDs = snapshot.badgeAudience(messageEventID)
+		return nil
+	})
+	queries := make([]badgeQuery, 0, len(userIDs))
+	for _, userID := range userIDs {
+		query, err := m.core.notificationOccurrences.badgeQueryFor(ctx, userID, roomID, threadRootEventID)
+		if err != nil {
+			return
+		}
+		queries = append(queries, query)
+	}
+	var invalidations []notificationUnreadInvalidation
+	_ = decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
+		for _, query := range queries {
+			live := query
+			live.unretracted = message
+			if snapshot.hasBadgeAttention(live) && !snapshot.hasBadgeAttention(query) {
+				invalidations = append(invalidations, notificationUnreadInvalidation{
+					userID: query.userID, actorID: actorID, roomID: roomID, threadRootEventID: threadRootEventID,
+				})
+			}
+		}
+		return nil
+	})
+	m.core.publishNotificationUnreadInvalidations(ctx, invalidations)
 }
 
 func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event *evtv1.Event, streamSequence uint64, evaluatedAt time.Time) error {
@@ -701,53 +725,71 @@ func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs
 		input.SourceStreamSequence = streamSequence
 		eligible = append(eligible, input)
 	}
-	badgeInputs := make([]CreateNotificationOccurrenceInput, 0, len(eligible))
-	seenMarkerKeys := make(map[string]struct{})
-	for _, input := range eligible {
-		if input.Mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-			continue
-		}
-		message := notificationSignalMessage(input.Signal)
-		key := notificationUnreadMarkerKey(input.RecipientID, message.GetRoomId(), message.GetThreadRootEventId())
-		if _, exists := seenMarkerKeys[key]; exists {
-			continue
-		}
-		seenMarkerKeys[key] = struct{}{}
-		badgeInputs = append(badgeInputs, input)
-	}
-	writes, err := parallel.Map(ctx, notificationUnreadMarkerWriteConcurrency, badgeInputs,
-		func(ctx context.Context, _ int, input CreateNotificationOccurrenceInput) (notificationUnreadMarkerWrite, error) {
-			return m.core.notificationOccurrences.writeNotificationUnreadMarker(ctx, input)
-		},
-	)
+	invalidations, err := m.badgeTransitions(ctx, eligible, streamSequence)
 	if err != nil {
-		return fmt.Errorf("record notification unread markers: %w", err)
-	}
-	var barrier notificationUnreadMarkerWrite
-	for _, write := range writes {
-		if write.revision > barrier.revision {
-			barrier = write
-		}
-	}
-	if barrier.revision != 0 {
-		if err := m.core.notificationBoundaries.waitForRevision(ctx, barrier.key, barrier.revision); err != nil {
-			return fmt.Errorf("wait for notification unread markers: %w", err)
-		}
-	}
-	invalidations := make([]notificationUnreadInvalidation, 0, len(writes))
-	for index, write := range writes {
-		if write.notify {
-			input := badgeInputs[index]
-			message := notificationSignalMessage(input.Signal)
-			invalidations = append(invalidations, notificationUnreadInvalidation{
-				userID: input.RecipientID, actorID: input.ActorID,
-				roomID: message.GetRoomId(), threadRootEventID: message.GetThreadRootEventId(),
-			})
-		}
+		return err
 	}
 	m.core.publishNotificationUnreadInvalidations(ctx, invalidations)
 	if err := m.core.notificationOccurrences.CreateMany(ctx, eligible); err != nil {
 		return fmt.Errorf("create notification occurrences: %w", err)
 	}
 	return nil
+}
+
+// badgeTransitions returns one invalidation for each Badge recipient scope
+// that the source at streamSequence turns from read into unread. Badge state
+// is computed, so the materializer stores nothing; it only decides which
+// clients should re-read.
+func (m *NotificationMaterializer) badgeTransitions(ctx context.Context, inputs []CreateNotificationOccurrenceInput, streamSequence uint64) ([]notificationUnreadInvalidation, error) {
+	type scope struct {
+		userID, roomID, threadRootEventID, actorID string
+	}
+	seen := make(map[scope]struct{})
+	scopes := make([]scope, 0)
+	for _, input := range inputs {
+		if input.Mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+			continue
+		}
+		message := notificationSignalMessage(input.Signal)
+		if message == nil {
+			continue
+		}
+		key := scope{userID: input.RecipientID, roomID: message.GetRoomId(), threadRootEventID: message.GetThreadRootEventId()}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		key.actorID = input.ActorID
+		scopes = append(scopes, key)
+	}
+	if len(scopes) == 0 {
+		return nil, nil
+	}
+	queries := make([]badgeQuery, len(scopes))
+	for i, scope := range scopes {
+		query, err := m.core.notificationOccurrences.badgeQueryFor(ctx, scope.userID, scope.roomID, scope.threadRootEventID)
+		if err != nil {
+			return nil, err
+		}
+		queries[i] = query
+	}
+	var invalidations []notificationUnreadInvalidation
+	err := m.decisions.Projection().withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
+		for i, query := range queries {
+			before := query
+			before.before = streamSequence
+			if snapshot.hasBadgeAttention(before) || !snapshot.hasBadgeAttention(query) {
+				continue
+			}
+			scope := scopes[i]
+			invalidations = append(invalidations, notificationUnreadInvalidation{
+				userID: scope.userID, actorID: scope.actorID, roomID: scope.roomID, threadRootEventID: scope.threadRootEventID,
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("derive Badge transitions: %w", err)
+	}
+	return invalidations, nil
 }

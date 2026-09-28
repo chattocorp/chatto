@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "這似乎不是 Chatto 伺服器。",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "伺服器目錄",
+      "subtitle": "探索其他 Chatto 伺服器",
+      "lookup_description": "輸入任何 Chatto 伺服器的位址即可加入。",
+      "find": "尋找伺服器",
+      "connect_by_address": "透過位址連線",
+      "servers_title": "推薦的伺服器",
+      "servers_description": "由你已加入的伺服器推薦。結果未經排名。",
       "recommended_by": "由{servers}推薦",
       "more_recommenders_count": {
         "other": "另有{count}個"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "已加入",
+      "join": "加入",
+      "open": "開啟",
       "open_in_new_tab": "在新分頁中開啟",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "無法登入",
+      "profile_unavailable": "無法載入此伺服器的公開資料。",
+      "partial": "部分已加入的伺服器無法提供推薦。",
+      "unavailable_title": "目錄無法使用",
+      "unavailable_body": "已加入的伺服器無法提供推薦。你仍可以直接連線。",
+      "empty_title": "尚無推薦的伺服器",
+      "empty_body": "你仍可以使用伺服器位址直接連線。"
     }
   }
 }

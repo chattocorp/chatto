@@ -32,6 +32,8 @@ type NotificationDecisionProjection struct {
 	threadFollows map[string]notificationThreadFollow
 	followers     map[string]map[string]struct{}
 	replyCounts   map[string]uint64
+	// badges indexes the sources of computed Badge attention.
+	badges *notificationBadgeSources
 }
 
 type notificationThreadFollow struct {
@@ -51,6 +53,7 @@ func NewNotificationDecisionProjection() *NotificationDecisionProjection {
 		threadFollows: make(map[string]notificationThreadFollow),
 		followers:     make(map[string]map[string]struct{}),
 		replyCounts:   make(map[string]uint64),
+		badges:        newNotificationBadgeSources(),
 	}
 	return p
 }
@@ -110,6 +113,11 @@ func (p *NotificationDecisionProjection) Apply(event *evtv1.Event, seq uint64) e
 	if err := applyNotificationDecisionState(p.config, p.activeUsers, p.threadFollows, p.followers, p.replyCounts, event, seq); err != nil {
 		return err
 	}
+	var replyCount uint64
+	if threadRootEventID := event.GetMessagePosted().GetInThread(); threadRootEventID != "" {
+		replyCount = p.replyCounts[threadRootEventID]
+	}
+	p.badges.apply(event, seq, replyCount)
 	return nil
 }
 
@@ -124,17 +132,28 @@ func (*NotificationDecisionProjection) SnapshotContractID() string {
 func (p *NotificationDecisionProjection) Snapshot() ([]byte, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return encodeNotificationDecisionState(p.rooms, p.groups, p.rbac, p.config, p.activeUsers, p.threadFollows, p.replyCounts)
+	return encodeNotificationDecisionState(p.rooms, p.groups, p.rbac, p.config, p.activeUsers, p.threadFollows, p.replyCounts, p.badges)
 }
 
 func (p *NotificationDecisionProjection) Restore(data []byte) error {
-	rooms, groups, rbac, config, activeUsers, threadFollows, followers, replyCounts, err := decodeNotificationDecisionState(data)
+	snapshot := &projectionv1.NotificationDecisionProjectionSnapshot{}
+	if len(data) > 0 {
+		if err := proto.Unmarshal(data, snapshot); err != nil {
+			return fmt.Errorf("unmarshal notification decision snapshot: %w", err)
+		}
+	}
+	rooms, groups, rbac, config, activeUsers, threadFollows, followers, replyCounts, err := decodeNotificationDecisionState(snapshot)
+	if err != nil {
+		return err
+	}
+	badges, err := restoreNotificationBadgeSources(snapshot.GetBadgeSources())
 	if err != nil {
 		return err
 	}
 	p.mu.Lock()
 	p.rooms, p.groups, p.rbac, p.config = rooms, groups, rbac, config
 	p.activeUsers, p.threadFollows, p.followers, p.replyCounts = activeUsers, threadFollows, followers, replyCounts
+	p.badges = badges
 	p.mu.Unlock()
 	return nil
 }
@@ -157,7 +176,7 @@ func (p *NotificationDecisionProjection) withCurrent(at time.Time, evaluate func
 	return evaluate(&notificationDecisionSnapshot{
 		rooms: p.rooms, groups: p.groups, rbac: p.rbac, config: p.config,
 		activeUsers: p.activeUsers, threadFollows: p.threadFollows, followers: p.followers, replyCounts: p.replyCounts,
-		at: at,
+		badges: p.badges, at: at,
 	})
 }
 
@@ -237,6 +256,7 @@ func encodeNotificationDecisionState(
 	activeUsers map[string]struct{},
 	threadFollows map[string]notificationThreadFollow,
 	replyCounts map[string]uint64,
+	badges *notificationBadgeSources,
 ) ([]byte, error) {
 	roomData, err := rooms.Snapshot()
 	if err != nil {
@@ -287,16 +307,11 @@ func encodeNotificationDecisionState(
 			ThreadRootEventId: threadRootEventID, ReplyCount: replyCounts[threadRootEventID],
 		})
 	}
+	snapshot.BadgeSources = badges.snapshot()
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
-func decodeNotificationDecisionState(data []byte) (*RoomDirectoryProjection, *RoomGroupLayoutProjection, *RBACProjection, *ConfigProjection, map[string]struct{}, map[string]notificationThreadFollow, map[string]map[string]struct{}, map[string]uint64, error) {
-	snapshot := &projectionv1.NotificationDecisionProjectionSnapshot{}
-	if len(data) > 0 {
-		if err := proto.Unmarshal(data, snapshot); err != nil {
-			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("unmarshal notification decision snapshot: %w", err)
-		}
-	}
+func decodeNotificationDecisionState(snapshot *projectionv1.NotificationDecisionProjectionSnapshot) (*RoomDirectoryProjection, *RoomGroupLayoutProjection, *RBACProjection, *ConfigProjection, map[string]struct{}, map[string]notificationThreadFollow, map[string]map[string]struct{}, map[string]uint64, error) {
 	rooms := NewRoomDirectoryProjection()
 	groups := NewRoomGroupLayoutProjection()
 	rbac := NewRBACProjection()
@@ -356,10 +371,13 @@ func (p *NotificationDecisionProjection) adminProjectionEstimate() (int64, int64
 	metrics = append(metrics, rbacMetrics...)
 	policyEntries := notificationPolicyEntryCount(p.config)
 	decisionEntries := int64(len(p.activeUsers)+len(p.threadFollows)+len(p.replyCounts)) + policyEntries
+	badgeMessages := int64(len(p.badges.messages))
+	badgeBytes := p.badges.estimatedBytes()
 	metrics = append(metrics,
 		ProjectionAdminMetric{Name: "decision_state", Value: decisionEntries, Bytes: decisionEntries * projectionMapEntryOverhead},
+		ProjectionAdminMetric{Name: "badge_sources", Value: badgeMessages, Bytes: badgeBytes},
 	)
-	return roomEntries + groupEntries + rbacEntries + decisionEntries, roomBytes + groupBytes + rbacBytes + decisionEntries*projectionMapEntryOverhead, metrics
+	return roomEntries + groupEntries + rbacEntries + decisionEntries + badgeMessages, roomBytes + groupBytes + rbacBytes + decisionEntries*projectionMapEntryOverhead + badgeBytes, metrics
 }
 
 func notificationPolicyEntryCount(config *ConfigProjection) int64 {
@@ -399,6 +417,7 @@ type notificationDecisionSnapshot struct {
 	threadFollows map[string]notificationThreadFollow
 	followers     map[string]map[string]struct{}
 	replyCounts   map[string]uint64
+	badges        *notificationBadgeSources
 	at            time.Time
 }
 
@@ -461,8 +480,12 @@ func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID 
 			return mode
 		}
 	}
-	return notificationModeForSignal(effectiveNotificationDeliveryModes(nil, nil), signal)
+	return notificationModeForSignal(defaultNotificationDeliveryModes, signal)
 }
+
+// defaultNotificationDeliveryModes holds the product defaults. It is read-only;
+// resolving them once keeps per-source Badge evaluation from allocating them.
+var defaultNotificationDeliveryModes = effectiveNotificationDeliveryModes(nil, nil)
 
 func (s *notificationDecisionSnapshot) membershipExists(userID, roomID string) bool {
 	if s.rooms.Membership.IsMember(roomID, userID) {

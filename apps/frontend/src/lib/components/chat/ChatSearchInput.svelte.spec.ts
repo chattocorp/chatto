@@ -16,8 +16,7 @@ describe('ChatSearchInput', () => {
     await expect.element(rendered.getByTestId('search-value')).toHaveTextContent('roadmap');
     await expect.element(rendered.getByTestId('input-count')).toHaveTextContent('1');
     expect(rendered.getByRole('button', { name: 'Clear search' }).element()).toHaveClass(
-      'h-8',
-      'w-8'
+      'field-action'
     );
     expect(surface).toHaveClass('h-12', 'chat-input-surface');
 

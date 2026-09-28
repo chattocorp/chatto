@@ -229,7 +229,9 @@
       "in_voice_call": "בשיחה קולית",
       "in_video_call": "בשיחת וידאו",
       "remove_failed": "לא ניתן להסיר את המשתמש מהחדר",
-      "remove_success": "{name} הוסר מהחדר"
+      "remove_success": "{name} הוסר מהחדר",
+      "members_load_failed": "טעינת חברי החדר נכשלה",
+      "members_refresh_failed": "רענון חברי החדר נכשל"
     },
     "pins": {
       "show": "הצגת הודעות מוצמדות",

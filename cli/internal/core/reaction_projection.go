@@ -256,6 +256,15 @@ func eventCreatedNanos(event *evtv1.Event) int64 {
 	return time.Now().UnixNano()
 }
 
+// RoomSequence returns the highest applied EVT sequence among the events that
+// this projection attributes to the room. Every reaction in the room that this
+// projection has applied has a sequence at or below it.
+func (p *ReactionProjection) RoomSequence(roomID string) uint64 {
+	p.RLock()
+	defer p.RUnlock()
+	return p.roomSeq[roomID]
+}
+
 func (p *ReactionProjection) HasReaction(messageEventID, emoji, userID string) bool {
 	return p.ReactionMutationSnapshot("", messageEventID, emoji, userID).Exists
 }

@@ -599,49 +599,24 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 // Absolute Asset URL Tests
 // ============================================================================
 
-func TestChattoCore_AssetBaseURL(t *testing.T) {
+func TestChattoCore_AssetURLsAreServerRelative(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	t.Run("GetStableAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
-		core.AssetBaseURL = ""
-		url := core.mediaModel.GetStableAttachmentURL("attachment456", "Uviewer")
-		if !bytes.HasPrefix([]byte(url), []byte("/assets/files/attachment456?access=")) {
-			t.Errorf("Expected relative URL, got '%s'", url)
+	// The API layer adds the public origin of each request.
+	tests := map[string]struct {
+		url    string
+		prefix string
+	}{
+		"attachment":             {core.mediaModel.GetStableAttachmentAssetURL("attachment456", "Uviewer").URL, "/assets/files/attachment456?access="},
+		"transformed attachment": {core.mediaModel.GetStableTransformedAttachmentAssetURL("attachment456", "Uviewer", 200, 150, "contain").URL, "/assets/files/attachment456/image/200x150/contain?access="},
+		"HLS master playlist":    {core.mediaModel.GetStableHLSMasterPlaylistAssetURL("attachment456", "Uviewer").URL, "/assets/hls/attachment456/master.m3u8?access="},
+		"transformed server":     {core.GetTransformedServerAssetURL("avatar-key", 100, 100, "cover"), "/assets/server/avatar-key/t/"},
+	}
+	for name, tt := range tests {
+		if !bytes.HasPrefix([]byte(tt.url), []byte(tt.prefix)) {
+			t.Errorf("%s URL = %q, want prefix %q", name, tt.url, tt.prefix)
 		}
-	})
-
-	t.Run("GetStableAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		url := core.mediaModel.GetStableAttachmentURL("attachment456", "Uviewer")
-
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456?access=")) {
-			t.Errorf("Expected absolute URL with base, got '%s'", url)
-		}
-	})
-
-	t.Run("GetStableTransformedAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		url := core.mediaModel.GetStableTransformedAttachmentURL("attachment456", "Uviewer", 200, 150, "contain")
-
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456/image/200x150/contain?access=")) {
-			t.Errorf("Expected absolute URL with base, got '%s'", url)
-		}
-	})
-
-	t.Run("GetTransformedServerAssetURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		url := core.GetTransformedServerAssetURL("avatar-key", 100, 100, "cover")
-
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
-			t.Errorf("Expected absolute URL with base, got '%s'", url)
-		}
-	})
+	}
 }
 
 // ============================================================================
@@ -710,7 +685,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 2. Verify stable access-ticket URL generation
-	url := core.mediaModel.GetStableAttachmentURL(attachment.Id, SystemActorID)
+	url := core.mediaModel.GetStableAttachmentAssetURL(attachment.Id, SystemActorID).URL
 	if url == "" {
 		t.Error("URL generation failed")
 	}

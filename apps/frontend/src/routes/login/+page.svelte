@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
   import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
@@ -106,7 +107,7 @@
       const resumed = await completeOriginAuthentication();
       if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
-      if (active) error = err instanceof Error ? err.message : m('auth.login.failed');
+      if (active) error = errorMessage(err, m('auth.login.failed'));
     } finally {
       providerPopup = null;
       selectedProviderId = null;
@@ -144,7 +145,7 @@
         await navigateAfterAuthentication(data.redirectUrl);
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m('auth.login.failed');
+      error = errorMessage(err, m('auth.login.failed'));
     } finally {
       isLoading = false;
     }

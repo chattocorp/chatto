@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
     timezone: null,
     ownerUserId: 'owner-user-id',
     createdAt: null,
-    apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
     lastLoginChange: null as Date | null,
     apiKeys: [
       {
@@ -176,18 +175,12 @@ describe('Bot detail page', () => {
     setReactiveLocale('en-GB');
   });
 
-  it.each([true, false])(
-    'gates outbound webhook settings on server support (%s)',
-    async (supported) => {
-      server.features = { botOutboundWebhooks: supported };
-      const { container } = render(BotDetailPage);
-      await settle();
-      expect(container.querySelector('[data-testid="bot-outbound-webhooks"]') !== null).toBe(
-        supported
-      );
-      expect(api.listOutboundWebhooks).toHaveBeenCalledTimes(supported ? 1 : 0);
-    }
-  );
+  it('shows outbound webhook settings', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+    expect(container.querySelector('[data-testid="bot-outbound-webhooks"]')).not.toBeNull();
+    expect(api.listOutboundWebhooks).toHaveBeenCalledTimes(1);
+  });
 
   it('creates a named incoming webhook and shows its URL once', async () => {
     const { container } = render(BotDetailPage);
@@ -454,14 +447,6 @@ describe('Bot detail page', () => {
     expect(document.body.textContent).not.toContain('Change the username of this bot');
   });
 
-  it('hides bot profile editing on servers without managed profile updates', async () => {
-    server.features = { managedUserProfiles: false };
-    const { container } = render(BotDetailPage);
-    await settle();
-
-    expect(container.querySelector('[data-testid="bot-profile-login"]')).toBeNull();
-  });
-
   it('hides bot profile editing from viewers who cannot manage the bot', async () => {
     server.permissions.canManageBots = false;
     const { container } = render(BotDetailPage);
@@ -657,21 +642,19 @@ describe('Bot detail page', () => {
   });
 
   it("formats API key timestamps with the viewer's timezone and time format", async () => {
-    server.features = { botMultipleApiKeys: false };
     const settings = { timezone: 'America/New_York', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR };
     server.currentUser.user!.settings = settings;
     const { container } = render(BotDetailPage);
     await settle();
 
     const expected = formatDateTime(
-      mocks.bot.apiKeyCreatedAt,
+      mocks.bot.apiKeys[0].createdAt,
       timeFormatSettingsFor(settings),
       'en-GB'
     );
-    expect(container.textContent).toContain(expected);
-    expect(container.textContent).not.toContain('Create API key');
-    expect(container.querySelector('button[aria-label="Revoke key"]')).toBeNull();
-    expect(container.textContent).not.toContain('Replace all keys');
+    expect(container.querySelector('[data-testid="bot-api-keys"]')?.textContent).toContain(
+      expected
+    );
   });
 
   it('shows owner reassignment only to bot managers', async () => {

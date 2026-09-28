@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { accountNameToken } from '$lib/render/accountName';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import type { AdminMember } from '$lib/api-client/adminUsers';
@@ -39,7 +40,7 @@
       await deleteMember();
       // On success the parent navigates away; keep the busy state while it does.
     } catch (err) {
-      error = err instanceof Error ? err.message : m('admin.member_delete.failed');
+      error = errorMessage(err, m('admin.member_delete.failed'));
       // Keep the typed confirmation so a retry needs no retyping.
       deleting = false;
     }

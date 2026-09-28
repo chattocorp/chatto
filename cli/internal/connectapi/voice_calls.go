@@ -167,6 +167,9 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 	}
 	avatarSize := 96
 	avatarURL, _ := s.api.core.GetUserAvatarURL(ctx, caller.UserID, &avatarSize, &avatarSize, "cover")
+	// Other call participants read this metadata, so it uses the canonical
+	// origin, not the hostname alias of this request.
+	avatarURL = s.api.canonicalServerURL(avatarURL)
 	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
 	token, err := core.GenerateVoiceCallToken(
 		s.api.config.LiveKit.APIKey,
@@ -175,7 +178,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		user.GetId(),
 		user.GetDisplayName(),
 		user.GetLogin(),
-		s.api.absolutizeAssetURL(ctx, avatarURL),
+		avatarURL,
 		user.GetIsBot(),
 		access.E2EEKey,
 		permissions,

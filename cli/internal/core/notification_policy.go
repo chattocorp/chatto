@@ -400,7 +400,19 @@ func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, 
 
 // UpdateScopedNotificationPolicy sparsely sets or clears overrides. The
 // complete resulting scope is committed as one OCC-protected domain fact.
+// Badge attention follows the current policy, so the actor's rooms whose Badge
+// state changed receive an invalidation.
 func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Context, actorID string, scope NotificationPolicyScope, patch *evtv1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
+	var policy *NotificationPolicy
+	err := s.core.withBadgeRoomHints(ctx, actorID, scope, func() error {
+		var err error
+		policy, err = s.updateScopedNotificationPolicy(ctx, actorID, scope, patch, mask)
+		return err
+	})
+	return policy, err
+}
+
+func (s *NotificationPolicyModel) updateScopedNotificationPolicy(ctx context.Context, actorID string, scope NotificationPolicyScope, patch *evtv1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}

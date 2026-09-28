@@ -65,9 +65,9 @@ targets, unread counts, read state, or deletion semantics.
   source activity. Reading or deleting it does not extend that lifetime.
   Physical cleanup may continue during ADR-076's 24-hour grace period without
   extending user-visible retention.
-- A Badge marker expires 90 days after its latest source activity. A read,
-  visibility loss, target removal, or reaction removal can make it inactive
-  sooner.
+- A Badge source gives attention for 90 days after its source activity. A
+  read, visibility loss, target removal, reaction removal, or a change of the
+  notification policy or thread follow can end the attention sooner.
 - The combined multi-server list preserves healthy results when another server
   fails and exposes the failure as partial.
 - Notification delivery rules and client sound choices are User Preferences.
@@ -240,8 +240,10 @@ Durable visibility-loss boundaries prevent old queued activity from
 reappearing after a quick regain of room access.
 Actor identity is hydrated from current account data; an unavailable or deleted
 actor does not by itself expose copied profile data or make an otherwise valid
-occurrence invisible. Badge markers use the same current room, target,
-reaction, visibility-loss, and read boundaries.
+occurrence invisible. Badge attention is computed from the current room,
+target, reaction, and read state, the current membership start, and the
+current notification policy (ADR-109). It does not use visibility-loss
+boundaries: an unread message counts again when the user can read it again.
 
 **Why:** Source-time eligibility explains why the notification was created, but
 it cannot override present-day privacy and target existence.
@@ -255,9 +257,10 @@ success.
 **Decision:** Realtime notification updates tell clients to replace their
 finite notification view from authoritative server state. Badge updates tell
 clients to replace only unread and Slow Mode activity for the affected room.
-This update does not repeat room membership or permission decisions. An active
-Badge marker can advance to a newer source in the same scope without another
-realtime update because its public unread value stays true. My Threads can
+This update does not repeat room membership or permission decisions. A new
+source sends an update only when it turns Badge attention on. Another source in
+a scope that is already unread sends no update, because the public unread value
+stays true. My Threads can
 decorate a followed thread from matching unread occurrences in the finite
 notification view. The thread read cursor remains the only source of
 reply-unread state. Unread totals remain exact even when rows are grouped. The

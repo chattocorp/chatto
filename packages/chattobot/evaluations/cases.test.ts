@@ -54,3 +54,14 @@ test('missing evidence is a stopped report handoff, not an ongoing search', () =
     )
   ).not.toEqual([]);
 });
+
+test('internal details such as the model or provider are not disclosed', () => {
+  expect(checkReply('internals', "I'm a large language model trained by Google.")).toHaveLength(1);
+  expect(checkReply('internals', 'I run on Gemma 4.')).toHaveLength(1);
+  expect(
+    checkReply(
+      'internals',
+      "I'm ChattoBot, Chatto's assistant. I can answer questions from the Chatto documentation."
+    )
+  ).toEqual([]);
+});

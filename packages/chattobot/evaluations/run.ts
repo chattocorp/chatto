@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { task, Type } from 'runling';
 import { agent } from 'runling/agents';
-import { responsePolicy } from '../workflows/response-policy.ts';
+import { responsePolicy, systemPrompt } from '../workflows/response-policy.ts';
 import { checkReply, replyCases } from './cases.ts';
 
 /** Opt-in policy evaluation. Each case gets a fresh, tool-free agent session. */
@@ -16,7 +16,8 @@ export default task(
     output: Type.Unknown()
   },
   async (ctx, input) => {
-    if (input.dryRun) return { cases: replyCases, instructions: responsePolicy, modelCalls: 0 };
+    if (input.dryRun)
+      return { cases: replyCases, systemPrompt, instructions: responsePolicy, modelCalls: 0 };
     const results = [];
     for (let repetition = 0; repetition < (input.repeats ?? 1); repetition++) {
       for (const example of replyCases) {
@@ -35,8 +36,9 @@ export default task(
             themes: false,
             contextFiles: false
           },
+          systemPrompt,
           instructions: [
-            'You are ChattoBot. Your text is posted to the conversation. Reply briefly to the supplied conversation data.',
+            'Reply briefly to the supplied conversation data. This evaluation has no tools.',
             ...responsePolicy
           ]
         });

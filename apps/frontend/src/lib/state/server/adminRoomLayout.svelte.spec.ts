@@ -221,7 +221,7 @@ describe('AdminRoomLayoutStore — loading', () => {
       const { client } = makeClient({
         queries: [
           { data: queryData([group('g1', [room('r1')], 'Lobby')]) },
-          { error: { message: 'offline' } }
+          { error: new Error('offline') }
         ]
       });
       const store = new AdminRoomLayoutStore(client, roomAPI());
@@ -324,7 +324,7 @@ describe('AdminRoomLayoutStore — mutations', () => {
   });
 
   it('does not optimistically update a group when rename fails', async () => {
-    const { client } = makeClient({ mutations: [{ error: { message: 'nope' } }] });
+    const { client } = makeClient({ mutations: [{ error: new Error('nope') }] });
     const store = new AdminRoomLayoutStore(client, roomAPI());
     store.groups = [group('g1', [], 'Original')];
 
@@ -660,7 +660,7 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
 
   it('requests a refresh when a room move or reorder fails', async () => {
     const { client, query } = makeClient({
-      mutations: [{ error: { message: 'move denied' } }, { data: null }, { data: null }],
+      mutations: [{ error: new Error('move denied') }, { data: null }, { data: null }],
       queries: [{ data: queryData([group('g1', [room('a')])]) }]
     });
     const store = new AdminRoomLayoutStore(client, roomAPI());

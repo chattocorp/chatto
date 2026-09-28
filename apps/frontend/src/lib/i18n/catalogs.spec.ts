@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { identicalTranslations } from './identicalTranslations';
 import { baseLocale, fallbackLocales, selectableLocales } from './locales';
 
 const messagesRoot = fileURLToPath(new URL('../../../messages/', import.meta.url));
@@ -117,6 +118,28 @@ function collectMessageKeys(value: unknown, path = '', keys = new Set<string>())
   return keys;
 }
 
+/** Flattens a catalog to message keys; plural objects contribute their `other` branch. */
+function flattenMessages(value: unknown, path = '', out = new Map<string, string>()) {
+  if (typeof value === 'string') {
+    out.set(path, value);
+  } else if (isPlural(value)) {
+    out.set(path, value.other);
+  } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      flattenMessages(child, path ? `${path}.${key}` : key, out);
+    }
+  }
+  return out;
+}
+
+/** Counts whitespace-separated words with at least two letters, ignoring placeholders. */
+function wordCount(value: string): number {
+  return value
+    .replace(/\{[^{}]+\}/g, ' ')
+    .split(/\s+/)
+    .filter((token) => (token.match(/\p{L}/gu) ?? []).length >= 2).length;
+}
+
 function expectNoEmptyMessages(value: unknown, path: string): void {
   if (typeof value === 'string') {
     expect(value.trim(), `${path} must not be empty`).not.toBe('');
@@ -166,6 +189,53 @@ describe('translated message catalogs', () => {
         compareCatalogValue(source, translated, `${locale}.${filename}`);
       }
     }
+  });
+
+  it('translates multi-word messages in every complete locale', () => {
+    const catalogFiles = readdirSync(join(messagesRoot, baseLocale)).filter((filename) =>
+      filename.endsWith('.json')
+    );
+    const readMessages = (locale: string) => {
+      const messages = new Map<string, string>();
+      for (const filename of catalogFiles) {
+        flattenMessages(
+          JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8')),
+          '',
+          messages
+        );
+      }
+      return messages;
+    };
+    const source = readMessages(baseLocale);
+    const completeLocales = selectableLocales.filter(
+      (locale) => locale !== baseLocale && !sparseLocales.has(locale)
+    );
+    const completeLocaleSet = new Set<string>(completeLocales);
+    const untranslated: string[] = [];
+    const stale: string[] = [];
+
+    for (const [key, locales] of Object.entries(identicalTranslations)) {
+      for (const locale of locales) {
+        if (!source.has(key) || !completeLocaleSet.has(locale)) {
+          stale.push(`${locale}: ${key}`);
+        }
+      }
+    }
+
+    for (const locale of completeLocales) {
+      for (const [key, translated] of readMessages(locale)) {
+        const identical = translated === source.get(key) && wordCount(translated) >= 2;
+        const allowed = identicalTranslations[key]?.includes(locale) ?? false;
+        if (identical && !allowed) untranslated.push(`${locale}: ${key}`);
+        if (allowed && !identical) stale.push(`${locale}: ${key}`);
+      }
+    }
+
+    expect(
+      untranslated,
+      'translate these messages or list them in identicalTranslations.ts'
+    ).toEqual([]);
+    expect(stale, 'remove these stale identicalTranslations.ts entries').toEqual([]);
   });
 
   it('keeps regional catalogs as overlays of their configured fallback', () => {

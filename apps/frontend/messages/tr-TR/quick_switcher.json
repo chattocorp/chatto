@@ -14,6 +14,7 @@
     "message_search": {
       "prompt": "Sonra yaz? sunucularınız genelinde mesajları aramak için",
       "no_results": "Mesaj bulunamadı"
-    }
+    },
+    "start_dm_failed": "DM başlatılamadı"
   }
 }

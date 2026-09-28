@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Błąd sieci. Spróbuj ponownie.",
-      "generic": "Coś poszło nie tak"
+      "generic": "Coś poszło nie tak",
+      "permission_denied": "Nie masz uprawnień, aby to zrobić.",
+      "not_found": "Nie znaleziono żądanego elementu.",
+      "unauthenticated": "Twoja sesja wygasła. Zaloguj się ponownie.",
+      "conflict": "To zmieniło się podczas edycji. Odśwież stronę i spróbuj ponownie."
     },
     "delete": "Usuń",
     "save": "Zapisz",

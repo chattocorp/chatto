@@ -11,7 +11,7 @@
       "event_log": "Registro de eventos",
       "system": "Sistema",
       "back_to_server": "Regresar al Servidor",
-      "invitations": "Invite links"
+      "invitations": "Enlaces de invitación"
     },
     "neighbors": {
       "title": "Vecinos",
@@ -136,7 +136,9 @@
       "open_delete_account": "Eliminar cuenta",
       "delete_account_entry_description": "Elimina definitivamente la cuenta de este miembro. Sus mensajes quedan ilegibles. Esto no se puede deshacer.",
       "bio_placeholder": "Cuéntales a los demás un poco sobre este miembro",
-      "bio_description": "Hasta {max} caracteres, se muestra en el perfil del miembro."
+      "bio_description": "Hasta {max} caracteres, se muestra en el perfil del miembro.",
+      "update_failed": "No se pudo actualizar el usuario",
+      "cooldown_clear_failed": "No se pudo restablecer el tiempo de espera para cambiar el nombre de usuario"
     },
     "member_delete": {
       "title": "Eliminar miembro",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Ningún usuario tiene este rol",
       "server_tier_intro": "Esta página es para permisos de rol a nivel de servidor: valores predeterminados amplios que se aplican antes de las anulaciones específicas de la sala.",
       "server_tier_rooms_hint": "Usar Salas para anulaciones por grupo y por sala.",
-      "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico."
+      "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico.",
+      "update_role_failed": "No se pudo actualizar el rol",
+      "update_ping_failed": "No se pudo actualizar la configuración de menciones del rol",
+      "delete_role_failed": "No se pudo eliminar el rol"
     },
     "rooms_admin": {
       "title": "Habitaciones",
@@ -288,7 +293,10 @@
       "member_added": "Se agregó a {name} a la sala",
       "add_member_failed": "No se pudo agregar al miembro: {error}",
       "member_removed": "Se quitó a {name} de la sala",
-      "remove_member_failed": "No se pudo quitar al miembro: {error}"
+      "remove_member_failed": "No se pudo quitar al miembro: {error}",
+      "move_room_failed": "No se pudo mover la sala: {error}",
+      "move_link_failed": "No se pudo mover el enlace: {error}",
+      "reorder_rooms_failed": "No se pudieron reordenar las salas: {error}"
     },
     "security": {
       "title": "Seguridad",
@@ -468,36 +476,36 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
-      "title": "Invite links",
-      "subtitle": "Create and manage links that admit new accounts.",
-      "create_title": "Create invite link",
-      "max_uses": "Maximum uses",
-      "max_uses_error": "Enter a whole number of at least 1.",
-      "unlimited_uses": "Allow unlimited uses",
-      "expiry": "Expiry",
-      "expiry_1d": "1 day",
-      "expiry_7d": "7 days",
-      "expiry_30d": "30 days",
-      "expiry_never": "Never",
-      "create": "Create invite link",
-      "created": "Invite link created",
-      "list_title": "Invite links",
-      "empty": "No invite links yet.",
-      "uses": "Uses",
-      "created_at": "Created",
-      "actions": "Actions",
-      "never": "Never",
-      "copy": "Copy link",
-      "copied": "Invite link copied",
-      "revoke": "Revoke",
-      "revoked": "Invite link revoked",
-      "revoke_title": "Revoke invite link?",
-      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "title": "Enlaces de invitación",
+      "subtitle": "Crea y administra enlaces que permiten crear cuentas nuevas.",
+      "create_title": "Crear enlace de invitación",
+      "max_uses": "Usos máximos",
+      "max_uses_error": "Ingresa un número entero igual o mayor que 1.",
+      "unlimited_uses": "Permitir usos ilimitados",
+      "expiry": "Vencimiento",
+      "expiry_1d": "1 día",
+      "expiry_7d": "7 días",
+      "expiry_30d": "30 días",
+      "expiry_never": "Nunca",
+      "create": "Crear enlace de invitación",
+      "created": "Enlace de invitación creado",
+      "list_title": "Enlaces de invitación",
+      "empty": "Todavía no hay enlaces de invitación.",
+      "uses": "Usos",
+      "created_at": "Creado",
+      "actions": "Acciones",
+      "never": "Nunca",
+      "copy": "Copiar enlace",
+      "copied": "Enlace de invitación copiado",
+      "revoke": "Revocar",
+      "revoked": "Enlace de invitación revocado",
+      "revoke_title": "¿Revocar el enlace de invitación?",
+      "revoke_description": "Este enlace dejará de permitir la creación de cuentas nuevas de inmediato.",
       "status": {
-        "active": "Active",
-        "expired": "Expired",
-        "exhausted": "Exhausted",
-        "revoked": "Revoked"
+        "active": "Activo",
+        "expired": "Vencido",
+        "exhausted": "Agotado",
+        "revoked": "Revocado"
       }
     }
   }

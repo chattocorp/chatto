@@ -25,6 +25,7 @@ headers are clickable when `onRoleClick` is provided
 focusing a cell highlights its permission row and role column.
 -->
 <script lang="ts">
+  import { errorMessage } from '$lib/utils/errorMessage';
   import { onDestroy, type Snippet } from 'svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
@@ -41,6 +42,9 @@ focusing a cell highlights its permission row and role column.
   } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
+  import PermissionHelpDialog from './PermissionHelpDialog.svelte';
+  import PermissionRowLabel from './PermissionRowLabel.svelte';
+  import { decisionTitle, decisionWord } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
@@ -171,7 +175,7 @@ focusing a cell highlights its permission row and role column.
 
   const data = $derived(matrixQuery.data ?? null);
   const loading = $derived(matrixQuery.isPending);
-  const loadError = $derived(matrixQuery.error instanceof Error ? matrixQuery.error.message : null);
+  const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
   let mutationError = $state<{ context: string; message: string } | null>(null);
   let updating = $state<string[]>([]);
   let disposed = false;
@@ -213,6 +217,13 @@ focusing a cell highlights its permission row and role column.
     return chains;
   });
   let permissionFilter = $state('');
+  let helpPermission = $state<string | null>(null);
+  let helpVisible = $state(false);
+
+  function showHelp(permission: string) {
+    helpPermission = permission;
+    helpVisible = true;
+  }
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
@@ -419,7 +430,7 @@ focusing a cell highlights its permission row and role column.
             type="button"
             class={['cursor-pointer hover:underline', highlighted ? 'text-action' : '']}
             onclick={() => handle(role)}
-            title={`${role.displayName} — click to manage`}
+            title={m('rbac.permissions.cell.manage_role', { role: role.displayName })}
           >
             @{role.roleName}
           </button>
@@ -444,11 +455,12 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        <span
-          data-testid="permission-name"
-          title={getPermissionDescription(permission)}
-          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}>{permission}</span
-        >
+        <PermissionRowLabel
+          label={permission}
+          {highlighted}
+          helpLabel={m('rbac.permissions.help.open', { permission })}
+          onhelp={() => showHelp(permission)}
+        />
       {/snippet}
       {#snippet cell(permission, role)}
         {@const permissionId = permission}
@@ -459,30 +471,42 @@ focusing a cell highlights its permission row and role column.
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
         {@const ariaParts = virtualOwner
-          ? [`Owner is always granted ${permissionId}`]
+          ? [m('rbac.permissions.cell.owner_always_granted', { permission: permissionId })]
           : [
               ov !== 'neutral'
-                ? `Override ${ov} for ${role.displayName} on ${permissionId}`
-                : `No override for ${role.displayName} on ${permissionId}`,
+                ? m('rbac.permissions.cell.override_for_role', {
+                    state: decisionWord(ov),
+                    role: role.displayName,
+                    permission: permissionId
+                  })
+                : m('rbac.permissions.cell.no_override_for_role', {
+                    role: role.displayName,
+                    permission: permissionId
+                  }),
               inh !== 'neutral' && inheritedFromLabel
-                ? `inheriting ${inh} from ${inheritedFromLabel}`
+                ? m('rbac.permissions.cell.inheriting_from', {
+                    state: decisionWord(inh),
+                    source: inheritedFromLabel
+                  })
                 : null
             ].filter(Boolean)}
         {@const ariaLabel = ariaParts.join(', ')}
         {@const titleParts = virtualOwner
-          ? [
-              'Allow (owners are always granted all permissions)',
-              'Owner permissions are not editable'
-            ]
+          ? [m('rbac.permissions.cell.owner_allow'), m('rbac.permissions.cell.owner_not_editable')]
           : [
               ov !== 'neutral'
-                ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`
+                ? m('rbac.permissions.cell.override_here', { state: decisionTitle(ov) })
                 : null,
               inh !== 'neutral' && inheritedFromLabel
-                ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
+                ? m('rbac.permissions.cell.inherits_from', {
+                    state: decisionTitle(inh),
+                    source: inheritedFromLabel
+                  })
                 : null,
-              includedBy ? `Effective Allow (included by ${includedBy})` : null,
-              ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
+              includedBy
+                ? m('rbac.permissions.cell.effective_included_by', { permission: includedBy })
+                : null,
+              ov === 'neutral' && inh === 'neutral' ? m('rbac.permissions.no_decision') : null
             ].filter(Boolean)}
         <MatrixCell
           override={displayOverride}
@@ -501,4 +525,5 @@ focusing a cell highlights its permission row and role column.
       {/snippet}
     </MatrixTable>
   </Panel>
+  <PermissionHelpDialog bind:visible={helpVisible} bind:permission={helpPermission} {permissions} />
 {/if}

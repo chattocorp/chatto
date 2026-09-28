@@ -104,7 +104,8 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 		width, height := 1200, 630
 		bannerURL, err := s.core.GetServerBannerURL(ctx, &width, &height, "cover")
 		if err == nil && bannerURL != "" {
-			defaultImage = bannerURL
+			// Crawlers require an absolute og:image URL.
+			defaultImage = configuredWebserverOrigin(s.config.Webserver.URL) + bannerURL
 		}
 	}
 

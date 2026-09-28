@@ -168,7 +168,7 @@
       "delete_label": "Apagar anexo",
       "delete_failed": "Falha ao eliminar anexo",
       "view_label": "Ver {filename}",
-      "download_label": "Download {filename}",
+      "download_label": "Transferir {filename}",
       "image_refresh_failed": "Não foi possível atualizar o link da imagem",
       "download_refresh_failed": "Não foi possível atualizar o link de download",
       "add_description": "Adicionar descrição",
@@ -225,7 +225,9 @@
       "in_voice_call": "Numa chamada de voz",
       "in_video_call": "Numa videochamada",
       "remove_failed": "Não foi possível remover o utilizador da sala",
-      "remove_success": "{name} foi removido da sala"
+      "remove_success": "{name} foi removido da sala",
+      "members_load_failed": "Falha ao carregar membros da sala",
+      "members_refresh_failed": "Falha ao atualizar membros da sala"
     },
     "pins": {
       "show": "Mostrar mensagens fixadas",

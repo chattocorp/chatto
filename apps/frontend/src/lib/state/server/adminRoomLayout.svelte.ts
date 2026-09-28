@@ -9,6 +9,8 @@ import type {
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { Code, isConnectCode } from '$lib/api-client/connect';
+import { m } from '$lib/i18n/messages';
+import { errorMessage } from '$lib/utils/errorMessage';
 
 export type {
   AdminRoomGroup,
@@ -56,16 +58,6 @@ export type GroupReorderResult =
 
 export type GroupRoomOrder = SvelteMap<string, string[]>;
 export type GroupItemOrder = SvelteMap<string, AdminSidebarItem[]>;
-
-function errorMessage(error: unknown): string {
-  if (!error) return 'unknown error';
-  if (typeof error === 'string') return error;
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-    return error.message;
-  }
-  return String(error);
-}
 
 export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
   const map = new SvelteMap<string, string[]>();
@@ -615,7 +607,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.moveRoomToGroup(move);
       } catch (error) {
-        errors.push(`Failed to move room: ${errorMessage(error)}`);
+        errors.push(m('admin.rooms_admin.move_room_failed', { error: errorMessage(error) }));
       }
     }
 
@@ -623,7 +615,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.moveSidebarLinkToGroup({ linkId: move.roomId, groupId: move.groupId });
       } catch (error) {
-        errors.push(`Failed to move link: ${errorMessage(error)}`);
+        errors.push(m('admin.rooms_admin.move_link_failed', { error: errorMessage(error) }));
       }
     }
 
@@ -631,7 +623,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.reorderSidebarItemsInGroup(reorder);
       } catch (error) {
-        errors.push(`Failed to reorder rooms: ${errorMessage(error)}`);
+        errors.push(m('admin.rooms_admin.reorder_rooms_failed', { error: errorMessage(error) }));
       }
     }
 

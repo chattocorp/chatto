@@ -354,9 +354,9 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 			ContentType:       attachment.ContentType,
 			Width:             attachment.Width,
 			Height:            attachment.Height,
-			AssetUrl:          assetURLView(assetURL),
-			ThumbnailAssetUrl: assetURLView(thumbnailURL),
-			VideoProcessing:   apiVideoProcessing(h.api, h.viewerID, attachment),
+			AssetUrl:          h.api.assetURLView(h.ctx, assetURL),
+			ThumbnailAssetUrl: h.api.assetURLView(h.ctx, thumbnailURL),
+			VideoProcessing:   apiVideoProcessing(h.ctx, h.api, h.viewerID, attachment),
 		}
 		if description := descriptions[attachment.GetId()]; description != "" {
 			view.Description = &description
@@ -367,7 +367,7 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 }
 
 func (h *timelineHydrator) linkPreview(preview *evtv1.LinkPreview) *apiv1.LinkPreview {
-	return apiLinkPreview(h.api, preview)
+	return apiLinkPreview(h.ctx, h.api, preview)
 }
 
 func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.MessageReaction {
@@ -452,9 +452,11 @@ func callEvent(roomID, callID string) *apiv1.RoomTimelineCallEvent {
 	return &apiv1.RoomTimelineCallEvent{RoomId: roomID, CallId: callID}
 }
 
-func assetURLView(assetURL core.StableAssetURL) *apiv1.MessageAssetUrl {
+// assetURLView maps a core asset URL to its API view. With webserver.url, the
+// URL is absolute on the public origin of the request in ctx.
+func (a *API) assetURLView(ctx context.Context, assetURL core.StableAssetURL) *apiv1.MessageAssetUrl {
 	return &apiv1.MessageAssetUrl{
-		Url:       assetURL.URL,
+		Url:       a.absolutizeMediaURL(ctx, assetURL.URL),
 		ExpiresAt: timestamppb.New(assetURL.ExpiresAt),
 	}
 }

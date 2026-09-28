@@ -60,6 +60,29 @@
   </div>
 </Story>
 
+<Story
+  name="Hidden label"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Use `labelHidden` when surrounding context already names the control, such as a policy column in a table. The label stays available to assistive technology.'
+      }
+    }
+  }}
+>
+  <div class="max-w-xs">
+    <Select
+      id="client-policy"
+      label="Policy for Chatto Web"
+      labelHidden
+      options={visibility}
+      bind:value={v1}
+    />
+  </div>
+</Story>
+
 <Story name="Many devices and long labels" asChild>
   <div class="w-full max-w-md">
     <Select id="many-devices" label="Microphone" options={devices} bind:value={device} />

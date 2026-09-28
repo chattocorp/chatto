@@ -16,6 +16,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { Type, type Static } from 'typebox';
 import webFetchExtension from '../../extensions/web-fetch.ts';
+import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
 import { log, withLogSource } from './log.ts';
@@ -159,6 +160,10 @@ function providerFailureSummary(error: string): string {
   return 'Agent provider could not finish the response';
 }
 
+/** Refuse selected tools once untrusted content has entered an agent's context.
+ * See `extensions/trust.ts`. */
+export type AgentTrustPolicy = TrustPolicy;
+
 export interface RunAgentOptions {
   model: string;
   /** Static operational role shown in server logs. Never use user data or model output. */
@@ -189,6 +194,8 @@ export interface RunAgentOptions {
   onActivity?: (activity: AgentActivity) => void;
   /** Abort an active model turn. */
   signal?: AbortSignal;
+  /** Block selected tools after untrusted content enters this agent's context. */
+  trust?: AgentTrustPolicy;
 }
 
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
@@ -278,7 +285,8 @@ export async function agent(options: AgentOptions): Promise<RunlingAgent> {
 
 async function createRunlingAgent(
   options: AgentOptions,
-  history: Parameters<typeof convertToLlm>[0] = []
+  history: Parameters<typeof convertToLlm>[0] = [],
+  inheritedUntrusted = false
 ): Promise<RunlingAgent> {
   const inheritedMessages = convertToLlm(structuredClone(history));
   const agentId = randomId();
@@ -352,6 +360,14 @@ async function createRunlingAgent(
 
   const additionalInstructions = formatAgentInstructions(options.instructions ?? []);
 
+  // Untrusted content stays in the model history, so forks inherit the mark.
+  const trust = options.trust
+    ? createTrustExtension(options.trust, {
+        untrusted: inheritedUntrusted,
+        log: (level, message) => writeAgentLog(level, message)
+      })
+    : undefined;
+
   const resources = options.resources;
   const extensionsEnabled = resources?.extensions !== false;
   const settingsManager = SettingsManager.create(cwd, agentDir);
@@ -367,6 +383,7 @@ async function createRunlingAgent(
     agentDir,
     settingsManager,
     extensionFactories: [
+      ...(trust ? [{ name: 'runling-trust', factory: trust.extension }] : []),
       ...(extensionsEnabled ? [{ name: 'runling-web-fetch', factory: webFetchExtension }] : []),
       ...(options.extensions ?? [])
     ],
@@ -820,7 +837,7 @@ async function createRunlingAgent(
         throw new Error(`Agent ${agentId} is already running`);
       }
 
-      return createRunlingAgent(options, session.agent.state.messages);
+      return createRunlingAgent(options, session.agent.state.messages, trust?.untrusted ?? false);
     },
 
     dispose,

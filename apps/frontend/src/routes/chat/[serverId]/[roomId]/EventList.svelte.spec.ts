@@ -426,6 +426,43 @@ describe('EventList unread entry landing', () => {
     }
   });
 
+  it('waits for the viewer to return before landing on a separator placed while away', async () => {
+    setVirtualizerScrollOffset(400);
+    try {
+      const rendered = render(EventListTestHarness, {
+        props: { eventIds, scrollToEventId: null }
+      });
+      await expect
+        .element(page.getByTestId('virtualizer-scroll-alignment'))
+        .toHaveTextContent('end');
+
+      window.dispatchEvent(new Event('blur'));
+      await rendered.rerender({
+        eventIds,
+        scrollToEventId: null,
+        unreadAfterEventId: 'msg-2'
+      });
+      await nextFrames();
+
+      // While away, the timeline keeps following the latest message.
+      await expect
+        .element(page.getByTestId('virtualizer-scroll-alignment'))
+        .toHaveTextContent('end');
+
+      window.dispatchEvent(new Event('focus'));
+
+      await expect
+        .element(page.getByTestId('virtualizer-rendered-key'))
+        .toHaveAttribute('data-rendered-key', 'unread-separator-msg-2');
+      await expect
+        .element(page.getByTestId('virtualizer-scroll-alignment'))
+        .toHaveTextContent('start');
+    } finally {
+      window.dispatchEvent(new Event('focus'));
+      setVirtualizerScrollOffset(700);
+    }
+  });
+
   it('lets the jump button cancel a running landing', async () => {
     const frames: FrameRequestCallback[] = [];
     const requestFrame = vi

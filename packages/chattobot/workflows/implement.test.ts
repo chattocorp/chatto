@@ -16,6 +16,7 @@ import {
   validationDiagnostic,
   workerStopReason
 } from './implement.ts';
+import { ConfigurationError } from '../settings.ts';
 import {
   implementationProcess,
   ImplementationCommandError,
@@ -1254,8 +1255,18 @@ test('settings are opt-in and remote matching cannot select a different host or 
     repository: 'example/chatto',
     baseBranch: 'main'
   });
+  vi.stubEnv('CHATTO_SOURCE_REF', ' ');
+  expect(implementationSettings()?.baseBranch).toBe('main');
   vi.stubEnv('CHATTO_SOURCE_REF', 'origin/develop');
-  expect(implementationSettings()?.baseBranch).toBe('origin/develop');
+  expect(implementationSettings()?.baseBranch).toBe('develop');
+  vi.stubEnv('CHATTO_SOURCE_REF', 'v1.0^{commit}');
+  expect(() => implementationSettings()).toThrow(ConfigurationError);
+  vi.stubEnv('CHATTO_SOURCE_REF', '');
+  vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', 'https://github.com/example/chatto');
+  expect(() => implementationSettings()).toThrow(
+    'CHATTO_IMPLEMENTATION_REPOSITORY must be owner/repo'
+  );
+  vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', 'example/chatto');
   expect(matchesRepository('git@github.com:example/chatto.git', 'example/chatto')).toBe(true);
   for (const remote of [
     'https://github.com/other/chatto',

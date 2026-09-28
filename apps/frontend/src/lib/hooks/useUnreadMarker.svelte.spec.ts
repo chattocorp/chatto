@@ -18,6 +18,7 @@ type HarnessAPI = {
   } | null;
   markAsRead(targetId: string, upToEventId?: string): Promise<unknown>;
   setUnreadMarkerEventId(eventId: string | null): void;
+  markArrivalWhileAway(eventId: string): void;
 };
 
 function deferred<T>() {
@@ -450,6 +451,168 @@ describe('useUnreadMarker', () => {
       })
     );
     expect(currentApi.unreadMarkerEventId).toBeNull();
+    rendered.unmount();
+  });
+
+  it('places the separator at the first message that arrives while away', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    let api: HarnessAPI | undefined;
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        onReady: (nextApi: HarnessAPI) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    const currentApi = getApi(api);
+
+    currentApi.markArrivalWhileAway('while-present');
+    expect(currentApi.unreadMarkerEventId).toBeNull();
+
+    setPresent(false);
+    currentApi.markArrivalWhileAway('first-away');
+    currentApi.markArrivalWhileAway('second-away');
+    flushSync();
+    expect(currentApi.unreadMarkerEventId).toBe('first-away');
+    expect(markAsRead).toHaveBeenCalledOnce();
+
+    rendered.unmount();
+  });
+
+  it('keeps an away separator when an earlier read returns later', async () => {
+    setVisibility('visible');
+    window.dispatchEvent(new Event('blur'));
+    flushSync();
+    const entryRead = deferred<typeof NO_MARKER_RESULT>();
+    const markAsRead = vi.fn().mockReturnValue(entryRead.promise);
+    let api: HarnessAPI | undefined;
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        onReady: (nextApi: HarnessAPI) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    const currentApi = getApi(api);
+
+    currentApi.markArrivalWhileAway('arrived-during-read');
+    entryRead.resolve(NO_MARKER_RESULT);
+    await entryRead.promise;
+    await Promise.resolve();
+    flushSync();
+
+    expect(currentApi.unreadMarkerEventId).toBe('arrived-during-read');
+    rendered.unmount();
+  });
+
+  it('places a new away separator after the viewer returns and leaves again', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    let api: HarnessAPI | undefined;
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        onReady: (nextApi: HarnessAPI) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    const currentApi = getApi(api);
+
+    setPresent(false);
+    currentApi.markArrivalWhileAway('first-away');
+    setPresent(true);
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(currentApi.unreadMarkerEventId).toBeNull());
+
+    setPresent(false);
+    currentApi.markArrivalWhileAway('second-away');
+    flushSync();
+    expect(currentApi.unreadMarkerEventId).toBe('second-away');
+
+    rendered.unmount();
+  });
+
+  it('removes the away separator when another session read the target meanwhile', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    let api: HarnessAPI | undefined;
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        onReady: (nextApi: HarnessAPI) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    const currentApi = getApi(api);
+
+    setPresent(false);
+    currentApi.markArrivalWhileAway('first-away');
+    flushSync();
+    expect(currentApi.unreadMarkerEventId).toBe('first-away');
+
+    // The read cursor did not advance on return, so nothing is unread here.
+    setPresent(true);
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(currentApi.unreadMarkerEventId).toBeNull());
+    expect(currentApi.unreadMarkerWindow).toBeNull();
+    rendered.unmount();
+  });
+
+  it('keeps the away separator on the same event when the read on return resolves it', async () => {
+    const markedAtMs = Date.parse('2026-07-08T10:05:00.000Z');
+    vi.spyOn(Date, 'now').mockReturnValue(markedAtMs);
+    const markAsRead = vi.fn().mockResolvedValueOnce(NO_MARKER_RESULT).mockResolvedValueOnce({
+      previousLastReadAt: '2026-07-08T10:00:00.000Z',
+      lastReadAt: '2026-07-08T10:02:00.000Z'
+    });
+    const events = [
+      { id: 'already-read', actorId: 'other-user', createdAt: '2026-07-08T10:00:00.000Z' },
+      { id: 'first-away', actorId: 'other-user', createdAt: '2026-07-08T10:01:00.000Z' },
+      { id: 'second-away', actorId: 'other-user', createdAt: '2026-07-08T10:02:00.000Z' }
+    ];
+    let api: HarnessAPI | undefined;
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        events,
+        skipActorId: 'current-user',
+        onReady: (nextApi: HarnessAPI) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    const currentApi = getApi(api);
+
+    setPresent(false);
+    currentApi.markArrivalWhileAway('first-away');
+    currentApi.markArrivalWhileAway('second-away');
+    setPresent(true);
+
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(currentApi.unreadMarkerWindow).toBeNull());
+    expect(currentApi.unreadMarkerEventId).toBe('first-away');
     rendered.unmount();
   });
 

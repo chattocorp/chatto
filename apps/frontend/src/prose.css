@@ -265,9 +265,11 @@
     max-width: 100%;
     overflow-x: auto;
 
-    &:focus-visible {
-      outline: 2px solid var(--color-action);
-      outline-offset: -2px;
+    @variant keyboard-modality {
+      &:focus-visible {
+        outline: 2px solid var(--color-action);
+        outline-offset: -2px;
+      }
     }
   }
 

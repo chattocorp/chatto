@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -1287,4 +1288,32 @@ func projectionMetricByName(metrics []ProjectionAdminMetric, name string) *Proje
 		}
 	}
 	return nil
+}
+
+func TestRoomTimeline_KeyShreddingDoesNotAllocatePerRow(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	events := []*evtv1.Event{roomCreatedTimelineEvent("ROOM", "R1", "room", 1)}
+	for i := range 500 {
+		events = append(events, postedEvent(postedOpts{envelopeID: fmt.Sprintf("M%d", i), roomID: "R1", actorID: "AUTHOR", at: i + 2}))
+	}
+	events = append(events, postedEvent(postedOpts{envelopeID: "SHREDDED-POST", roomID: "R1", actorID: "SHREDDED", at: 600}))
+	applyAll(t, p, events)
+
+	p.Lock()
+	p.applyUserKeyShreddedLocked("SHREDDED", fixedTime(700))
+	allocs := testing.AllocsPerRun(10, func() {
+		p.applyUserKeyShreddedLocked("SHREDDED", fixedTime(700))
+	})
+	p.Unlock()
+
+	// Repeating the shred touches only the shredded author's single post.
+	if allocs > 2 {
+		t.Fatalf("key shredding allocated %.0f times per run, want a constant independent of timeline size", allocs)
+	}
+	if !p.MessageTombstoned("SHREDDED-POST") {
+		t.Fatal("shredded author's post is not tombstoned")
+	}
+	if p.MessageTombstoned("M0") {
+		t.Fatal("another author's post was tombstoned")
+	}
 }

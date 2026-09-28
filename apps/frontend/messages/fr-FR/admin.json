@@ -11,7 +11,7 @@
       "event_log": "Journal des événements",
       "system": "Système",
       "back_to_server": "Retour au serveur",
-      "invitations": "Invite links"
+      "invitations": "Liens d’invitation"
     },
     "neighbors": {
       "title": "Voisins",
@@ -136,7 +136,9 @@
       "open_delete_account": "Supprimer le compte",
       "delete_account_entry_description": "Supprime définitivement le compte de ce membre. Ses messages deviennent illisibles. Cette action est irréversible.",
       "bio_placeholder": "Présentez un peu ce membre aux autres",
-      "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du membre."
+      "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du membre.",
+      "update_failed": "Échec de la mise à jour de l'utilisateur",
+      "cooldown_clear_failed": "Échec de la réinitialisation du délai de changement de nom d'utilisateur"
     },
     "member_delete": {
       "title": "Supprimer un membre",
@@ -190,7 +192,10 @@
       "no_users_with_role": "Aucun utilisateur n'a ce rôle",
       "server_tier_intro": "Cette page concerne les autorisations de rôle au niveau du serveur : valeurs par défaut générales qui s'appliquent avant les remplacements spécifiques à la salle.",
       "server_tier_rooms_hint": "Utilisez les salles pour les remplacements par groupe et par salle.",
-      "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis."
+      "resolution_hint": "Pour chaque utilisateur ou rôle nommé, la valeur la plus proche au niveau de la salle, du groupe ou du serveur s'applique. Les refus l'emportent entre eux. Une autorisation ne remplace un refus de everyone qu'au même niveau ou à un niveau plus précis.",
+      "update_role_failed": "Échec de la mise à jour du rôle",
+      "update_ping_failed": "Échec de la mise à jour du paramètre de mention du rôle",
+      "delete_role_failed": "Échec de la suppression du rôle"
     },
     "rooms_admin": {
       "title": "Chambres",
@@ -288,7 +293,10 @@
       "member_added": "{name} a été ajouté au salon",
       "add_member_failed": "Échec de l’ajout du membre : {error}",
       "member_removed": "{name} a été retiré du salon",
-      "remove_member_failed": "Échec du retrait du membre : {error}"
+      "remove_member_failed": "Échec du retrait du membre : {error}",
+      "move_room_failed": "Échec du déplacement du salon : {error}",
+      "move_link_failed": "Échec du déplacement du lien : {error}",
+      "reorder_rooms_failed": "Échec de la réorganisation des salons : {error}"
     },
     "security": {
       "title": "Sécurité",
@@ -468,36 +476,36 @@
       "total": "Nombre total d'utilisateurs {count}"
     },
     "invitations": {
-      "title": "Invite links",
-      "subtitle": "Create and manage links that admit new accounts.",
-      "create_title": "Create invite link",
-      "max_uses": "Maximum uses",
-      "max_uses_error": "Enter a whole number of at least 1.",
-      "unlimited_uses": "Allow unlimited uses",
-      "expiry": "Expiry",
-      "expiry_1d": "1 day",
-      "expiry_7d": "7 days",
-      "expiry_30d": "30 days",
-      "expiry_never": "Never",
-      "create": "Create invite link",
-      "created": "Invite link created",
-      "list_title": "Invite links",
-      "empty": "No invite links yet.",
-      "uses": "Uses",
-      "created_at": "Created",
+      "title": "Liens d’invitation",
+      "subtitle": "Créez et gérez les liens qui permettent d’ouvrir de nouveaux comptes.",
+      "create_title": "Créer un lien d’invitation",
+      "max_uses": "Nombre maximal d’utilisations",
+      "max_uses_error": "Saisissez un nombre entier supérieur ou égal à 1.",
+      "unlimited_uses": "Autoriser un nombre illimité d’utilisations",
+      "expiry": "Expiration",
+      "expiry_1d": "1 jour",
+      "expiry_7d": "7 jours",
+      "expiry_30d": "30 jours",
+      "expiry_never": "Jamais",
+      "create": "Créer un lien d’invitation",
+      "created": "Lien d’invitation créé",
+      "list_title": "Liens d’invitation",
+      "empty": "Aucun lien d’invitation pour l’instant.",
+      "uses": "Utilisations",
+      "created_at": "Créé",
       "actions": "Actions",
-      "never": "Never",
-      "copy": "Copy link",
-      "copied": "Invite link copied",
-      "revoke": "Revoke",
-      "revoked": "Invite link revoked",
-      "revoke_title": "Revoke invite link?",
-      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "never": "Jamais",
+      "copy": "Copier le lien",
+      "copied": "Lien d’invitation copié",
+      "revoke": "Révoquer",
+      "revoked": "Lien d’invitation révoqué",
+      "revoke_title": "Révoquer le lien d’invitation ?",
+      "revoke_description": "Ce lien cessera immédiatement de permettre l’ouverture de nouveaux comptes.",
       "status": {
-        "active": "Active",
-        "expired": "Expired",
-        "exhausted": "Exhausted",
-        "revoked": "Revoked"
+        "active": "Actif",
+        "expired": "Expiré",
+        "exhausted": "Épuisé",
+        "revoked": "Révoqué"
       }
     }
   }

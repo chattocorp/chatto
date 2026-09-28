@@ -47,6 +47,11 @@ to the browser's `getDisplayMedia` picker through LiveKit.
 
   onMount(() => {
     nativeAvailable = isNativeScreenShareAvailable();
+    // The chooser dialog does not report a close when this control unmounts,
+    // for example when the call ends. Cancel a running source listing here.
+    return () => {
+      if (dialogVisible) clearChooserState();
+    };
   });
 
   async function refreshSources() {

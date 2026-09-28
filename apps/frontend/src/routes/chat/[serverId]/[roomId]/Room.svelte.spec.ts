@@ -1,3 +1,4 @@
+import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -23,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   pageState: {} as App.PageState,
   markRoomAsRead: vi.fn(),
   clearUnreadMarker: vi.fn(),
+  markArrivalWhileAway: vi.fn(),
+  appState: { isFocused: true, isPresent: true },
   unreadMarkerEventId: null as string | null,
   projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
   resetTypingDebounce: vi.fn(),
@@ -54,12 +57,10 @@ const mocks = vi.hoisted(() => ({
     ): { eventId: string; notificationId: string | null } | null => null
   ),
   markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
-  messagesForRoom: vi.fn(),
-  membersForRoom: vi.fn(),
+  roomMessages: vi.fn(),
+  roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
   nextServerRestoreProjectedRoomWindow: vi.fn(),
-  projectedMemberIdsForRoom: vi.fn(() => []),
-  hasCompleteProjectedRoomMembership: vi.fn(() => true),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -150,7 +151,8 @@ vi.mock('$lib/hooks', () => ({
       return mocks.unreadMarkerEventId;
     },
     markAsRead: mocks.markRoomAsRead,
-    clearUnreadMarker: mocks.clearUnreadMarker
+    clearUnreadMarker: mocks.clearUnreadMarker,
+    markArrivalWhileAway: mocks.markArrivalWhileAway
   }),
   useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
@@ -193,10 +195,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 vi.mock('$lib/state/globals.svelte', () => ({
-  appState: {
-    isFocused: true,
-    isPresent: true
-  }
+  appState: mocks.appState
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -380,7 +379,7 @@ beforeEach(() => {
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
   // Like the server store, create one timeline per room.
   const messagesByRoom: Record<string, MessagesStore> = Object.create(null);
-  mocks.messagesForRoom.mockImplementation(
+  mocks.roomMessages.mockImplementation(
     (roomId: string) =>
       (messagesByRoom[roomId] ??= new MessagesStore(
         {} as never,
@@ -392,7 +391,6 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   server = createTestServerScope({
     viewer: { id: 'test-user', login: 'testuser' },
-    features: false,
     serverInfo: {
       get livekitUrl() {
         return mocks.livekitUrl;
@@ -423,26 +421,25 @@ beforeEach(() => {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
       mentionRoles: mocks.mentionRoles,
-      messagesForRoom: mocks.messagesForRoom,
-      membersForRoom: mocks.membersForRoom,
-      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
-      messageSearchForRoom: () => ({}),
+      rooms: {
+        messages: mocks.roomMessages,
+        members: mocks.roomMembers,
+        files: () => ({ retain: mocks.roomFilesRetain }),
+        pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false }),
+        search: () => ({})
+      },
       restoreProjectedRoomWindow:
         serverId === 'server-2'
           ? mocks.nextServerRestoreProjectedRoomWindow
-          : mocks.restoreProjectedRoomWindow,
-      projectedMemberIdsForRoom: mocks.projectedMemberIdsForRoom,
-      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
+          : mocks.restoreProjectedRoomWindow
     })
   });
   mocks.roomKind = RoomKind.CHANNEL;
-  mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
-  mocks.membersForRoom.mockImplementation((roomId: string) => {
+  mocks.roomMembers.mockImplementation((roomId: string) => {
     let store = membersByRoom[roomId];
     if (!store) {
-      store = new RoomMembersStore();
-      store.setRoom(roomId);
+      store = new RoomMembersStore(roomId);
       membersByRoom[roomId] = store;
     }
     return store;
@@ -455,6 +452,9 @@ beforeEach(() => {
   mocks.canPostInThread = true;
   mocks.unreadMarkerEventId = null;
   mocks.clearUnreadMarker.mockClear();
+  mocks.markRoomAsRead.mockClear();
+  mocks.markArrivalWhileAway.mockClear();
+  mocks.appState.isPresent = true;
   toast.clear();
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
@@ -477,7 +477,6 @@ afterEach(async () => {
 
 describe('Room interaction bundles', () => {
   it('loads channel membership through the canonical member directory', async () => {
-    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
       .mockImplementation(() => {});
@@ -487,8 +486,32 @@ describe('Room interaction bundles', () => {
     await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
   });
 
+  it.each(['pending', 'failed'])(
+    'restarts a %s channel member load after a reset',
+    async (state) => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      let reads = 0;
+      const api = {
+        listRoomMembers: vi.fn(() =>
+          state === 'failed' && ++reads === 1
+            ? Promise.reject(new Error('offline'))
+            : new Promise<never>(() => {})
+        ),
+        listOnlineRoomMembers: vi.fn(() => new Promise<never>(() => {}))
+      };
+      const store = new RoomMembersStore('room-1', api as unknown as MemberDirectoryAPI);
+      mocks.roomMembers.mockReturnValue(store);
+
+      render(Room, { props: { roomId: 'room-1' } });
+      await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
+      if (state === 'failed') await vi.waitFor(() => expect(store.loadError).toBe('offline'));
+
+      store.resetProjectionState();
+      await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));
+    }
+  );
+
   it('leaves membership event handling to the session store without a component reload', async () => {
-    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
     const refresh = vi.spyOn(RoomMembersStore.prototype, 'refresh').mockResolvedValue();
     render(Room, { props: { roomId: 'room-1' } });
@@ -753,7 +776,6 @@ describe('Room interaction bundles', () => {
   });
 
   it('opens the desktop room search sidebar with Cmd+/', async () => {
-    server.features = { messageSearch: true, pinnedMessages: false };
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const event = new KeyboardEvent('keydown', {
       key: '/',
@@ -772,7 +794,6 @@ describe('Room interaction bundles', () => {
   });
 
   it('opens the mobile room search sidebar with Ctrl+/', async () => {
-    server.features = { messageSearch: true, pinnedMessages: false };
     stubMatchMedia(false);
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const event = new KeyboardEvent('keydown', {
@@ -884,6 +905,92 @@ describe('Room local message echo', () => {
     );
 
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
+  });
+
+  it('places the unread separator for a message that arrives while the viewer is away', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'away-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).toHaveBeenCalledWith('away-event-id');
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+  });
+
+  it('does not place the unread separator for the viewer own message while away', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'own-event-id',
+          actorId: 'test-user',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+  });
+
+  it('does not place the room unread separator for a thread reply while away', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'reply-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1', threadRootEventId: 'root-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
+  });
+
+  it('does not place the unread separator for a message in another room', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'other-room-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-2' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).not.toHaveBeenCalled();
   });
 
   it('opens and highlights the explicit message from a nested thread route', async () => {

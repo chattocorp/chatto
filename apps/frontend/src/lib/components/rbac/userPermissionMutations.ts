@@ -1,3 +1,4 @@
+import { errorMessage } from '$lib/utils/errorMessage';
 import type {
   PermissionAPI,
   PermissionDecisionUpdate,
@@ -28,6 +29,6 @@ export async function setUserPermission(
     });
     return { update };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: errorMessage(error) };
   }
 }

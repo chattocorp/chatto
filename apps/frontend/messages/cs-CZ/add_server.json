@@ -11,28 +11,28 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Zdá se, že se nejedná o server Chatto.",
     "directory": {
-      "title": "Server Directory",
-      "subtitle": "Discover other Chatto servers",
-      "lookup_description": "Enter the address of any Chatto server to join it.",
-      "find": "Find server",
-      "connect_by_address": "Connect by address",
-      "servers_title": "Recommended servers",
-      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "title": "Adresář serverů",
+      "subtitle": "Objevte další servery Chatto",
+      "lookup_description": "Zadejte adresu libovolného serveru Chatto a připojte se k němu.",
+      "find": "Najít server",
+      "connect_by_address": "Připojit podle adresy",
+      "servers_title": "Doporučené servery",
+      "servers_description": "Doporučují je servery, ke kterým jste se připojili. Výsledky nejsou seřazeny.",
       "recommended_by": "Doporučují {servers}",
       "more_recommenders_count": {
         "other": "dalších {count}"
       },
-      "joined": "Joined",
-      "join": "Join",
-      "open": "Open",
+      "joined": "Připojeno",
+      "join": "Připojit se",
+      "open": "Otevřít",
       "open_in_new_tab": "Otevřít na nové kartě",
-      "sign_in_unavailable": "Sign-in unavailable",
-      "profile_unavailable": "This server's public profile could not be loaded.",
-      "partial": "Some joined servers could not provide their recommendations.",
-      "unavailable_title": "Directory unavailable",
-      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
-      "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "sign_in_unavailable": "Přihlášení není k dispozici",
+      "profile_unavailable": "Veřejný profil tohoto serveru se nepodařilo načíst.",
+      "partial": "Některé servery, ke kterým jste se připojili, nemohly poskytnout svá doporučení.",
+      "unavailable_title": "Adresář není k dispozici",
+      "unavailable_body": "Servery, ke kterým jste se připojili, nemohly poskytnout svá doporučení. Stále se můžete připojit přímo.",
+      "empty_title": "Zatím žádné doporučené servery",
+      "empty_body": "Stále se můžete připojit přímo pomocí adresy serveru."
     }
   }
 }

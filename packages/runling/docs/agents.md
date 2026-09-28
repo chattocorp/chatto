@@ -94,6 +94,32 @@ is idempotent, closes the inbox iterator, and prevents reuse. It does not dispos
 the supplied agent. Within an `await using` scope, use `return await` so the
 connection stays alive until the interaction finishes.
 
+## Untrusted content
+
+Set `trust` when an agent can read content that other people control, such as web
+pages, and also has tools that must not act on that content:
+
+```ts
+await using owner = await agent({
+  cwd: ".",
+  tools: ["researchWeb", "publishChange"],
+  trust: { untrusted: ["researchWeb"], blockAfterUntrusted: ["publishChange"] },
+});
+```
+
+After any result from an `untrusted` tool, Runling blocks the tools in
+`blockAfterUntrusted` for the rest of the agent's lifetime, including forks. The
+tool does not run; the model receives an error result with a fixed reason. Set
+`onBlocked` to run host code first, for example to post a fixed message to the
+user. User messages do not
+remove the block, because the content remains in the history. Start a new agent to
+use the blocked tools again. Prefer separate agents for untrusted input and
+powerful actions; use `trust` as a backstop. The option installs the Pi
+extension from `runling/extensions/trust`, which plain Pi projects can also use
+through `createTrustExtension(policy).extension`. See
+[ADR-005](adr/ADR-005-untrusted-context.md) and
+[FDR-006](fdr/FDR-006-untrusted-tool-blocking.md).
+
 ## Tasks as agent tools
 
 `taskTool(ctx, definition, run)` adapts an explicit task call to a text-result

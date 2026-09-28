@@ -59,10 +59,15 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 	}
 	// Reactions are coverable only through the local reaction projection's
 	// applied horizon, not merely because a newer fact exists in EVT but has not
-	// yet become observable to this read operation.
+	// yet become observable to this read operation. The boundary only covers
+	// reactions in this room (a reaction and its target message, including an
+	// echo, always share a room), so the room's own applied horizon covers the
+	// same reactions as the stream-wide one. Unlike the stream-wide horizon, it does
+	// not change when only other rooms change, so an unchanged boundary is not
+	// rewritten.
 	next := notificationReadBoundary{
 		targetSequence:   entry.StreamSeq,
-		observedSequence: m.core.roomModel.reactions.Projector().Status().LastSeq,
+		observedSequence: m.core.roomModel.reactions.Projection().RoomSequence(roomID),
 	}
 	if next.observedSequence < next.targetSequence {
 		next.observedSequence = next.targetSequence
@@ -152,4 +157,22 @@ func (m *NotificationOccurrenceModel) purgeNotificationReadBoundaries(ctx contex
 		}
 	}
 	return nil
+}
+
+// notificationSignalCoveredByBoundary reports whether a read boundary covers a
+// source. A reaction is covered only when both its target message and the
+// reaction itself were observable to the read.
+func (m *NotificationOccurrenceModel) notificationSignalCoveredByBoundary(signal *notificationv1.NotificationSignal, sourceSequence uint64, boundary notificationReadBoundary) bool {
+	if signal == nil || sourceSequence == 0 {
+		return false
+	}
+	message := notificationSignalMessage(signal)
+	if message == nil {
+		return false
+	}
+	if signal.GetReactionReceived() != nil {
+		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
+		return ok && targetEntry.StreamSeq <= boundary.targetSequence && sourceSequence <= boundary.observedSequence
+	}
+	return sourceSequence <= boundary.targetSequence
 }
