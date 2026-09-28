@@ -101,7 +101,7 @@ the backend permission catalog. Update both catalogs together.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
 - Delegated role assignment is bounded by the assigner's own authority. A non-owner may assign a role only when they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
-- Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions.
+- Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions, except for the one-time upgrade grants in Design Decision 9.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
 - Losing effective room visibility through membership, room-group layout, or
@@ -174,13 +174,20 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. The introduction of
-call permissions has one explicit upgrade exception: initialize each missing
-server-level `everyone` call permission once. Any historical grant, deny, or
-clear prevents that initialization. This preserves the existing human call
-feature without undoing an operator's later decision.
+**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. A new permission that
+gates an existing capability gets a one-time upgrade grant (ADR-110):
+
+- Initialize each missing server-level `everyone` call permission once. Any
+  historical grant, deny, or clear of that decision prevents it.
+- Upgrade a 0.4 log once as a set. Allow `message.read` and `bot.create` for
+  `everyone`, allow `user.invite` and `bot.manage` for `admin`, and copy each
+  current `room.ban-member` decision to `room.remove-member`. Any historical
+  decision for a permission introduced in 0.5 prevents the whole set.
+
+These grants preserve existing capabilities without undoing an operator's
+later decision.
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
-**Tradeoff:** Apart from the explicit call-permission upgrade above, adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
+**Tradeoff:** Apart from the explicit upgrade grants above, adding a new code default does not grant it to existing servers or rooms automatically. Changes of meaning, such as `room.manage` for room-group managers, remain manual review items. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
 ### 10. The permission catalog defines inclusion
 
@@ -216,13 +223,13 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
 - `message.read` — read message content and message-specific metadata in
   channel rooms and DMs. Fresh servers grant this to `everyone` at server scope.
-  Existing servers are not backfilled or reconciled, so operators must add any
-  wanted grants during upgrade.
+  Upgraded 0.4 servers receive the same grant once. Startup does not reconcile
+  it after that.
 - `message.read-interactions` — read only threads that the account
   started or where another account directly mentioned it. A relationship gives
   access to the complete thread. An effective `message.read` allow includes
-  this permission. Fresh servers store only the `message.read` grant for
-  `everyone`. Existing servers are not backfilled or reconciled.
+  this permission. Fresh and upgraded servers store only the `message.read`
+  grant for `everyone`.
 - `message.post` — post root messages and thread replies, and let human users start DMs.
   Includes `message.post-in-thread` and `message.post-in-interactions`. A narrow
   deny cannot restrict an effective broad allow.
@@ -234,9 +241,9 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `message.post-in-interactions` — reply only in readable threads with an interaction relationship.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
-- `room.remove-member` — remove current channel-room members with an optional suspension. DM membership is not managed through this permission.
+- `room.remove-member` — remove current channel-room members with an optional suspension. DM membership is not managed through this permission. Upgraded 0.4 servers copy each `room.ban-member` decision to this permission once.
 
 ## Related
 
-- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-096 (session-scoped privileged mode), ADR-105 (privileged mode gates the owner override)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-096 (session-scoped privileged mode), ADR-105 (privileged mode gates the owner override), ADR-110 (one-time upgrade grants for new permissions)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), and FDR-046 (Privileged Mode).
