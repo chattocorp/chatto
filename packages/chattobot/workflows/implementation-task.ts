@@ -58,10 +58,10 @@ export const FRONTEND_DEPENDENCY_BUILD = [
   '--output-logs=errors-only'
 ];
 
-/** Progress update timing while the worker works. The worker may post at most one update per
- * `minIntervalMs`. After `quietMs` without any update, the host posts one; it checks every
+/** Progress update timing while the worker works. At most one update is posted per
+ * `minIntervalMs`; an earlier worker update waits, and a newer one replaces it. After `quietMs` without any update, the host posts one; it checks every
  * `checkMs`. */
-export const PROGRESS_TIMING = { minIntervalMs: 90_000, quietMs: 4 * 60_000, checkMs: 30_000 };
+export const PROGRESS_TIMING = { minIntervalMs: 60_000, quietMs: 4 * 60_000, checkMs: 30_000 };
 
 /** CI failures that the worker may handle, by a fix or a rerun, before the host reports failure. */
 export const MAX_CI_REPAIRS = 3;
@@ -363,12 +363,30 @@ export function createImplementation(
         await dependencies.onProgress?.(message);
         await ctx.emit({ type: 'output', text: message });
       };
+      let heldProgress: string | undefined;
+      let heldTimer: ReturnType<typeof setTimeout> | undefined;
+      /** Drop a held update, for example when the PR link replaces it. */
+      const dropHeldProgress = () => {
+        clearTimeout(heldTimer);
+        heldTimer = undefined;
+        heldProgress = undefined;
+      };
       const reportProgress = async (message: string) => {
+        const text = workerStopReason(message, worktree);
         const wait = timing.minIntervalMs - (Date.now() - lastUpdateAt);
-        if (wait > 0)
-          return `Not sent: the last update was recent. Send the next one in ${Math.ceil(wait / 1000)} seconds or later.`;
-        await postProgress(workerStopReason(message, worktree));
-        return 'Sent to the user.';
+        if (wait <= 0) {
+          dropHeldProgress();
+          await postProgress(text);
+          return 'Sent to the user.';
+        }
+        heldProgress = text;
+        heldTimer ??= setTimeout(() => {
+          const held = heldProgress;
+          heldTimer = undefined;
+          heldProgress = undefined;
+          if (held && !signal.aborted) void postProgress(held).catch(() => {});
+        }, wait);
+        return `Queued: the host posts it in about ${Math.ceil(wait / 1000)} seconds. A newer update replaces it until then.`;
       };
       let quietUpdateRunning = false;
       /** After a quiet period, post facts that the host knows about the worker's progress. */
@@ -806,12 +824,15 @@ export function createImplementation(
               proposal.notes
             );
           head = metadata.commit!;
+          // The PR link supersedes an update that is still waiting.
+          dropHeldProgress();
           await dependencies.onPublished?.(metadata.prUrl!);
           return result('completed', proposal.summary, proposal.notes, await followCi(work));
         } finally {
           await connection.dispose();
         }
       } finally {
+        dropHeldProgress();
         worker?.dispose();
         if (!['published', 'blocked', 'publication_unknown'].includes(metadata.stage)) {
           metadata.stage = ['publishing', 'pushed'].includes(metadata.stage)

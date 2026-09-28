@@ -415,7 +415,8 @@ publication, the worker waits for CI, and a forwarded message starts its next
 turn. Use `/cancel` to stop the whole flow, including while CI runs. While the
 worker works, it posts short progress updates with `reportProgress`: its
 approach, test results, and what it does next. The host redacts them like other
-worker text and posts at most one every 90 seconds. After four minutes without
+worker text and posts at most one every minute. An earlier update waits for its
+slot, and a newer one replaces it. After four minutes without
 an update, the host posts the number of changed files and test runs so far.
 The host reports check and publication progress. It posts the verified PR link as soon as
 publication is confirmed, a short message for each CI repair attempt, and the

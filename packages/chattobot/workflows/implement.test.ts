@@ -597,22 +597,28 @@ test('worker progress updates reach the user, redacted and at most once per inte
   expect(updates).toEqual(['Adding the command; see [url]']);
   expect(emitted).toContainEqual({ type: 'output', text: 'Adding the command; see [url]' });
 
-  const limited: string[] = [];
+  const held: string[] = [];
   const texts: (string | undefined)[] = [];
   await createImplementation(f.settings, {
     execute: f.execute,
     onProgress: async (message) => {
-      limited.push(message);
+      held.push(message);
     },
+    progressTiming: { minIntervalMs: 2_000, quietMs: 60_000 },
     createAgent: worker(async (_options, call) => {
-      texts.push((await call('reportProgress', { message: 'Too early' })).content[0]?.text);
+      // Both arrive before the interval ends; only the newer one is posted, once it ends.
+      texts.push(
+        (await call('reportProgress', { message: 'Reading the composer' })).content[0]?.text
+      );
+      await call('reportProgress', { message: 'Adding the command' });
+      expect(held).toEqual([]);
+      await vi.waitFor(() => expect(held).toEqual(['Adding the command']), { timeout: 4_000 });
       await call('apply_patch', { patch });
       await call('preparePullRequest', proposal);
     })
   })(createWorkflowContext(), { request: 'Fix' });
-  // The supervisor just announced the task, so the first worker update must wait.
-  expect(limited).toEqual([]);
-  expect(texts[0]).toMatch(/^Not sent: the last update was recent/);
+  expect(texts[0]).toMatch(/^Queued: the host posts it in about/);
+  expect(held).toEqual(['Adding the command']);
 });
 
 test('after a quiet period the host posts what it knows about the worker progress', async () => {
