@@ -22,7 +22,7 @@ focus styles follow `:focus-visible`.
   }
 
   function handleKeyDown(e: KeyboardEvent) {
-    // Shortcuts such as Cmd+C do not move focus, so they keep pointer mode.
+    // Modifier shortcuts, such as Cmd+C, are not keyboard navigation.
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     document.documentElement.removeAttribute(ATTRIBUTE);
   }

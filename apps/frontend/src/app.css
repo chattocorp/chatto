@@ -2388,8 +2388,9 @@
 
 @layer base {
   /* Match the focus-visible variant: hide the browser's default focus outline
-     after pointer input. */
-  [data-input-modality='pointer'] :focus-visible {
+     after pointer input. Text entry keeps it, as browsers always show focus
+     on fields that accept typing. */
+  [data-input-modality='pointer'] :focus-visible:not(input, textarea, [contenteditable]) {
     outline: none;
   }
 
