@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Error de red. Por favor inténtalo de nuevo.",
-      "generic": "Algo salió mal"
+      "generic": "Algo salió mal",
+      "permission_denied": "No tienes permiso para hacer eso.",
+      "not_found": "No se encontró el elemento solicitado.",
+      "unauthenticated": "Tu sesión expiró. Inicia sesión de nuevo.",
+      "conflict": "Esto cambió mientras lo editabas. Vuelve a cargar la página e inténtalo de nuevo."
     },
     "delete": "Eliminar",
     "save": "Guardar",

@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Erro de rede. Por favor, tente novamente.",
-      "generic": "Algo deu errado"
+      "generic": "Algo deu errado",
+      "permission_denied": "Você não tem permissão para fazer isso.",
+      "not_found": "O item solicitado não foi encontrado.",
+      "unauthenticated": "Sua sessão expirou. Entre novamente.",
+      "conflict": "Isso mudou enquanto você editava. Recarregue a página e tente novamente."
     },
     "delete": "Excluir",
     "save": "Salvar",

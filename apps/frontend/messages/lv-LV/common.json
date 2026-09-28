@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Tīkla kļūda. Lūdzu, mēģiniet vēlreiz.",
-      "generic": "Kaut kas nogāja greizi"
+      "generic": "Kaut kas nogāja greizi",
+      "permission_denied": "Tev nav atļaujas to darīt.",
+      "not_found": "Pieprasītais vienums netika atrasts.",
+      "unauthenticated": "Tava sesija ir beigusies. Pieraksties vēlreiz.",
+      "conflict": "Tas mainījās, kamēr tu to rediģēji. Pārlādē lapu un mēģini vēlreiz."
     },
     "delete": "Dzēst",
     "save": "Saglabāt",

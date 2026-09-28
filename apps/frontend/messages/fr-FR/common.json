@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Erreur réseau. Veuillez réessayer.",
-      "generic": "Quelque chose s'est mal passé"
+      "generic": "Quelque chose s'est mal passé",
+      "permission_denied": "Vous n'avez pas l'autorisation de faire cela.",
+      "not_found": "L'élément demandé est introuvable.",
+      "unauthenticated": "Votre session a expiré. Reconnectez-vous.",
+      "conflict": "Cet élément a changé pendant que vous le modifiiez. Rechargez la page, puis réessayez."
     },
     "delete": "Supprimer",
     "save": "Enregistrer",

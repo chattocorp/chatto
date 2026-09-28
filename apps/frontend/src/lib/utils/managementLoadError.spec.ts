@@ -12,12 +12,12 @@ describe('classifyManagementLoadError', () => {
     }
   );
 
-  it('preserves transient failure details for a retry state', () => {
+  it('reports a transient failure with a user-facing message for a retry state', () => {
     expect(
       classifyManagementLoadError(new ConnectError('temporarily unavailable', Code.Unavailable))
     ).toEqual({
       kind: 'failure',
-      message: '[unavailable] temporarily unavailable'
+      message: 'Network error. Please try again.'
     });
   });
 });

@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Reta eraro. Bonvolu provi denove.",
-      "generic": "Io misfunkciis"
+      "generic": "Io misfunkciis",
+      "permission_denied": "Vi ne havas permeson fari tion.",
+      "not_found": "La petita ero ne troviĝis.",
+      "unauthenticated": "Via seanco eksvalidiĝis. Ensalutu denove.",
+      "conflict": "Tio ŝanĝiĝis dum vi redaktis ĝin. Reŝargu la paĝon kaj reprovu."
     },
     "delete": "Forigi",
     "save": "Konservu",

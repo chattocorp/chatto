@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Ağ hatası. Lütfen tekrar deneyin.",
-      "generic": "Bir şeyler ters gitti"
+      "generic": "Bir şeyler ters gitti",
+      "permission_denied": "Bunu yapma iznin yok.",
+      "not_found": "İstenen öğe bulunamadı.",
+      "unauthenticated": "Oturumunun süresi doldu. Yeniden oturum aç.",
+      "conflict": "Sen düzenlerken bu değişti. Sayfayı yeniden yükle ve tekrar dene."
     },
     "delete": "Sil",
     "save": "Kaydet",

@@ -36,7 +36,11 @@
     },
     "error": {
       "network": "Nätverksfel. Försök igen.",
-      "generic": "Något gick fel"
+      "generic": "Något gick fel",
+      "permission_denied": "Du har inte behörighet att göra det.",
+      "not_found": "Det begärda objektet hittades inte.",
+      "unauthenticated": "Din session har gått ut. Logga in igen.",
+      "conflict": "Detta ändrades medan du redigerade det. Läs in sidan igen och försök på nytt."
     },
     "delete": "Ta bort",
     "save": "Spara",
