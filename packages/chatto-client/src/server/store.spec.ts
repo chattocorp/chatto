@@ -69,6 +69,7 @@ import {
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { computed, effect, effectRoot } from '../reactivity/index.js';
 import { DetachedVoiceCall, setVoiceCallFactory, type VoiceCallContext } from './voiceCall.js';
 
 /** Records what the store forwards to its voice call. */
@@ -375,7 +376,7 @@ class FakeServerConnection {
   invalidatePrivateData = vi.fn();
   serverId = 'store-event-test';
   connectBaseUrl = 'https://store-event.test';
-  reconnectCount = $state(0);
+  reconnectCount = 0;
   realtimeUrl = 'ws://store-event.test/api/realtime';
   bearerToken: string | null = 'remote-token';
   renewBearerToken = vi.fn(async () => 'renewed-token');
@@ -1169,9 +1170,11 @@ describe('ServerStateStore room search state', () => {
   it('keeps retained room members reactive after the route that created them closes', () => {
     const store = makeStore(new FakeServerConnection([]));
     let members!: ReturnType<typeof store.rooms.members>;
-    const closeRoute = $effect.root(() => {
-      members = store.rooms.members('a');
-      expect(members.members).toEqual([]);
+    const closeRoute = effectRoot(() => {
+      effect(() => {
+        members = store.rooms.members('a');
+        expect(members.members).toEqual([]);
+      });
     });
 
     closeRoute();
@@ -1330,10 +1333,11 @@ describe('ServerStateStore room search state', () => {
     oldestSearch.query = 'old room query';
     for (let index = 2; index <= 10; index++) store.rooms.search(`R${index}`);
 
-    const closeRoute = $effect.root(() => {
-      const selectedSearch = $derived(store.rooms.search('R11'));
-      const renderQuery = () => selectedSearch.query;
-      expect(renderQuery()).toBe('');
+    const closeRoute = effectRoot(() => {
+      const selectedSearch = computed(() => store.rooms.search('R11'));
+      effect(() => {
+        expect(selectedSearch.get().query).toBe('');
+      });
     });
     await Promise.resolve();
     expect(oldestSearch.query).toBe('');
@@ -3671,7 +3675,7 @@ describe('ServerStateStore unified realtime resources', () => {
       roomId: 'R1',
       callId: 'CALL-1',
       actorId: 'U2',
-      viewerId: store.projectionViewerId
+      viewerId: 'U1'
     });
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls', undefined);

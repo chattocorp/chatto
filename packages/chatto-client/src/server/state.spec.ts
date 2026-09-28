@@ -109,7 +109,7 @@ describe('ServerInfoState.init()', () => {
     await state.init();
 
     expect(state.loading).toBe(false);
-    expect(state.error).toBe('[Network] Failed to fetch');
+    expect(state.error).toMatchObject({ message: '[Network] Failed to fetch' });
     expect(state.name).toBe('Chatto'); // default unchanged
     expect(state.compatibility.status).toBe('unreachable');
     expect(consoleError).toHaveBeenCalledTimes(1);
@@ -124,7 +124,7 @@ describe('ServerInfoState.init()', () => {
     await state.init();
 
     expect(state.loading).toBe(false);
-    expect(state.error).toBe('boom');
+    expect(state.error).toMatchObject({ message: 'boom' });
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');

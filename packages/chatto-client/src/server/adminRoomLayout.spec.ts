@@ -231,7 +231,7 @@ describe('AdminRoomLayoutStore — loading', () => {
 
       if (reauthorize) await store.refreshPermissions();
       else await store.refresh();
-      expect(store.error).toBe('offline');
+      expect(store.error).toMatchObject({ message: 'offline' });
       expect(store.groups.map((g) => g.name)).toEqual(reauthorize ? [] : ['Lobby']);
     }
   );
@@ -330,7 +330,7 @@ describe('AdminRoomLayoutStore — mutations', () => {
 
     await expect(store.renameGroup('g1', 'Changed')).resolves.toEqual({
       ok: false,
-      error: 'nope'
+      error: new Error('nope')
     });
     expect(store.groups.map((g) => g.name)).toEqual(['Original']);
   });
@@ -677,7 +677,7 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
       ok: false,
       movedCount: 1,
       reorderedCount: 2,
-      errors: ['Failed to move room: move denied'],
+      failures: [{ step: 'moveRoom', error: new Error('move denied') }],
       refreshRequested: true
     });
     expect(query).toHaveBeenCalledTimes(1);

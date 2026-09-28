@@ -1,3 +1,4 @@
+import { signal } from '../reactivity/index.js';
 import { describe, expect, it } from 'vitest';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
@@ -31,30 +32,30 @@ function voiceCall(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
-let calls = $state.raw<ActiveCall[]>([]);
+const calls = signal<ActiveCall[]>([]);
 
 function activeCallRooms(voice = voiceCall()): ActiveCallRoomsState {
-  calls = [];
-  return new ActiveCallRoomsState(voice, () => calls);
+  calls.set([]);
+  return new ActiveCallRoomsState(() => voice, () => calls.get());
 }
 
 describe('ActiveCallRoomsState', () => {
   it('follows the projected calls and participants', () => {
     const state = activeCallRooms();
 
-    calls = [call('R1', 'call-1', ['U1', 'U2'])];
+    calls.set([call('R1', 'call-1', ['U1', 'U2'])]);
 
     expect(state.has('R1')).toBe(true);
     expect(state.getCallId('R1')).toBe('call-1');
     expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U1', 'U2']);
 
-    calls = [call('R2', 'call-2', ['U3'])];
+    calls.set([call('R2', 'call-2', ['U3'])]);
 
     expect(state.has('R1')).toBe(false);
     expect(state.getParticipants('R1')).toEqual([]);
     expect(state.getParticipants('R2').map(({ userId }) => userId)).toEqual(['U3']);
 
-    calls = [];
+    calls.set([]);
 
     expect(state.has('R2')).toBe(false);
   });
@@ -62,7 +63,7 @@ describe('ActiveCallRoomsState', () => {
   it('preserves bot identity from projected call participants', () => {
     const state = activeCallRooms();
 
-    calls = [call('R1', 'call-1', ['BOT1'], true)];
+    calls.set([call('R1', 'call-1', ['BOT1'], true)]);
 
     expect(state.getParticipants('R1')[0]?.isBot).toBe(true);
   });
@@ -91,7 +92,7 @@ describe('ActiveCallRoomsState', () => {
         ]
       })
     );
-    calls = [call('R1', 'call-1', ['U1', 'U2', 'U3'])];
+    calls.set([call('R1', 'call-1', ['U1', 'U2', 'U3'])]);
 
     expect(state.getParticipantCallPresence('R1', 'U1')).toBe('video');
     expect(state.getParticipantCallPresence('R1', 'U2')).toBe('voice');

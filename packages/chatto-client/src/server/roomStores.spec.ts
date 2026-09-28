@@ -6,8 +6,8 @@ import { RoomStores } from './roomStores.js';
 
 const mocks = vi.hoisted(() => ({ clearRoomPinsSeenMarker: vi.fn() }));
 
-vi.mock('$lib/state/room', () => {
-  class FakeStore {
+const { FakeStore } = vi.hoisted(() => ({
+  FakeStore: class {
     readonly args: unknown[];
     dispose = vi.fn();
     clearViewport = vi.fn();
@@ -20,19 +20,18 @@ vi.mock('$lib/state/room', () => {
       this.args = args;
     }
   }
-  return {
-    MessagesStore: class extends FakeStore {},
-    RoomFilesStore: class extends FakeStore {},
-    RoomPinsStore: class extends FakeStore {},
-    RoomMembersStore: class extends FakeStore {}
-  };
-});
+}));
+
+vi.mock('../room/messages/MessagesStore.js', () => ({ MessagesStore: class extends FakeStore {} }));
+vi.mock('../room/files.js', () => ({ RoomFilesStore: class extends FakeStore {} }));
+vi.mock('../room/members.js', () => ({ RoomMembersStore: class extends FakeStore {} }));
 
 vi.mock('../room/pins.js', () => ({
+  RoomPinsStore: class extends FakeStore {},
   clearRoomPinsSeenMarker: mocks.clearRoomPinsSeenMarker
 }));
 
-vi.mock('./messageSearch.svelte', () => ({
+vi.mock('./messageSearch.js', () => ({
   MessageSearchStore: class {
     reset = vi.fn();
   }

@@ -1294,7 +1294,7 @@ describe('NotificationStore', () => {
 
     expect(store.occurrences).toHaveLength(1);
     expect(store.occurrences[0].id).toBe('original');
-    expect(store.error).toContain('Cannot query field');
+    expect((store.error as Error).message).toContain('Cannot query field');
     expect(store.hasLoaded).toBe(false);
     expect(consoleError).toHaveBeenCalled();
   });
@@ -1304,7 +1304,7 @@ describe('NotificationStore', () => {
       makeAPI({ notificationsError: new Error('something broke') })
     );
     await expect(store.fetch()).resolves.toBeUndefined();
-    expect(store.error).toBe('something broke');
+    expect(store.error).toMatchObject({ message: 'something broke' });
   });
 
   it('does not throw on network/transport error', async () => {
@@ -1313,7 +1313,7 @@ describe('NotificationStore', () => {
     await expect(store.fetch()).resolves.toBeUndefined();
     // Existing notifications survive a network blip too.
     expect(store.occurrences).toHaveLength(1);
-    expect(store.error).toBe('network down');
+    expect(store.error).toMatchObject({ message: 'network down' });
   });
 
   // The DM list dot uses hasDMRoomNotification per conversation. It must
@@ -1373,7 +1373,7 @@ describe('NotificationStore', () => {
     expect(homeStore.occurrences).toHaveLength(1);
     expect(homeStore.error).toBeNull();
     expect(remoteStore.occurrences).toHaveLength(0);
-    expect(remoteStore.error).toContain('Cannot query field');
+    expect((remoteStore.error as Error).message).toContain('Cannot query field');
   });
 });
 

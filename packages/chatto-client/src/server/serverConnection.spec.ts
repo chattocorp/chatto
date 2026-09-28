@@ -25,7 +25,7 @@ const {
 
 vi.mock('../auth/csrf.js', () => ({ csrfFetch: mockCsrfFetch }));
 
-vi.mock('./registry.svelte', () => ({
+vi.mock('./registry.js', () => ({
   serverRegistry: {
     getServer: (id: string) => mockServers.get(id),
     isOriginServer: (id: string) => mockServers.get(id)?.url === window.location.origin,

@@ -65,8 +65,8 @@ class FakeRealtimeSocket {
 }
 
 class FakeServerConnection {
-  status: ConnectionStatus = $state('connecting');
-  reconnectCount = $state(0);
+  status: ConnectionStatus = 'connecting';
+  reconnectCount = 0;
   realtimeUrl = 'ws://chatto.test/api/realtime';
   bearerToken: string | null = 'token-1';
   client = {};

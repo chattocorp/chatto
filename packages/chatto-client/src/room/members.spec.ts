@@ -1,3 +1,4 @@
+import { signal } from '../reactivity/index.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { describe, expect, it, vi } from 'vitest';
@@ -634,7 +635,7 @@ describe('RoomMembersStore', () => {
       store.ensureLoaded();
 
       await vi.waitFor(() => {
-        expect(store.loadError).toBe('network failed');
+        expect(store.loadError).toMatchObject({ message: 'network failed' });
         expect(store.isInitialLoading).toBe(false);
       });
 
@@ -661,7 +662,7 @@ describe('RoomMembersStore', () => {
       expect(store.totalCount).toBe(3);
       expect(store.hasFirstPage).toBe(true);
       expect(store.hasLoadedAll).toBe(false);
-      expect(store.loadError).toBe('network failed');
+      expect(store.loadError).toMatchObject({ message: 'network failed' });
       expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
     } finally {
       consoleErrorSpy.mockRestore();
@@ -714,17 +715,17 @@ describe('RoomMembersStore', () => {
   });
 
   it('uses complete projected membership instead of server reads', async () => {
-    let projected = $state<string[] | null>(null);
+    const projected = signal<string[] | null>(null);
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice'), user('u2', 'boris')], false, 2)
     ]);
     const store = new RoomMembersStore('room-1', fakeAPI, {
-      projectedMemberIds: () => projected
+      projectedMemberIds: () => projected.get()
     });
     expect(store.hasFirstPage).toBe(false);
 
     // A complete empty roster is loaded, not pending.
-    projected = [];
+    projected.set([]);
     expect(store.hasFirstPage).toBe(true);
     expect(store.hasLoadedAll).toBe(true);
     expect(store.totalCount).toBe(0);
@@ -733,11 +734,11 @@ describe('RoomMembersStore', () => {
     expect(fakeAPI.listRoomMembers).not.toHaveBeenCalled();
     expect(fakeAPI.listOnlineRoomMembers).not.toHaveBeenCalled();
 
-    projected = null;
+    projected.set(null);
     await store.loadInitial();
     expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris']);
 
-    projected = ['u2'];
+    projected.set(['u2']);
     expect(store.members.map((member) => member.login)).toEqual(['boris']);
     expect(store.totalCount).toBe(1);
     expect(await store.searchMembers('ali')).toEqual([]);
@@ -761,7 +762,7 @@ describe('RoomMembersStore', () => {
         expect(store.members.map((member) => member.login)).toEqual(reauthorize ? [] : ['initial']);
         expect(store.totalCount).toBe(reauthorize ? 0 : 1);
         expect(store.hasLoadedAll).toBe(false);
-        expect(store.loadError).toBe('network failed');
+        expect(store.loadError).toMatchObject({ message: 'network failed' });
       } finally {
         consoleErrorSpy.mockRestore();
       }
