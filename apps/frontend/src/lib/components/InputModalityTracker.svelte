@@ -18,6 +18,8 @@ focus styles follow `:focus-visible`.
   const ATTRIBUTE = 'data-input-modality';
 
   function handlePointerDown() {
+    // Skip redundant writes: each write can invalidate styles for the whole page.
+    if (document.documentElement.hasAttribute(ATTRIBUTE)) return;
     document.documentElement.setAttribute(ATTRIBUTE, 'pointer');
   }
 
