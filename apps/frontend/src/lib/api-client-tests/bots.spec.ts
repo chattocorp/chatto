@@ -1,6 +1,6 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
