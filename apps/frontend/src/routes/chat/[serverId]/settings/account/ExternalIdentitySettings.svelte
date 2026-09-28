@@ -363,7 +363,6 @@
       await variables.connection
         .getAPI(createExternalIdentityAPI)
         .disconnect(subjectHash, currentPassword);
-      disconnectingSubjectHash = '';
       if (!session.isCurrent(variables)) {
         return;
       }
@@ -373,7 +372,6 @@
       disconnectFreshAuthError = '';
       await identitiesQuery.refetch();
     } catch (err) {
-      disconnectingSubjectHash = '';
       if (!session.isCurrent(variables)) {
         return;
       }
@@ -396,6 +394,8 @@
         actionError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
         disconnectTarget = null;
       }
+    } finally {
+      disconnectingSubjectHash = '';
     }
   }
 
