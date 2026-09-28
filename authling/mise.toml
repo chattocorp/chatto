@@ -5,7 +5,7 @@ min_version = "2026.8.9"
 
 [tools]
 buf = "latest"
-go = "1.26.7"
+go = "1.27.1"
 node = "22"
 "aqua:axllent/mailpit" = "latest"
 
