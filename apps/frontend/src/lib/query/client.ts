@@ -6,13 +6,6 @@ import {
   QueryCache,
   QueryClient,
   type Accessor,
-  type CreateInfiniteQueryOptions,
-  type CreateInfiniteQueryResult,
-  type CreateMutationOptions,
-  type CreateMutationResult,
-  type CreateQueryOptions,
-  type CreateQueryResult,
-  type DefaultError,
   type InfiniteData,
   type QueryKey
 } from '@tanstack/svelte-query';
@@ -74,44 +67,17 @@ export const queryClient = new QueryClient({
   }
 });
 
-const sharedClient = () => queryClient;
+type CreateFunction = (options: never, client?: Accessor<QueryClient>) => unknown;
 
-/** TanStack's `createQuery`, bound to the shared {@link queryClient}. */
-export function createQuery<
-  TQueryFnData = unknown,
-  TError = DefaultError,
-  TData = TQueryFnData,
-  TQueryKey extends QueryKey = QueryKey
->(
-  options: Accessor<CreateQueryOptions<TQueryFnData, TError, TData, TQueryKey>>
-): CreateQueryResult<TData, TError> {
-  return createQueryWithClient(options, sharedClient);
+/** Bind a TanStack `create*` function to the shared client, keeping its types. */
+function withSharedClient<F extends CreateFunction>(create: F): F {
+  const bound: CreateFunction = (options, client) => create(options, client ?? (() => queryClient));
+  return bound as F;
 }
 
-/** TanStack's `createInfiniteQuery`, bound to the shared {@link queryClient}. */
-export function createInfiniteQuery<
-  TQueryFnData = unknown,
-  TError = DefaultError,
-  TData = InfiniteData<TQueryFnData>,
-  TQueryKey extends QueryKey = QueryKey,
-  TPageParam = unknown
->(
-  options: Accessor<CreateInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>>
-): CreateInfiniteQueryResult<TData, TError> {
-  return createInfiniteQueryWithClient(options, sharedClient);
-}
-
-/** TanStack's `createMutation`, bound to the shared {@link queryClient}. */
-export function createMutation<
-  TData = unknown,
-  TError = DefaultError,
-  TVariables = void,
-  TContext = unknown
->(
-  options: Accessor<CreateMutationOptions<TData, TError, TVariables, TContext>>
-): CreateMutationResult<TData, TError, TVariables, TContext> {
-  return createMutationWithClient(options, sharedClient);
-}
+export const createQuery = withSharedClient(createQueryWithClient);
+export const createInfiniteQuery = withSharedClient(createInfiniteQueryWithClient);
+export const createMutation = withSharedClient(createMutationWithClient);
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
