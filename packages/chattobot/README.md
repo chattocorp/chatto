@@ -529,7 +529,12 @@ network address and requested package names.
 `runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`
 owns the agent instructions and conversation task.
 The `chatto/` directory owns delivery routing, conversation queues, posting,
-and typing indicators.
+and typing indicators. `workflows/implement.ts` owns the `implementChatto` tool.
+The implementation run is in `implementation-task.ts`, which uses
+`implementation-tools.ts` (worker tools), `implementation-validation.ts` (host
+checks), `implementation-publication.ts` (commit, push, and PR),
+`implementation-artifacts.ts` (retained state), `implementation-safety.ts`
+(redaction and protected paths), and `implementation-settings.ts`.
 
 Retained implementation metadata stores an owner key: the SHA-256 hash of the
 conversation key from `deliveryConversationKey`. A resume request succeeds only
