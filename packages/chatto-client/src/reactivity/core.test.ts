@@ -281,3 +281,20 @@ describe('read hook', () => {
     expect(hooked).toEqual([double, count]);
   });
 });
+
+describe('effect loops', () => {
+  it('stops an endless loop and keeps queued effects usable', () => {
+    const count = signal(0);
+    const observed = signal(0);
+    const runs = vi.fn();
+    // Queued on every loop iteration, so it is pending when the loop stops.
+    effect(() => runs(count.get(), observed.get()));
+    const stopLoop = effect(() => {
+      count.set(count.get() + 1);
+    });
+    expect(() => count.set(-1)).toThrow('maximum number of runs');
+    stopLoop();
+    observed.set(1);
+    expect(runs).toHaveBeenLastCalledWith(count.peek(), 1);
+  });
+});

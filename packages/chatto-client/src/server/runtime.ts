@@ -78,8 +78,9 @@ export function startClientRuntime(): ClientRuntime {
     });
 
     // Remote session termination is authoritative even when its server is not
-    // active: sign out that server. Reading each bus subscribes again when a
-    // server's bus starts later.
+    // active: sign out that server. A fixed token, such as a bot API key,
+    // cannot sign in again, so its session ends and its host is told. Reading
+    // each bus subscribes again when a server's bus starts later.
     effect(() => {
       const remoteBuses = serverRegistry.servers
         .filter((server) => !serverRegistry.isOriginServer(server.id))
@@ -87,7 +88,10 @@ export function startClientRuntime(): ClientRuntime {
       return untrack(() => {
         const disposers = remoteBuses.map(({ id, bus }) =>
           bus?.onSessionTerminated(() => {
-            queueMicrotask(() => serverRegistry.clearServerAuthentication(id));
+            queueMicrotask(() => {
+              if (serverRegistry.hasFixedToken(id)) serverRegistry.handleAuthenticationRequired(id);
+              else serverRegistry.clearServerAuthentication(id);
+            });
           })
         );
         return () => disposers.forEach((dispose) => dispose?.());

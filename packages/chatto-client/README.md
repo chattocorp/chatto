@@ -33,14 +33,16 @@ chatto.close();
 - `onEvent` listeners run in order after the store applied an event. They must
   not throw. `onReset` reports projection resets; a reset after the first one
   means that events can be missing.
-- The token is kept only in memory and is never renewed. When the server
-  rejects it, `ready()` rejects.
+- The token is kept only in memory: it is never renewed or written to device
+  storage. When the server rejects it, `ready()` rejects and `sessionEnded`
+  becomes true. Close the connection then.
 
 `createChattoApi` makes stateless requests without a realtime connection, for
-example in a webhook handler:
+example in a webhook handler. Import it from `@chatto/client/apiClient`, which
+does not load the stores:
 
 ```ts
-import { createChattoApi } from '@chatto/client';
+import { createChattoApi } from '@chatto/client/apiClient';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 
 const api = createChattoApi({ serverUrl, apiKey });

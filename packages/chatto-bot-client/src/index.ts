@@ -49,6 +49,12 @@ const THREAD_READ_TIMEOUT_MS = 30_000;
 const MESSAGE_CHUNK_LENGTH = 8000;
 /** Thread events requested per page. */
 const THREAD_PAGE_SIZE = 100;
+/**
+ * Largest number of received events that wait for the handler. A slower
+ * handler stops consumption, so memory stays bounded; the host can reconnect
+ * from a new snapshot.
+ */
+const MAX_QUEUED_EVENTS = 1000;
 
 /** Thread text classified relative to this bot; other bots also have the human role. */
 export interface BotThreadMessage extends ThreadMessage {
@@ -98,7 +104,8 @@ export interface ConsumeEventsOptions {
   signal: AbortSignal;
   /**
    * Handle one event. Events are handled in order; the next event waits until
-   * the returned promise resolves. A rejection stops consumption.
+   * the returned promise resolves. A rejection stops consumption. When more
+   * than 1000 received events wait, consumption stops with an error.
    */
   onEvent: (event: RealtimeEvent) => void | Promise<void>;
   onStatus?: (status: RealtimeStatus) => void;
@@ -298,36 +305,68 @@ export async function createBotClient(
   const { viewerId } = await chatto.ready({ signal });
 
   /**
-   * Handle realtime events in order until `signal` aborts or `onEvent` rejects.
-   * The connection keeps receiving events while a handler runs; they wait in
-   * memory. Resolves on abort; rejects with the handler's error.
+   * Handle realtime events in order until `signal` aborts. The connection
+   * keeps receiving events while a handler runs; up to 1000 wait in memory.
+   * Resolves on abort. Rejects when `onEvent` or `onStatus` throws, when too
+   * many events wait, when the server ends the session, or when the
+   * connection closes.
    */
   async function consumeEvents({ signal, onEvent, onStatus }: ConsumeEventsOptions): Promise<void> {
     signal.throwIfAborted();
     const queue: RealtimeEvent[] = [];
     let wake: (() => void) | undefined;
-    let resets = 0;
+    let failure: { error: unknown } | undefined;
+    const fail = (error: unknown) => {
+      failure ??= { error };
+      wake?.();
+    };
+    // A failing status callback stops consumption; it must not throw into
+    // the connection code that changed the status.
+    const report = (status: RealtimeStatus) => {
+      try {
+        onStatus?.(status);
+      } catch (error) {
+        fail(error);
+      }
+    };
     const stopEvents = chatto.onEvent((event) => {
+      if (queue.length >= MAX_QUEUED_EVENTS) {
+        fail(new Error('Chatto events arrived faster than the bot handled them'));
+        return;
+      }
       queue.push(event);
       wake?.();
     });
+    let resets = 0;
+    let connectedSinceReset = false;
     const stopResets = chatto.onReset(() => {
       resets++;
       // The first snapshot starts the stream. A later one replaces a stream
-      // that the server could not resume.
-      if (resets > 1) onStatus?.({ state: 'ready', gap: true });
+      // that the server could not resume. A resync publishes a reset and then
+      // a snapshot before the next connection; report that gap once.
+      if (resets > 1 && connectedSinceReset) report({ state: 'ready', gap: true });
+      connectedSinceReset = false;
     });
     let connectedBefore = false;
     const stopStatus = effectRoot(() => {
       effect(() => {
+        if (chatto.closed) {
+          fail(new Error('The Chatto connection is closed'));
+          return;
+        }
+        if (chatto.sessionEnded) {
+          fail(new Error('Chatto ended the session; the API key can be revoked'));
+          return;
+        }
         const status = chatto.connection.status;
         if (status === 'connected') {
-          onStatus?.({ state: 'ready', gap: false });
           connectedBefore = true;
+          connectedSinceReset = true;
+          report({ state: 'ready', gap: false });
         } else if (status === 'connecting') {
-          onStatus?.({ state: connectedBefore ? 'reconnecting' : 'connecting' });
+          report({ state: connectedBefore ? 'reconnecting' : 'connecting' });
         } else if (status === 'disconnected') {
-          onStatus?.({ state: 'reconnecting' });
+          report({ state: 'reconnecting' });
         }
       });
     });
@@ -336,6 +375,7 @@ export async function createBotClient(
     );
     try {
       while (!signal.aborted) {
+        if (failure) throw failure.error;
         const event = queue.shift();
         if (!event) {
           await Promise.race([new Promise<void>((resolve) => (wake = resolve)), aborted]);

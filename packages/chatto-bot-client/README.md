@@ -36,14 +36,17 @@ host IP address, the key, and request data. The bot package adds no external
 service or logging.
 
 `consumeEvents` handles events in order: the next event waits until
-`onEvent` resolves. A rejection stops consumption. It resolves when `signal`
-aborts. `onStatus` reports `connecting`, `reconnecting`, and `ready`. A
+`onEvent` resolves. It resolves when `signal` aborts. It rejects when
+`onEvent` or `onStatus` throws, when more than 1000 received events wait for
+the handler, when the server ends the session (for example after the API key
+is revoked), or when the connection closes. `onStatus` reports `connecting`, `reconnecting`, and `ready`. A
 `ready` status with `gap: true` means that the server could not resume the
 stream, so events can be missing.
 
 For short-lived work without a realtime connection, such as a webhook handler,
-use `createBotApi(createChattoApi({ serverUrl, apiKey }), botId)`. It has the
-same request helpers as the bot client.
+use `createBotApi(createChattoApi({ serverUrl, apiKey }), botId)` with
+`createChattoApi` from `@chatto/client/apiClient`. It has the same request
+helpers as the bot client.
 
 ## Helpers
 

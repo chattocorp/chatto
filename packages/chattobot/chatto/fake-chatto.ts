@@ -63,6 +63,10 @@ export function fakeChatto(setup: FakeChattoSetup) {
           return status.get();
         }
       },
+      sessionEnded: false,
+      get closed() {
+        return fake.closed;
+      },
       async ready({ signal }: { signal?: AbortSignal } = {}) {
         signal?.throwIfAborted();
         const viewerId =

@@ -13,12 +13,20 @@ export function fakeConnection(
   const eventListeners = new Set<(event: RealtimeEvent) => void>();
   const resetListeners = new Set<() => void>();
   const status = signal<ChattoConnectionStatus>('connecting');
+  const sessionEnded = signal(false);
+  const closed = signal(false);
   const connection = {
     serverId: 'test',
     connection: {
       get status() {
         return status.get();
       }
+    },
+    get sessionEnded() {
+      return sessionEnded.get();
+    },
+    get closed() {
+      return closed.get();
     },
     async ready({ signal }: { signal?: AbortSignal } = {}) {
       signal?.throwIfAborted();
@@ -35,7 +43,9 @@ export function fakeConnection(
       resetListeners.add(listener);
       return () => resetListeners.delete(listener);
     },
-    close() {}
+    close() {
+      closed.set(true);
+    }
   };
   return {
     chatto: connection as unknown as ChattoConnection,
@@ -47,6 +57,9 @@ export function fakeConnection(
     },
     setStatus(value: ChattoConnectionStatus) {
       status.set(value);
+    },
+    endSession() {
+      sessionEnded.set(true);
     },
     get listenerCount() {
       return eventListeners.size + resetListeners.size;

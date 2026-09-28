@@ -15,7 +15,7 @@ import type { ServiceType } from '@bufbuild/protobuf';
 import type { Client } from '@connectrpc/connect';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { createChattoClient as createServiceClient, type ConnectAPIConfig } from './api/connect.js';
-import { effect, effectRoot, untrack } from './reactivity/index.js';
+import { effect, effectRoot, signal, untrack } from './reactivity/index.js';
 import type { RealtimeProjectionUpdate } from './realtime/eventBus.js';
 import { eventBusManager } from './server/realtimeTransport.js';
 import { generateServerId, serverRegistry } from './server/registry.js';
@@ -46,9 +46,17 @@ export interface ChattoConnection {
   readonly connection: ServerConnection;
   /**
    * Wait until the server accepted the token and the viewer loaded. Rejects
-   * when the server rejects the token or when `signal` aborts.
+   * when the server rejects the token, when the connection closes, or when
+   * `signal` aborts.
    */
   ready(options?: { signal?: AbortSignal }): Promise<{ viewerId: string }>;
+  /**
+   * Whether the server ended the session, for example because it rejected or
+   * revoked the token. The connection does not recover; close it. Reactive.
+   */
+  readonly sessionEnded: boolean;
+  /** Whether {@link close} was called. Reactive. */
+  readonly closed: boolean;
   /**
    * Create a typed Connect client for a public service, with this
    * connection's authentication and privacy fences.
@@ -115,7 +123,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
 
   const eventListeners = new Set<(event: RealtimeEvent) => void>();
   const resetListeners = new Set<(update: RealtimeProjectionUpdate) => void>();
-  let closed = false;
+  const closed = signal(false);
 
   // The event bus starts once the viewer loaded. Subscribe whenever the
   // runtime creates (or replaces) this server's bus.
@@ -143,6 +151,12 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     get connection() {
       return serverConnectionManager.getClient(serverId);
     },
+    get sessionEnded() {
+      return (serverRegistry.getServer(serverId)?.reauthRequiredAt ?? null) !== null;
+    },
+    get closed() {
+      return closed.get();
+    },
     ready({ signal } = {}) {
       return new Promise((resolve, reject) => {
         signal?.throwIfAborted();
@@ -156,7 +170,10 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         signal?.addEventListener('abort', abort, { once: true });
         stop = effectRoot(() => {
           effect(() => {
-            if (closed) return;
+            if (closed.get()) {
+              finish(() => reject(new Error('The Chatto connection is closed')));
+              return;
+            }
             const server = serverRegistry.getServer(serverId);
             const current = serverRegistry.tryGetStore(serverId);
             if (!server || !current) return;
@@ -183,8 +200,8 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
       return () => resetListeners.delete(listener);
     },
     close() {
-      if (closed) return;
-      closed = true;
+      if (closed.peek()) return;
+      closed.set(true);
       if (openConnection === connection) openConnection = null;
       disposeBusSubscription();
       runtime.stop();

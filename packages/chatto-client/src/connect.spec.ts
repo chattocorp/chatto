@@ -96,6 +96,24 @@ describe('connectChatto in Node', () => {
     expect(serverRegistry.servers.length).toBe(count);
   });
 
+  it('rejects a pending ready() when the connection closes', async () => {
+    mocks.viewer.mockReturnValue(new Promise(() => {}));
+    const closing = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    const ready = closing.ready();
+    closing.close();
+    await expect(ready).rejects.toThrow('closed');
+    expect(closing.closed).toBe(true);
+  });
+
+  it('reports an ended session and keeps its token in memory', async () => {
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await connection.ready();
+    expect(connection.sessionEnded).toBe(false);
+    serverRegistry.handleAuthenticationRequired(connection.serverId);
+    expect(connection.sessionEnded).toBe(true);
+    expect(serverRegistry.getServer(connection.serverId)?.token).toBe('key');
+  });
+
   it('stops waiting when the caller aborts', async () => {
     mocks.viewer.mockReturnValue(new Promise(() => {}));
     connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });

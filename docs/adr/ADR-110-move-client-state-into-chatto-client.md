@@ -86,10 +86,11 @@ the Vitest browser setup, and in Storybook.
 - `connectChatto({ serverUrl, apiKey })` registers one server with a fixed
   token. It uses the same registry, stores, runtime, and realtime transport as
   the frontend. A process has one open connection at a time. A fixed token is
-  never renewed. The server's rejection ends the session.
-- `createChattoApi({ serverUrl, apiKey })` makes stateless typed requests with
-  Connect JSON. It rejects redirects. Use it for short work, such as a webhook
-  handler.
+  never renewed or written to device storage. The server's rejection or a
+  session termination ends the session.
+- `createChattoApi({ serverUrl, apiKey })` in `@chatto/client/apiClient` makes
+  stateless typed requests with Connect JSON. It rejects redirects and does not
+  load the stores. Use it for short work, such as a webhook handler.
 - `@chatto/bot-client` builds bot conventions on these entry points:
   `createBotApi` for requests and `createBotClient` for an ordered realtime
   event loop. ChattoBot and the Runling webhook example use them.
@@ -117,6 +118,8 @@ The package keeps the MIT license of the previous `@chatto/client` package.
   generation. A new generation starts from a new realtime snapshot. Messages
   that arrive between generations are not replayed. The ADR-100 client
   replayed them from an in-memory checkpoint.
+- Signals compare values by reference. Stores replace arrays and objects to
+  publish a change; they do not mutate reactive state in place.
 - Each Svelte reaction that reads a client node creates a small Svelte render
   effect. The rules of ADR-010 still apply: put only renderable data into
   reactive collections.

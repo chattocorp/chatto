@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
     vi.fn()
   ),
   clearServerAuthentication: vi.fn(),
+  handleAuthenticationRequired: vi.fn(),
+  fixedTokens: new Set<string>(),
   getClient: vi.fn((serverId: string) => ({ serverId }))
 }));
 
@@ -37,6 +39,8 @@ vi.mock('./registry.js', () => ({
     },
     isOriginServer: (serverId: string) => serverId === mocks.originServerId,
     clearServerAuthentication: mocks.clearServerAuthentication,
+    handleAuthenticationRequired: mocks.handleAuthenticationRequired,
+    hasFixedToken: (serverId: string) => mocks.fixedTokens.has(serverId),
     getStore: (serverId: string) => mocks.stores.get(serverId),
     tryGetStore: (serverId: string) => mocks.stores.get(serverId)
   }
@@ -163,6 +167,21 @@ describe('startClientRuntime', () => {
     const handler = mocks.onSessionTerminated.mock.calls.find(([id]) => id === 'remote')?.[1];
     handler?.('revoked');
     await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote'));
+  });
+
+  it('ends a fixed-token session instead of clearing it when the server terminates it', async () => {
+    mocks.fixedTokens.add('remote');
+    runtime = startClientRuntime();
+    await vi.waitFor(() =>
+      expect(mocks.onSessionTerminated).toHaveBeenCalledWith('remote', expect.any(Function))
+    );
+    const handler = mocks.onSessionTerminated.mock.calls.find(([id]) => id === 'remote')?.[1];
+    handler?.('revoked');
+    await vi.waitFor(() =>
+      expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote')
+    );
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    mocks.fixedTokens.clear();
   });
 
   it('listens for remote session termination when the bus starts later', async () => {

@@ -280,7 +280,7 @@ export class ServerConnection {
       if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(this.#serverId)) {
         return false;
       }
-      if (this.#token) {
+      if (this.#token && this.#renewable) {
         return (await serverRegistry.renewServerAuthentication(this.#serverId, true)) !== null;
       }
       const required = await serverRegistry.confirmAuthenticationRequired(

@@ -139,26 +139,68 @@ test('consumes events in order, reports status and gaps, and stops on abort', as
       if (event.id === 'first') await new Promise<void>((resolve) => (release = resolve));
     }
   });
-  fake.setStatus('connected');
   fake.reset();
+  fake.setStatus('connected');
   fake.emit(dmEvent('first'));
   fake.emit(dmEvent('second'));
   await vi.waitFor(() => expect(handled).toEqual(['first']));
   release();
   await vi.waitFor(() => expect(handled).toEqual(['first', 'second']));
-  fake.setStatus('connecting');
-  fake.setStatus('connected');
+  // A resync publishes a reset and then a snapshot: one gap.
   fake.reset();
+  fake.setStatus('connecting');
+  fake.reset();
+  fake.setStatus('connected');
   expect(statuses).toEqual([
     { state: 'connecting' },
     { state: 'ready', gap: false },
+    { state: 'ready', gap: true },
     { state: 'reconnecting' },
-    { state: 'ready', gap: false },
-    { state: 'ready', gap: true }
+    { state: 'ready', gap: false }
   ]);
   controller.abort();
   await consuming;
   expect(fake.listenerCount).toBe(0);
+});
+
+test('stops when the server ends the session or the connection closes', async () => {
+  for (const end of ['session', 'close'] as const) {
+    const fake = fakeConnection();
+    const bot = await createBotClient(fake.chatto);
+    const consuming = bot.consumeEvents({
+      signal: new AbortController().signal,
+      onEvent: () => {}
+    });
+    if (end === 'session') fake.endSession();
+    else fake.chatto.close();
+    await expect(consuming).rejects.toThrow(end === 'session' ? 'ended the session' : 'closed');
+    expect(fake.listenerCount).toBe(0);
+  }
+});
+
+test('stops instead of buffering without bound behind a slow handler', async () => {
+  const fake = fakeConnection();
+  const bot = await createBotClient(fake.chatto);
+  const consuming = bot.consumeEvents({
+    signal: new AbortController().signal,
+    onEvent: () => new Promise(() => {})
+  });
+  for (let index = 0; index < 1002; index++) fake.emit(dmEvent(`event-${index}`));
+  await expect(consuming).rejects.toThrow('faster than the bot handled them');
+});
+
+test('a failing status callback stops consumption without breaking the connection', async () => {
+  const fake = fakeConnection();
+  const bot = await createBotClient(fake.chatto);
+  const consuming = bot.consumeEvents({
+    signal: new AbortController().signal,
+    onStatus: () => {
+      throw new Error('status handler failed');
+    },
+    onEvent: () => {}
+  });
+  expect(() => fake.setStatus('connected')).not.toThrow();
+  await expect(consuming).rejects.toThrow('status handler failed');
 });
 
 test('a failed event handler stops consumption with its error', async () => {

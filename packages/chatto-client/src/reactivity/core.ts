@@ -368,6 +368,14 @@ class EffectNode {
     pendingEffects.push(this);
   }
 
+  /**
+   * Forget a pending run without running. A later change schedules the
+   * effect again.
+   */
+  cancelPending(): void {
+    this.#stale = false;
+  }
+
   /** Run if a source changed since the previous run. */
   runIfStale(): void {
     if (!this.#stale || this.#disposed) return;
@@ -428,8 +436,12 @@ function flushEffects(): void {
     while (pendingEffects.length > 0) {
       const effects = pendingEffects;
       pendingEffects = [];
-      for (const effect of effects) {
+      for (const [index, effect] of effects.entries()) {
         if (++runs > MAX_EFFECT_RUNS_PER_FLUSH) {
+          // Drop the loop, but let later changes schedule these effects again.
+          for (const dropped of [...effects.slice(index), ...pendingEffects]) {
+            dropped.cancelPending();
+          }
           pendingEffects = [];
           throw new Error('Effect update loop exceeded the maximum number of runs');
         }

@@ -351,8 +351,8 @@ class ServerRegistry {
   #startedServerNetwork = new Set<string>();
   /**
    * Servers whose bearer token is fixed, such as a bot API key. Their token is
-   * never renewed, and the server's rejection ends the session. Kept only in
-   * memory; see {@link addServer}.
+   * never renewed or written to device storage, and the server's rejection
+   * ends the session. See {@link addServer}.
    */
   readonly #fixedTokenServers = new Set<string>();
 
@@ -847,8 +847,10 @@ class ServerRegistry {
 
   #adoptPersistedBearerSession(id: string): void {
     const persisted = readPersistedAuthentication(id);
-    // Without device storage (for example in Node), the in-memory session is
-    // the only copy, and another tab cannot have rotated it.
+    // Without device storage (for example in Node), and for fixed tokens that
+    // are never stored, the in-memory session is the only copy, and another
+    // tab cannot have rotated it.
+    if (this.#fixedTokenServers.has(id)) return;
     if (persisted === undefined && typeof localStorage === 'undefined') return;
     const current = this.sessions.get(id);
     if (!current) return;
@@ -1070,27 +1072,32 @@ class ServerRegistry {
     // independently persisted authentication at write time so a stale tab's
     // metadata snapshot can never put old rotated credentials back into it.
     serversSlot.set(
-      this.servers.map((server) => {
-        const persisted = readPersistedAuthentication(server.id);
-        return {
-          ...server,
-          ...(persisted === undefined
-            ? authenticationFromSession(server)
-            : (persisted ?? emptyServerAuthentication()))
-        };
-      })
+      // Fixed tokens, such as bot API keys, stay in memory only.
+      this.servers
+        .filter((server) => !this.#fixedTokenServers.has(server.id))
+        .map((server) => {
+          const persisted = readPersistedAuthentication(server.id);
+          return {
+            ...server,
+            ...(persisted === undefined
+              ? authenticationFromSession(server)
+              : (persisted ?? emptyServerAuthentication()))
+          };
+        })
     );
   }
 
   #persistAuthentication(id: string): boolean {
     const session = this.sessions.get(id);
     if (!session) return false;
+    if (this.#fixedTokenServers.has(id)) return true;
     return persistAuthentication(id, authenticationFromSession(session));
   }
 
   #persistAuthenticationPatch(id: string, patch: Partial<ServerAuthentication>): boolean {
     const session = this.sessions.get(id);
     if (!session) return false;
+    if (this.#fixedTokenServers.has(id)) return true;
     const stored = readPersistedAuthentication(id);
     const current = stored ?? authenticationFromSession(session);
     return persistAuthentication(id, { ...current, ...patch });

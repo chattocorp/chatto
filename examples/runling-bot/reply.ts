@@ -1,4 +1,4 @@
-import { createChattoApi } from '@chatto/client';
+import { createChattoApi } from '@chatto/client/apiClient';
 import { createBotApi } from '@chatto/bot-client';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
