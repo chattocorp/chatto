@@ -3,8 +3,8 @@ import { ReactiveMap } from '../reactivity/index.js';
 /**
  * Transient store for "next time we land in room X (or thread X/T), highlight
  * event Y." Set by in-app navigations (e.g. notification clicks) before the
- * goto, then consumed by Room.svelte once the destination's data has loaded and
- * the room id matches. Room hands the target to the matching ConversationPane.
+ * navigation, then consumed by the room view once the destination's data has
+ * loaded and the room id matches.
  *
  * Why not URL params? `?highlight=` is reactive and survives refresh (which
  * means the highlight re-fires every time the URL is parsed), and the
@@ -13,7 +13,7 @@ import { ReactiveMap } from '../reactivity/index.js';
  * the destination, and immune to refresh.
  *
  * The `?highlight=` URL param remains the right semantic for shareable
- * permalinks; Room.svelte checks both, with this store taking precedence.
+ * permalinks; the room view checks both, with this store taking precedence.
  */
 export class PendingHighlightStore {
   private highlights = new ReactiveMap<string, { eventId: string; notificationId: string | null }>();

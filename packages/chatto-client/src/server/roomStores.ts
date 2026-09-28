@@ -65,7 +65,7 @@ export type RoomStoresOptions = {
  * a new search removes the least recently used one.
  *
  * The registry is not reactive on purpose. The stores are reactive, and a
- * selector can create a store while Svelte evaluates a derived value.
+ * selector can create a store while a UI framework evaluates a derived value.
  */
 export class RoomStores {
   readonly #options: RoomStoresOptions;
@@ -193,7 +193,7 @@ export class RoomStores {
       const oldest = this.#rooms[this.#searchRecency.shift()!];
       const evicted = oldest?.search;
       if (oldest) oldest.search = undefined;
-      // A selector can create this store while Svelte renders. Release the old
+      // A selector can create this store while a UI renders. Release the old
       // store now and clear its reactive state after the render. The captured
       // store cannot be a replacement that a later call creates for that room.
       if (evicted) queueMicrotask(() => evicted.reset());

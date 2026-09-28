@@ -1,4 +1,5 @@
 import { signal } from '../reactivity/index.js';
+
 /** Public metadata for one Chatto server known to this client. */
 export interface ServerRegistration {
   id: string;

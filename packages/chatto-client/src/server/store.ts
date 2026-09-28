@@ -202,8 +202,8 @@ export class ServerStateStore {
 
   /**
    * Live reference to the registered server. Reads pick up `updateServer`
-   * mutations (e.g. token refresh, name change) because the registry stores
-   * servers in $state.
+   * mutations (e.g. token refresh, name change) because the registry keeps
+   * sessions in reactive state.
    */
   readonly #getSession: () => ServerSession;
   readonly #originServer: boolean;

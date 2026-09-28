@@ -40,7 +40,7 @@ export type ConnectAPIConfig = {
   dataGeneration?: () => number;
   /**
    * Build the transport from Chatto's interceptors instead of using HTTP.
-   * Tests pass an in-memory fake server; see `$lib/test-utils/fakeServer`.
+   * Tests pass an in-memory fake server; see `@chatto/client/testing/fakeServer`.
    */
   transport?: (interceptors: Interceptor[]) => Transport;
 };

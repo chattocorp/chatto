@@ -1,9 +1,10 @@
-import { signal } from '../../reactivity/index.js';
 /**
  * Navigation state of a timeline that jumped to an older message, outside the
  * latest window. A room view owns one instance and passes it to
  * `MessagesStore` jump and load operations.
  */
+
+import { signal } from '../../reactivity/index.js';
 
 export class JumpToMessageState {
   readonly #isJumpedModeSignal = signal(false);

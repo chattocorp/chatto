@@ -191,9 +191,8 @@ export class ServerInfoState {
    * Fetch server info. Idempotent; can be called again to refresh metadata
    * after live updates.
    *
-   * Sets `loading = true` for the duration so consumers can gate their UI
-   * (the chat-root page's redirect logic relies on this — see
-   * `chat/[serverId]/+page.svelte`).
+   * Sets `loading = true` for the duration so consumers can gate their UI,
+   * for example a redirect that waits for server metadata.
    */
   async init(): Promise<void> {
     if (this.#initializing) return this.#initializing;

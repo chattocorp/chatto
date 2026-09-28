@@ -330,14 +330,14 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
  *
  * Registration and store creation are atomic — when a server is added,
  * its store is created immediately. This eliminates race conditions where
- * $derived expressions see a registered server but no store exists yet.
+ * computed values see a registered server but no store exists yet.
  *
- * The store map uses Map so that getStore() lookups are reactive
- * in $derived expressions.
+ * The store map is a ReactiveMap, so getStore() lookups are reactive in
+ * computed values and UI reactions.
  *
  * The registry does NOT track which server is "active".
- * The active server is determined by the URL (via the [[serverId=hostname]] layout)
- * and provided to components through Svelte context.
+ * An application selects the server that the user looks at, for example from
+ * its URL, and reports it to the client runtime (see `startClientRuntime`).
  */
 class ServerRegistry {
   readonly catalog: ServerCatalog;
@@ -885,7 +885,7 @@ class ServerRegistry {
 
   /**
    * Bootstrap the registry: create stores for all registered servers.
-   * Call once from the root layout's script init (before any $derived reads stores).
+   * Call once at application startup, before any computed value or UI reads stores.
    */
   init(): void {
     for (const registration of this.registrations) {
@@ -1087,7 +1087,7 @@ class ServerRegistry {
 
   /**
    * Get the state store for a registered server.
-   * Safe in $derived — stores are created atomically with registration,
+   * Safe in computed values — stores are created atomically with registration,
    * so every registered server always has a store.
    */
   getStore(serverId: string): ServerStateStore {

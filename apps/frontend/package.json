@@ -62,7 +62,6 @@
     "@types/linkify-it": "^5.0.0",
     "@types/markdown-it": "^14.2.0",
     "@types/node": "^24.13.3",
-    "@types/semver": "^7.8.0",
     "@vitest/browser": "^4.1.11",
     "@vitest/browser-playwright": "^4.1.11",
     "eslint": "^10.11.0",
@@ -108,7 +107,6 @@
     "js-sha256": "^1.0.0",
     "linkify-it": "^5.0.2",
     "livekit-client": "^2.22.3",
-    "semver": "^7.8.5",
     "tlds": "^1.261.0",
     "vidstack": "^1.15.6"
   }
