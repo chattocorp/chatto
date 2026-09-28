@@ -615,7 +615,7 @@ test.describe('Room unread separator', () => {
     );
   });
 
-  test('unread separator is deferred until the hidden tab returns', async ({
+  test('unread separator appears while the tab is hidden and stays when it returns', async ({
     page,
     chatPage,
     roomPage,
@@ -648,8 +648,7 @@ test.describe('Room unread separator', () => {
         // No separator yet — User B has read everything.
         await roomPage2.expectNoUnreadSeparator();
 
-        // User B's tab goes to the background. They stay in the room, but the
-        // rendered separator should not change until they return.
+        // User B's tab goes to the background. They stay in the room.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -663,16 +662,13 @@ test.describe('Room unread separator', () => {
         const awayMessage = `Posted while hidden ${Date.now()}`;
         await roomPage.sendMessage(awayMessage);
 
-        // The message streams in over the live subscription, but the in-room
-        // separator is deferred so Chatto does not visibly repaint the marker
-        // while the user is away.
+        // The message streams in over the live subscription and the separator
+        // appears above it at once, before User B returns.
         await roomPage2.expectMessageVisible(awayMessage);
-        await expect(async () => {
-          await roomPage2.expectNoUnreadSeparator();
-        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+        await roomPage2.expectUnreadSeparator();
 
-        // Re-focusing the tab reveals the deferred separator and keeps it
-        // stable across the mark-read round-trip.
+        // Returning to the tab keeps the separator across the mark-read
+        // round-trip.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'visible',
@@ -689,7 +685,7 @@ test.describe('Room unread separator', () => {
     );
   });
 
-  test('unread separator is deferred until the blurred window is focused again', async ({
+  test('unread separator appears while the window is blurred and stays when it is focused', async ({
     page,
     chatPage,
     roomPage,
@@ -726,9 +722,7 @@ test.describe('Room unread separator', () => {
         const awayMessage = `Posted while blurred ${Date.now()}`;
         await roomPage.sendMessage(awayMessage);
         await roomPage2.expectMessageVisible(awayMessage);
-        await expect(async () => {
-          await roomPage2.expectNoUnreadSeparator();
-        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+        await roomPage2.expectUnreadSeparator();
 
         await page2.evaluate(() => {
           window.dispatchEvent(new Event('focus'));
