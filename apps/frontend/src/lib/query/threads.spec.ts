@@ -185,7 +185,7 @@ describe('followed thread query helpers', () => {
     queryCaches.followedThreads!.retractMessage('origin', 'room-9', 'unknown');
 
     expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toEqual([]);
-    resolveRead({ threads: [], totalCount: 0, hasMore: false, nextOffset: 0 });
+    resolveRead({ threads: [], totalCount: 0, hasMore: false });
     await pending.catch(() => undefined);
   });
 
