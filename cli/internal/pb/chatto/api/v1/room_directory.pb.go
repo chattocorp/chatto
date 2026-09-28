@@ -225,8 +225,8 @@ type RoomWithViewerState struct {
 	// Whether this DM has received a root message. Absent for channel rooms.
 	HasMessageHistory *bool `protobuf:"varint,16,opt,name=has_message_history,json=hasMessageHistory,proto3,oneof" json:"has_message_history,omitempty"`
 	// DM participants whose accounts were deleted. These IDs are not in
-	// member_user_ids. Clients show them as deleted users. A DM whose only
-	// other participants are deleted is not a self-DM. Empty for channel rooms.
+	// member_user_ids. Clients show them as deleted users, so a DM with a
+	// deleted partner is not a self-DM. Empty for channel rooms.
 	DeletedParticipantUserIds []string `protobuf:"bytes,17,rep,name=deleted_participant_user_ids,json=deletedParticipantUserIds,proto3" json:"deleted_participant_user_ids,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache

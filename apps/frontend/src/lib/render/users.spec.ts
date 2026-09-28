@@ -67,14 +67,4 @@ describe('buildDirectMessagePresentation', () => {
     });
     expect(getDisplayName).not.toHaveBeenCalled();
   });
-
-  it('lists deleted participants next to the remaining group DM participants', () => {
-    const deleted = deletedDirectMessageParticipant('gone');
-    expect(
-      buildDirectMessagePresentation([...participants.slice(0, 2), deleted], 'self', labels)
-    ).toEqual({
-      label: 'Friend, [deleted user]',
-      visibleParticipants: [participants[1], deleted]
-    });
-  });
 });

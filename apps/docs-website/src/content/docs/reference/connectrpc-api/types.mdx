@@ -803,7 +803,7 @@ viewer.
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
 | `member_user_ids` | `repeated string` | Complete participant user IDs for a DM. Empty for channel rooms. |
 | `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
-| `deleted_participant_user_ids` | `repeated string` | DM participants whose accounts were deleted. These IDs are not in member_user_ids. Clients show them as deleted users. A DM whose only other participants are deleted is not a self-DM. Empty for channel rooms. |
+| `deleted_participant_user_ids` | `repeated string` | DM participants whose accounts were deleted. These IDs are not in member_user_ids. Clients show them as deleted users, so a DM with a deleted partner is not a self-DM. Empty for channel rooms. |
 
 <a id="chatto-api-v1-SidebarLink"></a>
 

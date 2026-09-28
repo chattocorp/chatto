@@ -362,8 +362,8 @@ export class QuickSwitcherModel {
             currentUserId,
             directMessageLabels()
           );
-          // Count full participation, not visible avatars: a group can lose profile data.
-          // Deleted participants still count, so their DM is not the viewer's self-DM.
+          // Count full membership, not visible avatars: a group can lose profile data.
+          // Deleted participants count too, so their DM is not the viewer's self-DM.
           const projectedRoom = store?.projection.rooms.get(room.id);
           const memberIds = projectedRoom
             ? [...projectedRoom.memberUserIds, ...projectedRoom.deletedParticipantUserIds]

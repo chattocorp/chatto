@@ -29,10 +29,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   participant data is available. The badge uses the account ID, so text in
   another user's display name cannot create it.
 - When a DM participant deletes their account, the conversation stays
-  available to the other participants. Clients show the deleted participant as
-  **[deleted user]** with a deleted-user avatar. A DM whose other participants
-  are all deleted is never shown as a self-DM and has no **You** badge.
-  Posting rules do not change.
+  available to the other participant. Clients show the deleted participant as
+  **[deleted user]** with a deleted-user avatar. The DM is never shown as a
+  self-DM and has no **You** badge. Posting rules do not change.
 - Active DM navigation uses message history to include and order DMs for their
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.

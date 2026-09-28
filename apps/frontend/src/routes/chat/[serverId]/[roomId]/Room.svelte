@@ -352,7 +352,7 @@
       (participantId) => participantId !== room.dmData?.currentUserId
     );
     if (otherParticipantIds.length === 1) return otherParticipantIds[0];
-    // A DM whose other participants deleted their accounts is not a self-DM.
+    // A DM whose partner deleted their account is not a self-DM.
     return participantIds.length === 1 &&
       participantIds[0] === room.dmData?.currentUserId &&
       room.dmData.deletedParticipantIds.length === 0

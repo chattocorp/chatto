@@ -197,8 +197,8 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
 
   /**
    * DM participants whose accounts were deleted. These IDs are not in
-   * member_user_ids. Clients show them as deleted users. A DM whose only
-   * other participants are deleted is not a self-DM. Empty for channel rooms.
+   * member_user_ids. Clients show them as deleted users, so a DM with a
+   * deleted partner is not a self-DM. Empty for channel rooms.
    *
    * @generated from field: repeated string deleted_participant_user_ids = 17;
    */
