@@ -460,6 +460,35 @@ describe('MessageComposer', () => {
     vi.restoreAllMocks();
   });
 
+  describe.each(['visual', 'markdown'] as const)('%s /shrug command', (editorMode) => {
+    it.each([
+      ['/shrug hello', 'hello ¯\\_(ツ)_/¯'],
+      ['/shrug', '¯\\_(ツ)_/¯'],
+      ['/shrugger hello', '/shrugger hello']
+    ])('posts %s as %s', async (draft, expected) => {
+      userPreferences.composerEditor = editorMode;
+      const { container } = renderMessageComposer({ roomId: 'shrug' });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, draft);
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.body).toBe(expected);
+    });
+
+    it('keeps the command in the draft when posting fails', async () => {
+      userPreferences.composerEditor = editorMode;
+      const { container } = renderMessageComposer({ roomId: 'shrug-failure' });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, '/shrug hello');
+      mutationMock.mockResolvedValueOnce({ data: null, error: new Error('Post failed') });
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      await expect.element(editor).toHaveTextContent('/shrug hello');
+    });
+  });
+
   describe('form rendering', () => {
     it('renders the TipTap editor', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
@@ -2193,6 +2222,22 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    it('does not expand /shrug when editing a message', async () => {
+      roomStateMock.editState.eventId = 'evt_shrug_edit';
+      roomStateMock.editState.originalBody = '/shrug hello';
+      const { container, roomId } = renderMessageComposer({ roomId: 'shrug-edit' });
+      const editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('/shrug hello');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId,
+        eventId: 'evt_shrug_edit',
+        body: '/shrug hello'
+      });
+    });
+
     it('adds an echo to an image-only thread reply without replacing its body', async () => {
       roomStateMock.editState.eventId = 'evt_image_reply';
       roomStateMock.editState.threadRootEventId = 'evt_root';
