@@ -25,9 +25,13 @@ export function taskContext(tasks: AgentTaskState[]): SupervisorTask[] {
     }
     // The typed result's outcome describes success/blocked; completed only means the function returned.
     if (task.status !== 'running') {
+      // A cancelled or failed task returns no result; its artifact ID still allows continuing.
+      const artifactId = task.state?.artifactId;
       delete current.state;
       delete current.stateAt;
       delete current.stateAgeMs;
+      if (typeof artifactId === 'string' && task.status !== 'completed')
+        current.state = { artifactId };
     }
     return current;
   });

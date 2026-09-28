@@ -29,7 +29,13 @@ import {
 } from '../docs.ts';
 import { investigationExtension, type InvestigationSettings } from './investigate.ts';
 import { responsePolicy, systemPrompt } from './response-policy.ts';
-import { implementationExtension, type ImplementationSettings } from './implement.ts';
+import {
+  implementationExtension,
+  normalizeImplementationSettings,
+  type ImplementationSettings
+} from './implement.ts';
+import { implementationArtifactsDirectory } from './implementation-task.ts';
+import { listResumableArtifacts } from './implementation-artifacts.ts';
 import type { InvestigationPlans } from './plan.ts';
 import {
   notificationUrls,
@@ -287,6 +293,19 @@ export const conversation = task(
                 ? { currentMessage: message }
                 : { notification: taskNotification(message) }),
               backgroundTasks: taskContext(tasks.list()),
+              ...(options.implementation
+                ? {
+                    resumableImplementations: await listResumableArtifacts(
+                      implementationArtifactsDirectory(options.implementation),
+                      {
+                        ownerKey,
+                        repository: options.implementation.repository,
+                        baseBranch: normalizeImplementationSettings(options.implementation)
+                          .baseBranch
+                      }
+                    )
+                  }
+                : {}),
               savedImplementationPlans: [...plans].map(([investigationId, plan]) => ({
                 investigationId,
                 plan

@@ -473,15 +473,26 @@ Patch and check failures return bounded diagnostics to the worker. Worker checks
 are recorded separately from the final host checks because edits can make earlier results stale. Repository
 setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final
-checks before publication. To continue, ask the bot to resume the exact
-`implementation-<id>` artifact from its stopped result. The host verifies that
-it belongs to the same thread and reuses its branch and worktree. Artifacts
-created before conversations were shared by thread belong to their original
-author's conversation key and cannot be resumed through the bot. The next
-worker receives the original request, the saved handoff, and the new instructions
-from each resume request, which the artifact keeps (at most five). Where they
-differ, the latest instructions apply. The worker must check the
-handoff against the retained diff.
+checks before publication.
+
+An implementation that stops before publication can continue. This includes a
+cancellation, a blocked worker, and a restart of the bot. The worker keeps its
+conversation in `worker-session.jsonl` in the artifact folder. Each state update
+names the artifact, so the supervisor still knows it after a cancellation. Each
+supervisor prompt also lists up to three unfinished implementations of the
+thread (`resumableImplementations`), so a new conversation after `/cancel` or a
+restart can offer to continue too. The supervisor says that the work is kept
+and offers to continue it. When the user agrees, it resumes the exact
+`implementation-<id>` artifact. The host verifies that the artifact belongs to
+the same thread and reuses its branch and worktree. With a saved conversation,
+the worker continues it with its full context: it checks the diff, because its
+last step may not have finished, and carries on. Without one, as for older
+artifacts, the worker receives the original request and the saved handoff, and
+must check the handoff against the retained diff. In both cases it also receives
+the new instructions from each resume request, which the artifact keeps (at
+most five); where they differ, the latest instructions apply. Artifacts created
+before conversations were shared by thread belong to their original author's
+conversation key and cannot be resumed through the bot.
 
 After the worker reports its edits, the host prepares the tree as the
 repository expects. It regenerates protobuf code with `mise run codegen-proto`
@@ -576,6 +587,8 @@ the worker has no shell tool, edited code can run during validation.
 A worktree is not a security sandbox. Use an isolated host and
 trusted maintainers; set `CHATTO_MAINTAINER_USER_IDS` to control who can start
 work, and `CHATTO_ALLOWED_USER_ID` to restrict who can address the bot at all.
+The worker's saved conversation holds its complete model context, including
+source excerpts and the request. It stays in the private artifact folder.
 Do not place production credentials on that host. The model provider receives
 relevant request context, thread messages with their authors' display names and
 logins, source content, and check output. GitHub receives the

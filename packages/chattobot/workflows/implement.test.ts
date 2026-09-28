@@ -17,7 +17,8 @@ import {
   workerStopReason
 } from './implement.ts';
 import { ConfigurationError } from '../settings.ts';
-import { userFacingTaskNotifications } from './task-context.ts';
+import { taskContext, userFacingTaskNotifications } from './task-context.ts';
+import { listResumableArtifacts } from './implementation-artifacts.ts';
 import {
   implementationProcess,
   ImplementationCommandError,
@@ -228,7 +229,8 @@ test('implements in an isolated worktree, records final checks, pushes and verif
       phase: 'validating',
       currentCheck: 'mise x -- pnpm run lint',
       completedChecks: ['mise x -- pnpm run check'],
-      pendingChecks: ['mise x -- pnpm run lint']
+      pendingChecks: ['mise x -- pnpm run lint'],
+      artifactId: result.artifactId
     }
   });
   expect(updates).toContainEqual({
@@ -237,7 +239,8 @@ test('implements in an isolated worktree, records final checks, pushes and verif
       phase: 'published',
       prUrl: result.prUrl,
       completedChecks: ['mise x -- pnpm run check', 'mise x -- pnpm run lint'],
-      pendingChecks: []
+      pendingChecks: [],
+      artifactId: result.artifactId
     }
   });
   const [folder] = await readdir(f.settings.artifactsDirectory);
@@ -362,7 +365,7 @@ test('an actionable checkpoint continues in the same worker before host validati
   expect(updates).toContainEqual(
     expect.objectContaining({
       type: 'state',
-      value: { phase: 'editing_checkpoint', idleCheckpoints: 0 }
+      value: { phase: 'editing_checkpoint', idleCheckpoints: 0, artifactId: result.artifactId }
     })
   );
   expect(result.checks.every((check) => check.passed)).toBe(true);
@@ -736,6 +739,116 @@ test('a new human request can continue the same unfinished worktree and rerun fi
     input: { request: 'Fix the value' },
     followUps: [{ request: 'Continue', context: 'An unreviewed draft is fine.' }]
   });
+});
+
+test('a continued implementation reopens the worker conversation and lists as resumable', async () => {
+  const f = await fixture();
+  const ownerKey = 'conversation-owner';
+  const sessionFiles: (string | undefined)[] = [];
+  const first = await createImplementation(f.settings, {
+    execute: f.execute,
+    ownerKey,
+    createAgent: async (options) => {
+      sessionFiles.push(options.sessionFile);
+      return {
+        dispose() {},
+        async runOutcome() {
+          await (
+            await workerTools(options)
+          )('apply_patch', { patch });
+          // Stand in for Pi, which writes the conversation after the first model reply.
+          await writeFile(options.sessionFile!, '{"type":"session"}\n');
+          return { outcome: 'blocked' as const, summary: 'Stopped', usage: emptyTokenUsage() };
+        }
+      };
+    }
+  })(createWorkflowContext(), { request: 'Fix the value' });
+  expect(sessionFiles).toEqual([join(first.worktree, '..', 'worker-session.jsonl')]);
+  const expected = { ownerKey, repository: 'example/chatto', baseBranch: 'main' };
+  expect(await listResumableArtifacts(f.settings.artifactsDirectory, expected)).toEqual([
+    {
+      artifactId: first.artifactId,
+      request: 'Fix the value',
+      stage: 'blocked',
+      updatedAt: expect.any(Number),
+      sessionSaved: true
+    }
+  ]);
+  expect(
+    await listResumableArtifacts(f.settings.artifactsDirectory, { ...expected, ownerKey: 'other' })
+  ).toEqual([]);
+
+  let prompt: Record<string, unknown> | undefined;
+  const resumed = await createImplementation(f.settings, {
+    execute: f.execute,
+    ownerKey,
+    createAgent: async (options) => ({
+      dispose() {},
+      async runOutcome(_ctx: unknown, text: string) {
+        prompt = JSON.parse(text);
+        await (
+          await workerTools(options)
+        )('preparePullRequest', proposal);
+        return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
+      }
+    })
+  })(createWorkflowContext(), {
+    request: 'Continue',
+    resumeArtifactId: first.artifactId
+  });
+  expect(resumed.outcome).toBe('completed');
+  // The saved conversation already holds the request; the prompt only resumes it.
+  expect(prompt).toEqual({
+    resumeArtifactId: first.artifactId,
+    followUps: [{ request: 'Continue' }],
+    continuation: expect.stringContaining('Your conversation so far is above.')
+  });
+  expect(await listResumableArtifacts(f.settings.artifactsDirectory, expected)).toEqual([]);
+});
+
+test('a cancelled implementation keeps its artifact ID in the supervisor snapshot', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const editing = Promise.withResolvers<void>();
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute,
+    ownerKey: 'owner',
+    createAgent: async () => ({
+      dispose() {},
+      async runOutcome(workerCtx: { signal: AbortSignal }) {
+        editing.resolve();
+        await new Promise((_resolve, reject) =>
+          workerCtx.signal.addEventListener('abort', () => reject(workerCtx.signal.reason), {
+            once: true
+          })
+        );
+        throw new Error('unreachable');
+      }
+    })
+  });
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'm',
+    extensions: [extension]
+  });
+  try {
+    const handle = JSON.parse(
+      (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
+        .text!
+    );
+    await editing.promise;
+    tasks.cancel(handle.id);
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('cancelled'));
+    const [snapshot] = taskContext(tasks.list());
+    expect(snapshot).toMatchObject({
+      status: 'cancelled',
+      state: { artifactId: expect.stringMatching(/^implementation-/) }
+    });
+    expect(Object.keys(snapshot!.state!)).toEqual(['artifactId']);
+  } finally {
+    await tasks.dispose();
+  }
 });
 
 test('an unfinished worktree cannot be resumed by a different conversation', async () => {

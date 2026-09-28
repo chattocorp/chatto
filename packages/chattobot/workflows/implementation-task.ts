@@ -1,7 +1,7 @@
 /** One implementation run: preflight, worktree setup, worker turns with host validation, and
  * publication. Worker tools, validation, and publication live in their own modules. */
 import { randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, stat, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { task, Type, type Static, type WorkflowContext } from 'runling';
@@ -18,6 +18,7 @@ import {
   implementationInput,
   loadResumableArtifact,
   MAX_FOLLOW_UPS,
+  WORKER_SESSION_FILE,
   type ImplementationMetadata
 } from './implementation-artifacts.ts';
 import { protectedPath, workerStopReason } from './implementation-safety.ts';
@@ -89,6 +90,14 @@ const ciResult = Type.Object({
 });
 export type CiResult = Static<typeof ciResult>;
 
+/** Where implementation artifacts, their worktrees, and worker sessions are kept. */
+export function implementationArtifactsDirectory(settings: ImplementationSettings): string {
+  return resolve(
+    settings.artifactsDirectory ??
+      fileURLToPath(new URL('../.runling/implementations/', import.meta.url))
+  );
+}
+
 /** Edit in a new or verified retained worktree, validate, then publish through host-owned Git/gh calls.
  * After publication, the same worker stays available until CI settles: the host returns CI failures
  * and later user messages to it and pushes its validated fixes to the pull request.
@@ -114,10 +123,7 @@ export function createImplementation(
   const createAgent = dependencies.createAgent ?? agent;
   const { baseBranch } = normalizeImplementationSettings(settings);
   const directory = resolve(settings.directory);
-  const artifacts = resolve(
-    settings.artifactsDirectory ??
-      fileURLToPath(new URL('../.runling/implementations/', import.meta.url))
-  );
+  const artifacts = implementationArtifactsDirectory(settings);
 
   return task(
     {
@@ -244,7 +250,26 @@ export function createImplementation(
       }
       await mkdir(artifacts, { recursive: true, mode: 0o700 });
       const folder = resumed?.folder ?? (await mkdtemp(resolve(artifacts, 'implementation-')));
+      const artifactId = basename(folder);
+      // Every state update names the artifact, so the parent can offer to continue the work
+      // even when the task is cancelled and returns no result.
+      const parentEmit = ctx.emit.bind(ctx);
+      ctx = {
+        ...ctx,
+        emit: (update) =>
+          parentEmit(
+            typeof update !== 'string' && update.type === 'state'
+              ? { ...update, value: { ...update.value, artifactId } }
+              : update
+          )
+      };
       const worktree = resolve(folder, 'worktree');
+      // The worker's conversation, so that a continuation keeps its full context.
+      const sessionFile = resolve(folder, WORKER_SESSION_FILE);
+      const sessionSaved = await stat(sessionFile).then(
+        (file) => file.size > 0,
+        () => false
+      );
       const metadata: ImplementationMetadata = resumed?.metadata ?? {
         branch,
         baseBranch,
@@ -307,7 +332,7 @@ export function createImplementation(
           baseCommit,
           ...(metadata.commit ? { commit: metadata.commit } : {}),
           worktree,
-          artifactId: basename(folder),
+          artifactId,
           ...(metadata.prUrl ? { prUrl: metadata.prUrl } : {}),
           checks: [...checks.values()].map(({ command, passed, diagnostic }) => ({
             command,
@@ -671,6 +696,7 @@ export function createImplementation(
         await save();
         worker = await createAgent({
           cwd: worktree,
+          sessionFile,
           model: settings.model ?? 'openai-codex/gpt-5.6-sol',
           thinkingLevel: 'medium',
           label: 'implement',
@@ -814,19 +840,27 @@ export function createImplementation(
           }
         };
         // Give the worker the actual checkout revision so plan drift is visible without shell access.
-        const prompt = JSON.stringify({
-          ...(resumed?.metadata.input ?? input),
-          baseCommit,
-          ...(resumed
-            ? {
-                resumeArtifactId: basename(resumed.folder),
-                handoff: resumed.metadata.handoff,
-                followUps: metadata.followUps,
-                continuation:
-                  'Review the retained worktree diff and verify the saved handoff against current source. Continue this implementation. followUps are later user instructions for this request, oldest first; where they differ from the original request or your handoff, follow the latest one. Recreate the PR proposal; all host checks will run again.'
-              }
-            : {})
-        });
+        // A saved conversation already holds the request, plan, and the worker's own progress.
+        const prompt = sessionSaved
+          ? JSON.stringify({
+              resumeArtifactId: artifactId,
+              followUps: metadata.followUps,
+              continuation:
+                'Your work in this worktree was interrupted, for example by a cancellation or a restart. Your conversation so far is above. Your last step may not have finished, so check the current diff and the files you were changing first. Then continue where you stopped. followUps are later user instructions for this request, oldest first; where they differ from earlier instructions, follow the latest one. Prepare the full PR proposal again when the change is ready; all host checks will run again.'
+            })
+          : JSON.stringify({
+              ...(resumed?.metadata.input ?? input),
+              baseCommit,
+              ...(resumed
+                ? {
+                    resumeArtifactId: basename(resumed.folder),
+                    handoff: resumed.metadata.handoff,
+                    followUps: metadata.followUps,
+                    continuation:
+                      'Review the retained worktree diff and verify the saved handoff against current source. Continue this implementation. followUps are later user instructions for this request, oldest first; where they differ from the original request or your handoff, follow the latest one. Recreate the PR proposal; all host checks will run again.'
+                  }
+                : {})
+            });
         try {
           // Before publication, rerunFailedChecks is refused, so work cannot return `rerun`.
           const outcome = await work(prompt);

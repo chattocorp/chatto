@@ -8,6 +8,11 @@ vi.mock('runling/agents', async (importOriginal) => ({
   runAgentConversation: interact
 }));
 import { createChattoBot } from './chat.ts';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { deliveryConversationKey } from '../chatto/routing.ts';
 
 const prUrl = 'https://github.com/example/chatto/pull/7';
 const published = JSON.stringify({
@@ -109,4 +114,64 @@ test('a notification turn cannot cancel a task; a person can', async () => {
     { block: true, reason: expect.stringContaining('A notification is not such a request') },
     undefined
   ]);
+});
+
+test('the supervisor prompt lists the unfinished implementations of this thread', async () => {
+  const artifacts = await mkdtemp(join(tmpdir(), 'chattobot-resumable-'));
+  const delivery = {
+    version: 1 as const,
+    id: 'delivery',
+    type: 'message.created' as const,
+    triggers: ['direct_message'],
+    occurred_at: 'now',
+    bot_id: 'bot',
+    room_id: 'room',
+    thread_root_id: null,
+    message: { id: 'message', author_id: 'human', body: 'Continue the shrug work' }
+  };
+  const ownerKey = createHash('sha256').update(deliveryConversationKey(delivery)).digest('hex');
+  await mkdir(join(artifacts, 'implementation-abc123'));
+  await writeFile(
+    join(artifacts, 'implementation-abc123', 'metadata.json'),
+    JSON.stringify({
+      branch: `chattobot/${randomUUID()}`,
+      baseBranch: 'main',
+      baseCommit: 'a'.repeat(40),
+      repository: 'example/chatto',
+      stage: 'interrupted',
+      ownerKey,
+      input: { request: 'Add a /shrug command' }
+    })
+  );
+  let prompt: Record<string, unknown> | undefined;
+  interact.mockImplementationOnce(async (_ctx, _agent, _prompt, options) => {
+    prompt = JSON.parse(await options.prepareMessage('Continue the shrug work', 'user'));
+    return 'done';
+  });
+  try {
+    await createChattoBot({
+      acknowledge: async () => {},
+      post: async () => {},
+      typing: async () => {},
+      readThread: async () => [],
+      timeout: 0,
+      createAgent: async () => ({ runOutcome: vi.fn(), steer: async () => false, dispose() {} }),
+      implementation: {
+        directory: '/unused',
+        repository: 'example/chatto',
+        artifactsDirectory: artifacts
+      }
+    })(createWorkflowContext(), delivery);
+    expect(prompt?.resumableImplementations).toEqual([
+      {
+        artifactId: 'implementation-abc123',
+        request: 'Add a /shrug command',
+        stage: 'interrupted',
+        updatedAt: expect.any(Number),
+        sessionSaved: false
+      }
+    ]);
+  } finally {
+    await rm(artifacts, { recursive: true, force: true });
+  }
 });
