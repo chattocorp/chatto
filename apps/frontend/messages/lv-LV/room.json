@@ -231,9 +231,7 @@
       "search": "Meklēt"
     },
     "pins": {
-      "show": "Rādīt piespraustās ziņas",
       "unseen": "Jaunas piespraustās ziņas",
-      "hide": "Paslēpt piespraustās ziņas",
       "pin": "Piespraust ziņu",
       "unpin": "Atspraust ziņu",
       "unpin_prompt": "Vai tiešām vēlaties noņemt šīs ziņas piespraudi?",

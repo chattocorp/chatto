@@ -231,9 +231,7 @@
       "search": "Pesquisar"
     },
     "pins": {
-      "show": "Mostrar mensagens fixadas",
       "unseen": "Novas mensagens fixadas",
-      "hide": "Ocultar mensagens fixadas",
       "pin": "Fixar mensagem",
       "unpin": "Desafixar mensagem",
       "unpin_prompt": "Tem certeza de que deseja remover esta mensagem fixada?",

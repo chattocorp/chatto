@@ -231,9 +231,7 @@
       "search": "Zoeken"
     },
     "pins": {
-      "show": "Vastgezette berichten tonen",
       "unseen": "Nieuwe vastgezette berichten",
-      "hide": "Vastgezette berichten verbergen",
       "pin": "Bericht vastzetten",
       "unpin": "Bericht losmaken",
       "unpin_prompt": "Weet je zeker dat je deze vastzetting wilt verwijderen?",

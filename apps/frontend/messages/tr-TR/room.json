@@ -231,9 +231,7 @@
       "search": "Ara"
     },
     "pins": {
-      "show": "Sabitlenmiş mesajları göster",
       "unseen": "Yeni sabitlenmiş mesajlar",
-      "hide": "Sabitlenmiş mesajları gizle",
       "pin": "Mesajı sabitle",
       "unpin": "Sabitlemeyi kaldır",
       "unpin_prompt": "Bu mesajın sabitlemesini kaldırmak istediğinizden emin misiniz?",

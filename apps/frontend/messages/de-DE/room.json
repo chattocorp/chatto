@@ -231,9 +231,7 @@
       "search": "Suchen"
     },
     "pins": {
-      "show": "Angepinnte Nachrichten anzeigen",
       "unseen": "Neue angepinnte Nachrichten",
-      "hide": "Angepinnte Nachrichten ausblenden",
       "pin": "Nachricht anpinnen",
       "unpin": "Pin entfernen",
       "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",

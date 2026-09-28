@@ -231,9 +231,7 @@
       "search": "Sök"
     },
     "pins": {
-      "show": "Visa fästa meddelanden",
       "unseen": "Nya fästa meddelanden",
-      "hide": "Dölj fästa meddelanden",
       "pin": "Fäst meddelande",
       "unpin": "Lossa meddelande",
       "unpin_prompt": "Vill du verkligen ta bort den här fästningen?",

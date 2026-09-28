@@ -231,9 +231,7 @@
       "search": "Søk"
     },
     "pins": {
-      "show": "Vis festede meldinger",
       "unseen": "Nye festede meldinger",
-      "hide": "Skjul festede meldinger",
       "pin": "Fest melding",
       "unpin": "Løsne melding",
       "unpin_prompt": "Er du sikker på at du vil løsne denne meldingen?",
