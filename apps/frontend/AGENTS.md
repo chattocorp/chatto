@@ -142,6 +142,13 @@ Do not generate playground links for code written into this repository.
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package
   `@chatto/api-types`; keep generated files in sync with `mise codegen-proto`.
+- Generated messages are plain objects (protobuf-es v2). Services and
+  `XSchema` descriptors come from the `*_pb` files. Build a message with
+  `create(XSchema, init)` and copy it with `clone(XSchema, message)`. Use
+  `toBinary`/`fromBinary` with the schema. Read optional timestamps with
+  `timestampToDate` or `timestampToISO` from `$lib/api-client/timestamps`.
+- Hold messages in `$state.raw` and replace them instead of mutating them. Plain
+  `$state` would deep-proxy a message.
 
 ## UI And Styling
 
