@@ -586,7 +586,7 @@ class EventBusManager {
       }
       if (stopped || !projectionSupported) return;
       becomeDormant(true);
-      void this.#runPollCycle(false);
+      this.#requestFullPollCycle();
     });
 
     const heartbeatWatchdog = setInterval(() => {
@@ -719,10 +719,8 @@ class EventBusManager {
   async #runPollCycle(onlyUnready: boolean): Promise<void> {
     if (this.#pollCycleRunning) {
       // The running cycle can already have passed a server that just became
-      // dormant mid-hydration or asked to catch up. Run another pass after it
-      // finishes.
+      // dormant mid-hydration. Run another unready pass after it finishes.
       if (onlyUnready) this.#unreadyPollCycleRequested = true;
-      else this.#fullPollCycleRequested = true;
       return;
     }
     this.#pollCycleRunning = true;
@@ -744,6 +742,16 @@ class EventBusManager {
       await this.#runPollCycle(onlyUnready);
     }
   }
+
+  /**
+   * Catch up all inactive servers now. When a cycle is running, it can already
+   * have passed the server that asked, so run one full pass after it finishes.
+   */
+  #requestFullPollCycle(): void {
+    if (this.#pollCycleRunning) this.#fullPollCycleRequested = true;
+    else void this.#runPollCycle(false);
+  }
+
   #scheduleNextPoll(): void {
     this.#clearPollTimer();
     if (this.#managedServerIds.size === 0) return;

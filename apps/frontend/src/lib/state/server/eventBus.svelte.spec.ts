@@ -1279,6 +1279,28 @@ describe('eventBusManager realtime transport', () => {
     expect(inactive.statusUpdates.filter((status) => status === 'disconnected')).toHaveLength(1);
   });
 
+  it('skips a periodic poll that arrives while a slow cycle is still running', async () => {
+    vi.useFakeTimers();
+    setRealtimePollRandomForTests(() => 0.5);
+    const connections = ['slow-a', 'slow-b', 'slow-c'].map((serverId) => ({
+      serverId,
+      connection: new FakeServerConnection() as unknown as ServerConnection,
+      projectionSupported: true,
+      sync: new RealtimeProjectionSyncState(),
+      projectionHandler: vi.fn()
+    }));
+
+    eventBusManager.synchronizeAuthenticatedServers(connections, null);
+
+    // Each unanswered catch-up times out after 30 seconds, so this cycle is
+    // still running when the periodic poll fires at 60 seconds.
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(100_000);
+    expect(sockets).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(sockets).toHaveLength(4);
+  });
+
   it('periodically resumes a ready inactive projection with jittered serialized polling', async () => {
     vi.useFakeTimers();
     setRealtimePollRandomForTests(() => 0.5);
