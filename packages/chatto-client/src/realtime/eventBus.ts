@@ -9,6 +9,7 @@
  */
 
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { batch } from '../reactivity/index.js';
 import type { RealtimeResource, RealtimeResourceUpdate } from '../api/realtimeResources.js';
 
 /** One ordered public event or canonical resource response consumed by the frontend. */
@@ -100,6 +101,12 @@ export class EventBus {
 
   /** Apply a transport update to the reducer, then notify listeners. */
   publish(update: RealtimeProjectionUpdate): void {
+    // Apply the reducer and notify listeners as one change: effects run once,
+    // after the complete update, instead of after each written signal.
+    batch(() => this.#publish(update));
+  }
+
+  #publish(update: RealtimeProjectionUpdate): void {
     const reducer = this.#reducer;
     if (!reducer) throw new Error('projection update received before reducer registration');
     if (!update.reset) {

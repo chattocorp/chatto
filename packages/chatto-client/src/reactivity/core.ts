@@ -378,14 +378,6 @@ class EffectNode {
     pendingEffects.push(this);
   }
 
-  /**
-   * Forget a pending run without running. A later change schedules the
-   * effect again.
-   */
-  cancelPending(): void {
-    this.#stale = false;
-  }
-
   /** Run if a source changed since the previous run. */
   runIfStale(): void {
     if (!this.#stale || this.#disposed) return;
@@ -413,6 +405,9 @@ class EffectNode {
       if (!this.#disposed) {
         this.#sources = sources;
         relink(this, previousSources, sources, true);
+        // A source that was not linked yet can have changed during this run,
+        // for example a signal that the run itself wrote. Run again then.
+        if (sourcesChanged(sources)) this.markStale();
       }
     }
   }
@@ -459,11 +454,10 @@ function flushEffects(): void {
       pendingEffects = [];
       for (const [index, effect] of effects.entries()) {
         if (++runs > MAX_EFFECT_RUNS_PER_FLUSH) {
-          // Drop the loop, but let later changes schedule these effects again.
-          for (const dropped of [...effects.slice(index), ...pendingEffects]) {
-            dropped.cancelPending();
-          }
-          pendingEffects = [];
+          // Stop this flush. The remaining effects stay queued and stale, so
+          // the next write runs them; no computed or effect loses its
+          // scheduling state.
+          pendingEffects = [...effects.slice(index), ...pendingEffects];
           reportEffectError(new Error('Effect update loop exceeded the maximum number of runs'));
           return;
         }
@@ -510,6 +504,8 @@ export function effect(fn: () => EffectCleanup): () => void {
   const node = new EffectNode(fn, activeOwner);
   try {
     node.run();
+    // The first run can have changed its own sources; run it again now.
+    if (batchDepth === 0 && !flushing && pendingEffects.length > 0) flushEffects();
   } catch (error) {
     // The caller receives no dispose function, so do not leave a live effect.
     node.dispose();

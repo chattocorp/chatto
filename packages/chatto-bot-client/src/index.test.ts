@@ -150,6 +150,14 @@ test('reads the root and newest replies with names, then only newer messages', a
   expect(requests[0]?.limit).toBe(100);
 });
 
+test('rejects an empty thread cursor', async () => {
+  const fake = fakeConnection();
+  const bot = await createBotClient(fake.chatto);
+  await expect(
+    bot.readThread({ roomId: 'room', threadRootId: 'root' }, undefined, { after: '' })
+  ).rejects.toThrow('must not be empty');
+});
+
 test('an up-to-date thread keeps its cursor', async () => {
   const fake = fakeConnection((router) =>
     router.service(ThreadService, {
@@ -198,8 +206,9 @@ test('consumes events in order, reports status and gaps, and stops on abort', as
   await vi.waitFor(() => expect(handled).toEqual(['first', 'second']));
   // The connection decides whether a reset is a gap; it is reported with the
   // next `ready`, not while the replacement snapshot loads.
+  fake.reset(true); // a resync close arrives while the socket is still connected
+  expect(statuses.at(-1)).toEqual({ state: 'ready', gap: false });
   fake.setStatus('connecting');
-  fake.reset(true);
   expect(statuses.at(-1)).toEqual({ state: 'reconnecting' });
   fake.setStatus('connected');
   expect(statuses).toEqual([

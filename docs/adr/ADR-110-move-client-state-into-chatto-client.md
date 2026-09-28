@@ -106,6 +106,9 @@ use this condition, so the frontend builds the client from source. Node hosts
 use the compiled `dist/` output.
 
 The package keeps the MIT license of the previous `@chatto/client` package.
+Most of its code comes from `apps/frontend`, where it was Apache-2.0. This
+decision moves that code across the license boundary: in the package, it is
+MIT. `REUSE.toml` records the package boundary.
 
 ## Consequences
 
@@ -122,6 +125,9 @@ The package keeps the MIT license of the previous `@chatto/client` package.
   replayed them from an in-memory checkpoint.
 - Signals compare values by reference. Stores replace arrays and objects to
   publish a change; they do not mutate reactive state in place.
+- In a Svelte app, a read of a reactive collection key outside a client
+  computed or effect creates a per-key signal, because the adapter cannot see
+  whether Svelte tracks the read. The signal is removed with its key.
 - Each Svelte reaction that reads a client node creates a small Svelte render
   effect. The rules of ADR-010 still apply: put only renderable data into
   reactive collections.

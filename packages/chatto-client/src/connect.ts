@@ -57,8 +57,10 @@ export interface ChattoConnection {
   readonly status: ChattoConnectionStatus;
   /**
    * Wait until the server accepted the token and the viewer loaded. Rejects
-   * when the server rejects the token, when the connection closes, or when
-   * `signal` aborts.
+   * when the server rejects the token, when the viewer read fails (for
+   * example because the server is unreachable), when the connection closes,
+   * or when `signal` aborts. The connection keeps retrying in the background;
+   * a later `ready()` can succeed.
    */
   ready(options?: { signal?: AbortSignal }): Promise<{ viewerId: string }>;
   /**
@@ -203,7 +205,15 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
               return;
             }
             const viewerId = current.accountId;
-            if (viewerId) finish(() => resolve({ viewerId }));
+            if (viewerId) {
+              finish(() => resolve({ viewerId }));
+              return;
+            }
+            // The viewer read finished without an account: the server is
+            // unreachable or failed. Report it instead of waiting for recovery.
+            if (!current.currentUser.loading) {
+              finish(() => reject(new Error('Could not reach the Chatto server')));
+            }
           });
         });
       });

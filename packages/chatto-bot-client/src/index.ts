@@ -285,6 +285,7 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
       return page;
     };
     const pages: RoomTimelinePage[] = [];
+    if (after === '') throw new Error('A thread cursor must not be empty');
     let cursor = after;
     let olderOmitted = false;
     if (after === undefined) {
@@ -400,24 +401,22 @@ export async function createBotClient(
         fail(error);
       }
     };
-    // A gap is reported with `ready` once the stream is connected again, so
-    // hosts are not told `ready` while a replacement snapshot still loads.
+    // A reset gap is reported with the next `ready`, so hosts are not told
+    // `ready` while the stream reconnects or a replacement snapshot loads.
     let pendingGap = false;
-    const reportGap = () => {
-      if (untrack(() => chatto.status) === 'connected') report({ state: 'ready', gap: true });
-      else pendingGap = true;
-    };
     const stopEvents = chatto.onEvent((event) => {
       if (queue.length >= MAX_QUEUED_EVENTS) {
-        // Keep the bot responsive: drop the backlog and report the loss.
+        // Keep the bot responsive: drop the backlog and report the loss. The
+        // stream itself is healthy, so report at once when it is connected.
         queue = [];
-        reportGap();
+        if (untrack(() => chatto.status) === 'connected') report({ state: 'ready', gap: true });
+        else pendingGap = true;
       }
       queue.push(event);
       wake?.();
     });
     const stopResets = chatto.onReset(({ gap }) => {
-      if (gap) reportGap();
+      if (gap) pendingGap = true;
     });
     let connectedBefore = false;
     const stopEffects = effectRoot(() => {

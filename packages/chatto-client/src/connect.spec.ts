@@ -150,6 +150,14 @@ describe('connectChatto in Node', () => {
     }
   });
 
+  it('rejects ready() when the viewer read fails', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.viewer.mockRejectedValue(new TypeError('fetch failed'));
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await expect(connection.ready()).rejects.toThrow('Could not reach the Chatto server');
+    logged.mockRestore();
+  });
+
   it('stops waiting when the caller aborts', async () => {
     mocks.viewer.mockReturnValue(new Promise(() => {}));
     connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });

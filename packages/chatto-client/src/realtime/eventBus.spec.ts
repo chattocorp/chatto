@@ -150,3 +150,23 @@ describe('EventBus', () => {
     );
   });
 });
+
+describe('EventBus batching', () => {
+  it('runs effects once for a complete update', async () => {
+    const { effect, ReactiveMap } = await import('../reactivity/index.js');
+    const rooms = new ReactiveMap<string, number>();
+    const bus = new EventBus('batch-test');
+    bus.setReducer(() => {
+      rooms.clear();
+      rooms.set('a', 1);
+      rooms.set('b', 2);
+    });
+    const sizes: number[] = [];
+    const stop = effect(() => {
+      sizes.push(rooms.size);
+    });
+    bus.publish(new RealtimeProjectionUpdate());
+    stop();
+    expect(sizes).toEqual([0, 2]);
+  });
+});

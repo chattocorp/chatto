@@ -289,7 +289,8 @@ describe('read hook', () => {
 });
 
 describe('effect loops', () => {
-  it('stops an endless loop and keeps queued effects usable', () => {
+  it('stops an endless loop and keeps queued effects scheduled', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     const count = signal(0);
     const observed = signal(0);
     const runs = vi.fn();
@@ -298,16 +299,48 @@ describe('effect loops', () => {
     const stopLoop = effect(() => {
       count.set(count.get() + 1);
     });
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-    count.set(-1);
     expect(logged).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ message: expect.stringContaining('maximum number of runs') })
     );
-    logged.mockRestore();
     stopLoop();
     observed.set(1);
     expect(runs).toHaveBeenLastCalledWith(count.peek(), 1);
+    logged.mockRestore();
+  });
+
+  it('keeps computeds between a stopped loop and its observers live', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const source = signal(0);
+    const doubled = computed(() => source.get() * 2);
+    const runs = vi.fn();
+    effect(() => runs(doubled.get()));
+    const loop = signal(0);
+    const stopLoop = effect(() => {
+      loop.set(loop.get() + 1);
+      source.set(loop.peek());
+    });
+    stopLoop();
+    source.set(-1);
+    expect(runs).toHaveBeenLastCalledWith(-2);
+    logged.mockRestore();
+  });
+});
+
+describe('writes during a run', () => {
+  it('reruns an effect when its run changed a computed it read', () => {
+    const source = signal(1);
+    const doubled = computed(() => source.get() * 2);
+    const runs = vi.fn();
+    let first = true;
+    effect(() => {
+      runs(doubled.get());
+      if (first) {
+        first = false;
+        source.set(2);
+      }
+    });
+    expect(runs.mock.calls).toEqual([[2], [4]]);
   });
 });
 
