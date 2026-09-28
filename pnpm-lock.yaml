@@ -283,8 +283,8 @@ importers:
         specifier: ^8.70.1
         version: 8.70.1(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
       virtua:
-        specifier: ^0.52.7
-        version: 0.52.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(svelte@5.57.1(@typescript-eslint/types@8.70.1))
+        specifier: ^0.52.8
+        version: 0.52.8(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(svelte@5.57.1(@typescript-eslint/types@8.70.1))
       vite:
         specifier: ^8.3.1
         version: 8.3.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
@@ -6541,8 +6541,8 @@ packages:
     resolution: {integrity: sha512-bdPbguNooX7Og6xqhqlRoowciTL7DibntuUwFrW6Y7K2t1jcYX7yTd05k/hfEOJrTGaY2VpU5hLQpFJDNFzK4A==}
     engines: {node: '>=18'}
 
-  virtua@0.52.7:
-    resolution: {integrity: sha512-3xdhgKCbetu7Gez+DJfjmE+1zI7tsCN+07ZpUBhABDyqqT5r+fji6c0vmQCZlxI8o022d/LdIm2E/9T/LE9rPA==}
+  virtua@0.52.8:
+    resolution: {integrity: sha512-526sAxuz+9/SLuq4Y73mgJsSmKrDQBIU+k9novm40cRDQ2dXXyk9dsmwc2eq9/OTuU/oK0T/PevxqyzoOLL9Sw==}
     peerDependencies:
       '@angular/common': '>=20.0.0'
       '@angular/core': '>=20.0.0'
@@ -13534,7 +13534,7 @@ snapshots:
       media-captions: 1.0.4
       unplugin: 1.16.1
 
-  virtua@0.52.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(svelte@5.57.1(@typescript-eslint/types@8.70.1)):
+  virtua@0.52.8(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(svelte@5.57.1(@typescript-eslint/types@8.70.1)):
     optionalDependencies:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
