@@ -207,12 +207,21 @@ describe('translated message catalogs', () => {
       return messages;
     };
     const source = readMessages(baseLocale);
+    const completeLocales = selectableLocales.filter(
+      (locale) => locale !== baseLocale && !sparseLocales.has(locale)
+    );
     const untranslated: string[] = [];
     const stale: string[] = [];
 
-    for (const locale of selectableLocales.filter(
-      (locale) => locale !== baseLocale && !sparseLocales.has(locale)
-    )) {
+    for (const [key, locales] of Object.entries(identicalTranslations)) {
+      for (const locale of locales) {
+        if (!source.has(key) || !completeLocales.includes(locale)) {
+          stale.push(`${locale}: ${key}`);
+        }
+      }
+    }
+
+    for (const locale of completeLocales) {
       for (const [key, translated] of readMessages(locale)) {
         const identical = translated === source.get(key) && wordCount(translated) >= 2;
         const allowed = identicalTranslations[key]?.includes(locale) ?? false;
