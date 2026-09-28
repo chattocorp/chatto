@@ -59,7 +59,9 @@ async function fixture() {
   const execute: ImplementationProcess = async (command, args, options) => {
     calls.push({ command, args });
     if (command === 'mise') {
-      if (args.includes('install')) return '';
+      // Setup and formatting are host preparation, not checks.
+      if (args.includes('install') || args.includes('prettier') || args.includes('gofmt'))
+        return '';
       return implementationProcess('bash', ['-c', check], options);
     }
     if (command === 'git' && args.includes('get-url')) return 'git@github.com:example/chatto.git\n';
@@ -182,6 +184,7 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     notes: proposal.notes,
     checks: [
       { command: 'mise x -- pnpm run check', passed: true },
+      { command: 'mise x -- pnpm run lint', passed: true },
       { command: 'mise x -- pnpm run test', passed: true }
     ]
   });
@@ -205,7 +208,7 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     value: {
       phase: 'validating',
       currentCheck: 'mise x -- pnpm run test',
-      completedChecks: ['mise x -- pnpm run check'],
+      completedChecks: ['mise x -- pnpm run check', 'mise x -- pnpm run lint'],
       pendingChecks: ['mise x -- pnpm run test']
     }
   });
@@ -214,7 +217,11 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     value: {
       phase: 'published',
       prUrl: result.prUrl,
-      completedChecks: ['mise x -- pnpm run check', 'mise x -- pnpm run test'],
+      completedChecks: [
+        'mise x -- pnpm run check',
+        'mise x -- pnpm run lint',
+        'mise x -- pnpm run test'
+      ],
       pendingChecks: []
     }
   });
@@ -669,7 +676,7 @@ test('a new human request can continue the same unfinished worktree and rerun fi
     worktree: first.worktree,
     prUrl: 'https://github.com/example/chatto/pull/7'
   });
-  expect(resumed.checks.map((check) => check.passed)).toEqual([true, true]);
+  expect(resumed.checks.map((check) => check.passed)).toEqual([true, true, true]);
   const metadata = JSON.parse(await readFile(join(first.worktree, '..', 'metadata.json'), 'utf8'));
   expect(metadata).toMatchObject({
     stage: 'published',
@@ -747,7 +754,8 @@ test('setup, worker checks, and final validation use the isolated command enviro
     })
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
-  expect(checkEnvironments).toHaveLength(4);
+  // Setup, the worker check, formatting, and three final checks.
+  expect(checkEnvironments).toHaveLength(6);
   expect(checkEnvironments.every((keys) => keys?.includes('CHATTO_ALLOWED_USER_ID'))).toBe(true);
 });
 
@@ -770,13 +778,32 @@ test('patch errors give the worker Git diagnostics and incorrect hunk counts can
 });
 
 test.each([
-  { path: 'apps/frontend/example.txt', scripts: ['check:frontend', 'test:frontend'] },
-  { path: 'cli/example.go', scripts: ['check', 'test', 'test-cli'] }
-])('host selects validation for $path', async ({ path, scripts }) => {
+  {
+    path: 'apps/frontend/example.txt',
+    scripts: ['check:frontend', 'lint:frontend', 'test:frontend'],
+    formatters: ['prettier']
+  },
+  {
+    path: 'cli/example.go',
+    scripts: ['check', 'lint', 'test', 'lint-cli', 'test-cli'],
+    formatters: ['prettier', 'gofmt']
+  },
+  {
+    path: 'proto/chatto/example.proto',
+    scripts: ['codegen-proto', 'check', 'lint', 'test', 'lint-proto'],
+    formatters: ['prettier']
+  }
+])('host prepares and validates $path', async ({ path, scripts, formatters }) => {
   const f = await fixture();
   const validation: string[] = [];
+  const formatted: string[] = [];
   const result = await createImplementation(f.settings, {
     execute: async (command, args, options) => {
+      if (command === 'mise' && (args.includes('prettier') || args.includes('gofmt'))) {
+        expect(args.at(-1)).toBe(path);
+        formatted.push(args.includes('prettier') ? 'prettier' : 'gofmt');
+        return '';
+      }
       if (command === 'mise' && !args.includes('install')) {
         validation.push(args.at(-1)!);
         return '';
@@ -792,6 +819,7 @@ test.each([
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
   expect(validation).toEqual(scripts);
+  expect(formatted).toEqual(formatters);
 });
 
 test.each(['failed-check', 'source-changing-check'])(
@@ -1474,7 +1502,11 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
       JSON.stringify({
         name: 'implementation-fixture',
         private: true,
-        scripts: { check: 'node --check regression.cjs', test: 'node --test regression.cjs' }
+        scripts: {
+          check: 'node --check regression.cjs',
+          lint: 'node --check regression.cjs',
+          test: 'node --test regression.cjs'
+        }
       })
     );
     await writeFile(
@@ -1509,7 +1541,7 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
       }
     );
     expect(result.outcome).toBe('completed');
-    expect(result.checks).toHaveLength(2);
+    expect(result.checks).toHaveLength(3);
     expect(result.checks.every((check) => check.passed)).toBe(true);
     expect(result.prUrl).toBe('https://github.com/example/chatto/pull/7');
     expect(await readFile(join(f.settings.directory, 'example.txt'), 'utf8')).toBe('original\n');

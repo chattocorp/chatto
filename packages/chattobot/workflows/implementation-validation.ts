@@ -5,6 +5,8 @@ import {
   ImplementationCommandError,
   type ImplementationProcess
 } from './implementation-process.ts';
+import { lstat } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { validationDiagnostic } from './implementation-safety.ts';
 
 /** Run Git with hooks disabled in one directory. */
@@ -100,15 +102,86 @@ export function createValidation({
   };
   // Commands are host-owned. The worker receives failure output, but cannot
   // substitute an easier command or declare its own checks successful.
-  const validate = async (paths: string[]) => {
+  /** Prepare the tree the way the repository expects before checks run: regenerate protobuf
+   * code, then format the changed files. Returns a failure message for the worker, if any. */
+  const prepareTree = async (paths: string[]) => {
+    const run = async (args: string[]) => {
+      try {
+        await execute('mise', args, {
+          cwd: worktree,
+          signal,
+          timeoutMs: 10 * 60_000,
+          captureDiagnostics: true,
+          unsetEnv
+        });
+        return undefined;
+      } catch (error) {
+        signal.throwIfAborted();
+        return error instanceof ImplementationCommandError ? error.output : '';
+      }
+    };
+    if (paths.some((path) => path.startsWith('proto/'))) {
+      await ctx.emit({
+        type: 'state',
+        value: { phase: 'generating' },
+        activity: 'Generating protobuf code'
+      });
+      const failure = await run(['run', 'codegen-proto']);
+      if (failure !== undefined)
+        return `Protobuf code generation failed. Fix the .proto sources.\n${validationDiagnostic(failure, worktree)}`;
+    }
+    // Deleted paths are in the diff too; format only files that still exist.
+    const existing: string[] = [];
+    for (const path of paths) {
+      try {
+        if ((await lstat(resolve(worktree, path))).isFile()) existing.push(path);
+      } catch {
+        // Deleted in this change.
+      }
+    }
+    const goFiles = existing.filter((path) => path.endsWith('.go'));
+    // Formatting is best effort. A file that cannot be parsed fails the checks that follow.
+    if (existing.length)
+      await run([
+        'x',
+        '--',
+        'pnpm',
+        'exec',
+        'prettier',
+        '--write',
+        '--ignore-unknown',
+        '--',
+        ...existing
+      ]);
+    if (goFiles.length) await run(['x', '--', 'gofmt', '-w', ...goFiles]);
+    return undefined;
+  };
+
+  /** Host checks for a change: the repository's typecheck, lint, and tests for the affected area,
+   * matching what CI runs for those paths. */
+  const commandsFor = (paths: string[]) => {
     const frontendOnly = paths.every((path) => path.startsWith('apps/frontend/'));
-    const commands = [
+    const goChanged = paths.some(
+      (path) => path.endsWith('.go') || /(^|\/)go\.(mod|sum)$/.test(path)
+    );
+    return [
       ['x', '--', 'pnpm', 'run', frontendOnly ? 'check:frontend' : 'check'],
+      ['x', '--', 'pnpm', 'run', frontendOnly ? 'lint:frontend' : 'lint'],
       ['x', '--', 'pnpm', 'run', frontendOnly ? 'test:frontend' : 'test'],
-      ...(paths.some((path) => path.endsWith('.go') || /(^|\/)go\.(mod|sum)$/.test(path))
-        ? [['run', 'test-cli']]
+      ...(paths.some((path) => path.startsWith('proto/')) ? [['run', 'lint-proto']] : []),
+      ...(goChanged
+        ? [
+            ['run', 'lint-cli'],
+            ['run', 'test-cli']
+          ]
         : [])
     ];
+  };
+
+  const validate = async (paths: string[]) => {
+    const preparation = await prepareTree(paths);
+    if (preparation) return preparation;
+    const commands = commandsFor(paths);
     checks.clear();
     const completed: string[] = [];
     const pending = commands.map((args) => `mise ${args.join(' ')}`);

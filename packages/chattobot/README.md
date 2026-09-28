@@ -448,10 +448,16 @@ from each resume request, which the artifact keeps (at most five). Where they
 differ, the latest instructions apply. The worker must check the
 handoff against the retained diff.
 
-After the worker reports its edits, the host runs `check:frontend` and
-`test:frontend` for changes limited to `apps/frontend/`; other changes run the
-root `check` and `test` scripts. Commands run through `mise x -- pnpm run`.
-Changes to Go source or module files also run `mise run test-cli`.
+After the worker reports its edits, the host prepares the tree as the
+repository expects. It regenerates protobuf code with `mise run codegen-proto`
+when files under `proto/` changed, and formats the changed files with Prettier
+and gofmt. Then it runs the checks that CI runs for the affected area:
+`check:frontend`, `lint:frontend`, and `test:frontend` for changes limited to
+`apps/frontend/`, and the root `check`, `lint`, and `test` scripts otherwise.
+Commands run through `mise x -- pnpm run`. Protobuf changes also run
+`mise run lint-proto`, and changes to Go source or module files also run
+`mise run lint-cli` and `mise run test-cli`. CI also builds Storybook and runs
+end-to-end tests, which the host does not run.
 The worker must finish its edits before it requests final validation. For a
 large, actionable change, it can save progress with `checkpointWork` and get
 another work turn in the same implementation. A checkpoint does not start
