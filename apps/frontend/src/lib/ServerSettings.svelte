@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { errorMessage } from '$lib/utils/errorMessage';
+  import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -232,7 +232,7 @@
       },
       onError: (mutationError, variables) => {
         if (!session.isCurrent(variables)) return;
-        toast.error(errorMessage(mutationError, assetErrorMessage(variables.operation)));
+        toastError(mutationError, assetErrorMessage(variables.operation));
       },
       onSettled: (_profile, _error, variables) => {
         if (!session.isCurrent(variables)) return;

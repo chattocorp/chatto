@@ -122,6 +122,12 @@ Do not generate playground links for code written into this repository.
   model. Realtime handlers consume the generated public `RealtimeEvent`
   catalogue directly. Do not add a second frontend event taxonomy or calls for
   the retired legacy API.
+- Show a failed operation to users with `errorMessage()` or `toastError()` from
+  `$lib/utils/errorMessage`, and pass a localized fallback for the operation.
+  The helper localizes access, network, and conflict errors, shows server text
+  only for validation and limit errors, and hides discarded stale responses.
+  ESLint rejects inline `error instanceof Error ? error.message : ...`
+  conversions.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package
