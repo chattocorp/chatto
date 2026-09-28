@@ -251,7 +251,8 @@ thread IDs can change while the pane stays mounted.
   });
 
   // Clear typing and mark the conversation read for messages from other users
-  // that arrive while the viewer is present.
+  // that arrive while the viewer is present. While the viewer is away, show
+  // the unread separator above the first such message at once.
   useProjectionEvent((projectionEvent) => {
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
@@ -260,9 +261,10 @@ thread IDs can change while the pane stays mounted.
     const actorId = projectionEvent.event?.actorId;
     if (actorId) typingIndicator.removeTypingUser(actorId);
     const accountId = stores.accountId;
-    if (accountId && actorId !== accountId && appState.isPresent) {
-      void unread.markAsRead(threadRootEventId ?? roomId, projectionEvent.event?.id ?? '');
-    }
+    if (!accountId || actorId === accountId) return;
+    const eventId = projectionEvent.event?.id ?? '';
+    if (appState.isPresent) void unread.markAsRead(threadRootEventId ?? roomId, eventId);
+    else if (eventId) unread.markArrivalWhileAway(eventId);
   });
 
   let isDraggingFiles = $state(false);

@@ -18,6 +18,7 @@ When a user is reading older messages in a room — either because they scrolled
 - The button auto-dismisses when the user is back near the bottom (within ~50px). In jumped mode, it also dismisses if the user has scrolled all the way to the bottom and all newer messages have loaded.
 - The button fades in and out smoothly to avoid flicker.
 - When the user opens a room or a thread with unread messages, the timeline shows the "New messages" separator at the top of the viewport. The button then shows, because the user is not at the latest messages. If all unread messages fit in the viewport, the timeline stays at the latest message. If the user opens the room or thread at a specific message, for example from a link, a search result, or a notification, the timeline shows that message instead.
+- When a message from another user arrives while the open room or thread is not in focus, the "New messages" separator appears above it at once. Later messages keep the separator in place. When the user returns, the read state from the server sets the separator again. This does not move the timeline.
 
 ## Design Decisions
 

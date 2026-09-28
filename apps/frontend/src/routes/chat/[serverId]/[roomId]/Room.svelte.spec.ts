@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   pageState: {} as App.PageState,
   markRoomAsRead: vi.fn(),
   clearUnreadMarker: vi.fn(),
+  markArrivalWhileAway: vi.fn(),
+  appState: { isFocused: true, isPresent: true },
   unreadMarkerEventId: null as string | null,
   projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
   resetTypingDebounce: vi.fn(),
@@ -149,7 +151,8 @@ vi.mock('$lib/hooks', () => ({
       return mocks.unreadMarkerEventId;
     },
     markAsRead: mocks.markRoomAsRead,
-    clearUnreadMarker: mocks.clearUnreadMarker
+    clearUnreadMarker: mocks.clearUnreadMarker,
+    markArrivalWhileAway: mocks.markArrivalWhileAway
   }),
   useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
@@ -192,10 +195,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 vi.mock('$lib/state/globals.svelte', () => ({
-  appState: {
-    isFocused: true,
-    isPresent: true
-  }
+  appState: mocks.appState
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -452,6 +452,9 @@ beforeEach(() => {
   mocks.canPostInThread = true;
   mocks.unreadMarkerEventId = null;
   mocks.clearUnreadMarker.mockClear();
+  mocks.markRoomAsRead.mockClear();
+  mocks.markArrivalWhileAway.mockClear();
+  mocks.appState.isPresent = true;
   toast.clear();
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
@@ -904,6 +907,28 @@ describe('Room local message echo', () => {
     );
 
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
+  });
+
+  it('places the unread separator for a message that arrives while the viewer is away', async () => {
+    mocks.appState.isPresent = false;
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'away-event-id',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(mocks.markArrivalWhileAway).toHaveBeenCalledWith('away-event-id');
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
   });
 
   it('opens and highlights the explicit message from a nested thread route', async () => {

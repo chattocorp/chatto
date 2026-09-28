@@ -112,6 +112,9 @@ export function useUnreadMarker<TReadResult>(
   let wasReadable = false;
   let lastForegroundRevision = 0;
   let lastOnlineRevision = 0;
+  // True after a message that arrived while the viewer was away placed the
+  // separator. Later arrivals keep it in place until the viewer returns.
+  let awayMarkerPlaced = false;
 
   function isCurrentAttempt(attempt: ReadAttempt): boolean {
     const currentAttempt = attempt.updatesMarker ? lifecycleAttempt : explicitAttempt;
@@ -272,6 +275,21 @@ export function useUnreadMarker<TReadResult>(
     unreadMarkerWindow = null;
   }
 
+  /**
+   * Show the separator above a message that arrives while the viewer is not
+   * present, before the viewer returns. The first such message places it.
+   * The read on return then resolves the marker from the server read state,
+   * which normally gives the same event.
+   */
+  function markArrivalWhileAway(eventId: string) {
+    if (appState.isPresent || awayMarkerPlaced) return;
+    awayMarkerPlaced = true;
+    // A read that is still in flight covers only earlier messages. Its result
+    // must not replace this marker.
+    markerGeneration += 1;
+    setUnreadMarkerEventId(eventId);
+  }
+
   $effect(() => {
     const targetId = getTargetId();
     const visible = appState.isVisible;
@@ -290,6 +308,7 @@ export function useUnreadMarker<TReadResult>(
       cancelAllAttempts();
       clearUnreadMarker();
     }
+    if (targetChanged || present) awayMarkerPlaced = false;
 
     if (!visible || !readable || !targetId) {
       cancelAllAttempts();
@@ -356,6 +375,7 @@ export function useUnreadMarker<TReadResult>(
     },
     markAsRead: markTargetAsRead,
     setUnreadMarkerEventId,
-    clearUnreadMarker
+    clearUnreadMarker,
+    markArrivalWhileAway
   };
 }

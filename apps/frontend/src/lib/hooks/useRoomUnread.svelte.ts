@@ -56,6 +56,7 @@ export function useRoomUnread(
       return unread.unreadMarkerEventId;
     },
     markAsRead: unread.markAsRead,
-    clearUnreadMarker: unread.clearUnreadMarker
+    clearUnreadMarker: unread.clearUnreadMarker,
+    markArrivalWhileAway: unread.markArrivalWhileAway
   };
 }

@@ -93,7 +93,8 @@ vi.mock('$lib/hooks', () => ({
     return {
       unreadMarkerEventId: mocks.unreadMarkerEventId,
       markAsRead: options.markAsRead,
-      clearUnreadMarker: mocks.clearUnreadMarker
+      clearUnreadMarker: mocks.clearUnreadMarker,
+      markArrivalWhileAway: vi.fn()
     };
   },
   createTypingIndicator: () => ({
