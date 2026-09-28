@@ -13,6 +13,7 @@ import type { RunRecord } from '../runs.ts';
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.unstubAllEnvs();
   for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true });
 });
 async function store() {
@@ -24,6 +25,8 @@ async function store() {
 }
 
 test('live activity logs include run and task prefixes and cancellation matches history', async () => {
+  // This test checks the summary lines that `--quiet-log` keeps in the terminal.
+  vi.stubEnv('RUNLING_QUIET_LOG', '1');
   const info = vi.spyOn(console, 'info').mockImplementation(() => {});
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const errors = vi.spyOn(console, 'error').mockImplementation(() => {});

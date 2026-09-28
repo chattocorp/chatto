@@ -1,14 +1,20 @@
-/** Convert live execution events into safe, compact terminal activity. */
+/** Convert live execution events into the server's terminal output and safe log file records. */
 import type { RunlingEvent } from './events.ts';
-import { serverLog } from './server-log.ts';
+import { serverLog, terminalRunLog } from './server-log.ts';
 
-/** Project execution events into safe operational logs for one live server run.
- * Task numbers are local to the run; full IDs remain in structured records.
- * Never forward prompts, task labels, commands, arguments, results, or arbitrary logs.
- * Agent labels and explicit task activity are public host-owned metadata.
- * Successful tool calls are summarized at most every 30 seconds per agent.
- */
-export function createServerActivityLog(runId: string, runReference?: string) {
+/** Log one live server run. The log file gets safe summaries: task numbers are local to the run,
+ * and prompts, task labels, commands, arguments, results, and arbitrary logs are never written.
+ * Agent labels and explicit task activity are public host-owned metadata. Successful tool calls
+ * are summarized at most every 30 seconds per agent.
+ *
+ * With `detailed` (the default unless `RUNLING_QUIET_LOG` is `1`), the terminal shows the run's
+ * full log, like `runling run`, including failed task errors; routine summaries then go only to
+ * the file, and warnings and errors go to both. Otherwise the terminal shows the summaries. */
+export function createServerActivityLog(
+  runId: string,
+  runReference?: string,
+  { detailed = process.env.RUNLING_QUIET_LOG !== '1' }: { detailed?: boolean } = {}
+) {
   const tasks = new Map<string, string>();
   const agents = new Map<string, number>();
   const labels = new Map<string, string>();
@@ -53,6 +59,27 @@ export function createServerActivityLog(runId: string, runReference?: string) {
     let level: 'info' | 'warn' | 'error' = 'info';
     let taskId = event.activityId;
     let agentId: string | undefined;
+    const context = (task = taskId, agent?: string) => ({
+      runReference: runReference ?? runId.slice(0, 8),
+      ...(task && taskLabels.has(task) ? { agentLabel: taskLabels.get(task) } : {}),
+      ...(task ? { taskReference: taskReference(task) } : {}),
+      ...(agent && labels.has(agent) ? { agentLabel: labels.get(agent) } : {})
+    });
+    if (event.type === 'log') {
+      if (detailed)
+        terminalRunLog(
+          event.level,
+          context(taskId, event.source === 'agent' ? event.sourceId : undefined),
+          event.message
+        );
+      return;
+    }
+    if (detailed && event.type === 'step.finished' && event.status === 'failed')
+      terminalRunLog(
+        'error',
+        context(event.id),
+        `Task failed · ${Math.round(event.durationMs)} ms${event.error ? ` · ${event.error}` : ''}`
+      );
     switch (event.type) {
       case 'task.linked':
         channels.set(event.channelId, event.taskId);
@@ -135,17 +162,22 @@ export function createServerActivityLog(runId: string, runReference?: string) {
       default:
         return;
     }
-    serverLog(level, 'run.activity', {
-      runId,
-      runReference,
-      activity,
-      ...(event.type === 'task.activity' && event.level ? { activityLevel: event.level } : {}),
-      ...(taskId && taskLabels.has(taskId) ? { agentLabel: taskLabels.get(taskId) } : {}),
-      ...(taskId ? { taskId, taskReference: taskReference(taskId) } : {}),
-      ...(agentId
-        ? { agentId, ...(labels.has(agentId) ? { agentLabel: labels.get(agentId) } : {}) }
-        : {})
-    });
+    serverLog(
+      level,
+      'run.activity',
+      {
+        runId,
+        runReference,
+        activity,
+        ...(event.type === 'task.activity' && event.level ? { activityLevel: event.level } : {}),
+        ...(taskId && taskLabels.has(taskId) ? { agentLabel: taskLabels.get(taskId) } : {}),
+        ...(taskId ? { taskId, taskReference: taskReference(taskId) } : {}),
+        ...(agentId
+          ? { agentId, ...(labels.has(agentId) ? { agentLabel: labels.get(agentId) } : {}) }
+          : {})
+      },
+      { terminal: !detailed || (level !== 'info' && event.type !== 'step.finished') }
+    );
   };
   return Object.assign(record, {
     dispose() {

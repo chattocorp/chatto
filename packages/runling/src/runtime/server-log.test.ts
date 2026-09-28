@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync, statSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { serverLog, serverLogPath } from './server-log.ts';
+import { serverLog, serverLogPath, terminalRunLog } from './server-log.ts';
 import { stripVTControlCharacters } from 'node:util';
 
 const directories: string[] = [];
@@ -143,4 +143,22 @@ it('marks successful task activity in the terminal', () => {
     activityLevel: 'success'
   });
   expect(output.mock.calls[0]![0]).toContain('[quiet-run-1234] ✓ Validation passed · check');
+});
+
+describe('terminalRunLog', () => {
+  it('prints to the terminal only, removes control sequences, and indents later lines', () => {
+    const directory = setup();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    terminalRunLog(
+      'info',
+      { runReference: 'busy-bees-1234', agentLabel: 'implement', taskReference: 'task-3' },
+      'First \x1b[2Jline\x07\nSecond line'
+    );
+    const [line] = log.mock.calls[0]!.map((value) => stripVTControlCharacters(String(value)));
+    const [first, second] = line!.split('\n');
+    expect(first).toMatch(/^\d\d:\d\d:\d\d \[busy-bees-1234 \/ implement:task-3\] ● First line$/);
+    // The second line starts under the first line's text.
+    expect(second).toBe(`${' '.repeat(first!.indexOf('First'))}Second line`);
+    expect(() => statSync(join(directory, '.runling/logs/server.jsonl'))).toThrow();
+  });
 });
