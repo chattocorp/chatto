@@ -314,7 +314,9 @@ Do not generate playground links for code written into this repository.
   and shares the result; do not map or copy stored profiles per render.
 
 - Use automatic "load more" pagination when a scroll/container edge is reached.
-- Use TanStack Query for snapshot-style ConnectRPC reads. Scope private query
+- Use TanStack Query for snapshot-style ConnectRPC reads. Import
+  `createQuery`, `createInfiniteQuery`, and `createMutation` from
+  `$lib/query/client`, which binds them to the shared client. Scope private query
   keys by server and connection session, keep the cache memory-only, and purge
   it at authentication and privacy boundaries. Keep realtime projections,
   timelines, notifications, presence, calls, and message search in their

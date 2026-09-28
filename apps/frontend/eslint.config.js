@@ -67,6 +67,26 @@ export default ts.config(
     }
   },
   {
+    // Queries and mutations use the shared client that $lib/query/client binds.
+    files: ['src/**/*.ts', 'src/**/*.svelte'],
+    ignores: ['src/lib/query/client.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@tanstack/svelte-query',
+              importNames: ['createQuery', 'createInfiniteQuery', 'createMutation'],
+              message:
+                'Import createQuery, createInfiniteQuery, and createMutation from $lib/query/client.'
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
     // Playwright parses the first parameter's source text to determine which
     // fixtures a test needs, and rejects an Identifier (e.g. `_`) at runtime
     // with "First argument must use the object destructuring pattern".
