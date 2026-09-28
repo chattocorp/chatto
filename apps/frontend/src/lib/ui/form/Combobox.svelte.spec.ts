@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -63,5 +64,26 @@ describe('Combobox', () => {
 
     expect(onselect).toHaveBeenCalledWith(items[1]);
     expect(field.value).toBe('UserJoinedRoomEvent');
+  });
+
+  it('scrolls a long list inside the section so the menu frame stays whole', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ value: `v${i}`, label: `Option ${i}` }));
+    const { container } = render(Combobox<(typeof many)[number]>, {
+      props: {
+        id: 'many',
+        label: 'Many',
+        items: many,
+        getValue: (item) => item.value,
+        getLabel: (item) => item.label
+      }
+    });
+
+    input(container).dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+    flushSync();
+
+    const frame = container.querySelector('#many-listbox') as HTMLElement;
+    const section = frame.querySelector('.menu-section') as HTMLElement;
+    await vi.waitFor(() => expect(section.scrollHeight).toBeGreaterThan(section.clientHeight));
+    expect(frame.scrollHeight).toBe(frame.clientHeight);
   });
 });

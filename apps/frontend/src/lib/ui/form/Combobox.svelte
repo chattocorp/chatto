@@ -202,10 +202,11 @@
   {anchor}
   role="listbox"
   id={`${id}-listbox`}
-  class="max-h-72 w-80 overflow-y-auto menu"
+  class="w-80 menu"
   onclose={() => (open = false)}
 >
-  <div class="menu-section">
+  <!-- Scroll inside the section so the frame's inset and border stay visible. -->
+  <div class="max-h-72 overflow-y-auto menu-section">
     {#if items.length > 0}
       {#each items as option, index (getValue(option))}
         <button

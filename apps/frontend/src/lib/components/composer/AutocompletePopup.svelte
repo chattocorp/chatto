@@ -114,10 +114,11 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
     <FloatingPopover {anchor} anchorPlacement="top">
       <div
         data-testid={testid}
-        class={['max-h-80 w-[var(--autocomplete-anchor-width)] overflow-y-auto menu', className]}
+        class={['flex max-h-80 w-[var(--autocomplete-anchor-width)] flex-col menu', className]}
         style:--autocomplete-anchor-width={`${anchor.width}px`}
       >
-        <ul class="menu-section">
+        <!-- Scroll inside the section so the frame's inset and border stay visible. -->
+        <ul class="min-h-0 overflow-y-auto menu-section">
           {#each items as entry, index (getKey(entry))}
             <li>
               <button

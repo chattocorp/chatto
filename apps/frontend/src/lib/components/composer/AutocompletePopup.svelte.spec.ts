@@ -221,6 +221,19 @@ describe('AutocompletePopup', () => {
       expect(menuRect.width).toBe(surface.width);
     });
 
+    it('scrolls a long list inside the section so the menu frame stays whole', async () => {
+      render(AutocompletePopupTestHarness, {
+        props: { labels: Array.from({ length: 30 }, (_, i) => `name${i}`), onSelect: vi.fn() }
+      });
+      const menu = page.getByTestId('popup');
+      await expect.element(menu).toBeVisible();
+
+      const frame = menu.element() as HTMLElement;
+      const section = frame.querySelector('.menu-section') as HTMLElement;
+      expect(section.scrollHeight).toBeGreaterThan(section.clientHeight);
+      expect(frame.scrollHeight).toBe(frame.clientHeight);
+    });
+
     it('keeps focus in the editor while arrow keys move the active option', async () => {
       const onSelect = vi.fn();
       const { container } = render(AutocompletePopupTestHarness, {
