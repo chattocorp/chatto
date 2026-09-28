@@ -100,10 +100,7 @@
       !!event?.actor?.deleted ||
       (!!actorId && users.isDeleted(actorId))
   );
-  const actor = $derived.by(() => {
-    if (deletedActor) return null;
-    return (actorId ? users.view(actorId) : undefined) ?? event?.actor ?? null;
-  });
+  const actor = $derived(deletedActor ? null : (users.view(actorId) ?? event.actor ?? null));
   const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
 
   // The actor already uses the live profile when one is available.
