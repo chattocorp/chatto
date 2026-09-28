@@ -20,6 +20,7 @@ import { ConfigurationError } from '../settings.ts';
 import { taskContext, userFacingTaskNotifications } from './task-context.ts';
 import { listResumableArtifacts } from './implementation-artifacts.ts';
 import {
+  HostCommandError,
   implementationProcess,
   ImplementationCommandError,
   type ImplementationProcess
@@ -806,6 +807,43 @@ test('a continued implementation reopens the worker conversation and lists as re
   expect(await listResumableArtifacts(f.settings.artifactsDirectory, expected)).toEqual([]);
 });
 
+test('git retries while another process holds the index lock, and a host failure names its command', async () => {
+  const f = await fixture();
+  const locked = (message: string) => {
+    const error = new HostCommandError(message);
+    error.lockHeld = true;
+    return error;
+  };
+  let addAttempts = 0;
+  const retried = await createImplementation(f.settings, {
+    execute: async (command, args, options) => {
+      if (command === 'git' && args.includes('add') && ++addAttempts <= 2)
+        throw locked('git add failed (exit 128)');
+      return f.execute(command, args, options);
+    },
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(retried.outcome).toBe('completed');
+  expect(addAttempts).toBeGreaterThan(2);
+
+  const failed = await createImplementation(f.settings, {
+    execute: async (command, args, options) => {
+      if (command === 'git' && args.includes('write-tree'))
+        throw new HostCommandError('git write-tree failed (exit 128)');
+      return f.execute(command, args, options);
+    },
+    createAgent: worker(async () => {})
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(failed).toMatchObject({
+    outcome: 'blocked',
+    summary:
+      'The implementation stopped during setup because git write-tree failed (exit 128). The work so far is kept.'
+  });
+});
+
 test('a cancelled implementation keeps its artifact ID in the supervisor snapshot', async () => {
   const f = await fixture();
   const ctx = createWorkflowContext();
@@ -1469,7 +1507,8 @@ test('an unexpected worker error produces one safe stopped result for the owner'
     expect(JSON.stringify(tasks.get(handle.id))).not.toContain('private provider detail');
     expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
       outcome: 'blocked',
-      summary: expect.stringContaining('after a worker or host error')
+      summary:
+        'The implementation stopped during editing because of an unexpected error. The work so far is kept.'
     });
   } finally {
     await tasks.dispose();

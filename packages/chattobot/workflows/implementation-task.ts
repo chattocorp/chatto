@@ -13,7 +13,12 @@ import {
   type AgentTaskUpdate,
   type RunlingAgent
 } from 'runling/agents';
-import { implementationProcess, type ImplementationProcess } from './implementation-process.ts';
+import {
+  HostCommandError,
+  implementationProcess,
+  type ImplementationProcess
+} from './implementation-process.ts';
+import { setTimeout as delay } from 'node:timers/promises';
 import {
   implementationInput,
   loadResumableArtifact,
@@ -162,8 +167,22 @@ export function createImplementation(
     async (ctx: WorkflowContext<string, AgentTaskUpdate>, input) => {
       const signal = ctx.signal;
       const unsetEnv = implementationCommandEnvKeys(process.env);
-      const git = (cwd: string, args: string[], commandSignal = signal) =>
-        execute('git', ['-c', 'core.hooksPath=/dev/null', ...args], { cwd, signal: commandSignal });
+      /** Run git without hooks. Another process, such as an editor that runs `git status` on the
+       * worktree, can hold its index lock for a moment; retry then. */
+      const git = async (cwd: string, args: string[], commandSignal = signal) => {
+        for (let attempt = 1; ; attempt++) {
+          try {
+            return await execute('git', ['-c', 'core.hooksPath=/dev/null', ...args], {
+              cwd,
+              signal: commandSignal
+            });
+          } catch (error) {
+            if (!(error instanceof HostCommandError && error.lockHeld) || attempt === 5)
+              throw error;
+            await delay(200 * attempt, undefined, { signal: commandSignal });
+          }
+        }
+      };
       const verifyRemote = async (cwd: string) => {
         const urls = await git(cwd, ['remote', 'get-url', '--all', 'origin']);
         const pushUrls = await git(cwd, ['remote', 'get-url', '--push', '--all', 'origin']);
@@ -931,6 +950,19 @@ export function createImplementation(
         } finally {
           await connection.dispose();
         }
+      } catch (error) {
+        signal.throwIfAborted();
+        // After publication, the parent's generic handling applies; the PR already exists.
+        if (metadata.prUrl) throw error;
+        // Name the failed stage and host command, so the user learns what went wrong. Worker and
+        // provider errors can contain private details and stay generic.
+        return result(
+          'blocked',
+          `The implementation stopped during ${metadata.stage} because ${
+            error instanceof HostCommandError ? error.message : 'of an unexpected error'
+          }. The work so far is kept.`,
+          ['No PR was created.']
+        );
       } finally {
         dropHeldProgress();
         worker?.dispose();

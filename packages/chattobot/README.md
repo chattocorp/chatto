@@ -587,6 +587,13 @@ the worker has no shell tool, edited code can run during validation.
 A worktree is not a security sandbox. Use an isolated host and
 trusted maintainers; set `CHATTO_MAINTAINER_USER_IDS` to control who can start
 work, and `CHATTO_ALLOWED_USER_ID` to restrict who can address the bot at all.
+An editor or other tool that finds the retained worktrees can run Git in them
+and briefly hold their index lock. The host retries a Git command that fails
+for that reason. When a host command fails anyway, the stopped result names the
+stage and the command, for example `git add failed (exit 128)`, without its
+output. Worker and model-provider errors stay generic, because they can contain
+private details.
+
 The worker's saved conversation holds its complete model context, including
 source excerpts and the request. It stays in the private artifact folder.
 Do not place production credentials on that host. The model provider receives

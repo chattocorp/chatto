@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
-import { implementationProcess, ImplementationCommandError } from './implementation-process.ts';
+import {
+  HostCommandError,
+  implementationProcess,
+  ImplementationCommandError
+} from './implementation-process.ts';
 
 test('keeps failing command diagnostics out of the host error message', async () => {
   try {
@@ -60,4 +64,20 @@ test('removes selected inherited variables from repository commands', async () =
     if (before === undefined) delete process.env[key];
     else process.env[key] = before;
   }
+});
+
+test('failures name the program and subcommand, and report a held git lock', async () => {
+  const signal = new AbortController().signal;
+  const error = await implementationProcess(
+    'sh',
+    ['-c', 'echo "fatal: Unable to create \'/x/index.lock\': File exists." >&2; exit 128'],
+    { cwd: '.', signal }
+  ).catch((reason) => reason);
+  expect(error).toBeInstanceOf(HostCommandError);
+  expect(error.message).toBe('sh failed (exit 128)');
+  expect(error.lockHeld).toBe(true);
+  const plain = await implementationProcess('sh', ['-c', 'exit 2'], { cwd: '.', signal }).catch(
+    (reason) => reason
+  );
+  expect(plain.lockHeld).toBe(false);
 });

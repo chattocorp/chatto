@@ -83,7 +83,7 @@ function finalImplementationReport(task: Record<string, unknown> | undefined) {
         : []
     },
     report:
-      'This is the final report of the implementation. Write it in full, not briefly: the outcome and CI result with the pull request URL exactly as result.prUrl, then a short section on what changed with a few points from result.summary, then notable result.notes. For a stopped implementation, explain why it stopped, the failed checks, and result.artifactId for continuing.'
+      'This is the final report of the implementation. Write it in full, not briefly: the outcome and CI result with the pull request URL exactly as result.prUrl, then a short section on what changed with a few points from result.summary, then notable result.notes. For a stopped implementation, explain why it stopped and the failed checks, say that the work so far is kept, and offer to continue it. Never show the artifact ID.'
   };
 }
 
