@@ -138,7 +138,7 @@ export function runLogRows(events: RunlingEvent[]): LogRow[] {
         addActivity(
           id,
           event.timestamp,
-          `${taskReference(event.id)} ${event.status} · ${Math.round(event.durationMs / 1000)} s`,
+          `${taskReference(event.id)} ${event.status} · ${Math.round(event.durationMs / 1000)} s${event.error ? ` · ${event.error}` : ''}`,
           event.status === 'completed' ? 'success' : 'error',
           taskDepths.get(event.id) ?? childDepth(event.activityId),
           event.id

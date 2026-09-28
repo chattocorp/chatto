@@ -42,7 +42,8 @@ private to the server user and ignored by Git.
 
 Activity records omit prompts, task labels, command text, tool arguments, message
 contents, and results. They describe activity, not its content. Full execution
-details remain in the run journal. An observed task can explicitly publish a
+details remain in the run journal. A failed task appears as `Task failed`; its
+error message is only in the journal and the console's Log view. An observed task can explicitly publish a
 public operational message with `ctx.emit({ type: "state", value, activity })`.
 Agent labels and these messages must be static, host-owned text, never user data
 or model output. State values are not copied into operational logs.

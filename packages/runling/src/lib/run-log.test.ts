@@ -25,7 +25,14 @@ test('shows recorded logs and task milestones in order', () => {
       level: 'error',
       timestamp: 50
     },
-    { type: 'step.finished', id: 'task', status: 'failed', durationMs: 1234, timestamp: 60 }
+    {
+      type: 'step.finished',
+      id: 'task',
+      status: 'failed',
+      durationMs: 1234,
+      error: 'Error: Command failed (exit 128)',
+      timestamp: 60
+    }
   ];
   expect(runLogRows(events)).toEqual([
     {
@@ -62,7 +69,7 @@ test('shows recorded logs and task milestones in order', () => {
       event: {
         type: 'log',
         level: 'error',
-        message: 'task-1 failed · 1 s',
+        message: 'task-1 failed · 1 s · Error: Command failed (exit 128)',
         depth: 0,
         color: 'dodgerblue',
         source: 'step',

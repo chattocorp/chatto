@@ -74,3 +74,30 @@ test('tracks nested asynchronous step lifecycles', async () => {
   expect(starts[1]?.activityId).toBe(starts[0]?.id);
   expect(finishes.every((event) => event.status === 'completed')).toBe(true);
 });
+
+test('a failed step records its error message; a completed step records none', async () => {
+  const events: RunlingEvent[] = [];
+  await observeRunlingEvents(
+    (event) => events.push(event),
+    async () => {
+      await step('Works', async () => 'ok');
+      await step('Breaks', async () => {
+        throw new TypeError('Command failed (exit 128)');
+      }).catch(() => {});
+      try {
+        step('Breaks at once', () => {
+          throw 'plain reason';
+        });
+      } catch {
+        // Expected.
+      }
+    }
+  );
+  await Promise.resolve();
+  const finishes = events.filter((event) => event.type === 'step.finished');
+  expect(finishes.map((event) => ('error' in event ? event.error : undefined))).toEqual([
+    undefined,
+    'TypeError: Command failed (exit 128)',
+    'plain reason'
+  ]);
+});

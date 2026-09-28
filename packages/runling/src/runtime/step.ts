@@ -16,12 +16,13 @@ export function step<T>(label: string, work: StepWork<T>): T {
   });
   logStep(label);
 
-  const finish = (status: 'completed' | 'failed') =>
+  const finish = (status: 'completed' | 'failed', error?: unknown) =>
     emitRunlingEvent({
       type: 'step.finished',
       id,
       status,
-      durationMs: performance.now() - startedAt
+      durationMs: performance.now() - startedAt,
+      ...(status === 'failed' ? { error: errorMessage(error) } : {})
     });
 
   try {
@@ -29,17 +30,21 @@ export function step<T>(label: string, work: StepWork<T>): T {
     if (isPromiseLike(result)) {
       void Promise.resolve(result).then(
         () => finish('completed'),
-        () => finish('failed')
+        (error) => finish('failed', error)
       );
     } else {
       finish('completed');
     }
     return result;
   } catch (error) {
-    finish('failed');
+    finish('failed', error);
     throw error;
   }
 }
+
+/** A failed step's error message for its journal, bounded. The server log does not include it. */
+const errorMessage = (error: unknown) =>
+  (error instanceof Error ? `${error.name}: ${error.message}` : String(error)).slice(0, 2000);
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
   (typeof value === 'object' || typeof value === 'function') &&
