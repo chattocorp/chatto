@@ -3,6 +3,9 @@ import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { mockService } from '$lib/test-utils';
+import { BotService } from '@chatto/api-types/api/v1/bots_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -12,7 +15,9 @@ vi.mock(
 // Page titles are tested separately from this page's partial route/server fixtures.
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
-const api = { listBots: vi.fn(), batchGetUsers: vi.fn() };
+// Server handlers: the page runs the real bot and user API clients against them.
+const bots = mockService(BotService);
+const users = mockService(UserService);
 let server: TestServerScope;
 
 import BotsPage from './+page.svelte';
@@ -27,9 +32,11 @@ describe('Bot administration page', () => {
   beforeEach(() => {
     queryClient.clear();
     vi.clearAllMocks();
-    server = createTestServerScope({ api });
-    api.listBots.mockResolvedValue({ bots: [], totalCount: 0, hasMore: false });
-    api.batchGetUsers.mockResolvedValue([]);
+    server = createTestServerScope({
+      routes: (router) => router.service(BotService, bots).service(UserService, users)
+    });
+    bots.listBots.mockReturnValue({ bots: [], page: { totalCount: 0n, hasMore: false } });
+    users.batchGetUsers.mockReturnValue({ users: [] });
   });
 
   it('explains why creation is unavailable while preserving the bot-management page', () => {
@@ -83,40 +90,31 @@ describe('Bot administration page', () => {
   });
 
   it('renders bot and owner identities with avatars and display names', async () => {
-    api.listBots.mockResolvedValue({
+    bots.listBots.mockReturnValue({
       bots: [
         {
-          id: 'bot-user-id',
-          login: 'helper_bot',
-          displayName: 'Helper Bot',
-          avatarUrl: null,
-          bio: 'Build helper',
-          timezone: null,
-          ownerUserId: 'owner-user-id',
-          createdAt: null,
-          apiKeys: [],
-          incomingWebhooks: []
+          user: {
+            id: 'bot-user-id',
+            login: 'helper_bot',
+            displayName: 'Helper Bot',
+            bio: 'Build helper',
+            bot: { ownerUserId: 'owner-user-id' }
+          },
+          ownerUserId: 'owner-user-id'
         }
       ],
-      totalCount: 1,
-      hasMore: false
+      page: { totalCount: 1n, hasMore: false }
     });
-    api.batchGetUsers.mockResolvedValue([
-      {
-        id: 'owner-user-id',
-        login: 'alice',
-        displayName: 'Alice Example',
-        deleted: false,
-        avatarUrl: null
-      }
-    ]);
+    users.batchGetUsers.mockReturnValue({
+      users: [{ user: { id: 'owner-user-id', login: 'alice', displayName: 'Alice Example' } }]
+    });
 
     const { container } = render(BotsPage);
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Alice Example');
     });
 
-    expect(api.batchGetUsers).toHaveBeenCalledWith(['owner-user-id']);
+    expect(users.batchGetUsers.mock.calls[0]?.[0]).toMatchObject({ userIds: ['owner-user-id'] });
     expect(container.textContent).toContain('Owner');
     expect(container.textContent).toContain('Helper Bot');
     expect(container.textContent).not.toContain('owner-user-id');
