@@ -50,7 +50,7 @@ thread IDs can change while the pane stays mounted.
   import { appState } from '$lib/state/globals.svelte';
   import { createComposerContext, getRoomMembers, type MessagesStore } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { EmptyState } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import EventList from './EventList.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';

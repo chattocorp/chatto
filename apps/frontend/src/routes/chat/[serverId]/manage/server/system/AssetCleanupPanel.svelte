@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { AdminAssetCleanupStatus } from '$lib/api-client/adminDiagnostics';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { Pill } from '$lib/ui';
+  import { Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let { status }: { status: AdminAssetCleanupStatus } = $props();

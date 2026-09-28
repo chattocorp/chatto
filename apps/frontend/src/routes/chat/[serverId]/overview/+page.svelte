@@ -3,8 +3,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PaneHeader, PageTitle } from '$lib/ui';
 
   // Re-derives reactively when the URL `[serverId]` changes. Directory rows
   // and membership are selected directly from that server's projection.

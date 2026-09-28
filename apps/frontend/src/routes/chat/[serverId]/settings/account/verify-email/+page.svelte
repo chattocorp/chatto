@@ -12,10 +12,9 @@
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { Panel, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, FormError, VerificationCodeInput } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast/toastState.svelte';
+  import { toast } from '$lib/ui/toast';
   import {
     clearPendingEmailVerification,
     readPendingEmailVerification

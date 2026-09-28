@@ -1,6 +1,5 @@
 <script lang="ts">
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { ContextMenu, LoadingFog } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { MessageActionModel } from './messageActionModel';

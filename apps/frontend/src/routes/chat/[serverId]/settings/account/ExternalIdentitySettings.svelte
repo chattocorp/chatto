@@ -15,15 +15,13 @@
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
-  import Panel from '$lib/ui/Panel.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
 
   let {

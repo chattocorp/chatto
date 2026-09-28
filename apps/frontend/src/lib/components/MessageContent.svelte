@@ -6,8 +6,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { renderMarkdown as renderMd } from '$lib/markdown';
-  import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import { MarkdownHtml, ContextMenu } from '$lib/ui';
   import { classifyMessageBodyChatLink } from '$lib/messageLinks';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
   import { formatRelativeMessageTimestamp, wrapMessageTimestamps } from '$lib/messageTimestamps';

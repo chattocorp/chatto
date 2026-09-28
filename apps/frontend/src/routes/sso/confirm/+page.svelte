@@ -10,8 +10,7 @@
   } from '$lib/api-client/externalIdentities';
   import { m } from '$lib/i18n/messages';
   import { validateDisplayName } from '$lib/validation/displayName';
-  import Hint from '$lib/ui/Hint.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Hint, PageTitle } from '$lib/ui';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
   const { data } = $props();

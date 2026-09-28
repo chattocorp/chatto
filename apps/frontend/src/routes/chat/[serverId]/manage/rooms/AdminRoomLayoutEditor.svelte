@@ -11,10 +11,17 @@
     GroupReorderResult,
     RoomMoveFlushResult
   } from '$lib/state/server/adminRoomLayout.svelte';
-  import { ConfirmDialog, EmptyState, FormDialog, Hint, Pill, ToggleChip } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import {
+    ConfirmDialog,
+    EmptyState,
+    FormDialog,
+    Hint,
+    Pill,
+    ToggleChip,
+    LoadingFog,
+    PaneHeader
+  } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
   import { flip } from 'svelte/animate';
   import { dragHandle, dragHandleZone, dndzone, type DndEvent } from 'svelte-dnd-action';

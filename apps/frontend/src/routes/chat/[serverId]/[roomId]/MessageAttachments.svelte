@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
   import { type MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;

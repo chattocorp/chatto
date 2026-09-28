@@ -8,11 +8,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
   import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';

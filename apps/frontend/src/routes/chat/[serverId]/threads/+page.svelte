@@ -13,7 +13,19 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import {
+    LoadingFog,
+    ActivityListRow,
+    EmptyState,
+    Hint,
+    PaneContent,
+    PaneHeader,
+    Panel,
+    ScrollFader,
+    SegmentedControl,
+    UnreadDot,
+    PageTitle
+  } from '$lib/ui';
 
   import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
   import { createReadStateAPI } from '$lib/api-client/readState';
@@ -27,19 +39,7 @@
     updateFollowedThreadSummary,
     type FollowedThreadsData
   } from '$lib/query/threads';
-  import {
-    ActivityListRow,
-    EmptyState,
-    Hint,
-    PaneContent,
-    PaneHeader,
-    Panel,
-    ScrollFader,
-    SegmentedControl,
-    UnreadDot
-  } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import {
     formatRelativeTime,
     groupByActivityDate,

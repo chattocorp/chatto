@@ -4,7 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import Room from './Room.svelte';
   import RoomJoinScreen from './RoomJoinScreen.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PageTitle } from '$lib/ui';
 
   let { data, children } = $props();
 

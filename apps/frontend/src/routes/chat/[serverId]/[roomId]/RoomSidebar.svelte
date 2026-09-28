@@ -21,7 +21,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { m } from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import UserCard from '$lib/ui/UserCard.svelte';
+  import {
+    UserCard,
+    EmptyState,
+    LoadingFog,
+    ScrollFader,
+    PaneHeader,
+    HeaderIconButton
+  } from '$lib/ui';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserMenu from '$lib/components/users/UserMenu.svelte';
@@ -38,14 +45,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
   import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
-  import { EmptyState, LoadingFog, ScrollFader } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
   import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { toast } from '$lib/ui/toast';
-  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import RemoveRoomUserModal from '$lib/components/moderation/RemoveRoomUserModal.svelte';
   import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';

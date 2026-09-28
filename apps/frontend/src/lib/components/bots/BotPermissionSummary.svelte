@@ -11,7 +11,7 @@ while mounted and discards cached data when the profile closes. -->
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { Button } from '$lib/ui/form';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
   import {
     groupBotPermissions,
     compactEffectivePermissions,

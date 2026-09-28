@@ -7,7 +7,7 @@
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ConfirmDialog, Dialog, FormDialog } from '$lib/ui';
+  import { ConfirmDialog, Dialog, FormDialog, CompactActionButton } from '$lib/ui';
   import { Button, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { useRoomMembersStore, getComposerContext } from '$lib/state/room';
@@ -26,7 +26,6 @@
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
-  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
   import ComposerToolbar from './ComposerToolbar.svelte';
   import ComposerModeIndicators from './ComposerModeIndicators.svelte';

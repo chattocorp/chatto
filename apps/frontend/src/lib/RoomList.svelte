@@ -23,12 +23,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import CreateRoomGroupControl from '$lib/components/chat/CreateRoomGroupControl.svelte';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import {
+    EmptyState,
+    NotificationBadge,
+    UnreadDot,
+    ContextMenu,
+    MenuItem,
+    MenuSection,
+    contextMenuTrigger,
+    type ContextMenuTriggerDetails
+  } from '$lib/ui';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
-  import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
@@ -41,14 +48,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroupItem
   } from '$lib/state/server/rooms.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
-  import {
-    contextMenuTrigger,
-    type ContextMenuTriggerDetails
-  } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
   import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';

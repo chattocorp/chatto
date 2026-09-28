@@ -9,9 +9,8 @@ Rows are notification causes. Columns follow the current navigation layout.
   import { createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, HelpTooltip, Hint } from '$lib/ui';
   import { MatrixCellButton, MatrixTable } from '$lib/ui/matrix';
-  import { HelpTooltip, Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';

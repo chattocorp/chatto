@@ -5,8 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
   import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Dialog, LoadingFog } from '$lib/ui';
+  import { ContextMenu, Dialog, LoadingFog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';

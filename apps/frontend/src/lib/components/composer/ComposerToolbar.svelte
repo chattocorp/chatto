@@ -5,7 +5,7 @@ Message-level actions that wrap below the editor in narrow composer containers.
 Formatting commands live in `ComposerFormattingToolbar`.
 -->
 <script lang="ts">
-  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
+  import { CompactActionButton } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import ComposerTimestampPicker from './ComposerTimestampPicker.svelte';
   import type { ComposerEditorApi } from './editorTypes';

@@ -14,11 +14,9 @@ local to the footer.
   import { on } from 'svelte/events';
   import type { MessagePostedPayload } from '$lib/render/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import UnreadDot from '$lib/ui/UnreadDot.svelte';
-  import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
+  import { UnreadDot, FloatingPopover, ConfirmDialog } from '$lib/ui';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog } from '$lib/ui';
   import type { MessageActionModel } from './messageActionModel';
 
   // Extract the MessagePostedEvent type from the union

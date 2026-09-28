@@ -35,10 +35,7 @@ keep the compact menu without a navigation action.
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import ScrollFader from '$lib/ui/ScrollFader.svelte';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
+  import { ContextMenu, ScrollFader, MenuItem, MenuSection } from '$lib/ui';
   import {
     getLiveBio,
     getLiveCustomStatus,

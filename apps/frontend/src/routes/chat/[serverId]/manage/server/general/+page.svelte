@@ -1,8 +1,6 @@
 <script lang="ts">
   import ServerSettings from '$lib/ServerSettings.svelte';
-  import { PaneContent } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 </script>
 

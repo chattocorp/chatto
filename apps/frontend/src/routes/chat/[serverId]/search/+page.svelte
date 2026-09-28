@@ -8,7 +8,15 @@ in the active server store so browser Back can restore the current search.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import Panel from '$lib/ui/Panel.svelte';
+  import {
+    Panel,
+    Hint,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    ScrollFader,
+    SegmentedControl
+  } from '$lib/ui';
   import SearchResult from '$lib/components/search/SearchResult.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
@@ -20,7 +28,6 @@ in the active server store so browser Back can restore the current search.
   import SearchResults from '$lib/components/search/SearchResults.svelte';
   import { buildMessageLinkPath } from '$lib/messageLinks';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { Hint, PageTitle, PaneContent, PaneHeader, ScrollFader, SegmentedControl } from '$lib/ui';
   import { TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
 

@@ -11,11 +11,7 @@
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
-  import AccessDenied from '$lib/ui/AccessDenied.svelte';
-  import { EmptyState, PaneContent } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import Hint from '$lib/ui/Hint.svelte';
+  import { AccessDenied, EmptyState, PaneContent, PaneHeader, PageTitle, Hint } from '$lib/ui';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';

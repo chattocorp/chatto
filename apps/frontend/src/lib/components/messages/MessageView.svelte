@@ -14,7 +14,7 @@ identity, body rendering, and row geometry consistent.
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import { m } from '$lib/i18n/messages';
 

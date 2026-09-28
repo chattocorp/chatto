@@ -2,16 +2,21 @@
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
   import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
-  import Panel from '$lib/ui/Panel.svelte';
-  import DataTable from '$lib/ui/DataTable.svelte';
+  import {
+    Panel,
+    DataTable,
+    ConfirmDialog,
+    Hint,
+    PaneContent,
+    Pill,
+    PaneHeader,
+    PageTitle
+  } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { ConfirmDialog, Hint, PaneContent, Pill } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';

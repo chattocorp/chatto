@@ -1,7 +1,7 @@
 <script lang="ts">
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PageTitle } from '$lib/ui';
   import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
   import { m } from '$lib/i18n/messages';
 

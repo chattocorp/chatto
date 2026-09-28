@@ -4,10 +4,9 @@
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { csrfFetch } from '$lib/auth/csrf';
   import { notifyLogout } from '$lib/auth/sessionChannel';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { FormDialog, Hint } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
 
   let {

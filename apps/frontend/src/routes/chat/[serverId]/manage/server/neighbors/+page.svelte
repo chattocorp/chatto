@@ -19,10 +19,16 @@ polls the cache briefly after a change. See FDR-042.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState, Hint, LoadingFog, PaneContent } from '$lib/ui';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import {
+    ConfirmDialog,
+    EmptyState,
+    Hint,
+    LoadingFog,
+    PaneContent,
+    PageTitle,
+    PaneHeader,
+    Panel
+  } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 

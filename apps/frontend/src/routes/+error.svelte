@@ -1,6 +1,6 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 </script>
 

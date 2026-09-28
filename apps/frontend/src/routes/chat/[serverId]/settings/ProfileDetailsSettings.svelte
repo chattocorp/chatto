@@ -4,9 +4,8 @@
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ConfirmDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, Hint } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import {
     formatCooldownRemaining,

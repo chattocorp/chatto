@@ -3,9 +3,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { m } from '$lib/i18n/messages';
 

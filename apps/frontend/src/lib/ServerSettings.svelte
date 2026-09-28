@@ -22,11 +22,8 @@
   import { queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
-  import Panel from '$lib/ui/Panel.svelte';
-  import Hint from '$lib/ui/Hint.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import { TextInput, TextArea, Button } from '$lib/ui/form';
-  import FormError from '$lib/ui/form/FormError.svelte';
+  import { Panel, Hint, LoadingFog } from '$lib/ui';
+  import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';

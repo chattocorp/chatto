@@ -8,7 +8,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
   import { Button } from '$lib/ui/form';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
 
   let { botId, webhookId }: { botId: string; webhookId: string } = $props();
   const scope = useServerScope();

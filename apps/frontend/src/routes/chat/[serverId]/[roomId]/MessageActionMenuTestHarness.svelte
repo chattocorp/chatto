@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { provideMenuContext } from '$lib/ui/menuContext.svelte';
+  import { provideMenuContext } from '$lib/ui';
   import MessageActionMenu from './MessageActionMenu.svelte';
   import type { MessageActionModel } from './messageActionModel';
 

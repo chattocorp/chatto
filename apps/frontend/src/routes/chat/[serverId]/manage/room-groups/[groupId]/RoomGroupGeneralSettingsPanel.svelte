@@ -1,7 +1,7 @@
 <script lang="ts">
   import { DraftField } from '$lib/components/settings/DraftField.svelte';
   import type { AdminRoomGroup } from '$lib/api-client/adminRoomLayout';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel } from '$lib/ui';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import { m } from '$lib/i18n/messages';

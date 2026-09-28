@@ -10,14 +10,14 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
   import { m } from '$lib/i18n/messages';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
-  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import {
+    ContextMenu,
+    MenuItem,
+    MenuSection,
     contextMenuTrigger,
     type ContextMenuTriggerDetails
-  } from '$lib/ui/contextMenuTrigger.svelte';
+  } from '$lib/ui';
+  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { hardRedirectAfterSignOut } from '$lib/auth/signOut';

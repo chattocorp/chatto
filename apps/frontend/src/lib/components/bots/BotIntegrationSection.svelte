@@ -1,7 +1,6 @@
 <script lang="ts" generics="Item extends { id: string }">
   import type { Snippet } from 'svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { Panel, LoadingFog } from '$lib/ui';
 
   let {
     title,

@@ -12,12 +12,8 @@
     type AdminEventLogEntry,
     type AdminEventLogFilter
   } from '$lib/api-client/adminEventLog';
-  import Panel from '$lib/ui/Panel.svelte';
-  import DataTable from '$lib/ui/DataTable.svelte';
+  import { Panel, DataTable, Hint, PaneContent, Pill, PaneHeader, PageTitle } from '$lib/ui';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
-  import { Hint, PaneContent, Pill } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Combobox } from '$lib/ui/form';
   import {
     formatDateTime as formatDateTimeUtil,

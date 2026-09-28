@@ -5,12 +5,8 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
-  import Panel from '$lib/ui/Panel.svelte';
-  import JsonCode from '$lib/ui/JsonCode.svelte';
-  import { Hint, PaneContent, Pill } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Panel, Hint, PaneContent, Pill, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
+  import { JsonCode } from '$lib/ui/code';
   import {
     formatDateTime as formatDateTimeUtil,
     timeFormatSettingsFor

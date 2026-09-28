@@ -6,7 +6,7 @@
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 

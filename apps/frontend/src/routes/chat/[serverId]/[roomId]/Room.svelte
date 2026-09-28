@@ -27,10 +27,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
+  import { LoadingFog, PageTitle, PaneHeader, HeaderIconButton } from '$lib/ui';
   import { tick } from 'svelte';
   import ConversationPane from './ConversationPane.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';

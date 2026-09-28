@@ -5,7 +5,7 @@
   import { m } from '$lib/i18n/messages';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { expoOutTransition } from '$lib/ui/motion';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
 
   let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
   let roomSidebarLoadAttempt = $state(0);

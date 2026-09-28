@@ -1,9 +1,8 @@
 <script lang="ts">
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
-  import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
 
   const activeLocale = $derived(getLocale());
   const languageOptions = $derived(

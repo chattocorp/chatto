@@ -18,7 +18,7 @@ URL refresh results cannot start a preview or download after this opening ends.
   import { attachmentDownloadUrl } from '$lib/attachments/attachmentDownloadUrl';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
-  import HtmlAttachmentModal from '$lib/ui/HtmlAttachmentModal.svelte';
+  import { HtmlAttachmentModal } from '$lib/ui/attachments';
 
   let { modal, onclose }: { modal: HtmlViewerModalState; onclose: () => void } = $props();
 

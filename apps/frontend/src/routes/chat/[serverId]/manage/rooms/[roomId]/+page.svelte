@@ -11,11 +11,7 @@
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { useProjectionEvent } from '$lib/hooks';
   import { Button } from '$lib/ui/form';
-  import AccessDenied from '$lib/ui/AccessDenied.svelte';
-  import { EmptyState, PaneContent } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import Hint from '$lib/ui/Hint.svelte';
+  import { AccessDenied, EmptyState, PaneContent, PaneHeader, PageTitle, Hint } from '$lib/ui';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';

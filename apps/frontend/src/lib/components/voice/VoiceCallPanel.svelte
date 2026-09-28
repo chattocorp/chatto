@@ -16,10 +16,7 @@ Room sidebar panel for voice/video calls.
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '$lib/render/accountName';
-  import UserCard from '$lib/ui/UserCard.svelte';
-  import WipeReveal from '$lib/ui/WipeReveal.svelte';
-  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
-  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
+  import { UserCard, WipeReveal, CompactActionButton, PillButtonGroup } from '$lib/ui';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';

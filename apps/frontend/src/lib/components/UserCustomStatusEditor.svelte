@@ -1,9 +1,8 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import { ContextMenu, FormDialog } from '$lib/ui';
   import { Button, Select, TextInput } from '$lib/ui/form';
-  import { FormDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
     deleteCustomStatus as deleteCustomStatusViaAPI,

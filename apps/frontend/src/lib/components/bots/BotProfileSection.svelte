@@ -15,9 +15,8 @@ username field while the cooldown runs.
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { m } from '$lib/i18n/messages';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ConfirmDialog } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
-  import { ConfirmDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
     formatCooldownRemaining,

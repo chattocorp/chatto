@@ -8,8 +8,7 @@
   import type { ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
+  import { PaneHeader, HeaderIconButton } from '$lib/ui';
   import { expoOutTransition } from '$lib/ui/motion';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import ConversationPane from './ConversationPane.svelte';

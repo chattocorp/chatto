@@ -1,6 +1,6 @@
 <script lang="ts">
   import CallDeviceSettings from '$lib/components/settings/CallDeviceSettings.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PageTitle } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   const scope = useServerScope();

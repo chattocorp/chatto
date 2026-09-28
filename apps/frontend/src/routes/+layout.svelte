@@ -23,8 +23,7 @@
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import ServerRuntimeCoordinator from '$lib/state/server/ServerRuntimeCoordinator.svelte';
   import { ToastContainer } from '$lib/ui/toast';
-  import AppHeader from '$lib/ui/AppHeader.svelte';
-  import Frame from '$lib/ui/Frame.svelte';
+  import { AppHeader, Frame } from '$lib/ui';
   import '../app.css';
 
   let { data, children } = $props();

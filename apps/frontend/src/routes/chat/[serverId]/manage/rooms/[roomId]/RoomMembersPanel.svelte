@@ -9,12 +9,8 @@
   import type { DirectoryMember } from '$lib/api-client/memberDirectory';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import DataTable from '$lib/ui/DataTable.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { DataTable, LoadingFog, Panel, ConfirmDialog, Hint } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { ConfirmDialog } from '$lib/ui';
-  import Hint from '$lib/ui/Hint.svelte';
   import { Button, Combobox } from '$lib/ui/form';
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';

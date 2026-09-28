@@ -4,7 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { NotificationAttentionLevel } from '$lib/api-client/notifications';
-  import UnreadDot from '$lib/ui/UnreadDot.svelte';
+  import { UnreadDot } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let { active }: { active: boolean } = $props();

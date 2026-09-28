@@ -27,11 +27,8 @@
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import MemberDangerZone from './MemberDangerZone.svelte';
   import MemberIdentitySettings from './MemberIdentitySettings.svelte';
   import MemberOverviewPanel from './MemberOverviewPanel.svelte';

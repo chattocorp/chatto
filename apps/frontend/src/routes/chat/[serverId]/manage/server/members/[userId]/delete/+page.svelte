@@ -14,9 +14,7 @@
   import { queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Hint, PaneContent, PageTitle } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import { Hint, PaneContent, PageTitle, LoadingFog, PaneHeader } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import MemberDeleteForm from './MemberDeleteForm.svelte';
 

@@ -4,8 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { PageTitle, LoadingFog } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 

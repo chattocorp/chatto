@@ -15,9 +15,8 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState } from '$lib/ui';
+  import { ConfirmDialog, EmptyState, Panel } from '$lib/ui';
   import { TextInput } from '$lib/ui/form';
-  import Panel from '$lib/ui/Panel.svelte';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
   let {

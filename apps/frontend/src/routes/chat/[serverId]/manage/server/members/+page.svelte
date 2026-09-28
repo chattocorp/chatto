@@ -4,13 +4,9 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
-  import Panel from '$lib/ui/Panel.svelte';
-  import DataTable from '$lib/ui/DataTable.svelte';
+  import { Panel, DataTable, Hint, PaneContent, Pill, PaneHeader, PageTitle } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { Hint, PaneContent, Pill } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDate as formatDateUtil, timeFormatSettingsFor } from '$lib/utils/formatTime';

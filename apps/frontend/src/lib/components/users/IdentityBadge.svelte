@@ -1,6 +1,6 @@
 <!-- @component Displays a compact account identity marker beside a name. -->
 <script lang="ts">
-  import Pill from '$lib/ui/Pill.svelte';
+  import { Pill } from '$lib/ui';
 
   let {
     label,

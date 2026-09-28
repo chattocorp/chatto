@@ -12,9 +12,7 @@
   import { completeServerOAuthFlow } from '$lib/auth/reauth';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
-  import LoadingPage from '$lib/ui/LoadingPage.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { EmptyState, LoadingPage, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
   let status = $state<'loading' | 'error'>('loading');

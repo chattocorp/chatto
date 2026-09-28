@@ -6,9 +6,7 @@
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
-  import Divider from '$lib/ui/Divider.svelte';
-  import Hint from '$lib/ui/Hint.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Divider, Hint, PageTitle } from '$lib/ui';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
   let { data } = $props();

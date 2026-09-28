@@ -18,8 +18,7 @@ One renderer can serve a complete list without one menu instance per row.
   import type { ComponentProps } from 'svelte';
   import type UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { UserMenuState } from './UserMenuState.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { ContextMenu, LoadingFog } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   type MenuProps = ComponentProps<typeof UserContextMenu>;

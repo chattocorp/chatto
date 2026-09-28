@@ -4,8 +4,7 @@
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
-  import Hint from '$lib/ui/Hint.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Hint, PageTitle } from '$lib/ui';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
   let { data } = $props();

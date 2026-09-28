@@ -1,14 +1,12 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import type { AdminMember, AdminRoleDetails } from '$lib/api-client/adminUsers';
-  import { CopyId } from '$lib/ui';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { CopyId, Panel, Pill } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
-  import { Pill } from '$lib/ui';
   import { formatDate, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { formatCooldownRemaining, getLoginChangeCooldownRemaining } from '$lib/validation';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';

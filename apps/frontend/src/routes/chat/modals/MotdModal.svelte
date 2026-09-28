@@ -1,8 +1,7 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { Dialog } from '$lib/ui';
-  import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
-  import Button from '$lib/ui/form/Button.svelte';
+  import { Dialog, MarkdownHtml } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
 
   let { motd, onclose }: { motd: string; onclose: () => void } = $props();
   let visible = $state(true);

@@ -6,9 +6,7 @@
   import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
-  import Hint from '$lib/ui/Hint.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Hint, LoadingFog, PageTitle } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { onMount } from 'svelte';
 

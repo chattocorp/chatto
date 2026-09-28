@@ -1,9 +1,7 @@
 <script lang="ts">
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ChoiceRow, FormSection, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ChoiceRow, FormSection, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
-  import RangeField from '$lib/ui/form/RangeField.svelte';
+  import { Button, RangeField } from '$lib/ui/form';
   import NotificationPolicySettings from '$lib/components/settings/NotificationPolicySettings.svelte';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import {
