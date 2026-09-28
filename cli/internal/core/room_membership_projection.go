@@ -23,10 +23,10 @@ import (
 // queries compose this index with RoomModel's projected room catalog.
 //
 // DM membership is fixed at creation, so UserLeftRoom does not remove a DM
-// member. LeaveRoom rejects DMs; older account deletions wrote DM leave events,
-// and ignoring them keeps deleted participants in their conversations. The
-// DM check needs the room kind, which RoomDirectoryProjection supplies through
-// roomKind.
+// member. LeaveRoom rejects DMs; account deletion still records DM leave facts
+// to end the account's call participation, and ignoring them keeps deleted
+// participants in their conversations. The DM check needs the room kind, which
+// RoomDirectoryProjection supplies through roomKind.
 type RoomMembershipProjection struct {
 	events.MemoryProjection
 	// byRoom: room ID → set of user IDs in that room.

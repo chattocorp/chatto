@@ -129,6 +129,10 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		}
 	}
 
+	// Post-ADR-030 there are two implicit scopes — channel and DM — and
+	// cleanup iterates each kind.
+	allKinds := []RoomKind{KindChannel, KindDM}
+
 	// Delete encryption key (crypto-shreds any remaining encrypted data) and
 	// record the durable shred signal projections use to tombstone messages
 	// before decrypting.
@@ -201,12 +205,12 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.credentialUsage.ForgetAll(ctx, userID)
 	}
 
-	// Leave channel rooms after the user projection marks the account deleted.
-	// DM membership is fixed at creation: the deleted account stays a DM
-	// participant, so the other participants keep a conversation with a
-	// deleted user instead of an apparent self-DM (FDR-007).
-	if err := c.CleanupUserState(ctx, userID, KindChannel); err != nil {
-		c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", KindChannel, "error", err)
+	// Clean per-kind user artifacts after the user projection marks the
+	// account deleted.
+	for _, kind := range allKinds {
+		if err := c.CleanupUserState(ctx, userID, kind); err != nil {
+			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", kind, "error", err)
+		}
 	}
 
 	// Revoke all role assignments (server-wide, no per-space loop needed).

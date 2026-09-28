@@ -140,10 +140,11 @@ realtime events.
 
 ### 9. Deleted accounts stay DM participants
 
-**Decision:** Account deletion does not remove DM memberships. The room
-directory ignores `UserLeftRoom` for DM rooms, so DM leave facts that older
-account deletions wrote do not remove participants either. DM participant IDs
-include deleted accounts. The realtime snapshot sends deleted participants as
+**Decision:** A deleted account stays a DM participant. The room directory
+ignores `UserLeftRoom` for DM rooms. Account deletion still records DM leave
+facts, which end the account's DM call participation, but they do not remove
+the participant, in current or replayed state. DM participant IDs include
+deleted accounts. The realtime snapshot sends deleted participants as
 deleted-user tombstones, and followed-thread and search includes resolve them
 to deleted users.
 **Why:** DM membership is fixed at creation (Decision 4), and `LeaveRoom`
