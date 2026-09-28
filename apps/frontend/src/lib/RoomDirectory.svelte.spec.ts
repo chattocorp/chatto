@@ -187,7 +187,7 @@ describe('RoomDirectory', () => {
     ) as HTMLButtonElement;
     const visibleLabel = () =>
       [...button.querySelectorAll('span:not([aria-hidden]):not(:has(span))')]
-        .filter((label) => getComputedStyle(label).display !== 'none')
+        .filter((label) => getComputedStyle(label).visibility === 'visible')
         .map((label) => label.textContent?.trim());
 
     expect(visibleLabel()).toEqual(['Joined']);

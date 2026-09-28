@@ -176,8 +176,9 @@ store owns only optimistic join/leave state.
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
   <!--
-    Every status control shares one w-28 column, so Join, Joined, and the
-    Universal and Restricted labels line up. Joined rests as a quiet
+    Every status control uses a column of at least w-28, so Join, Joined, and
+    the Universal and Restricted labels line up; longer translations widen the
+    column instead of overflowing it. Joined rests as a quiet
     danger-ghost button, so the eye goes to the Join buttons; hover and focus
     reveal the Leave action.
   -->
@@ -209,7 +210,7 @@ store owns only optimistic join/leave state.
       </div>
     {/if}
 
-    <div class="flex w-28 shrink-0 items-center justify-center gap-1">
+    <div class="flex min-w-28 shrink-0 items-center justify-center gap-1">
       {#if joined && room.isUniversal}
         <Pill tone="action">
           <span aria-hidden="true" class="iconify icon-[uil--globe]"></span>
@@ -230,20 +231,22 @@ store owns only optimistic join/leave state.
             {#if leaving}
               {m('room.directory.leaving')}
             {:else}
-              <span
-                aria-hidden="true"
-                class="iconify icon-[uil--check] group-focus-within/leave:hidden group-hover/leave:hidden"
-              ></span>
-              <span
-                aria-hidden="true"
-                class="iconify icon-[uil--sign-out-alt] hidden group-focus-within/leave:inline group-hover/leave:inline rtl:-scale-x-100"
-              ></span>
-              <span class="group-focus-within/leave:hidden group-hover/leave:hidden"
-                >{m('room.directory.joined')}</span
-              >
-              <span class="hidden group-focus-within/leave:inline group-hover/leave:inline"
-                >{m('room.directory.leave')}</span
-              >
+              <!-- Both states share one grid cell, so the swap does not change the width. -->
+              <span class="grid justify-items-center">
+                <span
+                  class="col-start-1 row-start-1 inline-flex items-center gap-2 group-focus-within/leave:invisible group-hover/leave:invisible"
+                >
+                  <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
+                  <span>{m('room.directory.joined')}</span>
+                </span>
+                <span
+                  class="invisible col-start-1 row-start-1 inline-flex items-center gap-2 group-focus-within/leave:visible group-hover/leave:visible"
+                >
+                  <span aria-hidden="true" class="iconify icon-[uil--sign-out-alt] rtl:-scale-x-100"
+                  ></span>
+                  <span>{m('room.directory.leave')}</span>
+                </span>
+              </span>
             {/if}
           </Button>
         </div>
@@ -280,8 +283,8 @@ store owns only optimistic join/leave state.
     <Panel title={set.name} noPadding>
       {#snippet actions()}
         {#if canJoinAll || joining}
-          <!-- Shares the row status column width, so it lines up with Join and Joined. -->
-          <div class="w-28 shrink-0">
+          <!-- Shares the row status column's minimum width, so it lines up with Join and Joined. -->
+          <div class="min-w-28 shrink-0">
             <Button
               size="sm"
               fullWidth
