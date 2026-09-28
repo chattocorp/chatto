@@ -69,7 +69,13 @@ export const queryClient = new QueryClient({
 
 type CreateFunction = (options: never, client?: Accessor<QueryClient>) => unknown;
 
-/** Bind a TanStack `create*` function to the shared client, keeping its types. */
+/**
+ * Bind a TanStack `create*` function to the shared client, keeping its types.
+ *
+ * This replaces a `QueryClientProvider` in a layout. Measured on 2026-09-28, a
+ * provider in the `/chat` layout loads TanStack with every chat page and adds
+ * about 11 KiB gzip to the overview and room routes, which do not use queries.
+ */
 function withSharedClient<F extends CreateFunction>(create: F): F {
   const bound: CreateFunction = (options, client) => create(options, client ?? (() => queryClient));
   return bound as F;
