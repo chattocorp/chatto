@@ -620,6 +620,12 @@
         "history": "Nedávná selhání",
         "no_failures": "Žádná uchovaná selhání.",
         "more_failures": "Načíst další"
+      },
+      "tabs": {
+        "label": "Sekce bota",
+        "overview": "Přehled",
+        "integrations": "Integrace",
+        "permissions": "Oprávnění"
       }
     }
   }

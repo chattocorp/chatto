@@ -620,6 +620,12 @@
         "history": "Senaste fel",
         "no_failures": "Inga sparade fel.",
         "more_failures": "Läs in fler"
+      },
+      "tabs": {
+        "label": "Avsnitt för boten",
+        "overview": "Översikt",
+        "integrations": "Integrationer",
+        "permissions": "Behörigheter"
       }
     }
   }

@@ -620,6 +620,12 @@
         "history": "Nylige feil",
         "no_failures": "Ingen lagrede feil.",
         "more_failures": "Last inn flere"
+      },
+      "tabs": {
+        "label": "Seksjoner for boten",
+        "overview": "Oversikt",
+        "integrations": "Integrasjoner",
+        "permissions": "Tillatelser"
       }
     }
   }

@@ -620,6 +620,12 @@
         "history": "Nesenās kļūmes",
         "no_failures": "Nav saglabātu kļūmju.",
         "more_failures": "Ielādēt vairāk"
+      },
+      "tabs": {
+        "label": "Bota sadaļas",
+        "overview": "Pārskats",
+        "integrations": "Integrācijas",
+        "permissions": "Atļaujas"
       }
     }
   }

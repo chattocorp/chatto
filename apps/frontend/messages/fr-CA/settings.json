@@ -620,6 +620,12 @@
         "history": "Échecs récents",
         "no_failures": "Aucun échec conservé.",
         "more_failures": "Charger plus"
+      },
+      "tabs": {
+        "label": "Sections du bot",
+        "overview": "Aperçu",
+        "integrations": "Intégrations",
+        "permissions": "Autorisations"
       }
     }
   }

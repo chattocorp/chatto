@@ -620,6 +620,12 @@
         "history": "Errori recenti",
         "no_failures": "Nessun errore conservato.",
         "more_failures": "Carica altri"
+      },
+      "tabs": {
+        "label": "Sezioni del bot",
+        "overview": "Panoramica",
+        "integrations": "Integrazioni",
+        "permissions": "Autorizzazioni"
       }
     }
   }

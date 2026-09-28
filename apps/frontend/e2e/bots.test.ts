@@ -150,6 +150,17 @@ async function getRoomAsBot(
   return callAsBot(serverURL, apiKey, 'chatto.api.v1.RoomDirectoryService/GetRoom', { roomId });
 }
 
+async function openBotSection(
+  page: Page,
+  section: 'Overview' | 'Integrations' | 'Permissions'
+): Promise<void> {
+  const tab = page
+    .getByRole('navigation', { name: 'Bot sections' })
+    .getByRole('link', { name: section, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-current', 'page');
+}
+
 async function createHumanOwner(
   page: Page,
   suffix: string
@@ -185,7 +196,7 @@ test.describe('Bot account lifecycle', () => {
       { login: `mode_${Date.now()}_bot`, displayName: 'Mode Test Bot' }
     );
     await connectPost(page, 'chatto.api.v1.ViewerService/DeactivatePrivilegedMode');
-    await page.goto(`${routes.serverAdminBots}/${created.bot.user.id}`);
+    await page.goto(`${routes.serverAdminBots}/${created.bot.user.id}/permissions`);
     await expect(page.getByRole('button', { name: 'Enable privileged mode' })).toBeVisible();
     const join = page.getByRole('button', { name: `Add account to #${roomName}`, exact: true });
     const post = page.locator('td[data-scope="server"][data-permission="message.post"] button');
@@ -294,6 +305,7 @@ test.describe('Bot account lifecycle', () => {
       code: 'permission_denied'
     });
 
+    await openBotSection(page, 'Permissions');
     const permissionFilter = page.getByTestId('permission-filter');
     await expect(permissionFilter).toBeVisible();
     await permissionFilter.fill('room.list');
@@ -312,6 +324,7 @@ test.describe('Bot account lifecycle', () => {
 
     await expect(getRoomAsBot(serverURL, originalKey, roomId)).resolves.toEqual({ status: 200 });
 
+    await openBotSection(page, 'Integrations');
     await page.getByRole('button', { name: 'Create API key', exact: true }).click();
     const createKeyDialog = page.getByRole('dialog', { name: 'Create API key' });
     await createKeyDialog.getByRole('textbox', { name: 'Key name' }).fill('Backup');
@@ -334,6 +347,7 @@ test.describe('Bot account lifecycle', () => {
     });
     await expect(getRoomAsBot(serverURL, backupKey, roomId)).resolves.toEqual({ status: 200 });
 
+    await openBotSection(page, 'Permissions');
     await permissionFilter.fill('message.post');
     const disabledMessagePost = page.getByRole('button', {
       name: 'message.post is Disabled for bot at Server',
@@ -348,6 +362,7 @@ test.describe('Bot account lifecycle', () => {
       })
     ).toBeVisible();
 
+    await openBotSection(page, 'Integrations');
     await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const createWebhookDialog = page.getByRole('dialog', { name: 'Create Webhook' });
     await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Production');
@@ -449,6 +464,7 @@ test.describe('Bot account lifecycle', () => {
       })
     ).resolves.toEqual({ status: 200 });
 
+    await openBotSection(page, 'Overview');
     await page.getByRole('button', { name: 'Reassign owner', exact: true }).click();
     const reassignDialog = page.getByRole('dialog', { name: 'Reassign owner' });
     await reassignDialog.getByRole('combobox', { name: 'Owner' }).fill(newOwner.login);

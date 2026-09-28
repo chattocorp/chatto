@@ -620,6 +620,12 @@
         "history": "Recente fouten",
         "no_failures": "Geen bewaarde fouten.",
         "more_failures": "Meer laden"
+      },
+      "tabs": {
+        "label": "Onderdelen van de bot",
+        "overview": "Overzicht",
+        "integrations": "Integraties",
+        "permissions": "Rechten"
       }
     }
   }

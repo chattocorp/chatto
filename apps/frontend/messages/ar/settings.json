@@ -620,6 +620,12 @@
         "history": "الإخفاقات الأخيرة",
         "no_failures": "لا توجد إخفاقات محفوظة.",
         "more_failures": "تحميل المزيد"
+      },
+      "tabs": {
+        "label": "أقسام البوت",
+        "overview": "نظرة عامة",
+        "integrations": "التكاملات",
+        "permissions": "الأذونات"
       }
     }
   }
