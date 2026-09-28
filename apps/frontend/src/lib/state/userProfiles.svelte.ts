@@ -1,12 +1,12 @@
 import { createContext } from 'svelte';
 import type { UserStore } from './server/users.svelte';
-import { mapUserSummary, mapUserPresenceView } from '$lib/api-client/userSummary';
+import {
+  mapUserSummary,
+  mapUserPresenceView,
+  type CustomUserStatus
+} from '$lib/api-client/userSummary';
 
-export type CustomUserStatus = {
-  emoji: string;
-  text: string;
-  expiresAt?: string | null;
-};
+export type { CustomUserStatus };
 
 type ProfileView = {
   displayName?: string;

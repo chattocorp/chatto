@@ -1,11 +1,6 @@
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { CustomUserStatus } from '$lib/api-client/userSummary';
 import { formatAccountName } from './accountName';
-
-export type CustomUserStatusView = {
-  emoji: string;
-  text: string;
-  expiresAt?: string | null;
-};
 
 /**
  * The narrow user shape shared by avatar-bearing chat surfaces.
@@ -14,13 +9,13 @@ export type UserAvatarUserView = {
   id: string;
   login: string;
   displayName: string;
-  deleted: boolean;
+  deleted?: boolean;
   isBot?: boolean;
   /** Public human owner of an active bot; absent for other accounts. */
   bot?: { ownerUserId: string };
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
-  customStatus?: CustomUserStatusView | null;
+  customStatus?: CustomUserStatus | null;
 };
 
 type DirectMessageParticipant = Pick<

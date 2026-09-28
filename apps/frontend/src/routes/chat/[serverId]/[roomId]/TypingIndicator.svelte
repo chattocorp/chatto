@@ -31,7 +31,6 @@ message list layout, and it announces changes politely to screen readers via a
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
   import type { UserStore } from '$lib/state/server/users.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
 
@@ -43,13 +42,12 @@ message list layout, and it announces changes politely to screen readers via a
     typingUserIds: string[];
     members: RoomMember[];
     /** Shared profiles can name a typer before room membership finishes loading. */
-    profiles?: Pick<UserStore, 'get' | 'isDeleted'>;
+    profiles?: Pick<UserStore, 'view' | 'isDeleted'>;
   } = $props();
 
   function resolveMember(id: string): RoomMember | undefined {
     if (profiles?.isDeleted(id)) return undefined;
-    const profile = profiles?.get(id);
-    return profile ? mapDirectoryMember(profile) : members.find((member) => member.id === id);
+    return profiles?.view(id) ?? members.find((member) => member.id === id);
   }
 
   // Resolve user IDs to members (for avatar URLs and display names), keeping

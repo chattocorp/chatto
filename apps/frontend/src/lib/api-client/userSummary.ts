@@ -58,14 +58,17 @@ export function mapOptionalUserSummary(user: APIUser | undefined): UserSummary |
   return user ? mapUserSummary(user) : null;
 }
 
+/** A user's custom status. `expiresAt` is an ISO timestamp; absent or `null` means no expiry. */
+export type CustomUserStatus = {
+  emoji: string;
+  text: string;
+  expiresAt?: string | null;
+};
+
 /** Live-presence view of one user: normalized presence plus custom status. */
 export type UserPresenceView = {
   presenceStatus: PresenceStatus;
-  customStatus: {
-    emoji: string;
-    text: string;
-    expiresAt: string | null;
-  } | null;
+  customStatus: CustomUserStatus | null;
 };
 
 /**

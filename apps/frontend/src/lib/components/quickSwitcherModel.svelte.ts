@@ -11,7 +11,6 @@ import {
   type MessageSearchResult
 } from '$lib/api-client/messageSearch';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { startDMWith } from '$lib/dm/startDM';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
@@ -26,10 +25,8 @@ import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<
   UserAvatarUserView,
-  'id' | 'login' | 'displayName' | 'deleted' | 'isBot' | 'presenceStatus'
-> & {
-  avatarUrl?: string | null;
-};
+  'id' | 'login' | 'displayName' | 'deleted' | 'isBot' | 'presenceStatus' | 'avatarUrl'
+>;
 
 type ServerLogo = { name: string; logoUrl?: string | null };
 
@@ -355,7 +352,7 @@ export class QuickSwitcherModel {
       for (const room of store?.navigation.rooms ?? []) {
         if (room.type === RoomKind.DM) {
           if (!isNavigationVisibleRoom(room)) continue;
-          const participants = room.members.map(avatarUser);
+          const participants = room.members;
           const presentation = buildDirectMessagePresentation(
             participants,
             currentUserId,
@@ -407,10 +404,9 @@ export class QuickSwitcherModel {
         store.realtimeSync.hasUsableProjection &&
         store.permissions.canStartDMs
       ) {
-        for (const member of store.projection.users.values()) {
-          if (!member.user?.id || member.user.deleted || directMessageUserIds.has(member.user.id))
-            continue;
-          const user = avatarUser(mapDirectoryMember(member));
+        for (const id of store.projection.users.keys()) {
+          const user = store.projection.users.view(id);
+          if (!user?.id || user.deleted || directMessageUserIds.has(user.id)) continue;
           items.push({
             kind: 'user',
             id: user.id,
@@ -549,18 +545,6 @@ export class QuickSwitcherModel {
     const url = this.#itemUrl(item);
     return url !== undefined && recentQuickSwitcher.urls.includes(url);
   }
-}
-
-function avatarUser(user: QuickSwitcherAvatarUser): QuickSwitcherAvatarUser {
-  return {
-    id: user.id,
-    login: user.login,
-    displayName: user.displayName,
-    deleted: user.deleted,
-    isBot: user.isBot,
-    presenceStatus: user.presenceStatus,
-    avatarUrl: user.avatarUrl ?? null
-  };
 }
 
 function getHostname(url: string): string {

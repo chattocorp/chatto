@@ -1,7 +1,6 @@
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
 import { mapDirectoryRoom, mapRoomGroup } from '$lib/api-client/roomDirectory';
-import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import type { UserAvatarUserView } from '$lib/render/users';
 import type { ServerProjectionStore } from './projection.svelte';
 import { SvelteSet } from 'svelte/reactivity';
@@ -64,27 +63,6 @@ export type RoomsListGroupItem =
       link: SidebarLinkListItem;
     };
 
-export function avatarUserFromDirectoryMember(
-  member: ReturnType<typeof mapDirectoryMember>
-): UserAvatarUserView {
-  return {
-    id: member.id,
-    login: member.login,
-    displayName: member.displayName,
-    deleted: member.deleted,
-    isBot: member.isBot,
-    avatarUrl: member.avatarUrl,
-    presenceStatus: member.presenceStatus,
-    customStatus: member.customStatus
-      ? {
-          emoji: member.customStatus.emoji,
-          text: member.customStatus.text,
-          expiresAt: member.customStatus.expiresAt
-        }
-      : null
-  };
-}
-
 /**
  * Read-only navigation over the retained server projection.
  *
@@ -106,10 +84,9 @@ export class NavigationStore {
     const live = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived) return [];
-      const members = entry.memberUserIds.flatMap((userId) => {
-        const member = this.projection.users.get(userId);
-        return member ? [avatarUserFromDirectoryMember(mapDirectoryMember(member))] : [];
-      });
+      const members = entry.memberUserIds.flatMap(
+        (userId) => this.projection.users.view(userId) ?? []
+      );
       const viewerNotificationCount = this.notificationCounts.roomUnreadCounts[room.id] ?? 0;
       const viewerImportantNotificationCount =
         this.notificationCounts.roomImportantUnreadCounts[room.id] ?? 0;

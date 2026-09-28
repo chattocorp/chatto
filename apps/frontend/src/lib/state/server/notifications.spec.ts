@@ -104,7 +104,8 @@ const mention = (id: string): NotificationOccurrenceItem => ({
     displayName: 'Tester',
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.OFFLINE
+    presenceStatus: PresenceStatus.OFFLINE,
+    customStatus: null
   },
   room: { id: 'r1', name: 'general' },
   eventId: 'evt',

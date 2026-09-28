@@ -307,7 +307,9 @@ Do not generate playground links for code written into this repository.
 
 - When adapting canonical users or members for avatar-bearing UI, preserve
   identity fields such as `isBot`; prefer the shared `UserAvatar` and
-  `UserAvatarUserView` shapes over surface-local copies.
+  `UserAvatarUserView` shapes over surface-local copies. Read a server's user
+  profiles through `UserStore.view(id)`, which converts each stored profile once
+  and shares the result; do not map or copy stored profiles per render.
 
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Scope private query

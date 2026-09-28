@@ -15,8 +15,6 @@
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { UserAvatarUserView } from '$lib/render/users';
-  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
-  import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
   const serverScope = useServerScope();
   const stores = serverScope.store;
@@ -104,10 +102,7 @@
   );
   const actor = $derived.by(() => {
     if (deletedActor) return null;
-    const current = actorId ? users.get(actorId) : undefined;
-    return current
-      ? avatarUserFromDirectoryMember(mapDirectoryMember(current))
-      : (event?.actor ?? null);
+    return (actorId ? users.view(actorId) : undefined) ?? event?.actor ?? null;
   });
   const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
 
