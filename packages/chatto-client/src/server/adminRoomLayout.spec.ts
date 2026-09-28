@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { flushSync } from 'svelte';
+import { effect } from '../reactivity/index.js';
 import type { AdminRoomLayoutAPI } from '../api/adminRoomLayout.js';
 import type { RoomCommandAPI } from '../api/rooms.js';
 import { RoomThreadingMode } from '../util/roomThreading.js';
@@ -95,7 +95,6 @@ function roomAPI(
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
-  flushSync();
 }
 
 describe('admin room layout diff helpers', () => {
@@ -290,8 +289,14 @@ describe('AdminRoomLayoutStore — mutations', () => {
     expect(store.groups[0]?.canCreateRoom).toBe(true);
     expect(store.groups.map((g) => g.name)).toEqual(['Projects']);
 
+    const observedNames: string[][] = [];
+    const stopObserving = effect(() => {
+      observedNames.push(store.groups.map((g) => g.name));
+    });
     await expect(store.renameGroup('g2', 'Renamed')).resolves.toEqual({ ok: true });
     expect(store.groups.map((g) => g.name)).toEqual(['Renamed']);
+    expect(observedNames.at(-1)).toEqual(['Renamed']);
+    stopObserving();
 
     await expect(store.deleteGroup('g2')).resolves.toEqual({ ok: true });
     expect(store.groups).toEqual([]);

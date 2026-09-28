@@ -151,6 +151,10 @@ function roomTimelineFromServerConnection(serverConnection: ServerConnection): R
  */
 export class MessagesStore {
   readonly #eventsSignal = signal<TimelineEventView[]>([]);
+  /**
+   * The loaded rows in display order. Observers track the array reference:
+   * every change assigns a new array, and rows are never mutated in place.
+   */
   get events(): TimelineEventView[] {
     return this.#eventsSignal.get();
   }
@@ -374,7 +378,7 @@ export class MessagesStore {
       if (index >= 0) {
         if (eventFingerprint(this.events[index]) !== before.get(id)) return;
         this.clearOptimisticVersionForEvent(id);
-        this.events[index] = hydrated;
+        this.events = this.events.with(index, hydrated);
         this.sortEvents();
       } else if (insert) this.ingestEvent(hydrated);
       const preview = this.previewEvents.get(id);
@@ -401,7 +405,7 @@ export class MessagesStore {
       registry: this.optimisticReactions,
       setEvent: (eventId, event) => {
         const index = this.events.findIndex((candidate) => candidate.id === eventId);
-        if (index !== -1) this.events[index] = event;
+        if (index !== -1) this.events = this.events.with(index, event);
       },
       setPreview: (key, event) => {
         this.previewEvents.set(key, event);
@@ -425,7 +429,7 @@ export class MessagesStore {
       registry: this.optimisticThreadFollows,
       setEvent: (eventId, event) => {
         const index = this.events.findIndex((candidate) => candidate.id === eventId);
-        if (index !== -1) this.events[index] = event;
+        if (index !== -1) this.events = this.events.with(index, event);
       }
     });
   }
@@ -440,13 +444,13 @@ export class MessagesStore {
     if (!isMessagePostedPayload(rootEvent.event)) return;
     if (rootEvent.event.viewerIsFollowingThread === isFollowing) return;
 
-    this.events[idx] = {
+    this.events = this.events.with(idx, {
       ...rootEvent,
       event: {
         ...rootEvent.event,
         viewerIsFollowingThread: isFollowing
       }
-    };
+    });
   }
 
   /** Fetch an off-window event for previews. Transient errors are not cached. */
@@ -636,7 +640,7 @@ export class MessagesStore {
       return;
     }
     this.clearOptimisticVersionForEvent(projected.id);
-    this.events[existingIndex] = projected;
+    this.events = this.events.with(existingIndex, projected);
     this.sortEvents();
   }
 
@@ -646,7 +650,7 @@ export class MessagesStore {
     const index = this.events.findIndex((event) => event.id === messageEventId);
     if (index !== -1) {
       const event = this.applyPrivacyBoundaries(this.events[index]);
-      if (event) this.events[index] = event;
+      if (event) this.events = this.events.with(index, event);
     }
     this.applyPrivacyBoundariesToPreviews();
   }
@@ -660,7 +664,7 @@ export class MessagesStore {
     this.previewEvents.delete(this.previewKey(eventId));
     const index = this.events.findIndex((event) => event.id === eventId);
     if (index === -1) return;
-    this.events.splice(index, 1);
+    this.events = this.events.toSpliced(index, 1);
     this.seenIds.delete(eventId);
   }
 
@@ -1018,7 +1022,7 @@ export class MessagesStore {
           // Replace the temporary row. Ordinary ingestion deduplicates event IDs.
           // A newer local change or resource response takes precedence over this read.
           this.clearOptimisticVersionForEvent(eventId);
-          this.events[currentIndex] = hydrated;
+          this.events = this.events.with(currentIndex, hydrated);
           this.sortEvents();
         }
       } else this.markAuthorUnavailable(eventId);
@@ -1095,7 +1099,7 @@ export class MessagesStore {
     if (!updated) return;
     this.clearOptimisticVersionForEvent(updated.id);
     const idx = this.events.findIndex((e) => e.id === eventId);
-    if (idx !== -1) this.events[idx] = updated;
+    if (idx !== -1) this.events = this.events.with(idx, updated);
   }
 
   /**
@@ -1114,7 +1118,7 @@ export class MessagesStore {
     const targetPayload = target?.event;
     if (isMessagePostedPayload(targetPayload) && targetPayload.echoOfEventId) {
       this.removedMessageEventIds.add(messageEventId);
-      this.events.splice(targetIndex, 1);
+      this.events = this.events.toSpliced(targetIndex, 1);
       this.seenIds.delete(messageEventId);
       this.previewEvents.delete(this.previewKey(messageEventId));
       return;
@@ -1128,10 +1132,10 @@ export class MessagesStore {
       if (!isMessagePostedPayload(evt)) continue;
       if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) continue;
 
-      this.events[i] = {
+      this.events = this.events.with(i, {
         ...e,
         event: { ...evt, body: null, attachments: [], linkPreview: null, deletedAt }
-      };
+      });
     }
 
     this.applyPrivacyBoundariesToPreviews();
@@ -1142,10 +1146,10 @@ export class MessagesStore {
       const e = this.events[i];
       const evt = e.event;
       if (e.id !== originalEventId || !isMessagePostedPayload(evt)) continue;
-      this.events[i] = {
+      this.events = this.events.with(i, {
         ...e,
         event: { ...evt, channelEchoEventId: echoEventId }
-      };
+      });
     }
 
     const previewKey = this.previewKey(originalEventId);
@@ -1164,10 +1168,10 @@ export class MessagesStore {
       const evt = e.event;
       if (!isMessagePostedPayload(evt)) continue;
       if (evt.channelEchoEventId !== echoEventId) continue;
-      this.events[i] = {
+      this.events = this.events.with(i, {
         ...e,
         event: { ...evt, channelEchoEventId: null }
-      };
+      });
     }
 
     for (const [key, preview] of this.previewEvents) {
@@ -1183,7 +1187,7 @@ export class MessagesStore {
   private addEvent(event: TimelineEventView, options: { sort?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
-    this.events.push(event);
+    this.events = [...this.events, event];
     if (options.sort ?? true) this.sortEvents();
     return true;
   }
@@ -1202,7 +1206,7 @@ export class MessagesStore {
     const newOnes = olderEvents.filter((e) => !this.seenIds.has(e.id));
     for (const e of newOnes) this.clearOptimisticVersionForEvent(e.id);
     for (const e of newOnes) this.seenIds.add(e.id);
-    this.events.unshift(...newOnes);
+    if (newOnes.length > 0) this.events = [...newOnes, ...this.events];
     return newOnes.length;
   }
 
@@ -1502,7 +1506,7 @@ export class MessagesStore {
         ? true
         : rootEvent.event.viewerIsFollowingThread;
 
-    this.events[rootIdx] = {
+    this.events = this.events.with(rootIdx, {
       ...rootEvent,
       event: {
         ...rootEvent.event,
@@ -1514,7 +1518,7 @@ export class MessagesStore {
             ? [...existingParticipants, spaceEvent.actor]
             : existingParticipants
       }
-    };
+    });
   }
 
   private sortEvents(): void {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { flushSync } from 'svelte';
+import { effect } from '../../reactivity/index.js';
 import type { ServerConnection } from '../../server/serverConnection.js';
 import {
   roomTimelinePageToEventConnectionPage,
@@ -49,7 +49,6 @@ async function settle() {
   for (let i = 0; i < 5; i++) {
     await Promise.resolve();
   }
-  flushSync();
 }
 
 /** Deliver a fixture through the same cursor-bound read used by live snapshot catch-up. */
@@ -4425,6 +4424,94 @@ describe('MessagesStore — thread lifecycle ownership', () => {
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r49', 'r50', 'r51', 'r52']);
     expect(store.hasReachedStart).toBe(true);
 
+    store.dispose();
+  });
+});
+
+describe('MessagesStore — reactive updates', () => {
+  /** Record the rendered rows each time an observer of `events` re-runs. */
+  function observeEvents(store: MessagesStore) {
+    const runs: string[][] = [];
+    const stop = effect(() => {
+      runs.push(
+        store.events.map((row) => {
+          const payload = row.event as { body?: string | null; viewerIsFollowingThread?: unknown };
+          return `${row.id}:${payload.body ?? '∅'}:${String(payload.viewerIsFollowingThread)}`;
+        })
+      );
+    });
+    return { runs, stop };
+  }
+
+  function roomWithMessage() {
+    const fake = new FakeQueryClient({
+      room: {
+        events: { events: [threadMessageEvent('m1')], hasOlder: true, hasNewer: false }
+      }
+    });
+    return new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timelineFromFixtures(fake)
+    );
+  }
+
+  it('notifies observers when a message becomes a tombstone', async () => {
+    const store = roomWithMessage();
+    await settle();
+    const { runs, stop } = observeEvents(store);
+    store.upsertRoomProjectionEvent(
+      'room-1',
+      deletedTimelineEvent('m1', '2026-05-27T00:00:02Z'),
+      undefined
+    );
+    expect(runs.at(-1)?.[0]).toMatch(/^m1:∅:/);
+    stop();
+    store.dispose();
+  });
+
+  it('notifies observers when the thread follow state changes', async () => {
+    const store = roomWithMessage();
+    await settle();
+    const { runs, stop } = observeEvents(store);
+    store.setThreadRootFollowState('m1', true);
+    expect(runs.at(-1)?.[0]).toMatch(/:true$/);
+    stop();
+    store.dispose();
+  });
+
+  it('notifies observers when older rows are prepended', async () => {
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('m2') as never],
+          startCursor: 'tl:2',
+          endCursor: 'tl:2',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('m1') as never],
+          startCursor: 'tl:1',
+          endCursor: 'tl:1',
+          hasOlder: false,
+          hasNewer: true
+        })
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
+    await settle();
+    const { runs, stop } = observeEvents(store);
+    await store.loadMore();
+    await settle();
+    expect(runs.at(-1)?.map((row) => row.split(':')[0])).toEqual(['m1', 'm2']);
+    stop();
     store.dispose();
   });
 });

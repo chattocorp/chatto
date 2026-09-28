@@ -431,7 +431,7 @@ export class AdminRoomLayoutStore {
       return { ok: false, error: error };
     }
 
-    this.groups[idx] = { ...this.groups[idx], name: newName };
+    this.groups = this.groups.with(idx, { ...this.groups[idx], name: newName });
     return { ok: true };
   }
 
@@ -734,7 +734,7 @@ export class AdminRoomLayoutStore {
   private setGroupItems(groupId: string, items: AdminSidebarItem[]): void {
     const idx = this.groups.findIndex((group) => group.id === groupId);
     if (idx !== -1) {
-      this.groups[idx] = normalizeGroups([{ ...this.groups[idx], items }])[0];
+      this.groups = this.groups.with(idx, normalizeGroups([{ ...this.groups[idx], items }])[0]);
     }
   }
 
