@@ -49,7 +49,9 @@ export type FollowedThreadCache = {
 
 /** Room-member snapshot operations registered by `query/roomMembers`. */
 export type RoomMemberQueryCache = {
+  /** Remove every session's member snapshots of a room the viewer lost. */
   purgeRoom(serverId: string, roomId: string): void;
+  /** Remove a deleted user from every cached member and eligible-user list. */
   scrubUser(serverId: string, userId: string): void;
 };
 
@@ -67,13 +69,16 @@ const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<ServerListener>();
 const serverQueryCacheRemovalListeners = new Set<ServerListener>();
 
+/** Reset handlers that notify each listener of a server. */
+function notify(listeners: Iterable<ServerListener>, serverId: string): (() => void)[] {
+  return [...listeners].map((listener) => () => listener(serverId));
+}
+
 /** Purge private reads and fence mutations at session or protocol recovery boundaries. */
 export function removeRegisteredServerQueries(serverId: string): boolean {
-  const listenersCleared = runResetHandlers([
-    ...[...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
-      (listener) => () => listener(serverId)
-    )
-  ]);
+  const listenersCleared = runResetHandlers(
+    notify([...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners], serverId)
+  );
   const cacheCleared = runResetHandlers([() => queryCaches.server?.remove(serverId)]);
   return listenersCleared && cacheCleared;
 }
@@ -81,9 +86,7 @@ export function removeRegisteredServerQueries(serverId: string): boolean {
 /** Fence optimistic results, then reauthorize each snapshot without replacing its observer. */
 export async function refreshRegisteredServerQueries(serverId: string): Promise<void> {
   const fenced = runResetHandlers(
-    [...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
-      (listener) => () => listener(serverId)
-    )
+    notify([...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners], serverId)
   );
   await queryCaches.server?.refresh(serverId);
   if (!fenced) throw new Error('Permission refresh could not fence every mutation');
@@ -97,7 +100,7 @@ export function removeRegisteredAdminQueries(serverId: string): void {
 
 /** Refetch mounted admin reads without discarding their stable render geometry. */
 export function refreshRegisteredAdminQueries(serverId: string): void {
-  runResetHandlers([...queryCacheRemovalListeners].map((listener) => () => listener(serverId)));
+  runResetHandlers(notify(queryCacheRemovalListeners, serverId));
   queryCaches.server?.refreshAdmin(serverId);
 }
 
