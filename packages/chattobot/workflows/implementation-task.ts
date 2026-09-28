@@ -9,6 +9,7 @@ import {
   agent,
   connectAgent,
   type AgentOptions,
+  type AgentTaskData,
   type AgentTaskUpdate,
   type RunlingAgent
 } from 'runling/agents';
@@ -91,8 +92,8 @@ export type CiResult = Static<typeof ciResult>;
 /** Edit in a new or verified retained worktree, validate, then publish through host-owned Git/gh calls.
  * After publication, the same worker stays available until CI settles: the host returns CI failures
  * and later user messages to it and pushes its validated fixes to the pull request.
- * The task communicates only with its parent: progress as `notice` updates, milestones as `state`
- * phases (see `milestoneMessage`), and its result.
+ * The task communicates only with its parent: progress and milestones as `notice` updates (a
+ * milestone has `data.milestone` and its facts), stages as `state` phases, and its result.
  * Worktrees are not a shell sandbox. Only run with trusted users on an isolated host.
  * Cancellation retains local artifacts; a push or PR already accepted remotely is not undone.
  */
@@ -357,6 +358,18 @@ export function createImplementation(
         lastUpdateAt = Date.now();
         await ctx.emit({ type: 'notice', text: message });
       };
+      /** Report a stage of the work to the parent as a notice with its facts in `data`. The
+       * parent tells the user in its own words. `description` is for the parent's model, not
+       * for the user. */
+      const reportMilestone = async (
+        milestone: string,
+        description: string,
+        facts: { [key: string]: AgentTaskData } = {}
+      ) => {
+        lastUpdateAt = Date.now();
+        await ctx.emit({ type: 'notice', text: description, data: { milestone, ...facts } });
+      };
+      let validationAnnounced = false;
       let heldProgress: string | undefined;
       let heldTimer: ReturnType<typeof setTimeout> | undefined;
       /** Drop a held update, for example when the PR link replaces it. */
@@ -492,6 +505,10 @@ export function createImplementation(
                 },
                 activity: `Rerunning ${checks.failed} failed CI jobs`
               });
+              await reportMilestone('ci_rerunning', 'The failed CI jobs are rerunning.', {
+                prUrl,
+                failedChecks: checks.failures.map((failure) => failure.name)
+              });
               toRerun.clear();
               initialDelayMs = dependencies.rerunDelayMs ?? 30_000;
               continue;
@@ -523,6 +540,16 @@ export function createImplementation(
               activity: `Repairing CI failures · attempt ${repairs}`,
               activityLevel: 'error'
             });
+            await reportMilestone(
+              'ci_failed',
+              'CI failed on the pull request. The worker is fixing the failure.',
+              {
+                prUrl,
+                attempt: repairs,
+                maxAttempts: MAX_CI_REPAIRS,
+                failedChecks: fresh.map((failure) => failure.name)
+              }
+            );
             const logs = [];
             for (const failure of fresh.slice(0, 3))
               logs.push({
@@ -545,6 +572,11 @@ export function createImplementation(
               },
               activity: 'Rerun requested after CI finishes'
             });
+            await reportMilestone(
+              'ci_rerun_pending',
+              'The worker judged the CI failure unrelated to the change, for example a flaky test or an outage. The failed jobs rerun when the current CI run finishes.',
+              { prUrl, failedChecks: fresh.map((failure) => failure.name) }
+            );
             continue;
           }
           if ((await stageTree()) === (await committedTree())) continue;
@@ -576,6 +608,13 @@ export function createImplementation(
             value: { phase: 'ci_fix_pushed', prUrl, commit: head },
             activity: 'Pushed a fix for CI'
           });
+          await reportMilestone(
+            state.ciFailure ? 'ci_fix_pushed' : 'change_pushed',
+            state.ciFailure
+              ? 'The worker pushed a fix for the CI failure to the pull request. CI is running again.'
+              : 'The worker pushed the requested follow-up changes to the pull request. CI is running again.',
+            { prUrl }
+          );
         }
       };
       try {
@@ -738,12 +777,21 @@ export function createImplementation(
               if (!state.ciFailure) return 'ready';
               feedback =
                 'CI still fails and nothing changed. Fix the failure, or call rerunFailedChecks when it is unrelated to this change.';
-            } else
+            } else {
+              // The first validation marks the change as ready, before the pull request opens.
+              if (!published && paths.length && state.proposal && !validationAnnounced) {
+                validationAnnounced = true;
+                await reportMilestone(
+                  'validating',
+                  'The change is ready. Host typecheck and lint are running before the pull request opens.'
+                );
+              }
               feedback = !paths.length
                 ? 'No source changes were produced. Implement the requested change and its regression test.'
                 : !state.proposal
                   ? 'Use preparePullRequest to record the final change summary, Conventional Commit title, and limitations.'
                   : await validate(paths);
+            }
             if (!feedback) return 'ready';
             if (repairAttempt === 2)
               return {
@@ -838,8 +886,13 @@ export function createImplementation(
               proposal.notes
             );
           head = metadata.commit!;
-          // The parent reports the PR link, which supersedes an update that is still waiting.
+          // The PR milestone supersedes a progress update that is still waiting.
           dropHeldProgress();
+          await reportMilestone(
+            'published',
+            'The pull request is open. Typecheck and lint passed, and CI is running now.',
+            { prUrl: metadata.prUrl! }
+          );
           return result('completed', proposal.summary, proposal.notes, await followCi(work));
         } finally {
           await connection.dispose();

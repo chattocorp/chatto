@@ -131,7 +131,7 @@ test('implementation is a separate opt-in tool with host-result reporting instru
       ]);
       expect(options.systemPrompt).toContain('conversational assistant');
       expect(options.instructions?.join('\n')).toContain(
-        'use only the host-provided prUrl as a Markdown link'
+        'the pull request URL exactly as result.prUrl'
       );
       expect(options.instructions?.join('\n')).not.toContain('Implementation is disabled.');
       return {

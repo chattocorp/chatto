@@ -56,6 +56,8 @@ as its permanent home. Do not add coupling that makes this move more difficult.
   development commands, and release setup.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
+- [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
+  only the supervisor talks to users, with no hardcoded user-facing text.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,

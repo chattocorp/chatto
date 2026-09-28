@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
-import { taskContext, taskNotification, userFacingTaskNotifications } from './task-context.ts';
+import {
+  notificationUrls,
+  taskContext,
+  taskNotification,
+  userFacingTaskNotifications
+} from './task-context.ts';
 
 test('new host phase supersedes an old setup announcement without changing retained history', () => {
   const task = {
@@ -79,55 +84,41 @@ test('decoded results are detached from the original retained snapshot', () => {
   expect(JSON.parse(task.result).plan.goal).toBe('Original');
 });
 
-test('answers, notices, and unposted terminal results wake the owner; posted results do not', async () => {
-  const result = (outcome: string) =>
-    JSON.stringify({ outcome, summary: 'Done.', checks: [], workerChecks: [] });
+test('answers, notices, and terminal results wake the owner; routine updates do not', async () => {
   const messages = [
     { type: 'task.progress', task: { id: 'implementation' } },
     { type: 'task.tool_failed', task: { id: 'implementation' } },
     { type: 'task.reply', task: { id: 'implementation' } },
     { type: 'task.notice', text: 'Tests pass.', task: { id: 'implementation' } },
-    { type: 'task.completed', task: { name: 'Chatto implementation', result: result('blocked') } },
-    { type: 'task.completed', task: { name: 'Chatto implementation', result: '{"odd":true}' } },
+    { type: 'task.completed', task: { name: 'Chatto implementation', result: '{}' } },
     { type: 'task.failed', task: { name: 'Chatto investigation' } }
   ];
   async function* source() {
     for (const message of messages) yield JSON.stringify(message);
   }
-  const posted: string[] = [];
   const received: unknown[] = [];
-  for await (const message of userFacingTaskNotifications(source(), {
-    postResult: async (text) => {
-      posted.push(text);
-    }
-  }))
+  for await (const message of userFacingTaskNotifications(source()))
     received.push(JSON.parse(message));
-  expect(posted).toEqual([
-    'The implementation stopped: Done. Please tell me how you want to proceed.'
-  ]);
-  // The owner does not see the posted result; an unreadable result still reaches it.
-  expect(received).toEqual([messages[2], messages[3], messages[5], messages[6]]);
+  expect(received).toEqual(messages.slice(2));
 });
 
-test('an implementation result that cannot be posted wakes the owner instead', async () => {
-  const message = {
-    type: 'task.completed',
-    task: {
-      name: 'Chatto implementation',
-      result: JSON.stringify({ outcome: 'blocked', summary: 'x', checks: [], workerChecks: [] })
-    }
-  };
-  async function* source() {
-    yield JSON.stringify(message);
-  }
-  const received: unknown[] = [];
-  for await (const notice of userFacingTaskNotifications(source(), {
-    postResult: async () => {
-      throw new Error('Chat post failed');
-    }
-  }))
-    received.push(JSON.parse(notice));
-  expect(received).toEqual([message]);
+test('only a new pull request and a final result carry URLs that the user must receive', () => {
+  const url = 'https://github.com/example/chatto/pull/7';
+  const notice = (data: object) => JSON.stringify({ type: 'task.notice', text: 'x', data });
+  expect(notificationUrls(notice({ milestone: 'published', prUrl: url }))).toEqual([url]);
+  expect(notificationUrls(notice({ milestone: 'ci_failed', prUrl: url }))).toEqual([]);
+  expect(
+    notificationUrls(
+      JSON.stringify({
+        type: 'task.completed',
+        task: { result: JSON.stringify({ outcome: 'completed', prUrl: url }) }
+      })
+    )
+  ).toEqual([url]);
+  expect(
+    notificationUrls(notice({ milestone: 'published', prUrl: 'javascript:alert(1)' }))
+  ).toEqual([]);
+  expect(notificationUrls('not json')).toEqual([]);
 });
 
 test('a notice notification carries its text for the owner', () => {
@@ -138,4 +129,16 @@ test('a notice notification carries its text for the owner', () => {
       )
     )
   ).toEqual({ type: 'task.notice', taskId: 'worker', text: 'Tests pass.' });
+  expect(
+    JSON.parse(
+      taskNotification(
+        JSON.stringify({
+          type: 'task.notice',
+          text: 'The pull request is open.',
+          data: { milestone: 'published', prUrl: 'https://github.com/example/chatto/pull/7' },
+          task: { id: 'worker' }
+        })
+      )
+    )
+  ).toMatchObject({ data: { milestone: 'published' } });
 });

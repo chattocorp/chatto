@@ -31,7 +31,12 @@ import { investigationExtension, type InvestigationSettings } from './investigat
 import { responsePolicy, systemPrompt } from './response-policy.ts';
 import { implementationExtension, type ImplementationSettings } from './implement.ts';
 import type { InvestigationPlans } from './plan.ts';
-import { taskContext, taskNotification, userFacingTaskNotifications } from './task-context.ts';
+import {
+  notificationUrls,
+  taskContext,
+  taskNotification,
+  userFacingTaskNotifications
+} from './task-context.ts';
 import { webTools, type WebSettings } from '../web.ts';
 import { researchExtension } from './research.ts';
 
@@ -95,11 +100,13 @@ export const conversation = task(
       await options.announce(text, signal);
       delegationReported = true;
     };
-    /** Post a host-written fact that a child task reported, such as a verified PR link. It is
-     * not this turn's reply, so the supervisor's own reply still posts. */
-    const postHostUpdate = async (message: string) => {
-      if (options.postUpdate) await options.postUpdate(message, ctx.signal);
-      else await ctx.emit(message);
+    // PR URLs from task notifications. The supervisor writes every message in its own words,
+    // but a URL must reach the user exactly: the host appends one that a reply leaves out.
+    const pendingUrls = new Set<string>();
+    const withPendingUrls = (text: string) => {
+      const missing = [...pendingUrls].filter((url) => !text.includes(url));
+      pendingUrls.clear();
+      return missing.length ? `${text}\n\n${missing.join('\n')}` : text;
     };
     const research = webTools(options.web).length ? options.web : undefined;
     const recentUserMessages: string[] = [];
@@ -168,7 +175,6 @@ export const conversation = task(
                 plans,
                 ownerKey,
                 onBlocked: postRefusal,
-                post: postHostUpdate,
                 requestVersion: () => requestVersion
               })
             ]
@@ -204,7 +210,7 @@ export const conversation = task(
             ]
           : []),
         options.implementation
-          ? 'Implementation is enabled through implementChatto in an isolated worktree, with host-run typecheck and lint and publication to the configured repository. The task keeps running after the PR opens: the same worker fixes CI failures and handles forwarded messages until CI finishes. The host posts milestones (validation start, the verified PR link, CI failures, reruns, and pushed fixes) and the final result. The worker’s progress arrives as task.notice notifications for you to relay. Put the user’s goal and every scope decision from the conversation into request and context in plain words, including decisions made after an earlier attempt; the worker sees nothing else. Do not add preconditions, such as reviews or approvals, that the user did not ask for. The PR itself is reviewed before merge.'
+          ? 'Implementation is enabled through implementChatto in an isolated worktree, with host-run typecheck and lint and publication to the configured repository. The task keeps running after the PR opens: the same worker fixes CI failures and handles forwarded messages until CI finishes. The task reports progress and each milestone (validation start, the open PR, CI failures, reruns, and pushed fixes) as task.notice notifications, and its final result as task completion. You tell the user about each one. The worker’s progress arrives as task.notice notifications for you to relay. Put the user’s goal and every scope decision from the conversation into request and context in plain words, including decisions made after an earlier attempt; the worker sees nothing else. Do not add preconditions, such as reviews or approvals, that the user did not ask for. The PR itself is reviewed before merge.'
           : 'Implementation is disabled. Offer an assessment or proposal when source investigation is available; do not promise edits or publication.',
         ...(options.investigation
           ? [
@@ -245,7 +251,7 @@ export const conversation = task(
               );
               return;
             }
-            await ctx.emit(text);
+            await ctx.emit(withPendingUrls(text));
           }
         },
         bot,
@@ -254,6 +260,8 @@ export const conversation = task(
           async prepareMessage(message, origin) {
             options.setReplyContext(message, origin);
             latestOrigin = origin;
+            if (origin === 'notification')
+              for (const url of notificationUrls(message)) pendingUrls.add(url);
             if (origin === 'user') {
               requestVersion++;
               researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
@@ -282,12 +290,13 @@ export const conversation = task(
             if (busy) {
               delegationReported = false;
               refusalPosted = false;
+            } else if (pendingUrls.size) {
+              // The supervisor stayed silent about a new URL; post it on its own.
+              void ctx.emit(withPendingUrls('').trim()).catch(() => {});
             }
             options.onBusy(busy);
           },
-          notifications: userFacingTaskNotifications(tasks.notifications, {
-            postResult: postHostUpdate
-          }),
+          notifications: userFacingTaskNotifications(tasks.notifications),
           keepAlive: () => tasks.active
         }
       );

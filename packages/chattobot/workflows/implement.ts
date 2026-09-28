@@ -14,7 +14,6 @@ import { implementationInput } from './implementation-artifacts.ts';
 import { ownerQuestionPrefix } from './implementation-safety.ts';
 import type { ImplementationSettings } from './implementation-settings.ts';
 import { createImplementation } from './implementation-task.ts';
-import { milestoneMessage, ONCE_MILESTONES } from './implementation-messages.ts';
 
 export { createImplementation, MAX_CI_REPAIRS } from './implementation-task.ts';
 export {
@@ -39,10 +38,6 @@ export function implementationExtension(
     plans?: InvestigationPlans;
     /** Report a refusal directly so the supervisor cannot describe it as started work. */
     onBlocked?: (summary: string) => Promise<void>;
-    /** Post a host-written message to the conversation from this (the supervisor) task: the
-     * verified PR link and CI repair attempts that the implementation task reports. The final
-     * result reaches the supervisor as a task notification. */
-    post?: (message: string) => Promise<void>;
   } = {}
 ) {
   let attemptedVersion: number | undefined;
@@ -75,7 +70,7 @@ export function implementationExtension(
           name: 'implementChatto',
           label: 'Implement Chatto change',
           description:
-            'Implement an explicitly requested fix or feature, run typecheck and lint, publish a ready-for-review PR in the configured repository, then fix CI failures on it until CI finishes. Returns a background task handle. While it works, the task sends progress notices; the host posts the verified PR link, CI repair attempts, and the final result. Do not invoke for a question or investigation alone. Do not start a duplicate task for the same request.',
+            'Implement an explicitly requested fix or feature, run typecheck and lint, publish a ready-for-review PR in the configured repository, then fix CI failures on it until CI finishes. Returns a background task handle. While it works, the task reports progress and milestones as task.notice notifications, and its final result as task completion; tell the user about each. Do not invoke for a question or investigation alone. Do not start a duplicate task for the same request.',
           parameters: Type.Object({
             request: implementationInput.properties.request,
             context: implementationInput.properties.context,
@@ -149,27 +144,8 @@ export function implementationExtension(
               };
             }
           });
-          /** Post the milestones that the implementation reports as state phases: once per phase
-           * change, and once per run for `ONCE_MILESTONES`. */
-          let previousPhase: unknown;
-          const announced = new Set<unknown>();
-          const onUpdate = async (update: AgentTaskUpdate) => {
-            if (typeof update === 'string' || update.type !== 'state') return;
-            const { phase } = update.value;
-            const changed = phase !== previousPhase;
-            previousPhase = phase;
-            if (!changed || announced.has(phase)) return;
-            const message = milestoneMessage(update.value);
-            if (!message || !dependencies.post) return;
-            if (ONCE_MILESTONES.has(phase as string)) announced.add(phase);
-            try {
-              await dependencies.post(message);
-            } catch {
-              console.warn('ChattoBot could not post an implementation update.');
-            }
-          };
           try {
-            return JSON.stringify(tasks.observe('Chatto implementation', run, { onUpdate }));
+            return JSON.stringify(tasks.observe('Chatto implementation', run));
           } catch (error) {
             await run[Symbol.asyncDispose]();
             throw error;

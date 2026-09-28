@@ -414,21 +414,31 @@ the worker does not consume a forwarded clarification, publication stops. After
 publication, the worker waits for CI, and a forwarded message starts its next
 turn. Use `/cancel` to stop the whole flow, including while CI runs.
 
-Only the supervisor talks to the user. The implementation task reports only to
-the supervisor task (Runling ADR-006). While the worker works, it reports short
-progress updates with `reportProgress`: its approach, test results, and what it
-does next. The host redacts them like other worker text and sends at most one
-per minute to the supervisor as a task notice. An earlier update waits until the
-minute ends, and a newer one replaces it. After four minutes without an update,
-the host sends the number of changed files and test runs so far. The supervisor
-model tells the user about each notice in its own words. The supervisor task's
-host code posts milestones itself, without the model, when the implementation
-reports them as state phases: the start of validation, the PR URL, each CI
-failure with the failed check names, a rerun of unrelated failures, and each
-pushed fix. `milestoneMessage` in `implementation-messages.ts` lists them; new
-stages, such as planning or review, add a phase there. The final message shows
-the CI result with the PR URL, the worker's summary of the change, and its PR
-notes. The model hears about the final result only if that post fails.
+Only the supervisor talks to the user, in the user's language and its own words.
+The implementation task reports only to the supervisor task (Runling ADR-006),
+as task notices that wake the supervisor model:
+
+- **Milestones.** Each core stage is a notice whose `data.milestone` names it
+  and whose `data` holds its facts: `validating` (the change is ready and host
+  checks run), `published` (with `prUrl`), `ci_failed` (with the failed check
+  names, the attempt, and its limit), `ci_rerun_pending`, `ci_rerunning`,
+  `ci_fix_pushed`, and `change_pushed`. The notice text describes the stage for
+  the model, not for the user. Add later stages, such as planning or review, as
+  new milestones.
+- **Progress.** While the worker works, it reports short updates with
+  `reportProgress`: its approach, test results, and what it does next. The host
+  redacts them like other worker text and sends at most one per minute. An
+  earlier update waits until the minute ends, and a newer one replaces it. After
+  four minutes without an update, the host sends the number of changed files and
+  test runs so far.
+- **The result.** When the task finishes, the supervisor writes the final
+  message from the result: the CI outcome, the PR URL, a summary of the change,
+  and its notes.
+
+Notices are not coalesced, so no milestone is lost. The host writes no message
+text. It only guards facts: when the supervisor's reply to a new PR or a final
+result leaves out the PR URL, the host appends the URL, and when the supervisor
+says nothing, the host posts the URL alone.
 
 When a user asks the owner to ask the implementation worker a question, the owner
 uses `askImplementation`. The worker's answer wakes the owner, which can reply

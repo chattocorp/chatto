@@ -1,6 +1,5 @@
 /** Project retained task state and select notifications that need a user reply. */
 import type { AgentTaskState } from 'runling/agents';
-import { implementationResultMessage, isImplementationOutcome } from './implementation-messages.ts';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -43,22 +42,20 @@ export function taskNotification(message: string): string {
     return JSON.stringify({
       type: value.type,
       taskId: task?.id,
-      // A notice is a message for the user that the owner relays in its own words.
+      // A notice reports progress or a milestone that the owner relays in its own words.
       ...(value.type === 'task.notice' && typeof value.text === 'string'
         ? { text: value.text }
-        : {})
+        : {}),
+      ...(value.type === 'task.notice' && isRecord(value.data) ? { data: value.data } : {})
     });
   } catch {
     return 'Background task changed; use the current backgroundTasks snapshot.';
   }
 }
 
-/** Wake the owner for a requested answer, a notice, or a terminal result that still needs a
- * reply. The host posts a finished implementation's result itself with `postResult`, from the
- * owner task; the owner wakes for that result only when the post fails. */
+/** Wake the owner for a requested answer, a notice, or a terminal result. */
 export async function* userFacingTaskNotifications(
-  source: AsyncIterable<string>,
-  { postResult }: { postResult?: (message: string) => Promise<void> } = {}
+  source: AsyncIterable<string>
 ): AsyncIterable<string> {
   for await (const message of source) {
     let forward = true;
@@ -66,32 +63,43 @@ export async function* userFacingTaskNotifications(
       const notice: unknown = JSON.parse(message);
       if (!isRecord(notice)) throw new Error('Invalid task notification');
       if (typeof notice.type !== 'string') throw new Error('Invalid task notification type');
-      if (
-        !['task.reply', 'task.notice', 'task.completed', 'task.failed', 'task.cancelled'].includes(
-          notice.type
-        )
-      )
-        forward = false;
-      if (
-        postResult &&
-        notice.type === 'task.completed' &&
-        isRecord(notice.task) &&
-        notice.task.name === 'Chatto implementation'
-      ) {
-        const result: unknown =
-          typeof notice.task.result === 'string' ? JSON.parse(notice.task.result) : undefined;
-        if (isImplementationOutcome(result)) {
-          try {
-            await postResult(implementationResultMessage(result));
-            forward = false;
-          } catch {
-            // The owner reports the result instead.
-          }
-        }
-      }
+      forward = [
+        'task.reply',
+        'task.notice',
+        'task.completed',
+        'task.failed',
+        'task.cancelled'
+      ].includes(notice.type);
     } catch {
       // An unknown notification can be a terminal result. Let the owner inspect it.
     }
     if (forward) yield message;
+  }
+}
+
+/** Pull request URLs in a task notification that the user must receive exactly: the `prUrl` of
+ * a `published` milestone notice, or of a finished implementation's result. Other milestones
+ * refer to a pull request that the user already knows. */
+export function notificationUrls(message: string): string[] {
+  try {
+    const notice: unknown = JSON.parse(message);
+    if (!isRecord(notice)) return [];
+    const urls: unknown[] = [];
+    if (
+      notice.type === 'task.notice' &&
+      isRecord(notice.data) &&
+      notice.data.milestone === 'published'
+    )
+      urls.push(notice.data.prUrl);
+    if (notice.type === 'task.completed' && isRecord(notice.task)) {
+      const result: unknown =
+        typeof notice.task.result === 'string' ? JSON.parse(notice.task.result) : undefined;
+      if (isRecord(result)) urls.push(result.prUrl);
+    }
+    return urls.filter(
+      (url): url is string => typeof url === 'string' && /^https:\/\/github\.com\/\S+$/.test(url)
+    );
+  } catch {
+    return [];
   }
 }
