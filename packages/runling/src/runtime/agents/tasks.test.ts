@@ -233,7 +233,11 @@ test('a notice wakes the owner at once with its text and is retained', async () 
   const handle = tasks.start(
     'Worker',
     async (ctx) => {
-      await ctx.emit({ type: 'notice', text: 'Tests pass; writing the docs next.' });
+      await ctx.emit({
+        type: 'notice',
+        text: 'Tests pass; writing the docs next.',
+        data: { stage: 'testing', passed: 3 }
+      });
       return finish.promise;
     },
     undefined
@@ -243,11 +247,13 @@ test('a notice wakes the owner at once with its text and is retained', async () 
     expect(JSON.parse((await reader.next()).value!)).toMatchObject({
       type: 'task.notice',
       text: 'Tests pass; writing the docs next.',
+      data: { stage: 'testing', passed: 3 },
       task: { id: handle.id, status: 'running' }
     });
     expect(tasks.get(handle.id).output.at(-1)).toMatchObject({
       kind: 'notice',
-      text: 'Tests pass; writing the docs next.'
+      text: 'Tests pass; writing the docs next.',
+      data: { stage: 'testing', passed: 3 }
     });
   } finally {
     finish.resolve('done');

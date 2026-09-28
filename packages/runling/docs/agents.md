@@ -7,8 +7,8 @@ agent exports from `runling` remain available.
 Choose `output: "text"` for conversational agents:
 
 ```ts
-const bot = await agent({ cwd: directory, model, output: "text" });
-const result = await bot.run(ctx, "Hello", { onText: text => console.log(text) });
+const bot = await agent({ cwd: directory, model, output: 'text' });
+const result = await bot.run(ctx, 'Hello', { onText: (text) => console.log(text) });
 ```
 
 Set `systemPrompt` to replace Pi's default coding-agent prompt for a different
@@ -39,30 +39,28 @@ sign in again on the agent host. Raw provider diagnostics are not in this summar
 Use a connection when a task needs live input and asynchronous output:
 
 ```ts
-import { agent, connectAgent } from "runling/agents";
-import { task, type WorkflowContext } from "runling";
+import { agent, connectAgent } from 'runling/agents';
+import { task, type WorkflowContext } from 'runling';
 
-type Update = { type: "text"; text: string }
-  | { type: "delivery"; text: string; consumed: boolean };
+type Update =
+  { type: 'text'; text: string } | { type: 'delivery'; text: string; consumed: boolean };
 
-export const investigate = task(async (
-  ctx: WorkflowContext<string, Update>,
-  directory: string,
-  question: string,
-) => {
-  await using worker = await agent({
-    cwd: directory,
-    model: "openai-codex/gpt-5.6-sol",
-    tools: ["read", "grep", "find", "ls"],
-  });
-  await using connection = connectAgent(ctx, worker, {
-    inbox: ctx.inbox,
-    onText: text => ctx.emit({ type: "text", text }),
-    onDelivery: (text, consumed) => ctx.emit({ type: "delivery", text, consumed }),
-  });
+export const investigate = task(
+  async (ctx: WorkflowContext<string, Update>, directory: string, question: string) => {
+    await using worker = await agent({
+      cwd: directory,
+      model: 'openai-codex/gpt-5.6-sol',
+      tools: ['read', 'grep', 'find', 'ls']
+    });
+    await using connection = connectAgent(ctx, worker, {
+      inbox: ctx.inbox,
+      onText: (text) => ctx.emit({ type: 'text', text }),
+      onDelivery: (text, consumed) => ctx.emit({ type: 'delivery', text, consumed })
+    });
 
-  return await connection.runOutcome(question);
-});
+    return await connection.runOutcome(question);
+  }
+);
 ```
 
 The parent can [spawn this task](task-channels.md), send messages, and consume
@@ -101,9 +99,9 @@ pages, and also has tools that must not act on that content:
 
 ```ts
 await using owner = await agent({
-  cwd: ".",
-  tools: ["researchWeb", "publishChange"],
-  trust: { untrusted: ["researchWeb"], blockAfterUntrusted: ["publishChange"] },
+  cwd: '.',
+  tools: ['researchWeb', 'publishChange'],
+  trust: { untrusted: ['researchWeb'], blockAfterUntrusted: ['publishChange'] }
 });
 ```
 
@@ -126,31 +124,40 @@ through `createTrustExtension(policy).extension`. See
 agent tool. Register it inside the run so it uses that run's context:
 
 ```ts
-import { agent, defineAgentExtension, taskTool } from "runling/agents";
-import { task, Type } from "runling";
+import { agent, defineAgentExtension, taskTool } from 'runling/agents';
+import { task, Type } from 'runling';
 
-const greet = task({
-  name: "Greet",
-  input: Type.Object({ name: Type.String() }),
-  output: Type.String(),
-}, (_ctx, { name }) => `Hello, ${name}`);
+const greet = task(
+  {
+    name: 'Greet',
+    input: Type.Object({ name: Type.String() }),
+    output: Type.String()
+  },
+  (_ctx, { name }) => `Hello, ${name}`
+);
 
 export const workflow = task(async (ctx) => {
-  const tools = defineAgentExtension(pi => {
-    pi.registerTool(taskTool(ctx, {
-      name: "greet",
-      label: "Greet",
-      description: "Return a greeting for a name.",
-      parameters: greet.input,
-    }, greet));
+  const tools = defineAgentExtension((pi) => {
+    pi.registerTool(
+      taskTool(
+        ctx,
+        {
+          name: 'greet',
+          label: 'Greet',
+          description: 'Return a greeting for a name.',
+          parameters: greet.input
+        },
+        greet
+      )
+    );
   });
 
   await using worker = await agent({
-    cwd: ".",
-    tools: ["greet"],
-    extensions: [tools],
+    cwd: '.',
+    tools: ['greet'],
+    extensions: [tools]
   });
-  return await worker.runOutcome(ctx, "Greet Ada.");
+  return await worker.runOutcome(ctx, 'Greet Ada.');
 });
 ```
 
@@ -182,11 +189,16 @@ including when a user asks for progress. Do not infer current state from an old
 notification or a worker's earlier intention.
 
 ```ts
-await ctx.emit({ type: "state", value: {
-  phase: "validating", completedChecks: ["types"], pendingChecks: ["tests"],
-} });
+await ctx.emit({
+  type: 'state',
+  value: {
+    phase: 'validating',
+    completedChecks: ['types'],
+    pendingChecks: ['tests']
+  }
+});
 const connection = connectAgent(ctx, worker, {
-  onText: text => ctx.emit({ type: "output", text }),
+  onText: (text) => ctx.emit({ type: 'output', text })
 });
 ```
 
@@ -222,10 +234,12 @@ with `task.reply`. The owner reads the fresh task snapshot to get the answer.
 An application can set `replyTo` to keep a question ID with the answer. The
 application decides how to mark a question and when to emit its reply.
 
-Use `ctx.emit({ type: "notice", text })` for a message that the owner should
-see now, such as progress that the owner passes on to its user. Runling retains
-it as `notice` output and wakes the owner at once with `task.notice`; the
-notification includes the text. A newer unread notice replaces an older one.
+Use `ctx.emit({ type: "notice", text, data })` for a message that the owner should
+see now, such as progress or a milestone that the owner passes on to its user.
+The optional `data` object carries structured facts, such as a URL that the
+owner must pass on exactly; it is JSON of at most 16,000 serialized characters.
+Runling retains the notice as `notice` output and wakes the owner at once with
+`task.notice`; the notification includes the text and data. A newer unread notice replaces an older one.
 A task communicates only with its owner and its children (see
 [ADR-006](adr/ADR-006-parent-child-communication.md)). A task that has progress for a
 user sends a notice; the owner decides what reaches the user.
@@ -298,9 +312,10 @@ For example, inside a tool callback:
 
 ```ts
 const run = ctx.spawn((ctx: WorkflowContext<string, AgentTaskUpdate>) =>
-  investigate(ctx, { question: input.question }));
+  investigate(ctx, { question: input.question })
+);
 try {
-  return JSON.stringify(tasks.observe("Investigate", run));
+  return JSON.stringify(tasks.observe('Investigate', run));
 } catch (error) {
   await run[Symbol.asyncDispose]();
   throw error;
@@ -318,7 +333,7 @@ The owning conversation connects the manager as follows:
 try {
   return await runAgentConversation(ctx, owner, initialMessage, {
     notifications: tasks.notifications,
-    keepAlive: () => tasks.active,
+    keepAlive: () => tasks.active
   });
 } finally {
   await tasks.dispose();

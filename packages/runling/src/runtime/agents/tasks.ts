@@ -18,6 +18,8 @@ export interface AgentTaskOutput {
   text: string;
   /** Correlation ID supplied by the application for a direct reply. */
   replyTo?: string;
+  /** Structured facts of a notice. */
+  data?: { [key: string]: AgentTaskData };
   /** True when the retained text is only a prefix of the published message. */
   truncated?: boolean;
 }
@@ -54,6 +56,9 @@ export type AgentTaskUpdate =
        * text; a newer unread notice replaces an older one. */
       type: 'notice';
       text: string;
+      /** Structured facts for the owner, such as a URL that it must pass on exactly. JSON, at
+       * most 16,000 serialized characters. */
+      data?: { [key: string]: AgentTaskData };
     }
   | {
       /** Answer to an owner question. Retain it and wake the owner immediately. */
@@ -137,7 +142,10 @@ export function observeAgentTasks(
   };
   const tasks = new Map<string, Entry>();
   // At most one pending notification per task. Completion replaces stale progress.
-  const notices = new Map<string, { entry: Entry; type: string; text?: string }>();
+  const notices = new Map<
+    string,
+    { entry: Entry; type: string; text?: string; data?: { [key: string]: AgentTaskData } }
+  >();
   let wake: (() => void) | undefined;
   let closed = false;
   let claimed = false;
@@ -163,7 +171,12 @@ export function observeAgentTasks(
       : {}),
     ...(entry.state.lastToolFailure ? { lastToolFailure: { ...entry.state.lastToolFailure } } : {})
   });
-  const notify = (entry: Entry, type: string, text?: string) => {
+  const notify = (
+    entry: Entry,
+    type: string,
+    text?: string,
+    data?: { [key: string]: AgentTaskData }
+  ) => {
     if (closed) return;
     // A solicited answer must survive later progress or tool activity until the
     // owner reads it. A terminal result still takes precedence.
@@ -172,7 +185,7 @@ export function observeAgentTasks(
       !['task.completed', 'task.failed', 'task.cancelled'].includes(type)
     )
       return;
-    notices.set(entry.state.id, { entry, type, text });
+    notices.set(entry.state.id, { entry, type, text, ...(data ? { data } : {}) });
     if (type === 'task.progress') entry.progress = undefined;
     wake?.();
   };
@@ -218,14 +231,15 @@ export function observeAgentTasks(
             const first = notices.entries().next();
             if (closed || first.done) return { done: true, value: undefined };
             notices.delete(first.value[0]);
-            const { entry, type, text } = first.value[1];
+            const { entry, type, text, data } = first.value[1];
             const { output: _output, ...task } = snapshot(entry);
             return {
               done: false,
               value: JSON.stringify({
                 type,
                 task,
-                ...(text ? (type === 'task.notice' ? { text } : { progress: text }) : {})
+                ...(text ? (type === 'task.notice' ? { text } : { progress: text }) : {}),
+                ...(data ? { data } : {})
               })
             };
           },
@@ -298,14 +312,20 @@ export function observeAgentTasks(
       };
       const entry: Entry = { state, handle, settled: Promise.resolve() };
       tasks.set(state.id, entry);
-      const remember = (kind: AgentTaskOutput['kind'], text: string, replyTo?: string) => {
+      const remember = (
+        kind: AgentTaskOutput['kind'],
+        text: string,
+        replyTo?: string,
+        data?: { [key: string]: AgentTaskData }
+      ) => {
         state.output.push({
           sequence: state.droppedOutput + state.output.length + 1,
           at: Date.now(),
           kind,
           text: text.slice(0, 4_000),
           ...(text.length > 4_000 ? { truncated: true } : {}),
-          ...(replyTo ? { replyTo } : {})
+          ...(replyTo ? { replyTo } : {}),
+          ...(data ? { data } : {})
         });
         if (state.output.length > 16) {
           state.output.shift();
@@ -331,8 +351,15 @@ export function observeAgentTasks(
               continue;
             }
             if (typeof text !== 'string' && text.type === 'notice') {
-              remember('notice', text.text);
-              notify(entry, 'task.notice', text.text.slice(0, 4_000));
+              let data: { [key: string]: AgentTaskData } | undefined;
+              if (text.data !== undefined) {
+                const encoded = JSON.stringify(text.data);
+                if (!encoded || encoded.length > 16_000)
+                  throw new Error('Task notice data exceeds the JSON size limit');
+                data = JSON.parse(encoded);
+              }
+              remember('notice', text.text, undefined, data);
+              notify(entry, 'task.notice', text.text.slice(0, 4_000), data);
               continue;
             }
             if (typeof text !== 'string' && text.type === 'state') {
