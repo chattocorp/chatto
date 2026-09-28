@@ -88,9 +88,9 @@ membership so they remain distinct from policy-derived Universal-room access.
 The Room Directory component also records former DM participants: users whose
 `UserLeftRoom` fact removed them from a DM, which in practice means account
 deletion. A later join clears the entry and room deletion drops it. The room
-directory read path combines these IDs with current members whose accounts are
-deleted to fill `RoomWithViewerState.deleted_participant_user_ids`. Snapshots
-store the set in `former_dm_participants`.
+directory read path returns these IDs as
+`RoomWithViewerState.deleted_participant_user_ids`. Snapshots store the set in
+`former_dm_participants`.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run

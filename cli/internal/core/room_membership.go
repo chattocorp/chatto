@@ -740,11 +740,10 @@ func (c *ChattoCore) ListActiveRoomMemberIDs(ctx context.Context, actorID, roomI
 	return c.userModel.users.Projection().ActiveIDs(ids), nil
 }
 
-// ListDeletedDMParticipantIDs returns the participants of a DM whose accounts
-// were deleted or shredded, sorted by ID. Account deletion removes the user's
-// DM memberships, so the result combines former DM participants with current
-// members that still point at a deleted account. Only DM members may read it.
-// Channels always return an empty list.
+// ListDeletedDMParticipantIDs returns the former participants of a DM, sorted
+// by ID. DMs cannot be left, so a former participant is an account that was
+// deleted: account deletion removes the account's DM memberships. Only DM
+// members may read the list. Channels always return an empty list.
 func (c *ChattoCore) ListDeletedDMParticipantIDs(ctx context.Context, actorID, roomID string) ([]string, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
@@ -753,12 +752,7 @@ func (c *ChattoCore) ListDeletedDMParticipantIDs(ctx context.Context, actorID, r
 	if kind != KindDM {
 		return []string{}, nil
 	}
-	memberIDs, err := c.roomMemberIDs(ctx, kind, room.GetId())
-	if err != nil {
-		return nil, err
-	}
-	candidates := append(memberIDs, c.roomModel.formerDMParticipantIDs(room.GetId())...)
-	deleted := c.userModel.users.Projection().DeletedIDs(candidates)
+	deleted := c.roomModel.formerDMParticipantIDs(room.GetId())
 	sort.Strings(deleted)
 	return deleted, nil
 }

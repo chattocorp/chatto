@@ -941,25 +941,6 @@ func (p *UserProjection) ActiveIDs(userIDs []string) []string {
 	return ids
 }
 
-// DeletedIDs returns the IDs from userIDs whose accounts are deleted or
-// shredded, in input order and without duplicates. Unknown IDs are omitted.
-func (p *UserProjection) DeletedIDs(userIDs []string) []string {
-	p.RLock()
-	defer p.RUnlock()
-	ids := make([]string, 0)
-	seen := make(map[string]struct{}, len(userIDs))
-	for _, id := range userIDs {
-		if _, duplicate := seen[id]; duplicate {
-			continue
-		}
-		seen[id] = struct{}{}
-		if user := p.users[id]; user != nil && (user.deleted || user.shredded) {
-			ids = append(ids, id)
-		}
-	}
-	return ids
-}
-
 // AllActiveIDs returns active account IDs without reading encrypted profiles.
 func (p *UserProjection) AllActiveIDs() []string {
 	p.RLock()
