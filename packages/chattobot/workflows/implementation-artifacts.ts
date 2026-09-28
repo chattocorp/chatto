@@ -13,6 +13,9 @@ export const implementationInput = Type.Object({
 });
 export type ImplementationInput = Static<typeof implementationInput>;
 
+/** Most follow-up instructions kept with one artifact; older ones are dropped first. */
+export const MAX_FOLLOW_UPS = 5;
+
 /** Worker-authored continuation notes, bounded before they reach a new model session. */
 export const handoffSchema = Type.Object({
   summary: Type.String({ minLength: 1, maxLength: 2000 }),
@@ -41,6 +44,8 @@ export interface ImplementationMetadata {
   input?: Pick<ImplementationInput, 'request' | 'context'> & { plan?: unknown };
   /** Worker-authored continuation notes. The resumed worker must verify them against the diff. */
   handoff?: { summary: string; nextSteps: string[]; risks: string[] };
+  /** Later user instructions from resume requests, oldest first. They refine the original request. */
+  followUps?: Pick<ImplementationInput, 'request' | 'context'>[];
   commit?: string;
   prUrl?: string;
 }
@@ -82,7 +87,17 @@ function isImplementationMetadata(value: unknown): value is ImplementationMetada
     (input.context === undefined || typeof input.context === 'string') &&
     (metadata.commit === undefined || typeof metadata.commit === 'string') &&
     (metadata.prUrl === undefined || typeof metadata.prUrl === 'string') &&
-    (metadata.handoff === undefined || isHandoff(metadata.handoff))
+    (metadata.handoff === undefined || isHandoff(metadata.handoff)) &&
+    (metadata.followUps === undefined ||
+      (Array.isArray(metadata.followUps) &&
+        metadata.followUps.length <= MAX_FOLLOW_UPS &&
+        metadata.followUps.every(
+          (followUp) =>
+            typeof followUp === 'object' &&
+            followUp !== null &&
+            typeof followUp.request === 'string' &&
+            (followUp.context === undefined || typeof followUp.context === 'string')
+        )))
   );
 }
 

@@ -16,6 +16,7 @@ import { implementationProcess, type ImplementationProcess } from './implementat
 import {
   implementationInput,
   loadResumableArtifact,
+  MAX_FOLLOW_UPS,
   type ImplementationMetadata
 } from './implementation-artifacts.ts';
 import { protectedPath, workerStopReason } from './implementation-safety.ts';
@@ -200,6 +201,13 @@ export function createImplementation(
         writeFile(resolve(folder, 'metadata.json'), JSON.stringify(metadata, null, 2), {
           mode: 0o600
         });
+      // A resume request carries the user's newest instructions. Keep them with the artifact so
+      // this and later workers follow them, not only the original request.
+      if (resumed)
+        metadata.followUps = [
+          ...(metadata.followUps ?? []),
+          { request: input.request, ...(input.context ? { context: input.context } : {}) }
+        ].slice(-MAX_FOLLOW_UPS);
       await save();
       if (!resumed) await git(directory, ['worktree', 'add', '-b', branch, worktree, baseCommit]);
       const baselineWorktree = resolve(folder, 'baseline');
@@ -340,8 +348,9 @@ export function createImplementation(
             ? {
                 resumeArtifactId: basename(resumed.folder),
                 handoff: resumed.metadata.handoff,
+                followUps: metadata.followUps,
                 continuation:
-                  'Review the retained worktree diff and verify the saved handoff against current source. Continue this implementation. Recreate the PR proposal; all host checks will run again.'
+                  'Review the retained worktree diff and verify the saved handoff against current source. Continue this implementation. followUps are later user instructions for this request, oldest first; where they differ from the original request or your handoff, follow the latest one. Recreate the PR proposal; all host checks will run again.'
               }
             : {})
         });

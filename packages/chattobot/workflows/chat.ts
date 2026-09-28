@@ -205,7 +205,7 @@ export const conversation = task(
             ]
           : []),
         options.implementation
-          ? 'Implementation is enabled through implementChatto in an isolated worktree, with host-run checks and publication to the configured repository.'
+          ? 'Implementation is enabled through implementChatto in an isolated worktree, with host-run checks and publication to the configured repository. Put the user’s goal and every scope decision from the conversation into request and context in plain words, including decisions made after an earlier attempt; the worker sees nothing else. Do not add preconditions, such as reviews or approvals, that the user did not ask for. The PR itself is reviewed before merge.'
           : 'Implementation is disabled. Offer an assessment or proposal when source investigation is available; do not promise edits or publication.',
         ...(options.investigation
           ? [

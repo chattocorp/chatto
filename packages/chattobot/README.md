@@ -443,7 +443,9 @@ checks before publication. To continue, ask the bot to resume the exact
 it belongs to the same thread and reuses its branch and worktree. Artifacts
 created before conversations were shared by thread belong to their original
 author's conversation key and cannot be resumed through the bot. The next
-worker receives the original request and saved handoff, and must check the
+worker receives the original request, the saved handoff, and the new instructions
+from each resume request, which the artifact keeps (at most five). Where they
+differ, the latest instructions apply. The worker must check the
 handoff against the retained diff.
 
 After the worker reports its edits, the host runs `check:frontend` and
@@ -454,9 +456,10 @@ The worker must finish its edits before it requests final validation. For a
 large, actionable change, it can save progress with `checkpointWork` and get
 another work turn in the same implementation. A checkpoint does not start
 validation or publication. Three checkpoints with no source changes stop the
-attempt and retain the handoff for review. A proposed
-human review can be recorded as a PR review need unless the user requires that
-review before publication. A blocked or failed worker report ends the attempt
+attempt and retain the handoff for review. The worker writes
+the content that the change needs, including copy and translations. A missing
+reviewer or approval does not stop it; it lists review needs in the PR notes,
+unless the user requires that review before publication. A blocked or failed worker report ends the attempt
 and requires a new user request. The host reports the worker's bounded,
 redacted reason and the number of worker checks it ran. It says when final host
 validation did not run. After a failed final check, the host runs the same
@@ -510,6 +513,9 @@ prepared, and publication metadata. Check that metadata and GitHub before
 retrying an interrupted publication. Remove retained worktrees with
 `git worktree remove` when no longer needed, then remove their local branches
 and artifact directories. There is no automatic cleanup or restart recovery.
+Stopping the bot interrupts a running implementation, so avoid restarts, including
+reloads in `mise dev-chattobot`, while one runs. After a restart, ask the bot to
+continue the stopped artifact.
 
 The host executes dependency setup and repository validation scripts. Although
 the worker has no shell tool, edited code can run during validation.

@@ -635,6 +635,10 @@ test('a new human request can continue the same unfinished worktree and rerun fi
     }, 'blocked')
   })(createWorkflowContext(), { request: 'Fix the value' });
   expect(first.outcome).toBe('blocked');
+  // Applied patches are transient; only the retained diff remains.
+  expect(
+    (await readdir(join(first.worktree, '..'))).filter((name) => name.startsWith('edit-'))
+  ).toEqual([]);
   const resumed = await createImplementation(f.settings, {
     execute: f.execute,
     ownerKey,
@@ -644,13 +648,21 @@ test('a new human request can continue the same unfinished worktree and rerun fi
         expect(JSON.parse(prompt).handoff).toMatchObject({
           nextSteps: ['Review the diff and prepare the PR']
         });
+        expect(JSON.parse(prompt)).toMatchObject({
+          request: 'Fix the value',
+          followUps: [{ request: 'Continue', context: 'An unreviewed draft is fine.' }]
+        });
         expect(await readFile(join(options.cwd, 'example.txt'), 'utf8')).toBe('fixed\n');
         const call = await workerTools(options);
         await call('preparePullRequest', proposal);
         return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
       }
     })
-  })(createWorkflowContext(), { request: 'Continue', resumeArtifactId: first.artifactId });
+  })(createWorkflowContext(), {
+    request: 'Continue',
+    context: 'An unreviewed draft is fine.',
+    resumeArtifactId: first.artifactId
+  });
   expect(resumed).toMatchObject({
     outcome: 'completed',
     branch: first.branch,
@@ -662,7 +674,8 @@ test('a new human request can continue the same unfinished worktree and rerun fi
   expect(metadata).toMatchObject({
     stage: 'published',
     ownerKey,
-    input: { request: 'Fix the value' }
+    input: { request: 'Fix the value' },
+    followUps: [{ request: 'Continue', context: 'An unreviewed draft is fine.' }]
   });
 });
 
