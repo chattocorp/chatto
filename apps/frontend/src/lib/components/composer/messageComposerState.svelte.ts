@@ -117,6 +117,13 @@ export function bodyForSend(text: string): string {
   return hasStructuralBody ? normalized : text.trim().replace(/\n{3,}/g, '\n\n');
 }
 
+/** Expand /shrug only at the start of a new post, leaving other slash text literal. */
+export function expandShrugCommand(text: string): string {
+  if (!/^\/shrug(?=$|\s)/.test(text)) return text;
+  const body = text.slice('/shrug'.length).trim();
+  return `${body}${body ? ' ' : ''}¯\\_(ツ)_/¯`;
+}
+
 /**
  * Owns the state transitions for one mounted room or thread composer.
  *
@@ -600,7 +607,7 @@ export class MessageComposerState {
   }
 
   async #createMessage(): Promise<void> {
-    const bodyToSend = bodyForSend(this.message);
+    const bodyToSend = expandShrugCommand(bodyForSend(this.message));
     const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
     if (!hasVisibleContent(bodyToSend) && !filesToSend) return;
 

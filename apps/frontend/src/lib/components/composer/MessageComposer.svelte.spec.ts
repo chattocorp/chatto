@@ -1268,6 +1268,56 @@ describe('MessageComposer', () => {
     });
   });
 
+  describe('/shrug posts', () => {
+    it.each(['visual', 'markdown'] as const)(
+      'appends the shrug to posts from the %s editor',
+      async (kind) => {
+        userPreferences.composerEditor = kind;
+        const draft = '/shrug Not sure';
+        sessionStorage.setItem(`chatto:draft:shrug-${kind}`, draft);
+        const { container } = renderMessageComposer(
+          { roomId: `shrug-${kind}` },
+          { exactRoomId: true }
+        );
+        const editor = await findEditor(container);
+        await expect.element(editor).toHaveTextContent(draft);
+        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+        expect(createMessageConnectMock.mock.calls[0][0].body).toBe('Not sure ¯\\_(ツ)_/¯');
+      }
+    );
+
+    it('posts /shrug alone and does not expand a different slash command', async () => {
+      sessionStorage.setItem('chatto:draft:shrug-alone', '/shrug');
+      const alone = renderMessageComposer({ roomId: 'shrug-alone' }, { exactRoomId: true });
+      await findEditor(alone.container);
+      await expect
+        .element(q(alone.container, 'button[aria-label="Send message"]'))
+        .not.toBeDisabled();
+      (q(alone.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      expect(createMessageConnectMock.mock.calls[0][0].body).toBe('¯\\_(ツ)_/¯');
+
+      sessionStorage.setItem('chatto:draft:shrug-other', '/shrugging hello');
+      const other = renderMessageComposer({ roomId: 'shrug-other' }, { exactRoomId: true });
+      await findEditor(other.container);
+      (q(other.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledTimes(2));
+      expect(createMessageConnectMock.mock.calls[1][0].body).toBe('/shrugging hello');
+    });
+
+    it('does not expand /shrug while editing an existing message', async () => {
+      roomStateMock.editState.eventId = 'existing-shrug';
+      roomStateMock.editState.originalBody = '/shrug correction';
+      const { container } = renderMessageComposer({ roomId: 'shrug-edit' });
+      await expect.element(await findEditor(container)).toHaveTextContent('/shrug correction');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock.mock.calls[0][0].body).toBe('/shrug correction');
+    });
+  });
+
   describe('Slow Mode', () => {
     it('shows ready, waiting, and bypassed status', async () => {
       const ready = renderMessageComposer({ roomId: 'room-ready', slowModeSeconds: 30 });
