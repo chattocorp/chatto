@@ -368,7 +368,7 @@ local to the footer.
           >
         {/each}
         {#if tooltipUsers.remaining > 0}
-          <span class="text-muted/80">
+          <span class="text-muted">
             {m('room.message.meta.reaction_users_more', { count: tooltipUsers.remaining })}
           </span>
         {/if}

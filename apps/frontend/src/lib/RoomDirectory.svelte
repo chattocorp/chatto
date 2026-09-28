@@ -212,7 +212,7 @@ store owns only optimistic join/leave state.
             <span class="min-w-0 truncate">{room.name}</span>
           </div>
           {#if room.description}
-            <div class="truncate text-xs font-normal text-muted/80">{room.description}</div>
+            <div class="truncate text-xs font-normal text-muted">{room.description}</div>
           {/if}
         </div>
       </div>
