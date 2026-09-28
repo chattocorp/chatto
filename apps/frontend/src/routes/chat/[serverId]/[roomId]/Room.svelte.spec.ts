@@ -126,6 +126,7 @@ vi.mock('$lib/hooks', () => ({
       mocks.roomKind === RoomKind.DM
         ? {
             participantIds: mocks.dmParticipantIds,
+            deletedParticipantIds: [],
             participants: [
               {
                 id: 'test-user',
