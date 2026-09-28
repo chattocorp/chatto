@@ -391,7 +391,12 @@ touch screens.
 
   {#snippet overlays()}
     {#if emojiPickerAnchor}
-      <ContextMenu anchor={emojiPickerAnchor} onclose={() => (emojiPickerAnchor = null)}>
+      <ContextMenu
+        anchor={emojiPickerAnchor}
+        role="dialog"
+        ariaLabel={m('settings.profile.status.emoji.choose')}
+        onclose={() => (emojiPickerAnchor = null)}
+      >
         <EmojiPicker
           serverId={config.serverId}
           onSelect={handleEmojiSelect}

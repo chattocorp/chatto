@@ -134,6 +134,8 @@
   <ContextMenu
     position={interactions.emojiPickerPosition}
     presentation={interactions.emojiPickerPresentation}
+    role="dialog"
+    ariaLabel={m('room.message.actions.add_reaction')}
     scrollDismissal="user"
     onclose={closeEmojiPicker}
   >
