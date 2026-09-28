@@ -1,12 +1,13 @@
 import { log } from 'runling';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { afterEach, expect, test, vi } from 'vitest';
 import { mkdir, mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { task, Type, step } from 'runling';
-import { historyDirectory, RunStore } from './run-store.ts';
+import { RunStore } from './run-store.ts';
+import { createRunJournal, newRun, runJournalDirectory } from '../../runtime/run-journal.ts';
 import { buildTimeline } from '../timeline.ts';
 import type { RunRecord } from '../runs.ts';
 
@@ -162,11 +163,11 @@ test('uses Runling history for new projects and preserves existing Factory histo
   directories.push(cwd);
   const current = resolve(cwd, '.runling/runs');
   const legacy = resolve(cwd, '.factory/runs');
-  expect(await historyDirectory(cwd)).toBe(current);
+  expect(await runJournalDirectory(cwd)).toBe(current);
   await mkdir(legacy, { recursive: true });
-  expect(await historyDirectory(cwd)).toBe(legacy);
+  expect(await runJournalDirectory(cwd)).toBe(legacy);
   await mkdir(current, { recursive: true });
-  expect(await historyDirectory(cwd)).toBe(current);
+  expect(await runJournalDirectory(cwd)).toBe(current);
 });
 
 test('streams ordered nested events and restores the completed run', async () => {
@@ -290,6 +291,26 @@ test('recovers a truncated journal as interrupted and saves the recovery', async
   await again.init();
   expect(await again.get(run.id)).toEqual(await recovered.get(run.id));
   expect(await readdir(history.directory)).toEqual([`${run.id}.jsonl`]);
+});
+
+test('keeps a running journal of another live process, and interrupts one whose process ended', async () => {
+  const history = await store();
+  const live = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30_000)']);
+  const ended = spawn(process.execPath, ['-e', '']);
+  await new Promise((resolve) => ended.once('exit', resolve));
+  try {
+    const runs = [live.pid!, ended.pid!].map((pid) => ({
+      ...newRun({ webhook: 'cli', workflow: 'workflows/demo.ts', source: 'cli', input: 'x' }),
+      pid
+    }));
+    for (const run of runs) await createRunJournal(history.directory, run);
+    const restarted = new RunStore(history.directory);
+    await restarted.init();
+    expect((await restarted.get(runs[0]!.id))?.status).toBe('running');
+    expect((await restarted.get(runs[1]!.id))?.status).toBe('interrupted');
+  } finally {
+    live.kill();
+  }
 });
 
 test('loads completed details on demand without retaining event arrays', async () => {

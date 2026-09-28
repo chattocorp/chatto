@@ -18,7 +18,15 @@ import {
 import type { InputHandler } from './input.ts';
 import { log } from './log.ts';
 import { renderMarkdown } from './markdown.ts';
-import { createRunJournal, type RunJournal } from './run-journal.ts';
+import {
+  createRunJournal,
+  eventRecord,
+  newRun,
+  runJournalDirectory,
+  type RunDetail,
+  type RunJournal
+} from './run-journal.ts';
+import { relative } from 'node:path';
 import {
   isJsonValue,
   type JsonValue,
@@ -73,8 +81,8 @@ export interface ExecutionOptions {
   onInput?: InputHandler;
   /** Cancels the workflow cooperatively. */
   signal?: AbortSignal;
-  /** Records every event and the final result for later review. */
-  journal?: RunJournal;
+  /** Records every event and the final result in the run's journal. */
+  journal?: { run: RunDetail; writer: RunJournal };
 }
 
 export interface RunWorkflowOptions<Input = unknown> {
@@ -160,10 +168,17 @@ async function reportExecution(
 ): Promise<WorkflowExecution> {
   const execution = await log.withDestination(json ? 'stderr' : 'stdout', async () => {
     log.info(
-      journal ? `Runling starting run ${log.highlight(journal.reference)}` : 'Runling starting'
+      journal ? `Runling starting run ${log.highlight(journal.run.reference!)}` : 'Runling starting'
     );
     const capture = () => captureExecution(run, onInput, undefined, signal, undefined, true);
-    const execution = await (journal ? observeRunlingEvents(journal.record, capture) : capture());
+    const base = performance.now();
+    const execution = await (journal
+      ? observeRunlingEvents(
+          // A write failure is reported when the finished record is written.
+          (event) => void journal.writer.append(eventRecord(event, base)).catch(() => {}),
+          capture
+        )
+      : capture());
 
     if (execution.error !== null) {
       log.error(execution.error);
@@ -180,17 +195,20 @@ async function reportExecution(
     }
     log.info(`Finished in ${formatDuration(execution.durationMs)}`);
     if (journal) {
+      const path = relative(process.cwd(), journal.writer.path);
       try {
-        await journal.finish({
+        await journal.writer.append({
+          type: 'finished',
           status: signal?.aborted ? 'cancelled' : execution.ok ? 'completed' : 'failed',
+          finishedAt: Date.now(),
           durationMs: execution.durationMs,
           usage: execution.usage,
           output: execution.output,
           error: execution.error
         });
-        log.info(`Run ${journal.reference} journal: ${journal.path}`);
+        log.info(`Run ${journal.run.reference} journal: ${path}`);
       } catch (cause) {
-        log.error(`Cannot save the run journal ${journal.path}: ${String(cause)}`);
+        log.error(`Cannot save the run journal ${path}: ${String(cause)}`);
       }
     }
     return execution;
@@ -322,7 +340,7 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
   };
   process.on('SIGINT', interrupt);
   process.on('SIGTERM', interrupt);
-  let journal: RunJournal | undefined;
+  let journal: ExecutionOptions['journal'];
   try {
     let input: unknown = prompt;
     if (options.input !== undefined) {
@@ -332,7 +350,11 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
         input = options.input; // The run reports the parse error.
       }
     }
-    journal = await createRunJournal(workflowPath, input);
+    const run = newRun({ webhook: 'cli', workflow: workflowPath, source: 'cli', input });
+    journal = {
+      run,
+      writer: await createRunJournal(await runJournalDirectory(process.cwd()), run)
+    };
   } catch (cause) {
     log.error(`Cannot create a run journal: ${String(cause)}`);
   }

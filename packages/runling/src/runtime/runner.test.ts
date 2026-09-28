@@ -14,7 +14,7 @@ import type { InputRequest } from './input.ts';
 import { input as askInput } from './input.ts';
 import { Type } from 'typebox';
 import { task } from './workflow.ts';
-import { createRunJournal } from './run-journal.ts';
+import { createRunJournal, newRun } from './run-journal.ts';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -441,31 +441,38 @@ describe('root workflow updates', () => {
 
 describe('run journals', () => {
   test('record the start, every event, and the result of a command-line run', async () => {
-    const cwd = await mkdtemp(join(tmpdir(), 'runling-journal-'));
+    const directory = await mkdtemp(join(tmpdir(), 'runling-journal-'));
     const originalLog = console.log;
     const lines: string[] = [];
     console.log = (message: string) => lines.push(stripVTControlCharacters(message));
     try {
-      const journal = await createRunJournal('workflows/demo.ts', { request: 'Fix' }, cwd);
+      const run = newRun({
+        webhook: 'cli',
+        workflow: 'workflows/demo.ts',
+        source: 'cli',
+        input: { request: 'Fix' }
+      });
+      const writer = await createRunJournal(directory, run);
       await executeWorkflow(
         async (ctx) => {
           await ctx.emit({ type: 'finding', text: 'Opened the pull request' });
           return 'done';
         },
-        { journal }
+        { journal: { run, writer } }
       );
-      const records = (await readFile(join(cwd, journal.path), 'utf8'))
+      const records = (await readFile(writer.path, 'utf8'))
         .trim()
         .split('\n')
         .map((line) => JSON.parse(line));
-      expect(journal.path).toMatch(/^\.runling\/cli-runs\/[0-9a-f-]{36}\.jsonl$/);
+      expect(writer.path).toBe(join(directory, `${run.id}.jsonl`));
       expect(records[0]).toMatchObject({
         type: 'started',
         run: {
-          id: journal.id,
-          reference: journal.reference,
+          id: run.id,
+          reference: run.reference,
           workflow: 'workflows/demo.ts',
           source: 'cli',
+          pid: process.pid,
           input: { request: 'Fix' },
           status: 'running'
         }
@@ -481,11 +488,11 @@ describe('run journals', () => {
         status: 'completed',
         output: 'done'
       });
-      expect(lines[0]).toContain(`run ${journal.reference}`);
-      expect(lines.at(-1)).toContain(journal.path);
+      expect(lines[0]).toContain(`run ${run.reference}`);
+      expect(lines.at(-1)).toContain(`${run.id}.jsonl`);
     } finally {
       console.log = originalLog;
-      await rm(cwd, { recursive: true, force: true });
+      await rm(directory, { recursive: true, force: true });
     }
   });
 });

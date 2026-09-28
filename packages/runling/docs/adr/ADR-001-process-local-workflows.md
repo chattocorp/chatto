@@ -15,9 +15,11 @@ Workflows and tasks are TypeScript functions. Schemas can validate task inputs
 and outputs. Execution, channels, and active agent sessions belong to the current
 process. Applications own their integrations and external side effects.
 
-The web server records run history in journals. A journal is an observation of
-execution, not a durable continuation. Loading a journal for an unfinished run
-marks it interrupted; it does not resume the workflow.
+The web server and `runling run` record run history in journals, one file per
+run in `.runling/runs/`. A journal is an observation of execution, not a durable
+continuation. Loading a journal for an unfinished run marks it interrupted,
+unless the process that writes it is still alive; it does not resume the
+workflow.
 Graceful server shutdown also marks unfinished runs interrupted; explicit user
 cancellation remains cancelled. The server does not restore application state,
 agent sessions, or JavaScript execution from journals.
