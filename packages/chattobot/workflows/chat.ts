@@ -170,6 +170,7 @@ export const conversation = task(
                 onStopped: postImplementationUpdate,
                 onPublished: postImplementationUpdate,
                 onCiResult: postImplementationUpdate,
+                onProgress: postImplementationUpdate,
                 requestVersion: () => requestVersion
               })
             ]

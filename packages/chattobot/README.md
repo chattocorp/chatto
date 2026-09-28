@@ -412,8 +412,12 @@ implementation. The investigator stays read-only. Follow-up messages can steer
 the implementation through the same `task_send` channel. Before publication, if
 the worker does not consume a forwarded clarification, publication stops. After
 publication, the worker waits for CI, and a forwarded message starts its next
-turn. Use `/cancel` to stop the whole flow, including while CI runs. The host
-reports check and publication progress. It posts the verified PR link as soon as
+turn. Use `/cancel` to stop the whole flow, including while CI runs. While the
+worker works, it posts short progress updates with `reportProgress`: its
+approach, test results, and what it does next. The host redacts them like other
+worker text and posts at most one every 90 seconds. After four minutes without
+an update, the host posts the number of changed files and test runs so far.
+The host reports check and publication progress. It posts the verified PR link as soon as
 publication is confirmed, a short message for each CI repair attempt, and the
 final CI result.
 

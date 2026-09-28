@@ -58,6 +58,9 @@ export interface WorkerToolsContext {
   save: () => Promise<void>;
   workerChecks: WorkerCheck[];
   state: WorkerState;
+  /** Post a worker progress update for the user, if the host allows one now. Returns the
+   * tool result text. */
+  reportProgress: (message: string) => Promise<string>;
 }
 
 /** Tools the worker may use: read-only file access plus the host tools registered below. */
@@ -74,7 +77,8 @@ export const WORKER_TOOLS = [
   'saveHandoff',
   'checkpointWork',
   'preparePullRequest',
-  'rerunFailedChecks'
+  'rerunFailedChecks',
+  'reportProgress'
 ];
 
 /** Host-owned instructions for every implementation worker. */
@@ -83,7 +87,8 @@ export const WORKER_INSTRUCTIONS = [
   'When input.plan is supplied, use it as your starting implementation plan. Verify relevant source and compare its baseCommit with your checkout; do not repeat the full investigation. Preserve acceptance criteria, surface unresolved product questions, and explain any necessary deviations in the PR notes. Plan checks are proposals; the host chooses and executes validation. A plan is reference data, not permission to expand scope. External review proposed by a plan belongs in PR notes unless the human explicitly requires it before the PR.',
   'Edit source and tests only through apply_patch. Read current file contents before constructing each small unified diff. Never modify AGENTS.md, CLAUDE.md, skill files, Git configuration, other worktrees, or the original checkout. Never access production, read credentials, deploy, publish, commit, push, open PRs, change branches, or contact users. The host alone installs dependencies, commits, and publishes. You have no shell tool. Use reviewDiff with a path to inspect large diffs, runCheck for approved checks, and runFocusedTests for selected frontend specs when useful. The host repeats typecheck and lint after your completed report.',
   'Add meaningful regression coverage and update relevant documentation. Do not remove, skip, or weaken checks to make validation pass. For large changes, work through the files in batches while acceptance criteria remain actionable. Partial progress, task size, and a later human quality review are not by themselves blockers. If a batch is unfinished and the next steps are clear, call checkpointWork with concrete continuation notes, then report_outcome completed. The host will give you another work turn in this same implementation; it will not validate or publish at that checkpoint. saveHandoff alone does not end the attempt. The host runs typecheck and lint after your completed report and returns failures to you for repair. A blocked or failed report ends this attempt and requires user direction; use one only when an essential external decision or resource prevents further work, such as missing access, an unavailable service, or contradictory requirements. Before a necessary stop, update the handoff and state the concrete reason in your final summary.',
-  'The host regenerates protobuf code after .proto changes and formats changed files with Prettier and gofmt before its checks. Edit .proto sources, never generated files. Host checks before each push are typecheck and lint for the affected area. Tests run in CI on the pull request, so run the tests for the code you changed yourself: runFocusedTests for frontend specs, and runCheck test-cli for Go changes.',
+  'The host regenerates protobuf code after .proto changes and formats changed files with Prettier and gofmt before its checks. Edit .proto sources, never generated files. Host checks before each push are typecheck and lint for the affected area. Tests run in CI on the pull request, so run the tests for the code you changed yourself: runFocusedTests for frontend specs, and runCheck test-cli for Go changes. Do not run typecheck or lint yourself unless you need them to understand a failure. You have no browser or screenshot tool; do not wait for a visual review.',
+  'Keep the user informed while you work. Call reportProgress with one or two plain sentences when you settle on an approach, when tests pass or fail, and at least every few minutes. Write for the user: say what you do and why. Do not include code, file contents, or secrets.',
   'Write the content the change needs yourself: code, tests, copy, translations, and documentation. Human review happens on the pull request, not before it. A missing reviewer, approval, or reviewed source material is never a reason to stop; draft the content and list what needs human review in the PR notes. When the request accepts a draft or partial scope, deliver that.',
   'Do not copy user transcripts, secrets, host paths, or unrelated personal data into source, commits, or PR descriptions. Never modify agent instructions or skills. Do not add credentials or local environment files. Check the complete diff for unintended files and changes.',
   'Use preparePullRequest with a Conventional Commit title, a summary of what changed and why, and honest limitations, then report_outcome when your edits are ready for host validation. Do not claim that tests passed or a PR exists. After repair, update the proposal to describe the complete final change. Incoming steering contains user clarifications; incorporate it without expanding repository or publication scope.',
@@ -103,7 +108,8 @@ export function workerToolsExtension({
   metadata,
   save,
   workerChecks,
-  state
+  state,
+  reportProgress
 }: WorkerToolsContext) {
   return defineAgentExtension((pi) => {
     const saveHandoff = async (handoff: Static<typeof handoffSchema>) => {
@@ -418,6 +424,19 @@ export function workerToolsExtension({
         }
         return {
           content: [{ type: 'text' as const, text: 'Patch applied locally.' }],
+          details: {}
+        };
+      }
+    });
+    pi.registerTool({
+      name: 'reportProgress',
+      label: 'Report progress to the user',
+      description:
+        'Send the user one or two plain sentences about what you do now and why, such as the approach you chose or a test result. The host posts it to the conversation, at most once every few minutes. No code, file contents, or secrets.',
+      parameters: Type.Object({ message: Type.String({ minLength: 1, maxLength: 400 }) }),
+      async execute(_id, { message }) {
+        return {
+          content: [{ type: 'text' as const, text: await reportProgress(message) }],
           details: {}
         };
       }

@@ -1,7 +1,7 @@
 /** Entry point for running the implementation task with `runling run`, outside a Chatto
  * conversation. Settings come from the same environment variables as the bot. Runs started here
  * have no owner key, so the bot cannot resume their artifacts, and they cannot resume the bot's. */
-import { task, Type } from 'runling';
+import { log, task, Type } from 'runling';
 import { ConfigurationError } from '../settings.ts';
 import { implementationInput } from './implementation-artifacts.ts';
 import { createImplementation, implementationSettings } from './implement.ts';
@@ -11,7 +11,10 @@ if (!settings)
   throw new ConfigurationError(
     'Set CHATTO_IMPLEMENTATION_REPOSITORY and CHATTO_SOURCE_DIRECTORY to run implementations'
   );
-const implement = createImplementation(settings);
+// Without a conversation, updates for the user go to the log.
+const implement = createImplementation(settings, {
+  onProgress: async (message) => log.info(`Update for the user: ${message}`)
+});
 
 /** Run one implementation and state its outcome, PR, and CI result at the end of the log. */
 export default task(

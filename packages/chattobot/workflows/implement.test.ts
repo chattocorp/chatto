@@ -564,6 +564,80 @@ test('host validation returns diagnostics to the same worker and checks the repa
   expect(result.checks.every((check) => check.passed)).toBe(true);
 });
 
+test('worker progress updates reach the user, redacted and at most once per interval', async () => {
+  const f = await fixture();
+  const updates: string[] = [];
+  const emitted: unknown[] = [];
+  const results: (string | undefined)[] = [];
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    onProgress: async (message) => {
+      updates.push(message);
+    },
+    progressTiming: { minIntervalMs: 0, quietMs: 60_000 },
+    createAgent: worker(async (_options, call) => {
+      results.push(
+        (
+          await call('reportProgress', {
+            message: 'Adding the command; see https://example.invalid'
+          })
+        ).content[0]?.text
+      );
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    })
+  })(
+    { ...createWorkflowContext(), emit: async (value) => void emitted.push(value) },
+    {
+      request: 'Fix'
+    }
+  );
+  expect(result.outcome).toBe('completed');
+  expect(results).toEqual(['Sent to the user.']);
+  expect(updates).toEqual(['Adding the command; see [url]']);
+  expect(emitted).toContainEqual({ type: 'output', text: 'Adding the command; see [url]' });
+
+  const limited: string[] = [];
+  const texts: (string | undefined)[] = [];
+  await createImplementation(f.settings, {
+    execute: f.execute,
+    onProgress: async (message) => {
+      limited.push(message);
+    },
+    createAgent: worker(async (_options, call) => {
+      texts.push((await call('reportProgress', { message: 'Too early' })).content[0]?.text);
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  // The supervisor just announced the task, so the first worker update must wait.
+  expect(limited).toEqual([]);
+  expect(texts[0]).toMatch(/^Not sent: the last update was recent/);
+});
+
+test('after a quiet period the host posts what it knows about the worker progress', async () => {
+  const f = await fixture();
+  const updates: string[] = [];
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    onProgress: async (message) => {
+      updates.push(message);
+    },
+    progressTiming: { quietMs: 20, checkMs: 5 },
+    createAgent: worker(async (_options, call) => {
+      await vi.waitFor(() =>
+        expect(updates[0]).toBe('Still reading the code. No files have changed yet.')
+      );
+      await call('apply_patch', { patch });
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toBe('Still working on the change: 1 changed file so far.')
+      );
+      await call('preparePullRequest', proposal);
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(result.outcome).toBe('completed');
+});
+
 test('a failed worker report stops immediately and preserves the worktree for user direction', async () => {
   const f = await fixture();
   let turns = 0;

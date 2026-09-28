@@ -58,6 +58,11 @@ export const FRONTEND_DEPENDENCY_BUILD = [
   '--output-logs=errors-only'
 ];
 
+/** Progress update timing while the worker works. The worker may post at most one update per
+ * `minIntervalMs`. After `quietMs` without any update, the host posts one; it checks every
+ * `checkMs`. */
+export const PROGRESS_TIMING = { minIntervalMs: 90_000, quietMs: 4 * 60_000, checkMs: 30_000 };
+
 /** CI failures that the worker may handle, by a fix or a rerun, before the host reports failure. */
 export const MAX_CI_REPAIRS = 3;
 
@@ -103,6 +108,10 @@ export function createImplementation(
     observeChecks?: typeof observePullRequestChecks;
     /** Wait after a rerun before CI is read again. Defaults to 30 seconds. */
     rerunDelayMs?: number;
+    /** Posts a progress update for the user: the worker's own words, or host facts after a quiet
+     * period. */
+    onProgress?: (message: string) => Promise<void>;
+    progressTiming?: Partial<typeof PROGRESS_TIMING>;
   } = {}
 ) {
   const execute = dependencies.execute ?? implementationProcess;
@@ -324,7 +333,9 @@ export function createImplementation(
         metadata,
         save,
         workerChecks,
-        state
+        state,
+        // Defined below with the other progress helpers; tools run only after the worker starts.
+        reportProgress: (message) => reportProgress(message)
       });
       // The commit that the worktree and pull request must have: the base until publication.
       let head = baseCommit;
@@ -343,6 +354,45 @@ export function createImplementation(
       let queueMessages = false;
       const waiting: string[] = [];
       let wake: AbortController | undefined;
+      const timing = { ...PROGRESS_TIMING, ...dependencies.progressTiming };
+      // The supervisor announced the task, so the first update can wait a full interval.
+      let lastUpdateAt = Date.now();
+      /** Post an update for the user and keep it for supervisor questions. */
+      const postProgress = async (message: string) => {
+        lastUpdateAt = Date.now();
+        await dependencies.onProgress?.(message);
+        await ctx.emit({ type: 'output', text: message });
+      };
+      const reportProgress = async (message: string) => {
+        const wait = timing.minIntervalMs - (Date.now() - lastUpdateAt);
+        if (wait > 0)
+          return `Not sent: the last update was recent. Send the next one in ${Math.ceil(wait / 1000)} seconds or later.`;
+        await postProgress(workerStopReason(message, worktree));
+        return 'Sent to the user.';
+      };
+      let quietUpdateRunning = false;
+      /** After a quiet period, post facts that the host knows about the worker's progress. */
+      const quietUpdate = async () => {
+        if (quietUpdateRunning || Date.now() - lastUpdateAt < timing.quietMs) return;
+        quietUpdateRunning = true;
+        try {
+          const changed = (
+            await git(worktree, ['--no-optional-locks', 'status', '--porcelain', '-uall'])
+          )
+            .split('\n')
+            .filter(Boolean).length;
+          const runs = workerChecks.length;
+          await postProgress(
+            changed
+              ? `Still working on the change: ${changed} changed file${changed === 1 ? '' : 's'} so far${runs ? `, ${runs} test and check run${runs === 1 ? '' : 's'}` : ''}.`
+              : 'Still reading the code. No files have changed yet.'
+          );
+        } catch {
+          // An update is best effort; the next check tries again.
+        } finally {
+          quietUpdateRunning = false;
+        }
+      };
       const counts = ({ passed, failed, pending, skipped }: PullRequestChecks) => ({
         passed,
         failed,
@@ -599,7 +649,13 @@ export function createImplementation(
           while (true) {
             state.checkpointRequested = false;
             state.rerunRequested = false;
-            const report = await connection.runOutcome(prompt, { signal });
+            const quiet = setInterval(() => void quietUpdate(), timing.checkMs);
+            let report;
+            try {
+              report = await connection.runOutcome(prompt, { signal });
+            } finally {
+              clearInterval(quiet);
+            }
             signal.throwIfAborted();
             if (missedClarification)
               return {

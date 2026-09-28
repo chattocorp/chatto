@@ -44,6 +44,8 @@ export function implementationExtension(
     onPublished?: (message: string) => Promise<void>;
     /** Post CI repair attempts and the final CI result after publication. */
     onCiResult?: (message: string) => Promise<void>;
+    /** Post progress updates while the implementation works. */
+    onProgress?: (message: string) => Promise<void>;
   } = {}
 ) {
   let attemptedVersion: number | undefined;
@@ -146,6 +148,9 @@ export function implementationExtension(
                   dependencies.onPublished,
                   `Opened [the pull request](${prUrl}). Local typecheck and lint passed. I will fix CI failures and report when CI finishes.`
                 );
+              },
+              onProgress: async (message) => {
+                await post(dependencies.onProgress, message);
               },
               onCiRepair: async (attempt) => {
                 await post(
