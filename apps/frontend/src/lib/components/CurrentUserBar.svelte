@@ -291,7 +291,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           />
           <VoiceCallControlButton
             class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
-            label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+            label={m('voice.mute')}
+            pressed={voiceCallState.isMuted}
             testId="current-user-call-mute"
             icon={voiceCallState.isMuted
               ? 'icon-[uil--microphone-slash]'

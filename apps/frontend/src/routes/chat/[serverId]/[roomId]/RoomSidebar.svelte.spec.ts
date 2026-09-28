@@ -1439,7 +1439,10 @@ describe('RoomSidebar', () => {
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeNull();
     expect(
       q(featured, '[data-testid="call-feed-local-mute-button"]')?.getAttribute('aria-label')
-    ).toBe('Unmute locally');
+    ).toBe('Mute locally');
+    expect(
+      q(featured, '[data-testid="call-feed-local-mute-button"]')?.getAttribute('aria-pressed')
+    ).toBe('true');
 
     fullscreenButton.click();
     await Promise.resolve();
@@ -1451,7 +1454,7 @@ describe('RoomSidebar', () => {
       featured,
       '[data-testid="call-feed-local-mute-button"]'
     ) as HTMLButtonElement;
-    expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Mute locally');
     localMuteButton.click();
 
     expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');

@@ -270,13 +270,7 @@ Room sidebar panel for voice/video calls.
   {#if canShowMuteButton(participant)}
     <CompactActionButton
       aria-pressed={isMutedForViewer}
-      label={participant.isLocal
-        ? isMutedForViewer
-          ? m('voice.unmute')
-          : m('voice.mute')
-        : isMutedForViewer
-          ? m('voice.locally_unmute_participant')
-          : m('voice.locally_mute_participant')}
+      label={participant.isLocal ? m('voice.mute') : m('voice.locally_mute_participant')}
       data-testid="call-feed-local-mute-button"
       onclick={(event) => toggleFeedMute(participant, event)}
     >
@@ -538,7 +532,8 @@ Room sidebar panel for voice/video calls.
 
             <VoiceCallControlButton
               class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
-              label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+              label={m('voice.mute')}
+              pressed={voiceCallState.isMuted}
               testId="call-mute-toggle"
               icon={voiceCallState.isMuted
                 ? 'icon-[uil--microphone-slash]'
