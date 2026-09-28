@@ -553,7 +553,8 @@ type ThreadSearchContext struct {
 	Thread *ThreadSummary `protobuf:"bytes,3,opt,name=thread,proto3" json:"thread,omitempty"`
 	// Most recent visible reply, when present; it need not match the query.
 	LatestReply *Message `protobuf:"bytes,4,opt,name=latest_reply,json=latestReply,proto3" json:"latest_reply,omitempty"`
-	// Conversation-label participants for direct messages; empty for channels.
+	// Conversation-label participants for direct messages, including deleted
+	// accounts that resolve to deleted users; empty for channels.
 	DirectMessageParticipantUserIds []string `protobuf:"bytes,5,rep,name=direct_message_participant_user_ids,json=directMessageParticipantUserIds,proto3" json:"direct_message_participant_user_ids,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache

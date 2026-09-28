@@ -468,7 +468,8 @@ export class ThreadSearchContext extends Message<ThreadSearchContext> {
   latestReply?: Message$1;
 
   /**
-   * Conversation-label participants for direct messages; empty for channels.
+   * Conversation-label participants for direct messages, including deleted
+   * accounts that resolve to deleted users; empty for channels.
    *
    * @generated from field: repeated string direct_message_participant_user_ids = 5;
    */

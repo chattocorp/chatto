@@ -108,6 +108,14 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				directMessageParticipantUserIDs = append(directMessageParticipantUserIDs, member.GetId())
 				threadHydrator.addUserID(member.GetId())
 			}
+			// Deleted participants hydrate as deleted-user references, so the
+			// label shows them instead of turning the DM into a self-DM.
+			deletedIDs, err := api.core.ListDeletedDMParticipantIDs(ctx, viewerID, thread.RoomID)
+			if err != nil {
+				return nil, err
+			}
+			directMessageParticipantUserIDs = append(directMessageParticipantUserIDs, deletedIDs...)
+			threadHydrator.addUserIDs(deletedIDs)
 		}
 		for userID := range threadHydrator.userIDs {
 			h.addUserID(userID)

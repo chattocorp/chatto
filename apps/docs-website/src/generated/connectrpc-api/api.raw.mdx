@@ -6005,7 +6005,7 @@ Search evidence stays on the containing MessageSearchResult.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing this thread. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Current thread metadata and viewer follow/read state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when present; it need not match the query. |
-| `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages; empty for channels. |
+| `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages, including deleted accounts that resolve to deleted users; empty for channels. |
 
 
 
@@ -6307,7 +6307,7 @@ One followed thread for the current user.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
-| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label, including participants whose accounts were deleted. Includes resolve those to deleted users. Empty for channel rooms. |
 
 
 

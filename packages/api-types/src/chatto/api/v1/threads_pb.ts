@@ -282,8 +282,9 @@ export class FollowedThread extends Message<FollowedThread> {
   latestReply?: Message$1;
 
   /**
-   * User IDs used to derive a direct-message conversation label. Empty for
-   * channel rooms.
+   * User IDs used to derive a direct-message conversation label, including
+   * participants whose accounts were deleted. Includes resolve those to
+   * deleted users. Empty for channel rooms.
    *
    * @generated from field: repeated string direct_message_participant_user_ids = 11;
    */
