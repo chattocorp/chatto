@@ -2,7 +2,7 @@ import { RoomKind } from '$lib/api-client/roomDirectory';
 import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
 import { mapDirectoryRoom, mapRoomGroup } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
-import type { UserAvatarUserView } from '$lib/render/users';
+import { deletedDirectMessageParticipant, type UserAvatarUserView } from '$lib/render/users';
 import type { ServerProjectionStore } from './projection.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 
@@ -30,6 +30,7 @@ export type RoomsListItem = {
   viewerNotificationCount: number;
   viewerImportantNotificationCount: number;
   hasMessageHistory?: boolean | null;
+  /** DM participants: resolved members, then a deleted placeholder per deleted account. */
   members: UserAvatarUserView[];
 };
 
@@ -110,6 +111,7 @@ export class NavigationStore {
         const member = this.projection.users.get(userId);
         return member ? [avatarUserFromDirectoryMember(mapDirectoryMember(member))] : [];
       });
+      members.push(...entry.deletedParticipantUserIds.map(deletedDirectMessageParticipant));
       const viewerNotificationCount = this.notificationCounts.roomUnreadCounts[room.id] ?? 0;
       const viewerImportantNotificationCount =
         this.notificationCounts.roomImportantUnreadCounts[room.id] ?? 0;

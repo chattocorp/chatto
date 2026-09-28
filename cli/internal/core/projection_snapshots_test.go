@@ -225,6 +225,9 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
 			p.Catalog.seq = 41
 			p.Membership.addLocked("R1", "U1")
+			p.Catalog.rooms["D1"] = &roomCatalogEntry{kind: evtv1.RoomKind_ROOM_KIND_DM}
+			p.Membership.addLocked("D1", "U1")
+			p.Membership.addFormerDMParticipantLocked("D1", "U3")
 			expires := now.Add(time.Hour)
 			p.Bans.byRoom["R1"] = map[string]RoomBan{"U2": {EventID: "B1", RoomID: "R1", UserID: "U2", ModeratorID: "U1", Reason: "spam", CreatedAt: now, ExpiresAt: &expires}}
 		}},

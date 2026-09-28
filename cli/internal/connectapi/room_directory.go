@@ -188,8 +188,8 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 }
 
 // apiRoomWithViewerState returns the canonical public room resource. DM
-// participant IDs and history state are part of this resource in every API
-// that returns it.
+// participant IDs, deleted participant IDs, and history state are part of this
+// resource in every API that returns it.
 func (a *API) apiRoomWithViewerState(ctx context.Context, userID string, room *core.DirectoryRoom) (*apiv1.RoomWithViewerState, error) {
 	result := apiRoomWithViewerState(room)
 	if room == nil || room.Room == nil || core.KindOfRoom(room.Room) != core.KindDM || !room.ViewerState.IsMember {
@@ -211,6 +211,10 @@ func (a *API) apiRoomWithViewerState(ctx context.Context, userID string, room *c
 		if member.GetId() != "" {
 			result.MemberUserIds = append(result.MemberUserIds, member.GetId())
 		}
+	}
+	result.DeletedParticipantUserIds, err = a.core.ListDeletedDMParticipantIDs(ctx, userID, room.Room.GetId())
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }

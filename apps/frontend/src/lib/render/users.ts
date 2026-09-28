@@ -1,4 +1,4 @@
-import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { formatAccountName } from './accountName';
 
 export type CustomUserStatusView = {
@@ -28,11 +28,38 @@ type DirectMessageParticipant = Pick<
   'id' | 'login' | 'displayName' | 'isBot'
 > & { deleted?: boolean };
 
-/** Builds the shared label and avatar participants for a direct message. */
+/** Localized labels for DM participants who have no display name of their own. */
+export type DirectMessageLabels = {
+  /** Marks the viewer, for example "You". */
+  currentUser: string;
+  /** Replaces the name of a participant whose account was deleted. */
+  deletedUser: string;
+};
+
+/**
+ * Placeholder for a DM participant whose account was deleted. The server
+ * reports these IDs separately because deleted accounts are no longer members.
+ */
+export function deletedDirectMessageParticipant(id: string): UserAvatarUserView {
+  return {
+    id,
+    login: '',
+    displayName: '',
+    deleted: true,
+    presenceStatus: PresenceStatus.UNSPECIFIED
+  };
+}
+
+/**
+ * Builds the shared label and avatar participants for a direct message.
+ *
+ * Deleted participants count as other participants, so a DM whose partner
+ * deleted their account never looks like the viewer's self-DM.
+ */
 export function buildDirectMessagePresentation<T extends DirectMessageParticipant>(
   participants: readonly T[],
   currentUserId: string | null | undefined,
-  currentUserLabel: string,
+  labels: DirectMessageLabels,
   getDisplayName: (userId: string, fallback: string) => string = (_userId, fallback) => fallback
 ) {
   const others = participants.filter((participant) => participant.id !== currentUserId);
@@ -42,15 +69,17 @@ export function buildDirectMessagePresentation<T extends DirectMessageParticipan
       others.length > 0
         ? others
             .map((participant) =>
-              formatAccountName(
-                getDisplayName(participant.id, participant.displayName || participant.login),
-                participant
-              )
+              participant.deleted
+                ? labels.deletedUser
+                : formatAccountName(
+                    getDisplayName(participant.id, participant.displayName || participant.login),
+                    participant
+                  )
             )
             .join(', ')
         : self
-          ? `${formatAccountName(getDisplayName(self.id, self.displayName || self.login) || self.login, self)} (${currentUserLabel})`
-          : currentUserLabel,
+          ? `${formatAccountName(getDisplayName(self.id, self.displayName || self.login) || self.login, self)} (${labels.currentUser})`
+          : labels.currentUser,
     visibleParticipants: others.length > 0 ? others : participants.slice(0, 1)
   };
 }

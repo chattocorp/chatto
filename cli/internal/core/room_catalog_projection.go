@@ -126,6 +126,18 @@ func (p *RoomCatalogProjection) Get(roomID string) (*evtv1.Room, bool) {
 	return entryToRoom(roomID, entry), true
 }
 
+// Kind returns the room's kind, or (ROOM_KIND_UNSPECIFIED, false) if no such
+// room has been projected.
+func (p *RoomCatalogProjection) Kind(roomID string) (evtv1.RoomKind, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	entry, ok := p.rooms[roomID]
+	if !ok {
+		return evtv1.RoomKind_ROOM_KIND_UNSPECIFIED, false
+	}
+	return entry.kind, true
+}
+
 // Exists reports whether the room is present in the catalog.
 func (p *RoomCatalogProjection) Exists(roomID string) bool {
 	p.RLock()

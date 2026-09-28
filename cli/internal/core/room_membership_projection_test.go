@@ -123,6 +123,45 @@ func TestRoomDirectoryProjectionPrepareRejectsMalformedEventBeforeCommit(t *test
 	}
 }
 
+func TestRoomDirectoryProjectionTracksFormerDMParticipants(t *testing.T) {
+	directory := NewRoomDirectoryProjection()
+	for _, event := range []*evtv1.Event{
+		roomCreatedEvent("DM", "", "", evtv1.RoomKind_ROOM_KIND_DM),
+		joinEvent("DM", "U1"),
+		joinEvent("DM", "U2"),
+		roomCreatedEvent("C1", "general", "", evtv1.RoomKind_ROOM_KIND_CHANNEL),
+		joinEvent("C1", "U1"),
+		joinEvent("C1", "U2"),
+		leaveEvent("DM", "U2"),
+		leaveEvent("C1", "U2"),
+	} {
+		mustApply(t, directory, event)
+	}
+
+	if got := directory.Membership.FormerDMParticipants("DM"); !equal(got, []string{"U2"}) {
+		t.Errorf("FormerDMParticipants(DM) = %v, want [U2]", got)
+	}
+	if got := directory.Membership.Members("DM"); !equal(got, []string{"U1"}) {
+		t.Errorf("Members(DM) = %v, want [U1]", got)
+	}
+	if got := directory.Membership.FormerDMParticipants("C1"); len(got) != 0 {
+		t.Errorf("FormerDMParticipants(C1) = %v, want none for a channel", got)
+	}
+
+	mustApply(t, directory, joinEvent("DM", "U2"))
+	if got := directory.Membership.FormerDMParticipants("DM"); len(got) != 0 {
+		t.Errorf("FormerDMParticipants(DM) after rejoin = %v, want none", got)
+	}
+
+	mustApply(t, directory, leaveEvent("DM", "U2"))
+	mustApply(t, directory, &evtv1.Event{Event: &evtv1.Event_RoomDeleted{
+		RoomDeleted: &evtv1.RoomDeletedEvent{RoomId: "DM"},
+	}})
+	if got := directory.Membership.FormerDMParticipants("DM"); len(got) != 0 {
+		t.Errorf("FormerDMParticipants(DM) after room deletion = %v, want none", got)
+	}
+}
+
 func TestRoomMembershipProjection_EmptyRoomDropped(t *testing.T) {
 	// Room should be removed from the index entirely once it has no
 	// members, so Members/Rooms don't return stale entries.
@@ -215,7 +254,9 @@ func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
 
 // ---- helpers ----
 
-func mustApply(t *testing.T, p *RoomMembershipProjection, e *evtv1.Event) {
+func mustApply(t *testing.T, p interface {
+	Apply(*evtv1.Event, uint64) error
+}, e *evtv1.Event) {
 	t.Helper()
 	if err := p.Apply(e, 0); err != nil {
 		t.Fatalf("Apply: %v", err)

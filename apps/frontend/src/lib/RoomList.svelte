@@ -25,6 +25,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+  import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -697,7 +698,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return buildDirectMessagePresentation(
       room.members,
       stores.projectionViewerId,
-      m('common.you'),
+      directMessageLabels(),
       getLiveDisplayName
     );
   }

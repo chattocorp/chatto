@@ -140,6 +140,8 @@ message RoomDirectoryProjectionSnapshot {
   repeated RoomMembershipSnapshot memberships = 2;
   repeated RoomBanSnapshot bans = 3;
   uint64 catalog_sequence = 4;
+  // Users who left a DM room, per room. Account deletion is the normal cause.
+  repeated RoomMembershipSnapshot former_dm_participants = 5;
 }
 
 message RoomMembershipSnapshot {

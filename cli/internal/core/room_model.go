@@ -145,6 +145,10 @@ func (m *RoomModel) explicitRoomMemberIDs(roomID string) []string {
 	return m.directory.Projection().Membership.Members(roomID)
 }
 
+func (m *RoomModel) formerDMParticipantIDs(roomID string) []string {
+	return m.directory.Projection().Membership.FormerDMParticipants(roomID)
+}
+
 func (m *RoomModel) roomGroup(groupID string) (*evtv1.RoomGroup, bool) {
 	return m.groupLayout.Projection().Groups.Get(groupID)
 }

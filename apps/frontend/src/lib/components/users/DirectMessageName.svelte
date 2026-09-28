@@ -2,6 +2,8 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+  import { directMessageLabels } from '$lib/render/directMessageLabels';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import AccountName from './AccountName.svelte';
   import IdentityBadge from './IdentityBadge.svelte';
 
@@ -17,7 +19,12 @@
     getDisplayName?: (id: string, fallback: string) => string;
   } = $props();
   const presentation = $derived(
-    buildDirectMessagePresentation(participants, currentUserId, m('common.you'), getDisplayName)
+    buildDirectMessagePresentation(
+      participants,
+      currentUserId,
+      directMessageLabels(),
+      getDisplayName
+    )
   );
 </script>
 
@@ -25,10 +32,10 @@
   {#each presentation.visibleParticipants as participant, index (participant.id)}
     {@const name = getDisplayName(participant.id, participant.displayName || participant.login)}
     <span class="inline-flex min-w-0 items-baseline">
-      <AccountName
-        name={participant.id === currentUserId ? name || participant.login : name}
-        identity={participant}
-      />
+      {#if participant.deleted}<DeletedUserLabel />{:else}<AccountName
+          name={participant.id === currentUserId ? name || participant.login : name}
+          identity={participant}
+        />{/if}
       {#if participant.id === currentUserId}<IdentityBadge
           label={m('common.you')}
           testId="you-badge"

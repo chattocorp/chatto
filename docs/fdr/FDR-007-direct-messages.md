@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -28,12 +28,18 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   with the current account's display name and a localized **You** badge when
   participant data is available. The badge uses the account ID, so text in
   another user's display name cannot create it.
+- When a DM participant deletes their account, the conversation stays
+  available to the other participants. Clients show the deleted participant as
+  **[deleted user]** with a deleted-user avatar. A DM whose other participants
+  are all deleted is never shown as a self-DM and has no **You** badge.
+  Posting rules do not change.
 - Active DM navigation uses message history to include and order DMs for their
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.
 - `RoomDirectoryService.ListRooms` returns accessible empty DMs as authorized
-  room state. Each DM `RoomWithViewerState` contains its participant user IDs
-  and an optional `has_message_history` value. Navigation hides a DM only when
+  room state. Each DM `RoomWithViewerState` contains its participant user IDs,
+  the IDs of participants whose accounts were deleted, and an optional
+  `has_message_history` value. Navigation hides a DM only when
   that value is explicitly false. An absent value is unknown and stays visible.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - A user can discover a DM only when they are a participant. The main timeline
@@ -132,6 +138,21 @@ not need the start operation to participate after a human creates the DM.
 for an existing DM. It must learn the room from its normal room state or
 realtime events.
 
+### 9. Deleted participants stay visible as deleted users
+
+**Decision:** Account deletion removes the account's DM memberships, but the
+room directory remembers each former DM participant.
+`RoomWithViewerState.deleted_participant_user_ids` reports the participants
+whose accounts are deleted. Clients show them as deleted users.
+**Why:** Without this record, a one-to-one DM with a deleted account has the
+same member list as the remaining participant's self-DM. The UI then showed
+the viewer's own name and a **You** badge for someone else's conversation.
+The record is rebuilt from the leave events that deletion already writes, so
+DMs whose partners were deleted before this change are also corrected.
+**Tradeoff:** The room directory keeps a small former-participant set for each
+affected DM. The conversation stays writable; a read-only DM state is not part
+of this decision.
+
 ## Permissions
 
 - `message.post` — let a human create DMs, and let a human or bot send messages
@@ -154,4 +175,4 @@ the Direct messages scope. No `room.*` permission applies at that scope.
 ## Related
 
 - **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM membership boundary), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-093 (public realtime event union), ADR-095 (DM permission scope and threads)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)

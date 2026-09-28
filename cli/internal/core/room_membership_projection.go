@@ -21,6 +21,12 @@ import (
 // subject scheme is `evt.room.{roomID}.{eventType}` — kind is a property
 // of the room itself, not of any individual event. Kind-filtered membership
 // queries compose this index with RoomModel's projected room catalog.
+//
+// The projection also remembers former DM participants: users who left a DM
+// room. DMs cannot be left through LeaveRoom, so this happens when an account
+// is deleted. Clients use it to show the deleted participant instead of
+// presenting the remaining conversation as a self-DM. Tracking needs the room
+// kind, which RoomDirectoryProjection supplies through roomKind.
 type RoomMembershipProjection struct {
 	events.MemoryProjection
 	// byRoom: room ID → set of user IDs in that room.
@@ -28,14 +34,21 @@ type RoomMembershipProjection struct {
 	// byUser: user ID → set of room IDs that user is in. Mirror of
 	// byRoom, kept in sync.
 	byUser map[string]map[string]struct{}
+	// formerDMParticipants: DM room ID → set of user IDs that left the DM
+	// and did not join again. Dropped with the room.
+	formerDMParticipants map[string]map[string]struct{}
+	// roomKind resolves a room's kind from the room catalog. When nil, the
+	// projection does not record former DM participants.
+	roomKind func(roomID string) (evtv1.RoomKind, bool)
 }
 
 // NewRoomMembershipProjection returns an empty projection. Call Run on a
 // Projector wrapping it to populate from the stream.
 func NewRoomMembershipProjection() *RoomMembershipProjection {
 	return &RoomMembershipProjection{
-		byRoom: make(map[string]map[string]struct{}),
-		byUser: make(map[string]map[string]struct{}),
+		byRoom:               make(map[string]map[string]struct{}),
+		byUser:               make(map[string]map[string]struct{}),
+		formerDMParticipants: make(map[string]map[string]struct{}),
 	}
 }
 
@@ -53,6 +66,13 @@ func (p *RoomMembershipProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
+	// Resolve the room kind before taking the membership lock, so this
+	// projection never holds its own lock while it waits for the catalog's.
+	leftDM := false
+	if left := event.GetUserLeftRoom(); left != nil && p.roomKind != nil {
+		kind, ok := p.roomKind(left.GetRoomId())
+		leftDM = ok && kind == evtv1.RoomKind_ROOM_KIND_DM
+	}
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
@@ -63,6 +83,7 @@ func (p *RoomMembershipProjection) Apply(event *evtv1.Event, _ uint64) error {
 			return fmt.Errorf("UserJoinedRoom missing roomID or userID")
 		}
 		p.addLocked(roomID, userID)
+		p.forgetFormerDMParticipantLocked(roomID, userID)
 	case *evtv1.Event_UserLeftRoom:
 		roomID := e.UserLeftRoom.GetRoomId()
 		userID := event.GetActorId()
@@ -70,6 +91,9 @@ func (p *RoomMembershipProjection) Apply(event *evtv1.Event, _ uint64) error {
 			return fmt.Errorf("UserLeftRoom missing roomID or userID")
 		}
 		p.removeLocked(roomID, userID)
+		if leftDM {
+			p.addFormerDMParticipantLocked(roomID, userID)
+		}
 	case *evtv1.Event_RoomMemberBanned:
 		roomID := e.RoomMemberBanned.GetRoomId()
 		userID := e.RoomMemberBanned.GetUserId()
@@ -83,6 +107,7 @@ func (p *RoomMembershipProjection) Apply(event *evtv1.Event, _ uint64) error {
 			return fmt.Errorf("RoomDeleted missing roomID")
 		}
 		p.dropRoomLocked(roomID)
+		p.dropFormerDMParticipantsLocked(roomID)
 	default:
 		// Other event types may share the room aggregate subject in the
 		// future; skipping them silently is the correct projection
@@ -129,6 +154,36 @@ func (p *RoomMembershipProjection) dropRoomLocked(roomID string) {
 	delete(p.byRoom, roomID)
 }
 
+// dropFormerDMParticipantsLocked forgets the former participants of a deleted
+// room. Caller holds p.Lock. Idempotent.
+func (p *RoomMembershipProjection) dropFormerDMParticipantsLocked(roomID string) {
+	delete(p.formerDMParticipants, roomID)
+}
+
+// addFormerDMParticipantLocked records that the user left the DM room.
+// Caller holds p.Lock. Idempotent.
+func (p *RoomMembershipProjection) addFormerDMParticipantLocked(roomID, userID string) {
+	users, ok := p.formerDMParticipants[roomID]
+	if !ok {
+		users = make(map[string]struct{})
+		p.formerDMParticipants[roomID] = users
+	}
+	users[userID] = struct{}{}
+}
+
+// forgetFormerDMParticipantLocked removes a former DM participant entry, for
+// example when the user joins the room again. Caller holds p.Lock. Idempotent.
+func (p *RoomMembershipProjection) forgetFormerDMParticipantLocked(roomID, userID string) {
+	users, ok := p.formerDMParticipants[roomID]
+	if !ok {
+		return
+	}
+	delete(users, userID)
+	if len(users) == 0 {
+		delete(p.formerDMParticipants, roomID)
+	}
+}
+
 // removeLocked deletes a (room, user) membership. Caller holds
 // p.Lock. Idempotent.
 func (p *RoomMembershipProjection) removeLocked(roomID, userID string) {
@@ -164,6 +219,20 @@ func (p *RoomMembershipProjection) Members(roomID string) []string {
 	p.RLock()
 	defer p.RUnlock()
 	users := p.byRoom[roomID]
+	out := make([]string, 0, len(users))
+	for u := range users {
+		out = append(out, u)
+	}
+	return out
+}
+
+// FormerDMParticipants returns the user IDs that were participants of the DM
+// room but are no longer members. In practice these are users who deleted
+// their accounts. The returned slice is a copy; order is unspecified.
+func (p *RoomMembershipProjection) FormerDMParticipants(roomID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	users := p.formerDMParticipants[roomID]
 	out := make([]string, 0, len(users))
 	for u := range users {
 		out = append(out, u)

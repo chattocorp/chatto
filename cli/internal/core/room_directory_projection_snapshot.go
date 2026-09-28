@@ -39,6 +39,12 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 			UserIds: sortedMapKeys(p.Membership.byRoom[roomID]),
 		})
 	}
+	for _, roomID := range sortedMapKeys(p.Membership.formerDMParticipants) {
+		snapshot.FormerDmParticipants = append(snapshot.FormerDmParticipants, &projectionv1.RoomMembershipSnapshot{
+			RoomId:  roomID,
+			UserIds: sortedMapKeys(p.Membership.formerDMParticipants[roomID]),
+		})
+	}
 	for _, roomID := range sortedMapKeys(p.Bans.byRoom) {
 		for _, userID := range sortedMapKeys(p.Bans.byRoom[roomID]) {
 			ban := p.Bans.byRoom[roomID][userID]
@@ -105,6 +111,27 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		}
 		byRoom[roomID] = users
 	}
+	formerDMParticipants := make(map[string]map[string]struct{}, len(snapshot.GetFormerDmParticipants()))
+	for _, former := range snapshot.GetFormerDmParticipants() {
+		roomID := former.GetRoomId()
+		if roomID == "" {
+			return fmt.Errorf("room directory snapshot has empty former DM participant room ID")
+		}
+		if _, duplicate := formerDMParticipants[roomID]; duplicate {
+			return fmt.Errorf("room directory snapshot repeats former DM participant room %q", roomID)
+		}
+		users := make(map[string]struct{}, len(former.GetUserIds()))
+		for _, userID := range former.GetUserIds() {
+			if userID == "" {
+				return fmt.Errorf("room directory snapshot has empty former DM participant in room %q", roomID)
+			}
+			if _, duplicate := users[userID]; duplicate {
+				return fmt.Errorf("room directory snapshot repeats former DM participant %q in room %q", userID, roomID)
+			}
+			users[userID] = struct{}{}
+		}
+		formerDMParticipants[roomID] = users
+	}
 	bans := make(map[string]map[string]RoomBan)
 	for _, row := range snapshot.GetBans() {
 		if row.GetRoomId() == "" || row.GetUserId() == "" || row.GetReason() == "" {
@@ -135,6 +162,7 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 	p.Bans.Lock()
 	p.Catalog.rooms, p.Catalog.seq = rooms, snapshot.GetCatalogSequence()
 	p.Membership.byRoom, p.Membership.byUser = byRoom, byUser
+	p.Membership.formerDMParticipants = formerDMParticipants
 	p.Bans.byRoom = bans
 	p.Bans.Unlock()
 	p.Membership.Unlock()

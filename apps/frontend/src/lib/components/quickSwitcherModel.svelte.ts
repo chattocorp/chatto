@@ -17,6 +17,7 @@ import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
 import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
+import { directMessageLabels } from '$lib/render/directMessageLabels';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -359,12 +360,14 @@ export class QuickSwitcherModel {
           const presentation = buildDirectMessagePresentation(
             participants,
             currentUserId,
-            m('common.you')
+            directMessageLabels()
           );
-          // Count full membership, not visible avatars: a group can lose profile data.
-          const memberIds =
-            store?.projection.rooms.get(room.id)?.memberUserIds ??
-            room.members.map((user) => user.id);
+          // Count full participation, not visible avatars: a group can lose profile data.
+          // Deleted participants still count, so their DM is not the viewer's self-DM.
+          const projectedRoom = store?.projection.rooms.get(room.id);
+          const memberIds = projectedRoom
+            ? [...projectedRoom.memberUserIds, ...projectedRoom.deletedParticipantUserIds]
+            : room.members.map((user) => user.id);
           if (currentUserId && memberIds.includes(currentUserId) && memberIds.length <= 2) {
             for (const userId of memberIds) {
               if (userId !== currentUserId || memberIds.length === 1)

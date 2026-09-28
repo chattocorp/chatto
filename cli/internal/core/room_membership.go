@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -737,6 +738,29 @@ func (c *ChattoCore) ListActiveRoomMemberIDs(ctx context.Context, actorID, roomI
 		return nil, err
 	}
 	return c.userModel.users.Projection().ActiveIDs(ids), nil
+}
+
+// ListDeletedDMParticipantIDs returns the participants of a DM whose accounts
+// were deleted or shredded, sorted by ID. Account deletion removes the user's
+// DM memberships, so the result combines former DM participants with current
+// members that still point at a deleted account. Only DM members may read it.
+// Channels always return an empty list.
+func (c *ChattoCore) ListDeletedDMParticipantIDs(ctx context.Context, actorID, roomID string) ([]string, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if kind != KindDM {
+		return []string{}, nil
+	}
+	memberIDs, err := c.roomMemberIDs(ctx, kind, room.GetId())
+	if err != nil {
+		return nil, err
+	}
+	candidates := append(memberIDs, c.roomModel.formerDMParticipantIDs(room.GetId())...)
+	deleted := c.userModel.users.Projection().DeletedIDs(candidates)
+	sort.Strings(deleted)
+	return deleted, nil
 }
 
 // ListRoomMemberReferencesForLookup authorizes member hydration for room members

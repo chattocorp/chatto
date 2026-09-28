@@ -55,9 +55,14 @@ describe('account names', () => {
     expect(view.container.textContent).toContain('Live Alice');
     expect(view.container.textContent).toContain('Live Helper');
     expect(view.container.querySelectorAll('[data-testid="bot-badge"]')).toHaveLength(1);
-    expect(buildDirectMessagePresentation(participants, 'self', 'You', getDisplayName).label).toBe(
-      'Live Alice, Live Helper (BOT)'
-    );
+    expect(
+      buildDirectMessagePresentation(
+        participants,
+        'self',
+        { currentUser: 'You', deletedUser: '[deleted user]' },
+        getDisplayName
+      ).label
+    ).toBe('Live Alice, Live Helper (BOT)');
   });
 
   it('shows the live self-DM name with a separate, visible YOU badge', async () => {

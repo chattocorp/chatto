@@ -9,6 +9,7 @@ import { userEvent } from 'vitest/browser';
 import { SvelteMap } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
+import { deletedDirectMessageParticipant } from '$lib/render/users';
 import { sidebarNav } from '$lib/state/globals.svelte';
 import '../app.css';
 
@@ -416,6 +417,26 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/dm-self"]')!;
     await expect.element(row).toHaveTextContent('My name');
     expect(row.querySelector('[data-testid="you-badge"]')).not.toBeNull();
+  });
+
+  it('shows a deleted partner instead of a self-DM in the sidebar row', async () => {
+    mocks.store.navigation.rooms = [
+      {
+        id: 'dm-deleted',
+        name: '',
+        type: RoomKind.DM,
+        viewerIsMember: true,
+        hasMessageHistory: true,
+        members: [user('me', 'me', 'My name'), deletedDirectMessageParticipant('gone')]
+      }
+    ] as never;
+
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-deleted"]')!;
+    await expect.element(row).toHaveTextContent('[deleted user]');
+    expect(row.textContent).not.toContain('My name');
+    expect(row.querySelector('[data-testid="you-badge"]')).toBeNull();
+    expect(row.querySelector('[role="img"][aria-label="[deleted user]"]')).not.toBeNull();
   });
 
   it('renders a full-width separator between adjacent room and DM sections', () => {

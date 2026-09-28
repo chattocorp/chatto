@@ -719,6 +719,35 @@ describe('QuickSwitcher', () => {
     expect(resultButtons(container)[0].querySelector('[data-testid="you-badge"]')).not.toBeNull();
   });
 
+  it('does not treat a DM with a deleted partner as the self-DM', async () => {
+    mocks.store.projection.users.set(
+      currentUser.id,
+      new DirectoryMember({
+        user: { id: currentUser.id, login: currentUser.login, displayName: currentUser.displayName }
+      })
+    );
+    mocks.store.navigation.rooms.push({
+      id: 'deleted-partner',
+      name: '',
+      type: RoomKind.DM,
+      viewerIsMember: true,
+      hasMessageHistory: true,
+      members: [currentUser, { ...user('gone', '', ''), deleted: true } as User]
+    });
+    mocks.store.projection.rooms.set(
+      'deleted-partner',
+      new RoomWithViewerState({
+        memberUserIds: ['user-current'],
+        deletedParticipantUserIds: ['gone']
+      })
+    );
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'alice');
+    // The viewer stays reachable as a person, because this DM is not their self-DM.
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(resultButtons(container)[0].textContent).not.toContain('[deleted user]');
+  });
+
   it('refreshes known profiles and removes them after deletion, reset, or loss of access', async () => {
     const member = new DirectoryMember({
       user: { id: 'known', login: 'cedar', displayName: 'Cedar' }

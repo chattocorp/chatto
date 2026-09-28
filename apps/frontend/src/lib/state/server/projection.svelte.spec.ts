@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
@@ -13,6 +13,32 @@ import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_call
 import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 
 describe('ServerProjectionStore', () => {
+  it('keeps a deleted account as a deleted DM participant but drops it from channels', () => {
+    const store = new ServerProjectionStore();
+    store.rooms.set(
+      'dm',
+      new RoomWithViewerState({
+        room: new Room({ id: 'dm', kind: RoomKind.DM }),
+        memberUserIds: ['viewer', 'gone']
+      })
+    );
+    store.rooms.set(
+      'channel',
+      new RoomWithViewerState({
+        room: new Room({ id: 'channel', kind: RoomKind.CHANNEL }),
+        memberUserIds: ['viewer', 'gone']
+      })
+    );
+
+    store.removeUser('gone');
+    store.removeUser('gone');
+
+    expect(store.rooms.get('dm')?.memberUserIds).toEqual(['viewer']);
+    expect(store.rooms.get('dm')?.deletedParticipantUserIds).toEqual(['gone']);
+    expect(store.rooms.get('channel')?.memberUserIds).toEqual(['viewer']);
+    expect(store.rooms.get('channel')?.deletedParticipantUserIds).toEqual([]);
+  });
+
   it('merges a partial snapshot user list into cached profiles', () => {
     const store = new ServerProjectionStore();
     store.users.set(

@@ -2,6 +2,7 @@
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { untrack } from 'svelte';
   import type { UserAvatarUserView } from '$lib/render/users';
+  import { m } from '$lib/i18n/messages';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
@@ -159,6 +160,10 @@
         class="{avatarClass} object-cover"
         onerror={() => (failedAvatarUrl = avatarUrl)}
       />
+    {:else if user.deleted}
+      <div class={placeholderClass} role="img" aria-label={m('common.deleted_user')}>
+        <span class="iconify icon-[uil--user-times]" aria-hidden="true"></span>
+      </div>
     {:else}
       <div class={placeholderClass} role="img" aria-label={user.login}>
         {initials}

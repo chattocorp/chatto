@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-27
 
 ## Overview
 
@@ -76,6 +76,9 @@ This FDR covers human accounts from registration through deletion: signup, email
   PII; current actor hydration may disappear without exposing the deleted
   identity.
 - Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
+- The deleted account leaves its DMs. The other participants keep the
+  conversation and see the account as a deleted user, not as a self-DM. See
+  FDR-007.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
 - The login is freed up for re-use.
 - Bots cannot request their own deletion. Their owner or a human user with `bot.manage` deletes them through `BotService`; deleting a human owner also deletes every bot they own. Those paths use the same durable deletion and crypto-shredding behavior described above.

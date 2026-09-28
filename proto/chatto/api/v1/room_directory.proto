@@ -60,6 +60,10 @@ message RoomWithViewerState {
   repeated string member_user_ids = 15;
   // Whether this DM has received a root message. Absent for channel rooms.
   optional bool has_message_history = 16;
+  // DM participants whose accounts were deleted. These IDs are not in
+  // member_user_ids. Clients show them as deleted users. A DM whose only
+  // other participants are deleted is not a self-DM. Empty for channel rooms.
+  repeated string deleted_participant_user_ids = 17;
 }
 
 // Sidebar link metadata for room group navigation.

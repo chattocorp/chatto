@@ -195,6 +195,15 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
    */
   hasMessageHistory?: boolean;
 
+  /**
+   * DM participants whose accounts were deleted. These IDs are not in
+   * member_user_ids. Clients show them as deleted users. A DM whose only
+   * other participants are deleted is not a self-DM. Empty for channel rooms.
+   *
+   * @generated from field: repeated string deleted_participant_user_ids = 17;
+   */
+  deletedParticipantUserIds: string[] = [];
+
   constructor(data?: PartialMessage<RoomWithViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -207,6 +216,7 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
     { no: 14, name: "viewer_state", kind: "message", T: RoomViewerState },
     { no: 15, name: "member_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 16, name: "has_message_history", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 17, name: "deleted_participant_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomWithViewerState {

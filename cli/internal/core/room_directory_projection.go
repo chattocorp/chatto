@@ -20,9 +20,12 @@ type RoomDirectoryProjection struct {
 }
 
 func NewRoomDirectoryProjection() *RoomDirectoryProjection {
+	catalog := NewRoomCatalogProjection()
+	membership := NewRoomMembershipProjection()
+	membership.roomKind = catalog.Kind
 	return &RoomDirectoryProjection{
-		Catalog:    NewRoomCatalogProjection(),
-		Membership: NewRoomMembershipProjection(),
+		Catalog:    catalog,
+		Membership: membership,
 		Bans:       NewRoomBanProjection(),
 	}
 }

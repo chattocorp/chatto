@@ -7,6 +7,7 @@
   import { page } from '$app/state';
   import { useRoomData } from '$lib/hooks';
   import { m } from '$lib/i18n/messages';
+  import { directMessageLabels } from '$lib/render/directMessageLabels';
   import {
     createMentionRoles,
     setRoomMembersStore,
@@ -225,7 +226,7 @@
       isDM: room.isDM,
       dmData: room.dmData,
       directMessageLabel: m('room.title.direct_message'),
-      currentUserLabel: m('common.you'),
+      participantLabels: directMessageLabels(),
       getDisplayName: getLiveDisplayName
     })
   );
@@ -358,7 +359,10 @@
       (participantId) => participantId !== room.dmData?.currentUserId
     );
     if (otherParticipantIds.length === 1) return otherParticipantIds[0];
-    return participantIds.length === 1 && participantIds[0] === room.dmData?.currentUserId
+    // A DM whose other participants deleted their accounts is not a self-DM.
+    return participantIds.length === 1 &&
+      participantIds[0] === room.dmData?.currentUserId &&
+      room.dmData.deletedParticipantIds.length === 0
       ? participantIds[0]
       : null;
   });
