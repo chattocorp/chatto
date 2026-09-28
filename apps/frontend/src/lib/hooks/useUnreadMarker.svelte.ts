@@ -189,8 +189,13 @@ export function useUnreadMarker<TReadResult>(
       if (!isCurrentAttempt(attempt)) return null;
 
       if (attempt.updatesMarker && attempt.markerGeneration === markerGeneration) {
-        unreadMarkerEventId = null;
-        unreadMarkerWindow = markerWindowFromReadResult(result, attempt.markedAtMs);
+        // Resolve the window at once when its events are loaded. A marker
+        // that goes through null for one update removes the separator row and
+        // can move the timeline.
+        const markerWindow = markerWindowFromReadResult(result, attempt.markedAtMs);
+        const eventId = markerWindow ? firstEventInWindow(markerWindow) : null;
+        unreadMarkerEventId = eventId;
+        unreadMarkerWindow = eventId === null ? markerWindow : null;
       }
       finishAttempt(attempt);
       return result;
@@ -261,6 +266,24 @@ export function useUnreadMarker<TReadResult>(
       attempt.timer = null;
       void runAttempt(attempt);
     }
+  }
+
+  /** Return the first event from another user inside `markerWindow`. */
+  function firstEventInWindow(markerWindow: UnreadMarkerWindow): string | null {
+    const afterMs = Date.parse(markerWindow.afterTime);
+    const beforeMs =
+      typeof markerWindow.beforeTime === 'number'
+        ? markerWindow.beforeTime
+        : Date.parse(markerWindow.beforeTime);
+    const skipActorId = getMarkerSkipActorId?.();
+
+    for (const event of getMarkerEvents()) {
+      if (skipActorId && event.actorId === skipActorId) continue;
+
+      const eventMs = Date.parse(event.createdAt);
+      if (eventMs > afterMs && eventMs <= beforeMs) return event.id;
+    }
+    return null;
   }
 
   function setUnreadMarkerEventId(eventId: string | null) {
@@ -339,26 +362,13 @@ export function useUnreadMarker<TReadResult>(
     lastOnlineRevision = onlineRevision;
   });
 
+  // Resolve a pending window when its events arrive later.
   $effect(() => {
     const markerWindow = unreadMarkerWindow;
     if (!markerWindow) return;
 
-    const afterMs = Date.parse(markerWindow.afterTime);
-    const beforeMs =
-      typeof markerWindow.beforeTime === 'number'
-        ? markerWindow.beforeTime
-        : Date.parse(markerWindow.beforeTime);
-    const skipActorId = getMarkerSkipActorId?.();
-
-    for (const event of getMarkerEvents()) {
-      if (skipActorId && event.actorId === skipActorId) continue;
-
-      const eventMs = Date.parse(event.createdAt);
-      if (eventMs > afterMs && eventMs <= beforeMs) {
-        setUnreadMarkerEventId(event.id);
-        return;
-      }
-    }
+    const eventId = firstEventInWindow(markerWindow);
+    if (eventId !== null) setUnreadMarkerEventId(eventId);
   });
 
   onDestroy(() => {

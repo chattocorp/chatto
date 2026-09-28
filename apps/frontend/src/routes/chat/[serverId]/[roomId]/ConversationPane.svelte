@@ -56,6 +56,7 @@ thread IDs can change while the pane stays mounted.
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { threadParticipantIds } from './threadParticipants';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
 
   let {
     roomId,
@@ -116,6 +117,9 @@ thread IDs can change while the pane stays mounted.
   const { editState, replyState, jumpState, quoteInsertionState } = composerContext;
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
+  // The unread separator marks the first message from another user after the
+  // read cursor. System rows, such as the viewer's own join, never start it.
+  const markerEvents = $derived(events.filter((event) => isMessagePostedEvent(event.event)));
   /** Other users in this thread, ranked first in @mention autocomplete. */
   const mentionPriorityUserIds = $derived(
     isThread && threadRootEventId
@@ -160,11 +164,11 @@ thread IDs can change while the pane stays mounted.
           result.previousLastReadAt
             ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs }
             : null,
-        getMarkerEvents: () => events,
+        getMarkerEvents: () => markerEvents,
         getMarkerSkipActorId: () => stores.viewerId,
         onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
       })
-    : useRoomUnread(() => ({ roomId, events, canReadMessages }));
+    : useRoomUnread(() => ({ roomId, events: markerEvents, canReadMessages }));
 
   // A reply or a jump belongs to the conversation that started it. The server
   // store loads each timeline when it creates it, so a target change needs no

@@ -157,6 +157,32 @@ describe('useRoomUnread', () => {
     rendered.unmount();
   });
 
+  it('places the separator at the first event from another user', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-07-10T20:05:00.000Z'));
+    mocks.markRoomAsRead.mockResolvedValue({
+      previousLastReadAt: '2026-07-10T20:00:00.000Z',
+      lastReadAt: '2026-07-10T20:03:00.000Z'
+    });
+    let api: ReturnType<typeof import('./useRoomUnread.svelte').useRoomUnread> | undefined;
+
+    const rendered = render(Harness, {
+      props: {
+        roomId: 'room-1',
+        events: [
+          { id: 'own-event', actorId: 'viewer-1', createdAt: '2026-07-10T20:01:00.000Z' },
+          { id: 'other-event', actorId: 'user-2', createdAt: '2026-07-10T20:02:00.000Z' }
+        ],
+        onReady: (nextApi) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+
+    await vi.waitFor(() => expect(api?.unreadMarkerEventId).toBe('other-event'));
+    rendered.unmount();
+  });
+
   it('preserves a newer unread message when the earlier read succeeds', async () => {
     const request = deferred<{ lastReadAt: string; previousLastReadAt: null }>();
     mocks.markRoomAsRead.mockReturnValue(request.promise);

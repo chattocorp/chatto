@@ -47,6 +47,7 @@ export function useRoomUnread(
       };
     },
     getMarkerEvents: () => getProps().events,
+    getMarkerSkipActorId: () => serverScope.store.viewerId,
     canMarkAsRead: () => serverScope.store.isAuthenticated && getProps().canReadMessages !== false,
     onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error)
   });
