@@ -16,6 +16,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Backslashes normally remain literal so common chat text such as Windows paths and kaomoji is not unexpectedly changed. An escaped pipe inside a GFM table cell is still interpreted as cell content rather than a column boundary.
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
+- On a new post, a leading `/shrug` followed by a space or the end of the draft adds `¯\_(ツ)_/¯` after the message text. The command is not part of the sent body. Edits and text that starts with another word stay unchanged. A failed post keeps the original draft.
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.

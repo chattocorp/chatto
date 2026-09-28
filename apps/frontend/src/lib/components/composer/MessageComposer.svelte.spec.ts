@@ -19,6 +19,7 @@ import type { CreateMessageInput } from '$lib/api-client/messages';
 import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
 import { Code, ConnectError } from '$lib/api-client/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { expandPostCommand } from './messageComposerState.svelte';
 
 async function expectAccentColour(button: HTMLElement) {
   const reference = document.createElement('span');
@@ -2193,6 +2194,23 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    it('keeps /shrug literal when editing a message', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = '/shrug hello';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('/shrug hello');
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId,
+        eventId: 'evt_edit',
+        body: '/shrug hello'
+      });
+    });
+
     it('adds an echo to an image-only thread reply without replacing its body', async () => {
       roomStateMock.editState.eventId = 'evt_image_reply';
       roomStateMock.editState.threadRootEventId = 'evt_root';
@@ -2639,6 +2657,46 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
+    it('expands only a leading /shrug command with a word boundary', () => {
+      expect(expandPostCommand('/shrug')).toBe('¯\\_(ツ)_/¯');
+      expect(expandPostCommand('/shrug   hello there  ')).toBe('hello there ¯\\_(ツ)_/¯');
+      expect(expandPostCommand('/shrug\nhello')).toBe('hello ¯\\_(ツ)_/¯');
+      expect(expandPostCommand('/shrugged hello')).toBe('/shrugged hello');
+      expect(expandPostCommand('hello /shrug')).toBe('hello /shrug');
+    });
+
+    it('sends /shrug text with the emoticon, without replacing the draft after a failed send', async () => {
+      userPreferences.composerEditor = 'markdown';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      await typeEditorLiteralText(editor, '/shrug hello');
+      createMessageConnectMock.mockRejectedValueOnce(
+        new ConnectError('Send failed', Code.Unavailable)
+      );
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      expect(createMessageConnectMock.mock.calls[0][0]).toMatchObject({
+        roomId,
+        body: 'hello ¯\\_(ツ)_/¯'
+      });
+      await vi.waitFor(() => expect(editor.textContent).toContain('/shrug hello'));
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledTimes(2));
+      expect(createMessageConnectMock.mock.calls[1][0].body).toBe('hello ¯\\_(ツ)_/¯');
+    });
+
+    it('sends /shrug alone through the visual editor', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      await typeEditorLiteralText(editor, '/shrug');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      expect(createMessageConnectMock.mock.calls[0][0].body).toBe('¯\\_(ツ)_/¯');
+    });
+
     it('inserts a raw timestamp token from the picker before sending', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
