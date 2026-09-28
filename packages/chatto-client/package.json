@@ -5,7 +5,10 @@
   "description": "Framework-neutral Chatto client: connections, realtime projection, and reactive stores",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/svelte/index.ts",
+    "./dist/svelte/index.js"
+  ],
   "exports": {
     ".": {
       "@chatto/source": "./src/index.ts",

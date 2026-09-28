@@ -107,7 +107,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 vi.mock('@chatto/client/api/adminUsers', async () => {
   const actual = await vi.importActual<typeof import('@chatto/client/api/adminUsers')>(
-    '$lib/api-client/adminUsers'
+    '@chatto/client/api/adminUsers'
   );
   return {
     ...actual,

@@ -65,7 +65,7 @@ const { mocks } = vi.hoisted(() => ({
           totalCount: 0,
           notification: null
         }),
-        markRead: vi.fn(),
+        markRead: vi.fn()
       },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
@@ -2228,10 +2228,7 @@ describe('RoomList', () => {
         mocks.goto.mock.invocationCallOrder[0]
       );
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
-      expect(mocks.notificationPath).toHaveBeenCalledWith(
-        'origin',
-        roomNotification
-      );
+      expect(mocks.notificationPath).toHaveBeenCalledWith('origin', roomNotification);
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
   });

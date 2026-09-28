@@ -509,7 +509,8 @@ describe('Room interaction bundles', () => {
 
       render(Room, { props: { roomId: 'room-1' } });
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
-      if (state === 'failed') await vi.waitFor(() => expect(store.loadError).toBe('offline'));
+      if (state === 'failed')
+        await vi.waitFor(() => expect(store.loadError).toMatchObject({ message: 'offline' }));
 
       store.resetProjectionState();
       await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledTimes(2));

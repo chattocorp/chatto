@@ -1,4 +1,3 @@
-import '$lib/state/server/voiceCallRegistration';
 import { redirect } from '@sveltejs/kit';
 import { loadCurrentUser } from '@chatto/client/auth/loadAuth';
 import { getPublicServerInfo } from '@chatto/client/api/server';

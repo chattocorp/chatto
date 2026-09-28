@@ -22,7 +22,7 @@ let server: TestServerScope;
 
 vi.mock('@chatto/client/api/adminDiagnostics', async () => {
   const actual = await vi.importActual<typeof import('@chatto/client/api/adminDiagnostics')>(
-    '$lib/api-client/adminDiagnostics'
+    '@chatto/client/api/adminDiagnostics'
   );
   return {
     ...actual,

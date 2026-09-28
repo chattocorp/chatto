@@ -62,7 +62,7 @@ const { mocks } = vi.hoisted(() => {
           },
           getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
-          markRead: vi.fn(),
+          markRead: vi.fn()
         },
         roomUnread: {
           hasAnyUnread: true,
@@ -1008,9 +1008,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.unreadNotificationCount = 1;
     mocks.store.notifications.importantUnreadNotificationCount = 1;
     mocks.store.notifications.getNonDMNotification.mockReturnValue(notification);
-    mocks.notificationPath.mockReturnValue(
-      '/chat/remote.example.com/room-1/thread-1'
-    );
+    mocks.notificationPath.mockReturnValue('/chat/remote.example.com/room-1/thread-1');
 
     const { container } = render(ServerSidebarEntry, {
       props: {

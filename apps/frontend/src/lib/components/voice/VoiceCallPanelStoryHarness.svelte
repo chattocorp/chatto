@@ -1,4 +1,5 @@
 <script lang="ts">
+  import '$lib/state/server/voiceCallRegistration';
   import { onMount } from 'svelte';
   import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
   import type { Component } from 'svelte';

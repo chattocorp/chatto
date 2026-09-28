@@ -120,7 +120,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 
 vi.mock('@chatto/client/api/adminEventLog', async () => {
   const actual = await vi.importActual<typeof import('@chatto/client/api/adminEventLog')>(
-    '$lib/api-client/adminEventLog'
+    '@chatto/client/api/adminEventLog'
   );
   return {
     ...actual,

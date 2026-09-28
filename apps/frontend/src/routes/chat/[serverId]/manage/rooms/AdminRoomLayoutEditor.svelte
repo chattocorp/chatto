@@ -66,7 +66,9 @@
 
     const result = await layout.createGroup(name);
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.create_group_failed', { error: errorMessage(result.error) }));
+      toast.error(
+        m('admin.rooms_admin.create_group_failed', { error: errorMessage(result.error) })
+      );
       return;
     }
     newGroupName = '';
@@ -89,7 +91,9 @@
     deleteGroupConfirmDialogVisible = false;
     deleteGroupConfirm = null;
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.delete_group_failed', { error: errorMessage(result.error) }));
+      toast.error(
+        m('admin.rooms_admin.delete_group_failed', { error: errorMessage(result.error) })
+      );
       return;
     }
     toast.success(m('admin.rooms_admin.group_deleted'));
@@ -126,7 +130,9 @@
 
   function handleGroupReorderResult(result: GroupReorderResult) {
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.reorder_groups_failed', { error: errorMessage(result.error) }));
+      toast.error(
+        m('admin.rooms_admin.reorder_groups_failed', { error: errorMessage(result.error) })
+      );
     }
   }
 
@@ -178,7 +184,9 @@
     const result = await layout.unarchiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.unarchive_room_failed', { error: errorMessage(result.error) }));
+      toast.error(
+        m('admin.rooms_admin.unarchive_room_failed', { error: errorMessage(result.error) })
+      );
     } else {
       toast.success(m('admin.rooms_admin.room_unarchived'));
     }
@@ -205,7 +213,9 @@
     const result = await layout.archiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(m('admin.rooms_admin.archive_room_failed', { error: errorMessage(result.error) }));
+      toast.error(
+        m('admin.rooms_admin.archive_room_failed', { error: errorMessage(result.error) })
+      );
     } else {
       toast.success(m('admin.rooms_admin.room_archived'));
     }

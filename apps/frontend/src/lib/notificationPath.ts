@@ -8,7 +8,10 @@ import { serverIdToSegment } from '$lib/navigation';
  * Use this with `PendingHighlightStore.set()` to deliver the highlight
  * intent without polluting the URL.
  */
-export function notificationPath(serverId: string, notification: NotificationOccurrenceItem): string {
+export function notificationPath(
+  serverId: string,
+  notification: NotificationOccurrenceItem
+): string {
   const serverSegment = serverIdToSegment(serverId);
   const target = notificationTarget(notification);
 
