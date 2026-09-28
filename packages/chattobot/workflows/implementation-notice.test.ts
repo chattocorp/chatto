@@ -37,7 +37,7 @@ async function publishedTurn(reply?: string) {
     acknowledge: async () => {},
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0,
     createAgent: async (_options: AgentOptions) => ({
       runOutcome: vi.fn(),
@@ -83,7 +83,7 @@ test('a notification turn cannot cancel a task; a person can', async () => {
     acknowledge: async () => {},
     post: async () => {},
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0,
     createAgent: async (options: AgentOptions) => {
       for (const extension of options.extensions ?? []) {
@@ -153,7 +153,7 @@ test('the supervisor prompt lists the unfinished implementations of this thread'
       acknowledge: async () => {},
       post: async () => {},
       typing: async () => {},
-      readThread: async () => [],
+      readThread: async () => ({ messages: [], olderOmitted: false }),
       timeout: 0,
       createAgent: async () => ({ runOutcome: vi.fn(), steer: async () => false, dispose() {} }),
       implementation: {

@@ -19,7 +19,7 @@ import {
   type ConversationState
 } from '../chatto/routing.ts';
 import type { ChattoTyping } from '@chatto/client';
-import type { ReadThread } from '../thread.ts';
+import type { ReadThread, ThreadMessage } from '../thread.ts';
 import type { Acknowledge } from '../reaction.ts';
 import {
   AWESOME_CHATTO_HOME,
@@ -40,8 +40,10 @@ import { listResumableArtifacts } from './implementation-artifacts.ts';
 import type { InvestigationPlans } from './plan.ts';
 import {
   notificationUrls,
+  notifiedTaskId,
   taskContext,
   taskNotification,
+  taskSummaries,
   userFacingTaskNotifications
 } from './task-context.ts';
 import { webTools, type WebSettings } from '../web.ts';
@@ -118,7 +120,12 @@ export const conversation = task(
       return missing.length ? `${text}\n\n${missing.join('\n')}` : text;
     };
     const research = webTools(options.web).length ? options.web : undefined;
-    const recentUserMessages: string[] = [];
+    // The thread reaches the supervisor once, then only messages after the cursor: its own
+    // replies and the messages it received are already in its conversation.
+    let threadCursor: string | undefined;
+    let firstTurn = true;
+    // A queued message can arrive in one read and become the current message a turn later.
+    let previousRead: ThreadMessage[] = [];
     let researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
     let refusalPosted = false;
     const maintainers = new Set(options.maintainers ?? []);
@@ -283,21 +290,48 @@ export const conversation = task(
             if (origin === 'user') {
               requestVersion++;
               researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
-              recentUserMessages.push(message);
-              if (recentUserMessages.length > 8) recentUserMessages.shift();
             }
-            const thread = await readThread(options.delivery, ctx.signal);
+            const read = await readThread(options.delivery, ctx.signal, threadCursor);
             ctx.signal.throwIfAborted();
+            threadCursor = read.cursor ?? threadCursor;
+            const current =
+              origin === 'user'
+                ? [...previousRead, ...read.messages].findLast(
+                    (entry) => entry.role === 'human' && entry.body === message
+                  )
+                : undefined;
+            const fresh = read.messages.filter(
+              (entry) => entry.role === 'human' && entry !== current
+            );
+            if (read.messages.length) previousRead = read.messages;
+            const notified =
+              origin === 'notification'
+                ? tasks.list().find((task) => task.id === notifiedTaskId(message))
+                : undefined;
+            const isFirstTurn = firstTurn;
+            firstTurn = false;
             return JSON.stringify({
-              thread,
+              ...(isFirstTurn
+                ? {
+                    thread: read.messages,
+                    ...(read.olderOmitted ? { olderThreadMessagesOmitted: true } : {})
+                  }
+                : fresh.length
+                  ? { newThreadMessages: fresh }
+                  : {}),
               origin,
-              recentUserMessages: [...recentUserMessages],
               requesterIsMaintainer: requesterIsMaintainer(),
               ...(origin === 'user'
-                ? { currentMessage: message }
-                : { notification: taskNotification(message) }),
-              backgroundTasks: taskContext(tasks.list()),
-              ...(options.implementation
+                ? {
+                    currentMessage: message,
+                    ...(current?.authorName ? { currentAuthor: current.authorName } : {})
+                  }
+                : {
+                    notification: taskNotification(message),
+                    ...(notified ? { notifiedTask: taskContext([notified])[0] } : {})
+                  }),
+              backgroundTasks: taskSummaries(tasks.list()),
+              ...(options.implementation && isFirstTurn
                 ? {
                     resumableImplementations: await listResumableArtifacts(
                       implementationArtifactsDirectory(options.implementation),
@@ -312,7 +346,7 @@ export const conversation = task(
                 : {}),
               savedImplementationPlans: [...plans].map(([investigationId, plan]) => ({
                 investigationId,
-                plan
+                goal: plan.goal
               }))
             });
           },

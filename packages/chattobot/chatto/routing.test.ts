@@ -253,7 +253,7 @@ test('DM thread follow-ups share a conversation but separate roots start new run
     },
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0.2,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
@@ -338,7 +338,7 @@ test('different people in one thread share its conversation', async () => {
     acknowledge: async () => {},
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0.2,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {

@@ -87,12 +87,15 @@ are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
 They do not start runs or trigger reactions. This filters incoming requests;
 thread history loaded for an allowed request can still include other participants.
 
-The supervisor sees the thread with each author's display name and login, so it
-can tell people apart and address them. The bot reads these names with the
-Chatto user directory and keeps them for ten minutes. It reads no other profile
-fields. If the lookup fails, the thread reaches the supervisor without names.
-The model provider receives these names with each prompt, and they can appear
-in run journals and the detailed server log when the model repeats them.
+At the start of a conversation, the supervisor reads the thread root and the
+newest 100 replies. On later turns, it reads only the messages that arrived
+after its previous read, and it keeps the earlier messages in its conversation.
+It does not see edits or deletions of messages that it already read. Each
+message carries its author's display name and login from the thread page, so
+the supervisor can tell people apart and address them. The bot reads no other
+profile fields. The model provider receives these names in the prompts, and
+they can appear in run journals and the detailed server log when the model
+repeats them.
 
 ### Maintainers
 

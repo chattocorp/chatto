@@ -37,6 +37,56 @@ export function taskContext(tasks: AgentTaskState[]): SupervisorTask[] {
   });
 }
 
+/** A compact line of state for one background task, sent with every supervisor turn. It is
+ * enough to answer status questions; a notification brings the full state of its task. */
+export interface TaskSummary {
+  id: string;
+  name: string;
+  status: AgentTaskState['status'];
+  /** For a running task: its current state and progress, with their ages. */
+  state?: unknown;
+  stateAgeMs?: number;
+  progress?: unknown;
+  progressAgeMs?: number;
+  /** The latest update that the task sent, shortened. */
+  latest?: string;
+  provider?: AgentTaskState['provider'];
+  failureReason?: AgentTaskState['failureReason'];
+  /** For a finished task: its outcome and short summary. */
+  outcome?: unknown;
+  summary?: unknown;
+  /** For a cancelled or failed implementation: the artifact that can continue. Internal. */
+  artifactId?: string;
+}
+
+/** Summarize background tasks for a supervisor turn. */
+export function taskSummaries(tasks: AgentTaskState[]): TaskSummary[] {
+  return tasks.map((task) => {
+    const [current] = taskContext([task]);
+    const result = isRecord(current!.result) ? current!.result : undefined;
+    const latest = task.output.at(-1)?.text;
+    const artifactId = current!.state?.artifactId;
+    return {
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      ...(task.status === 'running'
+        ? {
+            state: current!.state,
+            stateAgeMs: current!.stateAgeMs,
+            progress: current!.progress,
+            progressAgeMs: current!.progressAgeMs
+          }
+        : {}),
+      ...(latest ? { latest: latest.length > 300 ? `${latest.slice(0, 300)}…` : latest } : {}),
+      ...(task.provider ? { provider: task.provider } : {}),
+      ...(task.failureReason ? { failureReason: task.failureReason } : {}),
+      ...(result ? { outcome: result.outcome, summary: result.summary } : {}),
+      ...(typeof artifactId === 'string' ? { artifactId } : {})
+    };
+  });
+}
+
 /** Notifications are wake-up signals. Never duplicate their stale task snapshots in a prompt. */
 export function taskNotification(message: string): string {
   try {
@@ -135,5 +185,16 @@ export function notificationUrls(message: string): string[] {
     );
   } catch {
     return [];
+  }
+}
+
+/** The ID of the task that a notification is about, if it names one. */
+export function notifiedTaskId(message: string): string | undefined {
+  try {
+    const value: unknown = JSON.parse(message);
+    const task = isRecord(value) && isRecord(value.task) ? value.task : undefined;
+    return typeof task?.id === 'string' ? task.id : undefined;
+  } catch {
+    return undefined;
   }
 }
