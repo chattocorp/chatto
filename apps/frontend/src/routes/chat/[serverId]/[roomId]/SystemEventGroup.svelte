@@ -95,6 +95,7 @@
   <div
     class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4"
     data-event-id={events[0].id}
+    data-testid="system-event-group"
   >
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
