@@ -441,11 +441,6 @@
                 canBypassLoginCooldown={canManageAccounts}
                 onsave={updateProfile}
               />
-            {/key}
-          {/if}
-
-          {#if canEditIdentity}
-            {#key targetKey}
               <AvatarEditor
                 user={{ ...bot, isBot: true }}
                 onupload={uploadAvatar}
