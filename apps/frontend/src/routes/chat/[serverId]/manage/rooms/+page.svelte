@@ -6,9 +6,9 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const layout = $derived(stores.adminRoomLayout);
 
   // The effect owns an external realtime subscription for this mounted route.

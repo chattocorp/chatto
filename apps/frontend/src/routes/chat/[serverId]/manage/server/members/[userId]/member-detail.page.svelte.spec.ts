@@ -233,23 +233,6 @@ describe('server member detail queries', () => {
     expect(rendered.container.textContent).not.toContain('ALICE');
   });
 
-  it('reloads the same user when the server session changes', async () => {
-    api.getMember
-      .mockResolvedValueOnce(details(member('shared', { displayName: 'Server One' })))
-      .mockResolvedValueOnce(details(member('shared', { displayName: 'Server Two' })));
-    routeUserId = 'shared';
-    const rendered = render(MemberDetailPage);
-    await settle();
-    expect(rendered.container.textContent).toContain('Server One');
-
-    server.queryScope = 'session-2';
-    flushSync();
-    await settle();
-
-    expect(api.getMember).toHaveBeenCalledTimes(2);
-    expect(rendered.container.textContent).toContain('Server Two');
-  });
-
   it('keeps a realtime-removed member cleared without refetching', async () => {
     const rendered = render(MemberDetailPage);
     await settle();

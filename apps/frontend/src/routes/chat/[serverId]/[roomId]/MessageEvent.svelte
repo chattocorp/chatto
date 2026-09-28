@@ -19,7 +19,7 @@
   import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const notificationStore = $derived(stores.notifications);
   const serverInfo = $derived(stores.serverInfo);
   const activeCallRooms = $derived(stores.activeCallRooms);
@@ -76,7 +76,7 @@
   } = $props();
 
   const connection = () => serverScope.connection;
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const currentUser = $derived({ user: stores.viewerUser });
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();

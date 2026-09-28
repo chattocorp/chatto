@@ -53,7 +53,7 @@
   import { notificationAttentionForThread } from '$lib/state/server/notifications.svelte';
 
   const serverScope = useServerScope();
-  const serverStore = $derived(serverScope.store);
+  const serverStore = serverScope.store;
 
   const userSettings = $derived(timeFormatSettingsFor(serverStore.currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
@@ -61,19 +61,14 @@
 
   let actionThreadId = $state<string | null>(null);
   const debounce = useDebounce();
-  // Tag transient input with the connection so switching servers or sessions
-  // cannot submit a query from the previous viewer.
-  let searchInput = $state({ scope: '', raw: '', submitted: '' });
-  const inputScope = $derived(`${serverScope.serverId}:${serverScope.connection.queryScope}`);
-  const rawQuery = $derived(searchInput.scope === inputScope ? searchInput.raw : '');
+  let searchInput = $state({ raw: '', submitted: '' });
+  const rawQuery = $derived(searchInput.raw);
   const searchStatus = $derived(serverStore.messageSearch);
   const searchEnabled = $derived(
     searchStatus.statusError ||
       (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED)
   );
-  const searchQuery = $derived(
-    searchEnabled && searchInput.scope === inputScope ? searchInput.submitted : ''
-  );
+  const searchQuery = $derived(searchEnabled ? searchInput.submitted : '');
   const waitingForSearch = $derived(searchEnabled && rawQuery.trim() !== searchQuery);
 
   $effect(() => {
@@ -81,22 +76,21 @@
   });
 
   function scheduleSearch(raw: string): void {
-    const scope = inputScope;
-    searchInput = { scope, raw, submitted: searchQuery };
+    searchInput = { raw, submitted: searchQuery };
     debounce.cancel();
     if (!raw.trim()) {
       searchInput.submitted = '';
       return;
     }
     debounce.run(() => {
-      if (inputScope === scope) searchInput.submitted = raw.trim();
+      searchInput.submitted = raw.trim();
     }, 300);
   }
 
   function submitSearch(): void {
     debounce.cancel();
     const unchanged = searchQuery === rawQuery.trim();
-    searchInput = { scope: inputScope, raw: rawQuery, submitted: rawQuery.trim() };
+    searchInput = { raw: rawQuery, submitted: rawQuery.trim() };
     if (unchanged && searchStatus.available) void threadsQuery.refetch();
   }
 

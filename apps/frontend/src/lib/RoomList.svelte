@@ -74,11 +74,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // against the new server's state automatically.
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeServer = $derived(serverRegistry.getServer(activeServerId));
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const notificationStore = $derived(stores.notifications);
   const activeCallRooms = $derived(stores.activeCallRooms);
   const appUi = getAppUiState();

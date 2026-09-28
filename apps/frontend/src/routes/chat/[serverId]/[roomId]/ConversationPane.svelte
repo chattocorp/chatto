@@ -106,7 +106,7 @@ thread IDs can change while the pane stays mounted.
   } = $props();
 
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const members = $derived(getRoomMembers());
   const isThread = untrack(() => threadRootEventId !== null);
 

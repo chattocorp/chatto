@@ -24,8 +24,6 @@ const { mocks } = vi.hoisted(() => {
       setThread: vi.fn(),
       retainThread: vi.fn(),
       releaseThread: vi.fn(),
-      nextServerRetainThread: vi.fn(),
-      nextServerReleaseThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
@@ -57,8 +55,7 @@ const { mocks } = vi.hoisted(() => {
       appState: {
         isPresent: true
       },
-      threadStore: null as ThreadPaneTestStore | null,
-      nextServerThreadStore: null as ThreadPaneTestStore | null
+      threadStore: null as ThreadPaneTestStore | null
     }
   };
 });
@@ -217,7 +214,6 @@ describe('ThreadPane', () => {
     localStorage.clear();
     threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
-    mocks.nextServerThreadStore = new ThreadPaneTestStore();
     // Like the real store, scroll only to a message that the thread window contains.
     mocks.storeJumpToMessage.mockImplementation(
       async (eventId: string, jumpState: { scrollToEventId: string | null }) => {
@@ -228,32 +224,28 @@ describe('ThreadPane', () => {
     );
     server = createTestServerScope({
       viewer: { id: 'test-user', login: 'testuser' },
-      store: (serverId) => ({
+      store: {
         readViews: { register: mocks.registerReadView },
         notifications: { markOccurrenceRead: mocks.markOccurrenceRead },
         reconcileThreadRead: mocks.reconcileThreadRead,
         rooms: {
-          retainThread: serverId === 'server-2' ? mocks.nextServerRetainThread : mocks.retainThread,
-          releaseThread:
-            serverId === 'server-2' ? mocks.nextServerReleaseThread : mocks.releaseThread,
+          retainThread: mocks.retainThread,
+          releaseThread: mocks.releaseThread,
           thread: () =>
-            Object.assign(
-              serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!,
-              {
-                isLoadingMore: false,
-                hasReachedStart: true,
-                setThread: mocks.setThread,
-                dispose: mocks.disposeMessagesStore,
-                ingestEvent: mocks.ingestEvent,
-                refreshCurrentWindow: mocks.refreshCurrentWindow,
-                jumpToMessage: mocks.storeJumpToMessage,
-                restoreLatestWindow: mocks.restoreLatestWindow,
-                setThreadRootFollowState: mocks.setThreadRootFollowState,
-                loadMore: mocks.loadMore
-              }
-            )
+            Object.assign(mocks.threadStore!, {
+              isLoadingMore: false,
+              hasReachedStart: true,
+              setThread: mocks.setThread,
+              dispose: mocks.disposeMessagesStore,
+              ingestEvent: mocks.ingestEvent,
+              refreshCurrentWindow: mocks.refreshCurrentWindow,
+              jumpToMessage: mocks.storeJumpToMessage,
+              restoreLatestWindow: mocks.restoreLatestWindow,
+              setThreadRootFollowState: mocks.setThreadRootFollowState,
+              loadMore: mocks.loadMore
+            })
         }
-      })
+      }
     });
     mocks.appState.isPresent = true;
     mocks.markArrivalWhileAway.mockClear();
@@ -524,7 +516,7 @@ describe('ThreadPane', () => {
     expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
   });
 
-  it('releases decrypted thread history through its owning server store', async () => {
+  it('releases decrypted thread history through the store that retained it', async () => {
     const rendered = render(ThreadPane, {
       props: {
         roomId: 'room-1',
@@ -535,20 +527,11 @@ describe('ThreadPane', () => {
     });
 
     await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
-    const firstServerStore = mocks.threadStore;
-
-    server.serverId = 'server-2';
-
-    await vi.waitFor(() => expect(mocks.nextServerRetainThread).toHaveBeenCalledOnce());
-    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', firstServerStore);
-    expect(mocks.nextServerReleaseThread).not.toHaveBeenCalled();
+    const retainedStore = mocks.threadStore;
+    expect(mocks.releaseThread).not.toHaveBeenCalled();
 
     rendered.unmount();
-    expect(mocks.nextServerReleaseThread).toHaveBeenCalledWith(
-      'room-1',
-      'thread-root',
-      mocks.nextServerThreadStore
-    );
+    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', retainedStore);
   });
 
   it('does not jump to a highlight that is cleared before it starts', async () => {

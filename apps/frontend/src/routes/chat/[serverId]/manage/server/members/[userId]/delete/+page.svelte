@@ -21,14 +21,12 @@
   import MemberDeleteForm from './MemberDeleteForm.svelte';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const userId = $derived(page.params.userId!);
   const isSelf = $derived(serverScope.store.viewerId === userId);
   // The detail page keys its interactive sections on this value; keying the
   // confirmation form here resets input state when the route target changes.
-  const memberTargetKey = $derived(
-    `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
-  );
+  const memberTargetKey = $derived(userId);
 
   // Privacy fence: once a removal of this member is observed (for example by
   // another admin), stop rendering and refetching the deletion flow. The

@@ -63,9 +63,9 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
 
   const serverScope = useServerScope();
   const appUi = getAppUiState();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const activeStore = $derived(serverScope.store);
+  const activeStore = serverScope.store;
   const activeServerUser = $derived(activeStore.viewerUser);
   const presenceScope = $derived(
     activeServerUser ? { serverId: activeServerId, userId: activeServerUser.id } : null

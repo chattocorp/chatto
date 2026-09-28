@@ -114,7 +114,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const serverScope = useServerScope();
   const connection = () => serverScope.connection;
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const activeCallRooms = $derived(serverScope.store.activeCallRooms);
   const isInThisCall = $derived(serverScope.store.voiceCall.isInCall(roomId));
 

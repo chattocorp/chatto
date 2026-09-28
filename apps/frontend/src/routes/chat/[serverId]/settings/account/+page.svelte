@@ -14,7 +14,7 @@
 
   const serverScope = useServerScope();
   const currentUser = $derived(serverScope.store.currentUser);
-  const serverId = $derived(serverScope.serverId);
+  const serverId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(serverId));
   const accountSettingsPath = $derived(
     resolve('/chat/[serverId]/settings/account', { serverId: serverSegment })
@@ -52,7 +52,7 @@
       </Panel>
 
       <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
-      {#key `${serverScope.connection.queryScope}:${serverScope.store.accountId ?? ''}`}
+      {#key serverScope.store.accountId ?? ''}
         <VerifiedEmailSettings />
       {/key}
       <ExternalIdentitySettings {currentUser} {accountSettingsPath} />

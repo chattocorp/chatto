@@ -192,12 +192,9 @@ polls the cache briefly after a change. See FDR-042.
     };
   }
 
-  function isCurrent(variables: NeighborMutationVariables): boolean {
-    return (
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope
-    );
+  // The server session cannot change while this page is mounted (see ServerScope).
+  function isCurrent(_variables: NeighborMutationVariables): boolean {
+    return serverScope.isCurrent();
   }
 
   function cancelEdit() {

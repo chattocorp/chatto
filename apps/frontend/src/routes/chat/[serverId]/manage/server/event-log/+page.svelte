@@ -36,7 +36,7 @@
   );
   const activeLocale = $derived(getLocale());
 
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
 
   let scrollContainer = $state<HTMLDivElement>();
   let loadedUrlKey = '';

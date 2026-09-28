@@ -32,7 +32,7 @@
 
   const serverScope = useServerScope();
   const groupId = $derived(page.params.groupId!);
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const backHref = $derived(resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }));
 
@@ -193,7 +193,7 @@
     <PaneContent>
       <div class="flex flex-col gap-6">
         {#if group && canManageGroup}
-          {#key `${activeServerId}:${serverScope.connection.queryScope}:${group.id}:${formRevision}`}
+          {#key `${group.id}:${formRevision}`}
             <RoomGroupGeneralSettingsPanel {group} {saving} onSave={saveGeneralSettings} />
           {/key}
         {/if}

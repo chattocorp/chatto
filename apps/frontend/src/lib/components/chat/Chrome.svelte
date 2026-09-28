@@ -25,7 +25,7 @@
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
-  const activeStore = $derived(serverScope.store);
+  const activeStore = serverScope.store;
 
   // All server- and resource-scoped management screens share one shell.
   const serverManagementPrefix = $derived(

@@ -18,7 +18,7 @@
   } = $props();
 
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const overviewPath = $derived(resolve('/chat/[serverId]', { serverId: serverSegment }));
   const title = $derived(`#${room.name}`);
   let joining = $state(false);

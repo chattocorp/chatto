@@ -11,9 +11,9 @@
   let { roomId } = $derived(data);
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
 
-  const serverStore = $derived(serverScope.store);
+  const serverStore = serverScope.store;
   const navigation = $derived(serverStore.navigation);
   // Displayed membership belongs to this store's viewer. The connection owns
   // session verification and command readiness.

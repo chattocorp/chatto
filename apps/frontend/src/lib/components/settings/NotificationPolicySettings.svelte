@@ -165,11 +165,7 @@ Rows are notification causes. Columns follow the current navigation layout.
     const connection = serverScope.connection;
     const generation = privacyGeneration;
     const queryRoot = settingsQueryKeys.notificationPoliciesRoot(serverId, connection);
-    const isCurrent = () =>
-      generation === privacyGeneration &&
-      serverScope.isCurrent() &&
-      serverScope.serverId === serverId &&
-      serverScope.connection.queryScope === connection.queryScope;
+    const isCurrent = () => generation === privacyGeneration && serverScope.isCurrent();
 
     pendingCells.add(key);
     saveError = null;

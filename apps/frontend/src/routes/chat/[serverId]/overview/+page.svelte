@@ -10,7 +10,7 @@
   // and membership are selected directly from that server's projection.
   const serverScope = useServerScope();
 
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const directory = $derived(stores.roomDirectory);
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 </script>

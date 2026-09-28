@@ -25,8 +25,8 @@ Room sidebar panel for voice/video calls.
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
-  const stores = $derived(serverScope.store);
+  const activeServerId = serverScope.serverId;
+  const stores = serverScope.store;
   const voiceCallState = $derived(stores.voiceCall);
   const activeCallRooms = $derived(stores.activeCallRooms);
 

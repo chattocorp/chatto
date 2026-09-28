@@ -19,6 +19,7 @@ describe('createTestServerScope', () => {
   it('applies options and reflects later state changes', () => {
     const server = createTestServerScope({
       serverId: 'server-2',
+      queryScope: 'session-2',
       viewer: null,
       permissions: { canManageBots: true },
       isSupportedVersion: false
@@ -29,19 +30,16 @@ describe('createTestServerScope', () => {
     expect(scope.store.permissions.canManageBots).toBe(true);
     expect(scope.store.serverInfo.isSupportedVersion).toBe(false);
 
+    expect(scope.serverId).toBe('server-2');
+    expect(scope.store.serverId).toBe('server-2');
+    expect(scope.connection.queryScope).toBe('session-2');
+    expect(scope.connection.apiConfig.queryScope).toBe('session-2');
+
     server.permissions.canManageBots = false;
     server.current = false;
-    server.serverId = 'server-3';
 
     expect(scope.store.permissions.canManageBots).toBe(false);
     expect(scope.isCurrent()).toBe(false);
-    expect(scope.serverId).toBe('server-3');
-    expect(scope.connection.queryScope).toBe('server-3-session');
-
-    server.queryScope = 'session-2';
-
-    expect(scope.connection.queryScope).toBe('session-2');
-    expect(scope.connection.apiConfig.queryScope).toBe('session-2');
   });
 
   it('returns the given API object, or runs the real factory with a stub config', () => {
@@ -90,23 +88,6 @@ describe('createTestServerScope', () => {
     expect(serverInfo.isSupportedVersion).toBe(false);
     server.isSupportedVersion = true;
     expect(serverInfo.isSupportedVersion).toBe(true);
-  });
-
-  it('gives each server its own store', () => {
-    const server = createTestServerScope({
-      store: (serverId) => ({ label: `store of ${serverId}` })
-    });
-    const first = server.scope.store;
-
-    server.serverId = 'server-2';
-    const second = server.scope.store;
-
-    expect(second).not.toBe(first);
-    expect(first.serverId).toBe('server-1');
-    expect(second.serverId).toBe('server-2');
-    expect((second as unknown as { label: string }).label).toBe('store of server-2');
-    server.serverId = 'server-1';
-    expect(server.scope.store).toBe(first);
   });
 
   it('serves the most recent scope through the module replacement', () => {

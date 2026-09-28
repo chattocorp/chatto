@@ -26,7 +26,7 @@
   );
 
   const sequence = $derived(page.params.sequence!);
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const entryQuery = createQuery(
     () => {
       const serverId = activeServerId;

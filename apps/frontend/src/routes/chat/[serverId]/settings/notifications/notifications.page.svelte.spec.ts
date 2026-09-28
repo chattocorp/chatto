@@ -101,6 +101,18 @@ function notificationPreferencesStorageKey(serverId = server.serverId) {
   return `chatto:i:${serverId}:notificationPreferences`;
 }
 
+function createServerScope(serverId: string) {
+  return createTestServerScope({
+    serverId,
+    api,
+    store: {
+      serverInfo: mocks.serverInfo,
+      notifications: mocks.notifications,
+      navigation: { roomGroups: [], rooms: [] }
+    }
+  });
+}
+
 describe('Notification settings page', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -113,15 +125,7 @@ describe('Notification settings page', () => {
       })
     );
     resetServerNotificationPreferencesForTests();
-    server = createTestServerScope({
-      serverId: 'origin',
-      api,
-      store: {
-        serverInfo: mocks.serverInfo,
-        notifications: mocks.notifications,
-        navigation: { roomGroups: [], rooms: [] }
-      }
-    });
+    server = createServerScope('origin');
     mocks.playNotificationSound.mockClear();
     mocks.notifications.getPolicy.mockClear();
     mocks.notifications.getPolicy.mockResolvedValue(null);
@@ -184,15 +188,7 @@ describe('Notification settings page', () => {
     origin.unmount();
 
     // The server layout remounts the page with a new scope for another server.
-    server = createTestServerScope({
-      serverId: 'remote',
-      api,
-      store: {
-        serverInfo: mocks.serverInfo,
-        notifications: mocks.notifications,
-        navigation: { roomGroups: [], rooms: [] }
-      }
-    });
+    server = createServerScope('remote');
     const remote = render(NotificationsPage);
     await settle();
     buttonWithText(remote.container, 'Falling Chime').click();
@@ -241,7 +237,7 @@ describe('Notification settings page', () => {
   });
 
   it('offers an independent push subscription for remote servers', async () => {
-    server.serverId = 'remote';
+    server = createServerScope('remote');
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
@@ -255,7 +251,7 @@ describe('Notification settings page', () => {
   });
 
   it('does not offer browser Web Push controls inside Chatto Desktop', async () => {
-    server.serverId = 'remote';
+    server = createServerScope('remote');
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
     mocks.pushNotifications.isBrowserWebPushRuntime.mockReturnValue(false);

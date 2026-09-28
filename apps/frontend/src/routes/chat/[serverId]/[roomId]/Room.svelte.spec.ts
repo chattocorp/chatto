@@ -60,7 +60,6 @@ const mocks = vi.hoisted(() => ({
   roomMessages: vi.fn(),
   roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
-  nextServerRestoreProjectedRoomWindow: vi.fn(),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -399,7 +398,7 @@ beforeEach(() => {
       maxUploadSize: 25 * 1024 * 1024,
       maxVideoUploadSize: 25 * 1024 * 1024
     },
-    store: (serverId) => ({
+    store: {
       realtimeSync: { isRecoveringSnapshot: false },
       messageSearch: {
         statusLoading: false,
@@ -428,11 +427,8 @@ beforeEach(() => {
         pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false }),
         search: () => ({})
       },
-      restoreProjectedRoomWindow:
-        serverId === 'server-2'
-          ? mocks.nextServerRestoreProjectedRoomWindow
-          : mocks.restoreProjectedRoomWindow
-    })
+      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow
+    }
   });
   mocks.roomKind = RoomKind.CHANNEL;
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
@@ -536,15 +532,9 @@ describe('Room interaction bundles', () => {
 
     await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
 
-    server.serverId = 'server-2';
-
-    await vi.waitFor(() =>
-      expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledOnce()
-    );
-    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
-
     rendered.unmount();
-    expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-1');
   });
 
   it('does not load thread or sidebar panes when the sidebar is explicitly closed', async () => {

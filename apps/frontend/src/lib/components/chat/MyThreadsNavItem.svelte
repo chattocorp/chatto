@@ -10,7 +10,7 @@
   let { active }: { active: boolean } = $props();
 
   const serverScope = useServerScope();
-  const serverId = $derived(serverScope.serverId);
+  const serverId = serverScope.serverId;
   const notificationStore = $derived(serverScope.store.notifications);
   const threadNotifications = $derived(
     notificationStore.attentionOccurrences.filter((notification) => {

@@ -34,18 +34,14 @@
   const serverScope = useServerScope();
 
   const roomId = $derived(page.params.roomId!);
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
 
   let scrollContainer = $state<HTMLDivElement>();
   const session = createSessionGuard(serverScope);
   /** Increases when the room snapshot changes, so an older save does not overwrite it. */
   let snapshotGeneration = 0;
-  let pendingMemberRevalidation: {
-    serverId: string;
-    queryScope: string;
-    roomId: string;
-  } | null = null;
+  let pendingMemberRevalidation: { roomId: string } | null = null;
   let formRevision = $state(0);
 
   onDestroy(() => {
@@ -77,8 +73,6 @@
             room &&
             revalidation !== null &&
             pendingMemberRevalidation === revalidation &&
-            revalidation.serverId === serverId &&
-            revalidation.queryScope === connection.queryScope &&
             revalidation.roomId === targetRoomId
           ) {
             pendingMemberRevalidation = null;
@@ -192,11 +186,7 @@
     if (event.event?.event.case === 'roomDeleted' && event.event.event.value.roomId === roomId) {
       snapshotGeneration += 1;
       session.invalidate();
-      pendingMemberRevalidation = {
-        serverId: activeServerId,
-        queryScope: serverScope.connection.queryScope,
-        roomId
-      };
+      pendingMemberRevalidation = { roomId };
       purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
       return;
     }
@@ -239,13 +229,13 @@
     <PaneContent bind:scrollContainer>
       <div class="flex flex-col gap-6">
         {#if room && canManageRoom}
-          {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:${formRevision}`}
+          {#key `${room.id}:${formRevision}`}
             <RoomGeneralSettingsPanel {room} {saving} onSave={saveGeneralSettings} />
           {/key}
         {/if}
 
         {#if room}
-          {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
+          {#key roomId}
             <RoomMembersPanel
               {roomId}
               roomName={room.name}

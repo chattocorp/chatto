@@ -26,8 +26,8 @@ in the active server store so browser Back can restore the current search.
 
   const serverScope = useServerScope();
 
-  const serverId = $derived(serverScope.serverId);
-  const serverStore = $derived(serverScope.store);
+  const serverId = serverScope.serverId;
+  const serverStore = serverScope.store;
   const store = $derived(serverStore.messageSearch);
   const timeFormatSettings = $derived(
     timeFormatSettingsFor(serverStore.currentUser.user?.settings)

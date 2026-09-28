@@ -59,7 +59,7 @@
   } = $props();
 
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
 
   $effect(() => {
     if (!stores.currentUser.user) return;

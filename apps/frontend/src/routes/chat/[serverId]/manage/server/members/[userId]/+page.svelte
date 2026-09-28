@@ -38,8 +38,8 @@
   import MemberRoleAssignments from './MemberRoleAssignments.svelte';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
-  const store = $derived(serverScope.store);
+  const activeServerId = serverScope.serverId;
+  const store = serverScope.store;
   const userId = $derived(page.params.userId!);
   const isSelf = $derived(store.viewerId === userId);
   const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
@@ -86,9 +86,7 @@
   const canDeleteHere = $derived(
     !isSelf && !isBot && !!member && !member.deleted && member.viewerCanDeleteAccount
   );
-  const memberTargetKey = $derived(
-    `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
-  );
+  const memberTargetKey = $derived(userId);
   const loading = $derived(memberQuery.isPending && memberQuery.isEnabled);
   const visibleRoleError = $derived(
     roleError?.targetKey === memberTargetKey ? roleError.message : null

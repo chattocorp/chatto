@@ -92,9 +92,7 @@
   const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
   // Owners, bot managers, and account managers can edit the bot's public identity.
   const canEditIdentity = $derived(canOperateBot || canManageAccounts);
-  const targetKey = $derived(
-    `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
-  );
+  const targetKey = $derived(botId);
   let componentActive = true;
   let deleteVisible = $state(false);
   let webhookRoomId = $state('');

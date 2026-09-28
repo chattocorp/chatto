@@ -70,7 +70,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
 
   // Wait for the active server projection to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel

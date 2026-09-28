@@ -60,13 +60,7 @@
   }
 
   function isCurrentEmailScope(scope: EmailActionScope): boolean {
-    return (
-      serverScope.isCurrent() &&
-      scope.serverId === serverScope.serverId &&
-      scope.connection.queryScope === serverScope.connection.queryScope &&
-      scope.userId !== '' &&
-      scope.userId === viewerUserId
-    );
+    return serverScope.isCurrent() && scope.userId !== '' && scope.userId === viewerUserId;
   }
 
   function isCurrentEmailContext(scope: EmailActionScope): boolean {

@@ -96,6 +96,7 @@ describe('NotificationPolicySettings', () => {
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
     server = createTestServerScope({
+      queryScope: `test-${++queryScope}`,
       serverId: 'test-server',
       api: {
         batchGetNotificationPolicies: mocks.batch,
@@ -113,7 +114,6 @@ describe('NotificationPolicySettings', () => {
         }
       }
     });
-    server.queryScope = `test-${++queryScope}`;
     mocks.batch.mockImplementation(async (requested: NotificationPolicyScope[]) =>
       requested.map((scope) => policy(scope))
     );

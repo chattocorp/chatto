@@ -148,13 +148,7 @@
         login: normalizedCreateLogin,
         displayName: createDisplayName.trim()
       });
-      if (
-        !componentActive ||
-        !serverScope.isCurrent() ||
-        serverId !== serverScope.serverId ||
-        connection.queryScope !== serverScope.connection.queryScope
-      )
-        return;
+      if (!componentActive || !serverScope.isCurrent()) return;
       createdBotId = created.bot.id;
       createVisible = false;
       apiKey = created.apiKey;

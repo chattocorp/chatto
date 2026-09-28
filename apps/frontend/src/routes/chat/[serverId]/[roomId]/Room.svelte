@@ -67,9 +67,9 @@
   const serverScope = useServerScope();
   const roomMembersStore = $derived(serverScope.store.rooms.members(roomId));
   setRoomMembersStore(() => roomMembersStore);
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const roomFilesStore = $derived(stores.rooms.files(roomId));
   const roomMessageSearchStore = $derived(stores.rooms.search(roomId));
   const serverInfo = $derived(stores.serverInfo);

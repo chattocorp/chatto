@@ -95,16 +95,17 @@ rendering to `SubjectPermissionsMatrix`.
   let updatingKey = $state<string | null>(null);
   let mutationContext = $state<string | null>(null);
   let mutationGeneration = 0;
-  const activeMutationContext = $derived(
-    JSON.stringify([serverScope.serverId, serverScope.connection.queryScope, userId])
-  );
+  // The page keeps this matrix mounted when only the account changes, so tag
+  // mutation state with the account. The server session cannot change while
+  // the matrix is mounted (see ServerScope).
+  const activeMutationContext = $derived(userId);
   const visibleMutationError = $derived(
     mutationError?.context === activeMutationContext ? mutationError.message : null
   );
   const visibleUpdatingKey = $derived(
     mutationContext === activeMutationContext ? updatingKey : null
   );
-  // Each account/session owns fresh modal state. Navigation discards it, so an
+  // Each account owns fresh modal state. Navigation discards it, so an
   // unconfirmed action cannot reappear when returning to the previous account.
   class MembershipConfirmation {
     pending = $state<{
@@ -169,7 +170,7 @@ rendering to `SubjectPermissionsMatrix`.
     return { tier: 'server' };
   }
 
-  // Fence mutation feedback by server session and account identity. Reconcile after
+  // Fence mutation feedback by account identity. Reconcile after
   // both success and failure because a failed response can follow a committed write.
   async function handleMembershipChange(scope: MatrixScope, joined: boolean) {
     if (!data || visibleUpdatingKey || scope.kind !== 'ROOM' || !scope.membership) return;
@@ -178,7 +179,7 @@ rendering to `SubjectPermissionsMatrix`.
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = data.userId;
-    const context = JSON.stringify([serverId, activeConnection.queryScope, activeUserId]);
+    const context = activeUserId;
     const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
     updatingKey = `${scope.id}::$membership`;
     mutationContext = context;
@@ -213,7 +214,7 @@ rendering to `SubjectPermissionsMatrix`.
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeUserId = data.userId;
-    const context = JSON.stringify([serverId, activeConnection.queryScope, activeUserId]);
+    const context = activeUserId;
     const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
