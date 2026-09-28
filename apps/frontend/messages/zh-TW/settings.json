@@ -493,7 +493,7 @@
         "warning_label": "警告：",
         "warning_text": "此操作無法復原。",
         "intro": "這將永久刪除您的帳號，並會：",
-        "remove_from_rooms": "將您從所有空間和聊天室移除",
+        "remove_from_rooms": "將您從所有聊天室移除",
         "delete_messages": "刪除您的所有訊息（內容將無法復原）",
         "delete_profile": "刪除您的個人檔案、大頭貼及相關資料",
         "confirm_label": "輸入 DELETE 以確認",

@@ -493,7 +493,7 @@
         "warning_label": "警告：",
         "warning_text": "此操作无法撤销。",
         "intro": "此操作将永久删除你的账号，并执行以下操作：",
-        "remove_from_rooms": "将你从所有空间和聊天室中移除",
+        "remove_from_rooms": "将你从所有聊天室中移除",
         "delete_messages": "删除你的所有消息（内容将无法恢复）",
         "delete_profile": "删除你的个人资料、头像及相关数据",
         "confirm_label": "输入 DELETE 进行确认",

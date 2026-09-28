@@ -493,7 +493,7 @@
         "warning_label": "Warning:",
         "warning_text": "This action is permanent and cannot be undone.",
         "intro": "This will permanently delete your account and:",
-        "remove_from_rooms": "Remove you from all spaces and rooms",
+        "remove_from_rooms": "Remove you from all rooms",
         "delete_messages": "Delete all your messages (content will be unrecoverable)",
         "delete_profile": "Delete your profile, avatar, and associated data",
         "confirm_label": "Type DELETE to confirm",

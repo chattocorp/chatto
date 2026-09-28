@@ -493,7 +493,7 @@
         "warning_label": "Uyarı:",
         "warning_text": "Bu işlem kalıcıdır ve geri alınamaz.",
         "intro": "Bu, hesabınızı kalıcı olarak silecektir ve:",
-        "remove_from_rooms": "Sizi tüm alan ve odalardan çıkarmak",
+        "remove_from_rooms": "Sizi tüm odalardan çıkarmak",
         "delete_messages": "Tüm mesajlarınızı silin (içerik kurtarılamaz)",
         "delete_profile": "Profilinizi, avatarınızı ve ilişkili verilerinizi silin",
         "confirm_label": "Onaylamak için DELETE yazın",

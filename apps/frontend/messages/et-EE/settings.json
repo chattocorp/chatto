@@ -493,7 +493,7 @@
         "warning_label": "Hoiatus:",
         "warning_text": "See toiming on püsiv ja seda ei saa tagasi võtta.",
         "intro": "See kustutab teie konto jäädavalt ja:",
-        "remove_from_rooms": "Eemaldage teid kõigist ruumidest ja ruumidest",
+        "remove_from_rooms": "Eemaldab teid kõigist tubadest",
         "delete_messages": "Kustutage kõik oma sõnumid (sisu ei saa taastada)",
         "delete_profile": "Kustutage oma profiil, avatar ja seotud andmed",
         "confirm_label": "Kinnitamiseks tippige DELETE",

@@ -493,7 +493,7 @@
         "warning_label": "Waarschuwing:",
         "warning_text": "Deze actie is permanent en kan niet ongedaan worden gemaakt.",
         "intro": "Hiermee wordt je account definitief verwijderd en:",
-        "remove_from_rooms": "Verwijder je uit alle ruimtes en kamers",
+        "remove_from_rooms": "Verwijder je uit alle kamers",
         "delete_messages": "Verwijder al uw berichten (de inhoud kan niet worden hersteld)",
         "delete_profile": "Verwijder je profiel, avatar en bijbehorende gegevens",
         "confirm_label": "Typ DELETE om te bevestigen",

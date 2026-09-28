@@ -493,7 +493,7 @@
         "warning_label": "Averto:",
         "warning_text": "Ĉi tiu ago estas konstanta kaj ne povas esti malfarita.",
         "intro": "Ĉi tio konstante forigos vian konton kaj:",
-        "remove_from_rooms": "Forigu vin el ĉiuj spacoj kaj ĉambroj",
+        "remove_from_rooms": "Forigu vin el ĉiuj ĉambroj",
         "delete_messages": "Forigu ĉiujn viajn mesaĝojn (enhavo estos nereakirebla)",
         "delete_profile": "Forigu vian profilon, avataron kaj rilatajn datumojn",
         "confirm_label": "Tajpu DELETE por konfirmi",

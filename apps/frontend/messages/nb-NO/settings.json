@@ -493,7 +493,7 @@
         "warning_label": "Advarsel:",
         "warning_text": "Denne handlingen er permanent og kan ikke angres.",
         "intro": "Dette vil slette kontoen din permanent og:",
-        "remove_from_rooms": "Fjern deg fra alle rom og rom",
+        "remove_from_rooms": "Fjern deg fra alle rom",
         "delete_messages": "Slett alle meldingene dine (innhold vil ikke kunne gjenopprettes)",
         "delete_profile": "Slett profilen din, avataren din og tilhørende data",
         "confirm_label": "Skriv DELETE for å bekrefte",

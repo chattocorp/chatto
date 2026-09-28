@@ -493,7 +493,7 @@
         "warning_label": "Varning:",
         "warning_text": "Denna åtgärd är permanent och kan inte ångras.",
         "intro": "Detta kommer att radera ditt konto permanent och:",
-        "remove_from_rooms": "Ta bort dig från alla utrymmen och rum",
+        "remove_from_rooms": "Ta bort dig från alla rum",
         "delete_messages": "Radera alla dina meddelanden (innehållet kommer inte att kunna återställas)",
         "delete_profile": "Radera din profil, avatar och tillhörande data",
         "confirm_label": "Skriv DELETE för att bekräfta",

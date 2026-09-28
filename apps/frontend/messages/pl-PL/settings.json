@@ -493,7 +493,7 @@
         "warning_label": "Ostrzeżenie:",
         "warning_text": "Ta akcja jest trwała i nie można jej cofnąć.",
         "intro": "Spowoduje to trwałe usunięcie Twojego konta i:",
-        "remove_from_rooms": "Usuwa Cię ze wszystkich przestrzeni i pokoi",
+        "remove_from_rooms": "Usuwa Cię ze wszystkich pokoi",
         "delete_messages": "Usuń wszystkie wiadomości (treści nie będzie można odzyskać)",
         "delete_profile": "Usuń swój profil, awatar i powiązane dane",
         "confirm_label": "Wpisz DELETE, aby potwierdzić",

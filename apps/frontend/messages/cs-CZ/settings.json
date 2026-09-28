@@ -493,7 +493,7 @@
         "warning_label": "Upozornění:",
         "warning_text": "Tato akce je trvalá a nelze ji vrátit zpět.",
         "intro": "Tím trvale smažete svůj účet a:",
-        "remove_from_rooms": "Odstraňte vás ze všech prostorů a místností",
+        "remove_from_rooms": "Odebere vás ze všech místností",
         "delete_messages": "Smažte všechny své zprávy (obsah nebude možné obnovit)",
         "delete_profile": "Smažte svůj profil, avatar a související data",
         "confirm_label": "Potvrďte zadáním DELETE",

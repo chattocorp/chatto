@@ -493,7 +493,7 @@
         "warning_label": "Advertencia:",
         "warning_text": "Esta acción es permanente y no se puede deshacer.",
         "intro": "Esto eliminará permanentemente tu cuenta y:",
-        "remove_from_rooms": "Eliminarte de todos los espacios y salas",
+        "remove_from_rooms": "Eliminarte de todas las salas",
         "delete_messages": "Elimina todos tus mensajes (el contenido será irrecuperable)",
         "delete_profile": "Elimina tu perfil, avatar y datos asociados",
         "confirm_label": "Escribe DELETE para confirmar",

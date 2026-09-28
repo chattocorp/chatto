@@ -493,7 +493,7 @@
         "warning_label": "Brīdinājums:",
         "warning_text": "Šī darbība ir neatgriezeniska, un to nevar atsaukt.",
         "intro": "Tādējādi tiks neatgriezeniski izdzēsts jūsu konts un:",
-        "remove_from_rooms": "Izņemiet jūs no visām telpām un telpām",
+        "remove_from_rooms": "Izņem jūs no visām istabām",
         "delete_messages": "Dzēst visus savus ziņojumus (saturs nebūs atkopjams)",
         "delete_profile": "Dzēsiet savu profilu, iemiesojumu un saistītos datus",
         "confirm_label": "Lai apstiprinātu, ierakstiet DELETE",
