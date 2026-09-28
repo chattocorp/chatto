@@ -459,8 +459,9 @@ as task notices that wake the supervisor model:
   `reportProgress`: its approach, test results, and what it does next. The host
   redacts them like other worker text and sends at most one per minute. An
   earlier update waits until the minute ends, and a newer one replaces it. After
-  four minutes without an update, the host sends the number of changed files and
-  test runs so far.
+  eight minutes without an update, the host sends the number of changed files
+  and test runs so far. The supervisor passes on only what is new, in one short
+  sentence.
 - **The result.** When the task finishes, the supervisor writes the final
   message from the result: the CI outcome, the PR URL, a summary of the change,
   and its notes.

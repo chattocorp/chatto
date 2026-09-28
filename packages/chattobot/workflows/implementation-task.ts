@@ -68,7 +68,7 @@ export const FRONTEND_DEPENDENCY_BUILD = [
 /** Progress update timing while the worker works. At most one update is posted per
  * `minIntervalMs`; an earlier worker update waits, and a newer one replaces it. After `quietMs` without any update, the host posts one; it checks every
  * `checkMs`. */
-export const PROGRESS_TIMING = { minIntervalMs: 60_000, quietMs: 4 * 60_000, checkMs: 30_000 };
+export const PROGRESS_TIMING = { minIntervalMs: 60_000, quietMs: 8 * 60_000, checkMs: 30_000 };
 
 /** CI failures that the worker may handle, by a fix or a rerun, before the host reports failure. */
 export const MAX_CI_REPAIRS = 3;
