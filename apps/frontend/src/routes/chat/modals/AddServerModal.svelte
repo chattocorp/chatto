@@ -16,6 +16,7 @@ add a server without leaving the current chat view.
   } = $props();
 </script>
 
+<!-- The server directory grid grows as more servers are recommended, so it uses the xl width. -->
 <Dialog visible title={m('chat.server_gutter.add_server')} size="xl" {onclose}>
   <ServerDirectory inDialog />
 </Dialog>

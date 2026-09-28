@@ -3,7 +3,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
-  import { PaneHeader, PageTitle } from '$lib/ui';
+  import { PaneContent, PaneHeader, PageTitle } from '$lib/ui';
 
   // Re-derives reactively when the URL `[serverId]` changes. Directory rows
   // and membership are selected directly from that server's projection.
@@ -19,12 +19,8 @@
 <div class="pane-page">
   <PaneHeader title={m('chat.overview.title')} />
 
-  <div class="flex-1 overflow-auto">
-    <div class="mx-auto flex max-w-6xl flex-col gap-8 p-6">
-      <section class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold">{m('common.rooms')}</h2>
-        <RoomDirectory {directory} {serverSegment} />
-      </section>
-    </div>
-  </div>
+  <!-- The directory's room groups are titled panels; the masonry uses the wide width. -->
+  <PaneContent wide>
+    <RoomDirectory {directory} {serverSegment} />
+  </PaneContent>
 </div>

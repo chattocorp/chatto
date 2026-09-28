@@ -298,7 +298,9 @@ combining a custom footer with semantic actions. `footerDetails` requires `foote
 Use the `sm` baseline size for short confirmations, `md` for ordinary custom
 dialogs, and `lg` for dense content such as screen selection. Footer actions
 can make each size wider on desktop. Keep the desktop viewport gutter. Do not add a
-feature-specific width to a task dialog.
+feature-specific width to a task dialog. Use `xl` only for a media viewer or a
+browsing grid that grows with its content, such as the server directory in the
+Add Server dialog.
 
 The attachment image viewer, fullscreen video, `QuickSwitcher`, and popovers
 remain specialized overlays. The image viewer keeps its zoom controls outside
@@ -342,7 +344,8 @@ Follow these defaults:
   inside the application shell without creating an accidental second page
   scrollbar.
 - Let `PaneContent` own scrolling, the `max-w-5xl` content width, and page
-  padding. Do not reproduce those constraints in each route.
+  padding. Do not reproduce those constraints in each route. Set `wide` for a
+  browsing grid, such as the room directory masonry, to use `max-w-6xl`.
 - Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
   deliberately dense surface, not as a page-by-page styling choice.
 - Give peer panels short, descriptive titles. A form panel names the task or
@@ -688,6 +691,9 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 - Use `warning` or `danger` when the action itself carries that meaning.
 - Use `danger-secondary` when a destructive action must remain visually quiet
   until hover or focus.
+- Use `danger-ghost` for a state that becomes a destructive action on hover or
+  focus, such as a room directory's Joined state that changes to Leave. It
+  rests like `ghost`.
 - Use Save buttons only for multi-field forms submitted together, and disable
   them until the form is dirty.
 - Binary settings in Server Admin save immediately and confirm through a toast.
@@ -971,9 +977,8 @@ accessibility icons for descriptions, unreviewed `<style>` blocks, and public
 design-system components without a story.
 
 Each reviewed exception is listed next to the check that it bypasses, with a
-reason. `knownDrift` lists drift that an open issue tracks. Remove an entry when
-its issue lands. Do not add an entry only to make the check pass: fix the cause,
-or record a reviewed exception with its reason.
+reason. Do not add an exception only to make the check pass: fix the cause, or
+record a reviewed exception with its reason.
 
 ## Initial Page Reveal
 

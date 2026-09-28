@@ -28,15 +28,6 @@ const nativeDialogAllowlist = new Set([
   'src/routes/chat/[serverId]/manage/rooms/[roomId]/RoomMembersConfirmDialogMock.svelte'
 ]);
 
-// Known drift that a focused issue tracks. Remove each entry when its issue
-// lands; do not add new files here to silence a check.
-const knownDrift = {
-  // Join/Leave status buttons and scope labels: #2667
-  roomDirectoryActions: new Set(['src/lib/RoomDirectory.svelte']),
-  // Join/Leave status buttons: #2667
-  buttonRecipes: new Set(['src/lib/RoomDirectory.svelte'])
-};
-
 const checks = [
   {
     description: 'bare transition utilities; name the transitioned properties',
@@ -64,7 +55,6 @@ const checks = [
   },
   {
     description: 'important cursor override; use a disabled: or state variant',
-    allow: knownDrift.roomDirectoryActions,
     pattern: /(?:^|[\s"'`])!cursor-[a-z-]+/g
   },
   {
@@ -97,7 +87,6 @@ const checks = [
   {
     description: 'hand-built button recipe; use Button from $lib/ui/form',
     featureOnly: true,
-    allow: knownDrift.buttonRecipes,
     // Attachment actions pair their square geometry with a btn tone by design.
     skipLine: /attachment-action-button/,
     pattern:

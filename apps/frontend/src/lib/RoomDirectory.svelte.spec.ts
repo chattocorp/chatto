@@ -1,5 +1,7 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import '../app.css';
 import { afterEach, describe, it, expect, vi } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
@@ -150,6 +152,47 @@ describe('RoomDirectory', () => {
     flushSync();
 
     expect(container.textContent).toContain('Restricted');
+  });
+
+  it('explains Universal and Restricted labels in touch-readable help', async () => {
+    render(Harness, {
+      props: {
+        initialRooms: [
+          room('general', { isUniversal: true }),
+          room('locked', { viewerCanJoinRoom: false })
+        ],
+        joinedRooms: [joined('general')],
+        roomGroups: null
+      }
+    });
+
+    const help = page.getByRole('button', { name: 'More information' });
+    await help.first().click();
+    await expect.element(page.getByText('Universal rooms are joined automatically')).toBeVisible();
+    // The pinned popover covers the next row until it closes.
+    await userEvent.keyboard('{Escape}');
+    await help.nth(1).click();
+    await expect
+      .element(page.getByText("You don't have permission to join this room"))
+      .toBeVisible();
+  });
+
+  it('reveals the Leave action on keyboard focus, not only on hover', async () => {
+    const { container } = render(Harness, {
+      props: { initialRooms: [room('r1')], joinedRooms: [joined('r1')], roomGroups: null }
+    });
+    flushSync();
+    const button = [...container.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Joined')
+    ) as HTMLButtonElement;
+    const visibleLabel = () =>
+      [...button.querySelectorAll('span:not([aria-hidden]):not(:has(span))')]
+        .filter((label) => getComputedStyle(label).display !== 'none')
+        .map((label) => label.textContent?.trim());
+
+    expect(visibleLabel()).toEqual(['Joined']);
+    button.focus();
+    await expect.poll(visibleLabel).toEqual(['Leave']);
   });
 
   it('shows the empty state when there are no visible rooms', () => {
