@@ -5,7 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
   import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
-  import { ContextMenu, Dialog, LoadingFog } from '$lib/ui';
+  import { ContextMenu, Dialog, LoadingFog, LoadRetry } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
@@ -128,12 +128,7 @@
 </script>
 
 {#snippet loadError(onretry: () => void)}
-  <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
-    <p class="text-sm text-muted">{m('common.error.network')}</p>
-    <button type="button" class="btn-secondary" onclick={onretry}>
-      {m('common.retry')}
-    </button>
-  </div>
+  <LoadRetry {onretry} />
 {/snippet}
 
 {#if interactions.user && interactions.anchorRect}

@@ -5,7 +5,7 @@
   import { m } from '$lib/i18n/messages';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { expoOutTransition } from '$lib/ui/motion';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingFog, LoadRetry } from '$lib/ui';
 
   let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
   let roomSidebarLoadAttempt = $state(0);
@@ -35,12 +35,7 @@
   {:then { default: RoomSidebar }}
     <RoomSidebar {...props} presentation={presentation === 'mobile' ? 'overlay' : 'desktop'} />
   {:catch}
-    <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
-      <p class="text-sm text-muted">{m('common.error.network')}</p>
-      <button type="button" class="btn-secondary" onclick={() => (roomSidebarLoadAttempt += 1)}>
-        {m('common.retry')}
-      </button>
-    </div>
+    <LoadRetry class="min-h-0 flex-1" onretry={() => (roomSidebarLoadAttempt += 1)} />
   {/await}
 {/snippet}
 

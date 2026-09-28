@@ -18,7 +18,7 @@ One renderer can serve a complete list without one menu instance per row.
   import type { ComponentProps } from 'svelte';
   import type UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { UserMenuState } from './UserMenuState.svelte';
-  import { ContextMenu, LoadingFog } from '$lib/ui';
+  import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   type MenuProps = ComponentProps<typeof UserContextMenu>;
@@ -50,12 +50,7 @@ One renderer can serve a complete list without one menu instance per row.
     onclose={menu.close}
   >
     {#if failed}
-      <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
-        <p class="text-sm text-muted">{m('common.error.network')}</p>
-        <button type="button" class="btn-secondary" onclick={() => (attempt += 1)}>
-          {m('common.retry')}
-        </button>
-      </div>
+      <LoadRetry onretry={() => (attempt += 1)} />
     {:else}
       <LoadingFog class="m-2 h-28 w-64 max-w-full" />
     {/if}

@@ -271,6 +271,7 @@ vi.mock('$lib/ui', async () => {
   const { default: EmptyState } = await import('$lib/ui/EmptyState.svelte');
   const { default: Hint } = await import('$lib/ui/Hint.svelte');
   return {
+    LoadRetry: (await import('$lib/ui/LoadRetry.svelte')).default,
     PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
     PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
     HeaderIconButton: (await import('$lib/ui/HeaderIconButton.svelte')).default,

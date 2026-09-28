@@ -27,7 +27,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
-  import { LoadingFog, PageTitle, PaneHeader, HeaderIconButton } from '$lib/ui';
+  import { LoadingFog, PageTitle, PaneHeader, HeaderIconButton, LoadRetry } from '$lib/ui';
   import { tick } from 'svelte';
   import ConversationPane from './ConversationPane.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
@@ -777,7 +777,7 @@
         {:catch}
           <div
             class={[
-              'flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center',
+              'flex min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background',
               splitThreadLayout
                 ? 'relative w-[var(--thread-pane-width)] shrink-0'
                 : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
@@ -785,19 +785,10 @@
             data-testid="thread-pane"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
-            <p class="text-sm text-muted">{m('common.error.network')}</p>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                class="btn-secondary"
-                onclick={() => (threadPaneLoadAttempt += 1)}
-              >
-                {m('common.retry')}
-              </button>
-              <button type="button" class="btn-secondary" onclick={closeThread}>
-                {m('room.thread.close')}
-              </button>
-            </div>
+            <LoadRetry
+              onretry={() => (threadPaneLoadAttempt += 1)}
+              secondaryAction={{ label: m('room.thread.close'), onclick: closeThread }}
+            />
           </div>
         {/await}
       {/if}

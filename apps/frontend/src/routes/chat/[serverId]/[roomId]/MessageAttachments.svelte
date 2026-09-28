@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingFog, LoadRetry } from '$lib/ui';
   import { type MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
@@ -570,18 +570,10 @@
                 )}
             />
           {:catch}
-            <div
-              class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
-            >
-              <p class="text-sm text-muted">{m('common.error.network')}</p>
-              <button
-                type="button"
-                class="btn-secondary"
-                onclick={() => (videoPlayerLoadAttempt += 1)}
-              >
-                {m('common.retry')}
-              </button>
-            </div>
+            <LoadRetry
+              class="embed-frame min-h-32 min-w-48"
+              onretry={() => (videoPlayerLoadAttempt += 1)}
+            />
           {/await}
           {@render attachmentControls(attachment, true)}
         </div>
