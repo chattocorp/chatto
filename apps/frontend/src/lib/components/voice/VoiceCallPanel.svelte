@@ -14,6 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import { Button } from '$lib/ui/form';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '$lib/render/accountName';
   import { UserCard, WipeReveal, CompactActionButton, PillButtonGroup } from '$lib/ui';
@@ -515,13 +516,11 @@ Room sidebar panel for voice/video calls.
 
 {#snippet callControls()}
   {#if isInThisCall && voiceCallState.audioPlaybackBlocked}
-    <button
-      type="button"
-      class="mb-2 btn-secondary w-full"
-      onclick={() => voiceCallState.resumeAudio()}
-    >
-      {m('voice.participant_audio.enable_audio')}
-    </button>
+    <div class="mb-2">
+      <Button variant="secondary" fullWidth onclick={() => voiceCallState.resumeAudio()}>
+        {m('voice.participant_audio.enable_audio')}
+      </Button>
+    </div>
   {/if}
   <WipeReveal active={isInThisCall}>
     {#snippet children(joined)}

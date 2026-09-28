@@ -33,17 +33,8 @@ const nativeDialogAllowlist = new Set([
 const knownDrift = {
   // Join/Leave status buttons and scope labels: #2667
   roomDirectoryActions: new Set(['src/lib/RoomDirectory.svelte']),
-  // Lazy-bundle retry buttons avoid the form barrel in room chunks: #2664
-  buttonRecipes: new Set([
-    'src/lib/RoomDirectory.svelte',
-    'src/lib/components/users/UserMenu.svelte',
-    'src/lib/components/voice/VoiceCallPanel.svelte',
-    'src/routes/chat/[serverId]/[roomId]/MessageAttachments.svelte',
-    'src/routes/chat/[serverId]/[roomId]/MessageEventActionOverlays.svelte',
-    'src/routes/chat/[serverId]/[roomId]/MessageUserOverlays.svelte',
-    'src/routes/chat/[serverId]/[roomId]/Room.svelte',
-    'src/routes/chat/[serverId]/[roomId]/RoomSidebarPane.svelte'
-  ])
+  // Join/Leave status buttons: #2667
+  buttonRecipes: new Set(['src/lib/RoomDirectory.svelte'])
 };
 
 const checks = [
