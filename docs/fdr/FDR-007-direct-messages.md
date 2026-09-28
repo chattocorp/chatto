@@ -142,7 +142,9 @@ realtime events.
 **Decision:** Account deletion removes the account's DM memberships, but the
 room directory remembers each former DM participant.
 `RoomWithViewerState.deleted_participant_user_ids` reports the participants
-whose accounts are deleted. Clients show them as deleted users.
+whose accounts are deleted. The DM label participants of followed-thread and
+search results also include them, and includes resolve them to deleted users.
+Clients show them as deleted users.
 **Why:** Without this record, a one-to-one DM with a deleted account has the
 same member list as the remaining participant's self-DM. The UI then showed
 the viewer's own name and a **You** badge for someone else's conversation.
