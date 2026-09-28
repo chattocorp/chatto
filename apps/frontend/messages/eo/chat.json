@@ -59,7 +59,6 @@
       "log_in": "Ensaluti al ĉi tiu servilo",
       "sign_out": "Elsaluti el ĉi tiu servilo",
       "version": "Versio {version}",
-      "version_unknown": "Nekonata versio",
       "unreachable": "Servilo neatingebla",
       "connection_unavailable": "Konekto ne disponeblas",
       "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto 0.5 aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi.",

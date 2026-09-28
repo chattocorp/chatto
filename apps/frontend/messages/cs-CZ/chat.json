@@ -59,7 +59,6 @@
       "log_in": "Přihlásit se k tomuto serveru",
       "sign_out": "Odhlásit se z tohoto serveru",
       "version": "Verze {version}",
-      "version_unknown": "Verze neznámá",
       "unreachable": "Server je nedostupný",
       "connection_unavailable": "Připojení není dostupné",
       "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto 0.5 nebo novější.",

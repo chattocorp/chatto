@@ -59,7 +59,6 @@
   );
 
   const privateDataLoaded = $derived(stores.projection?.viewer != null);
-  const loaded = $derived(!stores.isAuthenticated || privateDataLoaded);
 
   const iconServer = $derived.by(() => {
     const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
@@ -77,46 +76,42 @@
   );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
-  const awaitingDiscovery = $derived(stores.serverInfo.loading);
-  const compatibilityMessage = $derived.by(() => {
-    if (awaitingDiscovery) return null;
-    switch (compatibility.reason) {
-      case 'server-too-old':
-        return m('chat.server_gutter.compatibility_server_too_old');
-      case 'server-version-unknown':
-        return m('chat.server_gutter.compatibility_unknown');
-      case 'unreachable':
-        return m('chat.server_gutter.unreachable');
-      default:
-        return null;
-    }
-  });
-  const compatibilityWarning = $derived(!awaitingDiscovery && compatibility.status !== 'supported');
-  const gutterWarning = $derived(compatibilityWarning || serverConnection.showConnectionLostIcon);
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
-  const connectionWarningMessage = $derived(
-    serverConnection.showConnectionLostIcon && !serverUnavailable
-      ? m('chat.server_gutter.connection_unavailable')
-      : null
-  );
+
+  /**
+   * Why the client cannot use this server, or null. The gutter icon has two
+   * states: normal, or a warning when this is set. Discovery and connection
+   * attempts in progress are not problems; only a failed attempt is.
+   */
+  const problem = $derived.by((): string | null => {
+    if (signInRequired) return m('ui.auth_status.sidebar_reauth', { server: iconServer.name });
+    if (!stores.serverInfo.loading) {
+      switch (compatibility.reason) {
+        case 'unreachable':
+          return m('chat.server_gutter.unreachable');
+        case 'server-too-old':
+          return m('chat.server_gutter.compatibility_server_too_old');
+        case 'server-version-unknown':
+          return m('chat.server_gutter.compatibility_unknown');
+      }
+    }
+    if (serverConnection.showConnectionLostIcon) {
+      return m('chat.server_gutter.connection_unavailable');
+    }
+    return null;
+  });
+  const iconTitle = $derived.by(() => {
+    if (!problem) return iconServer.name;
+    // The sign-in message already names the server.
+    if (signInRequired) return problem;
+    return `${iconServer.name} — ${problem}`;
+  });
   const recoveryNeeded = $derived(serverUnavailable || serverRegistry.needsRecovery(serverId));
   const serverActionsAvailable = $derived(
     stores.isAuthenticated &&
       privateDataLoaded &&
       compatibility.status === 'supported' &&
       !serverConnection.showConnectionLostIcon
-  );
-  const iconDimmed = $derived(
-    !privateDataLoaded && (signInRequired || !loaded || serverConnection.showConnectionLostIcon)
-  );
-  const iconTitle = $derived(
-    signInRequired
-      ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
-      : compatibilityWarning && compatibilityMessage
-        ? `${iconServer.name} — ${compatibilityMessage}`
-        : connectionWarningMessage
-          ? `${iconServer.name} — ${connectionWarningMessage}`
-          : iconServer.name
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
   let signingIn = $state(false);
@@ -295,9 +290,7 @@
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
-  dimmed={iconDimmed}
-  {signInRequired}
-  compatibilityWarning={gutterWarning}
+  warning={problem !== null}
 />
 
 {#if contextMenu}
@@ -325,54 +318,19 @@
           {serverHost}
         </div>
       {/if}
-      {#if !awaitingDiscovery}
-        <div class="mt-1 flex items-center gap-1.5 text-muted">
-          {#if serverUnavailable}
-            <span class="iconify icon-[uil--wifi-slash] shrink-0 text-warning" aria-hidden="true"
-            ></span>
-            <span class="text-warning">{m('chat.server_gutter.unreachable')}</span>
-          {:else}
-            <span>
-              {stores.serverInfo.version
-                ? m('chat.server_gutter.version', { version: stores.serverInfo.version })
-                : m('chat.server_gutter.version_unknown')}
-            </span>
-          {/if}
+      {#if stores.serverInfo.version}
+        <div class="mt-1 text-muted">
+          {m('chat.server_gutter.version', { version: stores.serverInfo.version })}
         </div>
       {/if}
-      {#if signInRequired}
+      {#if problem}
         <div
           class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
-          data-testid="server-sign-in-message"
+          data-testid="server-problem-message"
         >
           <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
           ></span>
-          <span>{m('ui.auth_status.sidebar_reauth', { server: iconServer.name })}</span>
-        </div>
-      {/if}
-      {#if compatibilityMessage && !serverUnavailable}
-        <div
-          class={[
-            'mt-1 flex items-start gap-1.5 whitespace-normal',
-            compatibilityWarning ? 'text-warning' : 'text-muted'
-          ]}
-          data-testid="server-compatibility-message"
-        >
-          {#if compatibilityWarning}
-            <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
-            ></span>
-          {/if}
-          <span>{compatibilityMessage}</span>
-        </div>
-      {/if}
-      {#if connectionWarningMessage}
-        <div
-          class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
-          data-testid="server-connection-message"
-        >
-          <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
-          ></span>
-          <span>{connectionWarningMessage}</span>
+          <span>{problem}</span>
         </div>
       {/if}
     </div>

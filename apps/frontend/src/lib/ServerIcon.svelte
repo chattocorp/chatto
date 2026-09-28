@@ -20,9 +20,7 @@
     onIndicatorClick,
     contextMenuTrigger,
     title,
-    dimmed = false,
-    signInRequired = false,
-    compatibilityWarning = false
+    warning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -43,12 +41,12 @@
     /** Optional right-click/long-press behavior for the server link. */
     contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
-    /** Render as unavailable/degraded while keeping the icon in the gutter. */
-    dimmed?: boolean;
-    /** Show that this server requires the user to sign in. */
-    signInRequired?: boolean;
-    /** Show a non-interactive compatibility warning marker. */
-    compatibilityWarning?: boolean;
+    /**
+     * Show a non-interactive warning marker: the client could not use this
+     * server (sign-in, compatibility, or connection failure). The title names
+     * the problem.
+     */
+    warning?: boolean;
   } = $props();
 </script>
 
@@ -60,8 +58,7 @@
     aria-label={title ?? server?.name}
     class={[
       'server-icon server-gutter-item cursor-pointer',
-      selected && 'server-gutter-item-active',
-      dimmed && 'opacity-40 grayscale'
+      selected && 'server-gutter-item-active'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
   >
@@ -72,18 +69,10 @@
     {/if}
   </a>
 
-  {#if signInRequired}
+  {#if warning}
     <span
       class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
-      data-testid="server-sign-in-required"
-      aria-hidden="true"
-    >
-      <span class="iconify icon-[uil--exclamation-circle] text-xs" aria-hidden="true"></span>
-    </span>
-  {:else if compatibilityWarning}
-    <span
-      class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
-      data-testid="server-compatibility-warning"
+      data-testid="server-warning"
       aria-hidden="true"
     >
       <span class="iconify icon-[uil--exclamation-circle] text-xs" aria-hidden="true"></span>

@@ -59,7 +59,6 @@
       "log_in": "تسجيل الدخول إلى هذا الخادم",
       "sign_out": "تسجيل الخروج من هذا الخادم",
       "version": "الإصدار {version}",
-      "version_unknown": "الإصدار غير معروف",
       "unreachable": "تعذر الوصول إلى الخادم",
       "connection_unavailable": "الاتصال غير متاح",
       "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto 0.5 أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",

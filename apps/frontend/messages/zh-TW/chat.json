@@ -59,7 +59,6 @@
       "log_in": "登入此伺服器",
       "sign_out": "登出此伺服器",
       "version": "版本 {version}",
-      "version_unknown": "版本不明",
       "unreachable": "無法連線至伺服器",
       "connection_unavailable": "連線無法使用",
       "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。",
