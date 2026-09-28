@@ -18,6 +18,7 @@
   "dependencies": {
     "@chatto/bot-client": "workspace:*",
     "@chatto/client": "workspace:*",
+    "franc-min": "^6.2.0",
     "linkedom": "^0.18.13",
     "runling": "workspace:*"
   },
