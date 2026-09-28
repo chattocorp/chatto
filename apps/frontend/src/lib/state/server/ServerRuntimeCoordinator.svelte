@@ -17,7 +17,7 @@
             {
               serverId: server.id,
               connection: serverConnectionManager.getClient(server.id),
-              projectionSupported: store.serverInfo.supportsRealtimeProjection,
+              projectionSupported: store.serverInfo.isSupportedVersion,
               sync: store.realtimeSync,
               projectionHandler: store.realtimeProjectionHandler,
               completeProjectionCatchUp: (cursor: string) => store.completeRealtimeCatchUp(cursor),

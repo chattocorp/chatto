@@ -43,7 +43,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
     expect(state.version).toBe('0.5.0');
-    expect(state.supportsRealtimeProjection).toBe(true);
+    expect(state.isSupportedVersion).toBe(true);
     expect(state.lastDiscoveredAt).not.toBeNull();
     expect(state.compatibility.status).toBe('supported');
     expect(state.welcomeMessage).toBe('welcome');
@@ -175,7 +175,7 @@ describe('ServerInfoState.init()', () => {
       status: 'unsupported',
       reason: 'server-too-old'
     });
-    expect(state.supportsRealtimeProjection).toBe(false);
+    expect(state.isSupportedVersion).toBe(false);
   });
 
   it('reads runtime settings from the projection and falls back to defaults', () => {

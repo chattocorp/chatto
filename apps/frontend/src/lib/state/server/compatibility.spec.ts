@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compareReleaseVersions,
   evaluateServerCompatibility,
-  supportsServerFeature
+  isSupportedServerVersion
 } from './compatibility';
 
 describe('server compatibility evaluation', () => {
@@ -72,28 +72,21 @@ describe('server compatibility evaluation', () => {
     ).toEqual({ status: 'unreachable', reason: 'unreachable' });
   });
 
-  it('derives feature support from the server release that introduced it', () => {
-    expect(supportsServerFeature('0.5.0-alpha.9', 'attachmentDescriptions')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.8', 'attachmentDescriptions')).toBe(false);
-    expect(supportsServerFeature('0.5.0-dev', 'attachmentDescriptions')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.6', 'realtimeProjection')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.5', 'realtimeProjection')).toBe(false);
-    expect(supportsServerFeature('0.5.0', 'messageSearch')).toBe(true);
-    expect(supportsServerFeature('0.5.0', 'neighbors')).toBe(true);
-    expect(supportsServerFeature('0.5.0', 'botOwnerReassignment')).toBe(true);
-    expect(supportsServerFeature('0.5.0', 'botIncomingWebhooks')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.8', 'botOutboundWebhooks')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.7', 'botOutboundWebhooks')).toBe(false);
-    expect(supportsServerFeature('0.5.0', 'botMultipleApiKeys')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.4', 'botMultipleApiKeys')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.3', 'botMultipleApiKeys')).toBe(false);
-    expect(supportsServerFeature('0.5.0', 'roomManagement')).toBe(true);
-    expect(supportsServerFeature('0.5.0', 'serverInvitations')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.4', 'relativeSidebarMoves')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.3', 'relativeSidebarMoves')).toBe(false);
-    expect(supportsServerFeature('0.5.0-alpha.6', 'userAvatars')).toBe(true);
-    expect(supportsServerFeature('0.5.0-alpha.5', 'userAvatars')).toBe(false);
-    expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);
-    expect(supportsServerFeature('custom-build', 'adminApi')).toBe(false);
+  it('rejects prereleases older than the supported minimum', () => {
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.5.0-beta.8'
+      })
+    ).toEqual({ status: 'unsupported', reason: 'server-too-old' });
+  });
+
+  it('reports supported versions only for parseable releases at or above the minimum', () => {
+    expect(isSupportedServerVersion('0.5.0-beta.9')).toBe(true);
+    expect(isSupportedServerVersion('0.5.0-dev')).toBe(true);
+    expect(isSupportedServerVersion('0.5.0')).toBe(true);
+    expect(isSupportedServerVersion('0.5.0-beta.8')).toBe(false);
+    expect(isSupportedServerVersion('0.4.19')).toBe(false);
+    expect(isSupportedServerVersion('custom-build')).toBe(false);
+    expect(isSupportedServerVersion('')).toBe(false);
   });
 });

@@ -116,15 +116,6 @@ describe('Profile settings page', () => {
     expect(uploadButton).toHaveClass('btn-action');
   });
 
-  it('hides the avatar editor when the server does not support targeted avatars', async () => {
-    server.features = { userAvatars: false };
-    const { container } = render(ProfilePage);
-    await settle();
-
-    expect(container.querySelector('input[type="file"]')).toBeNull();
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(1);
-  });
-
   it.each(['markdown', 'visual'] as const)(
     'submits a display name with the %s bio editor',
     async (editorKind) => {

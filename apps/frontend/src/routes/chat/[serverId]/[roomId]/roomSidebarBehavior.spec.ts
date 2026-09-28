@@ -89,16 +89,6 @@ describe('room sidebar behavior', () => {
     ]);
   });
 
-  it('hides pinned messages when the server feature is unavailable', () => {
-    expect(roomSidebarPanelForRoom(false, 'pins', true, true, false)).toBeNull();
-    expect(roomSidebarPanelsForRoom(false, true, true, false)).toEqual([
-      'members',
-      'search',
-      'files',
-      'call'
-    ]);
-  });
-
   it('uses only the desktop sidebar selection on desktop', () => {
     expect(visibleRoomSidebarPanel(true, 'files', null)).toBe('files');
     expect(visibleRoomSidebarPanel(true, null, 'files')).toBeNull();

@@ -6,14 +6,12 @@
   let {
     attachments,
     disabled,
-    canDescribe = true,
     getSubmissionStatus,
     onremove,
     ondescription
   }: {
     attachments: AttachmentsState;
     disabled: boolean;
-    canDescribe?: boolean;
     getSubmissionStatus: (file: File) => AttachmentSubmissionStatus | null;
     onremove: (index: number) => void;
     ondescription: (index: number) => void;
@@ -73,21 +71,19 @@
               >{file.name}</span
             >
             <div class="flex shrink-0 items-center gap-0.5">
-              {#if canDescribe}
-                <button
-                  type="button"
-                  onclick={() => ondescription(index)}
-                  {disabled}
-                  class={[
-                    'mini-icon-action h-5 w-5 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50',
-                    description && 'text-action hover:text-action'
-                  ]}
-                  aria-label={descriptionActionLabel}
-                  title={descriptionActionLabel}
-                >
-                  <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
-                </button>
-              {/if}
+              <button
+                type="button"
+                onclick={() => ondescription(index)}
+                {disabled}
+                class={[
+                  'mini-icon-action h-5 w-5 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50',
+                  description && 'text-action hover:text-action'
+                ]}
+                aria-label={descriptionActionLabel}
+                title={descriptionActionLabel}
+              >
+                <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
+              </button>
               <button
                 type="button"
                 onclick={() => onremove(index)}

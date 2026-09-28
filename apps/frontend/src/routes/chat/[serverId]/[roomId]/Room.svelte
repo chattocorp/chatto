@@ -153,11 +153,8 @@
   });
 
   // --- Extracted hooks ---
-  const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
   const roomPinsStore = $derived(
-    room.roomData && canReadMessages && !room.isDM && supportsPinnedMessages
-      ? stores.rooms.pins(roomId)
-      : null
+    room.roomData && canReadMessages && !room.isDM ? stores.rooms.pins(roomId) : null
   );
 
   $effect(() => {
@@ -321,15 +318,13 @@
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
-  const supportsMessageSearch = $derived(serverInfo.supportsFeature('messageSearch'));
   const messageSearchAvailable = $derived(
-    supportsMessageSearch &&
-      (stores.messageSearch.statusError ||
-        (stores.messageSearch.statusLoaded &&
-          stores.messageSearch.status.state !== MessageSearchState.DISABLED))
+    stores.messageSearch.statusError ||
+      (stores.messageSearch.statusLoaded &&
+        stores.messageSearch.status.state !== MessageSearchState.DISABLED)
   );
   $effect(() => {
-    if (supportsMessageSearch && stores.isAuthenticated) void stores.messageSearch.ensureStatus();
+    if (stores.isAuthenticated) void stores.messageSearch.ensureStatus();
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
@@ -339,8 +334,7 @@
       room.isDM,
       appUi.desktopRoomSidebarPanel(defaultDesktopRoomSidebarPanel),
       showVoiceCall,
-      messageSearchAvailable,
-      supportsPinnedMessages
+      messageSearchAvailable
     )
   );
   const mobileRoomSidebarPanel = $derived(
@@ -348,8 +342,7 @@
       room.isDM,
       appUi.mobileRoomSidebarPanel,
       showVoiceCall,
-      messageSearchAvailable,
-      supportsPinnedMessages
+      messageSearchAvailable
     )
   );
   const directMessageProfileUserId = $derived.by(() => {
@@ -394,12 +387,7 @@
     ) === 'pins'
   );
   const roomSidebarTogglePanels = $derived(
-    roomSidebarPanelsForRoom(
-      room.isDM,
-      showVoiceCall,
-      messageSearchAvailable,
-      supportsPinnedMessages
-    )
+    roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
   );
   const hasActiveRoomCall = $derived(
     stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)

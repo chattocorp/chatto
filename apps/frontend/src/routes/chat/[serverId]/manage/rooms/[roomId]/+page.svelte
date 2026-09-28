@@ -46,7 +46,6 @@
     roomId: string;
   } | null = null;
   let formRevision = $state(0);
-  const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
 
   onDestroy(() => {
     pendingMemberRevalidation = null;
@@ -86,7 +85,6 @@
           }
           return room;
         },
-        enabled: supportsAdminAPI,
         refetchOnMount: 'always' as const
       };
     },
@@ -96,20 +94,17 @@
   const room = $derived(roomQuery.data ?? null);
   const canManageRoom = $derived(room?.canManageRoom ?? false);
   const canManagePermissions = $derived(room?.canManagePermissions ?? false);
-  const supportsMemberManagement = $derived(
-    serverScope.store.serverInfo.supportsFeature('roomManagement')
-  );
   const backHref = $derived(
     serverScope.store.permissions.canManageRooms
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })
   );
-  const loading = $derived(supportsAdminAPI && roomQuery.isPending);
+  const loading = $derived(roomQuery.isPending);
   const classifiedLoadError = $derived(
     roomQuery.error ? classifyManagementLoadError(roomQuery.error) : null
   );
   const accessDenied = $derived(
-    !supportsAdminAPI || classifiedLoadError?.kind === 'access-denied' || (!loading && !room)
+    classifiedLoadError?.kind === 'access-denied' || (!loading && !room)
   );
   const loadFailure = $derived(
     classifiedLoadError?.kind === 'failure' ? classifiedLoadError.message : null
@@ -248,7 +243,7 @@
           {/key}
         {/if}
 
-        {#if room && supportsMemberManagement}
+        {#if room}
           {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
             <RoomMembersPanel
               {roomId}

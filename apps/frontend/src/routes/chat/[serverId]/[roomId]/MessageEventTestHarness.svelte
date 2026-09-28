@@ -60,7 +60,7 @@
     projection: { users },
     notifications: { hasThreadNotification: () => false },
     readViews: { covers: () => false },
-    serverInfo: { messageEditWindowSeconds: 31_536_000, supportsFeature: () => true },
+    serverInfo: { messageEditWindowSeconds: 31_536_000 },
     activeCallRooms: { getParticipantCallPresence: () => null },
     viewerUser: { id: 'viewer', login: 'viewer', settings: undefined },
     viewerId: 'viewer',

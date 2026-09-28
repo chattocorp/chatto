@@ -1,30 +1,12 @@
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
 
-export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-0';
-
-const serverFeatureMinimumVersions = {
-  adminApi: '0.5.0-0',
-  attachmentDescriptions: '0.5.0-alpha.9',
-  botAccounts: '0.5.0-0',
-  botOutboundWebhooks: '0.5.0-alpha.8',
-  botIncomingWebhooks: '0.5.0-0',
-  botMultipleApiKeys: '0.5.0-alpha.4',
-  botOwnerReassignment: '0.5.0-0',
-  messageSearch: '0.5.0-0',
-  followedThreadSearch: '0.5.0-beta.6',
-  followedThreadUnreadFilter: '0.5.0-beta.8',
-  managedUserProfiles: '0.5.0-beta.9',
-  neighbors: '0.5.0-0',
-  pinnedMessages: '0.5.0-0',
-  realtimeProjection: '0.5.0-alpha.6',
-  roomManagement: '0.5.0-0',
-  relativeSidebarMoves: '0.5.0-alpha.4',
-  serverInvitations: '0.5.0-0',
-  userAvatars: '0.5.0-alpha.6'
-} as const;
-
-export type ServerFeature = keyof typeof serverFeatureMinimumVersions;
+/**
+ * Oldest server release this client supports. Every feature the client uses
+ * exists in this release, so the client does not gate individual features by
+ * server version. Raise it when the client starts to depend on a newer server.
+ */
+export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-beta.9';
 
 export type ServerCompatibilityStatus = 'supported' | 'unsupported' | 'unknown' | 'unreachable';
 
@@ -66,7 +48,8 @@ export function evaluateServerCompatibility(
   return { status: 'supported', reason: 'version-confirmed' };
 }
 
-export function supportsServerFeature(serverVersion: string, feature: ServerFeature): boolean {
-  const comparison = compareReleaseVersions(serverVersion, serverFeatureMinimumVersions[feature]);
+/** Whether a server reports a parseable release at or above the supported minimum. */
+export function isSupportedServerVersion(serverVersion: string): boolean {
+  const comparison = compareReleaseVersions(serverVersion, MINIMUM_SUPPORTED_SERVER_VERSION);
   return comparison !== null && comparison >= 0;
 }

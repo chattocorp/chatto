@@ -21,8 +21,7 @@ const mocks = vi.hoisted(() => ({
   serverInfo: {
     name: 'Test Server',
     pushNotificationsEnabled: false,
-    vapidPublicKey: null as string | null,
-    supportsFeature: () => true
+    vapidPublicKey: null as string | null
   },
   pushNotifications: {
     enablePushOnAllServers: vi.fn(),

@@ -43,7 +43,6 @@
   const isSelf = $derived(store.viewerId === userId);
   const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
   const canAdminManageAccounts = $derived(store.permissions.canAdminManageAccounts);
-  const supportsUserAvatars = $derived(store.serverInfo.supportsFeature('userAvatars'));
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members', {
       serverId: serverIdToSegment(activeServerId)
@@ -341,7 +340,7 @@
 
         <MemberOverviewPanel {member} roles={details.roles} {canViewMemberEmails} />
 
-        {#if supportsUserAvatars && (isSelf || canAdminManageAccounts) && !member.deleted}
+        {#if (isSelf || canAdminManageAccounts) && !member.deleted}
           {#key memberTargetKey}
             <AvatarEditor user={member} onupload={uploadAvatar} ondelete={deleteAvatar} />
           {/key}

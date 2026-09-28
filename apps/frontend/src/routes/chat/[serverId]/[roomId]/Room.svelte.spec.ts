@@ -391,7 +391,6 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   server = createTestServerScope({
     viewer: { id: 'test-user', login: 'testuser' },
-    features: false,
     serverInfo: {
       get livekitUrl() {
         return mocks.livekitUrl;
@@ -426,6 +425,7 @@ beforeEach(() => {
         messages: mocks.roomMessages,
         members: mocks.roomMembers,
         files: () => ({ retain: mocks.roomFilesRetain }),
+        pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false }),
         search: () => ({})
       },
       restoreProjectedRoomWindow:
@@ -773,7 +773,6 @@ describe('Room interaction bundles', () => {
   });
 
   it('opens the desktop room search sidebar with Cmd+/', async () => {
-    server.features = { messageSearch: true, pinnedMessages: false };
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const event = new KeyboardEvent('keydown', {
       key: '/',
@@ -792,7 +791,6 @@ describe('Room interaction bundles', () => {
   });
 
   it('opens the mobile room search sidebar with Ctrl+/', async () => {
-    server.features = { messageSearch: true, pinnedMessages: false };
     stubMatchMedia(false);
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const event = new KeyboardEvent('keydown', {

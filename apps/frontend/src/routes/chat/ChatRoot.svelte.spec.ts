@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => {
       return this.currentUser.user?.id ?? null;
     },
     voiceCall: { isInAnyCall: false },
-    serverInfo: { supportsRealtimeProjection: true },
+    serverInfo: { isSupportedVersion: true },
     realtimeSync: { serverId: 'origin-sync' }
   };
   const remoteStore = {
@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => {
     },
     isAuthenticated: true,
     voiceCall: { isInAnyCall: false },
-    serverInfo: { supportsRealtimeProjection: true },
+    serverInfo: { isSupportedVersion: true },
     realtimeSync: { serverId: 'remote-sync' }
   };
 

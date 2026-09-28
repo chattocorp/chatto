@@ -273,27 +273,6 @@ describe('room management page identity and realtime authority', () => {
     );
   });
 
-  it('hides member management on servers that predate the room-management API', async () => {
-    server.features = false;
-    mocks.getRoom.mockResolvedValue(managedRoom('general'));
-
-    const { container } = render(RoomManagementPage);
-    await settle();
-
-    expect(container.textContent).not.toContain('Members');
-    expect(container.querySelector('#room-member-picker')).toBeNull();
-  });
-
-  it('does not request management details from servers that predate the admin API', async () => {
-    server.features = false;
-
-    const { container } = render(RoomManagementPage);
-    await settle();
-
-    expect(mocks.getRoom).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('You do not have permission to access this page.');
-  });
-
   it('accepts spaces, punctuation, emoji, and normalizes Unicode room names', async () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     const { container } = render(RoomManagementPage);

@@ -49,20 +49,6 @@
 
   const serverScope = useServerScope();
   const botId = $derived(page.params.botId!);
-  const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
-  const supportsIncomingWebhooks = $derived(
-    serverScope.store.serverInfo.supportsFeature('botIncomingWebhooks')
-  );
-  const supportsMultipleAPIKeys = $derived(
-    serverScope.store.serverInfo.supportsFeature('botMultipleApiKeys')
-  );
-  const supportsOwnerReassignment = $derived(
-    serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
-  );
-  const supportsUserAvatars = $derived(serverScope.store.serverInfo.supportsFeature('userAvatars'));
-  const supportsManagedProfiles = $derived(
-    serverScope.store.serverInfo.supportsFeature('managedUserProfiles')
-  );
   const canManageBots = $derived(serverScope.store.permissions.canManageBots);
   const viewerId = $derived(serverScope.store.accountId);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
@@ -81,7 +67,7 @@
       return {
         queryKey: settingsQueryKeys.bot(serverId, connection, targetBotId),
         queryFn: ({ signal }) => connection.getAPI(createBotAPI).getBot(targetBotId, { signal }),
-        enabled: supportsBots && !!targetBotId
+        enabled: !!targetBotId
       };
     },
     () => queryClient
@@ -96,7 +82,7 @@
       return {
         queryKey: [...settingsQueryKeys.bot(serverId, connection, botId), 'owner', ownerUserId],
         queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
-        enabled: supportsBots && !!ownerUserId
+        enabled: !!ownerUserId
       };
     },
     () => queryClient
@@ -405,16 +391,14 @@
   />
 
   <PaneContent>
-    {#if !supportsBots}
-      <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
-    {:else if botQuery.error}
+    {#if botQuery.error}
       <Hint tone="danger">{botQuery.error.message}</Hint>
     {:else}
       <div class="flex flex-col gap-6">
         {#if bot}
           <Panel title={bot.displayName} titleContent={botName} subtitle={`@${bot.login}`}>
             {#snippet actions()}
-              {#if canReassignOwner && supportsOwnerReassignment}
+              {#if canReassignOwner}
                 <Button size="sm" variant="secondary" onclick={openReassignOwner}>
                   <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
                   {m('settings.bots.reassign_owner')}
@@ -447,16 +431,10 @@
                   {/if}
                 </dd>
               </div>
-              {#if !supportsMultipleAPIKeys}
-                <div>
-                  <dt class="text-muted">{m('settings.bots.key_created')}</dt>
-                  <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
-                </div>
-              {/if}
             </dl>
           </Panel>
 
-          {#if supportsManagedProfiles && canEditIdentity}
+          {#if canEditIdentity}
             {#key targetKey}
               <BotProfileSection
                 {bot}
@@ -466,7 +444,7 @@
             {/key}
           {/if}
 
-          {#if supportsUserAvatars && canEditIdentity}
+          {#if canEditIdentity}
             {#key targetKey}
               <AvatarEditor
                 user={{ ...bot, isBot: true }}
@@ -478,72 +456,68 @@
 
           {#if canOperateBot}
             {#key targetKey}
-              {#if !deleteLoading && serverScope.store.serverInfo.supportsFeature('botOutboundWebhooks')}
+              {#if !deleteLoading}
                 <BotOutboundWebhookSection {botId} />
               {/if}
-              {#if supportsIncomingWebhooks}
-                <BotCredentialSection
-                  idPrefix="bot-webhook"
-                  testId="bot-incoming-webhooks"
-                  items={webhookItems}
-                  createIcon="iconify icon-[uil--link-add]"
-                  labels={{
-                    title: m('settings.bots.webhook_title'),
-                    description: m('settings.bots.webhook_description'),
-                    create: m('settings.bots.webhook_create'),
-                    name: m('settings.bots.webhook_name'),
-                    createdAt: m('settings.bots.webhook_created_at'),
-                    lastUsed: m('settings.bots.webhook_last_used'),
-                    empty: m('settings.bots.webhook_empty_description'),
-                    limitReached: m('settings.bots.webhook_limit_reached'),
-                    revoke: m('settings.bots.webhook_revoke'),
-                    revokeWarning: m('settings.bots.webhook_revoke_warning'),
-                    issuedTitle: m('settings.bots.webhook_url_title'),
-                    issuedWarning: m('settings.bots.webhook_url_warning'),
-                    copied: m('settings.bots.webhook_url_copied')
-                  }}
-                  oncreate={createWebhook}
-                  oncreateopen={() => (webhookRoomId = '')}
-                  onrevoke={revokeWebhook}
-                >
-                  {#snippet createFields(pending)}
-                    <Select
-                      id="create-bot-webhook-room"
-                      label={m('settings.bots.webhook_room')}
-                      description={m('settings.bots.webhook_room_description')}
-                      options={webhookRoomOptions}
-                      bind:value={webhookRoomId}
-                      disabled={pending}
-                    />
-                  {/snippet}
-                </BotCredentialSection>
-              {/if}
+              <BotCredentialSection
+                idPrefix="bot-webhook"
+                testId="bot-incoming-webhooks"
+                items={webhookItems}
+                createIcon="iconify icon-[uil--link-add]"
+                labels={{
+                  title: m('settings.bots.webhook_title'),
+                  description: m('settings.bots.webhook_description'),
+                  create: m('settings.bots.webhook_create'),
+                  name: m('settings.bots.webhook_name'),
+                  createdAt: m('settings.bots.webhook_created_at'),
+                  lastUsed: m('settings.bots.webhook_last_used'),
+                  empty: m('settings.bots.webhook_empty_description'),
+                  limitReached: m('settings.bots.webhook_limit_reached'),
+                  revoke: m('settings.bots.webhook_revoke'),
+                  revokeWarning: m('settings.bots.webhook_revoke_warning'),
+                  issuedTitle: m('settings.bots.webhook_url_title'),
+                  issuedWarning: m('settings.bots.webhook_url_warning'),
+                  copied: m('settings.bots.webhook_url_copied')
+                }}
+                oncreate={createWebhook}
+                oncreateopen={() => (webhookRoomId = '')}
+                onrevoke={revokeWebhook}
+              >
+                {#snippet createFields(pending)}
+                  <Select
+                    id="create-bot-webhook-room"
+                    label={m('settings.bots.webhook_room')}
+                    description={m('settings.bots.webhook_room_description')}
+                    options={webhookRoomOptions}
+                    bind:value={webhookRoomId}
+                    disabled={pending}
+                  />
+                {/snippet}
+              </BotCredentialSection>
 
-              {#if supportsMultipleAPIKeys}
-                <BotCredentialSection
-                  idPrefix="bot-api-key"
-                  testId="bot-api-keys"
-                  items={apiKeyItems}
-                  createIcon="iconify icon-[uil--key-skeleton]"
-                  labels={{
-                    title: m('settings.bots.key_title'),
-                    description: m('settings.bots.key_description'),
-                    create: m('settings.bots.key_create'),
-                    name: m('settings.bots.key_name'),
-                    createdAt: m('settings.bots.key_created_at'),
-                    lastUsed: m('settings.bots.key_last_used'),
-                    empty: m('settings.bots.key_empty_description'),
-                    limitReached: m('settings.bots.key_limit_reached'),
-                    revoke: m('settings.bots.key_revoke'),
-                    revokeWarning: m('settings.bots.key_revoke_warning'),
-                    issuedTitle: m('settings.bots.api_key_title'),
-                    issuedWarning: m('settings.bots.api_key_warning'),
-                    copied: m('settings.bots.key_copied')
-                  }}
-                  oncreate={createAPIKey}
-                  onrevoke={revokeAPIKey}
-                />
-              {/if}
+              <BotCredentialSection
+                idPrefix="bot-api-key"
+                testId="bot-api-keys"
+                items={apiKeyItems}
+                createIcon="iconify icon-[uil--key-skeleton]"
+                labels={{
+                  title: m('settings.bots.key_title'),
+                  description: m('settings.bots.key_description'),
+                  create: m('settings.bots.key_create'),
+                  name: m('settings.bots.key_name'),
+                  createdAt: m('settings.bots.key_created_at'),
+                  lastUsed: m('settings.bots.key_last_used'),
+                  empty: m('settings.bots.key_empty_description'),
+                  limitReached: m('settings.bots.key_limit_reached'),
+                  revoke: m('settings.bots.key_revoke'),
+                  revokeWarning: m('settings.bots.key_revoke_warning'),
+                  issuedTitle: m('settings.bots.api_key_title'),
+                  issuedWarning: m('settings.bots.api_key_warning'),
+                  copied: m('settings.bots.key_copied')
+                }}
+                oncreate={createAPIKey}
+                onrevoke={revokeAPIKey}
+              />
             {/key}
           {/if}
         {/if}

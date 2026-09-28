@@ -4272,18 +4272,6 @@ describe('MessageComposer', () => {
       ]);
     });
 
-    it('does not offer or send descriptions to an older server', async () => {
-      server.features = false;
-      const { container } = renderMessageComposer({ roomId: 'room_456' });
-      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
-      await expect.poll(() => q(container, 'img')).toBeTruthy();
-
-      expect(container.textContent).not.toContain('Add description');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
-      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
-      expect(createMessageConnectMock.mock.calls[0][0].attachmentDescriptions).toBeUndefined();
-    });
-
     it('revokes object URLs when removing staged files', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);

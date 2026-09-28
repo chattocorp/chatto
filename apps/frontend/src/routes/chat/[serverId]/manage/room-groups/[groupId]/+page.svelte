@@ -35,7 +35,6 @@
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const backHref = $derived(resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }));
 
-  const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
   const session = createSessionGuard(serverScope);
   /** Increases when the group snapshot changes, so an older save does not overwrite it. */
   let snapshotGeneration = 0;
@@ -58,7 +57,6 @@
         queryKey: adminQueryKeys.roomGroup(serverId, connection, targetGroupId),
         queryFn: ({ signal }) =>
           connection.getAPI(createAdminRoomLayoutAPI).getRoomGroup(targetGroupId, { signal }),
-        enabled: supportsAdminAPI,
         refetchOnMount: 'always' as const
       };
     },
@@ -69,12 +67,12 @@
   const group = $derived(groupDetails?.group ?? null);
   const canManageGroup = $derived(groupDetails?.canManageGroup ?? false);
   const canManagePermissions = $derived(groupDetails?.canManagePermissions ?? false);
-  const loading = $derived(supportsAdminAPI && groupQuery.isPending);
+  const loading = $derived(groupQuery.isPending);
   const classifiedLoadError = $derived(
     groupQuery.error ? classifyManagementLoadError(groupQuery.error) : null
   );
   const accessDenied = $derived(
-    !supportsAdminAPI || classifiedLoadError?.kind === 'access-denied' || (!loading && !group)
+    classifiedLoadError?.kind === 'access-denied' || (!loading && !group)
   );
   const loadFailure = $derived(
     classifiedLoadError?.kind === 'failure' ? classifiedLoadError.message : null

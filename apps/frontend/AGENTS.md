@@ -94,9 +94,11 @@ Do not generate playground links for code written into this repository.
 ## ConnectRPC And Generated Types
 
 - Use the per-server compatibility state under `src/lib/state/server/` for
-  feature gating and version-skew warnings. Record each gated feature's minimum
-  server version in the shared compatibility table. Do not conflate versioned
-  protocol support with enabled server features or viewer permissions.
+  version-skew warnings and the supported-version check. The client has one
+  `MINIMUM_SUPPORTED_SERVER_VERSION` and does not gate individual features by
+  server version. When the client needs a newer server feature, raise the
+  minimum instead of adding a per-feature gate (FDR-031). Do not conflate
+  version support with enabled server features or viewer permissions.
 - Use the app's connection surface from
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and

@@ -83,9 +83,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
   const roomCommandAPI = serverScope.connection.getAPI(createRoomCommandAPI);
-  const supportsRelativeSidebarMoves = $derived(
-    stores.serverInfo.supportsFeature('relativeSidebarMoves')
-  );
   const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
   /**
    * Whether sidebar entries and groups can be reordered by drag and drop.
@@ -95,7 +92,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
    * Server-wide room managers can reorder in Server Admin → Rooms instead;
    * FDR-017 records the gap for group-scoped managers.
    */
-  const sidebarDragEnabled = $derived(supportsRelativeSidebarMoves && !touchOnly.current);
+  const sidebarDragEnabled = $derived(!touchOnly.current);
   /** Whether the viewer can reorder whole room groups by drag and drop. */
   const groupDragEnabled = $derived(sidebarDragEnabled && canReorderGroups);
 

@@ -97,9 +97,6 @@
   const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
-  const supportsAttachmentDescriptions = $derived(
-    serverInfo.supportsFeature('attachmentDescriptions')
-  );
   let descriptionAttachmentIndex = $state<number | null>(null);
   let attachmentDescription = $state('');
   const attachmentDescriptionLength = $derived(Array.from(attachmentDescription.trim()).length);
@@ -238,7 +235,6 @@
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
     disabled={composer.submission.loading}
-    canDescribe={supportsAttachmentDescriptions}
     getSubmissionStatus={(file) => composer.submission.attachmentStatus(file)}
     onremove={(index) => composer.attachments.removeFile(index)}
     ondescription={openAttachmentDescription}
@@ -412,7 +408,7 @@
   </ConfirmDialog>
 {/if}
 
-{#if supportsAttachmentDescriptions && descriptionAttachmentIndex !== null}
+{#if descriptionAttachmentIndex !== null}
   <FormDialog
     visible
     title={m('room.attachment.description_title')}

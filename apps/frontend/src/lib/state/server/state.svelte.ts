@@ -7,8 +7,7 @@ import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.svelte';
 import {
   evaluateServerCompatibility,
-  supportsServerFeature,
-  type ServerFeature,
+  isSupportedServerVersion,
   type ServerCompatibilityResult
 } from './compatibility';
 
@@ -96,13 +95,13 @@ export class ServerInfoState {
     });
   }
 
-  supportsFeature(feature: ServerFeature): boolean {
-    return supportsServerFeature(this.version, feature);
-  }
-
-  /** Whether discovery confirmed the projection stream required by this client. */
-  get supportsRealtimeProjection(): boolean {
-    return this.supportsFeature('realtimeProjection');
+  /**
+   * Whether discovery confirmed a server release that this client supports.
+   * It stays false until the version is known. The realtime projection and
+   * every client feature require it.
+   */
+  get isSupportedVersion(): boolean {
+    return isSupportedServerVersion(this.version);
   }
 
   /**
