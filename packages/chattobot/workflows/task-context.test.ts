@@ -142,3 +142,56 @@ test('a notice notification carries its text for the owner', () => {
     )
   ).toMatchObject({ data: { milestone: 'published' } });
 });
+
+test('a finished implementation wakes the owner with its result and a request for a full report', () => {
+  const result = {
+    outcome: 'completed',
+    summary: 'Expand /shrug when sending.',
+    notes: ['Browser review was not done.'],
+    prUrl: 'https://github.com/example/chatto/pull/7',
+    ci: { status: 'passed', passed: 21 },
+    checks: [
+      { command: 'check', passed: true },
+      { command: 'lint', passed: false }
+    ],
+    workerChecks: [],
+    worktree: '/private/worktree'
+  };
+  const notification = JSON.parse(
+    taskNotification(
+      JSON.stringify({
+        type: 'task.completed',
+        task: {
+          id: 'implementation',
+          name: 'Chatto implementation',
+          result: JSON.stringify(result)
+        }
+      })
+    )
+  );
+  expect(notification).toMatchObject({
+    type: 'task.completed',
+    taskId: 'implementation',
+    result: {
+      outcome: 'completed',
+      summary: 'Expand /shrug when sending.',
+      notes: ['Browser review was not done.'],
+      prUrl: 'https://github.com/example/chatto/pull/7',
+      ci: { status: 'passed', passed: 21 },
+      failedChecks: ['lint']
+    },
+    report: expect.stringContaining('Write it in full, not briefly')
+  });
+  // Host paths stay out of the prompt.
+  expect(JSON.stringify(notification)).not.toContain('/private/worktree');
+  expect(
+    JSON.parse(
+      taskNotification(
+        JSON.stringify({
+          type: 'task.completed',
+          task: { id: 'x', name: 'Chatto source investigation' }
+        })
+      )
+    )
+  ).toEqual({ type: 'task.completed', taskId: 'x' });
+});

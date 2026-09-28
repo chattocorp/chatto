@@ -42,6 +42,7 @@ export function taskNotification(message: string): string {
     return JSON.stringify({
       type: value.type,
       taskId: task?.id,
+      ...(value.type === 'task.completed' ? finalImplementationReport(task) : {}),
       // A notice reports progress or a milestone that the owner relays in its own words.
       ...(value.type === 'task.notice' && typeof value.text === 'string'
         ? { text: value.text }
@@ -51,6 +52,35 @@ export function taskNotification(message: string): string {
   } catch {
     return 'Background task changed; use the current backgroundTasks snapshot.';
   }
+}
+
+/** The final result of a finished implementation, with the request to report it in full. The
+ * result is final, so it is not a stale snapshot. The supervisor writes the report itself. */
+function finalImplementationReport(task: Record<string, unknown> | undefined) {
+  if (task?.name !== 'Chatto implementation' || typeof task.result !== 'string') return {};
+  let result: unknown;
+  try {
+    result = JSON.parse(task.result);
+  } catch {
+    return {};
+  }
+  if (!isRecord(result)) return {};
+  const { outcome, summary, notes, prUrl, ci, artifactId, checks } = result;
+  return {
+    result: {
+      outcome,
+      summary,
+      notes,
+      prUrl,
+      ci,
+      artifactId,
+      failedChecks: Array.isArray(checks)
+        ? checks.filter((check) => isRecord(check) && !check.passed).map((check) => check.command)
+        : []
+    },
+    report:
+      'This is the final report of the implementation. Write it in full, not briefly: the outcome and CI result with the pull request URL exactly as result.prUrl, then a short section on what changed with a few points from result.summary, then notable result.notes. For a stopped implementation, explain why it stopped, the failed checks, and result.artifactId for continuing.'
+  };
 }
 
 /** Wake the owner for a requested answer, a notice, or a terminal result. */
