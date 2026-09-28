@@ -725,7 +725,7 @@ export function createImplementation(
           cwd: worktree,
           sessionFile,
           model: settings.model ?? 'openai-codex/gpt-5.6-sol',
-          thinkingLevel: 'medium',
+          thinkingLevel: settings.thinkingLevel ?? 'medium',
           label: 'implement',
           tools: WORKER_TOOLS,
           extensions: [tools],

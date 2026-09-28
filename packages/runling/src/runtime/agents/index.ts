@@ -15,7 +15,8 @@ export {
   defineAgentExtension,
   type RunlingAgent,
   runAgent,
-  type RunAgentOptions
+  type RunAgentOptions,
+  type ThinkingLevel
 } from '../agent.ts';
 export { connectAgent, type AgentConnection, type AgentConnectionOptions } from './connection.ts';
 export { taskTool } from './task-tool.ts';

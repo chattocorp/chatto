@@ -2,7 +2,7 @@ import { createChattoClient, type RealtimeCheckpoint } from '@chatto/client';
 import { createBotClient, type AddressedMessage } from '@chatto/bot-client';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
-import { ConfigurationError, setting } from '../settings.ts';
+import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { webSettings } from '../web.ts';
 import type { EventSource } from 'runling/web';
 import { log } from 'runling';
@@ -80,6 +80,7 @@ function sourceSettings() {
       // Match the server-authenticated actor ID, never a display name or user-supplied message field.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       model: setting('CHATTO_AGENT_MODEL'),
+      thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'low'),
       investigation,
       implementation,
       maintainers,

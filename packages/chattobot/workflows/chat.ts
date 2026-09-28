@@ -9,7 +9,8 @@ import {
   observeAgentTasks,
   agentTasksExtension,
   type AgentOptions,
-  type RunlingAgent
+  type RunlingAgent,
+  type ThinkingLevel
 } from 'runling/agents';
 import { chattoConversation, type ConversationOptions } from '../chatto/chat-conversation.ts';
 import {
@@ -52,6 +53,8 @@ type ChattoAgentFactory = (
 
 interface ChatSettings {
   model?: string;
+  /** Reasoning effort of the supervisor and the research agent. Defaults to `low`. */
+  thinkingLevel?: ThinkingLevel;
   timeout?: number;
   createAgent?: ChattoAgentFactory;
   /** Read the complete thread before each turn. The host binds it to its Chatto connection. */
@@ -156,7 +159,7 @@ export const conversation = task(
       cwd: fileURLToPath(new URL('..', import.meta.url)),
       model: options.model ?? 'openrouter/google/gemma-4-26b-a4b-it',
       label: 'supervisor',
-      thinkingLevel: 'low',
+      thinkingLevel: options.thinkingLevel ?? 'low',
       output: 'text',
       textDelivery: 'final',
       systemPrompt,
@@ -175,6 +178,7 @@ export const conversation = task(
           ? [
               researchExtension(ctx, research, {
                 model: options.model,
+                thinkingLevel: options.thinkingLevel,
                 take: () => researchCallsLeft-- > 0
               })
             ]

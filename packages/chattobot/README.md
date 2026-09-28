@@ -39,6 +39,17 @@ source and console. Without `--watch`, restart to load code or configuration cha
    CHATTO_IMPLEMENTATION_MODEL=openrouter/z-ai/glm-5.3-flash
    ```
 
+   Each agent also has a reasoning effort setting: `off`, `minimal`, `low`,
+   `medium`, `high`, `xhigh`, or `max`. Higher effort follows instructions more
+   reliably, but costs more and answers more slowly. An unknown value stops the
+   bot at startup with a configuration error.
+
+   | Setting                          | Agents                      | Default  |
+   | -------------------------------- | --------------------------- | -------- |
+   | `CHATTO_AGENT_THINKING`          | Supervisor and web research | `low`    |
+   | `CHATTO_INVESTIGATION_THINKING`  | Source investigation        | `medium` |
+   | `CHATTO_IMPLEMENTATION_THINKING` | Implementation worker       | `medium` |
+
    `runling serve` loads `.env` from its working directory at startup. Restart
    the bot after changes. Existing shell environment variables take precedence
    over values in `.env`. OpenRouter and its selected model provider receive
