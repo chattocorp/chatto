@@ -28,6 +28,14 @@ Do not generate playground links for code written into this repository.
   connection from `ServerScope`. Reserve `serverRegistry` for providers and
   genuinely cross-server surfaces, and pass explicit server or viewer identity
   into reusable render components.
+- A `ServerScope` does not change while its subtree is mounted. A change of
+  server, account, or session remounts the subtree with a new scope. Read
+  `serverId`, `connection`, and `connection.queryScope` as constants: do not
+  wrap them in `$derived`, and do not fence async work against a server or
+  session change. Use `createSessionGuard` for privacy resets inside a session,
+  and tag async state with the route IDs below the server. Specs must not
+  switch the server or session of a mounted scope; render a new component
+  instead.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
 - Reusable leaf render components, especially timeline rows, must not acquire
@@ -271,8 +279,9 @@ Do not generate playground links for code written into this repository.
   share the standard pane-page composition. Put their content in `PaneContent`
   and frame each page-level form or control group with a titled, padded `Panel`;
   use `FormSection` only to subdivide one panel, never instead of its frame.
-- SvelteKit reuses resource pages when only a route parameter changes. Fence
-  async loads and saves by both resource ID and load generation so late
+- SvelteKit reuses resource pages when only a route parameter below the server
+  changes. Tag async loads and saves with the resource ID, and add a load
+  generation only when two loads for the same resource can race, so late
   responses cannot update the next resource's form state.
 - Send sparse patches from settings forms: omit unchanged fields so stale form
   values cannot overwrite concurrent updates or emit misleading durable facts.

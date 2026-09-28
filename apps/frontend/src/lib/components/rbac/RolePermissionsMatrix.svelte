@@ -9,10 +9,10 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { onDestroy } from 'svelte';
   import { Button } from '$lib/ui/form';
   import { Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -29,7 +29,6 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   import { mergePermissionPages } from './permissionPages';
@@ -70,30 +69,14 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   );
   const loading = $derived(matrixQuery.isPending);
   const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
-  let mutationError = $state<{ context: string; message: string } | null>(null);
-  let updatingKey = $state<string | null>(null);
-  let mutationContext = $state<string | null>(null);
-  let mutationGeneration = 0;
-  const unregisterPrivacyFence = registerQueryCacheRemovalListener((serverId) => {
-    if (serverId !== serverScope.serverId) return;
-    mutationGeneration += 1;
-    updatingKey = null;
-    mutationError = null;
-  });
+  const session = createSessionGuard(serverScope);
+  // The page keeps this matrix mounted when only the role changes, so tag
+  // mutation state with the role it belongs to.
+  let pending = $state.raw<{ roleName: string; cellKey: string } | null>(null);
+  let failure = $state.raw<{ roleName: string; message: string } | null>(null);
   const isOwnerRole = $derived(roleName === 'owner');
-  const activeMutationContext = $derived(
-    JSON.stringify([serverScope.serverId, serverScope.connection.queryScope, roleName])
-  );
-  const visibleMutationError = $derived(
-    mutationError?.context === activeMutationContext ? mutationError.message : null
-  );
-  const visibleUpdatingKey = $derived(
-    mutationContext === activeMutationContext ? updatingKey : null
-  );
-  onDestroy(() => {
-    unregisterPrivacyFence();
-    mutationGeneration += 1;
-  });
+  const visibleMutationError = $derived(failure?.roleName === roleName ? failure.message : null);
+  const visibleUpdatingKey = $derived(pending?.roleName === roleName ? pending.cellKey : null);
 
   function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
     if (scope.kind === 'DM') return { tier: 'dm', roleName: name };
@@ -110,38 +93,42 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data || visibleUpdatingKey) return;
-    const generation = ++mutationGeneration;
-    const serverId = serverScope.serverId;
-    const activeConnection = serverScope.connection;
+    const snapshot = session.snapshot();
     const activeRoleName = data.roleName;
-    const context = JSON.stringify([serverId, activeConnection.queryScope, activeRoleName]);
-    const queryKey = adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName);
-    const cellKey = `${scope.id}::${permission}`;
-    updatingKey = cellKey;
-    mutationContext = context;
-    mutationError = null;
+    const mutation = { roleName: activeRoleName, cellKey: `${scope.id}::${permission}` };
+    pending = mutation;
+    failure = null;
     const result = await setRolePermission(
-      activeConnection.getAPI(createPermissionAPI),
+      snapshot.connection.getAPI(createPermissionAPI),
       mutationScopeFor(scope, activeRoleName),
       permission,
       next as PermissionState
     );
-    if (mutationGeneration !== generation || !serverScope.isCurrent()) return;
-    if (result.error) {
-      if (mutationGeneration === generation && context === activeMutationContext) {
-        mutationError = { context, message: result.error };
-        toast.error(result.error);
+    if (session.isCurrent(snapshot)) {
+      if (result.error) {
+        if (activeRoleName === roleName) {
+          failure = { roleName: activeRoleName, message: result.error };
+          toast.error(result.error);
+        }
+      } else {
+        await queryClient.invalidateQueries({
+          queryKey: adminQueryKeys.rolePermissions(
+            snapshot.serverId,
+            snapshot.connection,
+            activeRoleName
+          ),
+          exact: true
+        });
+        if (session.isCurrent(snapshot)) {
+          invalidateRolePermissionDependents(
+            snapshot.serverId,
+            snapshot.connection,
+            activeRoleName
+          );
+        }
       }
-      if (mutationGeneration === generation) {
-        updatingKey = null;
-      }
-      return;
     }
-
-    await queryClient.invalidateQueries({ queryKey, exact: true });
-    if (!serverScope.isCurrent()) return;
-    invalidateRolePermissionDependents(serverId, activeConnection, activeRoleName);
-    if (mutationGeneration === generation) updatingKey = null;
+    if (pending === mutation) pending = null;
   }
 </script>
 
