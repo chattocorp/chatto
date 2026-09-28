@@ -88,9 +88,9 @@ export function isTransientReadError(error: unknown): boolean {
  *
  * A visible target is marked as read on entry and after the app returns to the
  * foreground. The owner can limit or delay that read with
- * `getLifecycleUpToEventId`. Focus still controls reads for messages that arrive while the
- * target stays open. Failed transient requests retry while the target stays
- * visible and readable.
+ * `getLifecycleUpToEventId`. Focus still controls reads for messages that
+ * arrive while the target stays open. Failed transient requests retry while the
+ * target stays visible and readable.
  *
  * The rendered separator is always a concrete event id. Server read-state
  * timestamp windows are resolved against the owning timeline events. The
