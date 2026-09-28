@@ -215,6 +215,19 @@ Do not generate playground links for code written into this repository.
   Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-065.
 - German translations, including regional overlays, must address users with
   the informal `du`/`dein` forms rather than the formal `Sie`/`Ihr` forms.
+- Use the form of address that each complete locale already uses:
+  - Informal: Spanish (`tú`), Italian (`tu`), Polish (`ty`), Dutch (`je`),
+    Swedish and Norwegian (`du`), Brazilian Portuguese (`você`), and Chinese
+    (`你`).
+  - Formal: French (`vous`), Czech (`vy`), Russian (`вы`), Ukrainian (`ви`),
+    Estonian (`teie`), Latvian (`jūs`), Turkish (`-in` imperatives), and
+    European Portuguese (third person without `você`).
+  - Japanese uses polite `です`/`ます` forms. Arabic and Hebrew use the
+    masculine singular imperative. Esperanto uses `vi`.
+- `catalogs.spec.ts` fails when a complete locale copies British English text
+  with two or more words. Translate the message. If the identical text is
+  correct in that locale, add the key and locale to
+  `src/lib/i18n/identicalTranslations.ts`.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
