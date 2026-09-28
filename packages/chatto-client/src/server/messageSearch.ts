@@ -1,3 +1,4 @@
+import { signal } from '../reactivity/index.js';
 import {
   MessageSearchOrder,
   MessageSearchState,
@@ -6,7 +7,6 @@ import {
   type MessageSearchResult,
   type MessageSearchStatus
 } from '../api/messageSearch.js';
-import { SvelteSet } from 'svelte/reactivity';
 
 const EMPTY_STATUS: MessageSearchStatus = {
   state: MessageSearchState.UNSPECIFIED,
@@ -20,27 +20,105 @@ type MessageSearchOptions = {
 
 /** Server-scoped search availability and transient query results. */
 export class MessageSearchStore {
-  status = $state<MessageSearchStatus>(EMPTY_STATUS);
-  statusLoading = $state(false);
-  statusLoaded = $state(false);
-  statusError = $state(false);
-  results = $state.raw<MessageSearchResult[]>([]);
-  nextCursor = $state<string | null>(null);
-  loading = $state(false);
-  loadingMore = $state(false);
-  error = $state(false);
-  hasSearched = $state(false);
-  query = $state('');
-  order = $state(MessageSearchOrder.RELEVANCE);
+  readonly #statusSignal = signal<MessageSearchStatus>(EMPTY_STATUS);
+  get status(): MessageSearchStatus {
+    return this.#statusSignal.get();
+  }
+  set status(value: MessageSearchStatus) {
+    this.#statusSignal.set(value);
+  }
+  readonly #statusLoadingSignal = signal(false);
+  get statusLoading() {
+    return this.#statusLoadingSignal.get();
+  }
+  set statusLoading(value) {
+    this.#statusLoadingSignal.set(value);
+  }
+  readonly #statusLoadedSignal = signal(false);
+  get statusLoaded() {
+    return this.#statusLoadedSignal.get();
+  }
+  set statusLoaded(value) {
+    this.#statusLoadedSignal.set(value);
+  }
+  readonly #statusErrorSignal = signal(false);
+  get statusError() {
+    return this.#statusErrorSignal.get();
+  }
+  set statusError(value) {
+    this.#statusErrorSignal.set(value);
+  }
+  readonly #resultsSignal = signal<MessageSearchResult[]>([]);
+  get results(): MessageSearchResult[] {
+    return this.#resultsSignal.get();
+  }
+  set results(value: MessageSearchResult[]) {
+    this.#resultsSignal.set(value);
+  }
+  readonly #nextCursorSignal = signal<string | null>(null);
+  get nextCursor(): string | null {
+    return this.#nextCursorSignal.get();
+  }
+  set nextCursor(value: string | null) {
+    this.#nextCursorSignal.set(value);
+  }
+  readonly #loadingSignal = signal(false);
+  get loading() {
+    return this.#loadingSignal.get();
+  }
+  set loading(value) {
+    this.#loadingSignal.set(value);
+  }
+  readonly #loadingMoreSignal = signal(false);
+  get loadingMore() {
+    return this.#loadingMoreSignal.get();
+  }
+  set loadingMore(value) {
+    this.#loadingMoreSignal.set(value);
+  }
+  readonly #errorSignal = signal(false);
+  get error() {
+    return this.#errorSignal.get();
+  }
+  set error(value) {
+    this.#errorSignal.set(value);
+  }
+  readonly #hasSearchedSignal = signal(false);
+  get hasSearched() {
+    return this.#hasSearchedSignal.get();
+  }
+  set hasSearched(value) {
+    this.#hasSearchedSignal.set(value);
+  }
+  readonly #querySignal = signal('');
+  get query() {
+    return this.#querySignal.get();
+  }
+  set query(value) {
+    this.#querySignal.set(value);
+  }
+  readonly #orderSignal = signal(MessageSearchOrder.RELEVANCE);
+  get order() {
+    return this.#orderSignal.get();
+  }
+  set order(value) {
+    this.#orderSignal.set(value);
+  }
   /** Advances whenever retained search plaintext must be purged by other consumers. */
-  privacyRevision = $state(0);
+  readonly #privacyRevisionSignal = signal(0);
+  get privacyRevision() {
+    return this.#privacyRevisionSignal.get();
+  }
+  set privacyRevision(value) {
+    this.#privacyRevisionSignal.set(value);
+  }
 
   private requestId = 0;
   private statusRequestId = 0;
   private activeInput: Omit<MessageSearchInput, 'cursor'> | null = null;
   private statusPromise: Promise<void> | null = null;
   private statusNeedsRefresh = false;
-  private privacyInvalidationListeners = new SvelteSet<
+  private privacyInvalidationListeners = new Set<
     (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
   >();
 
@@ -125,7 +203,7 @@ export class MessageSearchStore {
     try {
       const page = await this.api.searchMessages({ ...this.activeInput, cursor });
       if (requestId !== this.requestId || !this.canLoad()) return;
-      const seen = new SvelteSet(this.results.map((result) => result.id));
+      const seen = new Set(this.results.map((result) => result.id));
       this.results = [...this.results, ...page.results.filter((result) => !seen.has(result.id))];
       this.nextCursor = page.nextCursor;
     } catch {

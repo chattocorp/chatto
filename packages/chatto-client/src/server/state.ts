@@ -2,7 +2,7 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
-import { errorMessage } from '$lib/utils/errorMessage';
+import { signal } from '../reactivity/index.js';
 import { getPublicServerInfo, type PublicServerInfo } from '../api/server.js';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.js';
@@ -20,25 +20,92 @@ export class ServerInfoState {
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
   #initializing: Promise<void> | null = null;
 
-  name = $state('Chatto');
-  version = $state('');
-  lastDiscoveredAt = $state<number | null>(null);
-  welcomeMessage = $state<string | null>(null);
-  description = $state<string | null>(null);
-  bannerUrl = $state<string | null>(null);
-  iconUrl = $state<string | null>(null);
-  directRegistrationEnabled = $state(true);
-  directLoginEnabled = $state(true);
+  readonly #nameSignal = signal('Chatto');
+  get name() {
+    return this.#nameSignal.get();
+  }
+  set name(value) {
+    this.#nameSignal.set(value);
+  }
+  readonly #versionSignal = signal('');
+  get version() {
+    return this.#versionSignal.get();
+  }
+  set version(value) {
+    this.#versionSignal.set(value);
+  }
+  readonly #lastDiscoveredAtSignal = signal<number | null>(null);
+  get lastDiscoveredAt(): number | null {
+    return this.#lastDiscoveredAtSignal.get();
+  }
+  set lastDiscoveredAt(value: number | null) {
+    this.#lastDiscoveredAtSignal.set(value);
+  }
+  readonly #welcomeMessageSignal = signal<string | null>(null);
+  get welcomeMessage(): string | null {
+    return this.#welcomeMessageSignal.get();
+  }
+  set welcomeMessage(value: string | null) {
+    this.#welcomeMessageSignal.set(value);
+  }
+  readonly #descriptionSignal = signal<string | null>(null);
+  get description(): string | null {
+    return this.#descriptionSignal.get();
+  }
+  set description(value: string | null) {
+    this.#descriptionSignal.set(value);
+  }
+  readonly #bannerUrlSignal = signal<string | null>(null);
+  get bannerUrl(): string | null {
+    return this.#bannerUrlSignal.get();
+  }
+  set bannerUrl(value: string | null) {
+    this.#bannerUrlSignal.set(value);
+  }
+  readonly #iconUrlSignal = signal<string | null>(null);
+  get iconUrl(): string | null {
+    return this.#iconUrlSignal.get();
+  }
+  set iconUrl(value: string | null) {
+    this.#iconUrlSignal.set(value);
+  }
+  readonly #directRegistrationEnabledSignal = signal(true);
+  get directRegistrationEnabled() {
+    return this.#directRegistrationEnabledSignal.get();
+  }
+  set directRegistrationEnabled(value) {
+    this.#directRegistrationEnabledSignal.set(value);
+  }
+  readonly #directLoginEnabledSignal = signal(true);
+  get directLoginEnabled() {
+    return this.#directLoginEnabledSignal.get();
+  }
+  set directLoginEnabled(value) {
+    this.#directLoginEnabledSignal.set(value);
+  }
   #getProjectedState: () => ProjectedServerState | null;
 
-  loading = $state(true);
+  readonly #loadingSignal = signal(true);
+  get loading() {
+    return this.#loadingSignal.get();
+  }
+  set loading(value) {
+    this.#loadingSignal.set(value);
+  }
 
   /**
    * Set when `init()` failed to fetch server info (e.g. unreachable host,
    * CORS misconfiguration). Consumers can use this to render a degraded UI
-   * for that server without taking down the rest of the app.
+   * for that server without taking down the rest of the app. Null when the
+   * latest load succeeded.
    */
-  error = $state<string | null>(null);
+  readonly #errorSignal = signal<unknown>(null);
+  get error(): unknown {
+    return this.#errorSignal.get();
+  }
+  set error(value: unknown) {
+    this.#errorSignal.set(value);
+  }
 
   // Authenticated runtime settings read the realtime projection directly, so a
   // projection reset also resets them. Defaults apply until the projection has them.
@@ -139,7 +206,7 @@ export class ServerInfoState {
       } catch (err) {
         // Defensive: anything thrown during the query or above .then body.
         // Don't re-throw — failure is isolated to this server.
-        this.error = errorMessage(err);
+        this.error = err;
         console.error(`[server:${this.#label}] failed to load server info`, err);
       } finally {
         this.loading = false;
@@ -167,7 +234,7 @@ export class ServerInfoState {
       this.directRegistrationEnabled = info.directRegistrationEnabled;
       this.directLoginEnabled = info.directLoginEnabled;
     } catch (err) {
-      this.error = errorMessage(err);
+      this.error = err;
       console.error(`[server:${this.#label}] failed to load server info`, err);
     }
   }

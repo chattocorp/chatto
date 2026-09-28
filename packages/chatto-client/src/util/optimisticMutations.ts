@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { ReactiveMap } from '../reactivity/index.js';
 
 export type OptimisticMutationToken = number;
 
@@ -10,7 +10,7 @@ export type OptimisticMutationToken = number;
  */
 export class OptimisticMutationRegistry {
   private nextToken = 0;
-  private tokens = new SvelteMap<string, OptimisticMutationToken>();
+  private tokens = new ReactiveMap<string, OptimisticMutationToken>();
 
   createToken(): OptimisticMutationToken {
     this.nextToken += 1;

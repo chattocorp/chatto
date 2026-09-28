@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { ReactiveMap, signal } from '../reactivity/index.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 /**
@@ -9,11 +9,17 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
  * presence; readers then use the presence of the profile they already have.
  */
 export class ServerPresence {
-  #statuses = new SvelteMap<string, PresenceStatus>();
+  #statuses = new ReactiveMap<string, PresenceStatus>();
   /** The version of the latest change for each user, for the read fence. */
-  #changedAt = new SvelteMap<string, number>();
+  #changedAt = new ReactiveMap<string, number>();
 
-  #version = $state(0);
+  readonly #versionSignal = signal(0);
+  get #version() {
+    return this.#versionSignal.get();
+  }
+  set #version(value) {
+    this.#versionSignal.set(value);
+  }
 
   /** Increases with every change. Read it to react to any presence change. */
   get version(): number {

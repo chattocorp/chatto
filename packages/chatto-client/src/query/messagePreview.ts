@@ -1,5 +1,5 @@
 import { createRoomTimelineAPI } from '../api/roomTimeline.js';
-import { assetUrlForServer } from '$lib/assets/assetUrls';
+import { assetUrlForServer } from '../util/assetUrls.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '../attachments/attachmentUrls.js';
 import type { MessageAttachmentView } from '../timeline/messageAttachments.js';
 import { isMessagePostedEvent } from '../timeline/timelineEvents.js';

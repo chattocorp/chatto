@@ -9,7 +9,7 @@ const { csrfFetchMock, originServer } = vi.hoisted(() => ({
 }));
 
 vi.mock('./csrf', () => ({ csrfFetch: csrfFetchMock }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('../server/registry.js', () => ({
   serverRegistry: {
     get originServer() {
       return originServer;

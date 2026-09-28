@@ -1,5 +1,5 @@
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet, signal } from '../reactivity/index.js';
 
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '../attachments/attachmentUrls.js';
 import {
@@ -98,12 +98,42 @@ function isVideoAttachment(contentType: string): boolean {
 }
 
 export class RoomFilesStore {
-  items = $state.raw<RoomFileItem[]>([]);
-  totalCount = $state(0);
-  hasMore = $state(false);
-  isInitialLoading = $state(true);
-  isLoadingMore = $state(false);
-  refreshedAttachmentUrls = new SvelteMap<string, RefreshedAttachmentUrls>();
+  readonly #itemsSignal = signal<RoomFileItem[]>([]);
+  get items(): RoomFileItem[] {
+    return this.#itemsSignal.get();
+  }
+  set items(value: RoomFileItem[]) {
+    this.#itemsSignal.set(value);
+  }
+  readonly #totalCountSignal = signal(0);
+  get totalCount() {
+    return this.#totalCountSignal.get();
+  }
+  set totalCount(value) {
+    this.#totalCountSignal.set(value);
+  }
+  readonly #hasMoreSignal = signal(false);
+  get hasMore() {
+    return this.#hasMoreSignal.get();
+  }
+  set hasMore(value) {
+    this.#hasMoreSignal.set(value);
+  }
+  readonly #isInitialLoadingSignal = signal(true);
+  get isInitialLoading() {
+    return this.#isInitialLoadingSignal.get();
+  }
+  set isInitialLoading(value) {
+    this.#isInitialLoadingSignal.set(value);
+  }
+  readonly #isLoadingMoreSignal = signal(false);
+  get isLoadingMore() {
+    return this.#isLoadingMoreSignal.get();
+  }
+  set isLoadingMore(value) {
+    this.#isLoadingMoreSignal.set(value);
+  }
+  refreshedAttachmentUrls = new ReactiveMap<string, RefreshedAttachmentUrls>();
 
   private readonly attachmentAPI: AttachmentAPI;
   private readonly roomId: string;
@@ -117,9 +147,9 @@ export class RoomFilesStore {
     replacement: RoomFileItem[];
     isNewMessage: boolean;
   }> = [];
-  private attachmentVersions = new SvelteMap<string, number>();
+  private attachmentVersions = new ReactiveMap<string, number>();
   private urlRefreshPromise: Promise<void> | null = null;
-  private pendingUrlRefreshAssetIds = new SvelteSet<string>();
+  private pendingUrlRefreshAssetIds = new ReactiveSet<string>();
 
   constructor(serverConnection: ServerConnection, roomId: string) {
     this.roomId = roomId;
@@ -174,7 +204,7 @@ export class RoomFilesStore {
 
   /** Loaded echo rows share original attachment IDs, even outside the timeline. */
   relatedMessageIds(id: string): string[] {
-    const assets = new SvelteSet(
+    const assets = new Set(
       this.items.filter((item) => item.messageEventId === id).map((item) => item.attachment.id)
     );
     return this.items
@@ -244,7 +274,7 @@ export class RoomFilesStore {
     this.totalCount = 0;
     this.hasMore = false;
     this.isInitialLoading = true;
-    this.refreshedAttachmentUrls = new SvelteMap();
+    this.refreshedAttachmentUrls = new ReactiveMap();
     this.attachmentVersions.clear();
     this.hydrated = false;
     this.pendingTimelineEvents = [];
@@ -362,8 +392,8 @@ export class RoomFilesStore {
         if (this.roomId !== roomId || this.requestEpoch !== requestEpoch) return;
         for (const assetId of assetIds) this.pendingUrlRefreshAssetIds.delete(assetId);
 
-        const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
-        const currentAssetIds = new SvelteSet(this.items.map((item) => item.attachment.id));
+        const fresh = new Map<string, RefreshedAttachmentUrls>();
+        const currentAssetIds = new Set(this.items.map((item) => item.attachment.id));
         for (const [attachmentId, urls] of freshMap) {
           if (
             !currentAssetIds.has(attachmentId) ||
@@ -372,7 +402,7 @@ export class RoomFilesStore {
             continue;
           fresh.set(attachmentId, urls);
         }
-        this.refreshedAttachmentUrls = new SvelteMap(
+        this.refreshedAttachmentUrls = new ReactiveMap(
           mergeRefreshedAttachmentUrls(this.refreshedAttachmentUrls, fresh)
         );
       }
@@ -465,7 +495,7 @@ export class RoomFilesStore {
     if (replace) {
       this.items = connection.items;
     } else {
-      const seen = new SvelteSet(this.items.map(itemKey));
+      const seen = new Set(this.items.map(itemKey));
       this.items = [...this.items, ...connection.items.filter((item) => !seen.has(itemKey(item)))];
     }
     this.totalCount = connection.totalCount;

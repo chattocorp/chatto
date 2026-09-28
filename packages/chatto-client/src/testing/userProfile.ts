@@ -1,6 +1,6 @@
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { Timestamp } from '@bufbuild/protobuf';
-import type { UserSummary, UserPresenceView } from '$lib/api-client/userSummary';
+import type { UserSummary, UserPresenceView } from '../api/userSummary.js';
 
 /** Build canonical profiles for fixtures that also supply render rows. */
 export function userProfileFixture(user: UserSummary & Partial<UserPresenceView>): DirectoryMember {

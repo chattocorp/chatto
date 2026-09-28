@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet } from '../reactivity/index.js';
 import { RoomKind } from '../api/roomDirectory.js';
 import type { MemberDirectoryAPI } from '../api/memberDirectory.js';
 import type { RoomCommandAPI } from '../api/rooms.js';
@@ -38,18 +38,18 @@ export type RoomDirectoryNavigation = {
  * just-completed optimistic state plus the explicit join-preview query.
  */
 export class RoomDirectoryStore {
-  joiningIds = new SvelteSet<string>();
-  leavingIds = new SvelteSet<string>();
-  justJoinedIds = new SvelteSet<string>();
-  justLeftIds = new SvelteSet<string>();
-  joiningGroupIds = new SvelteSet<string>();
+  joiningIds = new ReactiveSet<string>();
+  leavingIds = new ReactiveSet<string>();
+  justJoinedIds = new ReactiveSet<string>();
+  justLeftIds = new ReactiveSet<string>();
+  joiningGroupIds = new ReactiveSet<string>();
 
   #generation = 0;
   #commandToken = 0;
-  #membershipRevisions = new SvelteMap<string, number>();
-  #joiningTokens = new SvelteMap<string, number>();
-  #leavingTokens = new SvelteMap<string, number>();
-  #joiningGroupTokens = new SvelteMap<string, number>();
+  #membershipRevisions = new ReactiveMap<string, number>();
+  #joiningTokens = new ReactiveMap<string, number>();
+  #leavingTokens = new ReactiveMap<string, number>();
+  #joiningGroupTokens = new ReactiveMap<string, number>();
 
   constructor(
     private readonly navigation: RoomDirectoryNavigation,
@@ -124,7 +124,7 @@ export class RoomDirectoryStore {
 
   async joinGroup(groupId: string): Promise<JoinGroupResult> {
     const generation = this.#generation;
-    const membershipRevisions = new SvelteMap(
+    const membershipRevisions = new Map(
       this.navigation.rooms.map((room) => [room.id, this.membershipRevision(room.id)])
     );
     const commandToken = ++this.#commandToken;

@@ -11,7 +11,7 @@ const attachmentMocks = vi.hoisted(() => ({
   refreshAssetUrls: vi.fn()
 }));
 
-vi.mock('$lib/api-client/attachments', async (importActual) => {
+vi.mock('../api/attachments.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/attachments.js')>();
   return {
     ...actual,

@@ -1,9 +1,7 @@
-import { errorMessage } from '$lib/utils/errorMessage';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { ServerPresence } from '../server/presence.js';
-import { createContext } from 'svelte';
 import { Code, isConnectCode } from '../api/connect.js';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet, computed, signal } from '../reactivity/index.js';
 
 import {
   createMemberDirectoryAPI,
@@ -14,7 +12,6 @@ import {
 import type { ServerConnection } from '../server/serverConnection.js';
 import type { UserAvatarUserView } from '../timeline/users.js';
 import { getUserStore, type UserStore } from '../server/users.js';
-import { m } from '$lib/i18n/messages';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
@@ -69,11 +66,23 @@ export class RoomMembersStore {
    * projection has none for this room. While it is set, it replaces the
    * membership that this store reads from the server.
    */
-  readonly #projected = $derived.by(() => this.#projectedMemberIds());
-  #memberIds = $state.raw<string[]>([]);
-  readonly #standaloneProfiles = new SvelteMap<string, StandaloneProfile>();
+  readonly #projectedComputed = computed(() => this.#projectedMemberIds());
+  get #projected() {
+    return this.#projectedComputed.get();
+  }
+  readonly #memberIdsSignal = signal<string[]>([]);
+  get #memberIds(): string[] {
+    return this.#memberIdsSignal.get();
+  }
+  set #memberIds(value: string[]) {
+    this.#memberIdsSignal.set(value);
+  }
+  readonly #standaloneProfiles = new ReactiveMap<string, StandaloneProfile>();
   readonly #users?: UserStore;
-  readonly #resolvedMembers = $derived(this.resolveIds(this.#projected ?? this.#memberIds));
+  readonly #resolvedMembersComputed = computed(() => this.resolveIds(this.#projected ?? this.#memberIds));
+  get #resolvedMembers() {
+    return this.#resolvedMembersComputed.get();
+  }
   /** Membership retains IDs. Connected rooms read current profiles from the shared owner. */
   get members(): RoomMember[] {
     return this.#resolvedMembers;
@@ -88,14 +97,62 @@ export class RoomMembersStore {
       }
     }
   }
-  #totalCount = $state(0);
-  #hasFirstPage = $state(false);
-  #hasLoadedAll = $state(false);
-  #isInitialLoading = $state(false);
-  #isBackgroundLoading = $state(false);
-  #loadError = $state<string | null>(null);
-  searchInput = $state('');
-  activeSearch = $state('');
+  readonly #totalCountSignal = signal(0);
+  get #totalCount() {
+    return this.#totalCountSignal.get();
+  }
+  set #totalCount(value) {
+    this.#totalCountSignal.set(value);
+  }
+  readonly #hasFirstPageSignal = signal(false);
+  get #hasFirstPage() {
+    return this.#hasFirstPageSignal.get();
+  }
+  set #hasFirstPage(value) {
+    this.#hasFirstPageSignal.set(value);
+  }
+  readonly #hasLoadedAllSignal = signal(false);
+  get #hasLoadedAll() {
+    return this.#hasLoadedAllSignal.get();
+  }
+  set #hasLoadedAll(value) {
+    this.#hasLoadedAllSignal.set(value);
+  }
+  readonly #isInitialLoadingSignal = signal(false);
+  get #isInitialLoading() {
+    return this.#isInitialLoadingSignal.get();
+  }
+  set #isInitialLoading(value) {
+    this.#isInitialLoadingSignal.set(value);
+  }
+  readonly #isBackgroundLoadingSignal = signal(false);
+  get #isBackgroundLoading() {
+    return this.#isBackgroundLoadingSignal.get();
+  }
+  set #isBackgroundLoading(value) {
+    this.#isBackgroundLoadingSignal.set(value);
+  }
+  readonly #loadErrorSignal = signal<unknown>(null);
+  get #loadError(): unknown {
+    return this.#loadErrorSignal.get();
+  }
+  set #loadError(value: unknown) {
+    this.#loadErrorSignal.set(value);
+  }
+  readonly #searchInputSignal = signal('');
+  get searchInput() {
+    return this.#searchInputSignal.get();
+  }
+  set searchInput(value) {
+    this.#searchInputSignal.set(value);
+  }
+  readonly #activeSearchSignal = signal('');
+  get activeSearch() {
+    return this.#activeSearchSignal.get();
+  }
+  set activeSearch(value) {
+    this.#activeSearchSignal.set(value);
+  }
 
   /** The number of members, including members whose profiles did not load yet. */
   get totalCount(): number {
@@ -119,17 +176,18 @@ export class RoomMembersStore {
     return this.#projected === null && this.#isBackgroundLoading;
   }
   /** The message of the last failed read, or null. */
-  get loadError(): string | null {
+  /** The error of the latest failed member load or refresh, or null. */
+  get loadError(): unknown {
     return this.#projected === null ? this.#loadError : null;
   }
 
   private readonly api: MemberDirectoryAPI | null;
   private readonly roomId: string;
   #loadId = 0;
-  #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
-  #membershipChanges = new SvelteMap<string, boolean>();
+  #searchCache = new ReactiveMap<string, MemberSearchCacheEntry>();
+  #membershipChanges = new ReactiveMap<string, boolean>();
   #minimumCursor: string | undefined;
-  #previewIds = new SvelteSet<string>();
+  #previewIds = new ReactiveSet<string>();
   #fullScanFinished = false;
 
   /** The server's presence owner, which receives fresh presence from preview reads. */
@@ -232,7 +290,7 @@ export class RoomMembersStore {
       await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.#loadError = errorMessage(error, m('room.sidebar.members_load_failed'));
+        this.#loadError = error;
         console.error('Failed to load room members:', error);
       }
     } finally {
@@ -267,7 +325,7 @@ export class RoomMembersStore {
       await this.loadPages(loadId, this.#hasFirstPage);
     } catch (error) {
       if (loadId === this.#loadId) {
-        this.#loadError = errorMessage(error, m('room.sidebar.members_refresh_failed'));
+        this.#loadError = error;
         if (
           reauthorize ||
           isConnectCode(error, Code.PermissionDenied) ||
@@ -552,31 +610,4 @@ function appendPageIds(current: string[], incoming: string[]): string[] {
   if (incoming.length === 0) return current;
   const incomingIds = new Set(incoming);
   return [...current.filter((id) => !incomingIds.has(id)), ...incoming];
-}
-
-const [getMembersStoreContext, setMembersStoreContext] = createContext<() => RoomMembersStore>();
-
-export function setRoomMembersStore<T extends RoomMembersStore | (() => RoomMembersStore)>(
-  store: T
-): T {
-  setMembersStoreContext(typeof store === 'function' ? store : () => store);
-  return store;
-}
-
-/** Provide a standalone member store without a room or a server, for fixtures. */
-export function createRoomMembers(): RoomMembersStore {
-  return setRoomMembersStore(new RoomMembersStore(''));
-}
-
-export function getRoomMembersStore(): RoomMembersStore {
-  return getMembersStoreContext()();
-}
-
-/** Capture context during initialization, then resolve the selected room later. */
-export function useRoomMembersStore(): () => RoomMembersStore {
-  return getMembersStoreContext();
-}
-
-export function getRoomMembers(): RoomMember[] {
-  return getRoomMembersStore().members;
 }

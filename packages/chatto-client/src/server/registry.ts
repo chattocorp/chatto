@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteURL } from 'svelte/reactivity';
+import { ReactiveMap, computed, signal } from '../reactivity/index.js';
 import { ServerStateStore } from './store.js';
 import { serverConnectionManager } from './serverConnection.js';
 import { eventBusManager } from './realtimeTransport.js';
@@ -58,7 +58,7 @@ export interface AuthenticatedUserSummary {
 export function generateServerId(url: string, existingIds: string[] = []): string {
   let hostname: string;
   try {
-    hostname = new SvelteURL(url).hostname;
+    hostname = new URL(url).hostname;
   } catch {
     hostname = url.replace(/[^a-z0-9-]/gi, '-');
   }
@@ -332,7 +332,7 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
  * its store is created immediately. This eliminates race conditions where
  * $derived expressions see a registered server but no store exists yet.
  *
- * The store map uses SvelteMap so that getStore() lookups are reactive
+ * The store map uses Map so that getStore() lookups are reactive
  * in $derived expressions.
  *
  * The registry does NOT track which server is "active".
@@ -342,7 +342,7 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
 class ServerRegistry {
   readonly catalog: ServerCatalog;
   readonly sessions: ServerSessions;
-  #stores = new SvelteMap<string, ServerStateStore>();
+  #stores = new ReactiveMap<string, ServerStateStore>();
   #renewalPromises = new Map<string, Promise<string | null>>();
   /** In-flight viewer checks that confirm a rejected origin cookie session. */
   #authenticationChecks = new Map<string, Promise<boolean>>();
@@ -374,7 +374,13 @@ class ServerRegistry {
    * When `probeOrigin(true)` is called (known server), this is set immediately.
    * Use this to distinguish "probe in progress" from "no origin backend."
    */
-  originProbed = $state(false);
+  readonly #originProbedSignal = signal(false);
+  get originProbed() {
+    return this.#originProbedSignal.get();
+  }
+  set originProbed(value) {
+    this.#originProbedSignal.set(value);
+  }
 
   /**
    * The origin server — the one serving the SPA.

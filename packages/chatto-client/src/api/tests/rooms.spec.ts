@@ -7,7 +7,7 @@ import { RoomThreadingMode } from '../../util/roomThreading.js';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '../rooms.js';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 import {
   normalizeRoomName,
   roomNameCharacterCount,

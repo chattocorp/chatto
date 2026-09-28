@@ -23,7 +23,7 @@ const {
   >()
 }));
 
-vi.mock('$lib/auth/csrf', () => ({ csrfFetch: mockCsrfFetch }));
+vi.mock('../auth/csrf.js', () => ({ csrfFetch: mockCsrfFetch }));
 
 vi.mock('./registry.svelte', () => ({
   serverRegistry: {

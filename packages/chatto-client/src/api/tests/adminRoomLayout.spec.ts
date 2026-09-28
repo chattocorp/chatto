@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import { createAdminRoomLayoutAPI } from '../adminRoomLayout.js';
 import { RoomThreadingMode } from '../../util/roomThreading.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(AdminRoomLayoutService);
 

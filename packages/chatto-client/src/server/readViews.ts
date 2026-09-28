@@ -1,5 +1,5 @@
-import { SvelteSet } from 'svelte/reactivity';
-import { appState } from '$lib/state/globals.svelte';
+import { ReactiveSet } from '../reactivity/index.js';
+import { appState } from '../util/appLifecycle.js';
 
 /** One visible reading surface. Room views do not cover their threads. */
 export type ReadViewTarget = {
@@ -9,7 +9,7 @@ export type ReadViewTarget = {
 
 /** Per-server view registrations; these change local attention, never server read state. */
 export class ReadViewRegistry {
-  readonly #views = new SvelteSet<ReadViewTarget>();
+  readonly #views = new ReactiveSet<ReadViewTarget>();
 
   /** Register one eligible, visible pane. Cleanup removes only this registration. */
   register(target: ReadViewTarget): () => void {

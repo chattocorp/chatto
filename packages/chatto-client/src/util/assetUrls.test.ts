@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RegisteredServer } from '$lib/state/server/registry.svelte';
+import type { RegisteredServer } from '../server/registry.js';
 
 const { servers } = vi.hoisted(() => ({
   servers: new Map<string, RegisteredServer>()
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('../server/registry.js', () => ({
   serverRegistry: {
     getServer: (id: string) => servers.get(id)
   }
 }));
 
-import { assetUrlForServer } from './assetUrls';
+import { assetUrlForServer } from './assetUrls.js';
 
 const ORIGIN = 'https://app.example';
 

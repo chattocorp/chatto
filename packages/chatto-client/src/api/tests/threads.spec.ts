@@ -7,7 +7,7 @@ import { User } from '@chatto/api-types/api/v1/users_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 import {
   MessageSearchScope,
   MessageSearchGroupBy,

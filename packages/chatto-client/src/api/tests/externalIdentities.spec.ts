@@ -7,7 +7,7 @@ import {
   createExternalIdentityFlowAPI
 } from '../externalIdentities.js';
 import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
-import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '../../testing/fakeServer.js';
 
 const flow = mockService(ExternalIdentityAuthService);
 const account = mockService(MyAccountService);

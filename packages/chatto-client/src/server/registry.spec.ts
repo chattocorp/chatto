@@ -6,7 +6,7 @@ import {
   splitPersistedServers,
   type RegisteredServer
 } from './registry.js';
-import { queryClient } from '$lib/query/client';
+import { queryClient } from '../query/client.js';
 import { serverStorageKey } from '../storage/serverStorage.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -16,7 +16,7 @@ const viewerMocks = vi.hoisted(() => ({
   getViewerStateViaConnect: vi.fn()
 }));
 
-vi.mock('$lib/api-client/viewer', async (importOriginal) => {
+vi.mock('../api/viewer.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/viewer.js')>();
   viewerMocks.getViewerStateViaConnect.mockImplementation(actual.getViewerStateViaConnect);
   return { ...actual, getViewerStateViaConnect: viewerMocks.getViewerStateViaConnect };

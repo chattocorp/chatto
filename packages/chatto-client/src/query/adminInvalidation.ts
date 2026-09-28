@@ -1,6 +1,6 @@
 import type { ServerConnection } from '../server/serverConnection.js';
 import { adminQueryKeys } from './admin.js';
-import { queryClient } from '$lib/query/client';
+import { queryClient } from './client.js';
 
 type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
 

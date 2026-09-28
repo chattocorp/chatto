@@ -12,8 +12,7 @@ import {
   getViewerStateViaConnect
 } from '../viewer.js';
 import type { ConnectAPIConfig } from '../connect.js';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
-import { fakeServer, mockService, receivedContext } from '$lib/test-utils';
+import { fakeServer, mockService, receivedContext } from '../../testing/fakeServer.js';
 
 const mocks = mockService(ViewerService);
 
@@ -161,15 +160,12 @@ describe('getCurrentUserViaConnect', () => {
       throw new ConnectError('session expired', Code.Unauthenticated);
     });
     const onAuthenticationRequired = vi.fn();
-    configureApiClientHooks({ onAuthenticationRequired });
-    try {
-      await expect(getViewerStateViaConnect(config({ serverId: 'origin' }))).rejects.toMatchObject({
-        code: Code.Unauthenticated
-      });
-      expect(onAuthenticationRequired).not.toHaveBeenCalled();
-    } finally {
-      configureApiClientHooks({});
-    }
+    await expect(
+      getViewerStateViaConnect(config({ serverId: 'origin', onAuthenticationRequired }))
+    ).rejects.toMatchObject({
+      code: Code.Unauthenticated
+    });
+    expect(onAuthenticationRequired).not.toHaveBeenCalled();
   });
 
   it('cancels a viewer read with the caller signal', async () => {

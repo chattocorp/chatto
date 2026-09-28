@@ -2,11 +2,12 @@
  * Tracks which rooms have active voice calls and who's in each call.
  *
  * The server's active calls come from the realtime projection. The local
- * VoiceCallState is overlaid for instant feedback about the viewer's own call.
+ * voice-call controller is overlaid for instant feedback about the viewer's own call.
  */
 
+import { computed } from '../reactivity/index.js';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
-import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
+import type { VoiceCallController } from './voiceCall.js';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {
@@ -25,11 +26,11 @@ type ActiveCallRoomSnapshot = {
 };
 
 export class ActiveCallRoomsState {
-  #voiceCall: VoiceCallState;
+  #getVoiceCall: () => VoiceCallController;
   #getCalls: () => readonly ActiveCall[];
 
   /** Room ID → server-observed active call, derived from the projection. */
-  readonly #serverRooms: Readonly<Record<string, ActiveCallRoomSnapshot>> = $derived.by(() => {
+  readonly #serverRoomsComputed = computed<Readonly<Record<string, ActiveCallRoomSnapshot>>>(() => {
     const rooms: Record<string, ActiveCallRoomSnapshot> = Object.create(null);
     for (const call of this.#getCalls()) {
       const roomId = call.room?.id;
@@ -37,9 +38,12 @@ export class ActiveCallRoomsState {
     }
     return rooms;
   });
+  get #serverRooms(): Readonly<Record<string, ActiveCallRoomSnapshot>> {
+    return this.#serverRoomsComputed.get();
+  }
 
-  constructor(voiceCall: VoiceCallState, getCalls: () => readonly ActiveCall[]) {
-    this.#voiceCall = voiceCall;
+  constructor(getVoiceCall: () => VoiceCallController, getCalls: () => readonly ActiveCall[]) {
+    this.#getVoiceCall = getVoiceCall;
     this.#getCalls = getCalls;
   }
 
@@ -48,7 +52,7 @@ export class ActiveCallRoomsState {
    * Checks both server state and local user's call state.
    */
   has(roomId: string): boolean {
-    if (this.#voiceCall.connected && this.#voiceCall.roomId === roomId) {
+    if (this.#getVoiceCall().connected && this.#getVoiceCall().roomId === roomId) {
       return true;
     }
     return roomId in this.#serverRooms;
@@ -74,7 +78,7 @@ export class ActiveCallRoomsState {
    * state lets us upgrade participants with an active camera track to video.
    */
   getParticipantCallPresence(roomId: string, userId: string): CallPresenceKind | null {
-    if (this.#voiceCall.connected && this.#voiceCall.roomId === roomId) {
+    if (this.#getVoiceCall().connected && this.#getVoiceCall().roomId === roomId) {
       const livePresence = this.liveParticipantCallPresence(userId);
       if (livePresence) return livePresence;
     }
@@ -104,9 +108,9 @@ export class ActiveCallRoomsState {
   }
 
   private liveParticipantCallPresence(userId: string): CallPresenceKind | null {
-    if (!this.#voiceCall.connected) return null;
+    if (!this.#getVoiceCall().connected) return null;
 
-    const liveParticipant = this.#voiceCall.participants.find((p) => p.identity === userId);
+    const liveParticipant = this.#getVoiceCall().participants.find((p) => p.identity === userId);
     if (!liveParticipant) return null;
 
     return liveParticipant.isCameraEnabled && liveParticipant.videoTrack ? 'video' : 'voice';

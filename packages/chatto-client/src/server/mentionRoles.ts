@@ -1,5 +1,6 @@
 import type { RoleAPI } from '../api/roles.js';
-import type { MentionRole } from '$lib/state/room';
+import { signal } from '../reactivity/index.js';
+import type { MentionRole } from '../room/mentionRoles.js';
 
 type MentionRoleAPI = Pick<RoleAPI, 'listRoles'>;
 
@@ -7,8 +8,20 @@ export type MentionRolesStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
 /** Shared public role catalogue used by message rendering and composers. */
 export class MentionRolesStore {
-  roles = $state.raw<MentionRole[]>([]);
-  status = $state<MentionRolesStatus>('idle');
+  readonly #rolesSignal = signal<MentionRole[]>([]);
+  get roles(): MentionRole[] {
+    return this.#rolesSignal.get();
+  }
+  set roles(value: MentionRole[]) {
+    this.#rolesSignal.set(value);
+  }
+  readonly #statusSignal = signal<MentionRolesStatus>('idle');
+  get status(): MentionRolesStatus {
+    return this.#statusSignal.get();
+  }
+  set status(value: MentionRolesStatus) {
+    this.#statusSignal.set(value);
+  }
 
   readonly #api: MentionRoleAPI;
   readonly #canLoad: () => boolean;

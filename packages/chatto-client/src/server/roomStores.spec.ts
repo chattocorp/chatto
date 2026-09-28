@@ -28,7 +28,7 @@ vi.mock('$lib/state/room', () => {
   };
 });
 
-vi.mock('$lib/state/room/pins.svelte', () => ({
+vi.mock('../room/pins.js', () => ({
   clearRoomPinsSeenMarker: mocks.clearRoomPinsSeenMarker
 }));
 

@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, signal } from '../reactivity/index.js';
 import { UserStore } from './users.js';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import type { RoomGroup, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -16,14 +16,44 @@ export type ProjectedServerState = {
 
 /** Canonical protobuf-native resources for one connected Chatto server. */
 export class ServerProjectionStore {
-  server = $state.raw<ServerPublicProfile | null>(null);
-  serverState = $state.raw<ProjectedServerState | null>(null);
-  viewer = $state.raw<GetViewerResponse | null>(null);
+  readonly #serverSignal = signal<ServerPublicProfile | null>(null);
+  get server(): ServerPublicProfile | null {
+    return this.#serverSignal.get();
+  }
+  set server(value: ServerPublicProfile | null) {
+    this.#serverSignal.set(value);
+  }
+  readonly #serverStateSignal = signal<ProjectedServerState | null>(null);
+  get serverState(): ProjectedServerState | null {
+    return this.#serverStateSignal.get();
+  }
+  set serverState(value: ProjectedServerState | null) {
+    this.#serverStateSignal.set(value);
+  }
+  readonly #viewerSignal = signal<GetViewerResponse | null>(null);
+  get viewer(): GetViewerResponse | null {
+    return this.#viewerSignal.get();
+  }
+  set viewer(value: GetViewerResponse | null) {
+    this.#viewerSignal.set(value);
+  }
   /** Shared profile owner, also hydrated by room and timeline reads. */
   constructor(readonly users = new UserStore()) {}
-  rooms = new SvelteMap<string, RoomWithViewerState>();
-  roomGroups = $state.raw<RoomGroup[]>([]);
-  activeCalls = $state.raw<ActiveCall[]>([]);
+  rooms = new ReactiveMap<string, RoomWithViewerState>();
+  readonly #roomGroupsSignal = signal<RoomGroup[]>([]);
+  get roomGroups(): RoomGroup[] {
+    return this.#roomGroupsSignal.get();
+  }
+  set roomGroups(value: RoomGroup[]) {
+    this.#roomGroupsSignal.set(value);
+  }
+  readonly #activeCallsSignal = signal<ActiveCall[]>([]);
+  get activeCalls(): ActiveCall[] {
+    return this.#activeCallsSignal.get();
+  }
+  set activeCalls(value: ActiveCall[]) {
+    this.#activeCallsSignal.set(value);
+  }
 
   apply(update: RealtimeProjectionUpdate): void {
     if (update.reset && !update.retainView) this.reset({ preserveViewer: !update.privacyReset });
@@ -60,7 +90,7 @@ export class ServerProjectionStore {
           break;
         }
         case 'rooms': {
-          const nextIds = new SvelteSet<string>();
+          const nextIds = new Set<string>();
           for (const room of chunk.value.rooms) {
             const roomId = room.room?.id;
             if (!roomId) continue;

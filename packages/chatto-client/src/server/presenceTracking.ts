@@ -1,4 +1,4 @@
-import { untrack } from 'svelte';
+import { untrack } from '../reactivity/index.js';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { PresenceAPI } from '../api/presence.js';
 import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';

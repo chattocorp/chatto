@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { signal } from '../reactivity/index.js';
 import { Codecs, type StorageSlot, serverSlot } from '../storage/slot.js';
 
 /** One viewer on one server. */
@@ -60,10 +61,28 @@ function readStatus(key: string, legacy = false): PresenceStatus | null {
 
 /** Private server choice with a device-local fallback used only for migration. */
 class PresencePreference {
-  revision = $state('');
-  ready = $state(false);
+  readonly #revisionSignal = signal('');
+  get revision() {
+    return this.#revisionSignal.get();
+  }
+  set revision(value) {
+    this.#revisionSignal.set(value);
+  }
+  readonly #readySignal = signal(false);
+  get ready() {
+    return this.#readySignal.get();
+  }
+  set ready(value) {
+    this.#readySignal.set(value);
+  }
   /** Shared choice, updated only from acknowledged server state. */
-  status = $state<PresenceStatus>(PresenceStatus.ONLINE);
+  readonly #statusSignal = signal<PresenceStatus>(PresenceStatus.ONLINE);
+  get status(): PresenceStatus {
+    return this.#statusSignal.get();
+  }
+  set status(value: PresenceStatus) {
+    this.#statusSignal.set(value);
+  }
   readonly slot: StorageSlot<PresenceStatus | null>;
   readonly migrated: StorageSlot<boolean>;
 

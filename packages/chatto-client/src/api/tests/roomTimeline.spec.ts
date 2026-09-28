@@ -4,7 +4,6 @@ import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import type { ConnectAPIConfig } from '../connect.js';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomTimelineEvent,
@@ -31,7 +30,7 @@ import {
   createRoomTimelineAPI,
   roomTimelinePageToEventConnectionPage
 } from '../roomTimeline.js';
-import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '../../testing/fakeServer.js';
 
 const messages = mockService(MessageService);
 const threads = mockService(ThreadService);
@@ -62,7 +61,6 @@ describe('createRoomTimelineAPI', () => {
   it.each(['reset', 'dispose'])(
     'rejects timeline includes after a connection %s',
     async (boundary) => {
-      configureApiClientHooks({});
       const store = getUserStore('remote', 'session');
       let finish!: (response: { page: RoomTimelinePage }) => void;
       threads.getThreadEvents.mockImplementation(

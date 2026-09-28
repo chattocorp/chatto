@@ -15,7 +15,7 @@ import {
   uploadServerBanner,
   uploadServerLogo
 } from '../serverState.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const discovery = mockService(ServerDiscoveryService);
 const server = mockService(ServerService);

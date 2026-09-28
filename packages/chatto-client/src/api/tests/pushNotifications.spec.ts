@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPushNotificationAPI } from '../pushNotifications.js';
 import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
 import { PushSubscriptionCleanupService } from '@chatto/api-types/chatto/auth/v1/push_subscription_cleanup_connect';
-import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '../../testing/fakeServer.js';
 
 const push = mockService(PushNotificationService);
 const cleanup = mockService(PushSubscriptionCleanupService);

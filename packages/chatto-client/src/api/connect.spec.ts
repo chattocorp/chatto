@@ -2,7 +2,7 @@
 
 import { Code, ConnectError, createContextValues } from '@connectrpc/connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import {
   authenticationRequiredInterceptor,
   bearerRenewalInterceptor,
@@ -12,7 +12,6 @@ import {
   skipAuthenticationRequired,
   StaleResponseError
 } from './connect.js';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 
 describe('private data response boundary', () => {
   it('discards a delayed read while allowing another connection to finish', async () => {
@@ -95,16 +94,14 @@ describe('bearerRenewalInterceptor', () => {
 
   it('keeps a renewed bearer session after an API retry is rejected', async () => {
     const onAuthenticationRequired = vi.fn();
-    configureApiClientHooks({ onAuthenticationRequired });
-    try {
-      const renewBearerToken = vi
+    const renewBearerToken = vi
         .fn<(force: boolean) => Promise<string | null>>()
         .mockResolvedValueOnce('access-1')
         .mockResolvedValueOnce('access-2');
       const error = new ConnectError('authentication required', Code.Unauthenticated);
       const next = vi.fn().mockRejectedValue(error);
       const request = { stream: false, header: new Headers() };
-      const config = { serverId: 'remote', renewBearerToken };
+      const config = { onAuthenticationRequired, renewBearerToken };
 
       await expect(bearerRenewalInterceptor(config)(next as never)(request as never)).rejects.toBe(
         error
@@ -118,9 +115,6 @@ describe('bearerRenewalInterceptor', () => {
         } as never)
       ).rejects.toBe(error);
       expect(onAuthenticationRequired).not.toHaveBeenCalled();
-    } finally {
-      configureApiClientHooks({});
-    }
   });
 });
 
@@ -144,39 +138,40 @@ describe('authenticationRequiredInterceptor', () => {
     await expect(invoke(request)).rejects.toBe(error);
   }
 
-  function withHook(run: (hook: ReturnType<typeof vi.fn>) => Promise<void>) {
-    const onAuthenticationRequired = vi.fn();
-    configureApiClientHooks({ onAuthenticationRequired });
-    return run(onAuthenticationRequired).finally(() => configureApiClientHooks({}));
+  function withHook(run: (hook: Mock<(source: string) => void>) => Promise<void>) {
+    return run(vi.fn<(source: string) => void>());
   }
 
   it('reports a rejected session that cannot renew with the rejected request', () =>
     withHook(async (hook) => {
-      await reject({ serverId: 'origin' }, unauthenticated);
-      expect(hook).toHaveBeenCalledExactlyOnceWith(
-        'origin',
-        'chatto.api.v1.RoomService/ListMembers'
-      );
+      await reject({ onAuthenticationRequired: hook }, unauthenticated);
+      expect(hook).toHaveBeenCalledExactlyOnceWith('chatto.api.v1.RoomService/ListMembers');
     }));
 
   it('leaves renewable sessions to the bearer renewal flow', () =>
     withHook(async (hook) => {
-      await reject({ serverId: 'remote', renewBearerToken: async () => 'token' }, unauthenticated);
+      await reject(
+        { onAuthenticationRequired: hook, renewBearerToken: async () => 'token' },
+        unauthenticated
+      );
       expect(hook).not.toHaveBeenCalled();
     }));
 
-  it('ignores calls without a server and errors other than Unauthenticated', () =>
+  it('ignores calls without a hook and errors other than Unauthenticated', () =>
     withHook(async (hook) => {
       await reject({}, unauthenticated);
-      await reject({ serverId: 'origin' }, new ConnectError('denied', Code.PermissionDenied));
-      await reject({ serverId: 'origin' }, new Error('network'));
+      await reject(
+        { onAuthenticationRequired: hook },
+        new ConnectError('denied', Code.PermissionDenied)
+      );
+      await reject({ onAuthenticationRequired: hook }, new Error('network'));
       expect(hook).not.toHaveBeenCalled();
     }));
 
   it('lets a caller that owns the decision opt out', () =>
     withHook(async (hook) => {
       await reject(
-        { serverId: 'origin' },
+        { onAuthenticationRequired: hook },
         unauthenticated,
         unaryRequest(skipAuthenticationRequired().contextValues)
       );
@@ -191,17 +186,14 @@ describe('authenticationRequiredInterceptor', () => {
       vi.stubGlobal('fetch', fetch);
       try {
         const client = createChattoClient(RoomService, {
-          serverId: 'origin',
+          onAuthenticationRequired: hook,
           baseUrl: 'http://localhost:1234/api/connect',
           bearerToken: null
         });
         await expect(client.listMembers({ roomId: 'room' })).rejects.toMatchObject({
           code: Code.Unauthenticated
         });
-        expect(hook).toHaveBeenCalledExactlyOnceWith(
-          'origin',
-          'chatto.api.v1.RoomService/ListMembers'
-        );
+        expect(hook).toHaveBeenCalledExactlyOnceWith('chatto.api.v1.RoomService/ListMembers');
       } finally {
         vi.unstubAllGlobals();
       }

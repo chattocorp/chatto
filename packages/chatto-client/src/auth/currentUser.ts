@@ -1,4 +1,5 @@
 import type { ConnectAPIConfig } from '../api/connect.js';
+import { signal } from '../reactivity/index.js';
 import { getCurrentUserViaConnect, type CurrentUser } from '../api/viewer.js';
 import { browserCookieAuthenticationHeaders } from './authenticationMode.js';
 import { csrfFetch } from './csrf.js';
@@ -23,10 +24,28 @@ interface AuthFailureOptions {
  * or clear local state.
  */
 export class CurrentUserState {
-  user = $state<CurrentUser | undefined>(undefined);
-  loading = $state(true);
+  readonly #userSignal = signal<CurrentUser | undefined>(undefined);
+  get user(): CurrentUser | undefined {
+    return this.#userSignal.get();
+  }
+  set user(value: CurrentUser | undefined) {
+    this.#userSignal.set(value);
+  }
+  readonly #loadingSignal = signal(true);
+  get loading() {
+    return this.#loadingSignal.get();
+  }
+  set loading(value) {
+    this.#loadingSignal.set(value);
+  }
   /** Identity confirmed by the latest successful viewer request. */
-  verifiedUserId = $state<string | null>(null);
+  readonly #verifiedUserIdSignal = signal<string | null>(null);
+  get verifiedUserId(): string | null {
+    return this.#verifiedUserIdSignal.get();
+  }
+  set verifiedUserId(value: string | null) {
+    this.#verifiedUserIdSignal.set(value);
+  }
   #cookieAuth: boolean;
   #apiConfig?: ConnectAPIConfig;
   #loadCurrentUser: (config: ConnectAPIConfig) => Promise<CurrentUser>;

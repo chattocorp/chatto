@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
 import { createPermissionAPI } from '../permissions.js';
 import { PermissionDecision, PermissionScopeKind } from '@chatto/api-types/admin/v1/permissions_pb';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(AdminPermissionService);
 

@@ -8,7 +8,7 @@ import { createMemberDirectoryAPI } from '../memberDirectory.js';
 import { REALTIME_MINIMUM_CURSOR_HEADER, type ConnectAPIConfig } from '../connect.js';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '../../testing/fakeServer.js';
 
 const users = mockService(UserService);
 const rooms = mockService(RoomService);

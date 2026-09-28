@@ -1,4 +1,3 @@
-import '$lib/apiClientHooks';
 import { redirect } from '@sveltejs/kit';
 import { loadCurrentUser } from '$lib/auth/loadAuth';
 import { getPublicServerInfo } from '$lib/api-client/server';

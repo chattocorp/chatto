@@ -19,7 +19,7 @@ import {
 import { createAttachmentAPI } from '../attachments.js';
 import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const assets = mockService(AssetService);
 const rooms = mockService(RoomService);

@@ -4,11 +4,11 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { CurrentUser } from '../api/viewer.js';
 
 const mocks = vi.hoisted(() => ({ discovery: vi.fn(), viewer: vi.fn() }));
-vi.mock('$lib/api-client/server', async (original) => ({
+vi.mock('../api/server.js', async (original) => ({
   ...(await original<typeof import('../api/server.js')>()),
   getPublicServerInfo: mocks.discovery
 }));
-vi.mock('$lib/api-client/viewer', async (original) => ({
+vi.mock('../api/viewer.js', async (original) => ({
   ...(await original<typeof import('../api/viewer.js')>()),
   getCurrentUserViaConnect: mocks.viewer
 }));

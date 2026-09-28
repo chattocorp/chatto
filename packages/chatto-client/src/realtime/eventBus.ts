@@ -8,7 +8,6 @@
  * projection updates; a semantic event is `update.event`.
  */
 
-import { SvelteSet } from 'svelte/reactivity';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RealtimeResource, RealtimeResourceUpdate } from '../api/realtimeResources.js';
 
@@ -67,8 +66,8 @@ export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;
  */
 export class EventBus {
   #reducer: ProjectionHandler | null = null;
-  #listeners = new SvelteSet<ProjectionHandler>();
-  #sessionTerminatedListeners = new SvelteSet<(reason: string) => void>();
+  #listeners = new Set<ProjectionHandler>();
+  #sessionTerminatedListeners = new Set<(reason: string) => void>();
 
   constructor(private readonly serverId: string) {}
 

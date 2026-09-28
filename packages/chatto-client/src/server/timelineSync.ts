@@ -3,7 +3,7 @@ import type { UserAvatarUserView } from '../timeline/users.js';
 import { messagePostedPayload } from '../api/roomTimeline.js';
 import type { TimelineEventView } from '../timeline/timelineEvents.js';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import type { MessagesStore } from '$lib/state/room';
+import type { MessagesStore } from '../room/messages/MessagesStore.js';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MessageReconciler } from './messageReconciler.js';
 import type { RoomStores } from './roomStores.js';

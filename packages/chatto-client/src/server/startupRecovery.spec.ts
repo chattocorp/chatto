@@ -13,16 +13,16 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$app/state', () => ({
   page: { route: { id: '/chat/[serverId]/[roomId]' }, params: { serverId: '-' } }
 }));
-vi.mock('$lib/auth/legacyCookieMigration', () => ({
+vi.mock('../auth/legacyCookieMigration.js', () => ({
   migrateLegacyOriginCookieSession: async () => false
 }));
 
-vi.mock('$lib/api-client/viewer', async (original) => ({
+vi.mock('../api/viewer.js', async (original) => ({
   ...(await original<typeof import('../api/viewer.js')>()),
   getCurrentUserViaConnect: mocks.viewer
 }));
 
-vi.mock('$lib/api-client/server', () => ({
+vi.mock('../api/server.js', () => ({
   getPublicServerInfo: vi.fn(async () => ({
     name: 'Chatto',
     version: '0.5.0',
@@ -124,7 +124,7 @@ describe('origin startup recovery', () => {
 
   it('shares the account request between route loading and recovery', async () => {
     const store = retainedStore();
-    const { loadCurrentUser } = await import('$lib/auth/loadAuth');
+    const { loadCurrentUser } = await import('../auth/loadAuth.js');
     let finish!: (user: { id: string; login: string; displayName: string }) => void;
     mocks.viewer.mockImplementationOnce(
       () =>

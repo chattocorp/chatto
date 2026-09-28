@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet, signal } from '../reactivity/index.js';
 import { OptimisticMutationRegistry } from '../util/optimisticMutations.js';
 import type { ServerProjectionStore } from './projection.js';
 
@@ -18,12 +18,18 @@ type ProjectedUnreadSource = Pick<ServerProjectionStore, 'rooms' | 'viewer'>;
  * read cursor is separate and continues to place the "New messages" divider.
  */
 export class RoomUnreadStore {
-  private roomOverrides = new SvelteMap<string, boolean>();
-  private optimisticReadRooms = new SvelteSet<string>();
+  private roomOverrides = new ReactiveMap<string, boolean>();
+  private optimisticReadRooms = new ReactiveSet<string>();
   private optimisticReads = new OptimisticMutationRegistry();
-  private roomRevisions = new SvelteMap<string, number>();
+  private roomRevisions = new ReactiveMap<string, number>();
   private revision = 0;
-  private serverHasUnknownUnreadOverride = $state<boolean | null>(null);
+  readonly #serverHasUnknownUnreadOverrideSignal = signal<boolean | null>(null);
+  private get serverHasUnknownUnreadOverride(): boolean | null {
+    return this.#serverHasUnknownUnreadOverrideSignal.get();
+  }
+  private set serverHasUnknownUnreadOverride(value: boolean | null) {
+    this.#serverHasUnknownUnreadOverrideSignal.set(value);
+  }
 
   constructor(private readonly getProjection?: () => ProjectedUnreadSource) {}
 
@@ -77,7 +83,7 @@ export class RoomUnreadStore {
   }
 
   get hasAnyUnread(): boolean {
-    const roomIds = new SvelteSet<string>(this.roomOverrides.keys());
+    const roomIds = new Set<string>(this.roomOverrides.keys());
     for (const roomId of this.getProjection?.().rooms.keys() ?? []) roomIds.add(roomId);
     for (const roomId of roomIds) if (this.roomIsUnread(roomId)) return true;
     if (this.serverHasUnknownUnreadOverride !== null) {
@@ -90,7 +96,7 @@ export class RoomUnreadStore {
   }
 
   getFirstUnreadRoomId(): string | null {
-    const roomIds = new SvelteSet<string>(this.roomOverrides.keys());
+    const roomIds = new Set<string>(this.roomOverrides.keys());
     for (const roomId of this.getProjection?.().rooms.keys() ?? []) roomIds.add(roomId);
     for (const roomId of roomIds) if (this.roomIsUnread(roomId)) return roomId;
     return null;
@@ -112,7 +118,7 @@ export class RoomUnreadStore {
     serverHasUnknownUnread = false,
     snapshotRevision = this.captureSnapshotRevision()
   ): void {
-    const snapshotRoomIds = new SvelteSet(rooms.map((room) => room.id));
+    const snapshotRoomIds = new Set(rooms.map((room) => room.id));
     for (const roomId of this.roomOverrides.keys()) {
       if (!snapshotRoomIds.has(roomId) && this.roomRevision(roomId) <= snapshotRevision) {
         this.roomOverrides.delete(roomId);

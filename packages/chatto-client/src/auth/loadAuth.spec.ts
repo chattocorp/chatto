@@ -5,9 +5,7 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   store: { currentUser: { user: undefined as { id: string } | undefined } }
 }));
-vi.mock('$app/environment', () => ({ browser: true }));
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
-vi.mock('$lib/state/server/registry.svelte', () => ({
+vi.mock('../server/registry.js', () => ({
   serverRegistry: {
     originServer: { id: 'origin' },
     getStore: () => ({ currentUser: { load: mocks.load } }),
@@ -16,8 +14,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-import { loadCurrentUser } from './loadAuth';
-import { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } from './signOut';
+import { loadCurrentUser } from './loadAuth.js';
+import { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } from './signOut.js';
 
 describe('route account loading', () => {
   beforeEach(() => {

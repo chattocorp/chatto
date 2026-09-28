@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { appState } from '$lib/state/globals.svelte';
+import { appState } from '../util/appLifecycle.js';
 import { ReadViewRegistry } from './readViews.js';
 
 describe('ReadViewRegistry', () => {

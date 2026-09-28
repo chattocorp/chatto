@@ -1,7 +1,4 @@
-import { errorMessage } from '$lib/utils/errorMessage';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { resolve } from '$app/paths';
-import { serverIdToSegment } from '$lib/navigation';
+import { ReactiveMap, ReactiveSet, signal } from '../reactivity/index.js';
 import {
   NotificationAttentionLevel,
   type NotificationAPI,
@@ -11,7 +8,6 @@ import {
   type NotificationPolicyPatch,
   NotificationSignalKind
 } from '../api/notifications.js';
-import { m } from '$lib/i18n/messages';
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -86,35 +82,120 @@ export class NotificationStore {
   #authoritativeGeneration = 0;
   // Exact deletions are independent and can overlap.
   #deletionSequence = 0;
-  #pendingDeletionById = new SvelteMap<string, number>();
+  #pendingDeletionById = new ReactiveMap<string, number>();
   #readSequence = 0;
-  #pendingReadById = new SvelteMap<string, number>();
-  #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
-  #pendingMutationCount = $state(0);
-  #mutationIdleWaiters = new SvelteSet<() => void>();
+  #pendingReadById = new ReactiveMap<string, number>();
+  #pendingReadRequestById = new ReactiveMap<string, Promise<NotificationOccurrenceItem>>();
+  readonly #pendingMutationCountSignal = signal(0);
+  get #pendingMutationCount() {
+    return this.#pendingMutationCountSignal.get();
+  }
+  set #pendingMutationCount(value) {
+    this.#pendingMutationCountSignal.set(value);
+  }
+  #mutationIdleWaiters = new Set<() => void>();
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
-  #handledPushIds = new SvelteSet<string>();
+  #handledPushIds = new ReactiveSet<string>();
   /** Changes when native notification cleanup must recheck server state. */
-  pushRevision = $state(0);
-  occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
+  readonly #pushRevisionSignal = signal(0);
+  get pushRevision() {
+    return this.#pushRevisionSignal.get();
+  }
+  set pushRevision(value) {
+    this.#pushRevisionSignal.set(value);
+  }
+  readonly #occurrencesSignal = signal<NotificationOccurrenceItem[]>([]);
+  get occurrences(): NotificationOccurrenceItem[] {
+    return this.#occurrencesSignal.get();
+  }
+  set occurrences(value: NotificationOccurrenceItem[]) {
+    this.#occurrencesSignal.set(value);
+  }
   /** Raw server rows consumed by the retained occurrence page. */
-  consumedCount = $state(0);
+  readonly #consumedCountSignal = signal(0);
+  get consumedCount() {
+    return this.#consumedCountSignal.get();
+  }
+  set consumedCount(value) {
+    this.#consumedCountSignal.set(value);
+  }
   /** Exact visible occurrence total reported with the retained page. */
-  totalCount = $state(0);
+  readonly #totalCountSignal = signal(0);
+  get totalCount() {
+    return this.#totalCountSignal.get();
+  }
+  set totalCount(value) {
+    this.#totalCountSignal.set(value);
+  }
   /** Whether the retained page has older server rows available. */
-  hasMore = $state(false);
-  unreadNotificationCount = $state(0);
-  importantUnreadNotificationCount = $state(0);
-  roomUnreadCounts = $state.raw<Record<string, number>>({});
-  roomImportantUnreadCounts = $state.raw<Record<string, number>>({});
-  nextExpiryAt = $state<string | null>(null);
-  readonly revokedRoomIds = new SvelteSet<string>();
+  readonly #hasMoreSignal = signal(false);
+  get hasMore() {
+    return this.#hasMoreSignal.get();
+  }
+  set hasMore(value) {
+    this.#hasMoreSignal.set(value);
+  }
+  readonly #unreadNotificationCountSignal = signal(0);
+  get unreadNotificationCount() {
+    return this.#unreadNotificationCountSignal.get();
+  }
+  set unreadNotificationCount(value) {
+    this.#unreadNotificationCountSignal.set(value);
+  }
+  readonly #importantUnreadNotificationCountSignal = signal(0);
+  get importantUnreadNotificationCount() {
+    return this.#importantUnreadNotificationCountSignal.get();
+  }
+  set importantUnreadNotificationCount(value) {
+    this.#importantUnreadNotificationCountSignal.set(value);
+  }
+  readonly #roomUnreadCountsSignal = signal<Record<string, number>>({});
+  get roomUnreadCounts(): Record<string, number> {
+    return this.#roomUnreadCountsSignal.get();
+  }
+  set roomUnreadCounts(value: Record<string, number>) {
+    this.#roomUnreadCountsSignal.set(value);
+  }
+  readonly #roomImportantUnreadCountsSignal = signal<Record<string, number>>({});
+  get roomImportantUnreadCounts(): Record<string, number> {
+    return this.#roomImportantUnreadCountsSignal.get();
+  }
+  set roomImportantUnreadCounts(value: Record<string, number>) {
+    this.#roomImportantUnreadCountsSignal.set(value);
+  }
+  readonly #nextExpiryAtSignal = signal<string | null>(null);
+  get nextExpiryAt(): string | null {
+    return this.#nextExpiryAtSignal.get();
+  }
+  set nextExpiryAt(value: string | null) {
+    this.#nextExpiryAtSignal.set(value);
+  }
+  readonly revokedRoomIds = new ReactiveSet<string>();
   /** Users whose copied profile data must not be rendered from stale notification pages. */
-  readonly scrubbedUserIds = new SvelteSet<string>();
-  loading = $state(false);
-  hasLoaded = $state(false);
-  error = $state<string | null>(null);
+  readonly scrubbedUserIds = new ReactiveSet<string>();
+  readonly #loadingSignal = signal(false);
+  get loading() {
+    return this.#loadingSignal.get();
+  }
+  set loading(value) {
+    this.#loadingSignal.set(value);
+  }
+  readonly #hasLoadedSignal = signal(false);
+  get hasLoaded() {
+    return this.#hasLoadedSignal.get();
+  }
+  set hasLoaded(value) {
+    this.#hasLoadedSignal.set(value);
+  }
+  readonly #errorSignal = signal<unknown>(null);
+  /** The error of the latest failed load, or null. */
+  get error(): unknown {
+    return this.#errorSignal.get();
+  }
+  set error(value: unknown) {
+    this.#errorSignal.set(value);
+  }
 
   constructor(
     api: NotificationAPI,
@@ -265,7 +346,7 @@ export class NotificationStore {
   /** Drop notification payloads for a room at an authorization boundary. */
   clearRoom(roomId: string): void {
     this.#authoritativeGeneration++;
-    const roomOccurrenceIds = new SvelteSet(
+    const roomOccurrenceIds = new Set(
       this.occurrences
         .filter((occurrence) => occurrence.room?.id === roomId)
         .map((occurrence) => occurrence.id)
@@ -319,8 +400,8 @@ export class NotificationStore {
    * Get thread root IDs with unread notifications that need local attention.
    * Used to show notification indicators on thread buttons.
    */
-  get threadsWithNotifications(): SvelteSet<string> {
-    const threadIds = new SvelteSet<string>();
+  get threadsWithNotifications(): Set<string> {
+    const threadIds = new Set<string>();
     for (const n of this.attentionOccurrences) {
       const threadRootId = notificationTarget(n).threadRootId;
       if (threadRootId) threadIds.add(threadRootId);
@@ -440,7 +521,7 @@ export class NotificationStore {
       this.replaceOccurrenceProjection(page);
     } catch (e) {
       if (generation !== this.#fetchGeneration) return;
-      this.error = errorMessage(e, m('chat.notifications.load_failed'));
+      this.error = e;
       console.error('Failed to fetch notifications:', e);
     } finally {
       if (showLoading && generation === this.#fetchGeneration) {
@@ -537,8 +618,8 @@ export class NotificationStore {
     notificationIds: string[],
     knownCounts?: { unread: number; importantUnread: number; roomId?: string | null }
   ): Promise<void> {
-    const uniqueIds = [...new SvelteSet(notificationIds)];
-    const removedIds = new SvelteSet(uniqueIds);
+    const uniqueIds = [...new Set(notificationIds)];
+    const removedIds = new Set(uniqueIds);
     const removedOccurrences = this.occurrences.filter((occurrence) =>
       removedIds.has(occurrence.id)
     );
@@ -705,7 +786,7 @@ export class NotificationStore {
         notification
       };
     } catch (e) {
-      this.error = errorMessage(e, m('chat.notifications.room_load_failed'));
+      this.error = e;
       console.error('Failed to fetch room notification:', e);
       return { ok: false, totalCount: null, notification: null };
     }
@@ -759,7 +840,7 @@ export class NotificationStore {
       occurrence?.attentionLevel === NotificationAttentionLevel.IMPORTANT ? 1 : 0;
     const roomAdjustments = occurrence
       ? notificationRoomAdjustments([occurrence])
-      : new SvelteMap<string, { unread: number; importantUnread: number }>();
+      : new Map<string, { unread: number; importantUnread: number }>();
     this.occurrences = this.occurrences.map((occurrence) =>
       occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
     );
@@ -818,9 +899,9 @@ export class NotificationStore {
    * The caller must discard the result if pushRevision or account identity changes.
    */
   async handledPushNotificationIds(ids: readonly string[]): Promise<Set<string>> {
-    if (this.#pendingMutationCount > 0) return new SvelteSet();
+    if (this.#pendingMutationCount > 0) return new Set();
     const generation = this.#authoritativeGeneration;
-    const handled = new SvelteSet(ids.filter((id) => this.#handledPushIds.has(id)));
+    const handled = new Set(ids.filter((id) => this.#handledPushIds.has(id)));
     if (handled.size === ids.length) return handled;
     let page: NotificationOccurrencePage;
     try {
@@ -830,9 +911,9 @@ export class NotificationStore {
       return handled;
     }
     if (generation !== this.#authoritativeGeneration || this.#pendingMutationCount > 0) {
-      return new SvelteSet();
+      return new Set();
     }
-    const rows = new SvelteMap(page.occurrences.map((row) => [row.id, row]));
+    const rows = new Map(page.occurrences.map((row) => [row.id, row]));
     for (const id of ids) {
       const row = rows.get(id);
       if (row ? !row.unread : !page.hasMore || page.unreadCount === 0) handled.add(id);
@@ -903,39 +984,6 @@ export class NotificationStore {
       return;
     }
   }
-
-  /**
-   * Build a clean (no `?highlight=`) destination path for a notification.
-   * Use this with `PendingHighlightStore.set()` to deliver the highlight
-   * intent without polluting the URL.
-   */
-  getCleanPath(serverId: string, notification: NotificationOccurrenceItem): string {
-    const seg = serverIdToSegment(serverId);
-    const t = notificationTarget(notification);
-
-    if (t.isDM && t.roomId) {
-      // DMs are now rooms on the Server (#330 phase 3) — use the standard
-      // room URL rather than the legacy /chat/dm/... path.
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: seg,
-        roomId: t.roomId
-      });
-    }
-    if (!t.roomId) {
-      return resolve('/chat/[serverId]', { serverId: seg });
-    }
-    if (t.threadRootId) {
-      return resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: seg,
-        roomId: t.roomId,
-        threadId: t.threadRootId
-      });
-    }
-    return resolve('/chat/[serverId]/[roomId]', {
-      serverId: seg,
-      roomId: t.roomId
-    });
-  }
 }
 
 function earliestNotificationOccurrenceExpiry(
@@ -980,14 +1028,14 @@ function notificationRoomAdjustments(
   knownCounts?: { unread: number; importantUnread: number; roomId?: string | null }
 ): Map<string, { unread: number; importantUnread: number }> {
   if (knownCounts?.roomId) {
-    return new SvelteMap([
+    return new Map([
       [
         knownCounts.roomId,
         { unread: knownCounts.unread, importantUnread: knownCounts.importantUnread }
       ]
     ]);
   }
-  const result = new SvelteMap<string, { unread: number; importantUnread: number }>();
+  const result = new Map<string, { unread: number; importantUnread: number }>();
   for (const occurrence of occurrences) {
     const roomId = occurrence.room?.id;
     if (!roomId || !occurrence.unread) continue;
@@ -1005,7 +1053,7 @@ function mergeNotificationOccurrences(
   current: NotificationOccurrenceItem[],
   restored: NotificationOccurrenceItem[]
 ): NotificationOccurrenceItem[] {
-  const byId = new SvelteMap(current.map((occurrence) => [occurrence.id, occurrence]));
+  const byId = new Map(current.map((occurrence) => [occurrence.id, occurrence]));
   for (const occurrence of restored) byId.set(occurrence.id, occurrence);
   return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

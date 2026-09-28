@@ -1,14 +1,13 @@
 /** Route adapters for the per-server account owner. These helpers keep no user cache. */
-import { browser } from '$app/environment';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
-import type { CurrentUser } from '$lib/api-client/viewer';
-import { isExplicitSignOutRedirectInProgress } from './signOut';
+import { serverRegistry } from '../server/registry.js';
+import type { CurrentUser } from '../api/viewer.js';
+import { isExplicitSignOutRedirectInProgress } from './signOut.js';
 
 export type { CurrentUser };
 
 /** Refresh the origin account through the same owner used by startup and recovery. */
 export async function loadCurrentUser(): Promise<CurrentUser | null> {
-  if (!browser) return null;
+  if (typeof window === 'undefined') return null;
   if (isExplicitSignOutRedirectInProgress()) {
     serverRegistry.clearOriginAuthentication();
     return null;

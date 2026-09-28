@@ -1,6 +1,6 @@
 import type { AdminMember, AdminRoleSummary } from '../api/adminUsers.js';
 import { adminQueryKeys } from './admin.js';
-import { queryClient } from '$lib/query/client';
+import { queryClient } from './client.js';
 
 export type AdminMemberBatch = { users: AdminMember[]; roles: AdminRoleSummary[] };
 

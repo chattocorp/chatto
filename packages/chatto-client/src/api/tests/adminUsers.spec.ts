@@ -2,7 +2,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import { createAdminUserManagementAPI } from '../adminUsers.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(AdminUserService);
 

@@ -3,7 +3,6 @@
  * Created and managed by the ServerRegistry — do not instantiate directly.
  */
 
-import { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
 import { TimelineSync, type LocalMessageMutation } from './timelineSync.js';
 import { createMessageResourcesAPI } from '../api/messageResources.js';
 import { refreshPresencePreference } from './presenceTracking.js';
@@ -21,7 +20,11 @@ import { NotificationStore } from './notifications.js';
 import { RoomUnreadStore } from './roomUnread.js';
 import { ReadViewRegistry } from './readViews.js';
 import { PendingHighlightStore } from './pendingHighlight.js';
-import { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
+import {
+  createVoiceCall,
+  type RegisteredVoiceCall,
+  type VoiceCallContext
+} from './voiceCall.js';
 import { ServerPresence } from './presence.js';
 import { ActiveCallRoomsState } from './activeCallRooms.js';
 import { NavigationStore } from './rooms.js';
@@ -45,10 +48,10 @@ import { RealtimeProjectionUpdate, type ProjectionHandler } from '../realtime/ev
 import type { ServerConnection } from './serverConnection.js';
 import type { ServerRegistration } from './catalog.js';
 import type { ServerSession } from './sessions.js';
-import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet, computed, signal } from '../reactivity/index.js';
 import { ServerProjectionStore } from './projection.js';
 import { getUserStore } from './users.js';
-import type { RoomMember } from '$lib/state/room';
+import type { RoomMember } from '../room/members.js';
 import { RoomStores, type RoomStoreAccess } from './roomStores.js';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
@@ -91,7 +94,7 @@ function viewerAuthorizationLost(
   if (!previous) return false;
   if (previous.user?.profile?.id !== current.user?.profile?.id) return true;
 
-  const currentGrants = new SvelteSet([
+  const currentGrants = new Set([
     ...(current.capabilities?.grants ?? [])
       .filter((grant) => grant.granted)
       .map((grant) => `capability:${grant.capability}`),
@@ -117,8 +120,16 @@ export class ServerStateStore {
   readonly readViews = new ReadViewRegistry();
   readonly roomUnread: RoomUnreadStore;
   readonly pendingHighlights: PendingHighlightStore;
-  readonly voiceCall: VoiceCallState;
   readonly activeCallRooms: ActiveCallRoomsState;
+  readonly #voiceCallContext: VoiceCallContext;
+  #voiceCall: RegisteredVoiceCall | undefined;
+  /**
+   * This server's voice-call controller, created on first use by the factory
+   * installed with `setVoiceCallFactory`.
+   */
+  get voiceCall(): RegisteredVoiceCall {
+    return (this.#voiceCall ??= createVoiceCall(this.#voiceCallContext));
+  }
   readonly navigation: NavigationStore;
   readonly roomDirectory: RoomDirectoryStore;
   readonly adminRoomLayout: AdminRoomLayoutStore;
@@ -177,7 +188,7 @@ export class ServerStateStore {
    * A projection for an account that `currentUser` did not accept grants
    * nothing, so the value stays unloaded until the accepted viewer arrives.
    */
-  readonly permissions: ServerPermissions = $derived.by(() => {
+  readonly #permissionsComputed = computed<ServerPermissions>(() => {
     const response = this.projection.viewer;
     const accountId = this.accountId;
     if (!response || !accountId || response.user?.profile?.id !== accountId) {
@@ -185,6 +196,9 @@ export class ServerStateStore {
     }
     return serverPermissionsFromViewer(viewerResponseToState(response));
   });
+  get permissions(): ServerPermissions {
+    return this.#permissionsComputed.get();
+  }
 
   /**
    * Live reference to the registered server. Reads pick up `updateServer`
@@ -215,21 +229,27 @@ export class ServerStateStore {
   #catchUpResourceReads = 0;
   #permissionCheckGeneration = 0;
   /** Block edits while authoritative permission reads are pending; retain the visible view. */
-  checkingPermissions = $state(false);
+  readonly #checkingPermissionsSignal = signal(false);
+  get checkingPermissions() {
+    return this.#checkingPermissionsSignal.get();
+  }
+  set checkingPermissions(value) {
+    this.#checkingPermissionsSignal.set(value);
+  }
   /** Deletions stay authoritative until the next exact snapshot resets this projection. */
-  readonly #deletedRealtimeUserIds = new SvelteSet<string>();
-  readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<boolean>>();
-  readonly #pendingResourceRefreshes = new SvelteMap<
+  readonly #deletedRealtimeUserIds = new ReactiveSet<string>();
+  readonly #resourceRefreshes = new ReactiveMap<RealtimeResourceFamily, Promise<boolean>>();
+  readonly #pendingResourceRefreshes = new ReactiveMap<
     RealtimeResourceFamily,
     { minimumCursor?: string; generation: number }
   >();
   #currentEventMinimumCursor: string | undefined;
   #userRefresh: Promise<void> | null = null;
-  readonly #pendingUserRefreshIds = new SvelteSet<string>();
+  readonly #pendingUserRefreshIds = new ReactiveSet<string>();
   #pendingUserRefreshCursor: string | undefined;
   #pendingUserRefreshGeneration = 0;
   #reconciliationError: unknown = null;
-  readonly #projectionReconciliations = new SvelteSet<Promise<void>>();
+  readonly #projectionReconciliations = new ReactiveSet<Promise<void>>();
   readonly #timelines: TimelineSync;
 
   constructor(
@@ -275,9 +295,10 @@ export class ServerStateStore {
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
-    this.voiceCall = new VoiceCallState(
-      voiceCallAPI,
-      (roomId) => {
+    this.#voiceCallContext = {
+      serverId: this.serverId,
+      api: voiceCallAPI,
+      permissions: (roomId) => {
         const state = this.projection.rooms.get(roomId)?.viewerState;
         const granted = (permission: string) =>
           state?.isMember === true &&
@@ -290,11 +311,10 @@ export class ServerStateStore {
           camera: granted('call.camera'),
           screenshare: granted('call.screenshare')
         };
-      },
-      new CallPreferencesState(this.serverId)
-    );
+      }
+    };
     this.activeCallRooms = new ActiveCallRoomsState(
-      this.voiceCall,
+      () => this.voiceCall,
       () => this.projection.activeCalls
     );
     const notifications = this.notifications;
@@ -442,7 +462,7 @@ export class ServerStateStore {
     // Presence and other user current values are not durable replay events.
     // Refresh every user that the retained projection still references after
     // the authoritative room read has been applied.
-    const userIds = new SvelteSet(this.projection.users.keys());
+    const userIds = new Set(this.projection.users.keys());
     for (const store of this.#rooms.all('members')) {
       for (const member of store.members) userIds.add(member.id);
     }
@@ -453,7 +473,7 @@ export class ServerStateStore {
     }
     // The snapshot user family is partial. Only this requested batch can
     // confirm an omitted cached account, and a newer write wins the race.
-    const requestedCachedUsers = new SvelteMap(
+    const requestedCachedUsers = new Map(
       [...userIds].flatMap((id) => {
         const member = this.projection.users.get(id);
         return member ? [[id, member] as const] : [];
@@ -462,7 +482,7 @@ export class ServerStateStore {
     const presenceReadVersion = this.presence.version;
     const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
     this.requireCurrentRealtimeProjection(generation);
-    const returnedUserIds = new SvelteSet(
+    const returnedUserIds = new Set(
       userResources.flatMap((resource) =>
         resource.resource.case === 'users'
           ? resource.resource.value.users.flatMap((member) =>
@@ -685,7 +705,7 @@ export class ServerStateStore {
       return;
     }
     const previousViewer = this.projection.viewer;
-    const previousRoomIds = new SvelteSet(this.projection.rooms.keys());
+    const previousRoomIds = new Set(this.projection.rooms.keys());
     const sourceEvent = update.event;
     let adminRoomLayoutChanged = update.reset;
 
@@ -900,8 +920,8 @@ export class ServerStateStore {
 
   /** Read and posting changes require fresh message content and reply capabilities. */
   private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
-    const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
-    const ids = new SvelteSet([...this.#rooms.roomIds(), ...this.projection.rooms.keys()]);
+    const nextRooms = new Map(rooms.map((room) => [room.room?.id, room]));
+    const ids = new Set([...this.#rooms.roomIds(), ...this.projection.rooms.keys()]);
     for (const roomId of ids) {
       const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
@@ -1210,7 +1230,7 @@ export class ServerStateStore {
           this.#timelines.retract(
             roomId,
             payload.value.messageEventId,
-            event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
+            event.createdAt?.toDate().toISOString() ?? new Date().toISOString()
           );
         }
         if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
@@ -1238,31 +1258,25 @@ export class ServerStateStore {
         if (rawValue?.messageEventId) this.#timelines.reconcile(roomId, rawValue.messageEventId);
         return;
       case 'voiceCallParticipantJoined':
-        this.voiceCall.playTransitionSound(
-          event.id,
-          'join',
-          payload.value.roomId,
-          payload.value.callId || null,
-          event.actorId || null,
-          this.realtimeViewerId()
-        );
+        this.voiceCall.handleParticipantTransition({
+          eventId: event.id,
+          kind: 'join',
+          roomId: payload.value.roomId,
+          callId: payload.value.callId || null,
+          actorId: event.actorId || null,
+          viewerId: this.realtimeViewerId()
+        });
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallParticipantLeft':
-        this.voiceCall.playTransitionSound(
-          event.id,
-          'leave',
-          payload.value.roomId,
-          payload.value.callId || null,
-          event.actorId || null,
-          this.realtimeViewerId()
-        );
-        this.voiceCall.handleParticipantLeftEvent(
-          payload.value.roomId,
-          payload.value.callId || null,
-          event.actorId || null,
-          this.realtimeViewerId()
-        );
+        this.voiceCall.handleParticipantTransition({
+          eventId: event.id,
+          kind: 'leave',
+          roomId: payload.value.roomId,
+          callId: payload.value.callId || null,
+          actorId: event.actorId || null,
+          viewerId: this.realtimeViewerId()
+        });
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallEnded':
@@ -1443,7 +1457,7 @@ export class ServerStateStore {
       () => this.roomUnread.clear(),
       () => this.pendingHighlights.clear()
     ]);
-    this.voiceCall.forgetTransitionSounds();
+    this.#voiceCall?.handleProjectionReset();
     return complete;
   }
 

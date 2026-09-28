@@ -7,7 +7,7 @@ import {
   removeAdminUserQueries,
   removeServerQueries,
   refreshRoleQueries
-} from '$lib/query/client';
+} from './client.js';
 
 function member(id: string): AdminMember {
   return {

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createReadStateAPI } from '../readState.js';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const rooms = mockService(RoomService);
 const threads = mockService(ThreadService);

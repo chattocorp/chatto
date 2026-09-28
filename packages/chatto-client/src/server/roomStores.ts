@@ -1,5 +1,8 @@
 import type { MessageSearchAPI } from '../api/messageSearch.js';
-import { MessagesStore, RoomFilesStore, RoomMembersStore, RoomPinsStore } from '$lib/state/room';
+import { MessagesStore } from '../room/messages/MessagesStore.js';
+import { RoomFilesStore } from '../room/files.js';
+import { RoomMembersStore } from '../room/members.js';
+import { RoomPinsStore } from '../room/pins.js';
 import { clearRoomPinsSeenMarker } from '../room/pins.js';
 import { MessageSearchStore } from './messageSearch.js';
 import type { ServerPresence } from './presence.js';
@@ -28,7 +31,6 @@ type RoomEntry = {
   /** Mounted consumers of each thread timeline. */
   threadRefs: Record<string, number>;
   /** Owner of the member store's derived fields. */
-  disposeMembers?: () => void;
 };
 
 /** The part of {@link RoomStores} that components use: the store accessors. */
@@ -206,16 +208,10 @@ export class RoomStores {
   members(roomId: string): RoomMembersStore {
     const entry = this.#entry(roomId);
     if (entry.members) return entry.members;
-    // A route can create this store from a derived selector. Give its own
-    // derived fields an owner that lasts until the registry is disposed.
-    let created!: RoomMembersStore;
-    entry.disposeMembers = $effect.root(() => {
-      created = new RoomMembersStore(roomId, this.#options.connection, {
-        presence: this.#options.presence,
-        projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
-      });
-    });
-    return (entry.members = created);
+    return (entry.members = new RoomMembersStore(roomId, this.#options.connection, {
+      presence: this.#options.presence,
+      projectedMemberIds: () => this.#options.projectedMemberIds(roomId)
+    }));
   }
 
   /**
@@ -273,7 +269,6 @@ export class RoomStores {
   dispose(): void {
     for (const entry of Object.values(this.#rooms)) {
       entry.members?.resetProjectionState();
-      entry.disposeMembers?.();
       this.#disposeTimelines(entry);
       entry.files?.dispose();
       entry.search?.reset();

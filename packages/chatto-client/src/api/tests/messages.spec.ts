@@ -5,7 +5,7 @@ import { createMessageAPI } from '../messages.js';
 import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 import { CreateMessageResponse, UpdateMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import {
   AssetUpload,

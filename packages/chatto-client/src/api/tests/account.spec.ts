@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { createAccountAPI } from '../account.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(MyAccountService);
 

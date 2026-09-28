@@ -1,18 +1,7 @@
-import { createContext } from 'svelte';
-
+/** A role that the composer can offer as a mention target. */
 export type MentionRole = {
   name: string;
   isSystem: boolean;
   position: number;
   pingable: boolean;
 };
-
-const [getMentionRolesState, setMentionRolesState] = createContext<() => MentionRole[]>();
-
-export function createMentionRoles(getRoles: () => MentionRole[] = () => []) {
-  setMentionRolesState(getRoles);
-}
-
-export function getMentionRoles(): MentionRole[] {
-  return getMentionRolesState()();
-}

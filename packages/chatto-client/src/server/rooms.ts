@@ -1,9 +1,9 @@
+import { computed } from '../reactivity/index.js';
 import { RoomKind } from '../api/roomDirectory.js';
 import { roomKindOrChannel } from '../api/enumDefaults.js';
 import { mapDirectoryRoom, mapRoomGroup } from '../api/roomDirectory.js';
 import { deletedDirectMessageParticipant, type UserAvatarUserView } from '../timeline/users.js';
 import type { ServerProjectionStore } from './projection.js';
-import { SvelteSet } from 'svelte/reactivity';
 
 type ProjectionReadiness = {
   hasUsableProjection: boolean;
@@ -94,7 +94,7 @@ export class NavigationStore {
     );
   }
 
-  readonly #rooms = $derived.by((): RoomsListItem[] => {
+  readonly #roomsComputed = computed((): RoomsListItem[] => {
     if (!this.#readable) return [];
     const live = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
@@ -125,8 +125,11 @@ export class NavigationStore {
     });
     return live;
   });
+  get #rooms() {
+    return this.#roomsComputed.get();
+  }
 
-  readonly #roomGroups = $derived.by((): RoomsListGroup[] => {
+  readonly #roomGroupsComputed = computed((): RoomsListGroup[] => {
     if (!this.#readable) return [];
     return this.projection.roomGroups.map((group) => {
       const mapped = mapRoomGroup(group);
@@ -144,10 +147,16 @@ export class NavigationStore {
       };
     });
   });
+  get #roomGroups() {
+    return this.#roomGroupsComputed.get();
+  }
 
-  readonly #memberRoomIds = $derived.by(
-    () => new SvelteSet(this.#rooms.filter((room) => room.viewerIsMember).map((room) => room.id))
+  readonly #memberRoomIdsComputed = computed(
+    () => new Set(this.#rooms.filter((room) => room.viewerIsMember).map((room) => room.id))
   );
+  get #memberRoomIds() {
+    return this.#memberRoomIdsComputed.get();
+  }
 
   constructor(
     private readonly projection: ServerProjectionStore,

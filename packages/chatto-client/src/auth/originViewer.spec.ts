@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
 
 const mocks = vi.hoisted(() => ({ viewer: vi.fn(), revoke: vi.fn(), migrate: vi.fn() }));
-vi.mock('$lib/api-client/viewer', () => ({ getCurrentUserViaConnect: mocks.viewer }));
+vi.mock('../api/viewer.js', () => ({ getCurrentUserViaConnect: mocks.viewer }));
 vi.mock('./originBearerMigration', () => ({ revokeLegacyOriginBearerSession: mocks.revoke }));
 vi.mock('./legacyCookieMigration', () => ({ migrateLegacyOriginCookieSession: mocks.migrate }));
 

@@ -5,7 +5,7 @@ import type {
   MemberDirectoryAPI,
   MemberDirectoryPage
 } from '../api/memberDirectory.js';
-import { queryClient } from '$lib/query/client';
+import { queryClient } from './client.js';
 import { queryCaches } from './cacheRegistry.js';
 import { directoryQueryKeys } from './directory.js';
 import {

@@ -11,7 +11,6 @@ import {
 } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import type { ServiceType } from '@bufbuild/protobuf';
-import { notifyAuthenticationRequired } from '$lib/api-client/hooks';
 
 /** Request header for a read that must include an accepted realtime boundary. */
 export const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
@@ -31,6 +30,12 @@ export type ConnectAPIConfig = {
   bearerToken: string | null;
   /** Return the latest access token, rotating it when force is true or expiry is near. */
   renewBearerToken?: (force: boolean) => Promise<string | null>;
+  /**
+   * Called when a request of a session that cannot renew itself is rejected
+   * as unauthenticated. `source` names the request for diagnostics. The
+   * error still reaches the caller.
+   */
+  onAuthenticationRequired?: (source: string) => void;
   /** Current private-data generation for this exact connection. */
   dataGeneration?: () => number;
   /**
@@ -95,7 +100,7 @@ export function skipAuthenticationRequired(): { contextValues: ContextValues } {
  * reauthentication. The error always reaches the caller.
  */
 export function authenticationRequiredInterceptor(
-  config: Pick<ConnectAPIConfig, 'serverId' | 'renewBearerToken'>
+  config: Pick<ConnectAPIConfig, 'onAuthenticationRequired' | 'renewBearerToken'>
 ): Interceptor {
   return (next) => async (request) => {
     try {
@@ -104,14 +109,11 @@ export function authenticationRequiredInterceptor(
       if (
         err instanceof ConnectError &&
         err.code === Code.Unauthenticated &&
-        config.serverId &&
+        config.onAuthenticationRequired &&
         !config.renewBearerToken &&
         !request.contextValues.get(skipAuthenticationRequiredKey)
       ) {
-        notifyAuthenticationRequired(
-          config.serverId,
-          `${request.service.typeName}/${request.method.name}`
-        );
+        config.onAuthenticationRequired(`${request.service.typeName}/${request.method.name}`);
       }
       throw err;
     }

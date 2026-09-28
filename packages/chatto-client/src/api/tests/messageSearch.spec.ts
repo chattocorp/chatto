@@ -6,7 +6,7 @@ import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { MessageSearchOrder, MessageSearchState } from '@chatto/api-types/api/v1/message_search_pb';
 import { createMessageSearchAPI } from '../messageSearch.js';
 import { RoomKind } from '../roomDirectory.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const search = mockService(MessageSearchService);
 const rooms = mockService(RoomDirectoryService);

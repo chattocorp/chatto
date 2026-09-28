@@ -16,7 +16,7 @@ import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { TimelineEventKind, type TimelineEventView } from '../../timeline/timelineEvents.js';
 import { RoomThreadingMode } from '../../util/roomThreading.js';
 import { MessagesStore } from './MessagesStore.js';
-import { JumpToMessageState } from '$lib/state/room/composerContext.svelte';
+import { JumpToMessageState } from './jumpState.js';
 import { Code, ConnectError, StaleResponseError } from '../../api/connect.js';
 
 class FakeQueryClient {

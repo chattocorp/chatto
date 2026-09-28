@@ -5,7 +5,7 @@
  * up through serialized, short-lived connections to the same event stream.
  */
 
-import { SvelteMap } from 'svelte/reactivity';
+import { ReactiveMap } from '../reactivity/index.js';
 import { EventBus, RealtimeProjectionUpdate, type ProjectionHandler } from '../realtime/eventBus.js';
 import {
   RealtimeInitialState,
@@ -102,7 +102,7 @@ function subscribeFrame(token: string | null, resumeCursor: string | null): Uint
 
 class EventBusManager {
   // Reactive so context consumers can attach after a server becomes authenticated.
-  #buses = new SvelteMap<string, EventBus>();
+  #buses = new ReactiveMap<string, EventBus>();
   #controllers = new Map<string, TransportController>();
   #managedServerIds = new Set<string>();
   #activeServerId: string | null = null;

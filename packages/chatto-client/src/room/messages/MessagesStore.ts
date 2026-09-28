@@ -1,5 +1,4 @@
-import { tick } from 'svelte';
-import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet, signal } from '../../reactivity/index.js';
 import {
   TimelineEventKind,
   timelineEventKind,
@@ -18,7 +17,7 @@ import type {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '../../server/serverConnection.js';
 import { Code, isConnectCode, StaleResponseError } from '../../api/connect.js';
-import type { JumpToMessageState } from '$lib/state/room/composerContext.svelte';
+import type { JumpToMessageState } from './jumpState.js';
 import { getActorId, unmask } from './helpers.js';
 import { MessageTimelineSource } from './MessageTimelineSource.js';
 import { OptimisticMutationRegistry } from '../../util/optimisticMutations.js';
@@ -33,6 +32,14 @@ import {
   clearOptimisticThreadFollowForEvent,
   type OptimisticThreadFollowHandle
 } from './optimisticThreadFollow.js';
+
+/** Wait for the next animation frame, or the next task outside a browser. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 0);
+  });
+}
 
 /** Messages requested per timeline page. */
 export const PAGE_SIZE = 50;
@@ -84,8 +91,8 @@ function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEven
 
 function snapshotEventFingerprints(
   events: readonly TimelineEventView[]
-): SvelteMap<string, string> {
-  return new SvelteMap(events.map((event) => [event.id, eventFingerprint(event)]));
+): Map<string, string> {
+  return new Map(events.map((event) => [event.id, eventFingerprint(event)]));
 }
 
 function skippedRefreshResult(): RefreshCurrentWindowResult {
@@ -145,14 +152,46 @@ function roomTimelineFromServerConnection(serverConnection: ServerConnection): R
  * authoritative projection ingestion behavior stays shared across both scopes.
  */
 export class MessagesStore {
-  events = $state<TimelineEventView[]>([]);
-  isInitialLoading = $state(true);
-  isLoadingMore = $state(false);
-  hasReachedStart = $state(false);
+  readonly #eventsSignal = signal<TimelineEventView[]>([]);
+  get events(): TimelineEventView[] {
+    return this.#eventsSignal.get();
+  }
+  set events(value: TimelineEventView[]) {
+    this.#eventsSignal.set(value);
+  }
+  readonly #isInitialLoadingSignal = signal(true);
+  get isInitialLoading() {
+    return this.#isInitialLoadingSignal.get();
+  }
+  set isInitialLoading(value) {
+    this.#isInitialLoadingSignal.set(value);
+  }
+  readonly #isLoadingMoreSignal = signal(false);
+  get isLoadingMore() {
+    return this.#isLoadingMoreSignal.get();
+  }
+  set isLoadingMore(value) {
+    this.#isLoadingMoreSignal.set(value);
+  }
+  readonly #hasReachedStartSignal = signal(false);
+  get hasReachedStart() {
+    return this.#hasReachedStartSignal.get();
+  }
+  set hasReachedStart(value) {
+    this.#hasReachedStartSignal.set(value);
+  }
   /** Viewport coordinates only; never retain message bodies across a reset. */
-  recoveryViewport = $state.raw<{ eventId: string; offset: number; hasNewer?: boolean } | null>(
-    null
-  );
+  readonly #recoveryViewportSignal = signal<{
+    eventId: string;
+    offset: number;
+    hasNewer?: boolean;
+  } | null>(null);
+  get recoveryViewport() {
+    return this.#recoveryViewportSignal.get();
+  }
+  set recoveryViewport(value) {
+    this.#recoveryViewportSignal.set(value);
+  }
   #viewport: { eventId: string; offset: number } | null = null;
 
   /** Record the mounted viewport. A null position means it follows the latest message. */
@@ -169,12 +208,12 @@ export class MessagesStore {
   private readonly roomTimeline: RoomTimelineAPI;
   /** The room or thread timeline that this store owns for its whole lifetime. */
   private readonly source: MessageTimelineSource;
-  private seenIds: SvelteSet<string> = new SvelteSet<string>();
-  private previewEvents = new SvelteMap<string, TimelineEventView | null>();
-  private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
-  private scrubbedUserIds = new SvelteSet<string>();
-  private messageTombstones = new SvelteMap<string, string>();
-  private removedMessageEventIds = new SvelteSet<string>();
+  private seenIds = new Set<string>();
+  private previewEvents = new ReactiveMap<string, TimelineEventView | null>();
+  private pendingPreviewFetches = new ReactiveMap<string, Promise<void>>();
+  private scrubbedUserIds = new ReactiveSet<string>();
+  private messageTombstones = new ReactiveMap<string, string>();
+  private removedMessageEventIds = new ReactiveSet<string>();
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
   private optimisticReactions = new OptimisticMutationRegistry();
@@ -284,7 +323,7 @@ export class MessagesStore {
     // The committed realtime retraction replaces this client timestamp with
     // the server event time. This provisional value marks a confirmed local
     // deletion so context-free filtering applies as soon as the mutation succeeds.
-    this.applyDeletion(messageEventId, new SvelteDate().toISOString());
+    this.applyDeletion(messageEventId, new Date().toISOString());
   }
 
   /** Fold a canonical retraction into every loaded original or echo row immediately. */
@@ -294,7 +333,7 @@ export class MessagesStore {
 
   /** Include loaded echo wrappers and thread roots in the shared message read. */
   relatedMessageIds(messageEventId: string): string[] {
-    const ids = new SvelteSet<string>();
+    const ids = new Set<string>();
     for (const row of [...this.events, ...this.previewEvents.values()]) {
       if (!row || !isMessagePostedPayload(row.event)) continue;
       if (
@@ -328,7 +367,7 @@ export class MessagesStore {
     return (id, event, insert) => {
       if (this.#projectionAccessRevoked) return;
       if (!event) {
-        this.applyMessageRetraction(id, new SvelteDate().toISOString());
+        this.applyMessageRetraction(id, new Date().toISOString());
         return;
       }
       const hydrated = this.unmaskEvents([event])[0];
@@ -713,9 +752,8 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadMore failed:', error);
     } finally {
-      // Yield a frame so the virtualizer can settle before another loadMore.
-      await tick();
-      await new Promise((r) => requestAnimationFrame(r));
+      // Yield a frame so a virtualized list can settle before another loadMore.
+      await nextFrame();
       if (!this.isStale(loadId)) {
         this.isLoadingMore = false;
       }
@@ -836,7 +874,7 @@ export class MessagesStore {
       this.#pendingAuthoritativeLoadId = null;
       for (const event of parsed) this.clearOptimisticVersionForEvent(event.id);
       this.events = [...parsed];
-      this.seenIds = new SvelteSet(parsed.map((e) => e.id));
+      this.seenIds = new Set(parsed.map((e) => e.id));
       this.oldestCursor = startCursor ?? undefined;
       this.newestCursor = endCursor ?? undefined;
       this.hasReachedStart = !hasOlder;
@@ -1172,7 +1210,7 @@ export class MessagesStore {
 
   private resetState(): void {
     this.events = [];
-    this.seenIds = new SvelteSet();
+    this.seenIds = new Set();
     this.#needsLatestWindow = false;
     this.previewEvents.clear();
     this.invalidatePendingPreviewFetches();
@@ -1246,9 +1284,9 @@ export class MessagesStore {
     } = {}
   ): boolean {
     const fetched = this.unmaskEvents(connection.events);
-    const newSeen = new SvelteSet<string>();
+    const newSeen = new Set<string>();
     const merged: TimelineEventView[] = [];
-    const mergedIndexByID = new SvelteMap<string, number>();
+    const mergedIndexByID = new Map<string, number>();
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;

@@ -1,3 +1,4 @@
+import { signal } from '../reactivity/index.js';
 /** Public metadata for one Chatto server known to this client. */
 export interface ServerRegistration {
   id: string;
@@ -18,7 +19,13 @@ export type ServerRegistrationMetadataPatch = Partial<
  * invalidate retained entries at their lifecycle boundary.
  */
 export class ServerCatalog {
-  registrations = $state<ServerRegistration[]>([]);
+  readonly #registrationsSignal = signal<ServerRegistration[]>([]);
+  get registrations(): ServerRegistration[] {
+    return this.#registrationsSignal.get();
+  }
+  set registrations(value: ServerRegistration[]) {
+    this.#registrationsSignal.set(value);
+  }
 
   constructor(initial: ServerRegistration[] = []) {
     this.registrations = initial.map((registration) => ({ ...registration }));

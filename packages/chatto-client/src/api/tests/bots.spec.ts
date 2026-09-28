@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '../bots.js';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(BotService);
 

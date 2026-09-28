@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveMap, ReactiveSet } from '../reactivity/index.js';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { StaleResponseError } from '../api/connect.js';
 import {
@@ -16,14 +16,14 @@ const views = new WeakMap<DirectoryMember, UserProfileView>();
  * pagination, and presence subscriptions have separate owners. Values are replaced,
  * never mutated in place. Realtime writes supersede pending snapshot reads. */
 export class UserStore {
-  readonly #members = new SvelteMap<string, DirectoryMember>();
-  readonly #deleted = new SvelteSet<string>();
-  readonly #pending = new SvelteMap<string, { completion: Promise<void>; cursor?: string }>();
+  readonly #members = new ReactiveMap<string, DirectoryMember>();
+  readonly #deleted = new ReactiveSet<string>();
+  readonly #pending = new ReactiveMap<string, { completion: Promise<void>; cursor?: string }>();
   #generation = 0;
   #disposed = false;
   #revision = 0;
-  readonly #revisions = new SvelteMap<string, number>();
-  readonly #statusExpiry = new SvelteMap<string, () => void>();
+  readonly #revisions = new ReactiveMap<string, number>();
+  readonly #statusExpiry = new ReactiveMap<string, () => void>();
 
   get size(): number {
     return this.#members.size;
@@ -168,7 +168,7 @@ export class UserStore {
   }
 
   missing(ids: Iterable<string>): string[] {
-    return [...new SvelteSet(ids)].filter((id) => id && !this.has(id) && !this.#deleted.has(id));
+    return [...new Set(ids)].filter((id) => id && !this.has(id) && !this.#deleted.has(id));
   }
 
   /** Share missing-profile reads across all consumers, in batches of at most 100.
@@ -190,7 +190,7 @@ export class UserStore {
           const current = batch.filter((id) => this.#pending.get(id)?.completion === request);
           const users = current.length ? await read(current, cursor) : [];
           if (generation !== this.#generation) throw new StaleResponseError(false);
-          const byId = new SvelteMap(
+          const byId = new Map(
             users.flatMap((member) => (member.user?.id ? [[member.user.id, member] as const] : []))
           );
           for (const id of batch) {
@@ -209,11 +209,11 @@ export class UserStore {
       for (const id of batch) this.#pending.set(id, { completion: request, cursor });
     }
     await Promise.all([
-      ...new SvelteSet(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))
+      ...new Set(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))
     ]);
     if (generation !== this.#generation) throw new StaleResponseError(false);
     if (this.missing(weaker).length) return this.resolve(ids, read, cursor);
-    return [...new SvelteSet(ids)].flatMap((id) => this.get(id) ?? []);
+    return [...new Set(ids)].flatMap((id) => this.get(id) ?? []);
   }
 }
 

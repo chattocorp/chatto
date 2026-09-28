@@ -152,34 +152,8 @@ export class ScrollState {
 // JumpToMessageState — jump to a specific message in the event list
 // ---------------------------------------------------------------------------
 
-export class JumpToMessageState {
-  isJumpedMode = $state(false);
-  scrollToEventId = $state<string | null>(null);
-  hasReachedEnd = $state(false);
-  hasOlderMessages = $state(false);
-  isLoadingNewer = $state(false);
-
-  private _jumpFn: ((eventId: string) => Promise<boolean>) | null = null;
-
-  setJumpHandler(fn: (eventId: string) => Promise<boolean>) {
-    this._jumpFn = fn;
-  }
-
-  async jumpToMessage(eventId: string): Promise<boolean> {
-    if (this._jumpFn) {
-      return this._jumpFn(eventId);
-    }
-    return false;
-  }
-
-  reset(): void {
-    this.isJumpedMode = false;
-    this.scrollToEventId = null;
-    this.hasReachedEnd = false;
-    this.hasOlderMessages = false;
-    this.isLoadingNewer = false;
-  }
-}
+import { JumpToMessageState } from '@chatto/client/room/messages/jumpState';
+export { JumpToMessageState };
 
 // ---------------------------------------------------------------------------
 // ComposerContext — bundles per-pane state (one per ConversationPane)

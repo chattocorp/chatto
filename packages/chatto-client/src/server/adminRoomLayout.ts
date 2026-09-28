@@ -7,10 +7,8 @@ import type {
   AdminSidebarLinkInfo
 } from '../api/adminRoomLayout.js';
 import type { RoomCommandAPI } from '../api/rooms.js';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { ReactiveSet, signal } from '../reactivity/index.js';
 import { Code, isConnectCode } from '../api/connect.js';
-import { m } from '$lib/i18n/messages';
-import { errorMessage } from '$lib/utils/errorMessage';
 
 export type {
   AdminRoomGroup,
@@ -35,8 +33,18 @@ export type RoomMovePlan = {
   reorders: ReorderRoomsMutationInput[];
 };
 
+/**
+ * Outcome of a layout command. A failure carries the original error; the UI
+ * turns it into a message.
+ */
 export type StoreResult<T extends object = object> =
-  ({ ok: true } & T) | { ok: false; error: string };
+  ({ ok: true } & T) | { ok: false; error: unknown };
+
+/** One failed step of a room move plan. */
+export type RoomMoveFailure = {
+  step: 'moveRoom' | 'moveLink' | 'reorderRooms';
+  error: unknown;
+};
 
 export type RoomMoveFlushResult =
   | {
@@ -48,19 +56,19 @@ export type RoomMoveFlushResult =
       ok: false;
       movedCount: number;
       reorderedCount: number;
-      errors: string[];
+      failures: RoomMoveFailure[];
       refreshRequested: true;
     };
 
 export type GroupReorderResult =
   | { ok: true; changed: boolean }
-  | { ok: false; changed: true; error: string; refreshRequested: true };
+  | { ok: false; changed: true; error: unknown; refreshRequested: true };
 
-export type GroupRoomOrder = SvelteMap<string, string[]>;
-export type GroupItemOrder = SvelteMap<string, AdminSidebarItem[]>;
+export type GroupRoomOrder = Map<string, string[]>;
+export type GroupItemOrder = Map<string, AdminSidebarItem[]>;
 
 export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
-  const map = new SvelteMap<string, string[]>();
+  const map = new Map<string, string[]>();
   for (const group of groups) {
     map.set(
       group.id,
@@ -71,7 +79,7 @@ export function buildGroupRoomOrder(groups: AdminRoomGroup[]): GroupRoomOrder {
 }
 
 export function buildGroupItemOrder(groups: AdminRoomGroup[]): GroupItemOrder {
-  const map = new SvelteMap<string, AdminSidebarItem[]>();
+  const map = new Map<string, AdminSidebarItem[]>();
   for (const group of groups) {
     map.set(
       group.id,
@@ -82,8 +90,8 @@ export function buildGroupItemOrder(groups: AdminRoomGroup[]): GroupItemOrder {
   return map;
 }
 
-function buildRoomToGroup(snapshot: GroupRoomOrder): SvelteMap<string, string> {
-  const map = new SvelteMap<string, string>();
+function buildRoomToGroup(snapshot: GroupRoomOrder): Map<string, string> {
+  const map = new Map<string, string>();
   for (const [groupId, roomIds] of snapshot) {
     for (const roomId of roomIds) {
       map.set(roomId, groupId);
@@ -95,8 +103,8 @@ function buildRoomToGroup(snapshot: GroupRoomOrder): SvelteMap<string, string> {
 function buildItemToGroup(
   snapshot: GroupItemOrder,
   kind: AdminSidebarItem['kind']
-): SvelteMap<string, string> {
-  const map = new SvelteMap<string, string>();
+): Map<string, string> {
+  const map = new Map<string, string>();
   for (const [groupId, items] of snapshot) {
     for (const item of items) {
       if (item.kind === kind) map.set(itemId(item), groupId);
@@ -211,23 +219,78 @@ function toSidebarItems(items: Array<AdminSidebarItem | AdminRoomInfo>): AdminSi
 }
 
 export class AdminRoomLayoutStore {
-  groups = $state<AdminRoomGroup[]>([]);
-  initialized = $state(false);
-  isRefreshing = $state(false);
-  error = $state<string | null>(null);
-  isDragging = $state(false);
-  draggingGroupId = $state<string | null>(null);
-  updatingRoom = $state(false);
-  archivingRoomId = $state<string | null>(null);
-  universalRoomId = $state<string | null>(null);
+  readonly #groupsSignal = signal<AdminRoomGroup[]>([]);
+  get groups(): AdminRoomGroup[] {
+    return this.#groupsSignal.get();
+  }
+  set groups(value: AdminRoomGroup[]) {
+    this.#groupsSignal.set(value);
+  }
+  readonly #initializedSignal = signal(false);
+  get initialized() {
+    return this.#initializedSignal.get();
+  }
+  set initialized(value) {
+    this.#initializedSignal.set(value);
+  }
+  readonly #isRefreshingSignal = signal(false);
+  get isRefreshing() {
+    return this.#isRefreshingSignal.get();
+  }
+  set isRefreshing(value) {
+    this.#isRefreshingSignal.set(value);
+  }
+  readonly #errorSignal = signal<unknown>(null);
+  /** The error of the latest failed load, or null. */
+  get error(): unknown {
+    return this.#errorSignal.get();
+  }
+  set error(value: unknown) {
+    this.#errorSignal.set(value);
+  }
+  readonly #isDraggingSignal = signal(false);
+  get isDragging() {
+    return this.#isDraggingSignal.get();
+  }
+  set isDragging(value) {
+    this.#isDraggingSignal.set(value);
+  }
+  readonly #draggingGroupIdSignal = signal<string | null>(null);
+  get draggingGroupId(): string | null {
+    return this.#draggingGroupIdSignal.get();
+  }
+  set draggingGroupId(value: string | null) {
+    this.#draggingGroupIdSignal.set(value);
+  }
+  readonly #updatingRoomSignal = signal(false);
+  get updatingRoom() {
+    return this.#updatingRoomSignal.get();
+  }
+  set updatingRoom(value) {
+    this.#updatingRoomSignal.set(value);
+  }
+  readonly #archivingRoomIdSignal = signal<string | null>(null);
+  get archivingRoomId(): string | null {
+    return this.#archivingRoomIdSignal.get();
+  }
+  set archivingRoomId(value: string | null) {
+    this.#archivingRoomIdSignal.set(value);
+  }
+  readonly #universalRoomIdSignal = signal<string | null>(null);
+  get universalRoomId(): string | null {
+    return this.#universalRoomIdSignal.get();
+  }
+  set universalRoomId(value: string | null) {
+    this.#universalRoomIdSignal.set(value);
+  }
 
   #loadId = 0;
   #interactionGeneration = 0;
   #activeRoomDragGeneration: number | null = null;
   #activeGroupDragGeneration: number | null = null;
   #preDragSnapshot: GroupItemOrder | null = null;
-  #roomPersistenceGenerations = new SvelteSet<number>();
-  #groupPersistenceGenerations = new SvelteSet<number>();
+  #roomPersistenceGenerations = new ReactiveSet<number>();
+  #groupPersistenceGenerations = new ReactiveSet<number>();
   #roomPersistenceTail: Promise<void> = Promise.resolve();
   #groupPersistenceTail: Promise<void> = Promise.resolve();
   #preReorderIds: string[] | null = null;
@@ -306,7 +369,7 @@ export class AdminRoomLayoutStore {
         ) {
           this.groups = [];
         }
-        this.error = errorMessage(err);
+        this.error = err;
       }
     } finally {
       if (this.#loadId === thisLoad) {
@@ -350,9 +413,9 @@ export class AdminRoomLayoutStore {
     try {
       group = await this.layoutAPI.createRoomGroup({ name });
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     }
-    if (!group) return { ok: false, error: 'Room group not found' };
+    if (!group) return { ok: false, error: new Error('Room group not found') };
     this.groups = [...this.groups, group];
     await this.refresh();
     return { ok: true, group: this.groups.find((candidate) => candidate.id === group.id) ?? group };
@@ -365,7 +428,7 @@ export class AdminRoomLayoutStore {
     try {
       await this.layoutAPI.updateRoomGroup({ groupId, name: newName });
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     }
 
     this.groups[idx] = { ...this.groups[idx], name: newName };
@@ -376,7 +439,7 @@ export class AdminRoomLayoutStore {
     try {
       await this.layoutAPI.deleteRoomGroup(groupId);
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     }
 
     this.groups = this.groups.filter((group) => group.id !== groupId);
@@ -392,9 +455,9 @@ export class AdminRoomLayoutStore {
     try {
       link = await this.layoutAPI.createSidebarLink({ groupId, label, url });
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     }
-    if (!link) return { ok: false, error: 'Sidebar link not found' };
+    if (!link) return { ok: false, error: new Error('Sidebar link not found') };
 
     await this.refresh();
     return { ok: true, link };
@@ -409,9 +472,9 @@ export class AdminRoomLayoutStore {
     try {
       link = await this.layoutAPI.updateSidebarLink({ linkId, label, url });
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     }
-    if (!link) return { ok: false, error: 'Sidebar link not found' };
+    if (!link) return { ok: false, error: new Error('Sidebar link not found') };
 
     await this.refresh();
     return { ok: true, link };
@@ -421,7 +484,7 @@ export class AdminRoomLayoutStore {
     try {
       await this.layoutAPI.deleteSidebarLink(linkId);
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     }
 
     await this.refresh();
@@ -435,7 +498,7 @@ export class AdminRoomLayoutStore {
       await this.refresh();
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     } finally {
       this.updatingRoom = false;
     }
@@ -456,7 +519,7 @@ export class AdminRoomLayoutStore {
       await this.refresh();
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     } finally {
       this.universalRoomId = null;
     }
@@ -570,7 +633,7 @@ export class AdminRoomLayoutStore {
           return {
             ok: false,
             changed: true,
-            error: errorMessage(error),
+            error: error,
             refreshRequested: true
           };
         }
@@ -602,12 +665,12 @@ export class AdminRoomLayoutStore {
   private async persistRoomMoves(
     plan: ReturnType<typeof planSidebarItemMutations>
   ): Promise<RoomMoveFlushResult> {
-    const errors: string[] = [];
+    const failures: RoomMoveFailure[] = [];
     for (const move of plan.moves) {
       try {
         await this.layoutAPI.moveRoomToGroup(move);
       } catch (error) {
-        errors.push(m('admin.rooms_admin.move_room_failed', { error: errorMessage(error) }));
+        failures.push({ step: 'moveRoom', error });
       }
     }
 
@@ -615,7 +678,7 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.moveSidebarLinkToGroup({ linkId: move.roomId, groupId: move.groupId });
       } catch (error) {
-        errors.push(m('admin.rooms_admin.move_link_failed', { error: errorMessage(error) }));
+        failures.push({ step: 'moveLink', error });
       }
     }
 
@@ -623,17 +686,17 @@ export class AdminRoomLayoutStore {
       try {
         await this.layoutAPI.reorderSidebarItemsInGroup(reorder);
       } catch (error) {
-        errors.push(m('admin.rooms_admin.reorder_rooms_failed', { error: errorMessage(error) }));
+        failures.push({ step: 'reorderRooms', error });
       }
     }
 
-    if (errors.length > 0) {
+    if (failures.length > 0) {
       void this.refresh();
       return {
         ok: false,
         movedCount: plan.moves.length + plan.linkMoves.length,
         reorderedCount: plan.reorders.length,
-        errors,
+        failures,
         refreshRequested: true
       };
     }
@@ -656,7 +719,7 @@ export class AdminRoomLayoutStore {
       await this.refresh();
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: errorMessage(error) };
+      return { ok: false, error: error };
     } finally {
       this.archivingRoomId = null;
     }

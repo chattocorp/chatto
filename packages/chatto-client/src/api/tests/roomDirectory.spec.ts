@@ -4,7 +4,7 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createRoomDirectoryAPI } from '../roomDirectory.js';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 import { RoomThreadingMode } from '../../util/roomThreading.js';
 
 const Permission = {

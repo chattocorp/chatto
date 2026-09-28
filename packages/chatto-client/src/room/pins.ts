@@ -1,11 +1,10 @@
-import { browser } from '$app/environment';
 import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import type {
   MessagePinnedEvent,
   MessageUnpinnedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
-import { SvelteMap } from 'svelte/reactivity';
+import { ReactiveMap, signal } from '../reactivity/index.js';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '../api/pinnedMessages.js';
 import type { ServerConnection } from '../server/serverConnection.js';
 import { serverStorageKey } from '../storage/serverStorage.js';
@@ -21,18 +20,60 @@ export function clearRoomPinsSeenMarker(
   viewerId: string | null,
   roomId: string
 ): void {
-  if (browser && viewerId)
+  if (typeof localStorage !== 'undefined' && viewerId)
     localStorage.removeItem(roomPinsSeenStorageKey(serverId, viewerId, roomId));
 }
 
 export class RoomPinsStore {
-  items = $state.raw<PinnedMessage[]>([]);
-  totalCount = $state(0);
-  hasMore = $state(false);
-  isInitialLoading = $state(true);
-  isLoadingMore = $state(false);
-  error = $state(false);
-  loadMoreError = $state(false);
+  readonly #itemsSignal = signal<PinnedMessage[]>([]);
+  get items(): PinnedMessage[] {
+    return this.#itemsSignal.get();
+  }
+  set items(value: PinnedMessage[]) {
+    this.#itemsSignal.set(value);
+  }
+  readonly #totalCountSignal = signal(0);
+  get totalCount() {
+    return this.#totalCountSignal.get();
+  }
+  set totalCount(value) {
+    this.#totalCountSignal.set(value);
+  }
+  readonly #hasMoreSignal = signal(false);
+  get hasMore() {
+    return this.#hasMoreSignal.get();
+  }
+  set hasMore(value) {
+    this.#hasMoreSignal.set(value);
+  }
+  readonly #isInitialLoadingSignal = signal(true);
+  get isInitialLoading() {
+    return this.#isInitialLoadingSignal.get();
+  }
+  set isInitialLoading(value) {
+    this.#isInitialLoadingSignal.set(value);
+  }
+  readonly #isLoadingMoreSignal = signal(false);
+  get isLoadingMore() {
+    return this.#isLoadingMoreSignal.get();
+  }
+  set isLoadingMore(value) {
+    this.#isLoadingMoreSignal.set(value);
+  }
+  readonly #errorSignal = signal(false);
+  get error() {
+    return this.#errorSignal.get();
+  }
+  set error(value) {
+    this.#errorSignal.set(value);
+  }
+  readonly #loadMoreErrorSignal = signal(false);
+  get loadMoreError() {
+    return this.#loadMoreErrorSignal.get();
+  }
+  set loadMoreError(value) {
+    this.#loadMoreErrorSignal.set(value);
+  }
   private readonly api: PinnedMessagesAPI;
   readonly roomId: string;
   private readonly serverId: string;
@@ -43,12 +84,24 @@ export class RoomPinsStore {
   private retainCount = 0;
   private requestEpoch = 0;
   private paginationEpoch = 0;
-  private pendingMessages = new SvelteMap<string, Message | null>();
+  private pendingMessages = new ReactiveMap<string, Message | null>();
   private hydrationPromise: Promise<void> | null = null;
-  private pinStatuses = new SvelteMap<string, boolean>();
+  private pinStatuses = new ReactiveMap<string, boolean>();
   private accessBlocked = false;
-  private latestKnownMarker = $state('');
-  private lastSeenMarker = $state('');
+  readonly #latestKnownMarkerSignal = signal('');
+  private get latestKnownMarker() {
+    return this.#latestKnownMarkerSignal.get();
+  }
+  private set latestKnownMarker(value) {
+    this.#latestKnownMarkerSignal.set(value);
+  }
+  readonly #lastSeenMarkerSignal = signal('');
+  private get lastSeenMarker() {
+    return this.#lastSeenMarkerSignal.get();
+  }
+  private set lastSeenMarker(value) {
+    this.#lastSeenMarkerSignal.set(value);
+  }
 
   constructor(
     serverConnection: ServerConnection,
@@ -61,7 +114,7 @@ export class RoomPinsStore {
     this.viewerId = viewerId;
     this.api = serverConnection.getAPI(createPinnedMessagesAPI);
     this.seenStorageKey = viewerId ? roomPinsSeenStorageKey(serverId, viewerId, roomId) : null;
-    if (browser && this.seenStorageKey) {
+    if (typeof localStorage !== 'undefined' && this.seenStorageKey) {
       this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
     }
   }
@@ -187,7 +240,7 @@ export class RoomPinsStore {
   markSeen(): void {
     if (!this.latestKnownMarker) return;
     this.lastSeenMarker = this.latestKnownMarker;
-    if (browser && this.seenStorageKey) {
+    if (typeof localStorage !== 'undefined' && this.seenStorageKey) {
       localStorage.setItem(this.seenStorageKey, this.lastSeenMarker);
     }
   }
@@ -255,7 +308,7 @@ export class RoomPinsStore {
       this.hasMore = page.hasMore;
       this.hydrated = true;
       const pending = this.pendingMessages;
-      this.pendingMessages = new SvelteMap();
+      this.pendingMessages = new ReactiveMap();
       for (const [id, message] of pending) this.applyMessageUpdate(id, message);
       if (replace) this.noteLatest(page.latestPinMarker);
     } catch {

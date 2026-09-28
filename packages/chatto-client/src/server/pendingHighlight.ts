@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { ReactiveMap } from '../reactivity/index.js';
 
 /**
  * Transient store for "next time we land in room X (or thread X/T), highlight
@@ -16,7 +16,7 @@ import { SvelteMap } from 'svelte/reactivity';
  * permalinks; Room.svelte checks both, with this store taking precedence.
  */
 export class PendingHighlightStore {
-  private highlights = new SvelteMap<string, { eventId: string; notificationId: string | null }>();
+  private highlights = new ReactiveMap<string, { eventId: string; notificationId: string | null }>();
 
   set(
     roomId: string,

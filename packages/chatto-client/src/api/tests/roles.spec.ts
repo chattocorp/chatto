@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
 import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
 import { createRoleAPI } from '../roles.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const roles = mockService(RoleService);
 const adminRoles = mockService(AdminRoleService);

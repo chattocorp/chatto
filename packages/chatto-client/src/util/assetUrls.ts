@@ -1,4 +1,4 @@
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverRegistry } from '../server/registry.js';
 
 const STABLE_ASSET_PATH_PREFIX = '/assets/files/';
 

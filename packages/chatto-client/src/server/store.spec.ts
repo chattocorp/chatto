@@ -1,6 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { resetUserStoresForTests } from './users.js';
-import { userProfileFixture } from '$lib/test-utils/userProfile';
+import { userProfileFixture } from '../testing/userProfile.js';
 import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { PublicServerInfo } from '../api/server.js';
@@ -69,11 +69,19 @@ import {
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { DetachedVoiceCall, setVoiceCallFactory, type VoiceCallContext } from './voiceCall.js';
 
-const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
-  soundMocks: {
-    playCallSound: vi.fn(() => Promise.resolve())
-  },
+/** Records what the store forwards to its voice call. */
+class RecordingVoiceCall extends DetachedVoiceCall {
+  override connected = false;
+  override roomId: string | null = null;
+  constructor(readonly context: VoiceCallContext) {
+    super();
+  }
+}
+setVoiceCallFactory((context) => new RecordingVoiceCall(context));
+
+const { apiMocks, cacheMocks } = vi.hoisted(() => ({
   cacheMocks: {
     reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
     refreshRoleQueries: vi.fn(),
@@ -221,11 +229,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/audio/callSounds', () => ({
-  playCallSound: soundMocks.playCallSound
-}));
-
-vi.mock('$lib/api-client/roomDirectory', async (importActual) => {
+vi.mock('../api/roomDirectory.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/roomDirectory.js')>();
   return {
     RoomDirectoryScope: {
@@ -244,7 +248,7 @@ vi.mock('$lib/api-client/roomDirectory', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => ({
+vi.mock('../api/memberDirectory.js', async (importOriginal) => ({
   mapDirectoryMember: (await importOriginal<typeof import('../api/memberDirectory.js')>())
     .mapDirectoryMember,
   createMemberDirectoryAPI: vi.fn(() => ({
@@ -252,7 +256,7 @@ vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => ({
   }))
 }));
 
-vi.mock('$lib/api-client/voiceCalls', () => ({
+vi.mock('../api/voiceCalls.js', () => ({
   createVoiceCallAPI: vi.fn(() => ({
     joinCall: apiMocks.joinCall,
     createCallToken: apiMocks.createCallToken,
@@ -260,7 +264,7 @@ vi.mock('$lib/api-client/voiceCalls', () => ({
   }))
 }));
 
-vi.mock('$lib/api-client/notifications', async (importActual) => {
+vi.mock('../api/notifications.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/notifications.js')>();
   return {
     ...actual,
@@ -285,13 +289,13 @@ vi.mock('$lib/api-client/notifications', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/roles', () => ({
+vi.mock('../api/roles.js', () => ({
   createRoleAPI: vi.fn(() => ({
     listRoles: apiMocks.listRoles
   }))
 }));
 
-vi.mock('$lib/api-client/realtimeResources', async (importActual) => {
+vi.mock('../api/realtimeResources.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/realtimeResources.js')>();
   return {
     ...actual,
@@ -302,15 +306,15 @@ vi.mock('$lib/api-client/realtimeResources', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/messageResources', () => ({
+vi.mock('../api/messageResources.js', () => ({
   createMessageResourcesAPI: () => ({ read: apiMocks.readMessages })
 }));
 
-vi.mock('$lib/api-client/pinnedMessages', () => ({
+vi.mock('../api/pinnedMessages.js', () => ({
   createPinnedMessagesAPI: () => ({ list: apiMocks.listPins, create: vi.fn(), remove: vi.fn() })
 }));
 
-vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
+vi.mock('../api/roomTimeline.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/roomTimeline.js')>();
   const emptyPage = {
     events: [],
@@ -332,11 +336,11 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/serverState', () => ({
+vi.mock('../api/serverState.js', () => ({
   getAuthenticatedServerState: apiMocks.getAuthenticatedServerState
 }));
 
-vi.mock('$lib/api-client/viewer', async (importActual) => {
+vi.mock('../api/viewer.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/viewer.js')>();
   return {
     ...actual,
@@ -350,7 +354,7 @@ vi.mock('$lib/api-client/viewer', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/attachments', async (importActual) => {
+vi.mock('../api/attachments.js', async (importActual) => {
   const actual = await importActual<typeof import('../api/attachments.js')>();
   return {
     ...actual,
@@ -683,7 +687,6 @@ afterEach(() => {
   }
   eventBusManager.stopBus(registered.id);
   setRealtimeSocketFactoryForTests(null);
-  soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -1516,17 +1519,18 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it.each([true, false])('retains a call during reset and checks fresh join access: %s', (join) => {
     const store = makeStore(new FakeServerConnection([]));
-    store.voiceCall.roomId = 'R1';
-    store.voiceCall.connected = true;
-    const revoked = vi.spyOn(store.voiceCall, 'handleRoomAccessRevoked');
-    const reconcile = vi.spyOn(store.voiceCall, 'reconcilePermissions').mockResolvedValue();
+    const call = store.voiceCall as RecordingVoiceCall;
+    call.roomId = 'R1';
+    call.connected = true;
+    const revoked = vi.spyOn(call, 'handleRoomAccessRevoked');
+    const reconcile = vi.spyOn(call, 'reconcilePermissions').mockResolvedValue();
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
     );
-    expect(store.voiceCall.connected).toBe(true);
-    expect(store.voiceCall.roomId).toBe('R1');
-    expect(store.voiceCall.canUseVoice).toBe(false);
+    expect(call.connected).toBe(true);
+    expect(call.roomId).toBe('R1');
+    expect(call.context.permissions('R1').voice).toBe(false);
     expect(revoked).not.toHaveBeenCalled();
     expect(reconcile).not.toHaveBeenCalled();
 
@@ -1544,7 +1548,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     expect(reconcile).toHaveBeenCalledOnce();
-    expect(store.voiceCall.permissionsFor('R1').join).toBe(join);
+    expect(call.context.permissions('R1').join).toBe(join);
   });
 
   it.each([
@@ -3643,10 +3647,10 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('drives call sounds from the canonical participant event', async () => {
+  it('forwards the canonical participant event to the voice call', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
-    vi.spyOn(store.voiceCall, 'callTransitionSoundDecision').mockReturnValue('play');
+    const transition = vi.spyOn(store.voiceCall, 'handleParticipantTransition');
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
@@ -3661,7 +3665,14 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
 
-    expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
+    expect(transition).toHaveBeenCalledExactlyOnceWith({
+      eventId: 'E-CALL-JOIN',
+      kind: 'join',
+      roomId: 'R1',
+      callId: 'CALL-1',
+      actorId: 'U2',
+      viewerId: store.projectionViewerId
+    });
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls', undefined);
   });

@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { ReactiveMap } from '../reactivity/index.js';
 
 /** Device-local authentication state for one known Chatto server. */
 export interface ServerSession {
@@ -38,7 +38,7 @@ export function emptyServerSession(): ServerSession {
 
 /** Owns credentials and local user summaries without server catalogue data. */
 export class ServerSessions {
-  #sessions = new SvelteMap<string, ServerSession>();
+  #sessions = new ReactiveMap<string, ServerSession>();
 
   constructor(initial: Iterable<readonly [string, ServerSession]> = []) {
     for (const [id, session] of initial) {

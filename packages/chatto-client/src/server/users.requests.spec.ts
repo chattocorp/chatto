@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { UserStore, getUserStore, resetUserStoresForTests } from './users.js';
-import { removeServerQueries } from '$lib/query/client';
+import { removeServerQueries } from '../query/client.js';
 
 const member = (id: string, displayName = id) =>
   new DirectoryMember({

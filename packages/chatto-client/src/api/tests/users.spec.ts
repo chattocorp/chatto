@@ -5,7 +5,7 @@ import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '../users.js';
 import { createMemberDirectoryAPI } from '../memberDirectory.js';
 import { getUserStore, resetUserStoresForTests } from '../../server/users.js';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(UserService);
 

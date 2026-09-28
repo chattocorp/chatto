@@ -7,7 +7,7 @@ import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 import { createRealtimeResourceAPI } from '../realtimeResources.js';
-import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '../../testing/fakeServer.js';
 
 const server = mockService(ServerService);
 const viewer = mockService(ViewerService);

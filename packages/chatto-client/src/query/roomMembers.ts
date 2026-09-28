@@ -1,4 +1,4 @@
-import type { InfiniteData, QueryKey } from '@tanstack/svelte-query';
+import type { InfiniteData, QueryKey } from '@tanstack/query-core';
 import type {
   DirectoryMember,
   MemberDirectoryAPI,
@@ -6,7 +6,7 @@ import type {
 } from '../api/memberDirectory.js';
 import type { ServerConnection } from '../server/serverConnection.js';
 import { queryCaches } from './cacheRegistry.js';
-import { queryClient } from '$lib/query/client';
+import { queryClient } from './client.js';
 import { directoryQueryKeys } from './directory.js';
 
 type RoomMemberQueryConnection = Pick<ServerConnection, 'queryScope'>;

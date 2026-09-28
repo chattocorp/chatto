@@ -1,4 +1,4 @@
-import { SvelteSet } from 'svelte/reactivity';
+import { signal } from '../reactivity/index.js';
 
 /** How current one server's client-side resource view is. */
 export type RealtimeProjectionPhase = 'empty' | 'hydrating' | 'ready' | 'stale';
@@ -19,17 +19,41 @@ type CatchUpWaiter = {
  * exists only in memory, so a page load always starts without one.
  */
 export class RealtimeProjectionSyncState {
-  phase = $state<RealtimeProjectionPhase>('empty');
-  lastCaughtUpAt = $state<number | null>(null);
+  readonly #phaseSignal = signal<RealtimeProjectionPhase>('empty');
+  get phase(): RealtimeProjectionPhase {
+    return this.#phaseSignal.get();
+  }
+  set phase(value: RealtimeProjectionPhase) {
+    this.#phaseSignal.set(value);
+  }
+  readonly #lastCaughtUpAtSignal = signal<number | null>(null);
+  get lastCaughtUpAt(): number | null {
+    return this.#lastCaughtUpAtSignal.get();
+  }
+  set lastCaughtUpAt(value: number | null) {
+    this.#lastCaughtUpAtSignal.set(value);
+  }
   /** Keep mounted UI during a warm snapshot, without authorizing private data. */
-  isRecoveringSnapshot = $state(false);
-  #resumeCursor = $state<string | null>(null);
+  readonly #isRecoveringSnapshotSignal = signal(false);
+  get isRecoveringSnapshot() {
+    return this.#isRecoveringSnapshotSignal.get();
+  }
+  set isRecoveringSnapshot(value) {
+    this.#isRecoveringSnapshotSignal.set(value);
+  }
+  readonly #resumeCursorSignal = signal<string | null>(null);
+  get #resumeCursor(): string | null {
+    return this.#resumeCursorSignal.get();
+  }
+  set #resumeCursor(value: string | null) {
+    this.#resumeCursorSignal.set(value);
+  }
   #authorizationRefreshGeneration = 0;
   #completedAuthorizationRefreshGeneration = 0;
   #caughtUpGeneration = 0;
   /** Changes when the retained data is discarded, including during event delivery. */
   resetGeneration = 0;
-  #catchUpWaiters = new SvelteSet<CatchUpWaiter>();
+  #catchUpWaiters = new Set<CatchUpWaiter>();
 
   get resumeCursor(): string | null {
     return this.#resumeCursor;

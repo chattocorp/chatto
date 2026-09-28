@@ -1,4 +1,5 @@
 import { isExplicitSignOutRedirectInProgress } from '../auth/signOut.js';
+import { signal } from '../reactivity/index.js';
 import { csrfFetch } from '../auth/csrf.js';
 import { browserCookieAuthenticationHeaders } from '../auth/authenticationMode.js';
 import type { ConnectAPIConfig } from '../api/connect.js';
@@ -52,15 +53,44 @@ function realtimeUrlFromServerUrl(url: string): string {
 
 const ORIGIN_SERVER_URL = '/';
 
+/**
+ * Ask the registry to confirm a rejected session. An explicit origin sign-out
+ * already ends that session, so its rejected requests are expected.
+ */
+function reportAuthenticationRequired(serverId: string, source: string): void {
+  if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(serverId)) return;
+  serverRegistry.confirmAuthenticationRequired(serverId, source).catch((error) => {
+    console.warn('[auth] could not confirm the rejected session', { serverId, source }, error);
+  });
+}
+
 export class ServerConnection {
-  status = $state<ConnectionStatus>('connecting');
-  #failedAttempts = $state(0);
+  readonly #statusSignal = signal<ConnectionStatus>('connecting');
+  get status(): ConnectionStatus {
+    return this.#statusSignal.get();
+  }
+  set status(value: ConnectionStatus) {
+    this.#statusSignal.set(value);
+  }
+  readonly #failedAttemptsSignal = signal(0);
+  get #failedAttempts() {
+    return this.#failedAttemptsSignal.get();
+  }
+  set #failedAttempts(value) {
+    this.#failedAttemptsSignal.set(value);
+  }
   /**
    * Whether the latest completed attempt failed. A new attempt does not change
    * it: only success clears it and only failure sets it. A forced reconnect
    * (tab wake, network recovery) starts fresh and clears it.
    */
-  #connectionFailed = $state(false);
+  readonly #connectionFailedSignal = signal(false);
+  get #connectionFailed() {
+    return this.#connectionFailedSignal.get();
+  }
+  set #connectionFailed(value) {
+    this.#connectionFailedSignal.set(value);
+  }
   #lastVisibleAt = Date.now();
   #visibilityHandler: (() => void) | null = null;
   #onlineHandler: (() => void) | null = null;
@@ -138,7 +168,10 @@ export class ServerConnection {
       renewBearerToken:
         this.#serverId && this.#token
           ? (force) => serverRegistry.renewServerAuthentication(this.#serverId!, force)
-          : undefined
+          : undefined,
+      onAuthenticationRequired: this.#serverId
+        ? (source) => reportAuthenticationRequired(this.#serverId!, source)
+        : undefined
     };
   }
 

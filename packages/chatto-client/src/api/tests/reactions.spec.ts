@@ -2,7 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createReactionAPI } from '../reactions.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 
 const mocks = mockService(MessageService);
 
