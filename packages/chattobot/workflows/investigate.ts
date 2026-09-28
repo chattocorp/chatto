@@ -14,7 +14,7 @@ import {
   type AgentOptions,
   type RunlingAgent
 } from 'runling/agents';
-import { evidenceCollector, findingSchema, renderFindings } from './evidence.ts';
+import { evidenceCollector, findingSchema, renderFindings, withoutExcerpts } from './evidence.ts';
 import type { ImplementationSettings } from './implement.ts';
 import { setting } from '../settings.ts';
 import {
@@ -298,8 +298,9 @@ export function createInvestigation(
               : summary,
           ...(failureReason ? { failureReason } : {}),
           ...(plan && outcome === 'completed' ? { plan } : {}),
-          details: renderFindings(evidence.findings),
-          findings: evidence.findings,
+          // The progress output kept the checked excerpts; the result carries claims and locations.
+          details: renderFindings(withoutExcerpts(evidence.findings)),
+          findings: withoutExcerpts(evidence.findings),
           validation: {
             citationsChecked: evidence.findings.length > 0,
             reproduced: false as const,

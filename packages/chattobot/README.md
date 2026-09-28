@@ -353,13 +353,14 @@ separate Chatto, Authling, and Runling product boundaries.
 The investigator records structured findings through `recordFinding`. The host
 extracts excerpts from relative file paths and line ranges in the retained
 checkout. Optional supplied quotes must match the source. A citation covers at
-most 40 lines and 3,000 characters. All findings of one investigation, with their
-cited lines, share a budget of 20,000 characters, and each tool result states
-what is left. The host rejects an invalid citation with the reason, such as a
+most 40 lines and 3,000 characters, and an investigation records at most 12
+findings. The host rejects an invalid citation with the reason, such as a
 missing file or a range that is too long, so the investigator can correct it.
-A full budget or the limit of 12 findings is a normal answer that asks the
-investigator to finish, not a tool failure. Only accepted findings reach the
-owner. Source checks do not establish that a claim follows from the excerpt.
+The finding limit is a normal answer that asks the investigator to finish, not a
+tool failure. Only accepted findings reach the owner. Each accepted finding
+reaches the owner at once with its checked excerpts, as task output. The final
+result carries the claims and their locations without the excerpts, which keeps
+it well below the task result limit. Source checks do not establish that a claim follows from the excerpt.
 A completed investigation without accepted findings gets one
 corrective turn in the same session and checkout. If it still supplies no findings,
 the result is blocked with `missing_evidence`. `missing_outcome` identifies a

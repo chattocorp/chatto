@@ -32,15 +32,22 @@ export const findingSchema = Type.Object({
 });
 export type Finding = Static<typeof findingSchema>;
 
-/** Most lines and characters that one citation can cover. Short citations keep the evidence
- * budget for more findings. */
+/** Most lines and characters that one citation can cover: a citation shows the lines that
+ * support a claim, not a whole region of a file. */
 export const MAX_CITATION_LINES = 40;
 export const MAX_CITATION_CHARS = 3_000;
-/** Total size of recorded findings, including their excerpts, so the task result stays below the
- * task channel's 64,000-character limit. */
-export const EVIDENCE_BUDGET = 20_000;
 /** Most findings in one investigation. */
 export const MAX_FINDINGS = 12;
+
+/** Findings without their checked excerpts. The host checked the excerpts when it recorded the
+ * findings; the supervisor needs only the claims and their locations. This keeps a result well
+ * below the task channel's 64,000-character limit. */
+export function withoutExcerpts(findings: readonly Finding[]): Finding[] {
+  return findings.map((finding) => ({
+    ...structuredClone(finding),
+    evidence: finding.evidence.map(({ path, startLine, endLine }) => ({ path, startLine, endLine }))
+  }));
+}
 
 /** A citation problem that the investigator can correct. Its message is host-written. */
 export class CitationError extends Error {}
@@ -124,7 +131,7 @@ export function evidenceCollector(
     pi.registerTool({
       name: 'recordFinding',
       label: 'Record source evidence',
-      description: `Record a finding with file paths and line ranges. Omit quotes: the host extracts the exact source. Set kind to observation or hypothesis. The host checks citations, not reasoning. Cite only the lines that show the claim: at most ${MAX_CITATION_LINES} lines and ${MAX_CITATION_CHARS} characters per citation. All findings, with their cited lines, share a budget of ${EVIDENCE_BUDGET} characters; each result says how much is left.`,
+      description: `Record a finding with file paths and line ranges. Omit quotes: the host extracts the exact source. Set kind to observation or hypothesis. The host checks citations, not reasoning. Cite only the lines that show the claim: at most ${MAX_CITATION_LINES} lines and ${MAX_CITATION_CHARS} characters per citation. An investigation records at most ${MAX_FINDINGS} findings.`,
       parameters: findingSchema,
       async execute(_id, finding, toolSignal) {
         const answer = (text: string, accepted: boolean, isError = false) => ({
@@ -155,19 +162,10 @@ export function evidenceCollector(
           );
         }
         signal.throwIfAborted();
-        const used = JSON.stringify(findings).length;
-        const size = JSON.stringify([...findings, finding]).length;
-        if (size > EVIDENCE_BUDGET)
-          return answer(
-            used + 500 > EVIDENCE_BUDGET
-              ? 'The evidence budget is used up. Finish your report with the findings recorded so far.'
-              : `This finding would exceed the evidence budget: ${EVIDENCE_BUDGET - used} characters are left, including the cited lines. Cite fewer lines, or finish your report.`,
-            false
-          );
         findings.push(structuredClone(finding));
         await onFinding?.(finding);
         return answer(
-          `Citation checked and finding recorded. Claim remains unverified by execution. ${EVIDENCE_BUDGET - size} characters of the evidence budget are left.`,
+          `Citation checked and finding recorded. Claim remains unverified by execution. ${MAX_FINDINGS - findings.length} more findings are possible.`,
           true
         );
       }
@@ -176,7 +174,8 @@ export function evidenceCollector(
   return { findings, extension };
 }
 
-/** Render checked evidence and fixed host-owned limits; never relay unchecked report prose. */
+/** Render checked evidence and fixed host-owned limits; never relay unchecked report prose.
+ * Excerpts are included when the findings still have them. */
 export function renderFindings(findings: readonly Finding[]): string {
   return findings
     .map((finding, index) =>
@@ -184,7 +183,7 @@ export function renderFindings(findings: readonly Finding[]): string {
         `${index + 1}. ${finding.kind}: ${finding.claim}`,
         ...finding.evidence.map(
           (citation) =>
-            `${citation.path}:${citation.startLine}-${citation.endLine}\n${citation.quote}`
+            `${citation.path}:${citation.startLine}-${citation.endLine}${citation.quote ? `\n${citation.quote}` : ''}`
         ),
         ...(finding.suggestedChange ? [`Proposed, not applied: ${finding.suggestedChange}`] : []),
         ...(finding.limitations ?? []).map((limitation) => `Limitation: ${limitation}`)

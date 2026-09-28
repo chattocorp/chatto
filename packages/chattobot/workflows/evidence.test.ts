@@ -7,6 +7,7 @@ import {
   verifyFinding,
   renderFindings,
   evidenceCollector,
+  withoutExcerpts,
   type Finding
 } from './evidence.ts';
 import type { AgentExtensionAPI } from 'runling/agents';
@@ -65,7 +66,7 @@ test('rejects symlinks outside the checkout and cancelled reads', async () => {
   await expect(verifyFinding(root, finding, AbortSignal.abort())).rejects.toThrow();
 });
 
-test('the tool records only accepted citations and bounds report size', async () => {
+test('the tool records only accepted citations and bounds the number of findings', async () => {
   const { root, finding } = await fixture();
   const collector = evidenceCollector(root, new AbortController().signal);
   let execute!: (id: string, value: Finding) => Promise<{ isError?: boolean }>;
@@ -82,16 +83,29 @@ test('the tool records only accepted citations and bounds report size', async ()
   expect(collector.findings).toEqual([]);
   await execute('good', finding);
   expect(collector.findings).toEqual([finding]);
-  const large = { ...finding, suggestedChange: 'x'.repeat(4000) };
-  for (let i = 0; i < 4; i++) await execute(`more-${i}`, large);
-  // A full budget is a normal answer, not a tool failure that would stop the task.
-  const overflow = (await execute('overflow', large)) as {
+  for (let i = 1; i < 12; i++) await execute(`more-${i}`, finding);
+  expect(collector.findings).toHaveLength(12);
+  // The finding limit is a normal answer, not a tool failure that would stop the task.
+  const overflow = (await execute('overflow', finding)) as {
     isError?: boolean;
     content: { text: string }[];
   };
   expect(overflow.isError).toBeUndefined();
-  expect(overflow.content[0]!.text).toMatch(/evidence budget/);
-  expect(JSON.stringify(collector.findings).length).toBeLessThan(20_000);
+  expect(overflow.content[0]!.text).toMatch(/finding limit \(12\) is reached/);
+  expect(collector.findings).toHaveLength(12);
+});
+
+test('results carry findings without their checked excerpts', async () => {
+  const { finding } = await fixture();
+  const checked = {
+    ...finding,
+    evidence: [{ path: 'example.txt', startLine: 1, endLine: 1, quote: 'original' }]
+  };
+  const [stripped] = withoutExcerpts([checked]);
+  expect(stripped!.evidence).toEqual([{ path: 'example.txt', startLine: 1, endLine: 1 }]);
+  expect(checked.evidence[0]!.quote).toBe('original');
+  expect(renderFindings([stripped!])).toContain('example.txt:1-1');
+  expect(renderFindings([stripped!])).not.toContain('original');
 });
 
 test('rejections say what to correct, without host paths', async () => {
