@@ -94,12 +94,12 @@
     "zod": "^4.6.5"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^1.10.1",
+    "@bufbuild/protobuf": "^2.15.0",
     "@capacitor/core": "8.5.2",
     "@chatto/api-types": "workspace:*",
     "@chatto/lingua": "workspace:*",
-    "@connectrpc/connect": "^1.7.0",
-    "@connectrpc/connect-web": "^1.7.0",
+    "@connectrpc/connect": "^2.2.0",
+    "@connectrpc/connect-web": "^2.2.0",
     "@tanstack/svelte-query": "^6.2.4",
     "gemoji": "^8.1.0",
     "heic2any": "^0.0.4",

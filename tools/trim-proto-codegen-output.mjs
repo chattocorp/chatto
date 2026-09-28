@@ -26,6 +26,7 @@ async function collectGeneratedTypeScript(relativeDir) {
   }
 }
 
+await collectGeneratedTypeScript('packages/api-types/src/buf');
 await collectGeneratedTypeScript('packages/api-types/src/chatto');
 
 for (const generatedFile of generatedFiles) {

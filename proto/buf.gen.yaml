@@ -20,18 +20,11 @@ plugins:
       - paths=source_relative
   - local: ../packages/api-types/node_modules/.bin/protoc-gen-es
     out: ../packages/api-types/src
+    # Embedded v2 descriptors import the protovalidate options that they use.
+    include_imports: true
     opt:
       - target=ts
-    types:
-      - chatto.api.v1
-      - chatto.admin.v1
-      - chatto.auth.v1
-      - chatto.discovery.v1
-      - chatto.realtime.v1
-  - local: ../packages/api-types/node_modules/.bin/protoc-gen-connect-es
-    out: ../packages/api-types/src
-    opt:
-      - target=ts
+      - import_extension=js
     types:
       - chatto.api.v1
       - chatto.admin.v1
