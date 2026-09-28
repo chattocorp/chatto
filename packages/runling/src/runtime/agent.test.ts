@@ -101,7 +101,7 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
   };
 });
 
-const { agent, AgentOutcomeError, describeTool, runAgent, toolFailureCategory } =
+const { agent, AgentOutcomeError, answerText, describeTool, runAgent, toolFailureCategory } =
   await import('./agent.ts');
 
 test.each([
@@ -260,6 +260,27 @@ test('previews report-only output such as the joke workflow', async () => {
   expect(
     events.some((e) => e.type === 'agent.action' && e.action === 'A joke\nwith a punchline.')
   ).toBe(true);
+});
+
+describe('answerText', () => {
+  const part = (text: string, phase?: string) => ({
+    type: 'text',
+    text,
+    ...(phase ? { textSignature: JSON.stringify({ v: 1, id: text, phase }) } : {})
+  });
+  test('keeps only the final answer when the provider marks one', () => {
+    expect(
+      answerText([
+        part('Checking the diff first.', 'commentary'),
+        { type: 'thinking' },
+        part('The diff is clean.', 'final_answer')
+      ])
+    ).toBe('The diff is clean.');
+  });
+  test('keeps all text when no part is marked as the final answer', () => {
+    expect(answerText([part('One.'), part('Two.', 'commentary')])).toBe('One.\nTwo.');
+    expect(answerText([{ type: 'text', text: 'Plain', textSignature: 'legacy-id' }])).toBe('Plain');
+  });
 });
 
 describe('describeTool', () => {
