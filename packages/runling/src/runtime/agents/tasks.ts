@@ -14,7 +14,7 @@ export type AgentTaskData =
 export interface AgentTaskOutput {
   sequence: number;
   at: number;
-  kind: 'output' | 'finding' | 'reply';
+  kind: 'output' | 'finding' | 'reply' | 'notice';
   text: string;
   /** Correlation ID supplied by the application for a direct reply. */
   replyTo?: string;
@@ -46,6 +46,13 @@ export type AgentTaskUpdate =
       /** Explicit substantive progress, retained across later tool activity.
        * The application must validate this text; Runling does not verify evidence. */
       type: 'finding';
+      text: string;
+    }
+  | {
+      /** A message for the owner, such as progress that the owner can pass on to its own
+       * owner or user. Retain it and wake the owner immediately. The notification carries the
+       * text; a newer unread notice replaces an older one. */
+      type: 'notice';
       text: string;
     }
   | {
@@ -215,7 +222,11 @@ export function observeAgentTasks(
             const { output: _output, ...task } = snapshot(entry);
             return {
               done: false,
-              value: JSON.stringify({ type, task, ...(text ? { progress: text } : {}) })
+              value: JSON.stringify({
+                type,
+                task,
+                ...(text ? (type === 'task.notice' ? { text } : { progress: text }) : {})
+              })
             };
           },
           async return(): Promise<IteratorResult<string>> {
@@ -261,8 +272,19 @@ export function observeAgentTasks(
       );
     },
     /** Adopt a run and consume its output. Do not also iterate run.output.
-     * Rejected adoption leaves ownership with the caller. */
-    observe<Result>(name: string, handle: Run<string, AgentTaskUpdate, Result>): AgentTaskState {
+     * Rejected adoption leaves ownership with the caller.
+     * `onUpdate` lets the owner's host code act on each child update, in order, inside the owner
+     * task: for example, to report verified facts. It runs before the update changes the
+     * snapshot. A failing hook does not stop the child. */
+    observe<Result>(
+      name: string,
+      handle: Run<string, AgentTaskUpdate, Result>,
+      {
+        onUpdate
+      }: {
+        onUpdate?: (update: AgentTaskUpdate, task: AgentTaskState) => void | Promise<void>;
+      } = {}
+    ): AgentTaskState {
       ctx.signal.throwIfAborted();
       if (closed) throw new Error('Agent tasks are closed');
       if (tasks.has(handle.id)) return snapshot(lookup(handle.id));
@@ -294,6 +316,11 @@ export function observeAgentTasks(
         try {
           for await (const text of handle.output) {
             if (state.status === 'failed' || state.status === 'cancelled') continue;
+            try {
+              await onUpdate?.(text, snapshot(entry));
+            } catch {
+              // The owner's hook is its own concern; the child keeps running.
+            }
             if (typeof text !== 'string' && text.type === 'output') {
               remember('output', text.text);
               continue;
@@ -301,6 +328,11 @@ export function observeAgentTasks(
             if (typeof text !== 'string' && text.type === 'reply') {
               remember('reply', text.text, text.replyTo);
               notify(entry, 'task.reply');
+              continue;
+            }
+            if (typeof text !== 'string' && text.type === 'notice') {
+              remember('notice', text.text);
+              notify(entry, 'task.notice', text.text.slice(0, 4_000));
               continue;
             }
             if (typeof text !== 'string' && text.type === 'state') {

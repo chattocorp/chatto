@@ -218,8 +218,8 @@ async function reportExecution(
   return execution;
 }
 
-/** Write updates that a root workflow emits to the log. A spawned child's updates go to its
- * parent instead. Agent status and tool activity are skipped because the agent logs them, and
+/** Write updates that a root workflow emits to the log: a root workflow has no parent to report
+ * to. A spawned child's updates go to its parent instead. Agent status and tool activity are skipped because the agent logs them, and
  * `output` is skipped because it repeats text that the agent logged. A state update is logged
  * only through its `activity`, and a repeated activity is logged once. */
 export function createUpdateLogger(): (update: unknown) => Promise<void> {
@@ -239,7 +239,10 @@ export function createUpdateLogger(): (update: unknown) => Promise<void> {
       activity?: unknown;
       activityLevel?: unknown;
     };
-    if ((value.type === 'finding' || value.type === 'reply') && typeof value.text === 'string') {
+    if (
+      (value.type === 'finding' || value.type === 'reply' || value.type === 'notice') &&
+      typeof value.text === 'string'
+    ) {
       log.info(value.text);
     } else if (value.type === 'state') {
       if (typeof value.activity !== 'string' || value.activity === lastActivity) return;

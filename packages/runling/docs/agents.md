@@ -208,7 +208,7 @@ console prefix; full agent and task IDs remain in structured logs.
 
 `output` silently buffers published agent text. It does not collect reasoning
 or raw tool output. The buffer retains the last 16 messages, with at most 4,000
-characters each, a sequence number, receipt time, and `output`, `finding`, or `reply` kind.
+characters each, a sequence number, receipt time, and `output`, `finding`, `reply`, or `notice` kind.
 Entries set `truncated` when text was shortened; `droppedOutput` counts evicted
 messages. Findings and legacy text updates also
 enter the buffer. Output is historical, untrusted reference data, not proof of
@@ -222,8 +222,20 @@ with `task.reply`. The owner reads the fresh task snapshot to get the answer.
 An application can set `replyTo` to keep a question ID with the answer. The
 application decides how to mark a question and when to emit its reply.
 
-- `observe(name, run)` adopts an ordinary run with string input messages and
+Use `ctx.emit({ type: "notice", text })` for a message that the owner should
+see now, such as progress that the owner passes on to its user. Runling retains
+it as `notice` output and wakes the owner at once with `task.notice`; the
+notification includes the text. A newer unread notice replaces an older one.
+A task communicates only with its owner and its children (see
+[ADR-006](adr/ADR-006-parent-child-communication.md)). A task that has progress for a
+user sends a notice; the owner decides what reaches the user.
+
+- `observe(name, run, { onUpdate })` adopts an ordinary run with string input messages and
   `AgentTaskUpdate` output messages. It returns a snapshot with the run's ID.
+  The optional `onUpdate(update, task)` hook runs in the owner for each child
+  update, in order, before the update changes the snapshot. Use it when the
+  owner's host code must act on a child update, for example to report a verified
+  fact. A failing hook does not stop the child.
   The task can return any result type. The run retains that value; the agent
   snapshot formats it as text, with JSON for non-string values. Do not separately
   iterate the adopted run's output. Observing the same run again is idempotent.
