@@ -210,12 +210,13 @@ describe('translated message catalogs', () => {
     const completeLocales = selectableLocales.filter(
       (locale) => locale !== baseLocale && !sparseLocales.has(locale)
     );
+    const completeLocaleSet = new Set<string>(completeLocales);
     const untranslated: string[] = [];
     const stale: string[] = [];
 
     for (const [key, locales] of Object.entries(identicalTranslations)) {
       for (const locale of locales) {
-        if (!source.has(key) || !completeLocales.includes(locale)) {
+        if (!source.has(key) || !completeLocaleSet.has(locale)) {
           stale.push(`${locale}: ${key}`);
         }
       }
