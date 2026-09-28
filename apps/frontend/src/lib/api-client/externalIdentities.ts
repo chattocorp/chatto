@@ -11,9 +11,10 @@ import {
   type LinkedExternalIdentity as APILinkedExternalIdentity
 } from '@chatto/api-types/api/v1/external_identities_pb';
 
-export type ExternalIdentityFlowAPIConfig = {
-  baseUrl?: string;
-};
+/** The flow runs before a session exists, so it sends no bearer credential. */
+export type ExternalIdentityFlowAPIConfig = Partial<
+  Pick<ConnectAPIConfig, 'baseUrl' | 'transport'>
+>;
 
 export type PendingExternalIdentityInfo = {
   kind: ExternalIdentityFlowKind;
@@ -69,7 +70,8 @@ function externalIdentityStartURL(value: string): string {
 
 export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
   const client = createChattoClient(ExternalIdentityAuthService, {
-    baseUrl: config.baseUrl ?? '/api/connect'
+    baseUrl: config.baseUrl ?? '/api/connect',
+    transport: config.transport
   });
 
   return {

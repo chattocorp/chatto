@@ -1,10 +1,10 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
-import { fakeServer, mockService } from '$lib/test-utils';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
 const mocks = mockService(BotService);
 
@@ -13,14 +13,9 @@ function botAPI() {
   return createBotAPI(fakeServer((router) => router.service(BotService, mocks)));
 }
 
-/** The request message that a handler received. */
-function request(handler: (typeof mocks)[keyof typeof mocks], call = 0) {
-  return handler.mock.calls[call]?.[0];
-}
-
 describe('createBotAPI', () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
+    vi.resetAllMocks();
   });
 
   it('lists bots and maps key metadata without exposing a verifier', async () => {
@@ -64,7 +59,7 @@ describe('createBotAPI', () => {
       totalCount: 1,
       hasMore: false
     });
-    expect(request(mocks.listBots)).toMatchObject({
+    expect(receivedRequest(mocks.listBots)).toMatchObject({
       search: 'helper',
       page: { limit: 20, offset: 40 }
     });
@@ -72,12 +67,10 @@ describe('createBotAPI', () => {
 
   it('passes cancellation to the server', async () => {
     mocks.listBots.mockReturnValue({ bots: [] });
-    const controller = new AbortController();
-    controller.abort();
 
     // Without the signal, the call would succeed.
     await expect(
-      botAPI().listBots({ limit: 1, offset: 0 }, { signal: controller.signal })
+      botAPI().listBots({ limit: 1, offset: 0 }, { signal: AbortSignal.abort() })
     ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
@@ -121,9 +114,15 @@ describe('createBotAPI', () => {
       },
       apiKey: 'show-once-secret'
     });
-    expect(request(mocks.createBotApiKey)).toMatchObject({ botUserId: 'one', name: 'Production' });
+    expect(receivedRequest(mocks.createBotApiKey)).toMatchObject({
+      botUserId: 'one',
+      name: 'Production'
+    });
     await expect(api.revokeBotAPIKey('one', 'K-one')).resolves.toMatchObject({ apiKeys: [] });
-    expect(request(mocks.revokeBotApiKey)).toMatchObject({ botUserId: 'one', keyId: 'K-one' });
+    expect(receivedRequest(mocks.revokeBotApiKey)).toMatchObject({
+      botUserId: 'one',
+      keyId: 'K-one'
+    });
   });
 
   it('manages named incoming webhooks and maps safe usage metadata', async () => {
@@ -164,7 +163,7 @@ describe('createBotAPI', () => {
       },
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    expect(request(mocks.createBotIncomingWebhook)).toMatchObject({
+    expect(receivedRequest(mocks.createBotIncomingWebhook)).toMatchObject({
       botUserId: 'one',
       name: 'Production'
     });
@@ -191,7 +190,10 @@ describe('createBotAPI', () => {
       hasMore: true
     });
     expect(mocks.listBots).toHaveBeenCalledOnce();
-    expect(request(mocks.listBots)).toMatchObject({ search: '', page: { limit: 1, offset: 0 } });
+    expect(receivedRequest(mocks.listBots)).toMatchObject({
+      search: '',
+      page: { limit: 1, offset: 0 }
+    });
   });
 
   it('gets one bot by stable user ID', async () => {
@@ -204,7 +206,7 @@ describe('createBotAPI', () => {
     const api = botAPI();
 
     await expect(api.getBot('one')).resolves.toMatchObject({ id: 'one' });
-    expect(request(mocks.getBot)).toMatchObject({ botUserId: 'one' });
+    expect(receivedRequest(mocks.getBot)).toMatchObject({ botUserId: 'one' });
   });
 
   it('treats unknown credential last-use states as unavailable', async () => {
@@ -241,7 +243,7 @@ describe('createBotAPI', () => {
       id: 'one',
       ownerUserId: 'U-new-owner'
     });
-    expect(request(mocks.reassignBotOwner)).toMatchObject({
+    expect(receivedRequest(mocks.reassignBotOwner)).toMatchObject({
       botUserId: 'one',
       ownerUserId: 'U-new-owner'
     });

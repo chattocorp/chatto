@@ -1,47 +1,35 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
+import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { MessageSearchOrder, MessageSearchState } from '@chatto/api-types/api/v1/message_search_pb';
 import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
 import { RoomKind } from '$lib/api-client/roomDirectory';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getStatus: vi.fn(),
-  searchMessages: vi.fn(),
-  batchGetRooms: vi.fn(),
-  batchGetUsers: vi.fn()
-}));
+const search = mockService(MessageSearchService);
+const rooms = mockService(RoomDirectoryService);
+const users = mockService(UserService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return { ...actual, createClient: mocks.createClient };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function createAPI() {
+  return createMessageSearchAPI(
+    fakeServer((router) =>
+      router
+        .service(MessageSearchService, search)
+        .service(RoomDirectoryService, rooms)
+        .service(UserService, users)
+    )
+  );
+}
 
 describe('createMessageSearchAPI', () => {
   beforeEach(() => {
-    Object.values(mocks).forEach((mock) => mock.mockReset());
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient
-      .mockReturnValueOnce({ getStatus: mocks.getStatus, searchMessages: mocks.searchMessages })
-      .mockReturnValueOnce({ batchGetRooms: mocks.batchGetRooms })
-      .mockReturnValueOnce({ batchGetUsers: mocks.batchGetUsers });
+    vi.resetAllMocks();
   });
 
-  function createAPI() {
-    return createMessageSearchAPI({
-      serverId: 'remote',
-      baseUrl: 'https://chat.example/api/connect',
-      bearerToken: 'secret'
-    });
-  }
-
   it('maps coarse provider status and retry timing', async () => {
-    mocks.getStatus.mockResolvedValue({
+    search.getStatus.mockReturnValue({
       state: MessageSearchState.INDEXING,
       retryAfter: { seconds: 2n, nanos: 500_000_000 }
     });
@@ -52,11 +40,11 @@ describe('createMessageSearchAPI', () => {
       state: MessageSearchState.INDEXING,
       retryAfterMs: 2500
     });
-    expect(mocks.getStatus).toHaveBeenCalledWith({});
+    expect(search.getStatus).toHaveBeenCalledOnce();
   });
 
   it('hydrates result actors and rooms while preserving provider order and cursor', async () => {
-    mocks.searchMessages.mockResolvedValue({
+    search.searchMessages.mockReturnValue({
       results: [
         {
           relevanceScore: 9.5,
@@ -85,7 +73,7 @@ describe('createMessageSearchAPI', () => {
       ],
       nextCursor: 'opaque-next'
     });
-    mocks.batchGetRooms.mockResolvedValue({
+    rooms.batchGetRooms.mockReturnValue({
       rooms: [
         {
           room: { id: 'room-1', name: 'general', kind: RoomKind.CHANNEL },
@@ -97,7 +85,7 @@ describe('createMessageSearchAPI', () => {
         }
       ]
     });
-    mocks.batchGetUsers.mockResolvedValue({
+    users.batchGetUsers.mockReturnValue({
       users: [
         { user: { id: 'user-1', login: 'one', displayName: 'One', deleted: false } },
         { user: { id: 'user-2', login: 'two', displayName: 'Two', deleted: false } }
@@ -111,7 +99,7 @@ describe('createMessageSearchAPI', () => {
       order: MessageSearchOrder.NEWEST
     });
 
-    expect(mocks.searchMessages).toHaveBeenCalledWith({
+    expect(receivedRequest(search.searchMessages)).toMatchObject({
       query: 'hello',
       roomId: 'room-2',
       authorId: 'user-2',
@@ -119,10 +107,7 @@ describe('createMessageSearchAPI', () => {
       pageSize: 50,
       cursor: ''
     });
-    expect(mocks.batchGetRooms).toHaveBeenCalledWith(
-      { roomIds: ['room-2', 'room-1'] },
-      { signal: undefined }
-    );
+    expect(receivedRequest(rooms.batchGetRooms)).toMatchObject({ roomIds: ['room-2', 'room-1'] });
     expect(response.nextCursor).toBe('opaque-next');
     expect(response.results).toMatchObject([
       {

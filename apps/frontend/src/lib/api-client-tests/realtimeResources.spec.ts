@@ -1,68 +1,55 @@
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
+import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
+import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 import { createRealtimeResourceAPI } from '$lib/api-client/realtimeResources';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getServerProfile: vi.fn(),
-  getMotd: vi.fn(),
-  getRuntimeConfig: vi.fn(),
-  getViewer: vi.fn(),
-  listRooms: vi.fn(),
-  listRoomGroups: vi.fn(),
-  listNotificationOccurrences: vi.fn(),
-  listActiveCalls: vi.fn(),
-  batchGetUsers: vi.fn(),
-  listUsers: vi.fn()
-}));
+const server = mockService(ServerService);
+const viewer = mockService(ViewerService);
+const users = mockService(UserService);
+const rooms = mockService(RoomDirectoryService);
+const notifications = mockService(NotificationService);
+const calls = mockService(VoiceCallService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return { ...actual, createClient: mocks.createClient };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function realtimeAPI(bearerToken: string | null = null) {
+  return createRealtimeResourceAPI(
+    fakeServer(
+      (router) =>
+        router
+          .service(ServerService, server)
+          .service(ViewerService, viewer)
+          .service(UserService, users)
+          .service(RoomDirectoryService, rooms)
+          .service(NotificationService, notifications)
+          .service(VoiceCallService, calls),
+      { bearerToken }
+    )
+  );
+}
 
 describe('createRealtimeResourceAPI', () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      getServerProfile: mocks.getServerProfile,
-      getMotd: mocks.getMotd,
-      getRuntimeConfig: mocks.getRuntimeConfig,
-      getViewer: mocks.getViewer,
-      listRooms: mocks.listRooms,
-      listRoomGroups: mocks.listRoomGroups,
-      listNotificationOccurrences: mocks.listNotificationOccurrences,
-      listActiveCalls: mocks.listActiveCalls,
-      batchGetUsers: mocks.batchGetUsers,
-      listUsers: mocks.listUsers
-    });
-    mocks.getServerProfile.mockResolvedValue({ profile: { name: 'Boundary Server' } });
-    mocks.getMotd.mockResolvedValue({ motd: 'Hello' });
-    mocks.getRuntimeConfig.mockResolvedValue({});
-    mocks.getViewer.mockResolvedValue({});
-    mocks.listRooms.mockResolvedValue({ rooms: [] });
-    mocks.listRoomGroups.mockResolvedValue({ groups: [] });
-    mocks.listNotificationOccurrences.mockResolvedValue({ occurrences: [] });
-    mocks.listActiveCalls.mockResolvedValue({ calls: [] });
-    mocks.batchGetUsers.mockImplementation(({ userIds }: { userIds: string[] }) =>
-      Promise.resolve({
-        users: userIds.map((userId) => new DirectoryMember({ user: new User({ id: userId }) }))
-      })
-    );
+    vi.resetAllMocks();
+    server.getServerProfile.mockReturnValue({ profile: { name: 'Boundary Server' } });
+    server.getMotd.mockReturnValue({ motd: 'Hello' });
+    server.getRuntimeConfig.mockReturnValue({});
+    viewer.getViewer.mockReturnValue({});
+    rooms.listRooms.mockReturnValue({ rooms: [] });
+    rooms.listRoomGroups.mockReturnValue({ groups: [] });
+    notifications.listNotificationOccurrences.mockReturnValue({ occurrences: [] });
+    calls.listActiveCalls.mockReturnValue({ calls: [] });
+    users.batchGetUsers.mockImplementation(({ userIds }) => ({
+      users: userIds.map((userId) => ({ user: { id: userId } }))
+    }));
   });
 
   it('binds every bootstrap resource read to the opaque minimum cursor', async () => {
-    const api = createRealtimeResourceAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'access-token'
-    });
+    const api = realtimeAPI('access-token');
     const cursor = 'opaque-E';
 
     await Promise.all(
@@ -77,87 +64,73 @@ describe('createRealtimeResourceAPI', () => {
       ].map((family) => api.read(family as Parameters<typeof api.read>[0], cursor))
     );
 
-    for (const call of [
-      mocks.getServerProfile,
-      mocks.getMotd,
-      mocks.getRuntimeConfig,
-      mocks.getViewer,
-      mocks.listRooms,
-      mocks.listRoomGroups,
-      mocks.listNotificationOccurrences,
-      mocks.listActiveCalls
+    for (const handler of [
+      server.getServerProfile,
+      server.getMotd,
+      server.getRuntimeConfig,
+      viewer.getViewer,
+      rooms.listRooms,
+      rooms.listRoomGroups,
+      notifications.listNotificationOccurrences,
+      calls.listActiveCalls
     ]) {
-      const options = call.mock.calls[0]?.at(-1) as
-        { headers?: Headers; timeoutMs?: number } | undefined;
-      expect(options?.headers).toBeInstanceOf(Headers);
-      expect(options?.headers?.get('Chatto-Realtime-Minimum-Cursor')).toBe(cursor);
-      expect(options?.headers?.has('Authorization')).toBe(false);
-      expect(options?.timeoutMs).toBe(10_000);
+      const context = receivedContext(handler);
+      expect(context?.requestHeader.get('Chatto-Realtime-Minimum-Cursor')).toBe(cursor);
+      expect(context?.requestHeader.get('Authorization')).toBe('Bearer access-token');
+      expect(context?.timeoutMs()).toBeGreaterThan(9_000);
     }
-    expect(mocks.listUsers).not.toHaveBeenCalled();
+    expect(users.listUsers).not.toHaveBeenCalled();
   });
 
   it('collects every room page before replacing the directory and retains the cursor', async () => {
-    mocks.listRooms
-      .mockResolvedValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
-      .mockResolvedValueOnce({ rooms: [{ room: { id: 'b' } }], page: { hasMore: false } });
-    const api = createRealtimeResourceAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    });
-    const [update] = await api.read('rooms', 'cursor');
+    rooms.listRooms
+      .mockReturnValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
+      .mockReturnValueOnce({ rooms: [{ room: { id: 'b' } }], page: { hasMore: false } });
+    const [update] = await realtimeAPI().read('rooms', 'cursor');
     expect(update.replace).toBe(true);
     expect(update.resource.case).toBe('rooms');
     if (update.resource.case !== 'rooms') throw new Error('expected rooms');
     expect(update.resource.value.rooms.map((entry) => entry.room?.id)).toEqual(['a', 'b']);
-    expect(mocks.listRooms.mock.calls.map(([request]) => request.page)).toEqual([
+    expect(rooms.listRooms.mock.calls.map(([request]) => request.page)).toMatchObject([
       { limit: 100, offset: 0 },
       { limit: 100, offset: 1 }
     ]);
-    for (const [, options] of mocks.listRooms.mock.calls) {
-      expect(options.headers.get('Chatto-Realtime-Minimum-Cursor')).toBe('cursor');
+    for (const [, context] of rooms.listRooms.mock.calls) {
+      expect(context.requestHeader.get('Chatto-Realtime-Minimum-Cursor')).toBe('cursor');
     }
   });
 
   it('rejects a failed later room page instead of returning a partial replacement', async () => {
-    const error = new Error('second page failed');
-    mocks.listRooms
-      .mockResolvedValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
-      .mockRejectedValueOnce(error);
-    const api = createRealtimeResourceAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: null
+    rooms.listRooms
+      .mockReturnValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
+      .mockImplementationOnce(() => {
+        throw new ConnectError('second page failed', Code.Unavailable);
+      });
+    await expect(realtimeAPI().read('rooms')).rejects.toMatchObject({
+      code: Code.Unavailable,
+      rawMessage: 'second page failed'
     });
-    await expect(api.read('rooms')).rejects.toBe(error);
   });
 
   it('rejects an empty continuation instead of looping', async () => {
-    mocks.listRooms.mockResolvedValue({ rooms: [], page: { hasMore: true } });
-    const api = createRealtimeResourceAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: null
-    });
-    await expect(api.read('rooms')).rejects.toThrow('empty continuation');
-    expect(mocks.listRooms).toHaveBeenCalledTimes(1);
+    rooms.listRooms.mockReturnValue({ rooms: [], page: { hasMore: true } });
+    await expect(realtimeAPI().read('rooms')).rejects.toThrow('empty continuation');
+    expect(rooms.listRooms).toHaveBeenCalledTimes(1);
   });
 
   it('hydrates only requested users in bounded merge batches', async () => {
-    const api = createRealtimeResourceAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: null
-    });
     const userIds = Array.from({ length: 101 }, (_, index) => `user-${index}`);
 
-    const [update] = await api.readUsers([...userIds, 'user-0'], 'opaque-E');
+    const [update] = await realtimeAPI().readUsers([...userIds, 'user-0'], 'opaque-E');
 
-    expect(mocks.batchGetUsers).toHaveBeenCalledTimes(2);
-    expect(mocks.batchGetUsers.mock.calls[0]?.[0].userIds).toHaveLength(100);
-    expect(mocks.batchGetUsers.mock.calls[1]?.[0].userIds).toEqual(['user-100']);
-    expect(mocks.batchGetUsers.mock.calls[0]?.[1].timeoutMs).toBe(10_000);
+    expect(users.batchGetUsers).toHaveBeenCalledTimes(2);
+    expect(receivedRequest(users.batchGetUsers, 0)?.userIds).toHaveLength(100);
+    expect(receivedRequest(users.batchGetUsers, 1)?.userIds).toEqual(['user-100']);
+    expect(receivedContext(users.batchGetUsers)?.timeoutMs()).toBeGreaterThan(9_000);
     expect(update.replace).toBe(false);
     expect(update.resource.case).toBe('users');
     if (update.resource.case !== 'users') throw new Error('expected users resource');
     expect(update.resource.value.users).toHaveLength(101);
-    expect(mocks.listUsers).not.toHaveBeenCalled();
+    expect(users.listUsers).not.toHaveBeenCalled();
   });
 });

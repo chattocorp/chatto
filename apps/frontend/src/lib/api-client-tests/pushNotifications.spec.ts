@@ -1,135 +1,83 @@
+import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
+import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
+import { PushSubscriptionCleanupService } from '@chatto/api-types/chatto/auth/v1/push_subscription_cleanup_connect';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  subscribe: vi.fn(),
-  unsubscribe: vi.fn(),
-  deleteSubscription: vi.fn()
-}));
+const push = mockService(PushNotificationService);
+const cleanup = mockService(PushSubscriptionCleanupService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
+function pushAPI() {
+  return createPushNotificationAPI(
+    fakeServer(
+      (router) =>
+        router
+          .service(PushNotificationService, push)
+          .service(PushSubscriptionCleanupService, cleanup),
+      { bearerToken: 'token' }
+    )
+  );
+}
 
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+const subscription = {
+  endpoint: 'https://push.example/sub',
+  p256dh: 'p256dh-key',
+  auth: 'auth-secret',
+  clientHost: 'app.example',
+  cleanupToken: '0123456789abcdef0123456789abcdef'
+};
 
 describe('createPushNotificationAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.subscribe.mockReset();
-    mocks.unsubscribe.mockReset();
-    mocks.deleteSubscription.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      subscribe: mocks.subscribe,
-      unsubscribe: mocks.unsubscribe,
-      deleteSubscription: mocks.deleteSubscription
+    vi.resetAllMocks();
+    push.subscribe.mockReturnValue({});
+    push.unsubscribe.mockReturnValue({});
+    cleanup.deleteSubscription.mockReturnValue({});
+  });
+
+  it('subscribes and unsubscribes with the session credential', async () => {
+    const api = pushAPI();
+
+    await expect(api.subscribe({ ...subscription, userAgent: 'browser' })).resolves.toEqual({
+      subscribed: true
+    });
+    await expect(api.unsubscribe('https://push.example/sub')).resolves.toBe(true);
+
+    expect(receivedRequest(push.subscribe)).toMatchObject({
+      ...subscription,
+      userAgent: 'browser'
+    });
+    expect(receivedContext(push.subscribe)?.requestHeader.get('Authorization')).toBe(
+      'Bearer token'
+    );
+    expect(receivedRequest(push.unsubscribe)).toMatchObject({
+      endpoint: 'https://push.example/sub'
     });
   });
 
-  it('subscribes and unsubscribes', async () => {
-    mocks.subscribe.mockResolvedValue({});
-    mocks.unsubscribe.mockResolvedValue({});
-    mocks.deleteSubscription.mockResolvedValue({});
-
-    const api = createPushNotificationAPI({
-      baseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'token'
-    });
-    const controller = new AbortController();
-
+  it('deletes a stale subscription by capability, without the session credential', async () => {
     await expect(
-      api.subscribe(
-        {
-          endpoint: 'https://push.example/sub',
-          p256dh: 'p256dh-key',
-          auth: 'auth-secret',
-          clientHost: 'app.example',
-          cleanupToken: '0123456789abcdef0123456789abcdef',
-          userAgent: 'browser'
-        },
-        { signal: controller.signal }
-      )
-    ).resolves.toEqual({ subscribed: true });
-    await expect(api.unsubscribe('https://push.example/sub')).resolves.toBe(true);
-    await expect(
-      api.deleteByCapability(
+      pushAPI().deleteByCapability(
         'https://push.example/stale',
         'stale-auth-secret',
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
       )
     ).resolves.toBe(true);
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledTimes(2);
-    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        baseUrl: 'https://origin.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        baseUrl: 'https://origin.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.subscribe).toHaveBeenCalledWith(
-      {
-        endpoint: 'https://push.example/sub',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        clientHost: 'app.example',
-        cleanupToken: '0123456789abcdef0123456789abcdef',
-        userAgent: 'browser'
-      },
-      { signal: controller.signal }
-    );
-    expect(mocks.unsubscribe).toHaveBeenCalledWith({ endpoint: 'https://push.example/sub' });
-    expect(mocks.deleteSubscription).toHaveBeenCalledWith({
+    expect(receivedRequest(cleanup.deleteSubscription)).toMatchObject({
       endpoint: 'https://push.example/stale',
       auth: 'stale-auth-secret',
       cleanupToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     });
+    expect(receivedContext(cleanup.deleteSubscription)?.requestHeader.has('Authorization')).toBe(
+      false
+    );
   });
 
-  it('subscribes without a cancellation signal', async () => {
-    mocks.subscribe.mockResolvedValue({});
-
-    const api = createPushNotificationAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
-
+  it('cancels a subscription with the caller signal', async () => {
     await expect(
-      api.subscribe({
-        endpoint: 'https://push.example/sub',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        clientHost: 'app.example',
-        cleanupToken: '0123456789abcdef0123456789abcdef'
-      })
-    ).resolves.toEqual({ subscribed: true });
-
-    expect(mocks.subscribe).toHaveBeenCalledWith(
-      {
-        endpoint: 'https://push.example/sub',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        clientHost: 'app.example',
-        cleanupToken: '0123456789abcdef0123456789abcdef'
-      },
-      {}
-    );
+      pushAPI().subscribe(subscription, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 });

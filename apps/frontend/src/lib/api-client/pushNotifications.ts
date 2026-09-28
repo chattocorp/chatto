@@ -21,8 +21,10 @@ export type PushRequestOptions = {
 
 export function createPushNotificationAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(PushNotificationService, config);
+  // Cleanup proves ownership with the subscription capability, not a session.
   const cleanupClient = createChattoClient(PushSubscriptionCleanupService, {
-    baseUrl: config.baseUrl
+    baseUrl: config.baseUrl,
+    transport: config.transport
   });
 
   return {

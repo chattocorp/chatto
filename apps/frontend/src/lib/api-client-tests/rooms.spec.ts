@@ -6,28 +6,13 @@ import { RoomThreadingMode } from '$lib/roomThreading';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 import {
   normalizeRoomName,
   roomNameCharacterCount,
   roomNameValidationError
 } from '$lib/utils/roomName';
-
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  createRoom: vi.fn(),
-  updateRoom: vi.fn(),
-  joinRoom: vi.fn(),
-  startDM: vi.fn(),
-  leaveRoom: vi.fn(),
-  addMember: vi.fn(),
-  removeMember: vi.fn(),
-  listSuspensions: vi.fn(),
-  joinRoomGroup: vi.fn(),
-  refreshTypingIndicator: vi.fn(),
-  removeUser: vi.fn(),
-  liftSuspension: vi.fn()
-}));
 
 describe('room name helpers', () => {
   it('normalizes Unicode names and counts code points', () => {
@@ -84,53 +69,19 @@ describe('room name helpers', () => {
   });
 });
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
+const mocks = mockService(RoomService);
 
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function roomAPI() {
+  return createRoomCommandAPI(fakeServer((router) => router.service(RoomService, mocks)));
+}
 
 describe('createRoomCommandAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.createRoom.mockReset();
-    mocks.updateRoom.mockReset();
-    mocks.joinRoom.mockReset();
-    mocks.startDM.mockReset();
-    mocks.leaveRoom.mockReset();
-    mocks.addMember.mockReset();
-    mocks.removeMember.mockReset();
-    mocks.listSuspensions.mockReset();
-    mocks.joinRoomGroup.mockReset();
-    mocks.refreshTypingIndicator.mockReset();
-    mocks.removeUser.mockReset();
-    mocks.liftSuspension.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      createRoom: mocks.createRoom,
-      updateRoom: mocks.updateRoom,
-      joinRoom: mocks.joinRoom,
-      startDM: mocks.startDM,
-      leaveRoom: mocks.leaveRoom,
-      addMember: mocks.addMember,
-      removeMember: mocks.removeMember,
-      listSuspensions: mocks.listSuspensions,
-      joinRoomGroup: mocks.joinRoomGroup,
-      refreshTypingIndicator: mocks.refreshTypingIndicator,
-      removeUser: mocks.removeUser,
-      liftSuspension: mocks.liftSuspension
-    });
+    vi.resetAllMocks();
   });
 
   it('creates a room and maps the response', async () => {
-    mocks.createRoom.mockResolvedValue({
+    mocks.createRoom.mockReturnValue({
       room: {
         id: 'room-1',
         name: 'general',
@@ -143,11 +94,7 @@ describe('createRoomCommandAPI', () => {
       }
     });
 
-    const api = createRoomCommandAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = roomAPI();
     const room = await api.createRoom({
       name: 'general',
       description: 'General chat',
@@ -156,13 +103,7 @@ describe('createRoomCommandAPI', () => {
       threadingMode: RoomThreadingMode.REQUIRED
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://remote.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.createRoom).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.createRoom)).toMatchObject({
       name: 'general',
       description: 'General chat',
       groupId: 'group-1',
@@ -182,7 +123,7 @@ describe('createRoomCommandAPI', () => {
   });
 
   it('updates room metadata and universal state through RoomService', async () => {
-    mocks.updateRoom.mockResolvedValue({
+    mocks.updateRoom.mockReturnValue({
       room: {
         id: 'room-1',
         name: 'renamed',
@@ -195,10 +136,7 @@ describe('createRoomCommandAPI', () => {
       }
     });
 
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = roomAPI();
 
     await expect(
       api.updateRoom({
@@ -219,7 +157,7 @@ describe('createRoomCommandAPI', () => {
       threadingMode: RoomThreadingMode.ENCOURAGED
     });
 
-    expect(mocks.updateRoom).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.updateRoom)).toMatchObject({
       roomId: 'room-1',
       name: 'renamed',
       description: 'Updated',
@@ -230,7 +168,7 @@ describe('createRoomCommandAPI', () => {
 
     await api.updateRoom({ roomId: 'room-1', universal: false });
 
-    expect(mocks.updateRoom).toHaveBeenLastCalledWith({
+    expect(mocks.updateRoom.mock.lastCall?.[0]).toMatchObject({
       roomId: 'room-1',
       name: undefined,
       description: undefined,
@@ -240,10 +178,10 @@ describe('createRoomCommandAPI', () => {
   });
 
   it('uses Connect room and directory membership commands', async () => {
-    mocks.joinRoom.mockResolvedValue({ room: { id: 'room-1', name: 'general' } });
-    mocks.startDM.mockResolvedValue({ room: { id: 'dm-1', name: '' } });
-    mocks.leaveRoom.mockResolvedValue({});
-    mocks.addMember.mockResolvedValue({
+    mocks.joinRoom.mockReturnValue({ room: { id: 'room-1', name: 'general' } });
+    mocks.startDM.mockReturnValue({ room: { id: 'dm-1', name: '' } });
+    mocks.leaveRoom.mockReturnValue({});
+    mocks.addMember.mockReturnValue({
       member: {
         user: {
           id: 'user-1',
@@ -255,13 +193,10 @@ describe('createRoomCommandAPI', () => {
         roles: []
       }
     });
-    mocks.removeMember.mockResolvedValue({ removed: true });
-    mocks.joinRoomGroup.mockResolvedValue({ joinedRoomIds: ['room-1', 'room-2'] });
+    mocks.removeMember.mockReturnValue({ removed: true });
+    mocks.joinRoomGroup.mockReturnValue({ joinedRoomIds: ['room-1', 'room-2'] });
 
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = roomAPI();
 
     await expect(api.joinRoom('room-1')).resolves.toMatchObject({ id: 'room-1' });
     await expect(api.startDM(['user-1'])).resolves.toMatchObject({ id: 'dm-1' });
@@ -275,38 +210,35 @@ describe('createRoomCommandAPI', () => {
     await expect(api.removeMember({ roomId: 'room-1', userId: 'user-1' })).resolves.toBe(true);
     await expect(api.joinGroup('group-1')).resolves.toEqual(['room-1', 'room-2']);
 
-    expect(mocks.joinRoom).toHaveBeenCalledWith({ roomId: 'room-1' });
-    expect(mocks.startDM).toHaveBeenCalledWith({ participantIds: ['user-1'] });
-    expect(mocks.leaveRoom).toHaveBeenCalledWith({ roomId: 'room-1' });
-    expect(mocks.addMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'user-1' });
-    expect(mocks.removeMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'user-1' });
-    expect(mocks.joinRoomGroup).toHaveBeenCalledWith({ groupId: 'group-1' });
+    expect(receivedRequest(mocks.joinRoom)).toMatchObject({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.startDM)).toMatchObject({ participantIds: ['user-1'] });
+    expect(receivedRequest(mocks.leaveRoom)).toMatchObject({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.addMember)).toMatchObject({ roomId: 'room-1', userId: 'user-1' });
+    expect(receivedRequest(mocks.removeMember)).toMatchObject({
+      roomId: 'room-1',
+      userId: 'user-1'
+    });
+    expect(receivedRequest(mocks.joinRoomGroup)).toMatchObject({ groupId: 'group-1' });
   });
 
   it('updates typing indicators through RoomService', async () => {
-    mocks.refreshTypingIndicator.mockResolvedValue({});
+    mocks.refreshTypingIndicator.mockReturnValue({});
 
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = roomAPI();
 
     await expect(api.refreshTypingIndicator('room-1', 'thread-root-1')).resolves.toBe(true);
 
-    expect(mocks.refreshTypingIndicator).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.refreshTypingIndicator)).toMatchObject({
       roomId: 'room-1',
       threadRootEventId: 'thread-root-1'
     });
   });
 
   it('sends removal and suspension commands through RoomService', async () => {
-    mocks.removeUser.mockResolvedValue({});
-    mocks.liftSuspension.mockResolvedValue({});
+    mocks.removeUser.mockReturnValue({});
+    mocks.liftSuspension.mockReturnValue({});
 
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = roomAPI();
 
     await expect(
       api.removeUser({
@@ -320,7 +252,7 @@ describe('createRoomCommandAPI', () => {
       api.liftSuspension({ roomId: 'room-1', userId: 'user-1', reason: 'appeal' })
     ).resolves.toBe(true);
 
-    expect(mocks.removeUser).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.removeUser)).toMatchObject({
       roomId: 'room-1',
       userId: 'user-1',
       reason: 'policy',
@@ -329,7 +261,7 @@ describe('createRoomCommandAPI', () => {
         value: expect.objectContaining({ toDate: expect.any(Function) })
       }
     });
-    expect(mocks.liftSuspension).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.liftSuspension)).toMatchObject({
       roomId: 'room-1',
       userId: 'user-1',
       reason: 'appeal'
@@ -337,7 +269,7 @@ describe('createRoomCommandAPI', () => {
   });
 
   it('lists active room suspensions through RoomService and maps hydrated references', async () => {
-    mocks.listSuspensions.mockResolvedValue({
+    mocks.listSuspensions.mockReturnValue({
       suspensions: [
         {
           id: 'ban-1',
@@ -383,15 +315,8 @@ describe('createRoomCommandAPI', () => {
       page: { totalCount: 1n, hasMore: false }
     });
 
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
-    const controller = new AbortController();
-
-    await expect(
-      api.listSuspensions({ roomId: 'room-1' }, { signal: controller.signal })
-    ).resolves.toEqual({
+    const api = roomAPI();
+    await expect(api.listSuspensions({ roomId: 'room-1' })).resolves.toEqual({
       suspensions: [
         {
           id: 'ban-1',
@@ -445,34 +370,37 @@ describe('createRoomCommandAPI', () => {
       hasMore: false
     });
 
-    expect(mocks.listSuspensions).toHaveBeenCalledWith(
-      { roomId: 'room-1', page: { limit: 100, offset: 0 } },
-      { signal: controller.signal }
-    );
+    expect(receivedRequest(mocks.listSuspensions)).toMatchObject({
+      roomId: 'room-1',
+      page: { limit: 100, offset: 0 }
+    });
+    await expect(
+      api.listSuspensions({ roomId: 'room-1' }, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('authentication required', Code.Unauthenticated);
-    mocks.joinRoom.mockRejectedValue(err);
-
-    const api = createRoomCommandAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'expired-token'
+  it('propagates Connect errors', async () => {
+    mocks.joinRoom.mockImplementation(() => {
+      throw new ConnectError('authentication required', Code.Unauthenticated);
     });
 
-    await expect(api.joinRoom('room-1')).rejects.toBe(err);
+    const api = roomAPI();
+
+    await expect(api.joinRoom('room-1')).rejects.toMatchObject({
+      code: Code.Unauthenticated,
+      rawMessage: 'authentication required'
+    });
   });
 
   it('preserves core-style room length validation messages for CreateRoom', async () => {
-    mocks.createRoom.mockRejectedValue(
-      new ConnectError('validation error: name must be at most 30 characters', Code.InvalidArgument)
-    );
-
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
+    mocks.createRoom.mockImplementation(() => {
+      throw new ConnectError(
+        'validation error: name must be at most 30 characters',
+        Code.InvalidArgument
+      );
     });
+
+    const api = roomAPI();
 
     await expect(
       api.createRoom({
@@ -484,17 +412,14 @@ describe('createRoomCommandAPI', () => {
   });
 
   it('preserves core-style room description length validation messages for CreateRoom', async () => {
-    mocks.createRoom.mockRejectedValue(
-      new ConnectError(
+    mocks.createRoom.mockImplementation(() => {
+      throw new ConnectError(
         'validation error: description must be at most 500 characters',
         Code.InvalidArgument
-      )
-    );
-
-    const api = createRoomCommandAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
+      );
     });
+
+    const api = roomAPI();
 
     await expect(
       api.createRoom({

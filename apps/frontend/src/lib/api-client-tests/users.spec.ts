@@ -1,39 +1,27 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  batchGetUsers: vi.fn(),
-  updateUserProfile: vi.fn(),
-  uploadAvatar: vi.fn(),
-  deleteAvatar: vi.fn()
-}));
+const mocks = mockService(UserService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@connectrpc/connect')>()),
-  createClient: mocks.createClient
-}));
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+/** An API config for the `server` session whose requests reach the mocked user service. */
+function config() {
+  return fakeServer((router) => router.service(UserService, mocks), {
+    serverId: 'server',
+    queryScope: 'session'
+  });
+}
 
 describe('createUserAPI', () => {
   it('shares a pending profile read with the room directory adapter', async () => {
-    const config = {
-      serverId: 'server',
-      queryScope: 'session',
-      baseUrl: '/api/connect',
-      bearerToken: null
-    };
-    const userAPI = createUserAPI(config);
-    const directoryAPI = createMemberDirectoryAPI(config);
-    mocks.batchGetUsers.mockResolvedValue({
+    const userAPI = createUserAPI(config());
+    const directoryAPI = createMemberDirectoryAPI(config());
+    mocks.batchGetUsers.mockReturnValue({
       users: [
         new APIDirectoryMember({
           user: { id: 'bot', login: 'bot', bot: { ownerUserId: 'owner' } }
@@ -50,19 +38,7 @@ describe('createUserAPI', () => {
   });
   beforeEach(() => {
     resetUserStoresForTests();
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.batchGetUsers.mockReset();
-    mocks.updateUserProfile.mockReset();
-    mocks.uploadAvatar.mockReset();
-    mocks.deleteAvatar.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      batchGetUsers: mocks.batchGetUsers,
-      updateUserProfile: mocks.updateUserProfile,
-      uploadAvatar: mocks.uploadAvatar,
-      deleteAvatar: mocks.deleteAvatar
-    });
+    vi.resetAllMocks();
   });
 
   it('acknowledges an avatar command when its profile event arrives before the response', async () => {
@@ -71,12 +47,7 @@ describe('createUserAPI', () => {
       store.invalidate('U1');
       return { user: new APIUser({ id: 'U1', login: 'alice' }) };
     });
-    const api = createUserAPI({
-      serverId: 'server',
-      queryScope: 'session',
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = createUserAPI(config());
     await expect(api.deleteAvatar('U1')).resolves.toMatchObject({ id: 'U1', avatarUrl: null });
     expect(store.has('U1')).toBe(false);
   });
@@ -90,19 +61,14 @@ describe('createUserAPI', () => {
         else store.clear();
         return { user: new APIUser({ id: 'U1', login: 'alice' }) };
       });
-      const api = createUserAPI({
-        serverId: 'server',
-        queryScope: 'session',
-        baseUrl: '/api/connect',
-        bearerToken: null
-      });
+      const api = createUserAPI(config());
       await expect(api.deleteAvatar('U1')).rejects.toThrow();
       expect(store.has('U1')).toBe(false);
     }
   );
 
   it('updates the profile of an explicit user with a sparse update mask', async () => {
-    mocks.updateUserProfile.mockResolvedValue({
+    mocks.updateUserProfile.mockReturnValue({
       user: new APIUser({
         id: 'B1',
         login: 'helper',
@@ -111,7 +77,7 @@ describe('createUserAPI', () => {
         bot: { ownerUserId: 'U1' }
       })
     });
-    const api = createUserAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const api = createUserAPI(config());
 
     await expect(
       api.updateUserProfile('B1', { bio: 'Answers questions.', displayName: 'Helper' })
@@ -121,7 +87,7 @@ describe('createUserAPI', () => {
       bio: 'Answers questions.',
       bot: { ownerUserId: 'U1' }
     });
-    expect(mocks.updateUserProfile).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.updateUserProfile)).toMatchObject({
       userId: 'B1',
       bio: 'Answers questions.',
       displayName: 'Helper',
@@ -130,7 +96,7 @@ describe('createUserAPI', () => {
   });
 
   it('uploads and deletes an avatar for an explicit user', async () => {
-    mocks.uploadAvatar.mockResolvedValue({
+    mocks.uploadAvatar.mockReturnValue({
       user: new APIUser({
         id: 'U1',
         login: 'alice',
@@ -138,10 +104,10 @@ describe('createUserAPI', () => {
         avatarUrl: 'https://cdn/new-avatar.webp'
       })
     });
-    mocks.deleteAvatar.mockResolvedValue({
+    mocks.deleteAvatar.mockReturnValue({
       user: new APIUser({ id: 'U1', login: 'alice', displayName: 'Alice' })
     });
-    const api = createUserAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const api = createUserAPI(config());
     const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' });
 
     await expect(api.uploadAvatar('U1', file)).resolves.toMatchObject({
@@ -149,7 +115,7 @@ describe('createUserAPI', () => {
       avatarUrl: 'https://cdn/new-avatar.webp'
     });
     await expect(api.deleteAvatar('U1')).resolves.toMatchObject({ id: 'U1', avatarUrl: null });
-    expect(mocks.uploadAvatar).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.uploadAvatar)).toMatchObject({
       userId: 'U1',
       image: {
         image: new Uint8Array([1, 2, 3]),
@@ -157,11 +123,11 @@ describe('createUserAPI', () => {
         contentType: 'image/png'
       }
     });
-    expect(mocks.deleteAvatar).toHaveBeenCalledWith({ userId: 'U1' });
+    expect(receivedRequest(mocks.deleteAvatar)).toMatchObject({ userId: 'U1' });
   });
 
   it('loads user summaries in batches', async () => {
-    mocks.batchGetUsers.mockResolvedValue({
+    mocks.batchGetUsers.mockReturnValue({
       users: [
         new APIDirectoryMember({
           user: new APIUser({
@@ -176,10 +142,7 @@ describe('createUserAPI', () => {
       ]
     });
 
-    const api = createUserAPI({
-      baseUrl: 'https://remote.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = createUserAPI(config());
 
     await expect(api.batchGetUsers(['U1', 'U2'])).resolves.toEqual([
       {
@@ -195,16 +158,7 @@ describe('createUserAPI', () => {
       }
     ]);
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://remote.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
-      { userIds: ['U1', 'U2'] },
-      { headers: undefined }
-    );
+    expect(receivedRequest(mocks.batchGetUsers)).toMatchObject({ userIds: ['U1', 'U2'] });
   });
 
   it('maps a bot owner identity without treating it as a management grant', () => {

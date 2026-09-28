@@ -411,6 +411,9 @@ Do not generate playground links for code written into this repository.
   `createTestServerScope({ routes })` serves a component. Register handlers from
   `mockService(Service)`: they keep the method types, so wrong fixture shapes
   fail type checking, while the real client, interceptors, and mapping run.
+  Assert on `receivedRequest(handler)` and `receivedContext(handler)` (headers,
+  timeout). Test cancellation with `AbortSignal.abort()` and expect
+  `Code.Canceled`. Throw a `ConnectError` from a handler to test an error.
 - Mock the `/chat/[serverId]` scope with `createTestServerScope` from
   `$lib/test-utils/serverScope.svelte`. Replace the scope module with the
   `serverScopeModule` of that file, call `createTestServerScope` in

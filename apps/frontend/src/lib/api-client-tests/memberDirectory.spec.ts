@@ -5,74 +5,47 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-import { REALTIME_MINIMUM_CURSOR_HEADER } from '$lib/api-client/connect';
+import { REALTIME_MINIMUM_CURSOR_HEADER, type ConnectAPIConfig } from '$lib/api-client/connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listUsers: vi.fn(),
-  getUser: vi.fn(),
-  batchGetUsers: vi.fn(),
-  listRoomMembers: vi.fn(),
-  getRoomMember: vi.fn(),
-  batchGetRoomMembers: vi.fn()
-}));
+const users = mockService(UserService);
+const rooms = mockService(RoomService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
+function config(extra: Partial<ConnectAPIConfig> = {}) {
+  return fakeServer(
+    (router) => router.service(UserService, users).service(RoomService, rooms),
+    extra
+  );
+}
 
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function directoryAPI() {
+  return createMemberDirectoryAPI(config());
+}
 
 describe('createMemberDirectoryAPI', () => {
   it('requests a bounded presence-filtered page without changing ordinary list defaults', async () => {
-    mocks.listRoomMembers.mockResolvedValue({
+    rooms.listMembers.mockReturnValue({
       userIds: [],
       page: { totalCount: 0n, hasMore: false }
     });
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
     await api.listOnlineRoomMembers('room', PresenceStatus.AWAY, 250, 0);
-    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
-      {
-        roomId: 'room',
-        search: '',
-        page: { limit: 250, offset: 0 },
-        presenceStatuses: [PresenceStatus.AWAY]
-      },
-      { headers: undefined, timeoutMs: 10_000 }
-    );
+    expect(receivedRequest(rooms.listMembers)).toMatchObject({
+      roomId: 'room',
+      search: '',
+      page: { limit: 250, offset: 0 },
+      presenceStatuses: [PresenceStatus.AWAY]
+    });
+    expect(receivedContext(rooms.listMembers)?.timeoutMs()).toBeGreaterThan(9_000);
   });
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listUsers.mockReset();
-    mocks.getUser.mockReset();
-    mocks.batchGetUsers.mockReset();
-    mocks.listRoomMembers.mockReset();
-    mocks.getRoomMember.mockReset();
-    mocks.batchGetRoomMembers.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient
-      .mockReturnValueOnce({
-        listUsers: mocks.listUsers,
-        getUser: mocks.getUser,
-        batchGetUsers: mocks.batchGetUsers
-      })
-      .mockReturnValueOnce({
-        listMembers: mocks.listRoomMembers,
-        getMember: mocks.getRoomMember,
-        batchGetMembers: mocks.batchGetRoomMembers
-      });
+    vi.resetAllMocks();
   });
 
   it('maps user pages', async () => {
-    mocks.listUsers.mockResolvedValue({
+    users.listUsers.mockReturnValue({
       users: [
         {
           user: {
@@ -96,13 +69,9 @@ describe('createMemberDirectoryAPI', () => {
       page: { totalCount: 2n, hasMore: true }
     });
 
-    const api = createMemberDirectoryAPI({
-      baseUrl: 'https://remote.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = directoryAPI();
 
-    const signal = new AbortController().signal;
-    await expect(api.listUsers('ali', 10, 20, { signal })).resolves.toEqual({
+    await expect(api.listUsers('ali', 10, 20)).resolves.toEqual({
       members: [
         {
           id: 'U1',
@@ -128,16 +97,15 @@ describe('createMemberDirectoryAPI', () => {
       hasMore: true
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://remote.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.listUsers).toHaveBeenCalledWith(
-      { search: 'ali', page: { limit: 10, offset: 20 } },
-      { signal }
-    );
+    expect(receivedRequest(users.listUsers)).toMatchObject({
+      search: 'ali',
+      page: { limit: 10, offset: 20 }
+    });
+    await expect(
+      api.listUsers('ali', 10, 20, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({
+      code: Code.Canceled
+    });
   });
 
   it('gets and batch gets users', async () => {
@@ -151,13 +119,10 @@ describe('createMemberDirectoryAPI', () => {
       },
       roles: ['everyone']
     };
-    mocks.getUser.mockResolvedValue({ user: member });
-    mocks.batchGetUsers.mockResolvedValue({ users: [member] });
+    users.getUser.mockReturnValue({ user: member });
+    users.batchGetUsers.mockReturnValue({ users: [member] });
 
-    const api = createMemberDirectoryAPI({
-      baseUrl: 'https://remote.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = directoryAPI();
 
     await expect(api.getUser('U1')).resolves.toMatchObject({
       id: 'U1',
@@ -169,20 +134,21 @@ describe('createMemberDirectoryAPI', () => {
     });
     await expect(api.batchGetUsers(['U1', 'missing'])).resolves.toMatchObject([{ id: 'U1' }]);
 
-    expect(mocks.getUser).toHaveBeenNthCalledWith(1, { target: { case: 'userId', value: 'U1' } });
-    expect(mocks.getUser).toHaveBeenNthCalledWith(2, { target: { case: 'login', value: 'alice' } });
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
-      { userIds: ['U1', 'missing'] },
-      { headers: undefined }
-    );
+    expect(receivedRequest(users.getUser, 0)).toMatchObject({
+      target: { case: 'userId', value: 'U1' }
+    });
+    expect(receivedRequest(users.getUser, 1)).toMatchObject({
+      target: { case: 'login', value: 'alice' }
+    });
+    expect(receivedRequest(users.batchGetUsers)).toMatchObject({ userIds: ['U1', 'missing'] });
   });
 
   it('maps room member pages', async () => {
-    mocks.listRoomMembers.mockResolvedValue({
+    rooms.listMembers.mockReturnValue({
       userIds: ['U2'],
       page: { totalCount: 1n, hasMore: false }
     });
-    mocks.batchGetUsers.mockResolvedValue({
+    users.batchGetUsers.mockReturnValue({
       users: [
         {
           user: {
@@ -197,7 +163,7 @@ describe('createMemberDirectoryAPI', () => {
       ]
     });
 
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
 
     await expect(api.listRoomMembers('room-1', 'bob', 5, 0)).resolves.toEqual({
       members: [
@@ -222,19 +188,20 @@ describe('createMemberDirectoryAPI', () => {
       hasMore: false
     });
 
-    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
-      { roomId: 'room-1', search: 'bob', page: { limit: 5, offset: 0 } },
-      { headers: undefined }
-    );
+    expect(receivedRequest(rooms.listMembers)).toMatchObject({
+      roomId: 'room-1',
+      search: 'bob',
+      page: { limit: 5, offset: 0 }
+    });
   });
 
   it('keeps room member IDs when profile hydration returns no users', async () => {
-    mocks.listRoomMembers.mockResolvedValue({
+    rooms.listMembers.mockReturnValue({
       userIds: ['U2'],
       page: { totalCount: 1n, hasMore: false }
     });
-    mocks.batchGetUsers.mockResolvedValue({ users: [] });
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    users.batchGetUsers.mockReturnValue({ users: [] });
+    const api = directoryAPI();
 
     await expect(api.listRoomMembers('room-1')).resolves.toEqual({
       members: [],
@@ -250,47 +217,45 @@ describe('createMemberDirectoryAPI', () => {
       user: { id: 'U2', login: 'newcomer', displayName: 'Newcomer' },
       roles: []
     };
-    mocks.listRoomMembers.mockResolvedValue({
+    rooms.listMembers.mockReturnValue({
       userIds: ['U2'],
       page: { totalCount: 1n, hasMore: false }
     });
-    mocks.batchGetUsers.mockImplementation(async (_request, options) => ({
-      users: options.headers?.get(REALTIME_MINIMUM_CURSOR_HEADER) === 'join-cursor' ? [member] : []
+    users.batchGetUsers.mockImplementation((_request, context) => ({
+      users:
+        context.requestHeader.get(REALTIME_MINIMUM_CURSOR_HEADER) === 'join-cursor' ? [member] : []
     }));
-    const api = createMemberDirectoryAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null,
-      serverId: 'cursor-test',
-      queryScope: 'cursor-test'
-    });
+    const api = createMemberDirectoryAPI(
+      config({ serverId: 'cursor-test', queryScope: 'cursor-test' })
+    );
 
     const page = await api.listRoomMembers('room-1', '', 250, 0, {
       minimumCursor: 'join-cursor'
     });
 
     expect(page.members.map((user) => user.id)).toEqual(['U2']);
-    expect(mocks.listRoomMembers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER)).toBe(
-      'join-cursor'
-    );
-    expect(mocks.batchGetUsers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER)).toBe(
-      'join-cursor'
-    );
+    for (const handler of [rooms.listMembers, users.batchGetUsers]) {
+      expect(receivedContext(handler)?.requestHeader.get(REALTIME_MINIMUM_CURSOR_HEADER)).toBe(
+        'join-cursor'
+      );
+    }
   });
 
   it('defaults room member pages to 250 members', async () => {
-    mocks.listRoomMembers.mockResolvedValue({
+    rooms.listMembers.mockReturnValue({
       userIds: [],
       page: { totalCount: 0n, hasMore: false }
     });
 
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
 
     await api.listRoomMembers('room-1');
 
-    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
-      { roomId: 'room-1', search: '', page: { limit: 250, offset: 0 } },
-      { headers: undefined }
-    );
+    expect(receivedRequest(rooms.listMembers)).toMatchObject({
+      roomId: 'room-1',
+      search: '',
+      page: { limit: 250, offset: 0 }
+    });
   });
 
   it('gets and batch gets room members', async () => {
@@ -304,61 +269,59 @@ describe('createMemberDirectoryAPI', () => {
       },
       roles: []
     };
-    mocks.getRoomMember.mockResolvedValue({ member });
-    mocks.batchGetRoomMembers.mockResolvedValue({ members: [member] });
+    rooms.getMember.mockReturnValue({ member });
+    rooms.batchGetMembers.mockReturnValue({ members: [member] });
 
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
 
     await expect(api.getRoomMember('room-1', 'U2')).resolves.toMatchObject({ id: 'U2' });
-    const signal = new AbortController().signal;
+    await expect(api.batchGetRoomMembers('room-1', ['U2', 'missing'])).resolves.toMatchObject([
+      { id: 'U2' }
+    ]);
     await expect(
-      api.batchGetRoomMembers('room-1', ['U2', 'missing'], { signal })
-    ).resolves.toMatchObject([{ id: 'U2' }]);
+      api.batchGetRoomMembers('room-1', ['U2'], { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
 
-    expect(mocks.getRoomMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'U2' });
-    expect(mocks.batchGetRoomMembers).toHaveBeenCalledWith(
-      { roomId: 'room-1', userIds: ['U2', 'missing'] },
-      { signal }
-    );
+    expect(receivedRequest(rooms.getMember)).toMatchObject({ roomId: 'room-1', userId: 'U2' });
+    expect(receivedRequest(rooms.batchGetMembers)).toMatchObject({
+      roomId: 'room-1',
+      userIds: ['U2', 'missing']
+    });
   });
 
   it('passes cancellation through when listing room members', async () => {
-    mocks.listRoomMembers.mockResolvedValue({
-      userIds: [],
-      page: { totalCount: 0n, hasMore: false }
-    });
-    const signal = new AbortController().signal;
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
-
-    await api.listRoomMembers('room-1', '', 20, 40, { signal });
-
-    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
-      { roomId: 'room-1', search: '', page: { limit: 20, offset: 40 } },
-      { headers: undefined, signal }
-    );
+    await expect(
+      directoryAPI().listRoomMembers('room-1', '', 20, 40, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('returns null when singular member lookups are missing', async () => {
-    mocks.getUser.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
-    mocks.getRoomMember.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
+    const notFound = () => {
+      throw new ConnectError('missing', Code.NotFound);
+    };
+    users.getUser.mockImplementationOnce(notFound);
+    rooms.getMember.mockImplementationOnce(notFound);
 
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
 
     await expect(api.getUser('missing')).resolves.toBeNull();
     await expect(api.getRoomMember('room-1', 'U2')).resolves.toBeNull();
   });
 
   it('preserves permission denied on singular room member reads', async () => {
-    const err = new ConnectError('denied', Code.PermissionDenied);
-    mocks.getRoomMember.mockRejectedValueOnce(err);
+    rooms.getMember.mockImplementationOnce(() => {
+      throw new ConnectError('denied', Code.PermissionDenied);
+    });
 
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
 
-    await expect(api.getRoomMember('room-1', 'U2')).rejects.toBe(err);
+    await expect(api.getRoomMember('room-1', 'U2')).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
   });
 
   it('maps offline and unspecified read statuses to offline', async () => {
-    mocks.listUsers.mockResolvedValue({
+    users.listUsers.mockReturnValue({
       users: [
         {
           user: {
@@ -384,7 +347,7 @@ describe('createMemberDirectoryAPI', () => {
       page: { totalCount: 2n, hasMore: false }
     });
 
-    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = directoryAPI();
 
     await expect(api.listUsers()).resolves.toMatchObject({
       members: [
