@@ -5,6 +5,7 @@ import { tick } from 'svelte';
 import EventListTestHarness from './EventListTestHarness.svelte';
 import {
   setVirtualizerForcedRenderedIndex,
+  setVirtualizerFoundItemIndex,
   setVirtualizerScrollOffset
 } from './EventListVirtualizerMock.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -62,6 +63,73 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
   useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
 }));
+
+describe('EventList read position', () => {
+  it('reports the newest message while the timeline follows the bottom', async () => {
+    const onReadPosition = vi.fn();
+    render(EventListTestHarness, {
+      props: { eventIds: ['msg-a', 'msg-b'], scrollToEventId: null, onReadPosition }
+    });
+
+    await vi.waitFor(() =>
+      expect(onReadPosition).toHaveBeenLastCalledWith(
+        expect.objectContaining({ eventId: 'msg-b', latest: true })
+      )
+    );
+  });
+
+  it('reports the newest visible message while the timeline shows history', async () => {
+    // Beyond the last item, so the lookup clamps to the newest message.
+    setVirtualizerFoundItemIndex(99);
+    try {
+      const onReadPosition = vi.fn();
+      render(EventListTestHarness, {
+        props: {
+          eventIds: ['msg-a', 'msg-b'],
+          scrollToEventId: null,
+          isJumpedMode: true,
+          onReadPosition
+        }
+      });
+
+      await vi.waitFor(() =>
+        expect(onReadPosition).toHaveBeenCalledWith(
+          expect.objectContaining({ eventId: 'msg-b', latest: false })
+        )
+      );
+      expect(onReadPosition).not.toHaveBeenCalledWith(expect.objectContaining({ latest: true }));
+    } finally {
+      setVirtualizerFoundItemIndex(0);
+    }
+  });
+
+  it('reports no position while the first page loads', async () => {
+    const onReadPosition = vi.fn();
+    const rendered = render(EventListTestHarness, {
+      props: { eventIds: ['msg-a'], scrollToEventId: null, isLoading: true, onReadPosition }
+    });
+    await tick();
+    expect(onReadPosition).not.toHaveBeenCalled();
+
+    await rendered.rerender({ isLoading: false });
+    await vi.waitFor(() =>
+      expect(onReadPosition).toHaveBeenCalledWith(
+        expect.objectContaining({ eventId: 'msg-a', latest: true })
+      )
+    );
+  });
+
+  it('does not use system rows as a read position', async () => {
+    const onReadPosition = vi.fn();
+    render(EventListTestHarness, {
+      props: { eventIds: ['join-a'], scrollToEventId: null, eventKind: 'join', onReadPosition }
+    });
+    await tick();
+    await tick();
+
+    expect(onReadPosition).not.toHaveBeenCalled();
+  });
+});
 
 describe('EventList jump completion', () => {
   it('stops pending bottom scrolling before reading an unmounted room', async () => {

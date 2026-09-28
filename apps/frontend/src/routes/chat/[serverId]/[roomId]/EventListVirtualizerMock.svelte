@@ -1,6 +1,7 @@
 <script module lang="ts">
   let scrollOffset = 700;
   let forcedRenderedIndex: number | null = null;
+  let foundItemIndex = 0;
 
   export function setVirtualizerScrollOffset(offset: number) {
     scrollOffset = offset;
@@ -8,6 +9,11 @@
 
   export function setVirtualizerForcedRenderedIndex(index: number | null) {
     forcedRenderedIndex = index;
+  }
+
+  /** Set the index that `findItemIndex` returns for every offset. */
+  export function setVirtualizerFoundItemIndex(index: number) {
+    foundItemIndex = index;
   }
 </script>
 
@@ -51,7 +57,7 @@
   }
 
   export function findItemIndex() {
-    return 0;
+    return foundItemIndex;
   }
 
   export function getItemOffset(index: number) {
