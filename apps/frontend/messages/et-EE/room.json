@@ -216,7 +216,7 @@
       "no_files": "Selles ruumis pole veel faile.",
       "files": "Failid",
       "pins": "Kinnitatud sõnumid",
-      "call": "Helista",
+      "call": "Kõne",
       "jump_to_file": "Hüppa {filename}",
       "loading_files": "Failide laadimine...",
       "loading_members": "Liikmete laadimine...",
@@ -227,7 +227,8 @@
       "remove_failed": "Kasutajat ei õnnestunud toast eemaldada",
       "remove_success": "{name} eemaldati toast",
       "members_load_failed": "Toa liikmete laadimine ebaõnnestus",
-      "members_refresh_failed": "Toa liikmete värskendamine ebaõnnestus"
+      "members_refresh_failed": "Toa liikmete värskendamine ebaõnnestus",
+      "search": "Otsi"
     },
     "pins": {
       "show": "Kuva kinnitatud sõnumid",

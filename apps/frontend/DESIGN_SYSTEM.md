@@ -135,6 +135,7 @@ a side stripe or cast shadow for navigation selection.
 | Context-menu command                        | `MenuItem` inside `MenuSection`                                                        | `sidebar-item` or repeated icon and state markup              |
 | Standard pane page                          | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections                  | Hand-rolled page widths, scrolling, and section cards         |
 | Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                    |
+| Named panel toggles in a pane header        | `pane-header-label-button`; show the label with a `pane-header` query                  | Labels that push the title out of a narrow header             |
 | Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes                |
 | Destructive inline icon action              | `icon-action icon-action-danger`                                                       | A local `hover:text-danger`, which the shared hover overrides |
 | Icon-only committed action                  | `Button size="icon"` with `label`                                                      | `btn-*` recipes on a raw square button                        |

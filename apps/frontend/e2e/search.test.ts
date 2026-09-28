@@ -72,7 +72,9 @@ test.describe('message search', () => {
     const input = page.getByTestId('room-search-query');
     await expect(input).toBeFocused();
 
-    await page.getByRole('button', { name: 'Hide room extras', pressed: true }).click();
+    await page
+      .getByRole('button', { name: 'Search in this room', exact: true, pressed: true })
+      .click();
     await expect(input).toHaveCount(0);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+/' : 'Control+/');
     await expect(input).toBeFocused();

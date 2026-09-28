@@ -1830,6 +1830,15 @@
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
+/* Pane header button with an icon and a label, such as a section tab or a room
+   sidebar toggle. Without a visible label it has the size of
+   `pane-header-icon-button`. Callers hide the label with `sr-only` and show it
+   with a `pane-header` container query when the header has room. */
+@utility pane-header-label-button {
+  @apply inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 leading-none whitespace-nowrap;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
+}
+
 @utility pane-header-icon-glyph {
   @apply shrink-0 text-base transition-colors feedback-quick;
 }

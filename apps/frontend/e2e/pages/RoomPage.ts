@@ -120,7 +120,9 @@ export class RoomPage {
     if (await this.memberList.isVisible()) return;
 
     const actions = this.page.getByRole('button', { name: /^Actions for #/ });
-    const membersToggle = this.page.getByRole('button', { name: /^(Show|Hide) members$/ });
+    const membersToggle = this.page
+      .locator('[data-testid="room-sidebar-toggle"]:visible')
+      .getByRole('button', { name: 'Members', exact: true });
     await expect(membersToggle.or(actions).first()).toBeVisible();
     if ((await actions.isVisible()) && (await actions.getAttribute('aria-expanded')) === 'false') {
       await actions.click();

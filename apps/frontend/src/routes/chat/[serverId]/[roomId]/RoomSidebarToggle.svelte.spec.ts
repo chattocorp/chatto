@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import '../../../../app.css';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -6,6 +7,11 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import RoomSidebarToggle from './RoomSidebarToggle.svelte';
 
 describe('RoomSidebarToggle', () => {
+  beforeEach(async () => {
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
+  });
+
   it('opens the members panel when it is hidden', async () => {
     const onToggle = vi.fn();
     const { container } = render(RoomSidebarToggle, {
@@ -15,9 +21,7 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    const button = container.querySelector(
-      '[aria-label="Show members"]'
-    ) as HTMLButtonElement | null;
+    const button = container.querySelector('[aria-label="Members"]') as HTMLButtonElement | null;
     expect(button).toBeTruthy();
 
     button!.click();
@@ -26,7 +30,7 @@ describe('RoomSidebarToggle', () => {
     expect(onToggle).toHaveBeenCalledWith('members');
   });
 
-  it('uses the hide label while the members panel is active', async () => {
+  it('keeps a stable name and reports the open panel as pressed', async () => {
     const { container } = render(RoomSidebarToggle, {
       props: {
         activePanel: 'members',
@@ -34,7 +38,27 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    expect(container.querySelector('[aria-label="Hide members"]')).toBeTruthy();
+    const button = container.querySelector('[aria-label="Members"]');
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    expect(button?.getAttribute('title')).toBe('Members');
+  });
+
+  it('shows the labels only when the pane header has room', async () => {
+    const { container } = render(RoomSidebarToggle, {
+      props: { activePanel: null, mode: 'always', onToggle: vi.fn() }
+    });
+    const header = document.createElement('div');
+    header.className = '@container/pane-header';
+    container.parentElement!.insertBefore(header, container);
+    header.append(container);
+    const label = [...container.querySelectorAll('[aria-label="Members"] span')].at(-1)!;
+
+    header.style.width = '40rem';
+    await tick();
+    expect(getComputedStyle(label).display).toBe('none');
+
+    header.style.width = '64rem';
+    await expect.poll(() => getComputedStyle(label).display).not.toBe('none');
   });
 
   it('switches to the files panel', async () => {
@@ -46,7 +70,7 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    const button = container.querySelector('[aria-label="Show files"]') as HTMLButtonElement | null;
+    const button = container.querySelector('[aria-label="Files"]') as HTMLButtonElement | null;
     expect(button).toBeTruthy();
 
     button!.click();
@@ -67,7 +91,7 @@ describe('RoomSidebarToggle', () => {
     });
 
     const buttons = container.querySelectorAll('button');
-    expect(buttons[0]?.getAttribute('aria-label')).toContain('Show pinned messages');
+    expect(buttons[0]?.getAttribute('aria-label')).toContain('Pins');
     expect(buttons[0]?.querySelector('.pane-header-icon-glyph')?.className).toContain(
       'pin-outline'
     );
@@ -121,7 +145,7 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    const button = container.querySelector('[aria-label="Show call"]') as HTMLButtonElement | null;
+    const button = container.querySelector('[aria-label="Call"]') as HTMLButtonElement | null;
     expect(button).toBeTruthy();
 
     button!.click();
@@ -139,8 +163,8 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    expect(container.querySelector('[aria-label="Show members"]')).toBeFalsy();
-    expect(container.querySelector('[aria-label="Show files"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Files"]')).toBeTruthy();
   });
 
   it('can render only files and call panels', async () => {
@@ -152,9 +176,9 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    expect(container.querySelector('[aria-label="Show members"]')).toBeFalsy();
-    expect(container.querySelector('[aria-label="Show files"]')).toBeTruthy();
-    expect(container.querySelector('[aria-label="Show call"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Files"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Call"]')).toBeTruthy();
   });
 
   it('uses a background-only pressed state for the active panel', async () => {
@@ -165,18 +189,16 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    const filesButton = container.querySelector(
-      '[aria-label="Hide files"]'
-    ) as HTMLButtonElement | null;
+    const filesButton = container.querySelector('[aria-label="Files"]') as HTMLButtonElement | null;
     const membersButton = container.querySelector(
-      '[aria-label="Show members"]'
+      '[aria-label="Members"]'
     ) as HTMLButtonElement | null;
     expect(filesButton).toBeTruthy();
     expect(membersButton).toBeTruthy();
     expect(filesButton!.getAttribute('aria-pressed')).toBe('true');
     expect(membersButton!.getAttribute('aria-pressed')).toBe('false');
     expect(filesButton!.classList.contains('pane-header-icon-button-active')).toBe(true);
-    expect(membersButton!.classList.contains('pane-header-icon-button')).toBe(true);
+    expect(membersButton!.classList.contains('pane-header-label-button')).toBe(true);
     expect(membersButton!.classList.contains('pane-header-icon-button-active')).toBe(false);
   });
 
@@ -189,9 +211,7 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    const callButton = container.querySelector(
-      '[aria-label="Show call"]'
-    ) as HTMLButtonElement | null;
+    const callButton = container.querySelector('[aria-label="Call"]') as HTMLButtonElement | null;
 
     expect(callButton).toBeTruthy();
     expect(callButton!.classList.contains('text-action')).toBe(true);
@@ -207,9 +227,7 @@ describe('RoomSidebarToggle', () => {
       }
     });
 
-    const callButton = container.querySelector(
-      '[aria-label="Hide call"]'
-    ) as HTMLButtonElement | null;
+    const callButton = container.querySelector('[aria-label="Call"]') as HTMLButtonElement | null;
 
     expect(callButton).toBeTruthy();
     expect(callButton!.classList.contains('text-action')).toBe(true);

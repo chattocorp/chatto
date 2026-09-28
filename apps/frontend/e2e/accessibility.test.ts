@@ -200,6 +200,9 @@ test.describe('Route accessibility', () => {
     for (const [state, route] of [
       ['members', routes.serverAdminMembers],
       ['member detail', routes.serverAdminMember(admin.id!)],
+      ['member account', `${routes.serverAdminMember(admin.id!)}/account`],
+      ['member roles', `${routes.serverAdminMember(admin.id!)}/roles`],
+      ['member permissions', routes.serverAdminMemberPermissions(admin.id!)],
       ['roles', routes.serverAdminPermissions],
       ['role permission matrix', routes.serverAdminPermission('admin')],
       ['bots', routes.serverAdminBots],
@@ -213,7 +216,9 @@ test.describe('Route accessibility', () => {
       ['security', routes.serverAdminSecurity],
       ['system', routes.serverAdminSystem],
       ['room layout editor', routes.serverAdminRooms],
-      ['room management', `${routes.serverAdminRooms}/${roomId}`]
+      ['room management', `${routes.serverAdminRooms}/${roomId}`],
+      ['room members', `${routes.serverAdminRooms}/${roomId}/members`],
+      ['room permissions', `${routes.serverAdminRooms}/${roomId}/permissions`]
     ] as const) {
       await scanRoute(page, state, route);
     }
@@ -315,7 +320,7 @@ test.describe('Call accessibility', () => {
     await chatPage.enterRoom('general');
     await page
       .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByLabel('Show call')
+      .getByLabel('Call', { exact: true })
       .click();
     await expect(page.getByTestId('call-join-button')).toBeVisible();
     await settle(page);

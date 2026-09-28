@@ -124,7 +124,10 @@ async function listCallParticipantsViaConnect(
 }
 
 async function openCallTab(page: Page) {
-  await page.locator('[data-testid="room-sidebar-toggle"]:visible').getByLabel('Show call').click();
+  await page
+    .locator('[data-testid="room-sidebar-toggle"]:visible')
+    .getByLabel('Call', { exact: true })
+    .click();
 }
 
 test.describe('Voice calls', () => {
@@ -135,7 +138,7 @@ test.describe('Voice calls', () => {
 
     const callTab = page
       .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByLabel('Show call');
+      .getByLabel('Call', { exact: true });
     await expect(callTab).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
@@ -151,7 +154,7 @@ test.describe('Voice calls', () => {
       // Call tab should be visible in the DM room sidebar toggle
       const callTab = page
         .locator('[data-testid="room-sidebar-toggle"]:visible')
-        .getByLabel('Show call');
+        .getByLabel('Call', { exact: true });
       await expect(callTab).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     });
   });
@@ -542,7 +545,7 @@ test.describe('Voice calls', () => {
       await chatPage2.enterRoom(roomName);
       const callTab = page2
         .locator('[data-testid="room-sidebar-toggle"]:visible')
-        .getByLabel('Show call');
+        .getByLabel('Call', { exact: true });
       await expect(callTab.getByTestId('active-call-pulse-icon')).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });

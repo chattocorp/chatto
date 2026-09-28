@@ -241,7 +241,8 @@ test.describe('Server Admin Members', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
 
-      // Should see Role Assignments section heading
+      // Role assignments have their own section.
+      await serverAdminPage.openMemberSection('Roles');
       await expect(page.locator('h2', { hasText: 'Role Assignments' })).toBeVisible();
 
       // The visible option label owns the hit area; the native checkbox remains
@@ -323,6 +324,7 @@ test.describe('Server Admin Members', () => {
       const target = await createSecondTestUser(page);
 
       await serverAdminPage.gotoMemberDetails(server.id, target.id!);
+      await serverAdminPage.openMemberSection('Account');
       const deleteButton = page.getByRole('link', { name: 'Delete account' });
       await expect(deleteButton).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await deleteButton.click();

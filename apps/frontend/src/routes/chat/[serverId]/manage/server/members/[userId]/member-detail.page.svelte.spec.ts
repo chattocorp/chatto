@@ -23,6 +23,9 @@ vi.mock('$app/state', () => ({
   page: {
     get params() {
       return { userId: routeUserId };
+    },
+    get route() {
+      return { id: routeId };
     }
   }
 }));
@@ -47,6 +50,17 @@ const api = {
 };
 let server: TestServerScope;
 let routeUserId = $state('alice');
+let routeId = $state('/chat/[serverId]/manage/server/members/[userId]/(sections)');
+
+type Section = 'profile' | 'account' | 'roles' | 'permissions';
+
+function renderSection(section: Section) {
+  routeId =
+    section === 'profile'
+      ? '/chat/[serverId]/manage/server/members/[userId]/(sections)'
+      : `/chat/[serverId]/manage/server/members/[userId]/(sections)/${section}`;
+  return render(MemberDetailTestHarness, { props: { section } });
+}
 
 vi.mock('$lib/components/rbac', async () => ({
   UserPermissionsMatrix: (await import('./MemberPermissionsMatrixMock.svelte')).default
@@ -65,7 +79,7 @@ vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.toastSuccess, error: mocks.toastError }
 }));
 
-import MemberDetailPage from './+page.svelte';
+import MemberDetailTestHarness from './MemberDetailTestHarness.svelte';
 
 function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
   return {
@@ -188,7 +202,7 @@ describe('server member detail queries', () => {
   it('marks a bot account in the member overview', async () => {
     api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
 
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('profile');
     await settle();
 
     expect(rendered.container.querySelector('[data-testid="bot-badge"]')).toBeTruthy();
@@ -200,7 +214,7 @@ describe('server member detail queries', () => {
   });
 
   it('reuses cached member details when revisiting a user in the same session', async () => {
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('profile');
     await settle();
     expect(rendered.container.textContent).toContain('ALICE');
 
@@ -220,7 +234,7 @@ describe('server member detail queries', () => {
   it('ignores an older member response after the route changes', async () => {
     const alice = deferred<AdminMemberDetails>();
     api.getMember.mockReturnValueOnce(alice.promise).mockResolvedValueOnce(details(member('bob')));
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('profile');
     await vi.waitFor(() => expect(api.getMember).toHaveBeenCalledOnce());
 
     routeUserId = 'bob';
@@ -234,7 +248,7 @@ describe('server member detail queries', () => {
   });
 
   it('keeps a realtime-removed member cleared without refetching', async () => {
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('profile');
     await settle();
     expect(rendered.container.textContent).toContain('ALICE');
 
@@ -251,7 +265,7 @@ describe('server member detail queries', () => {
     // user.delete-any is independent from user.manage-accounts. The backend
     // expresses the former through viewerCanDeleteAccount.
     server.permissions.canAdminManageAccounts = false;
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('account');
     await settle();
     expect(rendered.container.textContent).toContain('Danger Zone');
     expect(rendered.container.textContent).toContain('Delete account');
@@ -265,7 +279,7 @@ describe('server member detail queries', () => {
   });
 
   it('updates identity and related cached member details', async () => {
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('account');
     await settle();
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     buttonByText(rendered.container, 'Save').click();
@@ -279,7 +293,7 @@ describe('server member detail queries', () => {
   });
 
   it('does not send back an untouched identity field that changed during the edit', async () => {
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('account');
     await settle();
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     // A realtime admin refresh delivers the member's own display-name change.
@@ -296,7 +310,7 @@ describe('server member detail queries', () => {
   });
 
   it('uploads the selected member avatar and updates the detail cache', async () => {
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('profile');
     await settle();
     const file = new File([new Uint8Array([137, 80, 78, 71])], 'member.png', {
       type: 'image/png'
@@ -317,7 +331,7 @@ describe('server member detail queries', () => {
     api.getMember.mockResolvedValueOnce(
       details(member('alice', { lastLoginChange: new Date().toISOString() }))
     );
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('account');
     await settle();
 
     buttonByText(rendered.container, 'Reset cooldown').click();
@@ -345,7 +359,7 @@ describe('server member detail queries', () => {
       'alice'
     );
     queryClient.setQueryData(userPermissionsKey, { marker: true });
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('roles');
     await settle();
 
     (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
@@ -362,7 +376,7 @@ describe('server member detail queries', () => {
       changed: true,
       member: member('bob', { roles: ['everyone', 'admin'] })
     });
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('roles');
     await settle();
 
     (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
@@ -393,7 +407,7 @@ describe('server member detail queries', () => {
   it('does not apply a mutation result after navigating to another member', async () => {
     const update = deferred<UserSummary>();
     api.updateUserProfile.mockReturnValueOnce(update.promise);
-    const rendered = render(MemberDetailPage);
+    const rendered = renderSection('account');
     await settle();
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     buttonByText(rendered.container, 'Save').click();
@@ -419,5 +433,68 @@ describe('server member detail queries', () => {
     expect(bob?.member?.login).toBe('bob');
     expect(rendered.container.textContent).toContain('BOB');
     expect(rendered.container.textContent).not.toContain('renamed');
+  });
+  function sectionLinks(root: ParentNode) {
+    return [...root.querySelectorAll('nav[aria-label="Member sections"] a')].map((link) => ({
+      label: link.textContent?.trim(),
+      current: link.getAttribute('aria-current')
+    }));
+  }
+
+  it('offers every section to an account manager and marks the current one', async () => {
+    const rendered = renderSection('roles');
+    await settle();
+
+    expect(sectionLinks(rendered.container)).toEqual([
+      { label: 'Profile', current: null },
+      { label: 'Account', current: null },
+      { label: 'Roles', current: 'page' },
+      { label: 'Permissions', current: null }
+    ]);
+  });
+
+  it('offers only the sections that the viewer can use', async () => {
+    server.permissions.canAdminManageAccounts = false;
+    api.getMember.mockImplementation((userId: string) =>
+      Promise.resolve({
+        ...details(member(userId, { viewerCanDeleteAccount: false })),
+        viewerCanManageUserPermissions: false
+      })
+    );
+    const rendered = renderSection('profile');
+    await settle();
+
+    expect(sectionLinks(rendered.container)).toEqual([
+      { label: 'Profile', current: 'page' },
+      { label: 'Roles', current: null }
+    ]);
+  });
+
+  it('hides the section tabs for a bot account', async () => {
+    api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
+    const rendered = renderSection('profile');
+    await settle();
+
+    expect(rendered.container.querySelector('nav[aria-label="Member sections"]')).toBeNull();
+  });
+
+  it('shows the permissions matrix in the permissions section', async () => {
+    const rendered = renderSection('permissions');
+    await settle();
+
+    expect(
+      rendered.container.querySelector('[data-testid="user-permissions"]')
+    ).not.toBeNull();
+  });
+
+  it('denies a section that the viewer cannot use', async () => {
+    api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
+    const rendered = renderSection('roles');
+    await settle();
+
+    expect(rendered.container.textContent).toContain(
+      'You do not have permission to access this page.'
+    );
+    expect(rendered.container.textContent).not.toContain('Role Assignments');
   });
 });

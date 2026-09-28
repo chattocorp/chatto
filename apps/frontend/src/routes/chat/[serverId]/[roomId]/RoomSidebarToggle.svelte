@@ -1,7 +1,9 @@
 <!--
 @component
 
-Room header affordance for opening or hiding room extras panels.
+Room header affordance for opening or hiding room extras panels. Each toggle
+has a stable accessible name and expresses its state with `aria-pressed`. When
+the pane header is at least 60 rem wide, the toggles also show their labels.
 
 **Props:**
 - `activePanel` - Currently visible room sidebar panel, or `null` when hidden.
@@ -34,40 +36,22 @@ Room header affordance for opening or hiding room extras panels.
     {
       id: RoomSidebarPanel;
       icon: string;
-      showLabel: string;
-      hideLabel: string;
+      /** Visible label, shown when the pane header has room. */
+      label: string;
+      /** Accessible name when it differs from the label. It contains the label. */
+      name?: string;
     }[]
   >([
-    {
-      id: 'pins',
-      icon: 'icon-[mdi--pin-outline]',
-      showLabel: m('room.pins.show'),
-      hideLabel: m('room.pins.hide')
-    },
-    {
-      id: 'members',
-      icon: 'icon-[uil--users-alt]',
-      showLabel: 'Show members',
-      hideLabel: 'Hide members'
-    },
+    { id: 'pins', icon: 'icon-[mdi--pin-outline]', label: m('room.sidebar.pins') },
+    { id: 'members', icon: 'icon-[uil--users-alt]', label: m('room.sidebar.members') },
     {
       id: 'search',
       icon: 'icon-[uil--search]',
-      showLabel: m('search.in_room'),
-      hideLabel: m('room.sidebar.hide')
+      label: m('room.sidebar.search'),
+      name: m('search.in_room')
     },
-    {
-      id: 'files',
-      icon: 'icon-[uil--paperclip]',
-      showLabel: 'Show files',
-      hideLabel: 'Hide files'
-    },
-    {
-      id: 'call',
-      icon: 'icon-[uil--phone]',
-      showLabel: 'Show call',
-      hideLabel: 'Hide call'
-    }
+    { id: 'files', icon: 'icon-[uil--paperclip]', label: m('room.sidebar.files') },
+    { id: 'call', icon: 'icon-[uil--phone]', label: m('room.sidebar.call') }
   ]);
 
   const visiblePanels = $derived(
@@ -95,20 +79,17 @@ Room header affordance for opening or hiding room extras panels.
     {@const isActiveCallPanel = panel.id === 'call' && hasActiveCall}
     {@const shouldPulseCallIcon = isActiveCallPanel && !isActive}
     {@const showUnseenPin = panel.id === 'pins' && hasUnseenPins && !isActive}
+    {@const name = panel.name ?? panel.label}
     <button
       type="button"
       class={[
-        'pane-header-icon-button',
+        'pane-header-label-button',
         isActive && 'pane-header-icon-button-active',
         isActiveCallPanel && 'text-action'
       ]}
       onclick={() => onToggle(panel.id)}
-      title={isActive ? panel.hideLabel : panel.showLabel}
-      aria-label={showUnseenPin
-        ? `${panel.showLabel}. ${m('room.pins.unseen')}`
-        : isActive
-          ? panel.hideLabel
-          : panel.showLabel}
+      title={name}
+      aria-label={showUnseenPin ? `${name}. ${m('room.pins.unseen')}` : name}
       aria-pressed={isActive}
     >
       <span class="relative inline-flex">
@@ -131,6 +112,7 @@ Room header affordance for opening or hiding room extras panels.
           <UnreadDot class="absolute -end-1 -top-1 ring-2 ring-surface" testid="unseen-pin-dot" />
         {/if}
       </span>
+      <span class="hidden @min-[60rem]/pane-header:inline" aria-hidden="true">{panel.label}</span>
     </button>
   {/each}
 </span>

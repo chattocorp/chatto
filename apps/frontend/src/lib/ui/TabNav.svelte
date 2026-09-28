@@ -46,10 +46,7 @@ available.
         href={item.href}
         title={item.label}
         aria-current={item.current ? 'page' : undefined}
-        class={[
-          'inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 whitespace-nowrap',
-          item.current && 'pane-header-icon-button-active'
-        ]}
+        class={['pane-header-label-button', item.current && 'pane-header-icon-button-active']}
       >
         <span class={['pane-header-icon-glyph', item.icon]} aria-hidden="true"></span>
         <span class="sr-only @min-[48rem]/pane-header:not-sr-only">{item.label}</span>

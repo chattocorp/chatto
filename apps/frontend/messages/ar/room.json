@@ -232,7 +232,7 @@
       "no_files": "لا توجد ملفات في هذه الغرفة بعد.",
       "files": "الملفات",
       "pins": "الرسائل المثبّتة",
-      "call": "اتصل",
+      "call": "مكالمة",
       "jump_to_file": "انتقل إلى {filename}",
       "loading_files": "جارٍ تحميل الملفات...",
       "loading_members": "جارٍ تحميل الأعضاء...",
@@ -243,7 +243,8 @@
       "remove_failed": "تعذرت إزالة المستخدم من الغرفة",
       "remove_success": "تمت إزالة {name} من الغرفة",
       "members_load_failed": "فشل في تحميل أعضاء الغرفة",
-      "members_refresh_failed": "فشل في تحديث أعضاء الغرفة"
+      "members_refresh_failed": "فشل في تحديث أعضاء الغرفة",
+      "search": "بحث"
     },
     "pins": {
       "show": "عرض الرسائل المثبّتة",

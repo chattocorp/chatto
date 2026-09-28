@@ -216,7 +216,7 @@
       "no_files": "Ainda não existem ficheiros nesta sala.",
       "files": "Ficheiros",
       "pins": "Mensagens fixadas",
-      "call": "Ligar",
+      "call": "Chamada",
       "jump_to_file": "Ir para {filename}",
       "loading_files": "A carregar ficheiros...",
       "loading_members": "A carregar membros...",
@@ -227,7 +227,8 @@
       "remove_failed": "Não foi possível remover o utilizador da sala",
       "remove_success": "{name} foi removido da sala",
       "members_load_failed": "Falha ao carregar membros da sala",
-      "members_refresh_failed": "Falha ao atualizar membros da sala"
+      "members_refresh_failed": "Falha ao atualizar membros da sala",
+      "search": "Pesquisar"
     },
     "pins": {
       "show": "Mostrar mensagens fixadas",
