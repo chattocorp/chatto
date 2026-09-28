@@ -349,6 +349,12 @@ class ServerRegistry {
   #originProbe: Promise<void> | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
   #startedServerNetwork = new Set<string>();
+  /**
+   * Servers whose bearer token is fixed, such as a bot API key. Their token is
+   * never renewed, and the server's rejection ends the session. Kept only in
+   * memory; see {@link addServer}.
+   */
+  readonly #fixedTokenServers = new Set<string>();
 
   constructor() {
     const persisted = restorePersistedServerState();
@@ -912,7 +918,14 @@ class ServerRegistry {
   }
 
   /** Add a server and create its retained state store. Transport ownership is centralized. */
-  addServer(registration: ServerRegistration | RegisteredServer, session?: ServerSession): void {
+  addServer(
+    registration: ServerRegistration | RegisteredServer,
+    session?: ServerSession,
+    options: {
+      /** The session's bearer token is fixed and must never be renewed. */
+      fixedToken?: boolean;
+    } = {}
+  ): void {
     const publicRegistration: ServerRegistration = {
       id: registration.id,
       url: registration.url,
@@ -923,6 +936,7 @@ class ServerRegistry {
     const localSession =
       session ?? ('token' in registration ? sessionFromServer(registration) : emptyServerSession());
     if (!this.catalog.add(publicRegistration)) return;
+    if (options.fixedToken) this.#fixedTokenServers.add(registration.id);
     this.sessions.replace(registration.id, localSession);
     this.#persistAuthentication(registration.id);
     this.#persist();
@@ -942,6 +956,7 @@ class ServerRegistry {
     this.#stores.get(id)?.dispose();
     this.#stores.delete(id);
     this.#startedServerNetwork.delete(id);
+    this.#fixedTokenServers.delete(id);
 
     // Dispose connection state
     serverConnectionManager.destroyClient(id);
@@ -986,6 +1001,7 @@ class ServerRegistry {
       this.#stores.get(id)?.dispose();
       this.#stores.delete(id);
       this.#startedServerNetwork.delete(id);
+      this.#fixedTokenServers.delete(id);
       serverConnectionManager.destroyClient(id);
     }
   }
@@ -1078,6 +1094,11 @@ class ServerRegistry {
     const stored = readPersistedAuthentication(id);
     const current = stored ?? authenticationFromSession(session);
     return persistAuthentication(id, { ...current, ...patch });
+  }
+
+  /** Whether the server's bearer token is fixed; see {@link addServer}. */
+  hasFixedToken(id: string): boolean {
+    return this.#fixedTokenServers.has(id);
   }
 
   /** Get a server by ID. */

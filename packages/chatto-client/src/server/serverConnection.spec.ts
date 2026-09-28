@@ -34,7 +34,8 @@ vi.mock('./registry.js', () => ({
     },
     handleAuthenticationRequired: mockHandleAuthenticationRequired,
     confirmAuthenticationRequired: mockConfirmAuthenticationRequired,
-    renewServerAuthentication: mockRenewServerAuthentication
+    renewServerAuthentication: mockRenewServerAuthentication,
+    hasFixedToken: () => false
   }
 }));
 

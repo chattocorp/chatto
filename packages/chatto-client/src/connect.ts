@@ -107,7 +107,8 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   usedServerIds.add(serverId);
   serverRegistry.addServer(
     { id: serverId, url: url.origin, name: url.host, iconUrl: null, addedAt: Date.now() },
-    { ...emptyServerSession(), token: options.apiKey }
+    { ...emptyServerSession(), token: options.apiKey },
+    { fixedToken: true }
   );
   const runtime = startClientRuntime();
   runtime.setActiveServer(serverId);

@@ -563,7 +563,7 @@ class ServerConnectionManager {
       serverUrl: server.url,
       token: server.token,
       accessTokenExpiresAt: server.accessTokenExpiresAt,
-      renewable: server.refreshToken != null,
+      renewable: !serverRegistry.hasFixedToken(serverId),
       serverId
     });
 

@@ -1,0 +1,107 @@
+// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { ConnectAPIConfig } from './api/connect.js';
+import type { CurrentUser } from './api/viewer.js';
+
+const mocks = vi.hoisted(() => ({
+  discovery: vi.fn(),
+  viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>()
+}));
+vi.mock('./api/server.js', async (original) => ({
+  ...(await original<typeof import('./api/server.js')>()),
+  getPublicServerInfo: mocks.discovery
+}));
+vi.mock('./api/viewer.js', async (original) => ({
+  ...(await original<typeof import('./api/viewer.js')>()),
+  getCurrentUserViaConnect: mocks.viewer
+}));
+
+import { connectChatto, type ChattoConnection } from './connect.js';
+import { serverRegistry } from './server/registry.js';
+import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
+
+const profile = {
+  name: 'Bot server',
+  // A version the client does not support keeps the realtime transport closed.
+  version: '0.1.0',
+  welcomeMessage: null,
+  description: null,
+  iconUrl: null,
+  bannerUrl: null,
+  directRegistrationEnabled: true,
+  directLoginEnabled: true
+};
+
+describe('connectChatto in Node', () => {
+  let connection: ChattoConnection | undefined;
+
+  beforeEach(() => {
+    mocks.discovery.mockReset().mockResolvedValue(profile);
+    mocks.viewer.mockReset().mockResolvedValue({ id: 'bot', login: 'bot' } as CurrentUser);
+    setRealtimeSocketFactoryForTests(() => {
+      throw new Error('no realtime in this test');
+    });
+  });
+
+  afterEach(() => {
+    connection?.close();
+    connection = undefined;
+    setRealtimeSocketFactoryForTests(null);
+  });
+
+  it('runs without browser globals and resolves the viewer', async () => {
+    expect(typeof window).toBe('undefined');
+    expect(typeof localStorage).toBe('undefined');
+    connection = connectChatto({ serverUrl: 'https://chat.example/some/path', apiKey: 'key' });
+    await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
+    expect(serverRegistry.getServer(connection.serverId)).toMatchObject({
+      url: 'https://chat.example',
+      token: 'key'
+    });
+    expect(connection.store.accountId).toBe('bot');
+  });
+
+  it('never renews the fixed token and rejects when the server refuses it', async () => {
+    mocks.viewer.mockImplementation(async (config) => {
+      expect(config.renewBearerToken).toBeUndefined();
+      config.onAuthenticationRequired?.('chatto.api.v1.ViewerService/GetViewer');
+      throw new ConnectError('authentication required', Code.Unauthenticated);
+    });
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'revoked' });
+    await expect(connection.ready()).rejects.toThrow('rejected the API key');
+  });
+
+  it('allows one open connection and never reuses a closed server ID', async () => {
+    const first = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    expect(() => connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(
+      'Close the open Chatto connection'
+    );
+    const firstId = first.serverId;
+    first.close();
+    expect(serverRegistry.getServer(firstId)).toBeUndefined();
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    expect(connection.serverId).not.toBe(firstId);
+  });
+
+  it('rejects URLs with credentials and empty keys before registering', () => {
+    const count = serverRegistry.servers.length;
+    expect(() => connectChatto({ serverUrl: 'https://user:pw@chat.example', apiKey: 'k' })).toThrow(
+      'without credentials'
+    );
+    expect(() => connectChatto({ serverUrl: 'ftp://chat.example', apiKey: 'k' })).toThrow();
+    expect(() => connectChatto({ serverUrl: 'https://chat.example', apiKey: '' })).toThrow(
+      'API key is required'
+    );
+    expect(serverRegistry.servers.length).toBe(count);
+  });
+
+  it('stops waiting when the caller aborts', async () => {
+    mocks.viewer.mockReturnValue(new Promise(() => {}));
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    const controller = new AbortController();
+    const ready = connection.ready({ signal: controller.signal });
+    controller.abort(new Error('stopped'));
+    await expect(ready).rejects.toThrow('stopped');
+  });
+});
