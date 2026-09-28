@@ -2,12 +2,17 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
   import { formatBytes, formatNumber } from '$lib/components/admin';
-  import DataTable from '$lib/ui/DataTable.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { Hint, PaneContent, Pill, StatCard } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import {
+    DataTable,
+    Panel,
+    Hint,
+    PaneContent,
+    Pill,
+    StatCard,
+    LoadingFog,
+    PaneHeader,
+    PageTitle
+  } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';

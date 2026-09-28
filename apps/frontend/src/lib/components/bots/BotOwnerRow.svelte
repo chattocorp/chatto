@@ -10,7 +10,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
 
   let {
     ownerId,

@@ -739,7 +739,7 @@ describe('MessageAttachments', () => {
     ]);
     const gallery = container.querySelector<HTMLElement>('[data-testid="message-image-gallery"]')!;
     const fades = () =>
-      ['left', 'right'].map(
+      ['start', 'end'].map(
         (edge) =>
           !container
             .querySelector(`[data-testid="message-image-gallery-${edge}-fade"]`)!
@@ -778,10 +778,10 @@ describe('MessageAttachments', () => {
     expect(gallery!.parentElement?.className).toContain('w-full');
     expect(gallery!.parentElement?.getAttribute('style')).toBeNull();
     expect(
-      container.querySelector('[data-testid="message-image-gallery-left-fade"]')
+      container.querySelector('[data-testid="message-image-gallery-start-fade"]')
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="message-image-gallery-right-fade"]')
+      container.querySelector('[data-testid="message-image-gallery-end-fade"]')
     ).not.toBeNull();
 
     const buttons = Array.from(gallery!.querySelectorAll<HTMLButtonElement>('button'));

@@ -1,7 +1,6 @@
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
 import { mapDirectoryRoom, mapRoomGroup } from '$lib/api-client/roomDirectory';
-import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { deletedDirectMessageParticipant, type UserAvatarUserView } from '$lib/render/users';
 import type { ServerProjectionStore } from './projection.svelte';
 import { SvelteSet } from 'svelte/reactivity';
@@ -65,27 +64,6 @@ export type RoomsListGroupItem =
       link: SidebarLinkListItem;
     };
 
-export function avatarUserFromDirectoryMember(
-  member: ReturnType<typeof mapDirectoryMember>
-): UserAvatarUserView {
-  return {
-    id: member.id,
-    login: member.login,
-    displayName: member.displayName,
-    deleted: member.deleted,
-    isBot: member.isBot,
-    avatarUrl: member.avatarUrl,
-    presenceStatus: member.presenceStatus,
-    customStatus: member.customStatus
-      ? {
-          emoji: member.customStatus.emoji,
-          text: member.customStatus.text,
-          expiresAt: member.customStatus.expiresAt
-        }
-      : null
-  };
-}
-
 /**
  * Resolves one DM participant for presentation. Deleted accounts stay DM
  * participants and resolve to a deleted placeholder; unresolved profiles are
@@ -95,8 +73,8 @@ export function directMessageParticipant(
   projection: ServerProjectionStore,
   userId: string
 ): UserAvatarUserView[] {
-  const member = projection.users.get(userId);
-  if (member) return [avatarUserFromDirectoryMember(mapDirectoryMember(member))];
+  const view = projection.users.view(userId);
+  if (view) return [view];
   return projection.users.isDeleted(userId) ? [deletedDirectMessageParticipant(userId)] : [];
 }
 

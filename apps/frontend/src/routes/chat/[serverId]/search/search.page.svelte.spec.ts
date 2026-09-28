@@ -232,17 +232,21 @@ describe('message search page', () => {
     );
   });
 
-  it('switches form state when SvelteKit reuses the page for another server', async () => {
+  it('shows the form state of the server that mounted the page', async () => {
     mocks.serverStores = {
       origin: serverStore('private origin query', MessageSearchOrder.NEWEST),
       remote: serverStore('remote query', MessageSearchOrder.RELEVANCE)
     };
+    const origin = render(SearchPageTestHarness);
+    expect((origin.container.querySelector('input') as HTMLInputElement).value).toBe(
+      'private origin query'
+    );
+    origin.unmount();
+
+    // The server layout remounts the page with a new scope for another server.
+    activeServerId = 'remote';
     const { container } = render(SearchPageTestHarness);
     const input = container.querySelector('input') as HTMLInputElement;
-    expect(input.value).toBe('private origin query');
-
-    activeServerId = 'remote';
-    await tick();
 
     expect(input.value).toBe('remote query');
     await userEvent.keyboard('{Enter}');

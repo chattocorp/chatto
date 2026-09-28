@@ -116,7 +116,7 @@
   const hasReachedEnd = $derived(jumpState.hasReachedEnd);
   const scrollToEventId = $derived(jumpState.scrollToEventId);
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
   const roomMembers = $derived(getRoomMembers());

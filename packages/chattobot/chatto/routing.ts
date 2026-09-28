@@ -1,5 +1,5 @@
 import type { ChattoPost, Destination } from '@chatto/client';
-import { conversationKey as botConversationKey, createDeliveryTracker } from '@chatto/bot-client';
+import { createDeliveryTracker } from '@chatto/bot-client';
 export type { ChattoPost, Destination } from '@chatto/client';
 import type { WebhookRouter } from 'runling/web';
 import { task, Type, type WorkflowContext, type TSchema, type Static } from 'runling';
@@ -41,16 +41,16 @@ export function createConversationState() {
 }
 export type ConversationState = ReturnType<typeof createConversationState>;
 
-/** Scope a conversation to the bot, room, thread, and sender, using the bot client's key.
+/** Scope a conversation to the bot, room, and thread. Everyone who addresses the bot in a
+ * thread shares its conversation; permissions are checked per request, not per conversation.
  * Retained implementation metadata stores a hash of this key to authorize resumption,
  * so its value must stay stable for existing conversations. */
 export function deliveryConversationKey(delivery: Delivery): string {
-  return botConversationKey(delivery.bot_id, {
-    id: delivery.message.id,
-    roomId: delivery.room_id,
-    threadRootId: delivery.thread_root_id ?? undefined,
-    authorId: delivery.message.author_id
-  });
+  return JSON.stringify([
+    delivery.bot_id,
+    delivery.room_id,
+    delivery.thread_root_id ?? delivery.message.id
+  ]);
 }
 
 /** Registration failed before acceptance; the source may retry this delivery. */

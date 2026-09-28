@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';

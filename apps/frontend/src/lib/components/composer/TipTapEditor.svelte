@@ -462,6 +462,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           autofocus: autofocus ? 'end' : false,
           editorProps: {
             attributes: {
+              // ProseMirror renders a contenteditable div, which needs a role
+              // before it can carry an accessible name.
+              role: 'textbox',
+              'aria-multiline': 'true',
               'aria-label': placeholder,
               ...(testid ? { 'data-testid': testid } : {})
             },

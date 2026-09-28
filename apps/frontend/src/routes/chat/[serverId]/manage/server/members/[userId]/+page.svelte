@@ -27,19 +27,16 @@
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import MemberDangerZone from './MemberDangerZone.svelte';
   import MemberIdentitySettings from './MemberIdentitySettings.svelte';
   import MemberOverviewPanel from './MemberOverviewPanel.svelte';
   import MemberRoleAssignments from './MemberRoleAssignments.svelte';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
-  const store = $derived(serverScope.store);
+  const activeServerId = serverScope.serverId;
+  const store = serverScope.store;
   const userId = $derived(page.params.userId!);
   const isSelf = $derived(store.viewerId === userId);
   const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
@@ -86,9 +83,7 @@
   const canDeleteHere = $derived(
     !isSelf && !isBot && !!member && !member.deleted && member.viewerCanDeleteAccount
   );
-  const memberTargetKey = $derived(
-    `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
-  );
+  const memberTargetKey = $derived(userId);
   const loading = $derived(memberQuery.isPending && memberQuery.isEnabled);
   const visibleRoleError = $derived(
     roleError?.targetKey === memberTargetKey ? roleError.message : null

@@ -1,182 +1,113 @@
+/**
+ * Late-bound access to the TanStack Query caches.
+ *
+ * The server store must purge and refresh cached snapshot reads at privacy and
+ * realtime boundaries, but it is part of every route's initial bundle. The
+ * query modules register their cache operations here when they load, so the
+ * store can call them without importing TanStack Query. A cache that has not
+ * loaded holds no data, so a missing registration is a no-op.
+ *
+ * Measured on 2026-09-28: importing `query/client`, `query/threads`, and
+ * `query/roomMembers` from the store adds about 9.7 KiB gzip to every route and
+ * fails the login and overview budgets. Keep this indirection unless those
+ * modules become part of the initial bundles anyway.
+ */
 import { runResetHandlers } from '$lib/state/server/resetHandlers';
-type ServerCacheRemover = (serverId: string) => void;
-type AdminUserCacheRemover = (serverId: string, userId: string) => void;
-type AdminUserRemovalListener = (serverId: string, userId: string) => void;
-type QueryCacheRemovalListener = (serverId: string) => void;
-type AdminRoomQueryReconciler = (serverId: string, roomId: string, removed: boolean) => void;
-type AdminRoomGroupQueryReconciler = (serverId: string, visibleGroupIds: readonly string[]) => void;
-type FollowedThreadViewerState = {
-  hasUnreadReplies?: boolean;
+
+/** Snapshot-query operations registered by `query/client`. */
+export type ServerQueryCache = {
+  /** Remove every cached read of a server. */
+  remove(serverId: string): void;
+  /** Reauthorize active snapshots in place and discard inactive private data. */
+  refresh(serverId: string): Promise<void>;
+  /** Remove cached admin reads. */
+  removeAdmin(serverId: string): void;
+  /** Refetch mounted admin reads without discarding their render geometry. */
+  refreshAdmin(serverId: string): void;
+  /** Refresh role displays without invalidating the private-data generation. */
+  refreshRoles(serverId: string): void;
+  /** Remove admin snapshots that can retain a removed user's private data. */
+  removeAdminUser(serverId: string, userId: string): void;
+  /** Reconcile cached room groups with the visible groups of the projection. */
+  reconcileAdminRoomGroups(serverId: string, visibleGroupIds: readonly string[]): void;
 };
-type FollowedThreadCache = {
+
+/** Followed-thread feed operations registered by `query/threads`. */
+export type FollowedThreadCache = {
+  /** Drop the cached feed and refetch it. */
   reset(serverId: string): void;
+  /** Refetch the feed after activity changes a latest reply. */
   refresh(serverId: string): void;
-  reconcile(serverId: string, states: ReadonlyMap<string, FollowedThreadViewerState>): void;
+  /**
+   * Drop the feed when a cached or pending page can show a retracted message;
+   * otherwise refetch it in place.
+   */
+  retractMessage(serverId: string, roomId: string, eventId: string): void;
+  /** Remove threads of a room that the viewer can no longer read. */
   scrubRoom(serverId: string, roomId: string): void;
-  scrubMessage(serverId: string, roomId: string, eventId: string): void;
-  scrubUser(serverId: string): void;
 };
-type RoomMemberQueryCache = {
-  invalidateRoom(serverId: string, roomId: string): void;
+
+/** Room-member snapshot operations registered by `query/roomMembers`. */
+export type RoomMemberQueryCache = {
+  /** Remove every session's member snapshots of a room the viewer lost. */
   purgeRoom(serverId: string, roomId: string): void;
+  /** Remove a deleted user from every cached member and eligible-user list. */
   scrubUser(serverId: string, userId: string): void;
 };
 
-let removeServerCache: ServerCacheRemover | undefined;
-let refreshServerCache: ((serverId: string) => Promise<void>) | undefined;
-let removeAdminCache: ServerCacheRemover | undefined;
-let refreshAdminCache: ServerCacheRemover | undefined;
-let refreshRoleCache: ServerCacheRemover | undefined;
-let removeAdminUserCache: AdminUserCacheRemover | undefined;
-let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
-let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
-let followedThreadCache: FollowedThreadCache | undefined;
-let roomMemberQueryCache: RoomMemberQueryCache | undefined;
+/** The registered caches. Each query module sets its entry when it loads. */
+export const queryCaches: {
+  server?: ServerQueryCache;
+  followedThreads?: FollowedThreadCache;
+  roomMembers?: RoomMemberQueryCache;
+} = {};
+
+type ServerListener = (serverId: string) => void;
+type AdminUserRemovalListener = (serverId: string, userId: string) => void;
+
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
-const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
-const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
+const queryCacheRemovalListeners = new Set<ServerListener>();
+const serverQueryCacheRemovalListeners = new Set<ServerListener>();
 
-/** Register the snapshot-query cache without loading it into every route bundle. */
-export function registerServerQueryCache(removers: {
-  server: ServerCacheRemover;
-  /** Reauthorize active snapshots in place and discard inactive private data. */
-  refreshServer?: (serverId: string) => Promise<void>;
-  admin: ServerCacheRemover;
-  refreshAdmin: ServerCacheRemover;
-  roles?: ServerCacheRemover;
-  adminUser: AdminUserCacheRemover;
-  adminRoom: AdminRoomQueryReconciler;
-  adminRoomGroups: AdminRoomGroupQueryReconciler;
-}): void {
-  removeServerCache = removers.server;
-  refreshServerCache = removers.refreshServer;
-  removeAdminCache = removers.admin;
-  refreshAdminCache = removers.refreshAdmin;
-  refreshRoleCache = removers.roles;
-  removeAdminUserCache = removers.adminUser;
-  reconcileAdminRoomCache = removers.adminRoom;
-  reconcileAdminRoomGroupCache = removers.adminRoomGroups;
-}
-
-/** Refresh role displays without invalidating the viewer's private-data generation. */
-export function refreshRegisteredRoleQueries(serverId: string): void {
-  refreshRoleCache?.(serverId);
-}
-
-/** Register the followed-thread snapshot cache without loading it into the server store bundle. */
-export function registerFollowedThreadQueryCache(cache: FollowedThreadCache): void {
-  followedThreadCache = cache;
-}
-
-/** Register room-member snapshots without loading TanStack Query into the server-store bundle. */
-export function registerRoomMemberQueryCache(cache: RoomMemberQueryCache): void {
-  roomMemberQueryCache = cache;
-}
-
-export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
-  roomMemberQueryCache?.purgeRoom(serverId, roomId);
-}
-
-export function invalidateRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
-  roomMemberQueryCache?.invalidateRoom(serverId, roomId);
-}
-
-export function scrubRegisteredRoomMemberUser(serverId: string, userId: string): void {
-  roomMemberQueryCache?.scrubUser(serverId, userId);
-}
-
-export function resetRegisteredFollowedThreadQueries(serverId: string): void {
-  followedThreadCache?.reset(serverId);
-}
-
-/** Refresh followed-thread feed data after activity changes its latest reply. */
-export function refreshRegisteredFollowedThreadQueries(serverId: string): void {
-  followedThreadCache?.refresh(serverId);
-}
-
-export function reconcileRegisteredFollowedThreadQueries(
-  serverId: string,
-  states: ReadonlyMap<string, FollowedThreadViewerState>
-): void {
-  followedThreadCache?.reconcile(serverId, states);
-}
-
-export function scrubRegisteredFollowedThreadRoom(serverId: string, roomId: string): void {
-  followedThreadCache?.scrubRoom(serverId, roomId);
-}
-
-export function scrubRegisteredFollowedThreadMessage(
-  serverId: string,
-  roomId: string,
-  eventId: string
-): void {
-  followedThreadCache?.scrubMessage(serverId, roomId, eventId);
-}
-
-export function scrubRegisteredFollowedThreadUser(serverId: string): void {
-  followedThreadCache?.scrubUser(serverId);
+/** Reset handlers that notify each listener of a server. */
+function notify(listeners: Iterable<ServerListener>, serverId: string): (() => void)[] {
+  return [...listeners].map((listener) => () => listener(serverId));
 }
 
 /** Purge private reads and fence mutations at session or protocol recovery boundaries. */
 export function removeRegisteredServerQueries(serverId: string): boolean {
-  const listenersCleared = runResetHandlers([
-    ...[...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
-      (listener) => () => listener(serverId)
-    )
-  ]);
-  const cacheCleared = runResetHandlers([() => removeServerCache?.(serverId)]);
+  const listenersCleared = runResetHandlers(
+    notify([...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners], serverId)
+  );
+  const cacheCleared = runResetHandlers([() => queryCaches.server?.remove(serverId)]);
   return listenersCleared && cacheCleared;
 }
 
 /** Fence optimistic results, then reauthorize each snapshot without replacing its observer. */
 export async function refreshRegisteredServerQueries(serverId: string): Promise<void> {
   const fenced = runResetHandlers(
-    [...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
-      (listener) => () => listener(serverId)
-    )
+    notify([...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners], serverId)
   );
-  await refreshServerCache?.(serverId);
+  await queryCaches.server?.refresh(serverId);
   if (!fenced) throw new Error('Permission refresh could not fence every mutation');
 }
 
 /** Purge cached admin reads as soon as their authorization may have changed. */
 export function removeRegisteredAdminQueries(serverId: string): void {
   for (const listener of queryCacheRemovalListeners) listener(serverId);
-  removeAdminCache?.(serverId);
+  queryCaches.server?.removeAdmin(serverId);
 }
 
 /** Refetch mounted admin reads without discarding their stable render geometry. */
 export function refreshRegisteredAdminQueries(serverId: string): void {
-  runResetHandlers([...queryCacheRemovalListeners].map((listener) => () => listener(serverId)));
-  refreshAdminCache?.(serverId);
-}
-
-/** Refresh profile snapshots without fencing mutations as an authorization reset would. */
-export function refreshRegisteredAdminProfileQueries(serverId: string): void {
-  refreshAdminCache?.(serverId);
+  runResetHandlers(notify(queryCacheRemovalListeners, serverId));
+  queryCaches.server?.refreshAdmin(serverId);
 }
 
 /** Purge admin snapshots that can retain a removed user's private data. */
 export function removeRegisteredAdminUserQueries(serverId: string, userId: string): void {
   for (const listener of adminUserRemovalListeners) listener(serverId, userId);
-  removeAdminUserCache?.(serverId, userId);
-}
-
-/** Reconcile cached room-management snapshots from the process-wide projection owner. */
-export function reconcileRegisteredAdminRoomQueries(
-  serverId: string,
-  roomId: string,
-  removed = false
-): void {
-  reconcileAdminRoomCache?.(serverId, roomId, removed);
-}
-
-/** Reconcile cached room-group snapshots from the authoritative visible group replacement. */
-export function reconcileRegisteredAdminRoomGroupQueries(
-  serverId: string,
-  visibleGroupIds: readonly string[]
-): void {
-  reconcileAdminRoomGroupCache?.(serverId, visibleGroupIds);
+  queryCaches.server?.removeAdminUser(serverId, userId);
 }
 
 /** Observe privacy-driven admin-user removal while a detail owner is mounted. */
@@ -186,15 +117,13 @@ export function registerAdminUserRemovalListener(listener: AdminUserRemovalListe
 }
 
 /** Fence late mutations when authentication or admin snapshots are invalidated. */
-export function registerQueryCacheRemovalListener(listener: QueryCacheRemovalListener): () => void {
+export function registerQueryCacheRemovalListener(listener: ServerListener): () => void {
   queryCacheRemovalListeners.add(listener);
   return () => queryCacheRemovalListeners.delete(listener);
 }
 
 /** Fence account mutations only when the complete server session is being disposed. */
-export function registerServerQueryCacheRemovalListener(
-  listener: QueryCacheRemovalListener
-): () => void {
+export function registerServerQueryCacheRemovalListener(listener: ServerListener): () => void {
   serverQueryCacheRemovalListeners.add(listener);
   return () => serverQueryCacheRemovalListeners.delete(listener);
 }

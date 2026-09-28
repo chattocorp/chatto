@@ -45,7 +45,7 @@
     loading={reconnectingServerId === noticeServer.id}
     primaryAction={{
       label: isOriginNotice ? m('ui.auth_status.origin_action') : m('ui.auth_status.remote_action'),
-      icon: 'icon-[uil--signin]',
+      icon: 'icon-[uil--signin] rtl:-scale-x-100',
       onclick: () => {
         if (isOriginNotice) {
           beginOriginReauthentication();

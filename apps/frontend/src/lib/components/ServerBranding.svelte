@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
+  import { MarkdownHtml } from '$lib/ui';
 
   let {
     name,

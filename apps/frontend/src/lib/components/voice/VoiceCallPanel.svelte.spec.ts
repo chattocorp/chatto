@@ -265,6 +265,7 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
     '[data-testid="call-feed-local-mute-button"]'
   )!;
   expect(selfMuteButton.getAttribute('aria-label')).toBe('Mute');
+  expect(selfMuteButton.getAttribute('aria-pressed')).toBe('false');
   expect(
     selfMuteButton.querySelector('.iconify')?.classList.contains('icon-[uil--microphone]')
   ).toBe(true);
@@ -277,7 +278,9 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
       isMuted: true
     }));
   });
-  expect(selfMuteButton.getAttribute('aria-label')).toBe('Unmute');
+  // The name stays stable; aria-pressed announces the muted state.
+  expect(selfMuteButton.getAttribute('aria-label')).toBe('Mute');
+  expect(selfMuteButton.getAttribute('aria-pressed')).toBe('true');
   expect(
     selfMuteButton.querySelector('.iconify')?.classList.contains('icon-[uil--microphone-slash]')
   ).toBe(true);

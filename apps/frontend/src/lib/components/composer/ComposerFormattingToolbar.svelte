@@ -8,8 +8,7 @@ animated shelf plays a global exit transition that keeps a destroyed parent
 block in the DOM until it finishes.
 -->
 <script lang="ts">
-  import FadeScale from '$lib/ui/FadeScale.svelte';
-  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
+  import { FadeScale, PillButtonGroup } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import type {
     ComposerEditorApi,

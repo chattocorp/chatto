@@ -25,9 +25,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     canJoin: boolean;
     canLeave: boolean;
   };
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, Dialog, Hint } from '$lib/ui';
   import { MatrixTable } from '$lib/ui/matrix';
-  import { Dialog, Hint } from '$lib/ui';
   import { Button, ShortcutTextInput } from '$lib/ui/form';
   import {
     getIncludingPermissions,

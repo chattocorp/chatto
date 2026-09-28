@@ -14,19 +14,17 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import { Button } from '$lib/ui/form';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '$lib/render/accountName';
-  import UserCard from '$lib/ui/UserCard.svelte';
-  import WipeReveal from '$lib/ui/WipeReveal.svelte';
-  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
-  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
+  import { UserCard, WipeReveal, CompactActionButton, PillButtonGroup } from '$lib/ui';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
-  const stores = $derived(serverScope.store);
+  const activeServerId = serverScope.serverId;
+  const stores = serverScope.store;
   const voiceCallState = $derived(stores.voiceCall);
   const activeCallRooms = $derived(stores.activeCallRooms);
 
@@ -272,13 +270,7 @@ Room sidebar panel for voice/video calls.
   {#if canShowMuteButton(participant)}
     <CompactActionButton
       aria-pressed={isMutedForViewer}
-      label={participant.isLocal
-        ? isMutedForViewer
-          ? m('voice.unmute')
-          : m('voice.mute')
-        : isMutedForViewer
-          ? m('voice.locally_unmute_participant')
-          : m('voice.locally_mute_participant')}
+      label={participant.isLocal ? m('voice.mute') : m('voice.locally_mute_participant')}
       data-testid="call-feed-local-mute-button"
       onclick={(event) => toggleFeedMute(participant, event)}
     >
@@ -518,13 +510,11 @@ Room sidebar panel for voice/video calls.
 
 {#snippet callControls()}
   {#if isInThisCall && voiceCallState.audioPlaybackBlocked}
-    <button
-      type="button"
-      class="mb-2 btn-secondary w-full"
-      onclick={() => voiceCallState.resumeAudio()}
-    >
-      {m('voice.participant_audio.enable_audio')}
-    </button>
+    <div class="mb-2">
+      <Button variant="secondary" fullWidth onclick={() => voiceCallState.resumeAudio()}>
+        {m('voice.participant_audio.enable_audio')}
+      </Button>
+    </div>
   {/if}
   <WipeReveal active={isInThisCall}>
     {#snippet children(joined)}
@@ -542,7 +532,8 @@ Room sidebar panel for voice/video calls.
 
             <VoiceCallControlButton
               class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
-              label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+              label={m('voice.mute')}
+              pressed={voiceCallState.isMuted}
               testId="call-mute-toggle"
               icon={voiceCallState.isMuted
                 ? 'icon-[uil--microphone-slash]'

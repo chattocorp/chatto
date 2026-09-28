@@ -109,6 +109,8 @@ class EventBusManager {
   #pollCycleRunning = false;
   /** An unready catch-up request arrived while another poll cycle was running. */
   #unreadyPollCycleRequested = false;
+  /** A full catch-up request arrived while another poll cycle was running. */
+  #fullPollCycleRequested = false;
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Register the stable bus/reducer surface without necessarily opening a socket. */
@@ -193,7 +195,18 @@ class EventBusManager {
       detachSocket(true, 'dormant');
       if (markStale) sync.markStale();
       if (wasPolling) resolvePoll(false);
-      serverConnection.setRealtimeConnectionStatus(status);
+      // Going dormant is not an outcome. Keep a reported failure until an
+      // attempt succeeds; a forced reconnect clears it before it gets here.
+      serverConnection.setRealtimeConnectionStatus(
+        serverConnection.showConnectionLostIcon ? 'disconnected' : status
+      );
+    };
+
+    /** Stop after a credential renewal that failed or needs a new sign-in. */
+    const stopAfterFailedRenewal = () => {
+      mode = 'dormant';
+      resolvePoll(false);
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
     };
 
     const recoverFromAuthenticationRequired = async (current: RealtimeSocket, reason: string) => {
@@ -205,14 +218,14 @@ class EventBusManager {
       if (socket === current) socket = null;
       socketSubscribed = false;
       sync.markStale();
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      // Renewal is part of reconnecting; only a failed renewal is a failure.
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
       current.close(1000, 'authentication_required');
       try {
         const renewed = await serverConnection.handleAuthenticationRequired();
         if (stopped) return;
         if (!renewed) {
-          mode = 'dormant';
-          resolvePoll(false);
+          stopAfterFailedRenewal();
           return;
         }
         reconnectAttempts = 0;
@@ -223,10 +236,7 @@ class EventBusManager {
         if (stopped) return;
         if (mode === 'live')
           scheduleReconnect('authentication recovery temporarily failed', RECONNECT_WAIT_MS);
-        else {
-          mode = 'dormant';
-          resolvePoll(false);
-        }
+        else stopAfterFailedRenewal();
       }
     };
 
@@ -235,14 +245,13 @@ class EventBusManager {
       if (socket === current) socket = null;
       socketSubscribed = false;
       sync.markStale();
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
       current.close(1000, 'session_renewal_required');
       try {
         const renewed = await serverConnection.renewBrowserSession();
         if (stopped) return;
         if (!renewed) {
-          mode = 'dormant';
-          resolvePoll(false);
+          stopAfterFailedRenewal();
           return;
         }
         reconnectAttempts = 0;
@@ -250,8 +259,9 @@ class EventBusManager {
         else if (mode === 'polling') connect('browser session renewed');
       } catch (error) {
         console.warn(`[eventBus:${serverId}] browser session renewal failed`, error);
+        if (stopped) return;
         if (mode === 'live') scheduleReconnect('browser session renewal retry', RECONNECT_WAIT_MS);
-        else resolvePoll(false);
+        else stopAfterFailedRenewal();
       }
     };
 
@@ -553,8 +563,13 @@ class EventBusManager {
       reconnectCount++;
       reconnectAttempts++;
       sync.markStale();
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       const wait = delayMs ?? (reconnectAttempts <= 1 ? 0 : RECONNECT_WAIT_MS);
+      // An immediate retry is still part of reconnecting. Report a lost
+      // connection only when the client has to wait before the next attempt.
+      serverConnection.setRealtimeConnectionStatus(
+        wait === 0 ? 'connecting' : 'disconnected',
+        reconnectAttempts
+      );
       reconnectTimer = setTimeout(() => connect(reason), wait);
     }
 
@@ -565,8 +580,17 @@ class EventBusManager {
       scheduleReconnect(reason, 0);
     };
 
+    // For an inactive server, a forced reconnect (tab wake, network recovery)
+    // drops any catch-up that started before it, clears a failure reported
+    // before it, and catches up again at once.
     const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason) => {
-      reconnectNow(reason);
+      if (mode === 'live') {
+        reconnectNow(reason);
+        return;
+      }
+      if (stopped || !projectionSupported) return;
+      becomeDormant(true);
+      this.#requestFullPollCycle();
     });
 
     const heartbeatWatchdog = setInterval(() => {
@@ -629,7 +653,7 @@ class EventBusManager {
         unregisterReconnect();
         detachSocket(true, 'stopped');
         resolvePoll(false);
-        serverConnection.setRealtimeConnectionStatus('disconnected');
+        serverConnection.setRealtimeConnectionStatus('dormant');
       }
     };
 
@@ -715,11 +739,23 @@ class EventBusManager {
     } finally {
       this.#pollCycleRunning = false;
     }
-    if (this.#unreadyPollCycleRequested) {
+    if (this.#fullPollCycleRequested || this.#unreadyPollCycleRequested) {
+      const onlyUnready = !this.#fullPollCycleRequested;
+      this.#fullPollCycleRequested = false;
       this.#unreadyPollCycleRequested = false;
-      await this.#runPollCycle(true);
+      await this.#runPollCycle(onlyUnready);
     }
   }
+
+  /**
+   * Catch up all inactive servers now. When a cycle is running, it can already
+   * have passed the server that asked, so run one full pass after it finishes.
+   */
+  #requestFullPollCycle(): void {
+    if (this.#pollCycleRunning) this.#fullPollCycleRequested = true;
+    else void this.#runPollCycle(false);
+  }
+
   #scheduleNextPoll(): void {
     this.#clearPollTimer();
     if (this.#managedServerIds.size === 0) return;

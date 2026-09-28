@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Server gutter icon with a soft shell rim and a broad single hover shimmer over its artwork, plus the original two-pixel selection outline, notification, compatibility, and sign-in states.'
+            'Server gutter icon with a soft shell rim and a broad single hover shimmer over its artwork, plus the original two-pixel selection outline, notification, and warning states.'
         }
       }
     }
@@ -24,32 +24,19 @@
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
     <ServerIcon server={home} href="/chat/-" title="Home Server" selected />
-    <ServerIcon
-      server={remote}
-      href="/chat/remote"
-      title="Remote Server needs sign-in"
-      dimmed
-      signInRequired
-    />
+    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
     <ServerIcon
       server={legacy}
       href="/chat/legacy"
       title="Legacy Server — Server version is not supported"
-      dimmed
-      compatibilityWarning
+      warning
     />
   </div>
 </Story>
 
-<Story name="Sign-in required" asChild>
+<Story name="Warning" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
-    <ServerIcon
-      server={remote}
-      href="/chat/remote"
-      title="Remote Server needs sign-in"
-      dimmed
-      signInRequired
-    />
+    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
   </div>
 </Story>
 

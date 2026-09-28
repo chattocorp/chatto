@@ -59,7 +59,6 @@
       "log_in": "このサーバーにログイン",
       "sign_out": "このサーバーからログアウト",
       "version": "バージョン {version}",
-      "version_unknown": "バージョン不明",
       "unreachable": "サーバーに接続できません",
       "connection_unavailable": "接続できません",
       "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",

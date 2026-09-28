@@ -11,10 +11,17 @@
     GroupReorderResult,
     RoomMoveFlushResult
   } from '$lib/state/server/adminRoomLayout.svelte';
-  import { ConfirmDialog, EmptyState, FormDialog, Hint, Pill, ToggleChip } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import {
+    ConfirmDialog,
+    EmptyState,
+    FormDialog,
+    Hint,
+    Pill,
+    ToggleChip,
+    LoadingFog,
+    PaneHeader
+  } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
   import { flip } from 'svelte/animate';
   import { dragHandle, dragHandleZone, dndzone, type DndEvent } from 'svelte-dnd-action';
@@ -346,7 +353,7 @@
     })}
     {#if roomInfo.archived}
       {@render iconButton({
-        icon: 'icon-[uil--redo]',
+        icon: 'icon-[uil--redo] rtl:-scale-x-100',
         title: m('admin.rooms_admin.unarchive_room'),
         disabled: layout.archivingRoomId === roomInfo.id,
         onclick: () => confirmUnarchiveRoom(roomInfo)
@@ -649,7 +656,7 @@
     title={m('admin.rooms_admin.unarchive_room')}
     tone="warning"
     actionLabel={m('admin.rooms_admin.unarchive_room')}
-    actionIcon="iconify icon-[uil--redo]"
+    actionIcon="iconify icon-[uil--redo] rtl:-scale-x-100"
     loading={!!layout.archivingRoomId}
     onconfirm={unarchiveRoom}
     onclose={cancelUnarchive}

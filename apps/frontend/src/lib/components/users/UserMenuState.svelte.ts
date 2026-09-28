@@ -1,7 +1,4 @@
-import {
-  contextMenuTrigger,
-  type ContextMenuTriggerDetails
-} from '$lib/ui/contextMenuTrigger.svelte';
+import { contextMenuTrigger, type ContextMenuTriggerDetails } from '$lib/ui';
 
 type MenuSelection<T> = {
   target: T;

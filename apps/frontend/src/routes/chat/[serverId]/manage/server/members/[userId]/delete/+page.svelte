@@ -14,21 +14,17 @@
   import { queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Hint, PaneContent, PageTitle } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import { Hint, PaneContent, PageTitle, LoadingFog, PaneHeader } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import MemberDeleteForm from './MemberDeleteForm.svelte';
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const userId = $derived(page.params.userId!);
   const isSelf = $derived(serverScope.store.viewerId === userId);
   // The detail page keys its interactive sections on this value; keying the
   // confirmation form here resets input state when the route target changes.
-  const memberTargetKey = $derived(
-    `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
-  );
+  const memberTargetKey = $derived(userId);
 
   // Privacy fence: once a removal of this member is observed (for example by
   // another admin), stop rendering and refetching the deletion flow. The

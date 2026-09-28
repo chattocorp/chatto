@@ -16,6 +16,20 @@ const member = (id: string, name = id) =>
 beforeEach(resetUserStoresForTests);
 
 describe('connection user store', () => {
+  it('converts each stored profile once and shares the view until it is replaced', () => {
+    const users = new UserStore();
+    users.set('u1', member('u1', 'First'));
+
+    const first = users.view('u1');
+    expect(first).toMatchObject({ id: 'u1', displayName: 'First' });
+    expect(users.view('u1')).toBe(first);
+
+    users.set('u1', member('u1', 'Renamed'));
+    expect(users.view('u1')).not.toBe(first);
+    expect(users.view('u1')?.displayName).toBe('Renamed');
+    expect(users.view('missing')).toBeUndefined();
+  });
+
   it('retains room membership while a profile is invalidated and another user changes', () => {
     const profiles = getUserStore('server', 'session');
     profiles.set('first', member('first'));

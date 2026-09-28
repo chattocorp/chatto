@@ -40,6 +40,7 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  pushState: vi.fn(),
   goto: mocks.goto
 }));
 

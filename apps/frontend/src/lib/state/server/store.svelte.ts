@@ -60,7 +60,7 @@ import {
   viewerResponseToState,
   type PrivilegedModeAPI
 } from '$lib/api-client/viewer';
-import { avatarUserFromDirectoryMember, directMessageParticipant } from './rooms.svelte';
+import { directMessageParticipant } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
@@ -68,20 +68,12 @@ import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import {
-  reconcileRegisteredAdminRoomGroupQueries,
-  purgeRegisteredRoomMemberQueries,
+  queryCaches,
   refreshRegisteredAdminQueries,
-  refreshRegisteredAdminProfileQueries,
-  refreshRegisteredRoleQueries,
+  refreshRegisteredServerQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
-  removeRegisteredServerQueries,
-  refreshRegisteredServerQueries,
-  resetRegisteredFollowedThreadQueries,
-  scrubRegisteredFollowedThreadRoom,
-  scrubRegisteredFollowedThreadUser,
-  refreshRegisteredFollowedThreadQueries,
-  scrubRegisteredRoomMemberUser
+  removeRegisteredServerQueries
 } from '$lib/query/cacheRegistry';
 
 /**
@@ -345,11 +337,7 @@ export class ServerStateStore {
       track: (read, generation) => this.trackProjectionReconciliation(read, generation),
       actor: (userId) => {
         if (this.#deletedRealtimeUserIds.has(userId)) return { user: null, deleted: true };
-        const member = this.projection.users.get(userId);
-        return {
-          user: member ? avatarUserFromDirectoryMember(mapDirectoryMember(member)) : null,
-          deleted: false
-        };
+        return { user: this.projection.users.view(userId) ?? null, deleted: false };
       }
     });
   }
@@ -601,7 +589,7 @@ export class ServerStateStore {
     if (this.#rooms.loaded(roomId)?.messages) {
       this.#timelines.reconcile(roomId, threadRootEventId);
     }
-    refreshRegisteredFollowedThreadQueries(this.serverId);
+    queryCaches.followedThreads?.refresh(this.serverId);
     if (
       !this.notifications.hasLoaded ||
       this.notifications.loading ||
@@ -666,7 +654,7 @@ export class ServerStateStore {
   /** Message-read loss does not imply loss of voice or room membership. */
   private clearRoomMessageAccess(roomId: string, forgetStores = false): void {
     this.#timelines.invalidateRoom(roomId);
-    scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
+    queryCaches.followedThreads?.scrubRoom(this.serverId, roomId);
     this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
     this.#rooms.clearMessageAccess(roomId, forgetStores);
   }
@@ -724,7 +712,7 @@ export class ServerStateStore {
             throw new Error('Query cleanup incomplete');
         },
         () => {
-          if (!update.retainView) resetRegisteredFollowedThreadQueries(this.serverId);
+          if (!update.retainView) queryCaches.followedThreads?.reset(this.serverId);
         },
         () => {
           if (!update.retainView && !this.resetProjectionMirrors())
@@ -787,7 +775,7 @@ export class ServerStateStore {
           adminRoomLayoutChanged = true;
           break;
         case 'roomGroups':
-          reconcileRegisteredAdminRoomGroupQueries(
+          queryCaches.server?.reconcileAdminRoomGroups(
             this.serverId,
             resource.value.groups.map((group) => group.id)
           );
@@ -987,8 +975,8 @@ export class ServerStateStore {
     this.projection.users.delete(userId);
     for (const [roomId, { members }] of this.#rooms.entries())
       if (members) this.updateRoomMembership(roomId, userId, false);
-    scrubRegisteredFollowedThreadUser(this.serverId);
-    scrubRegisteredRoomMemberUser(this.serverId, userId);
+    queryCaches.followedThreads?.reset(this.serverId);
+    queryCaches.roomMembers?.scrubUser(this.serverId, userId);
     removeRegisteredAdminUserQueries(this.serverId, userId);
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
     this.notifications.scrubUser(userId);
@@ -999,7 +987,7 @@ export class ServerStateStore {
     this.roomDirectory.removeMembershipProjection(roomId);
     this.roomUnread.removeRoomProjection(roomId);
     this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
-    purgeRegisteredRoomMemberQueries(this.serverId, roomId);
+    queryCaches.roomMembers?.purgeRoom(this.serverId, roomId);
     this.clearRoomAccess(roomId, true);
   }
 
@@ -1154,7 +1142,7 @@ export class ServerStateStore {
           payload.case === 'roleAssigned'
         );
         this.refreshRealtimeUsers([payload.value.userId]);
-        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       }
       case 'roleDeleted':
@@ -1166,18 +1154,18 @@ export class ServerStateStore {
         }
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       case 'roleCreated':
       case 'roleUpdated':
       case 'rolesReordered':
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       case 'rolePermissionsChanged':
         this.invalidateUniversalMembership();
-        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
@@ -1232,11 +1220,15 @@ export class ServerStateStore {
           // after the server applies Badge decisions and the poster's read state.
           // Known DM activity is already applied by the room projection.
           if (!this.projection.rooms.has(roomId)) this.refreshRealtimeResource('rooms');
-          if (payload.value.threadRootEventId)
-            refreshRegisteredFollowedThreadQueries(this.serverId);
+          if (payload.value.threadRootEventId) queryCaches.followedThreads?.refresh(this.serverId);
         }
-        if (payload.case === 'messageEdited' || payload.case === 'messageRetracted') {
-          refreshRegisteredFollowedThreadQueries(this.serverId);
+        if (payload.case === 'messageEdited') queryCaches.followedThreads?.refresh(this.serverId);
+        if (payload.case === 'messageRetracted') {
+          queryCaches.followedThreads?.retractMessage(
+            this.serverId,
+            payload.value.roomId,
+            payload.value.messageEventId
+          );
         }
         return;
       }
@@ -1339,7 +1331,7 @@ export class ServerStateStore {
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
         // Admin rows have a separate private cache; public profile hydration
         // cannot update its email, permission, or search snapshots.
-        refreshRegisteredAdminProfileQueries(this.serverId);
+        queryCaches.server?.refreshAdmin(this.serverId);
         return;
       case 'viewerPresencePreferenceChanged':
         if (this.accountId) {
@@ -1364,7 +1356,7 @@ export class ServerStateStore {
           payload.value.threadRootEventId,
           payload.value.isFollowing
         );
-        refreshRegisteredFollowedThreadQueries(this.serverId);
+        queryCaches.followedThreads?.refresh(this.serverId);
         return;
       }
       default:

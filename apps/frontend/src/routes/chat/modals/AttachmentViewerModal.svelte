@@ -22,8 +22,7 @@ media. HTML consent is never stored in history or carried to another selection.
   import { attachmentDownloadUrl } from '$lib/attachments/attachmentDownloadUrl';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
-  import AttachmentModal from '$lib/ui/AttachmentModal.svelte';
-  import AttachmentPreview from '$lib/ui/AttachmentPreview.svelte';
+  import { AttachmentModal, AttachmentPreview } from '$lib/ui/attachments';
 
   let { modal, onclose }: { modal: AttachmentViewerModalState; onclose: () => void } = $props();
   let index = $state(untrack(() => Math.max(0, Math.min(modal.index, modal.items.length - 1))));

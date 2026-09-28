@@ -1,11 +1,10 @@
 <script lang="ts">
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PageTitle, AccessDenied } from '$lib/ui';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  import AccessDenied from '$lib/ui/AccessDenied.svelte';
   import { m } from '$lib/i18n/messages';
 
   let { children } = $props();

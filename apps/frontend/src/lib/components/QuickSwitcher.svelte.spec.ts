@@ -90,10 +90,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  pushState: vi.fn(),
   goto: mocks.goto
 }));
 
 vi.mock('$app/paths', () => ({
+  base: '',
+  assets: '',
   resolve: (path: string, params?: Record<string, string>) =>
     Object.entries(params ?? {}).reduce(
       (resolved, [key, value]) => resolved.replace(`[${key}]`, value),

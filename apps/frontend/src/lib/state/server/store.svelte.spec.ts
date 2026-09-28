@@ -59,6 +59,7 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   MessageEditedEvent,
+  MessageRetractedEvent,
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
@@ -75,7 +76,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   },
   cacheMocks: {
     reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
-    reconcileRegisteredAdminRoomQueries: vi.fn(),
+    refreshRoleQueries: vi.fn(),
     refreshRegisteredAdminQueries: vi.fn(),
     refreshRegisteredServerQueries: vi.fn(async () => {}),
     removeRegisteredAdminQueries: vi.fn(),
@@ -83,11 +84,8 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     removeRegisteredServerQueries: vi.fn(),
     resetFollowedThreads: vi.fn(),
     refreshFollowedThreads: vi.fn(),
-    reconcileFollowedThreads: vi.fn(),
     scrubFollowedThreadRoom: vi.fn(),
-    scrubFollowedThreadMessage: vi.fn(),
-    scrubFollowedThreadUser: vi.fn(),
-    invalidateRoomMemberQueries: vi.fn(),
+    retractFollowedThreadMessage: vi.fn(),
     purgeRoomMemberQueries: vi.fn(),
     scrubRoomMemberUser: vi.fn()
   },
@@ -365,11 +363,7 @@ vi.mock('$lib/api-client/attachments', async (importActual) => {
 
 import { ServerStateStore } from './store.svelte';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
-import {
-  registerFollowedThreadQueryCache,
-  registerRoomMemberQueryCache,
-  registerServerQueryCache
-} from '$lib/query/cacheRegistry';
+import { queryCaches } from '$lib/query/cacheRegistry';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
@@ -533,38 +527,32 @@ beforeEach(() => {
     .mockResolvedValue({ items: [], totalCount: 0, hasMore: false, latestPinMarker: '' });
   apiMocks.readMessages.mockReset().mockResolvedValue([]);
   resetUserStoresForTests();
-  registerServerQueryCache({
-    server: cacheMocks.removeRegisteredServerQueries,
-    refreshServer: cacheMocks.refreshRegisteredServerQueries,
-    admin: cacheMocks.removeRegisteredAdminQueries,
+  queryCaches.server = {
+    remove: cacheMocks.removeRegisteredServerQueries,
+    refresh: cacheMocks.refreshRegisteredServerQueries,
+    removeAdmin: cacheMocks.removeRegisteredAdminQueries,
     refreshAdmin: cacheMocks.refreshRegisteredAdminQueries,
-    adminUser: cacheMocks.removeRegisteredAdminUserQueries,
-    adminRoom: cacheMocks.reconcileRegisteredAdminRoomQueries,
-    adminRoomGroups: cacheMocks.reconcileRegisteredAdminRoomGroupQueries
-  });
-  registerFollowedThreadQueryCache({
+    refreshRoles: cacheMocks.refreshRoleQueries,
+    removeAdminUser: cacheMocks.removeRegisteredAdminUserQueries,
+    reconcileAdminRoomGroups: cacheMocks.reconcileRegisteredAdminRoomGroupQueries
+  };
+  queryCaches.followedThreads = {
     reset: cacheMocks.resetFollowedThreads,
     refresh: cacheMocks.refreshFollowedThreads,
-    reconcile: cacheMocks.reconcileFollowedThreads,
-    scrubRoom: cacheMocks.scrubFollowedThreadRoom,
-    scrubMessage: cacheMocks.scrubFollowedThreadMessage,
-    scrubUser: cacheMocks.scrubFollowedThreadUser
-  });
-  registerRoomMemberQueryCache({
-    invalidateRoom: cacheMocks.invalidateRoomMemberQueries,
+    retractMessage: cacheMocks.retractFollowedThreadMessage,
+    scrubRoom: cacheMocks.scrubFollowedThreadRoom
+  };
+  queryCaches.roomMembers = {
     purgeRoom: cacheMocks.purgeRoomMemberQueries,
     scrubUser: cacheMocks.scrubRoomMemberUser
-  });
+  };
+  cacheMocks.refreshRoleQueries.mockClear();
+  cacheMocks.retractFollowedThreadMessage.mockClear();
   cacheMocks.resetFollowedThreads.mockClear();
   cacheMocks.refreshFollowedThreads.mockClear();
-  cacheMocks.reconcileFollowedThreads.mockClear();
   cacheMocks.scrubFollowedThreadRoom.mockClear();
-  cacheMocks.scrubFollowedThreadMessage.mockClear();
-  cacheMocks.scrubFollowedThreadUser.mockClear();
-  cacheMocks.invalidateRoomMemberQueries.mockClear();
   cacheMocks.purgeRoomMemberQueries.mockClear();
   cacheMocks.scrubRoomMemberUser.mockClear();
-  cacheMocks.reconcileRegisteredAdminRoomQueries.mockClear();
   cacheMocks.reconcileRegisteredAdminRoomGroupQueries.mockClear();
   cacheMocks.removeRegisteredServerQueries.mockClear();
   cacheMocks.refreshRegisteredAdminQueries.mockClear();
@@ -3313,6 +3301,29 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(refresh).not.toHaveBeenCalled();
     expect(refreshThread).not.toHaveBeenCalled();
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes a retracted message to the followed-thread feed', () => {
+    const store = makeStore(new FakeServerConnection([]));
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          event: {
+            case: 'messageRetracted',
+            value: new MessageRetractedEvent({ roomId: 'R1', messageEventId: 'E-REPLY' })
+          }
+        })
+      })
+    );
+
+    expect(cacheMocks.retractFollowedThreadMessage).toHaveBeenCalledExactlyOnceWith(
+      store.serverId,
+      'R1',
+      'E-REPLY'
+    );
+    expect(cacheMocks.resetFollowedThreads).not.toHaveBeenCalled();
+    expect(cacheMocks.refreshFollowedThreads).not.toHaveBeenCalled();
   });
 
   it('keeps a long thread window when reconciling a successful read', async () => {

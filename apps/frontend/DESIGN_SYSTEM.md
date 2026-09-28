@@ -149,6 +149,7 @@ a side stripe or cast shadow for navigation selection.
 | Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
 | Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
+| Lazily loaded part failed to load           | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
 
 `TextInput` and `Select` accept `labelHidden` when the surrounding context
 already names the control, for example a policy column in a table row. The
@@ -898,13 +899,32 @@ differs.
 
 ## Public Surface
 
-Import public primitives from `$lib/ui`, form primitives from `$lib/ui/form`,
-and toast APIs from `$lib/ui/toast`. Direct `.svelte` imports are reserved for
-internal helpers and type-only imports that are not re-exported.
+Outside `src/lib/ui`, import design-system components and `.svelte.ts`
+modules through a public entry point:
+
+| Entry point           | Contents                                                             |
+| --------------------- | -------------------------------------------------------------------- |
+| `$lib/ui`             | General primitives, menus, motion wrappers, and context-menu helpers |
+| `$lib/ui/form`        | Form controls, validation helpers, and form state                    |
+| `$lib/ui/toast`       | The `toast` API and toast components                                 |
+| `$lib/ui/matrix`      | Permission-matrix table, headings, and cells                         |
+| `$lib/ui/attachments` | Attachment viewer modals and previews                                |
+| `$lib/ui/code`        | Syntax-highlighted code display                                      |
+
+`scripts/check-design-system.mjs` rejects direct `.svelte` and `.svelte.ts`
+imports into `src/lib/ui` from other code. Specs and stories may import
+implementation modules directly, for example to mock them. Inside `src/lib/ui`,
+import modules directly, not through an entry point, so that the entry points
+do not import themselves.
+
+The entry points are barrels, and the bundler keeps every component that a
+barrel re-exports. Give a heavy, specialized primitive its own entry point, as
+`$lib/ui/attachments` and `$lib/ui/code` do, so that `$lib/ui` stays small.
+Run `mise build-frontend` and compare the route budgets when you add one.
 
 When adding a public primitive:
 
-1. Export it from the appropriate index.
+1. Export it from the appropriate entry point.
 2. Add a component-level usage comment for non-obvious behavior.
 3. Add or update its Storybook story.
 4. Add a browser component test when DOM behavior, context, focus, or Svelte

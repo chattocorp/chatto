@@ -27,9 +27,8 @@ focusing a cell highlights its permission row and role column.
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { onDestroy, type Snippet } from 'svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, Hint } from '$lib/ui';
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
-  import { Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
@@ -187,13 +186,7 @@ focusing a cell highlights its permission row and role column.
     mutationError = null;
   });
   const activeMutationContext = $derived(
-    mutationContext(
-      serverScope.serverId,
-      serverScope.connection.queryScope,
-      spaceId ?? null,
-      roomId ?? null,
-      groupId ?? null
-    )
+    mutationContext(spaceId ?? null, roomId ?? null, groupId ?? null)
   );
   const visibleMutationError = $derived(
     mutationError?.context === activeMutationContext ? mutationError.message : null
@@ -278,14 +271,17 @@ focusing a cell highlights its permission row and role column.
     return role.roleName === 'owner';
   }
 
+  /**
+   * Identify the tier that a mutation belongs to. The page can stay mounted when
+   * only the tier changes. The server session cannot change while the matrix is
+   * mounted (see ServerScope).
+   */
   function mutationContext(
-    serverId: string,
-    queryScope: string,
     activeSpaceId: string | null,
     activeRoomId: string | null,
     activeGroupId: string | null
   ): string {
-    return JSON.stringify([serverId, queryScope, activeSpaceId, activeRoomId, activeGroupId]);
+    return JSON.stringify([activeSpaceId, activeRoomId, activeGroupId]);
   }
 
   function cellIsUpdating(cellKey: string): boolean {
@@ -317,13 +313,7 @@ focusing a cell highlights its permission row and role column.
     );
     const mutationScope = scopeFor(role);
     const cellKey = `${role.roleName}::${permission}`;
-    const context = mutationContext(
-      serverId,
-      activeConnection.queryScope,
-      spaceId ?? null,
-      roomId ?? null,
-      groupId ?? null
-    );
+    const context = mutationContext(spaceId ?? null, roomId ?? null, groupId ?? null);
     const pendingKey = `${context}:${cellKey}`;
     if (updating.includes(pendingKey)) return;
     updating = [...updating, pendingKey];

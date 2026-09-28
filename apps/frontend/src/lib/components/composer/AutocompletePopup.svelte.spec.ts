@@ -1,7 +1,10 @@
+import '../../../app.css';
 import { describe, it, expect, vi } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet, flushSync } from 'svelte';
 import AutocompletePopup from './AutocompletePopup.svelte';
+import AutocompletePopupTestHarness from './AutocompletePopupTestHarness.svelte';
 
 function press(component: { handleKeyDown: (e: KeyboardEvent) => boolean }, k: string) {
   const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
@@ -198,6 +201,55 @@ describe('AutocompletePopup', () => {
       });
       flushSync();
       expect(activeLabel(container)).toBe('x');
+    });
+  });
+
+  describe('placement and focus', () => {
+    it('opens in the top layer above the composer surface at its width', async () => {
+      render(AutocompletePopupTestHarness, {
+        props: { labels: ['alice', 'bob'], onSelect: vi.fn() }
+      });
+      const menu = page.getByTestId('popup');
+      await expect.element(menu).toBeVisible();
+
+      const popover = menu.element().closest('[popover]') as HTMLElement;
+      expect(popover.matches(':popover-open')).toBe(true);
+      const surface = page.getByTestId('surface').element().getBoundingClientRect();
+      const menuRect = menu.element().getBoundingClientRect();
+      expect(menuRect.bottom).toBeLessThanOrEqual(surface.top);
+      expect(menuRect.left).toBe(surface.left);
+      expect(menuRect.width).toBe(surface.width);
+    });
+
+    it('scrolls a long list inside the section so the menu frame stays whole', async () => {
+      render(AutocompletePopupTestHarness, {
+        props: { labels: Array.from({ length: 30 }, (_, i) => `name${i}`), onSelect: vi.fn() }
+      });
+      const menu = page.getByTestId('popup');
+      await expect.element(menu).toBeVisible();
+
+      const frame = menu.element() as HTMLElement;
+      const section = frame.querySelector('.menu-section') as HTMLElement;
+      expect(section.scrollHeight).toBeGreaterThan(section.clientHeight);
+      expect(frame.scrollHeight).toBe(frame.clientHeight);
+    });
+
+    it('keeps focus in the editor while arrow keys move the active option', async () => {
+      const onSelect = vi.fn();
+      const { container } = render(AutocompletePopupTestHarness, {
+        props: { labels: ['alice', 'bob'], onSelect }
+      });
+      const editor = page.getByTestId('editor');
+      await editor.click();
+      await expect.element(page.getByTestId('popup')).toBeVisible();
+
+      await userEvent.keyboard('{ArrowDown}');
+      expect(document.activeElement).toBe(editor.element());
+      expect(activeLabel(container)).toBe('bob');
+
+      await userEvent.keyboard('{Enter}');
+      expect(onSelect).toHaveBeenCalledWith('bob');
+      expect(document.activeElement).toBe(editor.element());
     });
   });
 });

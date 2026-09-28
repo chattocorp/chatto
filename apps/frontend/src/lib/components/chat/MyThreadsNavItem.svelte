@@ -4,13 +4,13 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { NotificationAttentionLevel } from '$lib/api-client/notifications';
-  import UnreadDot from '$lib/ui/UnreadDot.svelte';
+  import { UnreadDot } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let { active }: { active: boolean } = $props();
 
   const serverScope = useServerScope();
-  const serverId = $derived(serverScope.serverId);
+  const serverId = serverScope.serverId;
   const notificationStore = $derived(serverScope.store.notifications);
   const threadNotifications = $derived(
     notificationStore.attentionOccurrences.filter((notification) => {

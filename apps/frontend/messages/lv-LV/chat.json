@@ -59,7 +59,6 @@
       "log_in": "Pieteikties šajā serverī",
       "sign_out": "Izrakstīties no šī servera",
       "version": "Versija {version}",
-      "version_unknown": "Versija nav zināma",
       "unreachable": "Serveris nav sasniedzams",
       "connection_unavailable": "Savienojums nav pieejams",
       "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto 0.5 vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",

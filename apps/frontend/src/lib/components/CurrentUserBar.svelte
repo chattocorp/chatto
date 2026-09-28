@@ -6,10 +6,17 @@ sidebar. Shows the avatar with presence and the live display name. Right-click
 or touch long-press opens the profile menu; avatar clicks open presence settings.
 -->
 <script lang="ts">
-  import UserCard from '$lib/ui/UserCard.svelte';
+  import {
+    UserCard,
+    FadeScale,
+    PillButtonGroup,
+    ContextMenu,
+    ConfirmDialog,
+    Dialog,
+    MenuItem,
+    MenuSection
+  } from '$lib/ui';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
-  import FadeScale from '$lib/ui/FadeScale.svelte';
-  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
@@ -18,24 +25,17 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { m } from '$lib/i18n/messages';
   import { deleteCustomStatus } from '$lib/api-client/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    getLiveCustomStatus,
-    getLiveDisplayName,
-    type CustomUserStatus
-  } from '$lib/state/userProfiles.svelte';
+  import { getLiveCustomStatus, getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import type { CustomUserStatus } from '$lib/api-client/userSummary';
   import { setPresenceStatus } from '$lib/presenceTracking';
   import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { buildDirectMessagePresentation } from '$lib/render/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
 
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { ConfirmDialog, Dialog } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import { toast } from '$lib/ui/toast';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import ScreenShareControlButton from './voice/ScreenShareControlButton.svelte';
@@ -64,9 +64,9 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
 
   const serverScope = useServerScope();
   const appUi = getAppUiState();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const activeStore = $derived(serverScope.store);
+  const activeStore = serverScope.store;
   const activeServerUser = $derived(activeStore.viewerUser);
   const presenceScope = $derived(
     activeServerUser ? { serverId: activeServerId, userId: activeServerUser.id } : null
@@ -289,7 +289,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           />
           <VoiceCallControlButton
             class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
-            label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+            label={m('voice.mute')}
+            pressed={voiceCallState.isMuted}
             testId="current-user-call-mute"
             icon={voiceCallState.isMuted
               ? 'icon-[uil--microphone-slash]'

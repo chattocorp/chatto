@@ -15,11 +15,9 @@
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { UserAvatarUserView } from '$lib/render/users';
-  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
-  import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
   const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const notificationStore = $derived(stores.notifications);
   const serverInfo = $derived(stores.serverInfo);
   const activeCallRooms = $derived(stores.activeCallRooms);
@@ -49,6 +47,7 @@
     canEditMessage,
     embeddedMessageLinks,
     isDeletedMessage,
+    resolveMessageAuthor,
     resolveMessageEventReferences
   } from './messageEventModel';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -76,7 +75,7 @@
   } = $props();
 
   const connection = () => serverScope.connection;
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
   const currentUser = $derived({ user: stores.viewerUser });
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
@@ -95,20 +94,9 @@
   );
   // Resolve every row against the live profile owner. Timeline includes can
   // arrive before profiles catch up after a reconnect.
-  const actorId = $derived(event?.actorId || event?.actor?.id || '');
-  const users = $derived(stores.projection.users);
-  const deletedActor = $derived(
-    event?.actorResolution === 'deleted' ||
-      !!event?.actor?.deleted ||
-      (!!actorId && users.isDeleted(actorId))
-  );
-  const actor = $derived.by(() => {
-    if (deletedActor) return null;
-    const current = actorId ? users.get(actorId) : undefined;
-    return current
-      ? avatarUserFromDirectoryMember(mapDirectoryMember(current))
-      : (event?.actor ?? null);
-  });
+  const author = $derived(resolveMessageAuthor(event, stores.projection.users));
+  const actor = $derived(author.user);
+  const deletedActor = $derived(author.deleted);
   const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
 
   // The actor already uses the live profile when one is available.

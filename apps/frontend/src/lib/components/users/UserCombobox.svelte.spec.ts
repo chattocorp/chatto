@@ -22,6 +22,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 }));
 
 vi.mock('$lib/api-client/memberDirectory', () => ({
+  mapDirectoryMember: vi.fn(),
   createMemberDirectoryAPI: () => ({
     listUsers: mocks.listUsers
   })

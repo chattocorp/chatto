@@ -16,7 +16,7 @@ Use the `tone` prop to communicate the weight of the action:
   title="Sign Out"
   tone="info"
   actionLabel="Sign Out"
-  actionIcon="iconify icon-[uil--signout]"
+  actionIcon="iconify icon-[uil--signout] rtl:-scale-x-100"
   onconfirm={signOut}
   onclose={close}
 >

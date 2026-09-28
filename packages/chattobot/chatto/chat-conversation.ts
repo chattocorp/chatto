@@ -19,6 +19,9 @@ export type ConversationOptions<Settings> = Settings & {
   postUpdate?: (text: string, signal: AbortSignal) => Promise<void>;
   /** Select the human message that prompted the next response; notifications have no direct target. */
   setReplyContext: (message: string, origin: 'user' | 'notification') => void;
+  /** Author ID of the latest human message prepared for the agent. Notifications do not change
+   * it. Several people can write in one conversation, so check permissions per request. */
+  requester: () => string;
 };
 
 /** Connect a string-in/string-out task to a Chatto thread. */
@@ -51,11 +54,19 @@ export function chattoConversation<Settings>({
     async run(ctx, delivery, destination, inbox) {
       const messages = [delivery];
       let inReplyTo: string | undefined = delivery.message.id;
+      let requester = delivery.message.author_id;
       const setReplyContext = (text: string, origin: 'user' | 'notification') => {
         inReplyTo = undefined;
         if (origin !== 'user') return;
         const index = messages.findIndex((message) => message.message.body === text);
-        if (index !== -1) inReplyTo = messages.splice(index, 1)[0]!.message.id;
+        // An unmatched message has no known author; fail closed for permission checks.
+        if (index === -1) {
+          requester = '';
+          return;
+        }
+        const [prompting] = messages.splice(index, 1);
+        inReplyTo = prompting!.message.id;
+        requester = prompting!.message.author_id;
       };
       // Assistant text and tool announcements can arrive concurrently. Serialize
       // their posts. An assistant message in this turn already acknowledges the
@@ -98,6 +109,7 @@ export function chattoConversation<Settings>({
             },
             delivery,
             setReplyContext,
+            requester: () => requester,
             announce: (text, signal) =>
               send(
                 text,

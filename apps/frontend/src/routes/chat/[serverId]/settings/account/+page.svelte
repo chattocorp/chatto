@@ -2,10 +2,9 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import DeleteAccountSection from './DeleteAccountSection.svelte';
   import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
@@ -14,7 +13,7 @@
 
   const serverScope = useServerScope();
   const currentUser = $derived(serverScope.store.currentUser);
-  const serverId = $derived(serverScope.serverId);
+  const serverId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(serverId));
   const accountSettingsPath = $derived(
     resolve('/chat/[serverId]/settings/account', { serverId: serverSegment })
@@ -52,7 +51,7 @@
       </Panel>
 
       <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
-      {#key `${serverScope.connection.queryScope}:${serverScope.store.accountId ?? ''}`}
+      {#key serverScope.store.accountId ?? ''}
         <VerifiedEmailSettings />
       {/key}
       <ExternalIdentitySettings {currentUser} {accountSettingsPath} />

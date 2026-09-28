@@ -9,9 +9,14 @@ vi.mock('$app/state', () => ({
   page: { url: new URL('https://example.test/chat/origin/manage/server/permissions') }
 }));
 vi.mock('$app/paths', () => ({
+  base: '',
+  assets: '',
   resolve: (path: string) => path.replace('[serverId]', 'origin')
 }));
-vi.mock('$lib/navigation', () => ({ serverIdToSegment: () => 'origin' }));
+vi.mock('$lib/navigation', () => ({
+  segmentToServerId: vi.fn(),
+  serverIdToSegment: () => 'origin'
+}));
 vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule

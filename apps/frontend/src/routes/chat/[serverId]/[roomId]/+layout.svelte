@@ -4,16 +4,16 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import Room from './Room.svelte';
   import RoomJoinScreen from './RoomJoinScreen.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PageTitle } from '$lib/ui';
 
   let { data, children } = $props();
 
   let { roomId } = $derived(data);
 
   const serverScope = useServerScope();
-  const activeServerId = $derived(serverScope.serverId);
+  const activeServerId = serverScope.serverId;
 
-  const serverStore = $derived(serverScope.store);
+  const serverStore = serverScope.store;
   const navigation = $derived(serverStore.navigation);
   // Displayed membership belongs to this store's viewer. The connection owns
   // session verification and command readiness.

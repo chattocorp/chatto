@@ -293,7 +293,7 @@ test('DM thread follow-ups share a conversation but separate roots start new run
   expect(post.mock.calls).toHaveLength(2);
 });
 
-test('conversation keys keep the tuple that retained implementation owner keys hash', () => {
+test('conversations are keyed by thread, not by author', () => {
   const base = {
     version: 1 as const,
     id: 'ping',
@@ -304,10 +304,60 @@ test('conversation keys keep the tuple that retained implementation owner keys h
     room_id: 'room',
     message: { id: 'ping', author_id: 'alice', body: 'Hello' }
   };
+  // Retained implementation metadata hashes this key; keep its value stable.
   expect(deliveryConversationKey({ ...base, thread_root_id: 'root' })).toBe(
-    JSON.stringify(['bot', 'room', 'root', 'alice'])
+    JSON.stringify(['bot', 'room', 'root'])
   );
   expect(deliveryConversationKey({ ...base, thread_root_id: null })).toBe(
-    JSON.stringify(['bot', 'room', 'ping', 'alice'])
+    JSON.stringify(['bot', 'room', 'ping'])
   );
+  expect(
+    deliveryConversationKey({
+      ...base,
+      thread_root_id: 'root',
+      message: { ...base.message, author_id: 'bob' }
+    })
+  ).toBe(deliveryConversationKey({ ...base, thread_root_id: 'root' }));
+});
+
+test('different people in one thread share its conversation', async () => {
+  const delivery: Delivery = {
+    version: 1,
+    id: 'first',
+    type: 'message.created',
+    triggers: ['mention'],
+    occurred_at: 'now',
+    bot_id: 'bot',
+    room_id: 'room',
+    thread_root_id: 'root',
+    message: { id: 'first', author_id: 'alice', body: 'Hi' }
+  };
+  const prompts: string[] = [];
+  const post = vi.fn(async () => {});
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    post,
+    typing: async () => {},
+    readThread: async () => [],
+    timeout: 0.2,
+    createAgent: async () => ({
+      async runOutcome(_ctx, prompt, options) {
+        prompts.push(JSON.parse(prompt).currentMessage);
+        options?.onText?.('Reply');
+        return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
+      },
+      steer: async () => false,
+      dispose: () => {}
+    })
+  });
+  const running = bot(createWorkflowContext(), delivery);
+  await vi.waitFor(() => expect(post).toHaveBeenCalledOnce());
+  const start = vi.fn(async () => ({ id: 'unexpected' }));
+  await bot.route(
+    { start },
+    { ...delivery, id: 'bob', message: { id: 'bob', author_id: 'bob', body: 'Me too' } }
+  );
+  await running;
+  expect(start).not.toHaveBeenCalled();
+  expect(prompts).toEqual(['Hi', 'Me too']);
 });

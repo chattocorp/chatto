@@ -59,7 +59,6 @@
       "log_in": "Logi sellesse serverisse sisse",
       "sign_out": "Logi sellest serverist välja",
       "version": "Versioon {version}",
-      "version_unknown": "Versioon teadmata",
       "unreachable": "Server pole kättesaadav",
       "connection_unavailable": "Ühendus pole saadaval",
       "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto 0.5 või uuemale, enne kui see rakendus saab ühenduse luua.",

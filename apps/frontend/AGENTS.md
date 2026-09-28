@@ -28,6 +28,14 @@ Do not generate playground links for code written into this repository.
   connection from `ServerScope`. Reserve `serverRegistry` for providers and
   genuinely cross-server surfaces, and pass explicit server or viewer identity
   into reusable render components.
+- A `ServerScope` does not change while its subtree is mounted. A change of
+  server, account, or session remounts the subtree with a new scope. Read
+  `serverId`, `connection`, and `connection.queryScope` as constants: do not
+  wrap them in `$derived`, and do not fence async work against a server or
+  session change. Use `createSessionGuard` for privacy resets inside a session,
+  and tag async state with the route IDs below the server. Specs must not
+  switch the server or session of a mounted scope; render a new component
+  instead.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
 - Reusable leaf render components, especially timeline rows, must not acquire
@@ -116,8 +124,10 @@ Do not generate playground links for code written into this repository.
   metadata write replace them from a whole-registry in-memory snapshot; merge
   authoritative security fields at compatibility-adapter boundaries.
 - Treat an intentionally dormant inactive-server transport as healthy retained
-  state, not as a failed connection. Only actual transport/auth/protocol
-  failures should dim its server-gutter entry.
+  state, not as a failed connection. A server-gutter icon has two states,
+  normal and warning. Only a failed attempt (transport, auth, protocol, or
+  compatibility) shows the warning, and only a successful attempt removes it.
+  Connection attempts in progress do not change the state (FDR-031).
 - `$lib/render/timelineEvents` contains the hand-owned timeline presentation
   model. Realtime handlers consume the generated public `RealtimeEvent`
   catalogue directly. Do not add a second frontend event taxonomy or calls for
@@ -253,7 +263,9 @@ Do not generate playground links for code written into this repository.
   `ms`/`me`, and `text-start`/`text-end`) when an edge follows reading
   direction. Keep physical left/right positioning only for coordinates,
   centring, media controls, and other deliberately physical behavior.
-- Mirror directional icons and horizontal gestures in RTL. Isolate
+- Mirror directional icons and horizontal gestures in RTL. Arrows, chevrons,
+  door arrows such as sign-in and sign-out, and undo and redo are directional:
+  add `rtl:-scale-x-100`, or set `mirrorIconInRtl` on `MenuItem`. Isolate
   user-authored names and message content with `bdi`, `dir="auto"`, or an
   equivalent bidi boundary; keep code, identifiers, and URLs deliberately LTR
   where their syntax requires it.
@@ -271,8 +283,9 @@ Do not generate playground links for code written into this repository.
   share the standard pane-page composition. Put their content in `PaneContent`
   and frame each page-level form or control group with a titled, padded `Panel`;
   use `FormSection` only to subdivide one panel, never instead of its frame.
-- SvelteKit reuses resource pages when only a route parameter changes. Fence
-  async loads and saves by both resource ID and load generation so late
+- SvelteKit reuses resource pages when only a route parameter below the server
+  changes. Tag async loads and saves with the resource ID, and add a load
+  generation only when two loads for the same resource can race, so late
   responses cannot update the next resource's form state.
 - Send sparse patches from settings forms: omit unchanged fields so stale form
   values cannot overwrite concurrent updates or emit misleading durable facts.
@@ -296,7 +309,9 @@ Do not generate playground links for code written into this repository.
 
 - When adapting canonical users or members for avatar-bearing UI, preserve
   identity fields such as `isBot`; prefer the shared `UserAvatar` and
-  `UserAvatarUserView` shapes over surface-local copies.
+  `UserAvatarUserView` shapes over surface-local copies. Read a server's user
+  profiles through `UserStore.view(id)`, which converts each stored profile once
+  and shares the result; do not map or copy stored profiles per render.
 
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Scope private query
@@ -462,8 +477,10 @@ mise test-e2e
   German, plus US English overrides where wording differs.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
 - Route accessibility coverage lives in `e2e/accessibility.test.ts`. Keep its
-  representative public, authenticated, mobile, admin, and dialog scans free of
-  blanket axe exclusions.
+  representative public, authenticated, mobile, admin, overlay, right-to-left,
+  and call scans free of blanket axe exclusions. Add a scan when you add a page
+  or overlay. Overlay scans include only the overlay, because an open overlay
+  can cover page controls that another scan covers.
 
 ## PWA And Assets
 

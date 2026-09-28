@@ -3,8 +3,7 @@
   import MicrophoneProcessing from './MicrophoneProcessing.svelte';
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { Hint, PaneContent, PaneHeader } from '$lib/ui';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Hint, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Checkbox, Select } from '$lib/ui/form';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import { CallDeviceTest } from '$lib/state/server/callDeviceTest.svelte';

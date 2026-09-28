@@ -1,7 +1,6 @@
 <script lang="ts">
-  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
+  import { CompactActionButton, ContextMenu } from '$lib/ui';
   import { tick } from 'svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { Button, FormField, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import {

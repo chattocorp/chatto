@@ -10,6 +10,8 @@ import type { ServerStateStore } from '$lib/state/server/store.svelte';
 export type TestServerScopeOptions = {
   /** Server ID of the scope. Default: `'server-1'`. */
   serverId?: string;
+  /** Query scope of the connection. Default: the server ID with a `-session` suffix. */
+  queryScope?: string;
   /**
    * Accepted and verified account, or null for no loaded account. Default: user
    * `viewer-1`. To model a pending verification, call
@@ -31,12 +33,8 @@ export type TestServerScopeOptions = {
    * the whole `serverInfo`.
    */
   serverInfo?: object;
-  /**
-   * Extra store members, such as `navigation` or `projection`. Getters are kept.
-   * A function gets the server ID and gives the members for that server's store.
-   * The viewer and permissions are the same for every server's store.
-   */
-  store?: object | ((serverId: string) => object);
+  /** Extra store members, such as `navigation` or `projection`. Getters are kept. */
+  store?: object;
   /** Extra connection members. Getters are kept. */
   connection?: object;
 };
@@ -44,9 +42,13 @@ export type TestServerScopeOptions = {
 /**
  * A typed fake of the `/chat/[serverId]` server scope for component specs.
  * Tests change its `$state` fields to drive the component under test.
+ *
+ * The server ID and query scope are fixed, as in the app: a change of server or
+ * session remounts the route subtree with a new scope. To model one, unmount
+ * the component and render it again with a new fixture.
  */
 export class TestServerScope {
-  serverId = $state('server-1');
+  readonly serverId: string;
   /** Result of `scope.isCurrent()`. */
   current = $state(true);
   permissions = $state<ServerPermissions>(NO_SERVER_PERMISSIONS);
@@ -54,17 +56,15 @@ export class TestServerScope {
   isSupportedVersion = $state(true);
   /** Projection viewer ID. Default: the accepted account's ID. */
   projectionViewerId = $state<string | null | undefined>(undefined);
-  /**
-   * Query scope of the connection. Default: the server ID with a `-session` suffix.
-   * Set it to model a new session on the same server.
-   */
-  queryScope = $state<string | undefined>(undefined);
+  /** Query scope of the connection. */
+  readonly queryScope: string;
   /** A real account state, so `update()` and its same-account rule behave as in the app. */
   readonly currentUser = new CurrentUserState();
   readonly scope: ServerScope;
 
   constructor(options: TestServerScopeOptions = {}) {
     this.serverId = options.serverId ?? 'server-1';
+    this.queryScope = options.queryScope ?? `${this.serverId}-session`;
     this.permissions = { ...NO_SERVER_PERMISSIONS, loaded: true, ...options.permissions };
     this.isSupportedVersion = options.isSupportedVersion ?? true;
     this.currentUser.loading = false;
@@ -84,24 +84,14 @@ export class TestServerScope {
 
 /** Build the typed scope objects whose getters read the fixture's current state. */
 function buildScope(t: TestServerScope, options: TestServerScopeOptions): ServerScope {
-  const queryScope = () => t.queryScope ?? `${t.serverId}-session`;
-  // The scope's store belongs to its server, as in the app: one store object per server ID.
-  // The cache is not reactive, because getters that run in `$derived` fill it.
-  const stores: Record<string, ServerStateStore> = Object.create(null);
-  const storeFor = (serverId: string): ServerStateStore =>
-    (stores[serverId] ??= buildStore(
-      t,
-      serverId,
-      options.serverInfo,
-      typeof options.store === 'function' ? options.store(serverId) : options.store
-    ));
+  const store = buildStore(t, options.serverInfo, options.store);
   const connection = withMembers(
     {
       get serverId() {
         return t.serverId;
       },
       get queryScope() {
-        return queryScope();
+        return t.queryScope;
       },
       isConnected: true,
       showConnectionLostBanner: false,
@@ -112,7 +102,7 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
       get apiConfig(): ConnectAPIConfig {
         return {
           serverId: t.serverId,
-          queryScope: queryScope(),
+          queryScope: t.queryScope,
           baseUrl: `https://${t.serverId}.example.test/api/connect`,
           bearerToken: null
         };
@@ -130,23 +120,20 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
       return t.serverId;
     },
     connection: connection as unknown as ServerConnection,
-    get store() {
-      return storeFor(t.serverId);
-    },
+    store,
     isCurrent: () => t.current
   };
 }
 
-/** Build the store of one server. Its getters read the fixture's current state. */
+/** Build the scope's store. Its getters read the fixture's current state. */
 function buildStore(
   t: TestServerScope,
-  serverId: string,
   serverInfo: object | undefined,
   extra: object | undefined
 ): ServerStateStore {
   const store = withMembers(
     {
-      serverId,
+      serverId: t.serverId,
       currentUser: t.currentUser,
       get accountId() {
         return t.currentUser.user?.id ?? null;

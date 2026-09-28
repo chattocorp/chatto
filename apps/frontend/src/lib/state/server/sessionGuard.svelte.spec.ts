@@ -52,18 +52,6 @@ describe('SessionGuard', () => {
 
   it.each([
     [
-      'the route leaves its server',
-      (scope: ReturnType<typeof makeScope>['scope']) => {
-        scope.serverId = 'S2';
-      }
-    ],
-    [
-      'the connection changes its query scope',
-      (scope: ReturnType<typeof makeScope>['scope']) => {
-        scope.connection = { queryScope: 'session-2' } as ServerConnection;
-      }
-    ],
-    [
       'the route subtree is no longer current',
       (scope: ReturnType<typeof makeScope>['scope']) => {
         scope.current = false;

@@ -99,6 +99,21 @@ buttons, and context menus in the row keep their own behaviour.
     loadingMoreMessage?: string;
   } = $props();
 
+  // A horizontally overflowing table needs a keyboard stop so keyboard users
+  // can scroll it; read-only tables may contain nothing else focusable.
+  let viewportOverflows = $state(false);
+
+  function trackViewportOverflow(viewport: HTMLDivElement) {
+    const update = () => {
+      viewportOverflows = viewport.scrollWidth > viewport.clientWidth;
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(viewport);
+    if (viewport.firstElementChild) observer.observe(viewport.firstElementChild);
+    return () => observer.disconnect();
+  }
+
   let loadMoreInFlight = false;
 
   // Default key function: use id if present, otherwise key by item identity.
@@ -228,7 +243,15 @@ buttons, and context menus in the row keep their own behaviour.
     {@render tableContent()}
   </ScrollFader>
 {:else}
-  <div class="overflow-x-auto data-table-viewport">
+  <!-- A scroll viewport must be keyboard-focusable for WCAG 2.1. Svelte's
+       generic non-interactive tabindex warning does not model that exception. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div
+    class="overflow-x-auto data-table-viewport"
+    role={viewportOverflows ? 'region' : undefined}
+    tabindex={viewportOverflows ? 0 : undefined}
+    {@attach trackViewportOverflow}
+  >
     {@render tableContent()}
   </div>
 {/if}

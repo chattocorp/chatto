@@ -19,10 +19,16 @@ polls the cache briefly after a change. See FDR-042.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState, Hint, LoadingFog, PaneContent } from '$lib/ui';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import {
+    ConfirmDialog,
+    EmptyState,
+    Hint,
+    LoadingFog,
+    PaneContent,
+    PageTitle,
+    PaneHeader,
+    Panel
+  } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
@@ -61,7 +67,7 @@ polls the cache briefly after a change. See FDR-042.
       mutationFn: ({ connection, origin }: CreateVariables) =>
         connection.getAPI(createNeighborAPI).create(origin),
       onSuccess: (neighbor, variables) => {
-        if (!isCurrent(variables)) return;
+        if (!serverScope.isCurrent()) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) => [
           ...current,
           neighbor
@@ -70,8 +76,8 @@ polls the cache briefly after a change. See FDR-042.
         expectDiscovery();
         toast.success(m('admin.neighbors.created'));
       },
-      onError: (error, variables) => {
-        if (isCurrent(variables)) toastError(error);
+      onError: (error) => {
+        if (serverScope.isCurrent()) toastError(error);
       }
     }),
     () => queryClient
@@ -82,7 +88,7 @@ polls the cache briefly after a change. See FDR-042.
       mutationFn: ({ connection, neighbor, origin }: UpdateVariables) =>
         connection.getAPI(createNeighborAPI).update(neighbor, origin),
       onSuccess: (updated, variables) => {
-        if (!isCurrent(variables)) return;
+        if (!serverScope.isCurrent()) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
           current.map((neighbor) => (neighbor.id === updated.id ? updated : neighbor))
         );
@@ -91,8 +97,8 @@ polls the cache briefly after a change. See FDR-042.
         expectDiscovery();
         toast.success(m('admin.neighbors.updated'));
       },
-      onError: (error, variables) => {
-        if (isCurrent(variables)) toastError(error);
+      onError: (error) => {
+        if (serverScope.isCurrent()) toastError(error);
       }
     }),
     () => queryClient
@@ -103,7 +109,7 @@ polls the cache briefly after a change. See FDR-042.
       mutationFn: ({ connection, neighbor }: DeleteVariables) =>
         connection.getAPI(createNeighborAPI).delete(neighbor),
       onSuccess: (_result, variables) => {
-        if (!isCurrent(variables)) return;
+        if (!serverScope.isCurrent()) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
           current.filter((neighbor) => neighbor.id !== variables.neighbor.id)
         );
@@ -111,8 +117,8 @@ polls the cache briefly after a change. See FDR-042.
         if (editTarget?.neighbor.id === variables.neighbor.id) editTarget = null;
         toast.success(m('admin.neighbors.deleted'));
       },
-      onError: (error, variables) => {
-        if (isCurrent(variables)) toastError(error);
+      onError: (error) => {
+        if (serverScope.isCurrent()) toastError(error);
       }
     }),
     () => queryClient
@@ -190,14 +196,6 @@ polls the cache briefly after a change. See FDR-042.
       connection,
       queryKey: adminQueryKeys.neighbors(serverId, connection)
     };
-  }
-
-  function isCurrent(variables: NeighborMutationVariables): boolean {
-    return (
-      serverScope.isCurrent() &&
-      variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope
-    );
   }
 
   function cancelEdit() {

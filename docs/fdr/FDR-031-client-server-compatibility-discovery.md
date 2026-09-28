@@ -25,9 +25,17 @@ Chatto's pre-1.0 API remains experimental.
 - Servers with non-standard or unparseable versions remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- The server context menu and touch sheet explain each active sign-in,
-  connection, and compatibility warning. When an unreachable status and a lost
-  connection describe the same failure, they appear as one warning.
+- A server icon in the gutter has two states: normal and warning. The warning
+  appears when a problem prevents the client from using the server: a required
+  sign-in, an unreachable server, an unsupported or unknown server version, or
+  a failed connection. The icon is not dimmed.
+- Only the result of an attempt changes the state. A failed attempt shows the
+  warning, and only a successful attempt removes it. A new attempt, an
+  immediate retry after a dropped connection, or a credential renewal does not
+  change the state. Tab wake and network recovery start again from the normal
+  state, because results from before the wake are out of date.
+- The server context menu and touch sheet explain the problem. When more than
+  one problem applies, they show the first problem in the order above.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown

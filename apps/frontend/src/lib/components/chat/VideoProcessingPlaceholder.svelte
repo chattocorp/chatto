@@ -1,6 +1,6 @@
 <!-- @component A queued or processing video frame with shared loading fog and a visible status label. -->
 <script lang="ts">
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
 
   let { label }: { label: string } = $props();
 </script>

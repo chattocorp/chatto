@@ -21,6 +21,7 @@ export { default as Hint } from './Hint.svelte';
 export { default as LoadingPage } from './LoadingPage.svelte';
 export { default as LoadingDots } from './LoadingDots.svelte';
 export { default as LoadingFog } from './LoadingFog.svelte';
+export { default as LoadRetry } from './LoadRetry.svelte';
 export { default as MarkdownHtml } from './MarkdownHtml.svelte';
 export { default as MenuItem } from './MenuItem.svelte';
 export { default as MenuSection } from './MenuSection.svelte';
@@ -39,3 +40,15 @@ export { default as ToggleChip } from './ToggleChip.svelte';
 export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';
 export { default as UnreadDot } from './UnreadDot.svelte';
 export { default as UserCard } from './UserCard.svelte';
+export { default as FadeScale } from './FadeScale.svelte';
+export { default as PillButtonGroup } from './PillButtonGroup.svelte';
+export { default as WipeReveal } from './WipeReveal.svelte';
+
+// Context menu and menu presentation helpers
+export { contextMenuTrigger, type ContextMenuTriggerDetails } from './contextMenuTrigger.svelte';
+export {
+  provideMenuContext,
+  useMenuContext,
+  type MenuContext,
+  type MenuPresentation
+} from './menuContext.svelte';

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  pushState: vi.fn(),
   goto: mocks.goto
 }));
 

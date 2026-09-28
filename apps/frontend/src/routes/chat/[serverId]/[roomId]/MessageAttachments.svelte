@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog, LoadRetry } from '$lib/ui';
   import { type MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
@@ -570,18 +570,10 @@
                 )}
             />
           {:catch}
-            <div
-              class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
-            >
-              <p class="text-sm text-muted">{m('common.error.network')}</p>
-              <button
-                type="button"
-                class="btn-secondary"
-                onclick={() => (videoPlayerLoadAttempt += 1)}
-              >
-                {m('common.retry')}
-              </button>
-            </div>
+            <LoadRetry
+              class="embed-frame min-h-32 min-w-48"
+              onretry={() => (videoPlayerLoadAttempt += 1)}
+            />
           {/await}
           {@render attachmentControls(attachment, true)}
         </div>
@@ -682,7 +674,7 @@
         </div>
         <div
           aria-hidden="true"
-          data-testid="message-image-gallery-left-fade"
+          data-testid="message-image-gallery-start-fade"
           class={[
             'pointer-events-none absolute inset-y-0 start-0 z-10 w-8 bg-gradient-to-r from-background to-transparent transition-opacity group-hover/msg:from-surface rtl:bg-gradient-to-l',
             !galleryEdges.start && 'opacity-0'
@@ -690,7 +682,7 @@
         ></div>
         <div
           aria-hidden="true"
-          data-testid="message-image-gallery-right-fade"
+          data-testid="message-image-gallery-end-fade"
           class={[
             'pointer-events-none absolute inset-y-0 end-0 z-10 w-8 bg-gradient-to-l from-background to-transparent transition-opacity group-hover/msg:from-surface rtl:bg-gradient-to-r',
             !galleryEdges.end && 'opacity-0'

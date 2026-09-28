@@ -9,9 +9,7 @@ When `clickable` is set, each row links to the member's Server Admin page.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { CopyId } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
-  import DataTable from '$lib/ui/DataTable.svelte';
+  import { CopyId, LoadingFog, DataTable } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   type User = {

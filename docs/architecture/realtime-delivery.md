@@ -638,9 +638,12 @@ The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.
 Inactive servers use bounded periodic catch-up sockets. An inactive server
 without usable data gets a catch-up immediately. This includes a server that
-became inactive before its first catch-up completed. A page reload restores
-a compatible complete snapshot set and its cursor when available. Without that
-set, it starts without a cursor and performs new resource reads.
+became inactive before its first catch-up completed. Tab wake and network
+recovery start a new catch-up for each inactive server at once. They discard a
+catch-up that started before the wake and clear its failure status. A page
+reload restores a compatible complete snapshot set and its cursor when
+available. Without that set, it starts without a cursor and performs new
+resource reads.
 
 The frontend keeps its resource view during access-token rotation, cookie-session
 renewal, server switches, network reconnects, and tab wake. It replaces the

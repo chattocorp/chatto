@@ -864,11 +864,11 @@ test('cancellation during host validation disposes the same worker and prevents 
   expect(f.calls.some((call) => call.args.includes('push'))).toBe(false);
 });
 
-test('notifications cannot restart a failed implementation; a new human request can', async () => {
+test('one request gets one implementation attempt; a new human request can retry', async () => {
   const f = await fixture();
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx);
-  let version: number | undefined = 1;
+  let version = 1;
   const announce = vi.fn(async () => {});
   const extension = implementationExtension(ctx, f.settings, announce, tasks, {
     requestVersion: () => version,
@@ -888,10 +888,6 @@ test('notifications cannot restart a failed implementation; a new human request 
     await vi.waitFor(() =>
       expect(tasks.list().some((task) => task.status === 'running')).toBe(false)
     );
-    expect(JSON.parse((await call('implementChatto', input)).content[0]!.text!).outcome).toBe(
-      'blocked'
-    );
-    version = undefined;
     expect(JSON.parse((await call('implementChatto', input)).content[0]!.text!).outcome).toBe(
       'blocked'
     );
@@ -1130,41 +1126,6 @@ test('an unexpected worker error produces one safe stopped result for the owner'
       outcome: 'blocked',
       noticeDelivered: true
     });
-  } finally {
-    await tasks.dispose();
-  }
-});
-
-test('notification refusal says no implementation started and has no side effects', async () => {
-  const ctx = createWorkflowContext();
-  const tasks = createAgentTasks(ctx);
-  const announce = vi.fn();
-  const onBlocked = vi.fn();
-  const extension = implementationExtension(
-    ctx,
-    { directory: '/does-not-exist', repository: 'example/chatto' },
-    announce,
-    tasks,
-    { requestVersion: () => undefined, onBlocked }
-  );
-  const call = await workerTools({ cwd: '/unused', model: 'test/model', extensions: [extension] });
-  try {
-    const result = JSON.parse(
-      (
-        await call('implementChatto', {
-          request: 'Fix',
-          announcement: 'Starting now',
-          investigationId: 'missing'
-        })
-      ).content[0]!.text!
-    );
-    expect(result).toMatchObject({
-      outcome: 'blocked',
-      summary: expect.stringContaining('Implementation was not started')
-    });
-    expect(onBlocked).toHaveBeenCalledExactlyOnceWith(result.summary);
-    expect(announce).not.toHaveBeenCalled();
-    expect(tasks.list()).toEqual([]);
   } finally {
     await tasks.dispose();
   }

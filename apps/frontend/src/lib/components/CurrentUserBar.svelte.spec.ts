@@ -857,6 +857,8 @@ describe('CurrentUserBar', () => {
     expect(link.textContent?.trim()).toBe('');
 
     const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
+    expect(muteButton.getAttribute('aria-label')).toBe('Mute');
+    expect(muteButton.getAttribute('aria-pressed')).toBe(String(voiceCallState.isMuted));
     const cameraButton = q(
       container,
       '[data-testid="current-user-call-camera"]'

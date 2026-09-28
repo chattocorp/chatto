@@ -1,16 +1,15 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import { ContextMenu, FormDialog } from '$lib/ui';
   import { Button, Select, TextInput } from '$lib/ui/form';
-  import { FormDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
     deleteCustomStatus as deleteCustomStatusViaAPI,
     setCustomStatus as setCustomStatusViaAPI,
     type CustomUserStatusAPIConfig
   } from '$lib/api-client/userStatus';
-  import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+  import type { CustomUserStatus } from '$lib/api-client/userSummary';
   import {
     CUSTOM_STATUS_TEMPLATES,
     customStatusTemplateText,
@@ -392,7 +391,12 @@ touch screens.
 
   {#snippet overlays()}
     {#if emojiPickerAnchor}
-      <ContextMenu anchor={emojiPickerAnchor} onclose={() => (emojiPickerAnchor = null)}>
+      <ContextMenu
+        anchor={emojiPickerAnchor}
+        role="dialog"
+        ariaLabel={m('settings.profile.status.emoji.choose')}
+        onclose={() => (emojiPickerAnchor = null)}
+      >
         <EmojiPicker
           serverId={config.serverId}
           onSelect={handleEmojiSelect}

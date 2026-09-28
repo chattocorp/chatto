@@ -59,7 +59,6 @@
       "log_in": "Bu sunucuda oturum aç",
       "sign_out": "Bu sunucudaki oturumu kapat",
       "version": "Sürüm {version}",
-      "version_unknown": "Sürüm bilinmiyor",
       "unreachable": "Sunucuya ulaşılamıyor",
       "connection_unavailable": "Bağlantı kullanılamıyor",
       "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto 0,5 veya daha yeni bir sürüme yükseltilmesi gerekir.",

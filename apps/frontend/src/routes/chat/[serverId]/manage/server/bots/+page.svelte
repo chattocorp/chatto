@@ -6,8 +6,16 @@
   import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
-  import DataTable from '$lib/ui/DataTable.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
+  import {
+    DataTable,
+    Panel,
+    FormDialog,
+    Hint,
+    LoadingFog,
+    PageTitle,
+    PaneContent,
+    PaneHeader
+  } from '$lib/ui';
   import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
@@ -16,7 +24,6 @@
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { FormDialog, Hint, LoadingFog, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { SvelteSet } from 'svelte/reactivity';
@@ -148,13 +155,7 @@
         login: normalizedCreateLogin,
         displayName: createDisplayName.trim()
       });
-      if (
-        !componentActive ||
-        !serverScope.isCurrent() ||
-        serverId !== serverScope.serverId ||
-        connection.queryScope !== serverScope.connection.queryScope
-      )
-        return;
+      if (!componentActive || !serverScope.isCurrent()) return;
       createdBotId = created.bot.id;
       createVisible = false;
       apiKey = created.apiKey;

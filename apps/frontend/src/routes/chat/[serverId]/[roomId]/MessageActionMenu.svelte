@@ -10,8 +10,7 @@ surface-specific sizing and menu semantics.
 
   import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
+  import { MenuItem, MenuSection } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { copyImageToClipboard } from '$lib/attachments/copyImage';
   import type { MessageActionModel } from './messageActionModel';

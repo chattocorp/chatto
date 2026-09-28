@@ -3,14 +3,13 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PaneHeader, PageTitle } from '$lib/ui';
 
   // Re-derives reactively when the URL `[serverId]` changes. Directory rows
   // and membership are selected directly from that server's projection.
   const serverScope = useServerScope();
 
-  const stores = $derived(serverScope.store);
+  const stores = serverScope.store;
   const directory = $derived(stores.roomDirectory);
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 </script>

@@ -4,10 +4,9 @@ import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/thread
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { serverSessionQueryRoot } from './keys';
 import { queryClient } from './client';
-import { registerFollowedThreadQueryCache } from './cacheRegistry';
+import { queryCaches } from './cacheRegistry';
 
 type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
-type ThreadViewerState = { hasUnreadReplies?: boolean };
 
 export type FollowedThreadsQueryPage = FollowedThreadsPage & {
   /** Next list offset, preserved across reconciliation; search uses nextCursor. */
@@ -120,61 +119,6 @@ export function updateFollowedThreadSummary(
   return changed ? { ...data, pages } : data;
 }
 
-/**
- * Scrub threads absent from the authoritative followed-thread projection and
- * reconcile unread state. The caller should refetch once when the projection
- * contains a thread that the loaded snapshot does not yet contain.
- */
-export function reconcileFollowedThreadViewerStates(
-  data: FollowedThreadsData | undefined,
-  states: ReadonlyMap<string, ThreadViewerState>,
-  filtered = false
-): { data: FollowedThreadsData | undefined; hasUnknownThreads: boolean } {
-  if (!data) return { data, hasUnknownThreads: states.size > 0 };
-
-  const cachedTotalCount = data.pages[0]?.totalCount ?? 0;
-  const snapshotComplete = data.pages.length > 0 && !data.pages[data.pages.length - 1]!.hasMore;
-  const knownKeys = new Set<string>();
-  let changed = false;
-  let pages = data.pages.map((page) => {
-    const threads = page.threads.flatMap((thread) => {
-      const key = followedThreadKey(thread.roomId, thread.threadRootEventId);
-      knownKeys.add(key);
-      const state = states.get(key);
-      if (!state) {
-        changed = true;
-        return [];
-      }
-      const hasUnreadReplies = state.hasUnreadReplies ?? false;
-      if (thread.hasUnreadReplies === hasUnreadReplies) {
-        return [thread];
-      }
-      changed = true;
-      return [{ ...thread, hasUnreadReplies }];
-    });
-    return threads.length === page.threads.length && !changed ? page : { ...page, threads };
-  });
-  const hasMissingProjectionThreads = [...states.keys()].some((key) => !knownKeys.has(key));
-  const hasUnknownThreads =
-    !filtered &&
-    hasMissingProjectionThreads &&
-    (snapshotComplete || states.size !== cachedTotalCount);
-  pages = pages.map((page, index) => {
-    // Search totals describe matching threads, not the full follow projection.
-    if (filtered) return page;
-    const isLastPage = index === pages.length - 1;
-    const hasMore = isLastPage && !hasMissingProjectionThreads ? false : page.hasMore;
-    if (page.totalCount === states.size && page.hasMore === hasMore) return page;
-    changed = true;
-    return { ...page, totalCount: states.size, hasMore };
-  });
-
-  return {
-    data: changed ? { ...data, pages } : data,
-    hasUnknownThreads
-  };
-}
-
 function isFollowedThreadQuery(key: QueryKey, serverId: string): boolean {
   return (
     key[0] === 'server' &&
@@ -218,28 +162,31 @@ function refreshFollowedThreadQueries(serverId: string): void {
   }
 }
 
+/**
+ * Handle a retracted message. When a cached page shows it, or a pending read can
+ * return it, drop the feed so the text disappears at once. Otherwise refetch in
+ * place, which keeps the loaded pages.
+ */
+function retractFollowedThreadMessage(serverId: string, roomId: string, eventId: string): void {
+  const shown = followedThreadQueries(serverId).some(
+    (query) =>
+      query.state.fetchStatus === 'fetching' ||
+      flattenFollowedThreads(query.state.data as FollowedThreadsData | undefined).some(
+        (thread) =>
+          thread.roomId === roomId &&
+          (thread.threadRootEventId === eventId ||
+            thread.rootMessage?.id === eventId ||
+            thread.latestReply?.id === eventId)
+      )
+  );
+  if (shown) resetFollowedThreadQueries(serverId);
+  else refreshFollowedThreadQueries(serverId);
+}
+
 function resumeFollowedThreadQuery(queryKey: QueryKey): void {
   void queryClient
     .cancelQueries({ queryKey, exact: true }, { revert: false })
     .then(() => queryClient.invalidateQueries({ queryKey, exact: true }));
-}
-
-function reconcileFollowedThreadQueries(
-  serverId: string,
-  states: ReadonlyMap<string, ThreadViewerState>
-): void {
-  for (const query of followedThreadQueries(serverId)) {
-    const current = query.state.data as FollowedThreadsData | undefined;
-    const filtered = query.queryKey.length > 6;
-    const reconciled = reconcileFollowedThreadViewerStates(current, states, filtered);
-    if (flattenFollowedThreads(reconciled.data).length < flattenFollowedThreads(current).length) {
-      void queryClient.cancelQueries({ queryKey: query.queryKey, exact: true });
-    }
-    if (reconciled.data !== current) queryClient.setQueryData(query.queryKey, reconciled.data);
-    if (reconciled.hasUnknownThreads || filtered) {
-      void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
-    }
-  }
 }
 
 function scrubFollowedThreadRoom(serverId: string, roomId: string): void {
@@ -269,44 +216,9 @@ function scrubFollowedThreadRoom(serverId: string, roomId: string): void {
   }
 }
 
-function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: string): void {
-  for (const query of followedThreadQueries(serverId)) {
-    let changed = false;
-    queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) => {
-      if (!current) return current;
-      const pages = current.pages.map((page) => ({
-        ...page,
-        threads: page.threads.map((thread) => {
-          if (thread.roomId !== roomId) return thread;
-          const scrubRoot =
-            thread.rootMessage !== null &&
-            (thread.threadRootEventId === eventId || thread.rootMessage.id === eventId);
-          const scrubLatestReply = thread.latestReply?.id === eventId;
-          if (!scrubRoot && !scrubLatestReply) return thread;
-          changed = true;
-          return {
-            ...thread,
-            rootMessage: scrubRoot ? null : thread.rootMessage,
-            latestReply: scrubLatestReply ? null : thread.latestReply
-          };
-        })
-      }));
-      return changed ? { ...current, pages } : current;
-    });
-    // A pending initial or next-page response may contain the deleted root even
-    // when it is not in the committed pages yet. Fence that response, while
-    // leaving settled queries for unrelated deletions alone.
-    if (changed || query.state.fetchStatus === 'fetching') {
-      resumeFollowedThreadQuery(query.queryKey);
-    }
-  }
-}
-
-registerFollowedThreadQueryCache({
+queryCaches.followedThreads = {
   reset: resetFollowedThreadQueries,
   refresh: refreshFollowedThreadQueries,
-  reconcile: reconcileFollowedThreadQueries,
-  scrubRoom: scrubFollowedThreadRoom,
-  scrubMessage: scrubFollowedThreadMessage,
-  scrubUser: resetFollowedThreadQueries
-});
+  retractMessage: retractFollowedThreadMessage,
+  scrubRoom: scrubFollowedThreadRoom
+};

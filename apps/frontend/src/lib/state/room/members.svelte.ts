@@ -12,27 +12,15 @@ import {
   type MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+import type { UserAvatarUserView } from '$lib/render/users';
 import { getUserStore, type UserStore } from '$lib/state/server/users.svelte';
-import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { m } from '$lib/i18n/messages';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
 
-/** A member of a room. */
-export type RoomMember = {
-  id: string;
-  login: string;
-  displayName: string;
-  deleted?: boolean;
-  isBot?: boolean;
-  /** Public human owner of an active bot; absent for other accounts. */
-  bot?: { ownerUserId: string };
-  avatarUrl?: string | null;
-  customStatus?: CustomUserStatus | null;
-  presenceStatus: PresenceStatus;
-};
+/** A member of a room: the shared avatar user view. */
+export type RoomMember = UserAvatarUserView;
 
 type MemberSearchCacheEntry = {
   ids: string[];
@@ -181,8 +169,8 @@ export class RoomMembersStore {
 
   private resolveProfile(id: string): RoomMember | undefined {
     if (!this.#users) return this.#standaloneProfiles.get(id)?.member;
-    const member = this.#users.get(id);
-    if (member) return memberFromDirectory(mapDirectoryMember(member));
+    const member = this.#users.view(id);
+    if (member) return member;
     if (this.#users.isDeleted(id)) {
       return {
         id,
@@ -202,7 +190,7 @@ export class RoomMembersStore {
     for (const profile of profiles) {
       if (this.#standaloneProfiles.get(profile.id)?.fromRealtime) continue;
       this.#standaloneProfiles.set(profile.id, {
-        member: memberFromDirectory(profile),
+        member: profile,
         fromRealtime: false
       });
     }
@@ -362,7 +350,7 @@ export class RoomMembersStore {
     if (this.#users) return;
     for (const user of users) {
       this.#standaloneProfiles.set(user.id, {
-        member: memberFromDirectory(user),
+        member: user,
         fromRealtime: true
       });
     }
@@ -591,18 +579,4 @@ export function useRoomMembersStore(): () => RoomMembersStore {
 
 export function getRoomMembers(): RoomMember[] {
   return getRoomMembersStore().members;
-}
-
-function memberFromDirectory(member: DirectoryMember): RoomMember {
-  return {
-    id: member.id,
-    login: member.login,
-    displayName: member.displayName,
-    deleted: member.deleted,
-    isBot: member.isBot,
-    ...(member.bot ? { bot: { ownerUserId: member.bot.ownerUserId } } : {}),
-    avatarUrl: member.avatarUrl,
-    customStatus: member.customStatus,
-    presenceStatus: member.presenceStatus
-  };
 }

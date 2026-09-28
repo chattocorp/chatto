@@ -21,12 +21,18 @@ vi.mock('$app/state', () => ({
     }
   }
 }));
-vi.mock('$app/navigation', () => ({ goto: mocks.goto }));
+vi.mock('$app/navigation', () => ({
+  pushState: vi.fn(),
+  goto: mocks.goto
+}));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params: Record<string, string>) =>
     path.replace('[serverId]', params.serverId).replace('[roomId]', params.roomId)
 }));
-vi.mock('$lib/navigation', () => ({ serverIdToSegment: () => '-' }));
+vi.mock('$lib/navigation', () => ({
+  segmentToServerId: vi.fn(),
+  serverIdToSegment: () => '-'
+}));
 vi.mock('$lib/state/recentQuickSwitcher.svelte', () => ({
   recentQuickSwitcher: { record: mocks.record }
 }));

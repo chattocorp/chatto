@@ -8,7 +8,7 @@ external value changes, such as a successful save, update the mounted editor.
 <script lang="ts">
   import type { Component } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
   import type { ComposerEditorKind } from '$lib/state/userPreferences.svelte';
   import ComposerFormattingToolbar from '$lib/components/composer/ComposerFormattingToolbar.svelte';
   import type {

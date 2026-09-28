@@ -193,32 +193,6 @@ describe('room management page identity and realtime authority', () => {
     setReactiveLocale('en-GB');
   });
 
-  it('reloads metadata when the server changes but the room ID stays the same', async () => {
-    mocks.getRoom.mockImplementation((serverId: string) =>
-      Promise.resolve(managedRoom(serverId === 'server-a' ? 'alpha' : 'beta'))
-    );
-    const { container } = render(RoomManagementPage);
-    await settle();
-    expect(container.textContent).toContain('#alpha');
-    expect(
-      container
-        .querySelector('[data-testid="permission-matrix"]')
-        ?.getAttribute('data-scroll-contents')
-    ).toBe('false');
-
-    server.serverId = 'server-b';
-    flushSync();
-    await settle();
-
-    expect(mocks.getRoom).toHaveBeenCalledWith(
-      'server-b',
-      'shared-room',
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
-    );
-    expect(container.textContent).toContain('#beta');
-    expect(container.textContent).not.toContain('#alpha');
-  });
-
   it('reconciles room rules and permissions after a realtime room update', async () => {
     mocks.getRoom.mockResolvedValueOnce(managedRoom('general')).mockResolvedValueOnce(
       managedRoom('remote-name', {

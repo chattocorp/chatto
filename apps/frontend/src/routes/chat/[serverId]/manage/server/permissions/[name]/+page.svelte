@@ -10,12 +10,8 @@
   import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { UserList } from '$lib/components/admin';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
   import {

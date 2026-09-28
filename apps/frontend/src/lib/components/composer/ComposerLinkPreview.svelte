@@ -1,7 +1,7 @@
 <script lang="ts">
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
   import LazyMessagePreviewCard from '$lib/components/LazyMessagePreviewCard.svelte';
   import type { LinkPreviewState } from './linkPreviews.svelte';
 

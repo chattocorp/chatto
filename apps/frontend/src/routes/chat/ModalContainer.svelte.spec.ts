@@ -208,7 +208,11 @@ vi.mock('$lib/ui', async () => {
     import('./ModalContainerConfirmDialogMock.svelte'),
     import('./ModalContainerDialogMock.svelte')
   ]);
-  return { ConfirmDialog, Dialog };
+  return {
+    MarkdownHtml: (await import('$lib/ui/MarkdownHtml.svelte')).default,
+    ConfirmDialog,
+    Dialog
+  };
 });
 
 vi.mock('$lib/ui/form', async () => {

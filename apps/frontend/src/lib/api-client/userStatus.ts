@@ -6,11 +6,7 @@ export type CustomUserStatusAPIConfig = ConnectAPIConfig & {
   serverId: string;
 };
 
-export type CustomUserStatus = {
-  emoji: string;
-  text: string;
-  expiresAt: string | null;
-};
+import type { CustomUserStatus } from './userSummary.js';
 
 export async function setCustomStatus(
   config: CustomUserStatusAPIConfig,

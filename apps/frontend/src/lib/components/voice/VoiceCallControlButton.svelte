@@ -15,6 +15,7 @@ Keeps labels, pending state, and icon presentation consistent across both surfac
     iconClass,
     pending = false,
     disabled = false,
+    pressed,
     onclick
   }: {
     label: string;
@@ -24,6 +25,11 @@ Keeps labels, pending state, and icon presentation consistent across both surfac
     iconClass?: string;
     pending?: boolean;
     disabled?: boolean;
+    /**
+     * State of an on/off toggle. Keep `label` constant for toggles, so screen
+     * readers announce the action together with its pressed state.
+     */
+    pressed?: boolean;
     onclick: MouseEventHandler<HTMLButtonElement>;
   } = $props();
 </script>
@@ -37,6 +43,7 @@ Keeps labels, pending state, and icon presentation consistent across both surfac
   {onclick}
   disabled={pending || disabled}
   aria-busy={pending || undefined}
+  aria-pressed={pressed}
 >
   <span
     class={['iconify', iconClass, pending ? 'icon-[uil--spinner] animate-spin' : icon]}

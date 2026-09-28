@@ -5,8 +5,8 @@
     ParticipantAudioPreferences,
     ParticipantVolumeControl
   } from '$lib/state/server/callPreferences.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
-  import RangeField from '$lib/ui/form/RangeField.svelte';
+  import { MenuSection } from '$lib/ui';
+  import { RangeField } from '$lib/ui/form';
 
   let {
     settings,

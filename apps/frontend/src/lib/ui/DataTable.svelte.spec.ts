@@ -235,3 +235,27 @@ describe('DataTable.hoverable', () => {
     expect(onLoadMore).not.toHaveBeenCalled();
   });
 });
+
+describe('DataTable keyboard scrolling', () => {
+  it('adds a keyboard stop only while the table overflows horizontally', async () => {
+    const host = document.createElement('div');
+    host.style.width = '200px';
+    document.body.append(host);
+    const wide = render(DataTable, {
+      target: host,
+      props: {
+        items: [{ id: '1' }],
+        columns: 1,
+        header: testSnippet('<th><div style="width: 800px">Wide</div></th>'),
+        row: testSnippet('<td>cell</td>')
+      }
+    });
+    const viewport = () => wide.container.querySelector('.data-table-viewport') as HTMLElement;
+    await vi.waitFor(() => expect(viewport().getAttribute('tabindex')).toBe('0'));
+    expect(viewport().getAttribute('role')).toBe('region');
+
+    host.style.width = '1200px';
+    await vi.waitFor(() => expect(viewport().hasAttribute('tabindex')).toBe(false));
+    host.remove();
+  });
+});

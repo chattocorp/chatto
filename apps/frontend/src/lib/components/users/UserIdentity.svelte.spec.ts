@@ -10,6 +10,7 @@ import UserMenu from './UserMenu.svelte';
 import { UserMenuState } from './UserMenuState.svelte';
 
 vi.mock('$lib/navigation', () => ({
+  segmentToServerId: vi.fn(),
   serverIdToSegment: (serverId: string) => serverId
 }));
 

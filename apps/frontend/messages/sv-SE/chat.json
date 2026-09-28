@@ -59,7 +59,6 @@
       "log_in": "Logga in på den här servern",
       "sign_out": "Logga ut från den här servern",
       "version": "Version {version}",
-      "version_unknown": "Okänd version",
       "unreachable": "Servern kan inte nås",
       "connection_unavailable": "Anslutningen är inte tillgänglig",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",

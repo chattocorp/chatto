@@ -13,14 +13,9 @@
     type EditableOAuthClientPolicyName
   } from '$lib/api-client/oauthClients';
   import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { PaneHeader, PageTitle, DataTable, Panel, Hint, PaneContent, LoadingFog } from '$lib/ui';
   import { TextArea, Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import DataTable from '$lib/ui/DataTable.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';

@@ -9,10 +9,8 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
-  import LoadingPage from '$lib/ui/LoadingPage.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
-  import Button from '$lib/ui/form/Button.svelte';
+  import { EmptyState, LoadingPage, PageTitle } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
 
   const scope = useServerScope();
   let failed = $state(false);

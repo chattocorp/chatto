@@ -6,11 +6,7 @@
     type RoomSuspensionSummary,
     type RoomCommandAPI
   } from '$lib/api-client/rooms';
-  import Panel from '$lib/ui/Panel.svelte';
-  import DataTable from '$lib/ui/DataTable.svelte';
-  import { Hint, PaneContent } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Panel, DataTable, Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import LiftRoomSuspensionModal from '$lib/components/moderation/LiftRoomSuspensionModal.svelte';

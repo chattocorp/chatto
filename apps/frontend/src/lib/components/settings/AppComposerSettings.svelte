@@ -1,12 +1,11 @@
 <script lang="ts">
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import {
     userPreferences,
     type ComposerEditorKind,
     type ComposerSendMode
   } from '$lib/state/userPreferences.svelte';
-  import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
 
   const editorOptions = $derived([
     {

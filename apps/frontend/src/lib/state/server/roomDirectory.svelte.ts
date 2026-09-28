@@ -3,11 +3,7 @@ import { RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { UserAvatarUserView } from '$lib/render/users';
-import {
-  avatarUserFromDirectoryMember,
-  type RoomsListGroup,
-  type RoomsListItem
-} from './rooms.svelte';
+import type { RoomsListGroup, RoomsListItem } from './rooms.svelte';
 
 export type DirectoryRoom = {
   id: string;
@@ -87,7 +83,7 @@ export class RoomDirectoryStore {
       const page = await this.memberDirectoryAPI.listRoomMembers(roomId, '', 5, 0);
       return {
         memberCount: page.totalCount,
-        sampleMembers: page.members.map(avatarUserFromDirectoryMember)
+        sampleMembers: page.members
       };
     } catch {
       return null;

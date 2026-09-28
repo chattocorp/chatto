@@ -1,9 +1,7 @@
 <script lang="ts">
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ChoiceRow, FormSection, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ChoiceRow, FormSection, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
-  import RangeField from '$lib/ui/form/RangeField.svelte';
+  import { Button, RangeField } from '$lib/ui/form';
   import NotificationPolicySettings from '$lib/components/settings/NotificationPolicySettings.svelte';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import {
@@ -25,17 +23,9 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  let notificationPreferences = $state.raw(getServerNotificationPreferences(serverScope.serverId));
-
-  // SvelteKit can retain this page while only the server route parameter
-  // changes. Resolve the matching state in an effect so populating the
-  // reactive cache never happens inside a derived or template expression.
-  $effect(() => {
-    notificationPreferences = getServerNotificationPreferences(serverScope.serverId);
-  });
-
-  const activeServerId = $derived(serverScope.serverId);
-  const serverInfo = $derived(serverScope.store.serverInfo);
+  const serverId = serverScope.serverId;
+  const notificationPreferences = getServerNotificationPreferences(serverId);
+  const serverInfo = serverScope.store.serverInfo;
 
   function selectSound(soundId: NotificationSoundId) {
     notificationPreferences.notificationSound = soundId;
@@ -185,34 +175,21 @@
   let pushError = $state<string | null>(null);
   let pushTestLoading = $state(false);
   let pushTestStatus = $state<'sent' | 'failed' | null>(null);
-  let pushSubscriptionGeneration = 0;
-  let pushEnableGeneration = 0;
-  let pushTestGeneration = 0;
 
-  // Check push subscription status on mount
+  // Check the push subscription while the push controls are visible.
   $effect(() => {
-    const serverId = activeServerId;
-    const generation = ++pushSubscriptionGeneration;
-    ++pushEnableGeneration;
-    ++pushTestGeneration;
-    pushSubscribed = false;
-    pushLoading = false;
-    pushError = null;
-    pushTestLoading = false;
-    pushTestStatus = null;
-    if (showPushControls && pushSupported) {
-      pushPermission = getPermission();
-      checkPushSubscription(serverId).then((subscribed) => {
-        if (activeServerId === serverId && pushSubscriptionGeneration === generation) {
-          pushSubscribed = subscribed;
-        }
-      });
-    }
+    if (!showPushControls || !pushSupported) return;
+    pushPermission = getPermission();
+    let active = true;
+    void checkPushSubscription(serverId).then((subscribed) => {
+      if (active) pushSubscribed = subscribed;
+    });
+    return () => {
+      active = false;
+    };
   });
 
   async function handleEnablePush() {
-    const serverId = activeServerId;
-    const generation = ++pushEnableGeneration;
     if (!serverInfo.vapidPublicKey) {
       pushError = m('settings.notifications.push.not_configured');
       return;
@@ -223,50 +200,36 @@
 
     try {
       const result = await enablePushOnAllServers();
-      if (activeServerId !== serverId || pushEnableGeneration !== generation) return;
       pushPermission = getPermission();
       const activeRegistration = result.registrations.find(
         (registration) => registration.serverId === serverId
       );
+      pushSubscribed = activeRegistration?.registered ?? false;
       const success =
         result.registrations.length > 0 &&
         result.registrations.every((registration) => registration.registered);
-      if (success) {
-        pushSubscribed = activeRegistration?.registered ?? false;
-      } else {
-        pushSubscribed = activeRegistration?.registered ?? false;
+      if (!success) {
         pushError =
           pushPermission === 'denied'
             ? m('settings.notifications.push.blocked_error')
             : m('settings.notifications.push.enable_failed');
       }
     } catch {
-      if (activeServerId === serverId && pushEnableGeneration === generation) {
-        pushError = m('settings.notifications.push.enable_error');
-      }
+      pushError = m('settings.notifications.push.enable_error');
     } finally {
-      if (activeServerId === serverId && pushEnableGeneration === generation) pushLoading = false;
+      pushLoading = false;
     }
   }
 
   async function handleTestPush() {
-    const serverId = activeServerId;
-    const generation = ++pushTestGeneration;
     pushTestLoading = true;
     pushTestStatus = null;
     try {
-      const sent = await sendTestNotification(serverId);
-      if (activeServerId === serverId && pushTestGeneration === generation) {
-        pushTestStatus = sent ? 'sent' : 'failed';
-      }
+      pushTestStatus = (await sendTestNotification(serverId)) ? 'sent' : 'failed';
     } catch {
-      if (activeServerId === serverId && pushTestGeneration === generation) {
-        pushTestStatus = 'failed';
-      }
+      pushTestStatus = 'failed';
     } finally {
-      if (activeServerId === serverId && pushTestGeneration === generation) {
-        pushTestLoading = false;
-      }
+      pushTestLoading = false;
     }
   }
 </script>
@@ -467,7 +430,7 @@
             id="notification-echo-filter"
             testid="notification-echo-filter"
             label={m('settings.notifications.sound.echo')}
-            icon="icon-[uil--redo]"
+            icon="icon-[uil--redo] rtl:-scale-x-100"
             min={0}
             max={100}
             value={notificationPreferences.notificationSoundFilters.echo}

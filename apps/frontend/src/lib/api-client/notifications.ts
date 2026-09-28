@@ -1,4 +1,3 @@
-import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Empty } from '@bufbuild/protobuf';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import {
@@ -19,17 +18,15 @@ import {
   NotificationDeliveryMode
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-import { mapUserPresenceView, mapUserSummary, type UserSummary } from './userSummary.js';
+import {
+  mapUserPresenceView,
+  mapUserSummary,
+  type UserPresenceView,
+  type UserSummary
+} from './userSummary.js';
 
 /** The acting user behind one notification occurrence. */
-export type NotificationActor = UserSummary & {
-  presenceStatus: PresenceStatus;
-  customStatus?: {
-    emoji: string;
-    text: string;
-    expiresAt: string | null;
-  } | null;
-};
+export type NotificationActor = UserSummary & UserPresenceView;
 
 export type NotificationOccurrenceItem = {
   id: string;

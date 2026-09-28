@@ -60,7 +60,6 @@ const mocks = vi.hoisted(() => ({
   roomMessages: vi.fn(),
   roomMembers: vi.fn(),
   restoreProjectedRoomWindow: vi.fn(),
-  nextServerRestoreProjectedRoomWindow: vi.fn(),
   mentionRoles: {
     roles: [],
     refresh: vi.fn().mockResolvedValue(true)
@@ -271,7 +270,16 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
 vi.mock('$lib/ui', async () => {
   const { default: EmptyState } = await import('$lib/ui/EmptyState.svelte');
   const { default: Hint } = await import('$lib/ui/Hint.svelte');
-  return { EmptyState, Hint };
+  return {
+    LoadRetry: (await import('$lib/ui/LoadRetry.svelte')).default,
+    PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
+    PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
+    HeaderIconButton: (await import('$lib/ui/HeaderIconButton.svelte')).default,
+    LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+    Pill: (await import('$lib/ui/Pill.svelte')).default,
+    EmptyState,
+    Hint
+  };
 });
 
 import Room from './Room.svelte';
@@ -399,7 +407,7 @@ beforeEach(() => {
       maxUploadSize: 25 * 1024 * 1024,
       maxVideoUploadSize: 25 * 1024 * 1024
     },
-    store: (serverId) => ({
+    store: {
       realtimeSync: { isRecoveringSnapshot: false },
       messageSearch: {
         statusLoading: false,
@@ -428,11 +436,8 @@ beforeEach(() => {
         pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false }),
         search: () => ({})
       },
-      restoreProjectedRoomWindow:
-        serverId === 'server-2'
-          ? mocks.nextServerRestoreProjectedRoomWindow
-          : mocks.restoreProjectedRoomWindow
-    })
+      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow
+    }
   });
   mocks.roomKind = RoomKind.CHANNEL;
   const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
@@ -536,15 +541,9 @@ describe('Room interaction bundles', () => {
 
     await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
 
-    server.serverId = 'server-2';
-
-    await vi.waitFor(() =>
-      expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledOnce()
-    );
-    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
-
     rendered.unmount();
-    expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenLastCalledWith('room-1');
   });
 
   it('does not load thread or sidebar panes when the sidebar is explicitly closed', async () => {

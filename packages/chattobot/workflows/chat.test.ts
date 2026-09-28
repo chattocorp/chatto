@@ -34,6 +34,7 @@ test.each([
         currentMessage: 'Hello!',
         origin: 'user',
         recentUserMessages: ['Hello!'],
+        requesterIsMaintainer: false,
         backgroundTasks: [],
         savedImplementationPlans: []
       });
@@ -92,7 +93,7 @@ test.each([
         ? ['fetchPage', 'investigateChatto', 'task_send', 'task_cancel']
         : ['fetchPage'],
       extensions: thread
-        ? [expect.any(Function), expect.any(Function), expect.any(Function)]
+        ? [expect.any(Function), expect.any(Function), expect.any(Function), expect.any(Function)]
         : [expect.any(Function)],
       resources: {
         extensions: false,
@@ -376,6 +377,7 @@ test('refreshes history for a later mention in the same conversation', async () 
     savedImplementationPlans: [],
     origin: 'user',
     recentUserMessages: ['Hello!', "What's next?"],
+    requesterIsMaintainer: false,
     backgroundTasks: []
   });
 });
@@ -437,4 +439,75 @@ test('web research runs in a separate agent and blocks delegation in the supervi
   });
   expect(created[0]!.tools).not.toContain('researchWeb');
   expect(created[0]!.trust).toBeUndefined();
+});
+
+test('maintainer tools follow the author of the latest human message', async () => {
+  const decisions: unknown[] = [];
+  let gate: ((event: unknown) => Promise<unknown>) | undefined;
+  const post = vi.fn(async (_destination: unknown, text: string) => {
+    if (text.startsWith('Only a maintainer'))
+      await bot.route(
+        {
+          start: async () => {
+            throw new Error('Unexpected run');
+          }
+        },
+        {
+          ...delivery,
+          id: 'approval',
+          triggers: ['mention'],
+          thread_root_id: 'root',
+          message: { id: 'approval', author_id: 'maintainer', body: 'Go ahead' }
+        }
+      );
+  });
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    readThread: async () => [],
+    post,
+    typing: async () => {},
+    timeout: 0.05,
+    investigation: { directory: '/unused' },
+    maintainers: ['maintainer'],
+    createAgent: async (options: import('runling/agents').AgentOptions) => {
+      for (const extension of options.extensions ?? []) {
+        const factory = typeof extension === 'function' ? extension : extension.factory;
+        await factory({
+          on: (name: string, handler: (event: unknown) => Promise<unknown>) => {
+            if (name === 'tool_call') gate = handler;
+          },
+          registerTool() {}
+        } as unknown as import('runling/agents').AgentExtensionAPI);
+      }
+      return {
+        async runOutcome(_ctx: unknown, prompt: string) {
+          decisions.push({
+            flag: JSON.parse(prompt).requesterIsMaintainer,
+            gate: await gate!({ type: 'tool_call', toolName: 'investigateChatto', input: {} }),
+            open: await gate!({ type: 'tool_call', toolName: 'fetchPage', input: {} })
+          });
+          return { outcome: 'completed' as const, summary: 'Done', usage: emptyTokenUsage() };
+        },
+        steer: async () => false,
+        dispose: () => {}
+      };
+    }
+  });
+  await bot(createWorkflowContext(), {
+    ...delivery,
+    triggers: ['mention'],
+    thread_root_id: 'root',
+    message: { id: 'ask', author_id: 'visitor', body: 'Please investigate the crash' }
+  });
+  expect(decisions).toEqual([
+    {
+      flag: false,
+      gate: { block: true, reason: expect.stringContaining('only when a maintainer asks') },
+      open: undefined
+    },
+    { flag: true, gate: undefined, open: undefined }
+  ]);
+  expect(post.mock.calls.filter(([, text]) => text.startsWith('Only a maintainer'))).toHaveLength(
+    1
+  );
 });

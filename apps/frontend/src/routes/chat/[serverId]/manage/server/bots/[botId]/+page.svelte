@@ -15,8 +15,17 @@
     type UserSummary
   } from '$lib/api-client/users';
   import { RoomKind } from '$lib/api-client/roomDirectory';
-  import { CopyId } from '$lib/ui';
-  import Panel from '$lib/ui/Panel.svelte';
+  import {
+    CopyId,
+    Panel,
+    ConfirmDialog,
+    FormDialog,
+    Hint,
+    LoadingFog,
+    PageTitle,
+    PaneContent,
+    PaneHeader
+  } from '$lib/ui';
   import BotCredentialSection, {
     type BotCredentialSectionItem
   } from '$lib/components/bots/BotCredentialSection.svelte';
@@ -33,15 +42,6 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    ConfirmDialog,
-    FormDialog,
-    Hint,
-    LoadingFog,
-    PageTitle,
-    PaneContent,
-    PaneHeader
-  } from '$lib/ui';
   import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -92,9 +92,7 @@
   const canOperateBot = $derived(!!bot && (bot.ownerUserId === viewerId || canManageBots));
   // Owners, bot managers, and account managers can edit the bot's public identity.
   const canEditIdentity = $derived(canOperateBot || canManageAccounts);
-  const targetKey = $derived(
-    `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
-  );
+  const targetKey = $derived(botId);
   let componentActive = true;
   let deleteVisible = $state(false);
   let webhookRoomId = $state('');

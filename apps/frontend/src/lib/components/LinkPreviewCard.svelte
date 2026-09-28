@@ -18,10 +18,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import type { LinkPreviewView } from '$lib/render/linkPreviews';
   import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
-  import MenuSection from '$lib/ui/MenuSection.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { ContextMenu, MenuItem, MenuSection, LoadingFog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
   import SocialPostEmbed from './SocialPostEmbed.svelte';

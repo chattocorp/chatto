@@ -5,7 +5,7 @@
   import { untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import { LoadingFog } from '$lib/ui';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';

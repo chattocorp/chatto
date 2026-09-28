@@ -59,7 +59,6 @@
       "log_in": "Aanmelden bij deze server",
       "sign_out": "Afmelden bij deze server",
       "version": "Versie {version}",
-      "version_unknown": "Versie onbekend",
       "unreachable": "Server onbereikbaar",
       "connection_unavailable": "Verbinding niet beschikbaar",
       "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",

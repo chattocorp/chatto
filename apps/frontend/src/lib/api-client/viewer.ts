@@ -13,6 +13,7 @@ import {
   type ViewerCapabilities as APIViewerCapabilities
 } from '@chatto/api-types/api/v1/viewer_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
+import type { CustomUserStatus } from './userSummary.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
 export type CurrentUser = {
@@ -26,11 +27,7 @@ export type CurrentUser = {
   bio?: string | null;
   /** Time zone currently exposed on this user's public profile. */
   publicTimezone?: string | null;
-  customStatus?: {
-    emoji: string;
-    text: string;
-    expiresAt?: string | null;
-  } | null;
+  customStatus?: CustomUserStatus | null;
   presenceStatus: PresenceStatus;
   hasVerifiedEmail: boolean;
   hasPassword: boolean;

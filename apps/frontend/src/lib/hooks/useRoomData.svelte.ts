@@ -54,7 +54,7 @@ export type DMData = {
  */
 export function useRoomData(getProps: () => { roomId: string }) {
   const serverScope = useServerScope();
-  const store = $derived(serverScope.store);
+  const store = serverScope.store;
 
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;

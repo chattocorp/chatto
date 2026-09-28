@@ -11,7 +11,7 @@ Room header affordance for opening or hiding room extras panels.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import UnreadDot from '$lib/ui/UnreadDot.svelte';
+  import { UnreadDot } from '$lib/ui';
   import type { RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {

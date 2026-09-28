@@ -1,8 +1,6 @@
 <script lang="ts">
   import type { AdminDurableWorkerStatus } from '$lib/api-client/adminDiagnostics';
-  import DataTable from '$lib/ui/DataTable.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { Pill } from '$lib/ui';
+  import { DataTable, Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let { workers }: { workers: AdminDurableWorkerStatus[] } = $props();

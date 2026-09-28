@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ChoiceRow, FormSection, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import {
     userPreferences,
@@ -8,10 +8,9 @@
     type DisplayTheme,
     type ThreadPanePresentation
   } from '$lib/state/userPreferences.svelte';
-  import { ChoiceRow, FormSection, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import AccentColorPicker from './AccentColorPicker.svelte';
   import SurfaceTonePicker from './SurfaceTonePicker.svelte';
-  import RangeField from '$lib/ui/form/RangeField.svelte';
+  import { RangeField } from '$lib/ui/form';
 
   const contrastDisplayValue = $derived(`${Math.round((userPreferences.contrastAge - 20) * 5)}%`);
   const contrastValueText = $derived(

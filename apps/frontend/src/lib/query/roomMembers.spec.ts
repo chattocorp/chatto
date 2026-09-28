@@ -6,11 +6,7 @@ import type {
   MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
 import { queryClient } from './client';
-import {
-  invalidateRegisteredRoomMemberQueries,
-  purgeRegisteredRoomMemberQueries,
-  scrubRegisteredRoomMemberUser
-} from './cacheRegistry';
+import { queryCaches } from './cacheRegistry';
 import { directoryQueryKeys } from './directory';
 import {
   flattenRoomMembers,
@@ -133,24 +129,11 @@ describe('room member queries', () => {
     queryClient.setQueryData(second, data(page([member('private-2')])));
     queryClient.setQueryData(unrelated, data(page([member('public')])));
 
-    purgeRegisteredRoomMemberQueries('server-1', 'room-1');
+    queryCaches.roomMembers!.purgeRoom('server-1', 'room-1');
 
     expect(flattenRoomMembers(queryClient.getQueryData(first))).toEqual([]);
     expect(flattenRoomMembers(queryClient.getQueryData(second))).toEqual([]);
     expect(flattenRoomMembers(queryClient.getQueryData(unrelated))).toEqual([member('public')]);
-  });
-
-  it('marks off-screen room-member snapshots stale after a projected update', () => {
-    const queryKey = directoryQueryKeys.roomMembers(
-      'server-1',
-      { queryScope: 'session-1' },
-      'room-1'
-    );
-    queryClient.setQueryData(queryKey, data(page([member('alice')])));
-
-    invalidateRegisteredRoomMemberQueries('server-1', 'room-1');
-
-    expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
   });
 
   it('scrubs a removed user from member and eligible-user caches', () => {
@@ -169,7 +152,7 @@ describe('room member queries', () => {
     );
     queryClient.setQueryData(eligibleKey, [member('removed'), member('candidate')]);
 
-    scrubRegisteredRoomMemberUser('server-1', 'removed');
+    queryCaches.roomMembers!.scrubUser('server-1', 'removed');
 
     expect(flattenRoomMembers(queryClient.getQueryData(membersKey))).toEqual([member('retained')]);
     expect(queryClient.getQueryData(eligibleKey)).toEqual([member('candidate')]);

@@ -16,7 +16,7 @@
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { DataTable, FormDialog, Hint, Panel, Pill } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast/toastState.svelte';
+  import { toast } from '$lib/ui/toast';
   import {
     clearPendingEmailVerification,
     storePendingEmailVerification
@@ -60,13 +60,7 @@
   }
 
   function isCurrentEmailScope(scope: EmailActionScope): boolean {
-    return (
-      serverScope.isCurrent() &&
-      scope.serverId === serverScope.serverId &&
-      scope.connection.queryScope === serverScope.connection.queryScope &&
-      scope.userId !== '' &&
-      scope.userId === viewerUserId
-    );
+    return serverScope.isCurrent() && scope.userId !== '' && scope.userId === viewerUserId;
   }
 
   function isCurrentEmailContext(scope: EmailActionScope): boolean {

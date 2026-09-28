@@ -1,9 +1,16 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { StaleResponseError } from '$lib/api-client/connect';
+import {
+  mapDirectoryMember,
+  type DirectoryMember as UserProfileView
+} from '$lib/api-client/directoryMemberView';
 import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
 export type UserReader = (ids: string[], minimumCursor?: string) => Promise<DirectoryMember[]>;
+
+/** Render views keyed by the stored profile they were converted from. */
+const views = new WeakMap<DirectoryMember, UserProfileView>();
 
 /** The single public-profile owner for one server connection. Room membership,
  * pagination, and presence subscriptions have separate owners. Values are replaced,
@@ -23,6 +30,21 @@ export class UserStore {
   }
   get(id: string): DirectoryMember | undefined {
     return this.#members.get(id);
+  }
+  /**
+   * The render view of a stored profile. It is converted once per stored profile
+   * and shared by every reader, so treat it as read-only. A replaced profile gets
+   * a new view.
+   */
+  view(id: string): UserProfileView | undefined {
+    const member = this.#members.get(id);
+    if (!member) return undefined;
+    let view = views.get(member);
+    if (!view) {
+      view = mapDirectoryMember(member);
+      views.set(member, view);
+    }
+    return view;
   }
   has(id: string): boolean {
     return this.#members.has(id);

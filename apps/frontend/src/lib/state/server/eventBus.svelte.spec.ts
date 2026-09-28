@@ -76,8 +76,11 @@ class FakeServerConnection {
   authRenewed = false;
   #reconnect: ((reason: string) => void) | null = null;
   #wasDisconnected = false;
+  #connectionFailed = false;
 
   setRealtimeConnectionStatus(status: ConnectionStatus): void {
+    if (status === 'disconnected') this.#connectionFailed = true;
+    if (status === 'connected' || status === 'dormant') this.#connectionFailed = false;
     if (status === 'disconnected') {
       if (this.status === 'connected') this.#wasDisconnected = true;
       this.status = status;
@@ -99,7 +102,12 @@ class FakeServerConnection {
     };
   }
 
+  get showConnectionLostIcon(): boolean {
+    return this.#connectionFailed;
+  }
+
   forceReconnect(reason: string): void {
+    this.#connectionFailed = false;
     this.#reconnect?.(reason);
   }
 
@@ -652,15 +660,20 @@ describe('eventBusManager realtime transport', () => {
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  it('marks the projection stale and reconnects when the socket closes', async () => {
+  it('retries at once before it reports a lost connection', async () => {
     vi.useFakeTimers();
     const { fake, socket } = await startAndSubscribe();
 
     socket.serverClose();
 
-    expect(fake.status).toBe('disconnected');
+    expect(fake.status).toBe('connecting');
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
+
+    sockets[1].serverClose();
+
+    expect(fake.status).toBe('disconnected');
+    expect(fake.statusUpdates.filter((status) => status === 'disconnected')).toHaveLength(1);
   });
 
   it('reconnects when the server reports temporary unavailability', async () => {
@@ -772,6 +785,7 @@ describe('eventBusManager realtime transport', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(fake.authRequiredCalls).toBe(1);
+    expect(fake.statusUpdates).not.toContain('disconnected');
     expect(sockets).toHaveLength(2);
     sockets[1].open();
     const subscribe = RealtimeSubscribe.fromBinary(sockets[1].sent[0]);
@@ -796,6 +810,7 @@ describe('eventBusManager realtime transport', () => {
 
     expect(fake.authRequiredCalls).toBe(0);
     expect(fake.browserRenewalCalls).toBe(1);
+    expect(fake.statusUpdates).not.toContain('disconnected');
     expect(sockets).toHaveLength(2);
   });
 
@@ -856,13 +871,15 @@ describe('eventBusManager realtime transport', () => {
   });
 
   it('does NOT reconnect when stopBus is called', async () => {
-    await startAndSubscribe();
+    const { fake } = await startAndSubscribe();
     expect(sockets).toHaveLength(1);
 
     eventBusManager.stopBus(TEST_SERVER);
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].closeCalls).toHaveLength(1);
+    // A stopped transport is not a failed attempt.
+    expect(fake.showConnectionLostIcon).toBe(false);
   });
 
   it('refreshes auxiliary state once per catch-up, not per replay event or heartbeat', async () => {
@@ -1218,6 +1235,116 @@ describe('eventBusManager realtime transport', () => {
     );
     await vi.waitFor(() => expect(sockets).toHaveLength(4));
     expect(sockets[3].url).toBe(remote.realtimeUrl);
+  });
+
+  it('keeps the warning of a failed server when it becomes inactive', async () => {
+    vi.useFakeTimers();
+    const failing = new FakeServerConnection();
+    failing.realtimeUrl = 'ws://failing.test/api/realtime';
+    const other = new FakeServerConnection();
+    other.realtimeUrl = 'ws://other.test/api/realtime';
+    const registrations = [
+      {
+        serverId: 'failing-server',
+        connection: failing as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'other-server',
+        connection: other as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      }
+    ];
+    const failingSocket = () =>
+      sockets.filter((socket) => socket.url === failing.realtimeUrl).at(-1)!;
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'failing-server');
+    failingSocket().serverClose();
+    await vi.advanceTimersByTimeAsync(0);
+    failingSocket().serverClose();
+    expect(failing.status).toBe('disconnected');
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'other-server');
+
+    expect(failing.showConnectionLostIcon).toBe(true);
+  });
+
+  it('clears a failed inactive catch-up on wake and catches up again at once', async () => {
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://wake.test/api/realtime';
+
+    eventBusManager.synchronizeAuthenticatedServers(
+      [
+        {
+          serverId: 'wake-active',
+          connection: active as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: new RealtimeProjectionSyncState(),
+          projectionHandler: vi.fn()
+        },
+        {
+          serverId: 'wake-inactive',
+          connection: inactive as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: new RealtimeProjectionSyncState(),
+          projectionHandler: vi.fn()
+        }
+      ],
+      'wake-active'
+    );
+
+    // The catch-up fails while the device sleeps.
+    sockets[1].serverClose();
+    expect(inactive.status).toBe('disconnected');
+    await flushPromises();
+
+    inactive.forceReconnect('tab visible after 600s hidden');
+    expect(inactive.status).toBe('dormant');
+    await flushPromises();
+    expect(sockets).toHaveLength(3);
+    expect(sockets[2].url).toBe(inactive.realtimeUrl);
+
+    // A second wake signal replaces the catch-up in flight without a failure.
+    inactive.forceReconnect('network came back online');
+    expect(sockets[2].closeCalls.at(-1)?.reason).toBe('dormant');
+    await flushPromises();
+    await flushPromises();
+    expect(sockets).toHaveLength(4);
+    expect(inactive.status).toBe('dormant');
+
+    sockets[3].open();
+    await sockets[3].receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'woken' }) })
+    );
+    expect(inactive.statusUpdates.at(-1)).toBe('dormant');
+    expect(inactive.statusUpdates.filter((status) => status === 'disconnected')).toHaveLength(1);
+  });
+
+  it('skips a periodic poll that arrives while a slow cycle is still running', async () => {
+    vi.useFakeTimers();
+    setRealtimePollRandomForTests(() => 0.5);
+    const connections = ['slow-a', 'slow-b', 'slow-c'].map((serverId) => ({
+      serverId,
+      connection: new FakeServerConnection() as unknown as ServerConnection,
+      projectionSupported: true,
+      sync: new RealtimeProjectionSyncState(),
+      projectionHandler: vi.fn()
+    }));
+
+    eventBusManager.synchronizeAuthenticatedServers(connections, null);
+
+    // Each unanswered catch-up times out after 30 seconds, so this cycle is
+    // still running when the periodic poll fires at 60 seconds.
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(100_000);
+    expect(sockets).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(sockets).toHaveLength(4);
   });
 
   it('periodically resumes a ready inactive projection with jittered serialized polling', async () => {

@@ -4,10 +4,8 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAccountAPI, type UpdateSettingsInput } from '$lib/api-client/account';
-  import Panel from '$lib/ui/Panel.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Panel, PageTitle, ChoiceRow, FormSection, Hint, PaneContent, PaneHeader } from '$lib/ui';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-  import { ChoiceRow, FormSection, Hint, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, Checkbox, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime, hour12ForTimeFormat } from '$lib/utils/formatTime';

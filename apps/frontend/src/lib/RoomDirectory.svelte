@@ -15,9 +15,8 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState } from '$lib/ui';
+  import { ConfirmDialog, EmptyState, Panel } from '$lib/ui';
   import { TextInput } from '$lib/ui/form';
-  import Panel from '$lib/ui/Panel.svelte';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
   let {
@@ -213,7 +212,7 @@ store owns only optimistic join/leave state.
             <span class="min-w-0 truncate">{room.name}</span>
           </div>
           {#if room.description}
-            <div class="truncate text-xs font-normal text-muted/80">{room.description}</div>
+            <div class="truncate text-xs font-normal text-muted">{room.description}</div>
           {/if}
         </div>
       </div>
@@ -248,7 +247,7 @@ store owns only optimistic join/leave state.
           <span aria-hidden="true" class="iconify icon-[uil--check] group-hover:hidden"></span>
           <span
             aria-hidden="true"
-            class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline"
+            class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline rtl:-scale-x-100"
           ></span>
           <span class="group-hover:hidden">{m('room.directory.joined')}</span>
           <span class="hidden group-hover:inline">{m('room.directory.leave')}</span>
@@ -353,7 +352,7 @@ store owns only optimistic join/leave state.
   bind:visible={leaveConfirmVisible}
   title={m('room.leave.title')}
   actionLabel={m('room.leave.action')}
-  actionIcon="iconify icon-[uil--sign-out-alt]"
+  actionIcon="iconify icon-[uil--sign-out-alt] rtl:-scale-x-100"
   onconfirm={confirmLeaveRoom}
   onclose={() => (leaveConfirmVisible = false)}
 >

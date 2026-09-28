@@ -59,7 +59,6 @@
       "log_in": "Entrar neste servidor",
       "sign_out": "Sair deste servidor",
       "version": "Versão {version}",
-      "version_unknown": "Versão desconhecida",
       "unreachable": "Servidor inacessível",
       "connection_unavailable": "Conexão indisponível",
       "compatibility_server_too_old": "Este servidor precisa ser atualizado para o Chatto 0.5 ou mais recente antes que este aplicativo possa se conectar.",

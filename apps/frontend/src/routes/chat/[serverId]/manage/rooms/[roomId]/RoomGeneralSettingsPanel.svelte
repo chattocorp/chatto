@@ -1,9 +1,8 @@
 <script lang="ts">
   import { DraftField } from '$lib/components/settings/DraftField.svelte';
   import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
-  import Panel from '$lib/ui/Panel.svelte';
+  import { Panel, ChoiceRow } from '$lib/ui';
   import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
-  import { ChoiceRow } from '$lib/ui';
   import { normalizeRoomName, roomNameValidationError } from '$lib/utils/roomName';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { buildRoomSettingsUpdate } from './roomSettings';

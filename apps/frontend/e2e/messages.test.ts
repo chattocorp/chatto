@@ -805,12 +805,12 @@ test('image lightbox supports keyboard navigation with multiple images', async (
     el.scrollLeft = 0;
     el.dispatchEvent(new Event('scroll'));
   });
-  const leftFade = page.getByTestId('message-image-gallery-left-fade');
-  const rightFade = page.getByTestId('message-image-gallery-right-fade');
-  await expect.poll(() => leftFade.evaluate((el) => el.classList.contains('opacity-0'))).toBe(true);
+  const startFade = page.getByTestId('message-image-gallery-start-fade');
+  const endFade = page.getByTestId('message-image-gallery-end-fade');
   await expect
-    .poll(() => rightFade.evaluate((el) => el.classList.contains('opacity-0')))
-    .toBe(false);
+    .poll(() => startFade.evaluate((el) => el.classList.contains('opacity-0')))
+    .toBe(true);
+  await expect.poll(() => endFade.evaluate((el) => el.classList.contains('opacity-0'))).toBe(false);
   const narrowGalleryBoxes = await galleryImages.evaluateAll((buttons) =>
     buttons.map((button) => {
       const rect = button.getBoundingClientRect();
@@ -828,11 +828,9 @@ test('image lightbox supports keyboard navigation with multiple images', async (
     el.dispatchEvent(new Event('scroll'));
   });
   await expect
-    .poll(() => leftFade.evaluate((el) => el.classList.contains('opacity-0')))
+    .poll(() => startFade.evaluate((el) => el.classList.contains('opacity-0')))
     .toBe(false);
-  await expect
-    .poll(() => rightFade.evaluate((el) => el.classList.contains('opacity-0')))
-    .toBe(true);
+  await expect.poll(() => endFade.evaluate((el) => el.classList.contains('opacity-0'))).toBe(true);
 
   // Click the first image to open the lightbox
   await roomPage.attachmentImage.first().click();
