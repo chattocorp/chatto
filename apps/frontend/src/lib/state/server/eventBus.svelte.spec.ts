@@ -76,8 +76,11 @@ class FakeServerConnection {
   authRenewed = false;
   #reconnect: ((reason: string) => void) | null = null;
   #wasDisconnected = false;
+  #connectionFailed = false;
 
   setRealtimeConnectionStatus(status: ConnectionStatus): void {
+    if (status === 'disconnected') this.#connectionFailed = true;
+    if (status === 'connected' || status === 'dormant') this.#connectionFailed = false;
     if (status === 'disconnected') {
       if (this.status === 'connected') this.#wasDisconnected = true;
       this.status = status;
@@ -99,7 +102,12 @@ class FakeServerConnection {
     };
   }
 
+  get showConnectionLostIcon(): boolean {
+    return this.#connectionFailed;
+  }
+
   forceReconnect(reason: string): void {
+    this.#connectionFailed = false;
     this.#reconnect?.(reason);
   }
 
@@ -1225,6 +1233,42 @@ describe('eventBusManager realtime transport', () => {
     );
     await vi.waitFor(() => expect(sockets).toHaveLength(4));
     expect(sockets[3].url).toBe(remote.realtimeUrl);
+  });
+
+  it('keeps the warning of a failed server when it becomes inactive', async () => {
+    vi.useFakeTimers();
+    const failing = new FakeServerConnection();
+    failing.realtimeUrl = 'ws://failing.test/api/realtime';
+    const other = new FakeServerConnection();
+    other.realtimeUrl = 'ws://other.test/api/realtime';
+    const registrations = [
+      {
+        serverId: 'failing-server',
+        connection: failing as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'other-server',
+        connection: other as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      }
+    ];
+    const failingSocket = () =>
+      sockets.filter((socket) => socket.url === failing.realtimeUrl).at(-1)!;
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'failing-server');
+    failingSocket().serverClose();
+    await vi.advanceTimersByTimeAsync(0);
+    failingSocket().serverClose();
+    expect(failing.status).toBe('disconnected');
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'other-server');
+
+    expect(failing.showConnectionLostIcon).toBe(true);
   });
 
   it('clears a failed inactive catch-up on wake and catches up again at once', async () => {

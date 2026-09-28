@@ -195,7 +195,11 @@ class EventBusManager {
       detachSocket(true, 'dormant');
       if (markStale) sync.markStale();
       if (wasPolling) resolvePoll(false);
-      serverConnection.setRealtimeConnectionStatus(status);
+      // Going dormant is not an outcome. Keep a reported failure until an
+      // attempt succeeds; a forced reconnect clears it before it gets here.
+      serverConnection.setRealtimeConnectionStatus(
+        serverConnection.showConnectionLostIcon ? 'disconnected' : status
+      );
     };
 
     /** Stop after a credential renewal that failed or needs a new sign-in. */

@@ -55,6 +55,12 @@ const ORIGIN_SERVER_URL = '/';
 export class ServerConnection {
   status = $state<ConnectionStatus>('connecting');
   #failedAttempts = $state(0);
+  /**
+   * Whether the latest completed attempt failed. A new attempt does not change
+   * it: only success clears it and only failure sets it. A forced reconnect
+   * (tab wake, network recovery) starts fresh and clears it.
+   */
+  #connectionFailed = $state(false);
   #lastVisibleAt = Date.now();
   #visibilityHandler: (() => void) | null = null;
   #onlineHandler: (() => void) | null = null;
@@ -90,9 +96,9 @@ export class ServerConnection {
     return this.status === 'connected';
   }
 
-  /** Show disconnection icon immediately when WebSocket is not connected */
+  /** Show the connection warning after a failed attempt until an attempt succeeds. */
   get showConnectionLostIcon() {
-    return this.status === 'disconnected';
+    return this.#connectionFailed;
   }
 
   /** Show urgent (orange) disconnection indicator after 6 failed reconnection attempts (~30+ seconds) */
@@ -146,6 +152,7 @@ export class ServerConnection {
 
   /** Force-terminate and immediately reconnect the WebSocket. */
   forceReconnect(reason: string) {
+    this.#connectionFailed = false;
     if (this.status === 'connecting') {
       this.#pendingForcedReconnectReason = reason;
       console.log('[ws:%s] Force reconnect queued — already connecting: %s', this.#host, reason);
@@ -200,6 +207,7 @@ export class ServerConnection {
       console.log('[ws:%s] Connected', this.#host);
       this.status = 'connected';
       this.#failedAttempts = 0;
+      this.#connectionFailed = false;
       const pendingReason = this.#pendingForcedReconnectReason;
       if (pendingReason && this.#realtimeReconnect) {
         this.#pendingForcedReconnectReason = null;
@@ -211,11 +219,13 @@ export class ServerConnection {
     if (status === 'dormant') {
       this.status = 'dormant';
       this.#failedAttempts = 0;
+      this.#connectionFailed = false;
       return;
     }
 
     this.status = 'disconnected';
     this.#failedAttempts = failedAttempts;
+    this.#connectionFailed = true;
   }
 
   /**

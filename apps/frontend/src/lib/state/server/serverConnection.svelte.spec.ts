@@ -140,6 +140,35 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
+  it('keeps the connection warning through a new attempt until one succeeds', () => {
+    const client = new ServerConnection(makeConfig());
+
+    client.setRealtimeConnectionStatus('connecting');
+    expect(client.showConnectionLostIcon).toBe(false);
+    client.setRealtimeConnectionStatus('disconnected', 2);
+    expect(client.showConnectionLostIcon).toBe(true);
+    client.setRealtimeConnectionStatus('connecting', 2);
+    expect(client.showConnectionLostIcon).toBe(true);
+    client.setRealtimeConnectionStatus('connected');
+    expect(client.showConnectionLostIcon).toBe(false);
+
+    client.setRealtimeConnectionStatus('disconnected', 1);
+    client.setRealtimeConnectionStatus('dormant');
+    expect(client.showConnectionLostIcon).toBe(false);
+    client.dispose();
+  });
+
+  it('clears the connection warning when a forced reconnect starts fresh', () => {
+    const client = new ServerConnection(makeConfig());
+    client.registerRealtimeReconnect(vi.fn());
+
+    client.setRealtimeConnectionStatus('disconnected', 2);
+    client.forceReconnect('tab visible after 600s hidden');
+
+    expect(client.showConnectionLostIcon).toBe(false);
+    client.dispose();
+  });
+
   it('does not present intentional dormant transport as a connection failure', () => {
     const client = new ServerConnection(makeConfig());
 

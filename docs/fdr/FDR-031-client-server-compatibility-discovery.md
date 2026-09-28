@@ -29,9 +29,11 @@ Chatto's pre-1.0 API remains experimental.
   appears when a problem prevents the client from using the server: a required
   sign-in, an unreachable server, an unsupported or unknown server version, or
   a failed connection. The icon is not dimmed.
-- The warning appears only after an attempt fails. Discovery, connection
-  attempts, immediate retries, credential renewal, and the catch-up after tab
-  wake or network recovery show the normal state.
+- Only the result of an attempt changes the state. A failed attempt shows the
+  warning, and only a successful attempt removes it. A new attempt, an
+  immediate retry after a dropped connection, or a credential renewal does not
+  change the state. Tab wake and network recovery start again from the normal
+  state, because results from before the wake are out of date.
 - The server context menu and touch sheet explain the problem. When more than
   one problem applies, they show the first problem in the order above.
 - Third-party clients own and test their own minimum supported server release.
