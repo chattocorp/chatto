@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimelineEventKind, type MessagePostedPayload } from '$lib/render/timelineEvents';
+import {
+  TimelineEventKind,
+  type MessagePostedPayload,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
+import type { UserAvatarUserView } from '$lib/render/users';
 import {
   buildMessageReplyPreview,
   canEditMessage,
   embeddedMessageLinks,
   isDeletedMessage,
+  resolveMessageAuthor,
+  type MessageAuthorProfiles,
   resolveMessageEventReferences
 } from './messageEventModel';
 
@@ -169,5 +176,57 @@ describe('buildMessageReplyPreview', () => {
         getDisplayName: (actor) => actor.displayName
       })
     ).toEqual({ name: 'Deleted user', body: null, actor: null, deleted: true });
+  });
+});
+
+describe('resolveMessageAuthor', () => {
+  const profile = (id: string, displayName: string): UserAvatarUserView => ({
+    id,
+    login: id,
+    displayName,
+    presenceStatus: PresenceStatus.OFFLINE
+  });
+  const users = (
+    profiles: Record<string, UserAvatarUserView>,
+    deleted: string[] = []
+  ): MessageAuthorProfiles => ({
+    view: (id) => profiles[id],
+    isDeleted: (id) => deleted.includes(id)
+  });
+  const event = (overrides: Partial<TimelineEventView> = {}) =>
+    ({ id: 'E1', actorId: 'u1', ...overrides }) as TimelineEventView;
+
+  it('prefers the live profile over the copy the event carried', () => {
+    const author = resolveMessageAuthor(
+      event({ actor: profile('u1', 'Old name') }),
+      users({ u1: profile('u1', 'New name') })
+    );
+    expect(author).toEqual({ user: profile('u1', 'New name'), deleted: false });
+  });
+
+  it('falls back to the copy the event carried', () => {
+    const carried = profile('u1', 'Carried');
+    expect(resolveMessageAuthor(event({ actor: carried }), users({}))).toEqual({
+      user: carried,
+      deleted: false
+    });
+  });
+
+  it('shows no profile for a deleted author, even when the event carried one', () => {
+    const carried = profile('u1', 'Carried');
+    expect(resolveMessageAuthor(event({ actor: carried }), users({}, ['u1']))).toEqual({
+      user: null,
+      deleted: true
+    });
+    expect(
+      resolveMessageAuthor(event({ actor: carried, actorResolution: 'deleted' }), users({}))
+    ).toEqual({ user: null, deleted: true });
+  });
+
+  it('reports an unknown author without a profile', () => {
+    expect(resolveMessageAuthor(event({ actorId: '' }), users({}))).toEqual({
+      user: null,
+      deleted: false
+    });
   });
 });

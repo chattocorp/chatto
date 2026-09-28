@@ -47,6 +47,7 @@
     canEditMessage,
     embeddedMessageLinks,
     isDeletedMessage,
+    resolveMessageAuthor,
     resolveMessageEventReferences
   } from './messageEventModel';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -93,14 +94,9 @@
   );
   // Resolve every row against the live profile owner. Timeline includes can
   // arrive before profiles catch up after a reconnect.
-  const actorId = $derived(event?.actorId || event?.actor?.id || '');
-  const users = $derived(stores.projection.users);
-  const deletedActor = $derived(
-    event?.actorResolution === 'deleted' ||
-      !!event?.actor?.deleted ||
-      (!!actorId && users.isDeleted(actorId))
-  );
-  const actor = $derived(deletedActor ? null : (users.view(actorId) ?? event.actor ?? null));
+  const author = $derived(resolveMessageAuthor(event, stores.projection.users));
+  const actor = $derived(author.user);
+  const deletedActor = $derived(author.deleted);
   const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
 
   // The actor already uses the live profile when one is available.

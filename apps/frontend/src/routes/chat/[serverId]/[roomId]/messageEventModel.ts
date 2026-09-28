@@ -7,6 +7,39 @@ import {
   type TimelineEventView
 } from '$lib/render/timelineEvents';
 import type { RoomMember } from '$lib/state/room';
+import type { UserAvatarUserView } from '$lib/render/users';
+
+/** The user profiles a message row resolves authors against, such as a `UserStore`. */
+export type MessageAuthorProfiles = {
+  view(id: string): UserAvatarUserView | undefined;
+  isDeleted(id: string): boolean;
+};
+
+/** Who wrote a timeline event, as a message row shows it. */
+export type MessageAuthor = {
+  /** The profile to show, or `null` when the author is deleted or unknown. */
+  user: UserAvatarUserView | null;
+  /** Whether the author's account was deleted. */
+  deleted: boolean;
+};
+
+/**
+ * Resolve the author of a timeline event.
+ *
+ * A deleted account shows no profile, even when the event carried a copy of
+ * it. Otherwise the live profile from the server's user store wins over the
+ * copy that the event carried, which can be older.
+ */
+export function resolveMessageAuthor(
+  event: TimelineEventView,
+  users: MessageAuthorProfiles
+): MessageAuthor {
+  const id = event.actorId || event.actor?.id || '';
+  const deleted =
+    event.actorResolution === 'deleted' || !!event.actor?.deleted || users.isDeleted(id);
+  if (deleted) return { user: null, deleted: true };
+  return { user: users.view(id) ?? event.actor ?? null, deleted: false };
+}
 
 export type MessageEventReferences = {
   isEcho: boolean;
