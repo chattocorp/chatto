@@ -670,6 +670,10 @@ async function createRunlingAgent(
             .map((part) => part.text)
             .join('\n');
 
+          // Reasoning summaries are often the only account of what the agent is doing.
+          for (const part of event.message.content)
+            if (part.type === 'thinking' && !part.redacted && part.thinking.trim())
+              agentLog.info(`${log.highlight('Thinking')} ${part.thinking.trim()}`);
           if (finalText.trim()) agentLog.info(finalText);
 
           accumulateTokenUsage(usage, event.message.usage);

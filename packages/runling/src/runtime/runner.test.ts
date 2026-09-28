@@ -7,8 +7,7 @@ import {
   formatDuration,
   formatWorkflowDetails,
   normalizeWorkflowResult,
-  runWorkflow,
-  shouldUseTui
+  runWorkflow
 } from './runner.ts';
 import type { RunlingEvent } from './events.ts';
 import type { InputRequest } from './input.ts';
@@ -382,38 +381,57 @@ describe('formatWorkflowDetails', () => {
   });
 });
 
-describe('shouldUseTui', () => {
-  const interactive = { stdinIsTTY: true, stdoutIsTTY: true };
+describe('root workflow updates', () => {
+  const captureLog = async (work: () => Promise<unknown>) => {
+    const lines: string[] = [];
+    const originalLog = console.log;
+    console.log = (message: string) => lines.push(stripVTControlCharacters(message));
+    try {
+      await work();
+    } finally {
+      console.log = originalLog;
+    }
+    return lines;
+  };
 
-  test('uses the TUI for an interactive terminal', () => {
-    expect(shouldUseTui({ json: false, log: false, verbose: false }, interactive)).toBe(true);
+  test('are logged: findings, replies, and each new state activity once', async () => {
+    const lines = await captureLog(() =>
+      executeWorkflow(async (ctx) => {
+        await ctx.emit('Plain progress');
+        await ctx.emit({ type: 'finding', text: 'Validation passed' });
+        await ctx.emit({ type: 'state', value: {}, activity: 'Waiting for checks' });
+        await ctx.emit({ type: 'state', value: { polls: 2 }, activity: 'Waiting for checks' });
+        await ctx.emit({ type: 'state', value: {} });
+        await ctx.emit({
+          type: 'state',
+          value: {},
+          activity: 'Checks passed',
+          activityLevel: 'success'
+        });
+        await ctx.emit({ type: 'output', text: 'Repeated agent text' });
+        await ctx.emit({ type: 'tool', operation: 'read', phase: 'started' });
+        await ctx.emit({ type: 'reply', text: 'Answer', replyTo: 'q' });
+        return 'done';
+      })
+    );
+    const updates = lines.filter((line) => !/Runling starting|done|Finished in/.test(line));
+    expect(updates).toEqual([
+      '  ● Plain progress',
+      '  ● Validation passed',
+      '  ● Waiting for checks',
+      '  ✓ Checks passed',
+      '  ● Answer'
+    ]);
   });
 
-  test('uses logs for redirected input or output', () => {
-    expect(
-      shouldUseTui(
-        { json: false, log: false, verbose: false },
-        {
-          stdinIsTTY: false,
-          stdoutIsTTY: true
-        }
-      )
-    ).toBe(false);
-    expect(
-      shouldUseTui(
-        { json: false, log: false, verbose: false },
-        {
-          stdinIsTTY: true,
-          stdoutIsTTY: false
-        }
-      )
-    ).toBe(false);
-  });
-
-  test('allows log, verbose, and JSON modes to override an interactive terminal', () => {
-    expect(shouldUseTui({ json: false, log: true, verbose: false }, interactive)).toBe(false);
-    expect(shouldUseTui({ json: false, log: false, verbose: true }, interactive)).toBe(false);
-    expect(shouldUseTui({ json: true, log: false, verbose: false }, interactive)).toBe(false);
+  test('multi-line messages keep their indentation', async () => {
+    const lines = await captureLog(() =>
+      executeWorkflow(async (ctx) => {
+        await ctx.emit('First line\nSecond line');
+        return 'done';
+      })
+    );
+    expect(lines).toContain('  ● First line\n    Second line');
   });
 });
 

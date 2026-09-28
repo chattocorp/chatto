@@ -6,6 +6,7 @@ import {
 } from './context.ts';
 import { withExecutionServices } from './execution.ts';
 import { resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { pathToFileURL } from 'node:url';
 import type { RunOptions } from './cli.ts';
 import {
@@ -23,7 +24,6 @@ import {
   type WorkflowResult,
   type WorkflowReturn
 } from './runtime.ts';
-import { TuiReporter } from './tui.ts';
 import { isTask, type TaskFunction } from './workflow.ts';
 import { formatTokenUsage, type TokenUsage, totalTokens } from './usage.ts';
 
@@ -67,9 +67,11 @@ export interface TerminalCapabilities {
 
 export interface ExecutionOptions {
   json?: boolean;
-  presentation?: 'log' | 'tui';
   terminal?: TerminalCapabilities;
-  title?: string;
+  /** Answers workflow input requests. Without it, a request fails. */
+  onInput?: InputHandler;
+  /** Cancels the workflow cooperatively. */
+  signal?: AbortSignal;
 }
 
 export interface RunWorkflowOptions<Input = unknown> {
@@ -151,63 +153,93 @@ export async function runWorkflow<Input, Output>(
 
 async function reportExecution(
   run: (ctx: WorkflowContext) => Promise<unknown> | unknown,
-  {
-    json = false,
-    presentation = 'log',
-    terminal = process.stdout,
-    title = 'Workflow'
-  }: ExecutionOptions = {}
+  { json = false, terminal = process.stdout, onInput, signal }: ExecutionOptions = {}
 ): Promise<WorkflowExecution> {
-  const reporter = presentation === 'tui' ? new TuiReporter(title) : undefined;
+  const execution = await log.withDestination(json ? 'stderr' : 'stdout', async () => {
+    log.info('Runling starting');
+    const execution = await captureExecution(run, onInput, undefined, signal, undefined, true);
 
-  try {
-    reporter?.start();
-    const execution = await observeRunlingEvents(reporter?.handle ?? (() => {}), () =>
-      log.withDestination(
-        presentation === 'tui' ? 'silent' : json ? 'stderr' : 'stdout',
-        async () => {
-          if (presentation === 'log') log.info('Runling starting');
-          const execution = await captureExecution(run, reporter?.input);
+    if (execution.error !== null) {
+      log.error(execution.error);
+      process.exitCode = 1;
+    } else if (!json && execution.result !== null) {
+      log.success(execution.result.summary);
+      if (execution.result.details !== undefined) {
+        console.log(`\n${formatWorkflowDetails(execution.result.details, terminal)}\n`);
+      }
+    }
 
-          if (execution.error !== null) {
-            log.error(execution.error);
-            process.exitCode = 1;
-          } else if (!json && execution.result !== null) {
-            if (presentation === 'log') {
-              log.success(execution.result.summary);
-              if (execution.result.details !== undefined) {
-                console.log(`\n${formatWorkflowDetails(execution.result.details, terminal)}\n`);
-              }
-            }
-          }
-
-          if (presentation === 'log' && totalTokens(execution.usage) > 0) {
-            log.info(`Total token usage: ${formatTokenUsage(execution.usage)}`);
-          }
-          if (presentation === 'log') {
-            log.info(`Finished in ${formatDuration(execution.durationMs)}`);
-          }
-
-          return execution;
-        }
-      )
-    );
-
-    reporter?.finish(execution);
-    if (json) console.log(JSON.stringify(execution));
-
+    if (totalTokens(execution.usage) > 0) {
+      log.info(`Total token usage: ${formatTokenUsage(execution.usage)}`);
+    }
+    log.info(`Finished in ${formatDuration(execution.durationMs)}`);
     return execution;
-  } finally {
-    reporter?.stop();
-  }
+  });
+
+  if (json) console.log(JSON.stringify(execution));
+  return execution;
 }
+
+/** Write updates that a root workflow emits to the log. A spawned child's updates go to its
+ * parent instead. Agent status and tool activity are skipped because the agent logs them, and
+ * `output` is skipped because it repeats text that the agent logged. A state update is logged
+ * only through its `activity`, and a repeated activity is logged once. */
+export function createUpdateLogger(): (update: unknown) => Promise<void> {
+  let lastActivity: string | undefined;
+  return async (update) => {
+    if (typeof update === 'string') {
+      if (update.trim()) log.info(update);
+      return;
+    }
+    if (typeof update !== 'object' || update === null || !('type' in update)) {
+      log.debug(`Update: ${JSON.stringify(update)}`);
+      return;
+    }
+    const value = update as {
+      type: unknown;
+      text?: unknown;
+      activity?: unknown;
+      activityLevel?: unknown;
+    };
+    if ((value.type === 'finding' || value.type === 'reply') && typeof value.text === 'string') {
+      log.info(value.text);
+    } else if (value.type === 'state') {
+      if (typeof value.activity !== 'string' || value.activity === lastActivity) return;
+      lastActivity = value.activity;
+      const level =
+        value.activityLevel === 'success' || value.activityLevel === 'error'
+          ? value.activityLevel
+          : 'info';
+      log[level](value.activity);
+    } else if (!['output', 'tool', 'working', 'retrying', 'blocked'].includes(String(value.type))) {
+      log.debug(`Update: ${JSON.stringify(update)}`);
+    }
+  };
+}
+
+/** Ask for workflow input on an interactive terminal, one line at a time. */
+export const terminalInput: InputHandler = async (request) => {
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  // Without a listener, readline pauses on Ctrl-C instead of stopping the run.
+  prompt.on('SIGINT', () => process.emit('SIGINT'));
+  try {
+    const suffix = request.defaultValue ? ` (${request.defaultValue})` : '';
+    const answer = await prompt.question(`? ${request.message}${suffix} `, {
+      ...(request.signal ? { signal: request.signal } : {})
+    });
+    return answer || request.defaultValue || '';
+  } finally {
+    prompt.close();
+  }
+};
 
 async function captureExecution<Output>(
   run: (ctx: WorkflowContext) => Promise<Output> | Output,
   onInput?: InputHandler,
   timeout?: number,
   signal?: AbortSignal,
-  onText?: TextHandler
+  onText?: TextHandler,
+  logUpdates = false
 ): Promise<WorkflowExecution<Awaited<Output>>> {
   const deadline = createTimeout(timeout, 'Workflow');
   const ctx = createObservedWorkflowContext(
@@ -218,6 +250,7 @@ async function captureExecution<Output>(
   );
   ctx.onInput = onInput;
   ctx.onText = onText;
+  if (logUpdates) ctx.emit = createUpdateLogger();
   const start = performance.now();
   let result: WorkflowResult | null = null;
   let output: Awaited<Output> | null = null;
@@ -260,29 +293,30 @@ export async function loadWorkflow(path: string): Promise<TaskFunction> {
 
 export async function runRunling(workflowPath: string, prompt: string, options: RunOptions) {
   const { json, verbose } = options;
-  const presentation = shouldUseTui(options) ? 'tui' : 'log';
-  await reportExecution(
-    async (ctx) => {
-      const run = await loadWorkflow(workflowPath);
-      const input = options.input === undefined ? prompt : JSON.parse(options.input);
-      return withExecutionServices({ verbose }, () => log.indented(() => run(ctx, input)));
-    },
-    { json, presentation, title: workflowPath }
-  );
-}
-
-export function shouldUseTui(
-  options: RunOptions,
-  terminal: { stdinIsTTY?: boolean; stdoutIsTTY?: boolean } = {
-    stdinIsTTY: process.stdin.isTTY,
-    stdoutIsTTY: process.stdout.isTTY
+  // The first interrupt cancels the workflow so that its cleanup runs; a second one exits.
+  const controller = new AbortController();
+  const interrupt = () => {
+    if (controller.signal.aborted) process.exit(130);
+    log.error('Stopping. Press Ctrl-C again to exit without cleanup.');
+    controller.abort(new Error('Interrupted'));
+  };
+  process.on('SIGINT', interrupt);
+  process.on('SIGTERM', interrupt);
+  try {
+    await reportExecution(
+      async (ctx) => {
+        const run = await loadWorkflow(workflowPath);
+        const input = options.input === undefined ? prompt : JSON.parse(options.input);
+        return withExecutionServices({ verbose }, () => log.indented(() => run(ctx, input)));
+      },
+      {
+        json,
+        signal: controller.signal,
+        ...(process.stdin.isTTY ? { onInput: terminalInput } : {})
+      }
+    );
+  } finally {
+    process.off('SIGINT', interrupt);
+    process.off('SIGTERM', interrupt);
   }
-): boolean {
-  return (
-    terminal.stdinIsTTY === true &&
-    terminal.stdoutIsTTY === true &&
-    !options.json &&
-    !options.log &&
-    !options.verbose
-  );
 }
