@@ -95,10 +95,11 @@ export const conversation = task(
       await options.announce(text, signal);
       delegationReported = true;
     };
-    const postImplementationUpdate = async (message: string) => {
+    /** Post a host-written fact that a child task reported, such as a verified PR link. It is
+     * not this turn's reply, so the supervisor's own reply still posts. */
+    const postHostUpdate = async (message: string) => {
       if (options.postUpdate) await options.postUpdate(message, ctx.signal);
       else await ctx.emit(message);
-      delegationReported = true;
     };
     const research = webTools(options.web).length ? options.web : undefined;
     const recentUserMessages: string[] = [];
@@ -167,10 +168,7 @@ export const conversation = task(
                 plans,
                 ownerKey,
                 onBlocked: postRefusal,
-                onStopped: postImplementationUpdate,
-                onPublished: postImplementationUpdate,
-                onCiResult: postImplementationUpdate,
-                onProgress: postImplementationUpdate,
+                post: postHostUpdate,
                 requestVersion: () => requestVersion
               })
             ]
@@ -206,7 +204,7 @@ export const conversation = task(
             ]
           : []),
         options.implementation
-          ? 'Implementation is enabled through implementChatto in an isolated worktree, with host-run typecheck and lint and publication to the configured repository. The task keeps running after the PR opens: the same worker fixes CI failures and handles forwarded messages until CI finishes, and the host posts the PR link, repair attempts, and the CI result. Put the user’s goal and every scope decision from the conversation into request and context in plain words, including decisions made after an earlier attempt; the worker sees nothing else. Do not add preconditions, such as reviews or approvals, that the user did not ask for. The PR itself is reviewed before merge.'
+          ? 'Implementation is enabled through implementChatto in an isolated worktree, with host-run typecheck and lint and publication to the configured repository. The task keeps running after the PR opens: the same worker fixes CI failures and handles forwarded messages until CI finishes. The host posts the verified PR link, CI repair attempts, and the final result. The worker’s progress arrives as task.notice notifications for you to relay. Put the user’s goal and every scope decision from the conversation into request and context in plain words, including decisions made after an earlier attempt; the worker sees nothing else. Do not add preconditions, such as reviews or approvals, that the user did not ask for. The PR itself is reviewed before merge.'
           : 'Implementation is disabled. Offer an assessment or proposal when source investigation is available; do not promise edits or publication.',
         ...(options.investigation
           ? [
@@ -287,7 +285,9 @@ export const conversation = task(
             }
             options.onBusy(busy);
           },
-          notifications: userFacingTaskNotifications(tasks.notifications),
+          notifications: userFacingTaskNotifications(tasks.notifications, {
+            postResult: postHostUpdate
+          }),
           keepAlive: () => tasks.active
         }
       );

@@ -91,6 +91,8 @@ export type CiResult = Static<typeof ciResult>;
 /** Edit in a new or verified retained worktree, validate, then publish through host-owned Git/gh calls.
  * After publication, the same worker stays available until CI settles: the host returns CI failures
  * and later user messages to it and pushes its validated fixes to the pull request.
+ * The task communicates only with its parent: progress as `notice` updates, publication and CI
+ * repairs as `state` updates (phases `published` and `ci_repairing`), and its result.
  * Worktrees are not a shell sandbox. Only run with trusted users on an isolated host.
  * Cancellation retains local artifacts; a push or PR already accepted remotely is not undone.
  */
@@ -101,16 +103,9 @@ export function createImplementation(
     execute?: ImplementationProcess;
     /** Opaque conversation identity; only its unfinished work can be resumed. */
     ownerKey?: string;
-    /** Receives the verified PR URL once, before CI observation starts. */
-    onPublished?: (prUrl: string) => Promise<void>;
-    /** Called before the worker handles CI failure number `attempt`. */
-    onCiRepair?: (attempt: number) => Promise<void>;
     observeChecks?: typeof observePullRequestChecks;
     /** Wait after a rerun before CI is read again. Defaults to 30 seconds. */
     rerunDelayMs?: number;
-    /** Posts a progress update for the user: the worker's own words, or host facts after a quiet
-     * period. */
-    onProgress?: (message: string) => Promise<void>;
     progressTiming?: Partial<typeof PROGRESS_TIMING>;
   } = {}
 ) {
@@ -357,11 +352,10 @@ export function createImplementation(
       const timing = { ...PROGRESS_TIMING, ...dependencies.progressTiming };
       // The supervisor announced the task, so the first update can wait a full interval.
       let lastUpdateAt = Date.now();
-      /** Post an update for the user and keep it for supervisor questions. */
+      /** Send a progress notice to the parent task, which decides what reaches the user. */
       const postProgress = async (message: string) => {
         lastUpdateAt = Date.now();
-        await dependencies.onProgress?.(message);
-        await ctx.emit({ type: 'output', text: message });
+        await ctx.emit({ type: 'notice', text: message });
       };
       let heldProgress: string | undefined;
       let heldTimer: ReturnType<typeof setTimeout> | undefined;
@@ -377,7 +371,7 @@ export function createImplementation(
         if (wait <= 0) {
           dropHeldProgress();
           await postProgress(text);
-          return 'Sent to the user.';
+          return 'Sent.';
         }
         heldProgress = text;
         heldTimer ??= setTimeout(() => {
@@ -518,7 +512,6 @@ export function createImplementation(
               activity: `Repairing CI failures · attempt ${repairs}`,
               activityLevel: 'error'
             });
-            await dependencies.onCiRepair?.(repairs);
             const logs = [];
             for (const failure of fresh.slice(0, 3))
               logs.push({
@@ -824,9 +817,8 @@ export function createImplementation(
               proposal.notes
             );
           head = metadata.commit!;
-          // The PR link supersedes an update that is still waiting.
+          // The parent reports the PR link, which supersedes an update that is still waiting.
           dropHeldProgress();
-          await dependencies.onPublished?.(metadata.prUrl!);
           return result('completed', proposal.summary, proposal.notes, await followCi(work));
         } finally {
           await connection.dispose();

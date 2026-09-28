@@ -1,5 +1,6 @@
 /** Project retained task state and select notifications that need a user reply. */
 import type { AgentTaskState } from 'runling/agents';
+import { implementationResultMessage, isImplementationOutcome } from './implementation-messages.ts';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -39,15 +40,25 @@ export function taskNotification(message: string): string {
     const value: unknown = JSON.parse(message);
     if (!isRecord(value)) throw new Error('Invalid task notification');
     const task = isRecord(value.task) ? value.task : undefined;
-    return JSON.stringify({ type: value.type, taskId: task?.id });
+    return JSON.stringify({
+      type: value.type,
+      taskId: task?.id,
+      // A notice is a message for the user that the owner relays in its own words.
+      ...(value.type === 'task.notice' && typeof value.text === 'string'
+        ? { text: value.text }
+        : {})
+    });
   } catch {
     return 'Background task changed; use the current backgroundTasks snapshot.';
   }
 }
 
-/** Wake the owner only for a requested answer or a terminal result that still needs a reply. */
+/** Wake the owner for a requested answer, a notice, or a terminal result that still needs a
+ * reply. The host posts a finished implementation's result itself with `postResult`, from the
+ * owner task; the owner wakes for that result only when the post fails. */
 export async function* userFacingTaskNotifications(
-  source: AsyncIterable<string>
+  source: AsyncIterable<string>,
+  { postResult }: { postResult?: (message: string) => Promise<void> } = {}
 ): AsyncIterable<string> {
   for await (const message of source) {
     let forward = true;
@@ -56,14 +67,27 @@ export async function* userFacingTaskNotifications(
       if (!isRecord(notice)) throw new Error('Invalid task notification');
       if (typeof notice.type !== 'string') throw new Error('Invalid task notification type');
       if (
-        notice.type !== 'task.reply' &&
-        !['task.completed', 'task.failed', 'task.cancelled'].includes(notice.type)
+        !['task.reply', 'task.notice', 'task.completed', 'task.failed', 'task.cancelled'].includes(
+          notice.type
+        )
       )
         forward = false;
-      if (isRecord(notice.task) && notice.task.name === 'Chatto implementation') {
+      if (
+        postResult &&
+        notice.type === 'task.completed' &&
+        isRecord(notice.task) &&
+        notice.task.name === 'Chatto implementation'
+      ) {
         const result: unknown =
           typeof notice.task.result === 'string' ? JSON.parse(notice.task.result) : undefined;
-        if (isRecord(result) && result.noticeDelivered === true) forward = false;
+        if (isImplementationOutcome(result)) {
+          try {
+            await postResult(implementationResultMessage(result));
+            forward = false;
+          } catch {
+            // The owner reports the result instead.
+          }
+        }
       }
     } catch {
       // An unknown notification can be a terminal result. Let the owner inspect it.

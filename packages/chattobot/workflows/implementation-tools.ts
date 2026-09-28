@@ -432,7 +432,7 @@ export function workerToolsExtension({
       name: 'reportProgress',
       label: 'Report progress to the user',
       description:
-        'Send the user one or two plain sentences about what you do now and why, such as the approach you chose or a test result. The host posts it to the conversation, at most once every few minutes. No code, file contents, or secrets.',
+        'Report to the user, in one or two plain sentences, what you do now and why, such as the approach you chose or a test result. ChattoBot passes it on to the user in its own words, at most once a minute. No code, file contents, or secrets.',
       parameters: Type.Object({ message: Type.String({ minLength: 1, maxLength: 400 }) }),
       async execute(_id, { message }) {
         return {

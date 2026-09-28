@@ -79,29 +79,63 @@ test('decoded results are detached from the original retained snapshot', () => {
   expect(JSON.parse(task.result).plan.goal).toBe('Original');
 });
 
-test('only requested answers and unreported terminal results wake the owner', async () => {
+test('answers, notices, and unposted terminal results wake the owner; posted results do not', async () => {
+  const result = (outcome: string) =>
+    JSON.stringify({ outcome, summary: 'Done.', checks: [], workerChecks: [] });
   const messages = [
     { type: 'task.progress', task: { id: 'implementation' } },
     { type: 'task.tool_failed', task: { id: 'implementation' } },
     { type: 'task.reply', task: { id: 'implementation' } },
-    {
-      type: 'task.completed',
-      task: {
-        name: 'Chatto implementation',
-        result: JSON.stringify({ outcome: 'blocked', noticeDelivered: true })
-      }
-    },
-    {
-      type: 'task.completed',
-      task: { name: 'Chatto implementation', result: JSON.stringify({ outcome: 'completed' }) }
-    },
+    { type: 'task.notice', text: 'Tests pass.', task: { id: 'implementation' } },
+    { type: 'task.completed', task: { name: 'Chatto implementation', result: result('blocked') } },
+    { type: 'task.completed', task: { name: 'Chatto implementation', result: '{"odd":true}' } },
     { type: 'task.failed', task: { name: 'Chatto investigation' } }
   ];
   async function* source() {
     for (const message of messages) yield JSON.stringify(message);
   }
+  const posted: string[] = [];
   const received: unknown[] = [];
-  for await (const message of userFacingTaskNotifications(source()))
+  for await (const message of userFacingTaskNotifications(source(), {
+    postResult: async (text) => {
+      posted.push(text);
+    }
+  }))
     received.push(JSON.parse(message));
-  expect(received).toEqual(messages.slice(2, 3).concat(messages.slice(4)));
+  expect(posted).toEqual([
+    'The implementation stopped: Done. Please tell me how you want to proceed.'
+  ]);
+  // The owner does not see the posted result; an unreadable result still reaches it.
+  expect(received).toEqual([messages[2], messages[3], messages[5], messages[6]]);
+});
+
+test('an implementation result that cannot be posted wakes the owner instead', async () => {
+  const message = {
+    type: 'task.completed',
+    task: {
+      name: 'Chatto implementation',
+      result: JSON.stringify({ outcome: 'blocked', summary: 'x', checks: [], workerChecks: [] })
+    }
+  };
+  async function* source() {
+    yield JSON.stringify(message);
+  }
+  const received: unknown[] = [];
+  for await (const notice of userFacingTaskNotifications(source(), {
+    postResult: async () => {
+      throw new Error('Chat post failed');
+    }
+  }))
+    received.push(JSON.parse(notice));
+  expect(received).toEqual([message]);
+});
+
+test('a notice notification carries its text for the owner', () => {
+  expect(
+    JSON.parse(
+      taskNotification(
+        JSON.stringify({ type: 'task.notice', text: 'Tests pass.', task: { id: 'worker' } })
+      )
+    )
+  ).toEqual({ type: 'task.notice', taskId: 'worker', text: 'Tests pass.' });
 });

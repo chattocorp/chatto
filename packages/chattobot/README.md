@@ -412,15 +412,19 @@ implementation. The investigator stays read-only. Follow-up messages can steer
 the implementation through the same `task_send` channel. Before publication, if
 the worker does not consume a forwarded clarification, publication stops. After
 publication, the worker waits for CI, and a forwarded message starts its next
-turn. Use `/cancel` to stop the whole flow, including while CI runs. While the
-worker works, it posts short progress updates with `reportProgress`: its
-approach, test results, and what it does next. The host redacts them like other
-worker text and posts at most one every minute. An earlier update waits for its
-slot, and a newer one replaces it. After four minutes without
-an update, the host posts the number of changed files and test runs so far.
-The host reports check and publication progress. It posts the verified PR link as soon as
-publication is confirmed, a short message for each CI repair attempt, and the
-final CI result.
+turn. Use `/cancel` to stop the whole flow, including while CI runs.
+
+Only the supervisor talks to the user. The implementation task reports only to
+the supervisor task (Runling ADR-006). While the worker works, it reports short
+progress updates with `reportProgress`: its approach, test results, and what it
+does next. The host redacts them like other worker text and sends at most one
+per minute to the supervisor as a task notice. An earlier update waits until the
+minute ends, and a newer one replaces it. After four minutes without an update,
+the host sends the number of changed files and test runs so far. The supervisor
+model tells the user about each notice in its own words. The supervisor task's
+host code posts verified facts itself, without the model: the PR link when the
+implementation reports it, a short message for each CI repair attempt, and the
+final result. The model hears about the final result only if that post fails.
 
 When a user asks the owner to ask the implementation worker a question, the owner
 uses `askImplementation`. The worker's answer wakes the owner, which can reply

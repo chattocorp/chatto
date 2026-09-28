@@ -17,6 +17,8 @@ import {
   workerStopReason
 } from './implement.ts';
 import { ConfigurationError } from '../settings.ts';
+import { implementationResultMessage } from './implementation-messages.ts';
+import { userFacingTaskNotifications } from './task-context.ts';
 import {
   implementationProcess,
   ImplementationCommandError,
@@ -130,6 +132,17 @@ const proposal = {
   summary: 'Correct the value to fix the reported behavior.',
   notes: ['Browser behavior was not checked.']
 };
+/** A root context that collects the progress notices a task sends to its parent. */
+function noticeContext(notices: string[]) {
+  return {
+    ...createWorkflowContext(),
+    emit: async (value: unknown) => {
+      if (typeof value === 'object' && value && 'type' in value && value.type === 'notice')
+        notices.push(String((value as { text?: unknown }).text));
+    }
+  };
+}
+
 function worker(
   action: (options: AgentOptions, call: Awaited<ReturnType<typeof workerTools>>) => Promise<void>,
   outcome: 'completed' | 'blocked' = 'completed'
@@ -567,13 +580,9 @@ test('host validation returns diagnostics to the same worker and checks the repa
 test('worker progress updates reach the user, redacted and at most once per interval', async () => {
   const f = await fixture();
   const updates: string[] = [];
-  const emitted: unknown[] = [];
   const results: (string | undefined)[] = [];
   const result = await createImplementation(f.settings, {
     execute: f.execute,
-    onProgress: async (message) => {
-      updates.push(message);
-    },
     progressTiming: { minIntervalMs: 0, quietMs: 60_000 },
     createAgent: worker(async (_options, call) => {
       results.push(
@@ -586,24 +595,16 @@ test('worker progress updates reach the user, redacted and at most once per inte
       await call('apply_patch', { patch });
       await call('preparePullRequest', proposal);
     })
-  })(
-    { ...createWorkflowContext(), emit: async (value) => void emitted.push(value) },
-    {
-      request: 'Fix'
-    }
-  );
+  })(noticeContext(updates), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
-  expect(results).toEqual(['Sent to the user.']);
+  expect(results).toEqual(['Sent.']);
+  // The task sends notices only to its parent, which decides what reaches the user.
   expect(updates).toEqual(['Adding the command; see [url]']);
-  expect(emitted).toContainEqual({ type: 'output', text: 'Adding the command; see [url]' });
 
   const held: string[] = [];
   const texts: (string | undefined)[] = [];
   await createImplementation(f.settings, {
     execute: f.execute,
-    onProgress: async (message) => {
-      held.push(message);
-    },
     progressTiming: { minIntervalMs: 2_000, quietMs: 60_000 },
     createAgent: worker(async (_options, call) => {
       // Both arrive before the interval ends; only the newer one is posted, once it ends.
@@ -616,7 +617,7 @@ test('worker progress updates reach the user, redacted and at most once per inte
       await call('apply_patch', { patch });
       await call('preparePullRequest', proposal);
     })
-  })(createWorkflowContext(), { request: 'Fix' });
+  })(noticeContext(held), { request: 'Fix' });
   expect(texts[0]).toMatch(/^Queued: the host posts it in about/);
   expect(held).toEqual(['Adding the command']);
 });
@@ -626,9 +627,6 @@ test('after a quiet period the host posts what it knows about the worker progres
   const updates: string[] = [];
   const result = await createImplementation(f.settings, {
     execute: f.execute,
-    onProgress: async (message) => {
-      updates.push(message);
-    },
     progressTiming: { quietMs: 20, checkMs: 5 },
     createAgent: worker(async (_options, call) => {
       await vi.waitFor(() =>
@@ -640,7 +638,7 @@ test('after a quiet period the host posts what it knows about the worker progres
       );
       await call('preparePullRequest', proposal);
     })
-  })(createWorkflowContext(), { request: 'Fix' });
+  })(noticeContext(updates), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
 });
 
@@ -999,56 +997,12 @@ test('one request gets one implementation attempt; a new human request can retry
   }
 });
 
-test.each(['sent', 'failed'])(
-  'a stopped implementation records notice delivery: %s',
-  async (mode) => {
-    const f = await fixture();
-    const ctx = createWorkflowContext();
-    const tasks = createAgentTasks(ctx, { notifyActivity: false });
-    const onStopped = vi.fn(async (_message: string) => {
-      if (mode === 'failed') throw new Error('Post failed');
-    });
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
-      execute: f.execute,
-      createAgent: worker(async () => {}, 'blocked'),
-      onStopped
-    });
-    const call = await workerTools({
-      cwd: f.settings.directory,
-      model: 'test/model',
-      extensions: [extension]
-    });
-    try {
-      const handle = JSON.parse(
-        (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
-          .text!
-      );
-      await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-      expect(onStopped).toHaveBeenCalledExactlyOnceWith(
-        expect.stringContaining('The implementation stopped:')
-      );
-      expect(onStopped.mock.calls[0]![0]).toContain('worktree was kept for review');
-      expect(onStopped.mock.calls[0]![0]).toContain('Please tell me how you want to proceed');
-      expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
-        outcome: 'blocked',
-        noticeDelivered: mode === 'sent'
-      });
-    } finally {
-      warning.mockRestore();
-      await tasks.dispose();
-    }
-  }
-);
-
 test('a blocked worker reason and its check count reach the owner without claiming final validation', async () => {
   const f = await fixture();
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const onStopped = vi.fn(async (_message: string) => {});
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
     execute: f.execute,
-    onStopped,
     createAgent: async (options) => ({
       dispose() {},
       async runOutcome() {
@@ -1079,19 +1033,20 @@ test('a blocked worker reason and its check count reach the owner without claimi
         .text!
     );
     await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(onStopped).toHaveBeenCalledOnce();
-    const message = onStopped.mock.calls[0]![0];
-    expect(message).toContain('18 catalog sections remain');
-    expect(message).toContain('worker ran 1 check');
-    expect(message).toContain('not final host checks');
-    expect(message).toContain('implementation-');
     const result = JSON.parse(tasks.get(handle.id).result!);
     expect(result).toMatchObject({
       outcome: 'blocked',
       checks: [],
-      workerChecks: [{ command: 'mise x -- pnpm run check', passed: true }],
-      noticeDelivered: true
+      workerChecks: [{ command: 'mise x -- pnpm run check', passed: true }]
     });
+    // The supervisor task posts this message when the result reaches it.
+    const message = implementationResultMessage(result);
+    expect(message).toContain('18 catalog sections remain');
+    expect(message).toContain('worker ran 1 check');
+    expect(message).toContain('not final host checks');
+    expect(message).toContain('implementation-');
+    expect(message).toContain('worktree was kept for review');
+    expect(message).toContain('Please tell me how you want to proceed');
     expect(
       f.calls.filter((entry) => entry.command === 'mise' && entry.args.at(-1) === 'check')
     ).toHaveLength(1);
@@ -1158,10 +1113,7 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
         : f.execute(command, args, options),
     createAgent,
     observeChecks,
-    onPublished: async (message) => {
-      messages.push(message);
-    },
-    onCiResult: async (message) => {
+    post: async (message) => {
       messages.push(message);
     }
   });
@@ -1170,12 +1122,23 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
     model: 'test/model',
     extensions: [extension]
   });
+  // Relay notifications like the supervisor conversation: the host posts the final result.
+  const forwarded: string[] = [];
+  const relaying = (async () => {
+    for await (const notice of userFacingTaskNotifications(tasks.notifications, {
+      postResult: async (message) => {
+        messages.push(message);
+      }
+    }))
+      forwarded.push(JSON.parse(notice).type);
+  })();
   try {
     const handle = JSON.parse(
       (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
         .text!
     );
-    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
+    await vi.waitFor(() => expect(messages).toHaveLength(3));
+    expect(forwarded).not.toContain('task.completed');
     expect(messages).toEqual([
       expect.stringContaining(
         'Opened [the pull request](https://github.com/example/chatto/pull/7)'
@@ -1188,11 +1151,7 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
     expect(prompts[1]).toContain('test-frontend-unit');
     expect(prompts[1]).toContain('FAIL src/a.spec.ts');
     const result = JSON.parse(tasks.get(handle.id).result!);
-    expect(result).toMatchObject({
-      outcome: 'completed',
-      ci: { status: 'passed', repairs: 1 },
-      noticeDelivered: true
-    });
+    expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'passed', repairs: 1 } });
     expect(observed).toEqual([
       { headCommit: expect.any(String), stopOnFailure: true },
       { headCommit: result.commit, stopOnFailure: true }
@@ -1205,6 +1164,7 @@ test('host posts the PR, returns a CI failure with its job log to the same worke
     ]);
   } finally {
     await tasks.dispose();
+    await relaying;
   }
 });
 
@@ -1378,11 +1338,10 @@ test('a message that arrives while CI runs reaches the same worker, and its edit
   ]);
 });
 
-test('a failed PR notice stays available in the terminal task result', async () => {
+test('a failed PR post does not stop the implementation', async () => {
   const f = await fixture();
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const onCiResult = vi.fn(async () => {});
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
     execute: f.execute,
@@ -1390,10 +1349,9 @@ test('a failed PR notice stays available in the terminal task result', async () 
       await call('apply_patch', { patch });
       await call('preparePullRequest', proposal);
     }),
-    onPublished: async () => {
+    post: async () => {
       throw new Error('Chat post failed');
-    },
-    onCiResult
+    }
   });
   const call = await workerTools({
     cwd: f.settings.directory,
@@ -1406,12 +1364,10 @@ test('a failed PR notice stays available in the terminal task result', async () 
         .text!
     );
     await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(onCiResult).toHaveBeenCalledOnce();
+    expect(warning).toHaveBeenCalledWith('ChattoBot could not post an implementation update.');
     expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
       outcome: 'completed',
-      publicationNoticeDelivered: false,
-      ciNoticeDelivered: true,
-      noticeDelivered: false
+      prUrl: 'https://github.com/example/chatto/pull/7'
     });
   } finally {
     warning.mockRestore();
@@ -1423,10 +1379,8 @@ test('an unexpected worker error produces one safe stopped result for the owner'
   const f = await fixture();
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
-  const onStopped = vi.fn(async () => {});
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
     execute: f.execute,
-    onStopped,
     createAgent: async () => ({
       dispose() {},
       async runOutcome() {
@@ -1445,12 +1399,12 @@ test('an unexpected worker error produces one safe stopped result for the owner'
         .text!
     );
     await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
-    expect(onStopped).toHaveBeenCalledOnce();
     expect(JSON.stringify(tasks.get(handle.id))).not.toContain('private provider detail');
-    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
-      outcome: 'blocked',
-      noticeDelivered: true
-    });
+    const result = JSON.parse(tasks.get(handle.id).result!);
+    expect(result).toMatchObject({ outcome: 'blocked' });
+    expect(implementationResultMessage(result)).toContain(
+      'The implementation stopped: The implementation stopped after a worker or host error.'
+    );
   } finally {
     await tasks.dispose();
   }
