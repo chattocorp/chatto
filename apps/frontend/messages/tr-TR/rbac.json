@@ -51,7 +51,7 @@
       "allow": "izin ver",
       "deny": "inkar etmek",
       "winning_decision": "(kazanan karar)",
-      "included_by": "Included by {permission}",
+      "included_by": "{permission} kapsamında",
       "level_server": "Sunucu",
       "level_group": "Grup",
       "level_room": "Oda",
@@ -124,6 +124,15 @@
         "effective_inherited": "Geçerli: {state} (devralındı)",
         "manage_role": "{role} rolünü yönet",
         "no_scopes": "Bu {subject} için kullanılabilir kapsam yok."
+      },
+      "help": {
+        "open": "{permission} hakkında",
+        "category": "Kategori",
+        "scopes": "Ayarlanabildiği yerler",
+        "privileged": "Ayrıcalıklı mod gerekir",
+        "privileged_detail": "Bu izni kullanmak için hesapların ayrıcalıklı modu etkinleştirmesi gerekir.",
+        "includes": "Kapsadıkları",
+        "included_by": "Kapsayan izinler"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Sunucu ayarlarını güncelleyin (ad, açıklama, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Herkese açık komşu dizinini yönet",
       "room_create": "Yeni odalar oluştur",
       "room_join": "Mevcut odalara katılın",
       "room_list": "Dizindeki odalara bakın. Bir kullanıcının, bir odaya katılmasına izin verilmeden bir odayı görmesine (örneğin erişim talebinde bulunmasına) izin verilebilir.",
@@ -171,6 +180,40 @@
       "call_voice": "Aramalarda mikrofonu kullanma",
       "call_camera": "Aramalarda kamerayı kullanma",
       "call_screenshare": "Yakalanan ses dahil ekran veya uygulama paylaşma"
+    },
+    "permission_help": {
+      "server_manage": "Bir hesabın sunucu adını, açıklamasını, logosunu ve diğer sunucu ayarlarını değiştirmesine izin verir. Herkese açık Komşu dizininde değişiklik yapmaya da izin verir. Bu izni yalnızca tüm sunucu adına konuşabilecek kişilere verin.",
+      "server_manage_neighbors": "Bir hesabın herkese açık Komşu dizinine kayıt eklemesine, kayıtları değiştirmesine ve kaldırmasına izin verir. Diğer sunucu ayarlarını değiştirmeye izin vermez.",
+      "room_create": "Bir hesabın kanal odaları oluşturmasına izin verir. Oda grubu kapsamında yalnızca o grupta yeni oda oluşturmaya izin verir.",
+      "room_join": "Bir hesabın kanal odalarına kendi başına katılmasına izin verir. Bu izin olmadan da biri hesabı eklediğinde veya evrensel bir oda hesabın rolünü eklediğinde hesap üye olabilir. Bir odayı tamamen gizlemek için room.list iznini de reddedin.",
+      "room_list": "Bir hesabın oda dizininde ve oda listelerinde odaları görmesine izin verir. Bir hesap, katılma izni olmadan bir odayı görebilir; örneğin erişim istemek için. Kısıtlı bir odada bu izni reddederek odayı üye olmayanlardan gizleyin.",
+      "room_manage": "Bir hesabın, izni ayarladığınız kapsamda odaları ve oda gruplarını yapılandırmasına, yeniden adlandırmasına, arşivlemesine ve silmesine, ayrıca oda üyeleri eklemesine veya çıkarmasına izin verir. Sunucu kapsamında oda grupları oluşturmaya ve sıralamaya da izin verir. Bu izne sahip hesaplar yavaş modla sınırlanmaz.",
+      "room_remove_member": "Bir hesabın bir üyeyi gerekçe belirterek kanal odasından çıkarmasına izin verir. Hesap, üyenin odaya yeniden katılamaması için onu askıya da alabilir. Moderasyon sayfası bu izni sunucu kapsamında gerektirir.",
+      "message_read": "Bir hesabın mesajları, konuları, ekleri, arama sonuçlarını ve yazıyor göstergelerini okumasına izin verir. Hesabın ayrıca odanın veya doğrudan mesajın üyesi olması gerekir. Bu izni reddederseniz message.read-interactions yine de hesabın kendi konuşmalarına erişim sağlayabilir.",
+      "message_read_interactions": "Bir hesabın yalnızca başlattığı konuları, başka bir hesabın kendisinden doğrudan bahsettiği konuları ve aldığı doğrudan mesajları okumasına izin verir. Bu konuların tamamını okuyabilir. Botları kendi konuşmalarıyla sınırlamak için kullanın.",
+      "message_post": "Bir hesabın mesaj göndermesine ve konulara yanıt vermesine izin verir. Doğrudan mesaj kapsamında kişiler doğrudan mesaj da başlatabilir. Hesabın odanın üyesi olması ve odanın konu modunun mesaja izin vermesi gerekir. Yalnızca message.post iznini reddetmek, message.post-in-thread izinliyse konu yanıtlarını durdurmaz. Tüm gönderimleri durdurmak için message.post-in-thread ve message.post-in-interactions izinlerini de reddedin.",
+      "message_post_interactions": "Bir hesabın yalnızca başlattığı konularda, başka bir hesabın kendisinden doğrudan bahsettiği konularda ve aldığı doğrudan mesajlarda yanıt vermesine izin verir. Diğer konuları okumaya veya yeni mesaj göndermeye izin vermez. Bir hesabı kendi konuşmalarıyla sınırlamak için message.read-interactions ile birlikte kullanın.",
+      "message_post_in_thread": "Bir hesabın okuyabildiği her konuda yanıt vermesine izin verir, ancak odaya yeni mesaj göndermesine izin vermez. message.post izni bu izni de kapsar; bu yüzden burada reddetmek o hesapların yanıtlarını durdurmaz.",
+      "message_attach": "Bir hesabın yeni mesajlara dosya eklemesine izin verir. Bir odada metin mesajlarına izin verip yüklemeleri durdurmak için bu izni reddedin.",
+      "message_echo": "Bir hesabın bir konu yanıtını odanın zaman akışında da göstermesine izin verir; böylece konuyu takip etmeyenler de yanıtı görür.",
+      "message_manage": "Bir hesabın başka hesapların mesajlarını düzenlemesine veya silmesine izin verir. Herkes kendi mesajlarını bu izin olmadan da her zaman düzenleyebilir ve silebilir. Bu izne sahip hesaplar yavaş modla sınırlanmaz. Doğrudan mesajlarda bu izni yalnızca katılımcılar kullanabilir.",
+      "message_react": "Bir hesabın okuyabildiği mesajlara tepki eklemesine ve tepkileri kaldırmasına izin verir.",
+      "role_manage": "Bir hesabın rolleri ve rol izin ayarlarını oluşturmasına, değiştirmesine, sıralamasına ve silmesine izin verir. Bu izinle bir hesap, sunucudaki her rolün neler yapabileceğini değiştirebilir. Bu izni yalnızca tüm sunucuyu emanet edebileceğiniz kişilere verin.",
+      "role_assign": "Bir hesabın üyelere rol vermesine ve rolleri geri almasına izin verir. Sahip olmayan bir hesap yalnızca izinlerine kendisinin de sahip olduğu rolleri atayabilir. owner rolünü yalnızca sahipler atayabilir.",
+      "admin_view_users": "Bir hesabın sunucu yönetiminde üye listesini görmesine izin verir. Üyeler üzerindeki işlemler, role.assign veya user.manage-accounts gibi kendi izinlerini gerektirir.",
+      "admin_view_audit": "Bir hesabın sunucu yönetiminde olay günlüğünü görmesine izin verir. Olay günlüğü, yönetim değişikliklerini ve ayrıcalıklı modun her başlatılışını ve durduruluşunu kaydeder.",
+      "user_delete_any": "Bir hesabın herhangi bir üyenin hesabını silmesine izin verir. Bu izni yalnızca birini sunucudan çıkarmaya karar verebilecek kişilere verin.",
+      "user_delete_self": "Kişilerin kendi hesaplarını silmesine izin verir. Hesapları yalnızca yöneticilerin silmesi gerekiyorsa bu izni reddedin.",
+      "user_invite": "Bir hesabın davet bağlantılarını listelemesine, oluşturmasına, kopyalamasına ve iptal etmesine izin verir. Yalnızca kendi bağlantılarını değil, tüm etkin davet bağlantılarını görebilir ve kullanabilir.",
+      "user_manage_accounts": "Bir hesabın diğer üyeler için hesap oluşturmasına, hesap kimliğini değiştirmesine, parolaları sıfırlamasına, doğrulanmış e-posta adresleri eklemesine ve giriş bekleme sürelerini temizlemesine izin verir. Katıldı satırıyla bir hesabı odaya eklemeye veya odadan çıkarmaya da izin verir.",
+      "user_manage_permissions": "Bir hesabın tek bir üyenin veya botun izin ayarlarını rollerden bağımsız olarak doğrudan değiştirmesine izin verir. Bir kişinin etkin izinlerini görmek için de gereklidir.",
+      "bot_create": "Kişilerin sahibi oldukları botlar oluşturmasına izin verir. Bir bot yalnızca doğrudan bota verdiğiniz izinleri alır ve hiçbir zaman sahibinin sahip olduğundan fazlasını almaz.",
+      "bot_manage": "Bir hesabın, başkalarına ait olanlar da dahil sunucudaki tüm botları yönetmesine izin verir.",
+      "call_start": "Bir hesabın bir odada veya doğrudan mesajda arama başlatmasına izin verir. Aramaya katılmak için call.join izni de gerekir.",
+      "call_join": "Bir hesabın devam eden bir aramaya, yalnızca dinleyici olarak da olsa katılmasına izin verir. Ses veya görüntü göndermek için call.voice, call.camera veya call.screenshare gerekir.",
+      "call_voice": "Bir hesabın aramalarda mikrofon sesi göndermesine izin verir. Bu izin olmadan hesap yine de dinleyebilir.",
+      "call_camera": "Bir hesabın aramalarda kamera görüntüsü göndermesine izin verir.",
+      "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir."
     }
   }
 }

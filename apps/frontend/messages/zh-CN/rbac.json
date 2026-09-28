@@ -51,7 +51,7 @@
       "allow": "允许",
       "deny": "拒绝",
       "winning_decision": "（最终决定）",
-      "included_by": "Included by {permission}",
+      "included_by": "包含于 {permission}",
       "level_server": "服务器",
       "level_group": "群组",
       "level_room": "聊天室",
@@ -124,6 +124,15 @@
         "effective_inherited": "当前生效：{state}（继承）",
         "manage_role": "管理 {role}",
         "no_scopes": "此{subject}没有可用的范围。"
+      },
+      "help": {
+        "open": "关于 {permission}",
+        "category": "类别",
+        "scopes": "可设置范围",
+        "privileged": "需要特权模式",
+        "privileged_detail": "账户必须启用特权模式才能使用此权限。",
+        "includes": "包含",
+        "included_by": "被以下权限包含"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "更新服务器设置（名称、描述、徽标）",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "管理公开的邻居目录",
       "room_create": "创建新聊天室",
       "room_join": "加入现有聊天室",
       "room_list": "在目录中查看聊天室。可以允许用户查看某个聊天室（例如申请访问权限），但不允许其加入。",
@@ -171,6 +180,40 @@
       "call_voice": "在通话中使用麦克风",
       "call_camera": "在通话中使用摄像头",
       "call_screenshare": "共享屏幕或应用程序，包括捕获的音频"
+    },
+    "permission_help": {
+      "server_manage": "允许账户更改服务器名称、描述、徽标和其他服务器设置，也允许更改公开的邻居目录。请只授予能代表整个服务器的人。",
+      "server_manage_neighbors": "允许账户在公开的邻居目录中添加、更改和删除条目。不允许更改其他服务器设置。",
+      "room_create": "允许账户创建频道聊天室。在聊天室群组范围内设置时，只允许在该群组中创建聊天室。",
+      "room_join": "允许账户自行加入频道聊天室。没有此权限时，如果有人添加该账户，或全员聊天室添加其角色，该账户仍可成为成员。要完全隐藏聊天室，还需拒绝 room.list。",
+      "room_list": "允许账户在聊天室目录和聊天室列表中看到聊天室。账户可以在没有加入权限的情况下看到聊天室，例如用于申请访问。在受限聊天室中拒绝此权限，可对非成员隐藏该聊天室。",
+      "room_manage": "允许账户在设置此权限的范围内配置、重命名、归档和删除聊天室及聊天室群组，并添加或移除聊天室成员。在服务器范围内，还允许创建聊天室群组并调整其顺序。拥有此权限的账户不受慢速模式限制。",
+      "room_remove_member": "允许账户附带理由将成员移出频道聊天室，还可以暂停该成员，使其无法再次加入聊天室。内容管理页面需要服务器范围的此权限。",
+      "message_read": "允许账户阅读消息、话题、附件、搜索结果和输入状态提示。账户还必须是该聊天室或私信的成员。如果拒绝此权限，message.read-interactions 仍可让账户访问自己的对话。",
+      "message_read_interactions": "只允许账户阅读自己发起的话题、其他账户直接提及它的话题，以及它收到的私信。它可以完整阅读这些话题。可用于将机器人限制在自己的对话中。",
+      "message_post": "允许账户发送消息并在话题中回复。在私信范围内，用户还可以发起私信。账户必须是聊天室成员，且聊天室的话题模式必须允许该消息。仅拒绝 message.post 时，如果允许了 message.post-in-thread，仍无法阻止话题回复。要阻止所有发帖，还需拒绝 message.post-in-thread 和 message.post-in-interactions。",
+      "message_post_interactions": "只允许账户在自己发起的话题、其他账户直接提及它的话题以及它收到的私信中回复。不允许阅读其他话题或发送新消息。可与 message.read-interactions 一起使用，将账户限制在自己的对话中。",
+      "message_post_in_thread": "允许账户在其能阅读的每个话题中回复，但不能在聊天室中发送新消息。message.post 的允许也包含此权限，因此在此处拒绝不会阻止这些账户回复。",
+      "message_attach": "允许账户在新消息中附加文件。拒绝此权限可阻止聊天室中的上传，同时仍允许文本消息。",
+      "message_echo": "允许账户将话题回复同时显示在聊天室时间线中，让未关注该话题的人也能看到。",
+      "message_manage": "允许账户编辑或删除其他账户的消息。每个人始终可以在没有此权限的情况下编辑和删除自己的消息。拥有此权限的账户不受慢速模式限制。在私信中，只有参与者才能使用此权限。",
+      "message_react": "允许账户对其能阅读的消息添加和移除回应。",
+      "role_manage": "允许账户创建、更改、排序和删除角色及其权限设置。拥有此权限的账户可以改变服务器上每个角色能做的事。请只授予你可以托付整个服务器的人。",
+      "role_assign": "允许账户为成员授予和移除角色。非所有者账户只能分配其自身也拥有相应允许的角色。只有所有者可以分配 owner 角色。",
+      "admin_view_users": "允许账户在服务器管理中查看成员列表。对成员的操作需要各自的权限，例如 role.assign 或 user.manage-accounts。",
+      "admin_view_audit": "允许账户在服务器管理中查看事件日志。事件日志会记录管理变更以及每次特权模式的开启和关闭。",
+      "user_delete_any": "允许账户删除任何成员的账户。请只授予有权决定将某人移出服务器的人。",
+      "user_delete_self": "允许用户删除自己的账户。如果只应由管理员删除账户，请拒绝此权限。",
+      "user_invite": "允许账户列出、创建、复制和撤销邀请链接。它可以查看和使用所有有效的邀请链接，而不仅是自己的。",
+      "user_manage_accounts": "允许账户为其他成员创建账户、更改账户身份、重置密码、添加已验证的电子邮件地址并清除登录冷却。还允许通过“已加入”行将账户添加到聊天室或从中移除。",
+      "user_manage_permissions": "允许账户在角色之外直接更改单个成员或机器人的权限设置。查看某人的有效权限时也需要此权限。",
+      "bot_create": "允许用户创建自己拥有的机器人。机器人只获得你直接在机器人上允许的权限，且永远不会超过其所有者拥有的权限。",
+      "bot_manage": "允许账户管理服务器上的所有机器人，包括其他人拥有的机器人。",
+      "call_start": "允许账户在聊天室或私信中发起通话。要参与通话，还需要 call.join。",
+      "call_join": "允许账户加入进行中的通话，也可以只作为听众加入。发送音频或视频需要 call.voice、call.camera 或 call.screenshare。",
+      "call_voice": "允许账户在通话中发送麦克风音频。没有此权限时，账户仍可收听。",
+      "call_camera": "允许账户在通话中发送摄像头视频。",
+      "call_screenshare": "允许账户在通话中共享屏幕、窗口、标签页或应用程序及其音频。不允许发送麦克风音频；这需要 call.voice。"
     }
   }
 }

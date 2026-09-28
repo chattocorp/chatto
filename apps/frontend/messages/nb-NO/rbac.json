@@ -51,7 +51,7 @@
       "allow": "tillat",
       "deny": "avviser",
       "winning_decision": "(vinnende avgjørelse)",
-      "included_by": "Included by {permission}",
+      "included_by": "Inngår i {permission}",
       "level_server": "Server",
       "level_group": "Gruppe",
       "level_room": "Rom",
@@ -124,6 +124,15 @@
         "effective_inherited": "Gjeldende: {state} (arvet)",
         "manage_role": "Administrer {role}",
         "no_scopes": "Ingen områder tilgjengelig for {subject}."
+      },
+      "help": {
+        "open": "Om {permission}",
+        "category": "Kategori",
+        "scopes": "Kan angis for",
+        "privileged": "Krever privilegert modus",
+        "privileged_detail": "Kontoer må aktivere privilegert modus for å bruke denne tillatelsen.",
+        "includes": "Omfatter",
+        "included_by": "Inngår i"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Administrer den offentlige nabokatalogen",
       "room_create": "Opprett nye rom",
       "room_join": "Bli med i eksisterende rom",
       "room_list": "Se rom i katalogen. En bruker kan få lov til å se et rom (f.eks. for å be om tilgang) uten å få lov til å bli med i det.",
@@ -171,6 +180,40 @@
       "call_voice": "Bruke mikrofonen i samtaler",
       "call_camera": "Bruke kameraet i samtaler",
       "call_screenshare": "Dele en skjerm eller et program, inkludert innspilt lyd"
+    },
+    "permission_help": {
+      "server_manage": "Lar en konto endre servernavn, beskrivelse, logo og andre serverinnstillinger. Den tillater også endringer i den offentlige nabokatalogen. Gi den bare til personer som kan tale for hele serveren.",
+      "server_manage_neighbors": "Lar en konto legge til, endre og fjerne oppføringer i den offentlige nabokatalogen. Den tillater ikke endringer i andre serverinnstillinger.",
+      "room_create": "Lar en konto opprette kanalrom. På romgruppenivå tillater den nye rom bare i den gruppen.",
+      "room_join": "Lar en konto bli med i kanalrom på egen hånd. Uten den kan en konto likevel bli medlem når noen legger den til, eller når et universelt rom legger til rollen dens. Nekt også room.list for å skjule et rom helt.",
+      "room_list": "Lar en konto se rom i romkatalogen og i romlister. En konto kan se et rom uten å få bli med i det, for eksempel for å be om tilgang. Nekt den i et begrenset rom for å skjule rommet for ikke-medlemmer.",
+      "room_manage": "Lar en konto konfigurere, gi nytt navn til, arkivere og slette rom og romgrupper på nivået der du angir den, og legge til eller fjerne rommedlemmer. På servernivå tillater den også å opprette og ordne romgrupper. Kontoer med denne tillatelsen begrenses ikke av sakte modus.",
+      "room_remove_member": "Lar en konto fjerne et medlem fra et kanalrom med en begrunnelse. Den kan også utestenge medlemmet slik at det ikke kan bli med i rommet igjen. Modereringssiden krever denne tillatelsen på servernivå.",
+      "message_read": "Lar en konto lese meldinger, tråder, vedlegg, søkeresultater og skriveindikatorer. Kontoen må også være medlem av rommet eller direktemeldingen. Hvis du nekter denne tillatelsen, kan message.read-interactions likevel gi tilgang til kontoens egne samtaler.",
+      "message_read_interactions": "Lar en konto bare lese tråder den har startet, tråder der en annen konto har nevnt den direkte, og direktemeldinger den har mottatt. Den kan lese disse trådene i sin helhet. Bruk den for å begrense boter til sine egne samtaler.",
+      "message_post": "Lar en konto sende meldinger og svare i tråder. På direktemeldingsnivå kan personer også starte direktemeldinger. Kontoen må være medlem av rommet, og rommets trådmodus må tillate meldingen. Å nekte bare message.post stopper ikke trådsvar når message.post-in-thread er tillatt. Nekt også message.post-in-thread og message.post-in-interactions for å stoppe alle innlegg.",
+      "message_post_interactions": "Lar en konto bare svare i tråder den har startet, tråder der en annen konto har nevnt den direkte, og direktemeldinger den har mottatt. Den tillater ikke å lese andre tråder eller sende nye meldinger. Bruk den sammen med message.read-interactions for å begrense en konto til sine egne samtaler.",
+      "message_post_in_thread": "Lar en konto svare i hver tråd den kan lese, men ikke sende nye meldinger i rommet. En tillatelse for message.post omfatter også denne, så et avslag her stopper ikke svar fra disse kontoene.",
+      "message_attach": "Lar en konto legge ved filer i nye meldinger. Nekt den for å stoppe opplastinger i et rom, men fortsatt tillate tekstmeldinger.",
+      "message_echo": "Lar en konto vise et trådsvar også i rommets tidslinje, slik at personer som ikke følger tråden, også ser det.",
+      "message_manage": "Lar en konto redigere eller slette meldinger fra andre kontoer. Alle kan alltid redigere og slette sine egne meldinger uten denne tillatelsen. Kontoer med denne tillatelsen begrenses ikke av sakte modus. I en direktemelding kan bare deltakerne bruke den.",
+      "message_react": "Lar en konto legge til og fjerne reaksjoner på meldinger den kan lese.",
+      "role_manage": "Lar en konto opprette, endre, ordne og slette roller og tillatelsesinnstillingene deres. Med denne tillatelsen kan en konto endre hva hver rolle på serveren kan gjøre. Gi den bare til personer du betror hele serveren.",
+      "role_assign": "Lar en konto gi roller til medlemmer og fjerne dem. En konto som ikke er eier, kan bare tildele roller der den selv har tillatelsene. Bare eiere kan tildele rollen owner.",
+      "admin_view_users": "Lar en konto se medlemslisten i serveradministrasjonen. Handlinger på medlemmer krever egne tillatelser, for eksempel role.assign eller user.manage-accounts.",
+      "admin_view_audit": "Lar en konto se hendelsesloggen i serveradministrasjonen. Hendelsesloggen registrerer administrative endringer og hver start og stopp av privilegert modus.",
+      "user_delete_any": "Lar en konto slette kontoen til et hvilket som helst medlem. Gi den bare til personer som kan bestemme å fjerne noen fra serveren.",
+      "user_delete_self": "Lar personer slette sin egen konto. Nekt den hvis bare administratorer skal slette kontoer.",
+      "user_invite": "Lar en konto liste, opprette, kopiere og trekke tilbake invitasjonslenker. Den kan se og bruke alle aktive invitasjonslenker, ikke bare sine egne.",
+      "user_manage_accounts": "Lar en konto opprette kontoer, endre kontoidentitet, tilbakestille passord, legge til bekreftede e-postadresser og fjerne innloggingssperrer for andre medlemmer. Den tillater også å legge en konto til i et rom eller fjerne den med raden Ble med.",
+      "user_manage_permissions": "Lar en konto endre tillatelsesinnstillingene til ett enkelt medlem eller én bot direkte, utenom roller. Den trengs også for å se de gjeldende tillatelsene til en person.",
+      "bot_create": "Lar personer opprette boter som de eier. En bot får bare tillatelsene du tillater direkte på boten, og aldri mer enn eieren har.",
+      "bot_manage": "Lar en konto administrere alle boter på serveren, også boter som andre personer eier.",
+      "call_start": "Lar en konto starte en samtale i et rom eller en direktemelding. Den trenger også call.join for å delta i samtalen.",
+      "call_join": "Lar en konto bli med i en pågående samtale, også bare som lytter. For å sende lyd eller video kreves call.voice, call.camera eller call.screenshare.",
+      "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
+      "call_camera": "Lar en konto sende kameravideo i samtaler.",
+      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice."
     }
   }
 }

@@ -51,7 +51,7 @@
       "allow": "erlauben",
       "deny": "verweigern",
       "winning_decision": "(entscheidende Entscheidung)",
-      "included_by": "Included by {permission}",
+      "included_by": "Enthalten in {permission}",
       "level_server": "Server",
       "level_group": "Gruppe",
       "level_room": "Raum",
@@ -124,6 +124,15 @@
         "effective_inherited": "Wirksam: {state} (geerbt)",
         "manage_role": "{role} verwalten",
         "no_scopes": "Keine Bereiche für {subject} verfügbar."
+      },
+      "help": {
+        "open": "Über {permission}",
+        "category": "Kategorie",
+        "scopes": "Einstellbar für",
+        "privileged": "Benötigt den privilegierten Modus",
+        "privileged_detail": "Konten müssen den privilegierten Modus aktivieren, um diese Berechtigung zu nutzen.",
+        "includes": "Enthält",
+        "included_by": "Enthalten in"
       }
     },
     "permission_categories": {
@@ -171,6 +180,40 @@
       "call_voice": "Das Mikrofon in Anrufen verwenden",
       "call_camera": "Die Kamera in Anrufen verwenden",
       "call_screenshare": "Bildschirm oder Anwendung einschließlich aufgenommenem Audio teilen"
+    },
+    "permission_help": {
+      "server_manage": "Erlaubt einem Konto, den Servernamen, die Beschreibung, das Logo und andere Servereinstellungen zu ändern. Außerdem erlaubt sie Änderungen am öffentlichen Nachbarverzeichnis. Gib sie nur Personen, die für den ganzen Server sprechen können.",
+      "server_manage_neighbors": "Erlaubt einem Konto, Einträge im öffentlichen Nachbarverzeichnis hinzuzufügen, zu ändern und zu entfernen. Andere Servereinstellungen kann es damit nicht ändern.",
+      "room_create": "Erlaubt einem Konto, Kanalräume zu erstellen. Im Bereich einer Raumgruppe erlaubt sie neue Räume nur in dieser Gruppe.",
+      "room_join": "Erlaubt einem Konto, Kanalräumen selbst beizutreten. Ohne sie kann ein Konto trotzdem Mitglied werden, wenn jemand es hinzufügt oder ein universeller Raum seine Rolle hinzufügt. Um einen Raum ganz zu verbergen, verweigere zusätzlich room.list.",
+      "room_list": "Erlaubt einem Konto, Räume im Raumverzeichnis und in Raumlisten zu sehen. Ein Konto kann einen Raum sehen, ohne ihm beitreten zu dürfen, zum Beispiel um Zugang anzufragen. Verweigere sie in einem eingeschränkten Raum, um diesen Raum vor Nicht-Mitgliedern zu verbergen.",
+      "room_manage": "Erlaubt einem Konto, Räume und Raumgruppen in dem Bereich, in dem du sie setzt, zu konfigurieren, umzubenennen, zu archivieren und zu löschen sowie Raummitglieder hinzuzufügen oder zu entfernen. Im Serverbereich erlaubt sie außerdem, Raumgruppen zu erstellen und zu sortieren. Konten mit dieser Berechtigung sind nicht an den langsamen Modus gebunden.",
+      "room_remove_member": "Erlaubt einem Konto, ein Mitglied mit einer Begründung aus einem Kanalraum zu entfernen. Es kann das Mitglied auch sperren, sodass es dem Raum nicht erneut beitreten kann. Die Moderationsseite benötigt diese Berechtigung im Serverbereich.",
+      "message_read": "Erlaubt einem Konto, Nachrichten, Threads, Anhänge, Suchergebnisse und Tippanzeigen zu lesen. Das Konto muss außerdem Mitglied des Raums oder der Direktnachricht sein. Wenn du diese Berechtigung verweigerst, kann message.read-interactions trotzdem Zugriff auf die eigenen Unterhaltungen des Kontos geben.",
+      "message_read_interactions": "Erlaubt einem Konto, nur die Threads zu lesen, die es gestartet hat, die Threads, in denen ein anderes Konto es direkt erwähnt hat, und die Direktnachrichten, die es erhalten hat. Diese Threads kann es vollständig lesen. Nutze sie, um Bots auf ihre eigenen Unterhaltungen zu beschränken.",
+      "message_post": "Erlaubt einem Konto, Nachrichten zu posten und in Threads zu antworten. Im Bereich Direktnachrichten können Personen außerdem Direktnachrichten starten. Das Konto muss Mitglied des Raums sein, und der Thread-Modus des Raums muss die Nachricht zulassen. Eine Verweigerung von message.post allein verhindert keine Thread-Antworten, wenn message.post-in-thread erlaubt ist. Um jedes Posten zu verhindern, verweigere zusätzlich message.post-in-thread und message.post-in-interactions.",
+      "message_post_interactions": "Erlaubt einem Konto, nur in den Threads zu antworten, die es gestartet hat, in den Threads, in denen ein anderes Konto es direkt erwähnt hat, und in den Direktnachrichten, die es erhalten hat. Sie erlaubt weder das Lesen anderer Threads noch das Posten neuer Nachrichten. Nutze sie zusammen mit message.read-interactions, um ein Konto auf seine eigenen Unterhaltungen zu beschränken.",
+      "message_post_in_thread": "Erlaubt einem Konto, in jedem Thread zu antworten, den es lesen kann, aber keine neuen Nachrichten im Raum zu posten. Eine Erlaubnis für message.post enthält auch diese Berechtigung, deshalb verhindert eine Verweigerung hier keine Antworten dieser Konten.",
+      "message_attach": "Erlaubt einem Konto, Dateien an neue Nachrichten anzuhängen. Verweigere sie, um Uploads in einem Raum zu verhindern, Textnachrichten aber weiter zu erlauben.",
+      "message_echo": "Erlaubt einem Konto, eine Thread-Antwort zusätzlich im Raumverlauf zu zeigen, damit auch Personen sie sehen, die dem Thread nicht folgen.",
+      "message_manage": "Erlaubt einem Konto, Nachrichten anderer Konten zu bearbeiten oder zu löschen. Eigene Nachrichten können alle auch ohne diese Berechtigung bearbeiten und löschen. Konten mit dieser Berechtigung sind nicht an den langsamen Modus gebunden. In einer Direktnachricht können nur Teilnehmende sie nutzen.",
+      "message_react": "Erlaubt einem Konto, Reaktionen auf Nachrichten, die es lesen kann, hinzuzufügen und zu entfernen.",
+      "role_manage": "Erlaubt einem Konto, Rollen und ihre Berechtigungseinstellungen zu erstellen, zu ändern, zu sortieren und zu löschen. Mit dieser Berechtigung kann ein Konto ändern, was jede Rolle auf dem Server darf. Gib sie nur Personen, denen du den ganzen Server anvertraust.",
+      "role_assign": "Erlaubt einem Konto, Mitgliedern Rollen zu geben und sie wieder zu entfernen. Ein Konto, das kein Owner ist, kann nur Rollen vergeben, deren Erlaubnisse es selbst hat. Nur Owner können die Rolle owner vergeben.",
+      "admin_view_users": "Erlaubt einem Konto, die Mitgliederliste in der Serveradministration zu sehen. Aktionen für Mitglieder brauchen eigene Berechtigungen, zum Beispiel role.assign oder user.manage-accounts.",
+      "admin_view_audit": "Erlaubt einem Konto, das Ereignisprotokoll in der Serveradministration zu sehen. Das Ereignisprotokoll erfasst administrative Änderungen und jeden Start und jedes Ende des privilegierten Modus.",
+      "user_delete_any": "Erlaubt einem Konto, das Konto jedes Mitglieds zu löschen. Gib sie nur Personen, die entscheiden dürfen, jemanden vom Server zu entfernen.",
+      "user_delete_self": "Erlaubt Personen, ihr eigenes Konto zu löschen. Verweigere sie, wenn nur Administratoren Konten löschen sollen.",
+      "user_invite": "Erlaubt einem Konto, Einladungslinks aufzulisten, zu erstellen, zu kopieren und zu widerrufen. Es kann alle aktiven Einladungslinks sehen und nutzen, nicht nur seine eigenen.",
+      "user_manage_accounts": "Erlaubt einem Konto, für andere Mitglieder Konten zu erstellen, die Kontoidentität zu ändern, Passwörter zurückzusetzen, verifizierte E-Mail-Adressen hinzuzufügen und Anmeldesperren aufzuheben. Außerdem erlaubt sie, ein Konto über die Zeile „Beigetreten“ zu einem Raum hinzuzufügen oder daraus zu entfernen.",
+      "user_manage_permissions": "Erlaubt einem Konto, die Berechtigungseinstellungen eines einzelnen Mitglieds oder Bots direkt zu ändern, unabhängig von Rollen. Sie ist außerdem nötig, um die wirksamen Berechtigungen einer Person zu sehen.",
+      "bot_create": "Erlaubt Personen, eigene Bots zu erstellen. Ein Bot erhält nur die Berechtigungen, die du direkt am Bot erlaubst, und nie mehr als sein Owner hat.",
+      "bot_manage": "Erlaubt einem Konto, alle Bots auf dem Server zu verwalten, auch Bots anderer Personen.",
+      "call_start": "Erlaubt einem Konto, einen Anruf in einem Raum oder einer Direktnachricht zu starten. Um am Anruf teilzunehmen, braucht es außerdem call.join.",
+      "call_join": "Erlaubt einem Konto, einem laufenden Anruf beizutreten, auch nur zum Zuhören. Um Audio oder Video zu senden, braucht es call.voice, call.camera oder call.screenshare.",
+      "call_voice": "Erlaubt einem Konto, in Anrufen Mikrofonaudio zu senden. Ohne sie kann das Konto trotzdem zuhören.",
+      "call_camera": "Erlaubt einem Konto, in Anrufen Kameravideo zu senden.",
+      "call_screenshare": "Erlaubt einem Konto, in Anrufen einen Bildschirm, ein Fenster, einen Tab oder eine Anwendung samt Audio zu teilen. Mikrofonaudio erlaubt sie nicht; dafür ist call.voice nötig."
     }
   }
 }

@@ -45,6 +45,38 @@ describe('PERMISSION_METADATA', () => {
     ]);
   });
 
+  it('mirrors the backend privileged-mode requirements', () => {
+    expect(
+      Object.entries(PERMISSION_METADATA)
+        .filter(([, metadata]) => metadata.privileged)
+        .map(([permission]) => permission)
+        .sort()
+    ).toEqual([
+      'admin.view-audit',
+      'admin.view-users',
+      'bot.manage',
+      'message.manage',
+      'role.assign',
+      'role.manage',
+      'room.create',
+      'room.manage',
+      'room.remove-member',
+      'server.manage',
+      'server.manage-neighbors',
+      'user.delete-any',
+      'user.invite',
+      'user.manage-accounts',
+      'user.manage-permissions'
+    ]);
+  });
+
+  it('gives every permission help text and at least one scope', () => {
+    for (const [permission, metadata] of Object.entries(PERMISSION_METADATA)) {
+      expect(metadata.help(), permission).not.toMatch(/^rbac\./);
+      expect(metadata.scopes.length, permission).toBeGreaterThan(0);
+    }
+  });
+
   it('does not list retired message edit/delete permissions', () => {
     expect(PERMISSION_METADATA).not.toHaveProperty('message.edit-own');
     expect(PERMISSION_METADATA).not.toHaveProperty('message.edit-any');

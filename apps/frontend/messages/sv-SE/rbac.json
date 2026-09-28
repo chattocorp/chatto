@@ -51,7 +51,7 @@
       "allow": "tillåt",
       "deny": "neka",
       "winning_decision": "(vinnande beslut)",
-      "included_by": "Included by {permission}",
+      "included_by": "Ingår i {permission}",
       "level_server": "Server",
       "level_group": "Grupp",
       "level_room": "Rum",
@@ -124,6 +124,15 @@
         "effective_inherited": "Gäller: {state} (ärvd)",
         "manage_role": "Hantera {role}",
         "no_scopes": "Inga omfång tillgängliga för {subject}."
+      },
+      "help": {
+        "open": "Om {permission}",
+        "category": "Kategori",
+        "scopes": "Kan ställas in för",
+        "privileged": "Kräver privilegierat läge",
+        "privileged_detail": "Konton måste aktivera privilegierat läge för att använda den här behörigheten.",
+        "includes": "Omfattar",
+        "included_by": "Ingår i"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Hantera den offentliga grannkatalogen",
       "room_create": "Skapa nya rum",
       "room_join": "Gå med i befintliga rum",
       "room_list": "Se rum i katalogen. En användare kan tillåtas se ett rum (t.ex. för att begära åtkomst) utan att få gå med i det.",
@@ -171,6 +180,40 @@
       "call_voice": "Använda mikrofonen i samtal",
       "call_camera": "Använda kameran i samtal",
       "call_screenshare": "Dela en skärm eller ett program, inklusive inspelat ljud"
+    },
+    "permission_help": {
+      "server_manage": "Låter ett konto ändra serverns namn, beskrivning, logotyp och andra serverinställningar. Den tillåter också ändringar i den offentliga grannkatalogen. Ge den bara till personer som kan tala för hela servern.",
+      "server_manage_neighbors": "Låter ett konto lägga till, ändra och ta bort poster i den offentliga grannkatalogen. Den tillåter inte ändringar av andra serverinställningar.",
+      "room_create": "Låter ett konto skapa kanalrum. På rumsgruppsnivå tillåter den nya rum bara i den gruppen.",
+      "room_join": "Låter ett konto gå med i kanalrum på egen hand. Utan den kan ett konto ändå bli medlem när någon lägger till det eller när ett universellt rum lägger till dess roll. Neka också room.list för att dölja ett rum helt.",
+      "room_list": "Låter ett konto se rum i rumskatalogen och i rumslistor. Ett konto kan se ett rum utan att få gå med i det, till exempel för att begära åtkomst. Neka den i ett begränsat rum för att dölja rummet för icke-medlemmar.",
+      "room_manage": "Låter ett konto konfigurera, byta namn på, arkivera och ta bort rum och rumsgrupper på den nivå där du ställer in den, och lägga till eller ta bort rumsmedlemmar. På servernivå tillåter den också att skapa och ordna rumsgrupper. Konton med den här behörigheten begränsas inte av långsamt läge.",
+      "room_remove_member": "Låter ett konto ta bort en medlem från ett kanalrum med en motivering. Det kan också stänga av medlemmen så att den inte kan gå med i rummet igen. Modereringssidan kräver den här behörigheten på servernivå.",
+      "message_read": "Låter ett konto läsa meddelanden, trådar, bilagor, sökresultat och skrivindikatorer. Kontot måste också vara medlem i rummet eller direktmeddelandet. Om du nekar den här behörigheten kan message.read-interactions ändå ge åtkomst till kontots egna konversationer.",
+      "message_read_interactions": "Låter ett konto bara läsa trådar som det har startat, trådar där ett annat konto har nämnt det direkt och direktmeddelanden som det har fått. Det kan läsa dessa trådar i sin helhet. Använd den för att begränsa bottar till deras egna konversationer.",
+      "message_post": "Låter ett konto skicka meddelanden och svara i trådar. På direktmeddelandenivå kan personer också starta direktmeddelanden. Kontot måste vara medlem i rummet, och rummets trådläge måste tillåta meddelandet. Att bara neka message.post stoppar inte trådsvar när message.post-in-thread är tillåten. Neka också message.post-in-thread och message.post-in-interactions för att stoppa alla inlägg.",
+      "message_post_interactions": "Låter ett konto bara svara i trådar som det har startat, trådar där ett annat konto har nämnt det direkt och direktmeddelanden som det har fått. Den tillåter inte att läsa andra trådar eller skicka nya meddelanden. Använd den med message.read-interactions för att begränsa ett konto till dess egna konversationer.",
+      "message_post_in_thread": "Låter ett konto svara i varje tråd som det kan läsa, men inte skicka nya meddelanden i rummet. En tillåtelse för message.post omfattar också den här behörigheten, så ett nekande här stoppar inte svar från de kontona.",
+      "message_attach": "Låter ett konto bifoga filer till nya meddelanden. Neka den för att stoppa uppladdningar i ett rum men ändå tillåta textmeddelanden.",
+      "message_echo": "Låter ett konto visa ett trådsvar även i rummets tidslinje, så att personer som inte följer tråden också ser det.",
+      "message_manage": "Låter ett konto redigera eller ta bort meddelanden från andra konton. Alla kan alltid redigera och ta bort sina egna meddelanden utan den här behörigheten. Konton med den här behörigheten begränsas inte av långsamt läge. I ett direktmeddelande kan bara deltagarna använda den.",
+      "message_react": "Låter ett konto lägga till och ta bort reaktioner på meddelanden som det kan läsa.",
+      "role_manage": "Låter ett konto skapa, ändra, ordna och ta bort roller och deras behörighetsinställningar. Med den här behörigheten kan ett konto ändra vad varje roll på servern får göra. Ge den bara till personer som du anförtror hela servern.",
+      "role_assign": "Låter ett konto ge roller till medlemmar och ta bort dem. Ett konto som inte är ägare kan bara tilldela roller vars tillåtelser det själv har. Bara ägare kan tilldela rollen owner.",
+      "admin_view_users": "Låter ett konto se medlemslistan i serveradministrationen. Åtgärder på medlemmar kräver egna behörigheter, till exempel role.assign eller user.manage-accounts.",
+      "admin_view_audit": "Låter ett konto se händelseloggen i serveradministrationen. Händelseloggen registrerar administrativa ändringar och varje start och stopp av privilegierat läge.",
+      "user_delete_any": "Låter ett konto ta bort vilken medlems konto som helst. Ge den bara till personer som får bestämma att ta bort någon från servern.",
+      "user_delete_self": "Låter personer ta bort sitt eget konto. Neka den om bara administratörer ska ta bort konton.",
+      "user_invite": "Låter ett konto lista, skapa, kopiera och återkalla inbjudningslänkar. Det kan se och använda alla aktiva inbjudningslänkar, inte bara sina egna.",
+      "user_manage_accounts": "Låter ett konto skapa konton, ändra kontoidentitet, återställa lösenord, lägga till verifierade e-postadresser och rensa inloggningsspärrar för andra medlemmar. Den tillåter också att lägga till ett konto i ett rum eller ta bort det med raden Gick med.",
+      "user_manage_permissions": "Låter ett konto ändra behörighetsinställningarna för en enskild medlem eller bot direkt, utanför roller. Den behövs också för att se en persons effektiva behörigheter.",
+      "bot_create": "Låter personer skapa bottar som de äger. En bot får bara de behörigheter som du tillåter direkt på botten, och aldrig fler än dess ägare har.",
+      "bot_manage": "Låter ett konto hantera alla bottar på servern, även bottar som andra personer äger.",
+      "call_start": "Låter ett konto starta ett samtal i ett rum eller direktmeddelande. Det behöver också call.join för att delta i samtalet.",
+      "call_join": "Låter ett konto gå med i ett pågående samtal, även bara som lyssnare. För att skicka ljud eller video krävs call.voice, call.camera eller call.screenshare.",
+      "call_voice": "Låter ett konto skicka mikrofonljud i samtal. Utan den kan kontot ändå lyssna.",
+      "call_camera": "Låter ett konto skicka kameravideo i samtal.",
+      "call_screenshare": "Låter ett konto dela en skärm, ett fönster, en flik eller ett program i samtal, med dess ljud. Den tillåter inte mikrofonljud; det kräver call.voice."
     }
   }
 }

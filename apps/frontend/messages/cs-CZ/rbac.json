@@ -51,7 +51,7 @@
       "allow": "dovolit",
       "deny": "popřít",
       "winning_decision": "(vítězné rozhodnutí)",
-      "included_by": "Included by {permission}",
+      "included_by": "Součástí {permission}",
       "level_server": "Server",
       "level_group": "Skupina",
       "level_room": "Místnost",
@@ -124,6 +124,15 @@
         "effective_inherited": "Výsledně: {state} (zděděno)",
         "manage_role": "Spravovat {role}",
         "no_scopes": "Pro tento typ ({subject}) nejsou k dispozici žádné rozsahy."
+      },
+      "help": {
+        "open": "O oprávnění {permission}",
+        "category": "Kategorie",
+        "scopes": "Lze nastavit pro",
+        "privileged": "Vyžaduje privilegovaný režim",
+        "privileged_detail": "Účty musí zapnout privilegovaný režim, aby mohly toto oprávnění používat.",
+        "includes": "Zahrnuje",
+        "included_by": "Součástí"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Spravovat veřejný adresář sousedů",
       "room_create": "Vytvořte nové místnosti",
       "room_join": "Připojte se ke stávajícím místnostem",
       "room_list": "Podívejte se na místnosti v adresáři. Uživateli může být povoleno vidět místnost (např. požádat o přístup), aniž by mu bylo povoleno se k ní připojit.",
@@ -171,6 +180,40 @@
       "call_voice": "Používat mikrofon v hovorech",
       "call_camera": "Používat kameru v hovorech",
       "call_screenshare": "Sdílet obrazovku nebo aplikaci včetně zachyceného zvuku"
+    },
+    "permission_help": {
+      "server_manage": "Umožňuje účtu měnit název, popis, logo a další nastavení serveru. Umožňuje také měnit veřejný adresář sousedů. Udělte ho jen lidem, kteří mohou mluvit za celý server.",
+      "server_manage_neighbors": "Umožňuje účtu přidávat, měnit a odebírat položky ve veřejném adresáři sousedů. Neumožňuje měnit další nastavení serveru.",
+      "room_create": "Umožňuje účtu vytvářet kanálové místnosti. Na úrovni skupiny místností umožňuje nové místnosti jen v této skupině.",
+      "room_join": "Umožňuje účtu samostatně se připojovat ke kanálovým místnostem. Bez něj se účet přesto může stát členem, když ho někdo přidá nebo když univerzální místnost přidá jeho roli. Chcete-li místnost úplně skrýt, zakažte také room.list.",
+      "room_list": "Umožňuje účtu vidět místnosti v adresáři místností a v seznamech místností. Účet může místnost vidět, i když se k ní nesmí připojit, například aby požádal o přístup. Zakažte ho v omezené místnosti, aby byla skrytá před nečleny.",
+      "room_manage": "Umožňuje účtu konfigurovat, přejmenovávat, archivovat a mazat místnosti a skupiny místností na úrovni, kde ho nastavíte, a přidávat nebo odebírat členy místností. Na úrovni serveru umožňuje také vytvářet a řadit skupiny místností. Účty s tímto oprávněním nejsou omezeny pomalým režimem.",
+      "room_remove_member": "Umožňuje účtu odebrat člena z kanálové místnosti s uvedením důvodu. Může člena také pozastavit, aby se do místnosti nemohl znovu připojit. Stránka Moderování vyžaduje toto oprávnění na úrovni serveru.",
+      "message_read": "Umožňuje účtu číst zprávy, vlákna, přílohy, výsledky vyhledávání a indikátory psaní. Účet musí být také členem místnosti nebo přímé zprávy. Pokud toto oprávnění zakážete, message.read-interactions může stále dát přístup k vlastním konverzacím účtu.",
+      "message_read_interactions": "Umožňuje účtu číst jen vlákna, která založil, vlákna, kde ho jiný účet přímo zmínil, a přímé zprávy, které obdržel. Tato vlákna může číst celá. Použijte ho k omezení botů na jejich vlastní konverzace.",
+      "message_post": "Umožňuje účtu psát zprávy a odpovídat ve vláknech. Na úrovni přímých zpráv mohou lidé také zahajovat přímé zprávy. Účet musí být členem místnosti a režim vláken místnosti musí zprávu povolit. Samotný zákaz message.post nezastaví odpovědi ve vláknech, pokud je povoleno message.post-in-thread. Chcete-li zastavit veškeré psaní, zakažte také message.post-in-thread a message.post-in-interactions.",
+      "message_post_interactions": "Umožňuje účtu odpovídat jen ve vláknech, která založil, ve vláknech, kde ho jiný účet přímo zmínil, a v přímých zprávách, které obdržel. Neumožňuje číst jiná vlákna ani psát nové zprávy. Použijte ho spolu s message.read-interactions k omezení účtu na jeho vlastní konverzace.",
+      "message_post_in_thread": "Umožňuje účtu odpovídat v každém vlákně, které může číst, ale ne psát nové zprávy do místnosti. Povolení message.post zahrnuje i toto oprávnění, takže zákaz zde nezastaví odpovědi těchto účtů.",
+      "message_attach": "Umožňuje účtu přikládat soubory k novým zprávám. Zakažte ho, chcete-li v místnosti zastavit nahrávání souborů, ale zachovat textové zprávy.",
+      "message_echo": "Umožňuje účtu zobrazit odpověď ve vlákně i na časové ose místnosti, aby ji viděli i lidé, kteří vlákno nesledují.",
+      "message_manage": "Umožňuje účtu upravovat nebo mazat zprávy jiných účtů. Každý může vždy upravovat a mazat své vlastní zprávy i bez tohoto oprávnění. Účty s tímto oprávněním nejsou omezeny pomalým režimem. V přímé zprávě ho mohou používat jen účastníci.",
+      "message_react": "Umožňuje účtu přidávat a odebírat reakce na zprávy, které může číst.",
+      "role_manage": "Umožňuje účtu vytvářet, měnit, řadit a mazat role a jejich nastavení oprávnění. S tímto oprávněním může účet změnit, co smí každá role na serveru. Udělte ho jen lidem, kterým svěřujete celý server.",
+      "role_assign": "Umožňuje účtu přidělovat role členům a odebírat je. Účet, který není vlastníkem, může přidělovat jen role, jejichž povolení sám má. Roli owner mohou přidělit jen vlastníci.",
+      "admin_view_users": "Umožňuje účtu vidět seznam členů ve správě serveru. Akce s členy vyžadují vlastní oprávnění, například role.assign nebo user.manage-accounts.",
+      "admin_view_audit": "Umožňuje účtu vidět protokol událostí ve správě serveru. Protokol událostí zaznamenává administrativní změny a každé zapnutí a vypnutí privilegovaného režimu.",
+      "user_delete_any": "Umožňuje účtu smazat účet kteréhokoli člena. Udělte ho jen lidem, kteří mohou rozhodnout o odebrání někoho ze serveru.",
+      "user_delete_self": "Umožňuje lidem smazat vlastní účet. Zakažte ho, pokud mají účty mazat jen správci.",
+      "user_invite": "Umožňuje účtu zobrazovat, vytvářet, kopírovat a rušit pozvánkové odkazy. Může vidět a používat všechny aktivní pozvánkové odkazy, nejen své vlastní.",
+      "user_manage_accounts": "Umožňuje účtu vytvářet účty, měnit identitu účtu, resetovat hesla, připojovat ověřené e-mailové adresy a rušit prodlevy přihlášení u jiných členů. Umožňuje také přidat účet do místnosti nebo ho z ní odebrat pomocí řádku Připojeno.",
+      "user_manage_permissions": "Umožňuje účtu přímo měnit nastavení oprávnění jednoho člena nebo bota, mimo role. Je také nutné k zobrazení efektivních oprávnění osoby.",
+      "bot_create": "Umožňuje lidem vytvářet vlastní boty. Bot dostane jen oprávnění, která povolíte přímo na botovi, a nikdy více, než má jeho vlastník.",
+      "bot_manage": "Umožňuje účtu spravovat všechny boty na serveru, včetně botů jiných lidí.",
+      "call_start": "Umožňuje účtu zahájit hovor v místnosti nebo přímé zprávě. K účasti na hovoru potřebuje také call.join.",
+      "call_join": "Umožňuje účtu připojit se k probíhajícímu hovoru, i jen jako posluchač. K odesílání zvuku nebo videa je potřeba call.voice, call.camera nebo call.screenshare.",
+      "call_voice": "Umožňuje účtu odesílat zvuk z mikrofonu v hovorech. Bez něj může účet stále poslouchat.",
+      "call_camera": "Umožňuje účtu odesílat video z kamery v hovorech.",
+      "call_screenshare": "Umožňuje účtu sdílet obrazovku, okno, kartu nebo aplikaci v hovorech, včetně zvuku. Neumožňuje zvuk z mikrofonu; k tomu je potřeba call.voice."
     }
   }
 }

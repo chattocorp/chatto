@@ -51,7 +51,7 @@
       "allow": "permitir",
       "deny": "negar",
       "winning_decision": "(decisión ganadora)",
-      "included_by": "Included by {permission}",
+      "included_by": "Incluido en {permission}",
       "level_server": "Servidor",
       "level_group": "Grupo",
       "level_room": "Habitación",
@@ -124,6 +124,15 @@
         "effective_inherited": "Efectivo: {state} (heredado)",
         "manage_role": "Gestionar {role}",
         "no_scopes": "No hay ámbitos disponibles para este {subject}."
+      },
+      "help": {
+        "open": "Acerca de {permission}",
+        "category": "Categoría",
+        "scopes": "Configurable para",
+        "privileged": "Requiere el modo privilegiado",
+        "privileged_detail": "Las cuentas deben activar el modo privilegiado para usar este permiso.",
+        "includes": "Incluye",
+        "included_by": "Incluido en"
       }
     },
     "permission_categories": {
@@ -171,6 +180,40 @@
       "call_voice": "Usar el micrófono en las llamadas",
       "call_camera": "Usar la cámara en las llamadas",
       "call_screenshare": "Compartir una pantalla o aplicación, incluido el audio capturado"
+    },
+    "permission_help": {
+      "server_manage": "Permite a una cuenta cambiar el nombre, la descripción, el logotipo y otros ajustes del servidor. También permite cambiar el directorio público de vecinos. Concédelo solo a personas que puedan hablar en nombre de todo el servidor.",
+      "server_manage_neighbors": "Permite a una cuenta añadir, cambiar y eliminar entradas del directorio público de vecinos. No permite cambiar otros ajustes del servidor.",
+      "room_create": "Permite a una cuenta crear salas. En el ámbito de un grupo de salas, solo permite crear salas en ese grupo.",
+      "room_join": "Permite a una cuenta unirse a salas por sí misma. Sin él, una cuenta puede hacerse miembro igualmente si alguien la añade o si una sala universal añade su rol. Para ocultar una sala por completo, deniega también room.list.",
+      "room_list": "Permite a una cuenta ver salas en el directorio de salas y en las listas de salas. Una cuenta puede ver una sala sin permiso para unirse, por ejemplo para solicitar acceso. Deniégalo en una sala restringida para ocultarla a quienes no son miembros.",
+      "room_manage": "Permite a una cuenta configurar, renombrar, archivar y eliminar salas y grupos de salas en el ámbito donde lo configures, y añadir o quitar miembros de las salas. En el ámbito del servidor, también permite crear y ordenar grupos de salas. Las cuentas con este permiso no están limitadas por el modo lento.",
+      "room_remove_member": "Permite a una cuenta quitar a un miembro de una sala indicando un motivo. También puede suspender al miembro para que no pueda volver a unirse a la sala. La página de Moderación necesita este permiso en el ámbito del servidor.",
+      "message_read": "Permite a una cuenta leer mensajes, hilos, archivos adjuntos, resultados de búsqueda e indicadores de escritura. La cuenta también debe ser miembro de la sala o del mensaje directo. Si deniegas este permiso, message.read-interactions puede seguir dando acceso a las conversaciones propias de la cuenta.",
+      "message_read_interactions": "Permite a una cuenta leer solo los hilos que inició, los hilos donde otra cuenta la mencionó directamente y los mensajes directos que recibió. Puede leer estos hilos por completo. Úsalo para limitar a los bots a sus propias conversaciones.",
+      "message_post": "Permite a una cuenta publicar mensajes y responder en hilos. En el ámbito de mensajes directos, las personas también pueden iniciar mensajes directos. La cuenta debe ser miembro de la sala, y el modo de hilos de la sala debe permitir el mensaje. Denegar solo message.post no impide las respuestas en hilos si message.post-in-thread está permitido. Para impedir cualquier publicación, deniega también message.post-in-thread y message.post-in-interactions.",
+      "message_post_interactions": "Permite a una cuenta responder solo en los hilos que inició, los hilos donde otra cuenta la mencionó directamente y los mensajes directos que recibió. No permite leer otros hilos ni publicar mensajes nuevos. Úsalo con message.read-interactions para limitar una cuenta a sus propias conversaciones.",
+      "message_post_in_thread": "Permite a una cuenta responder en cada hilo que puede leer, pero no publicar mensajes nuevos en la sala. Un permiso de message.post también incluye este, así que denegarlo aquí no impide las respuestas de esas cuentas.",
+      "message_attach": "Permite a una cuenta adjuntar archivos a mensajes nuevos. Deniégalo para impedir subidas en una sala sin dejar de permitir mensajes de texto.",
+      "message_echo": "Permite a una cuenta mostrar también una respuesta de hilo en la cronología de la sala, para que la vean las personas que no siguen el hilo.",
+      "message_manage": "Permite a una cuenta editar o eliminar mensajes de otras cuentas. Todas las personas pueden editar y eliminar sus propios mensajes sin este permiso. Las cuentas con este permiso no están limitadas por el modo lento. En un mensaje directo, solo los participantes pueden usarlo.",
+      "message_react": "Permite a una cuenta añadir y quitar reacciones en los mensajes que puede leer.",
+      "role_manage": "Permite a una cuenta crear, cambiar, ordenar y eliminar roles y sus ajustes de permisos. Con este permiso, una cuenta puede cambiar lo que puede hacer cada rol del servidor. Concédelo solo a personas a las que confíes todo el servidor.",
+      "role_assign": "Permite a una cuenta asignar roles a los miembros y quitárselos. Una cuenta que no es propietaria solo puede asignar roles cuyos permisos también tiene. Solo los propietarios pueden asignar el rol owner.",
+      "admin_view_users": "Permite a una cuenta ver la lista de miembros en la administración del servidor. Las acciones sobre miembros necesitan sus propios permisos, como role.assign o user.manage-accounts.",
+      "admin_view_audit": "Permite a una cuenta ver el registro de eventos en la administración del servidor. El registro de eventos guarda los cambios administrativos y cada inicio y fin del modo privilegiado.",
+      "user_delete_any": "Permite a una cuenta eliminar la cuenta de cualquier miembro. Concédelo solo a personas que puedan decidir expulsar a alguien del servidor.",
+      "user_delete_self": "Permite a las personas eliminar su propia cuenta. Deniégalo si solo los administradores deben eliminar cuentas.",
+      "user_invite": "Permite a una cuenta listar, crear, copiar y revocar enlaces de invitación. Puede ver y usar todos los enlaces de invitación activos, no solo los suyos.",
+      "user_manage_accounts": "Permite a una cuenta crear cuentas, cambiar la identidad de una cuenta, restablecer contraseñas, adjuntar direcciones de correo electrónico verificadas y borrar los tiempos de espera de inicio de sesión de otros miembros. También permite añadir una cuenta a una sala o quitarla con la fila Se unió.",
+      "user_manage_permissions": "Permite a una cuenta cambiar directamente los ajustes de permisos de un miembro o bot, al margen de los roles. También es necesario para ver los permisos efectivos de una persona.",
+      "bot_create": "Permite a las personas crear bots propios. Un bot solo recibe los permisos que permitas directamente en el bot, y nunca más de los que tiene su propietario.",
+      "bot_manage": "Permite a una cuenta gestionar todos los bots del servidor, incluidos los de otras personas.",
+      "call_start": "Permite a una cuenta iniciar una llamada en una sala o un mensaje directo. También necesita call.join para participar en la llamada.",
+      "call_join": "Permite a una cuenta unirse a una llamada activa, también solo para escuchar. Para enviar audio o vídeo necesita call.voice, call.camera o call.screenshare.",
+      "call_voice": "Permite a una cuenta enviar audio del micrófono en las llamadas. Sin él, la cuenta puede seguir escuchando.",
+      "call_camera": "Permite a una cuenta enviar vídeo de la cámara en las llamadas.",
+      "call_screenshare": "Permite a una cuenta compartir una pantalla, ventana, pestaña o aplicación en las llamadas, con su audio. No permite el audio del micrófono; para eso necesita call.voice."
     }
   }
 }

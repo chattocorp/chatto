@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-28
 
 ## Overview
 
@@ -43,6 +43,25 @@ prevent adding. Universal membership remains automatic; DMs are excluded.
 The event log records the acting manager and target account for each change,
 including management overrides. Membership does not grant message permissions.
 See [FDR-038](FDR-038-bot-accounts.md).
+
+## Permission Help
+
+Each row of a role or account permission matrix has an information button after
+the permission name. The button opens a dialog. In narrow touch windows, the
+dialog opens as a bottom sheet, so touch users can read the help too. The dialog
+shows:
+
+- the short description and a longer explanation of the permission;
+- the category and the scopes where the permission can be set;
+- whether the permission needs privileged mode;
+- the permissions that it includes, and the permissions that include it.
+
+A related permission is a button that shows the help for that permission. The
+**Joined** row has its own dialog that explains membership. A permission from a
+newer server shows only its identifier and category.
+
+The frontend copies scopes, inclusions, and privileged-mode requirements from
+the backend permission catalog. Update both catalogs together.
 
 ## Behavior
 

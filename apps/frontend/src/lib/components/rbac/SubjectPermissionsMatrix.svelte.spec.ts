@@ -341,9 +341,9 @@ it('localizes binary cell labels, state details, and owner ceilings', async () =
     }
   });
   const button = container.querySelector('button[aria-label^="message.post"]') as HTMLButtonElement;
-  const permissionName = container.querySelector('[data-testid="permission-name"]') as HTMLElement;
+  const helpButton = container.querySelector('button[aria-label$="message.post"]') as HTMLElement;
 
-  expect(permissionName.title).toBe('Nachrichten und Thread-Antworten posten und DMs starten');
+  expect(helpButton.ariaLabel).toBe('Über message.post');
   expect(button.ariaLabel).toBe('message.post ist für Bot in Server aktiviert');
   expect(button.title).toContain('Derzeit nicht verfügbar');
   expect(button.title).toContain('Du kannst message.post in Server nicht vergeben');
@@ -391,6 +391,11 @@ it('puts bot membership first and keeps it separate from filtered permission row
   flushSync();
   expect(container.querySelectorAll('[data-testid="permission-name"]')).toHaveLength(1);
   expect(container.querySelector('button[aria-label="Add account to #work"]')).not.toBeNull();
+
+  (container.querySelector('button[aria-label="About Joined"]') as HTMLButtonElement).click();
+  await expect
+    .element(page.getByRole('dialog', { name: 'Joined' }))
+    .toHaveTextContent('Room membership does not grant message permissions.');
 });
 
 it.each([

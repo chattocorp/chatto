@@ -51,7 +51,7 @@
       "allow": "zezwól",
       "deny": "odmów",
       "winning_decision": "(zwycięska decyzja)",
-      "included_by": "Included by {permission}",
+      "included_by": "Zawarte w {permission}",
       "level_server": "Serwer",
       "level_group": "Grupa",
       "level_room": "Pokój",
@@ -124,6 +124,15 @@
         "effective_inherited": "Obowiązuje: {state} (odziedziczone)",
         "manage_role": "Zarządzaj rolą {role}",
         "no_scopes": "Brak dostępnych zakresów dla tego typu ({subject})."
+      },
+      "help": {
+        "open": "Informacje o {permission}",
+        "category": "Kategoria",
+        "scopes": "Można ustawić dla",
+        "privileged": "Wymaga trybu uprzywilejowanego",
+        "privileged_detail": "Konta muszą włączyć tryb uprzywilejowany, aby korzystać z tego uprawnienia.",
+        "includes": "Obejmuje",
+        "included_by": "Zawarte w"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Zarządzanie publicznym katalogiem sąsiadów",
       "room_create": "Utwórz nowe pokoje",
       "room_join": "Dołącz do istniejących pokoi",
       "room_list": "Zobacz pokoje w katalogu. Użytkownik może uzyskać dostęp do pokoju (np. poprosić o dostęp) bez możliwości dołączenia do niego.",
@@ -171,6 +180,40 @@
       "call_voice": "Używanie mikrofonu podczas rozmów",
       "call_camera": "Używanie kamery podczas rozmów",
       "call_screenshare": "Udostępnianie ekranu lub aplikacji wraz z przechwyconym dźwiękiem"
+    },
+    "permission_help": {
+      "server_manage": "Pozwala kontu zmieniać nazwę, opis, logo i inne ustawienia serwera. Pozwala też zmieniać publiczny katalog sąsiadów. Nadawaj je tylko osobom, które mogą wypowiadać się w imieniu całego serwera.",
+      "server_manage_neighbors": "Pozwala kontu dodawać, zmieniać i usuwać wpisy w publicznym katalogu sąsiadów. Nie pozwala zmieniać innych ustawień serwera.",
+      "room_create": "Pozwala kontu tworzyć pokoje kanałów. Na poziomie grupy pokoi pozwala tworzyć nowe pokoje tylko w tej grupie.",
+      "room_join": "Pozwala kontu samodzielnie dołączać do pokoi kanałów. Bez niego konto może mimo to zostać członkiem, gdy ktoś je doda lub gdy pokój uniwersalny doda jego rolę. Aby całkowicie ukryć pokój, odmów także room.list.",
+      "room_list": "Pozwala kontu widzieć pokoje w katalogu pokoi i na listach pokoi. Konto może widzieć pokój bez prawa do dołączenia, na przykład aby poprosić o dostęp. Odmów go w pokoju z ograniczonym dostępem, aby ukryć ten pokój przed osobami spoza niego.",
+      "room_manage": "Pozwala kontu konfigurować, zmieniać nazwy, archiwizować i usuwać pokoje oraz grupy pokoi na poziomie, na którym je ustawisz, a także dodawać i usuwać członków pokoi. Na poziomie serwera pozwala też tworzyć i porządkować grupy pokoi. Konta z tym uprawnieniem nie podlegają trybowi powolnemu.",
+      "room_remove_member": "Pozwala kontu usunąć członka z pokoju kanału z podaniem powodu. Może też zawiesić członka, aby nie mógł ponownie dołączyć do pokoju. Strona Moderacja wymaga tego uprawnienia na poziomie serwera.",
+      "message_read": "Pozwala kontu czytać wiadomości, wątki, załączniki, wyniki wyszukiwania i wskaźniki pisania. Konto musi też być członkiem pokoju lub rozmowy bezpośredniej. Jeśli odmówisz tego uprawnienia, message.read-interactions może nadal dawać dostęp do własnych rozmów konta.",
+      "message_read_interactions": "Pozwala kontu czytać tylko wątki, które rozpoczęło, wątki, w których inne konto bezpośrednio je wspomniało, oraz otrzymane wiadomości bezpośrednie. Może czytać te wątki w całości. Użyj go, aby ograniczyć boty do ich własnych rozmów.",
+      "message_post": "Pozwala kontu publikować wiadomości i odpowiadać w wątkach. Na poziomie wiadomości bezpośrednich osoby mogą też rozpoczynać rozmowy bezpośrednie. Konto musi być członkiem pokoju, a tryb wątków pokoju musi zezwalać na wiadomość. Odmowa samego message.post nie blokuje odpowiedzi w wątkach, gdy message.post-in-thread jest dozwolone. Aby zablokować całe publikowanie, odmów także message.post-in-thread i message.post-in-interactions.",
+      "message_post_interactions": "Pozwala kontu odpowiadać tylko w wątkach, które rozpoczęło, w wątkach, w których inne konto bezpośrednio je wspomniało, oraz w otrzymanych wiadomościach bezpośrednich. Nie pozwala czytać innych wątków ani publikować nowych wiadomości. Użyj go razem z message.read-interactions, aby ograniczyć konto do jego własnych rozmów.",
+      "message_post_in_thread": "Pozwala kontu odpowiadać w każdym wątku, który może czytać, ale nie publikować nowych wiadomości w pokoju. Zezwolenie na message.post obejmuje także to uprawnienie, więc odmowa tutaj nie blokuje odpowiedzi tych kont.",
+      "message_attach": "Pozwala kontu dołączać pliki do nowych wiadomości. Odmów go, aby zablokować przesyłanie plików w pokoju, nadal zezwalając na wiadomości tekstowe.",
+      "message_echo": "Pozwala kontu pokazać odpowiedź w wątku także na osi czasu pokoju, aby zobaczyły ją osoby, które nie obserwują wątku.",
+      "message_manage": "Pozwala kontu edytować lub usuwać wiadomości innych kont. Każdy może zawsze edytować i usuwać własne wiadomości bez tego uprawnienia. Konta z tym uprawnieniem nie podlegają trybowi powolnemu. W rozmowie bezpośredniej mogą go używać tylko jej uczestnicy.",
+      "message_react": "Pozwala kontu dodawać i usuwać reakcje na wiadomości, które może czytać.",
+      "role_manage": "Pozwala kontu tworzyć, zmieniać, porządkować i usuwać role oraz ich ustawienia uprawnień. Dzięki temu uprawnieniu konto może zmienić to, co może robić każda rola na serwerze. Nadawaj je tylko osobom, którym powierzasz cały serwer.",
+      "role_assign": "Pozwala kontu nadawać role członkom i je odbierać. Konto, które nie jest właścicielem, może przypisywać tylko role, których zezwolenia samo posiada. Tylko właściciele mogą przypisać rolę owner.",
+      "admin_view_users": "Pozwala kontu widzieć listę członków w administracji serwerem. Działania na członkach wymagają własnych uprawnień, na przykład role.assign lub user.manage-accounts.",
+      "admin_view_audit": "Pozwala kontu widzieć dziennik zdarzeń w administracji serwerem. Dziennik zdarzeń rejestruje zmiany administracyjne oraz każde włączenie i wyłączenie trybu uprzywilejowanego.",
+      "user_delete_any": "Pozwala kontu usunąć konto dowolnego członka. Nadawaj je tylko osobom, które mogą decydować o usunięciu kogoś z serwera.",
+      "user_delete_self": "Pozwala osobom usunąć własne konto. Odmów go, jeśli konta mają usuwać tylko administratorzy.",
+      "user_invite": "Pozwala kontu wyświetlać, tworzyć, kopiować i unieważniać linki z zaproszeniem. Może widzieć i używać wszystkich aktywnych linków z zaproszeniem, nie tylko własnych.",
+      "user_manage_accounts": "Pozwala kontu tworzyć konta, zmieniać tożsamość konta, resetować hasła, dołączać zweryfikowane adresy e-mail i usuwać blokady logowania innych członków. Pozwala też dodać konto do pokoju lub je z niego usunąć za pomocą wiersza Dołączył.",
+      "user_manage_permissions": "Pozwala kontu bezpośrednio zmieniać ustawienia uprawnień pojedynczego członka lub bota, niezależnie od ról. Jest też potrzebne, aby zobaczyć efektywne uprawnienia danej osoby.",
+      "bot_create": "Pozwala osobom tworzyć własne boty. Bot otrzymuje tylko uprawnienia, na które zezwolisz bezpośrednio w bocie, i nigdy więcej niż ma jego właściciel.",
+      "bot_manage": "Pozwala kontu zarządzać wszystkimi botami na serwerze, także botami innych osób.",
+      "call_start": "Pozwala kontu rozpocząć połączenie w pokoju lub rozmowie bezpośredniej. Aby wziąć udział w połączeniu, potrzebuje też call.join.",
+      "call_join": "Pozwala kontu dołączyć do trwającego połączenia, także tylko jako słuchacz. Wysyłanie dźwięku lub obrazu wymaga call.voice, call.camera lub call.screenshare.",
+      "call_voice": "Pozwala kontu wysyłać dźwięk z mikrofonu w połączeniach. Bez niego konto może nadal słuchać.",
+      "call_camera": "Pozwala kontu wysyłać obraz z kamery w połączeniach.",
+      "call_screenshare": "Pozwala kontu udostępniać ekran, okno, kartę lub aplikację w połączeniach, razem z dźwiękiem. Nie pozwala na dźwięk z mikrofonu; do tego potrzebne jest call.voice."
     }
   }
 }

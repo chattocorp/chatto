@@ -124,6 +124,15 @@
         "effective_inherited": "Effective {state} (inherited)",
         "manage_role": "Manage {role}",
         "no_scopes": "No scopes available for this {subject}."
+      },
+      "help": {
+        "open": "About {permission}",
+        "category": "Category",
+        "scopes": "Can be set for",
+        "privileged": "Needs privileged mode",
+        "privileged_detail": "Accounts must enable privileged mode to use this permission.",
+        "includes": "Includes",
+        "included_by": "Included in"
       }
     },
     "permission_categories": {
@@ -171,6 +180,40 @@
       "call_voice": "Use the microphone in calls",
       "call_camera": "Use the camera in calls",
       "call_screenshare": "Share a screen or application, including captured audio"
+    },
+    "permission_help": {
+      "server_manage": "Allows an account to change the server name, description, logo, and other server settings. It also allows changes to the public Neighbor directory. Give it only to people who can speak for the whole server.",
+      "server_manage_neighbors": "Allows an account to add, change, and remove entries in the public Neighbor directory. It does not allow changes to other server settings.",
+      "room_create": "Allows an account to create channel rooms. At Room group scope, it allows new rooms only in that group.",
+      "room_join": "Allows an account to join channel rooms by itself. Without it, an account can still become a member when someone adds it or when a Universal room adds its role. To hide a room completely, also deny room.list.",
+      "room_list": "Allows an account to see rooms in the room directory and in room lists. An account can see a room without permission to join it, for example to request access. Deny it on a restricted room to hide that room from non-members.",
+      "room_manage": "Allows an account to configure, rename, archive, and delete rooms and room groups at the scope where you set it, and to add or remove room members. At Server scope, it also allows creating and ordering room groups. Accounts with this permission are not limited by Slow Mode.",
+      "room_remove_member": "Allows an account to remove a member from a channel room with a reason. It can also suspend the member, so that they cannot join the room again. The Moderation page needs this permission at Server scope.",
+      "message_read": "Allows an account to read messages, threads, attachments, search results, and typing indicators. The account must also be a member of the room or DM. If you deny this permission, message.read-interactions can still give access to the account's own conversations.",
+      "message_read_interactions": "Allows an account to read only the threads it started, the threads where another account mentioned it directly, and the DMs it received. It can read each of these threads completely. Use it to limit bots to their own conversations.",
+      "message_post": "Allows an account to post messages and reply in threads. At Direct messages scope, people can also start DMs. The account must be a member of the room, and the room's Threading Mode must allow the message. A deny for message.post alone does not stop thread replies when message.post-in-thread is allowed. To stop all posting, also deny message.post-in-thread and message.post-in-interactions.",
+      "message_post_interactions": "Allows an account to reply only in the threads it started, the threads where another account mentioned it directly, and the DMs it received. It does not allow reading other threads or posting new messages. Use it with message.read-interactions to limit an account to its own conversations.",
+      "message_post_in_thread": "Allows an account to reply in each thread that it can read, but not to post new messages in the room. An allow for message.post also includes this permission, so a deny here does not stop replies from those accounts.",
+      "message_attach": "Allows an account to attach files to new messages. Deny it to stop uploads in a room but still allow text messages.",
+      "message_echo": "Allows an account to show a thread reply in the room timeline too, so that people who do not follow the thread also see it.",
+      "message_manage": "Allows an account to edit or delete messages from other accounts. People can always edit and delete their own messages without this permission. Accounts with this permission are not limited by Slow Mode. In a DM, only participants can use it.",
+      "message_react": "Allows an account to add and remove reactions on the messages that it can read.",
+      "role_manage": "Allows an account to create, change, order, and delete roles and their permission settings. With this permission, an account can change what every role on the server can do. Give it only to people you trust with the whole server.",
+      "role_assign": "Allows an account to give roles to members and remove them. An account that is not an owner can assign only roles whose allows it also has. Only owners can assign the owner role.",
+      "admin_view_users": "Allows an account to see the member list in Server Administration. Actions on members need their own permissions, such as role.assign or user.manage-accounts.",
+      "admin_view_audit": "Allows an account to see the event log in Server Administration. The event log records administrative changes and each start and stop of privileged mode.",
+      "user_delete_any": "Allows an account to delete the account of any member. Give it only to people who can decide to remove someone from the server.",
+      "user_delete_self": "Allows people to delete their own account. Deny it if only administrators must delete accounts.",
+      "user_invite": "Allows an account to list, create, copy, and revoke invite links. It can see and use all active invite links, not only its own.",
+      "user_manage_accounts": "Allows an account to create accounts, change account identity, reset passwords, attach verified email addresses, and clear login cooldowns for other members. It also allows adding an account to a room or removing it with the Joined row.",
+      "user_manage_permissions": "Allows an account to change the permission settings of one member or bot directly, outside of roles. It is also necessary to see the effective permissions of a person.",
+      "bot_create": "Allows people to create bots that they own. A bot gets only the permissions that you allow directly on the bot, and never more than its owner has.",
+      "bot_manage": "Allows an account to manage all bots on the server, including bots that other people own.",
+      "call_start": "Allows an account to start a call in a room or DM. It also needs call.join to take part in the call.",
+      "call_join": "Allows an account to join an active call, also only as a listener. Sending audio or video needs call.voice, call.camera, or call.screenshare.",
+      "call_voice": "Allows an account to send microphone audio in calls. Without it, the account can still listen.",
+      "call_camera": "Allows an account to send camera video in calls.",
+      "call_screenshare": "Allows an account to share a screen, window, tab, or application in calls, with its audio. It does not allow microphone audio; that needs call.voice."
     }
   }
 }

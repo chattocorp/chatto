@@ -51,7 +51,7 @@
       "allow": "permitir",
       "deny": "negar",
       "winning_decision": "(decisão vencedora)",
-      "included_by": "Included by {permission}",
+      "included_by": "Incluída em {permission}",
       "level_server": "Servidor",
       "level_group": "Grupo",
       "level_room": "Quarto",
@@ -124,6 +124,15 @@
         "effective_inherited": "Efetivo: {state} (herdado)",
         "manage_role": "Gerenciar {role}",
         "no_scopes": "Nenhum escopo disponível para este tipo ({subject})."
+      },
+      "help": {
+        "open": "Sobre {permission}",
+        "category": "Categoria",
+        "scopes": "Configurável para",
+        "privileged": "Requer o modo privilegiado",
+        "privileged_detail": "As contas precisam ativar o modo privilegiado para usar esta permissão.",
+        "includes": "Inclui",
+        "included_by": "Incluída em"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Atualizar configurações do servidor (nome, descrição, logotipo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Gerenciar o diretório público de vizinhos",
       "room_create": "Criar novas salas",
       "room_join": "Junte-se a salas existentes",
       "room_list": "Ver salas no diretório. Um usuário pode ter permissão para ver uma sala (por exemplo, para solicitar acesso) sem ter permissão para ingressar nela.",
@@ -171,6 +180,40 @@
       "call_voice": "Usar o microfone nas chamadas",
       "call_camera": "Usar a câmera nas chamadas",
       "call_screenshare": "Compartilhar uma tela ou aplicativo, incluindo o áudio capturado"
+    },
+    "permission_help": {
+      "server_manage": "Permite que uma conta altere o nome, a descrição, o logotipo e outras configurações do servidor. Também permite alterar o diretório público de vizinhos. Conceda apenas a pessoas que possam falar pelo servidor inteiro.",
+      "server_manage_neighbors": "Permite que uma conta adicione, altere e remova entradas no diretório público de vizinhos. Não permite alterar outras configurações do servidor.",
+      "room_create": "Permite que uma conta crie salas. No escopo de um grupo de salas, permite criar salas apenas nesse grupo.",
+      "room_join": "Permite que uma conta entre em salas por conta própria. Sem ela, uma conta ainda pode se tornar membro quando alguém a adiciona ou quando uma sala universal adiciona a sua função. Para ocultar uma sala completamente, negue também room.list.",
+      "room_list": "Permite que uma conta veja salas no diretório de salas e nas listas de salas. Uma conta pode ver uma sala sem permissão para entrar nela, por exemplo para solicitar acesso. Negue-a em uma sala restrita para ocultá-la de quem não é membro.",
+      "room_manage": "Permite que uma conta configure, renomeie, arquive e exclua salas e grupos de salas no escopo em que você a define, e adicione ou remova membros das salas. No escopo do servidor, também permite criar e ordenar grupos de salas. Contas com esta permissão não são limitadas pelo modo lento.",
+      "room_remove_member": "Permite que uma conta remova um membro de uma sala com um motivo. Ela também pode suspender o membro para que ele não possa entrar na sala novamente. A página de Moderação precisa desta permissão no escopo do servidor.",
+      "message_read": "Permite que uma conta leia mensagens, tópicos, anexos, resultados de pesquisa e indicadores de digitação. A conta também precisa ser membro da sala ou da mensagem direta. Se você negar esta permissão, message.read-interactions ainda pode dar acesso às conversas da própria conta.",
+      "message_read_interactions": "Permite que uma conta leia apenas os tópicos que iniciou, os tópicos em que outra conta a mencionou diretamente e as mensagens diretas que recebeu. Ela pode ler esses tópicos por completo. Use-a para limitar bots às suas próprias conversas.",
+      "message_post": "Permite que uma conta publique mensagens e responda em tópicos. No escopo de mensagens diretas, as pessoas também podem iniciar mensagens diretas. A conta precisa ser membro da sala, e o modo de tópicos da sala precisa permitir a mensagem. Negar apenas message.post não impede respostas em tópicos quando message.post-in-thread é permitida. Para impedir qualquer publicação, negue também message.post-in-thread e message.post-in-interactions.",
+      "message_post_interactions": "Permite que uma conta responda apenas nos tópicos que iniciou, nos tópicos em que outra conta a mencionou diretamente e nas mensagens diretas que recebeu. Não permite ler outros tópicos nem publicar mensagens novas. Use-a com message.read-interactions para limitar uma conta às suas próprias conversas.",
+      "message_post_in_thread": "Permite que uma conta responda em cada tópico que pode ler, mas não publique mensagens novas na sala. Uma permissão de message.post também inclui esta, por isso negá-la aqui não impede respostas dessas contas.",
+      "message_attach": "Permite que uma conta anexe arquivos a mensagens novas. Negue-a para impedir envios de arquivos em uma sala e ainda permitir mensagens de texto.",
+      "message_echo": "Permite que uma conta mostre também uma resposta de tópico na linha do tempo da sala, para que pessoas que não acompanham o tópico também a vejam.",
+      "message_manage": "Permite que uma conta edite ou exclua mensagens de outras contas. Todas as pessoas sempre podem editar e excluir as próprias mensagens sem esta permissão. Contas com esta permissão não são limitadas pelo modo lento. Em uma mensagem direta, apenas os participantes podem usá-la.",
+      "message_react": "Permite que uma conta adicione e remova reações nas mensagens que pode ler.",
+      "role_manage": "Permite que uma conta crie, altere, ordene e exclua funções e as suas configurações de permissões. Com esta permissão, uma conta pode mudar o que cada função do servidor pode fazer. Conceda apenas a pessoas a quem você confia o servidor inteiro.",
+      "role_assign": "Permite que uma conta atribua funções a membros e as remova. Uma conta que não é proprietária só pode atribuir funções cujas permissões também tem. Apenas proprietários podem atribuir a função owner.",
+      "admin_view_users": "Permite que uma conta veja a lista de membros na administração do servidor. Ações sobre membros precisam das próprias permissões, como role.assign ou user.manage-accounts.",
+      "admin_view_audit": "Permite que uma conta veja o registro de eventos na administração do servidor. O registro de eventos guarda alterações administrativas e cada início e fim do modo privilegiado.",
+      "user_delete_any": "Permite que uma conta exclua a conta de qualquer membro. Conceda apenas a pessoas que possam decidir remover alguém do servidor.",
+      "user_delete_self": "Permite que as pessoas excluam a própria conta. Negue-a se apenas administradores devem excluir contas.",
+      "user_invite": "Permite que uma conta liste, crie, copie e revogue links de convite. Ela pode ver e usar todos os links de convite ativos, não apenas os seus.",
+      "user_manage_accounts": "Permite que uma conta crie contas, altere a identidade de contas, redefina senhas, anexe endereços de e-mail verificados e limpe os tempos de espera de login de outros membros. Também permite adicionar uma conta a uma sala ou removê-la pela linha Inscreveu-se.",
+      "user_manage_permissions": "Permite que uma conta altere diretamente as configurações de permissões de um membro ou bot, fora das funções. Também é necessária para ver as permissões efetivas de uma pessoa.",
+      "bot_create": "Permite que as pessoas criem bots próprios. Um bot recebe apenas as permissões que você permite diretamente no bot, e nunca mais do que o seu proprietário tem.",
+      "bot_manage": "Permite que uma conta gerencie todos os bots do servidor, inclusive bots de outras pessoas.",
+      "call_start": "Permite que uma conta inicie uma chamada em uma sala ou mensagem direta. Ela também precisa de call.join para participar da chamada.",
+      "call_join": "Permite que uma conta entre em uma chamada ativa, também apenas para ouvir. Para enviar áudio ou vídeo, precisa de call.voice, call.camera ou call.screenshare.",
+      "call_voice": "Permite que uma conta envie áudio do microfone nas chamadas. Sem ela, a conta ainda pode ouvir.",
+      "call_camera": "Permite que uma conta envie vídeo da câmera nas chamadas.",
+      "call_screenshare": "Permite que uma conta compartilhe uma tela, janela, aba ou aplicativo nas chamadas, com o áudio. Não permite áudio do microfone; para isso é preciso call.voice."
     }
   }
 }

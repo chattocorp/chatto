@@ -51,7 +51,7 @@
       "allow": "lubada",
       "deny": "eitama",
       "winning_decision": "(võitnud otsus)",
-      "included_by": "Included by {permission}",
+      "included_by": "Sisaldub õiguses {permission}",
       "level_server": "Server",
       "level_group": "Grupp",
       "level_room": "Tuba",
@@ -124,6 +124,15 @@
         "effective_inherited": "Kehtiv: {state} (päritud)",
         "manage_role": "Halda rolli {role}",
         "no_scopes": "Selle tüübi ({subject}) jaoks pole ühtegi ulatust saadaval."
+      },
+      "help": {
+        "open": "Teave: {permission}",
+        "category": "Kategooria",
+        "scopes": "Saab määrata",
+        "privileged": "Vajab privilegeeritud režiimi",
+        "privileged_detail": "Selle õiguse kasutamiseks peab konto lülitama sisse privilegeeritud režiimi.",
+        "includes": "Hõlmab",
+        "included_by": "Sisaldub"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Avaliku naabrite kataloogi haldamine",
       "room_create": "Looge uusi ruume",
       "room_join": "Liituge olemasolevate ruumidega",
       "room_list": "Vaadake ruume kataloogis. Kasutajal võib lubada ruumi näha (nt taotleda juurdepääsu), ilma et tal lubataks sellega liituda.",
@@ -171,6 +180,40 @@
       "call_voice": "Mikrofoni kasutamine kõnedes",
       "call_camera": "Kaamera kasutamine kõnedes",
       "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga"
+    },
+    "permission_help": {
+      "server_manage": "Lubab kontol muuta serveri nime, kirjeldust, logo ja muid serveri seadeid. Samuti lubab see muuta avalikku naabrite kataloogi. Andke see ainult inimestele, kes saavad rääkida kogu serveri nimel.",
+      "server_manage_neighbors": "Lubab kontol lisada, muuta ja eemaldada kirjeid avalikus naabrite kataloogis. See ei luba muuta teisi serveri seadeid.",
+      "room_create": "Lubab kontol luua kanaliruume. Ruumigrupi tasemel lubab see luua ruume ainult selles grupis.",
+      "room_join": "Lubab kontol ise kanaliruumidega liituda. Ilma selleta võib konto siiski liikmeks saada, kui keegi selle lisab või kui universaalne ruum lisab selle rolli. Ruumi täielikuks peitmiseks keelake ka room.list.",
+      "room_list": "Lubab kontol näha ruume ruumikataloogis ja ruuminimekirjades. Konto võib ruumi näha ka ilma liitumisõiguseta, näiteks juurdepääsu taotlemiseks. Keelake see piiratud ruumis, et peita ruum mitteliikmete eest.",
+      "room_manage": "Lubab kontol seadistada, ümber nimetada, arhiveerida ja kustutada ruume ja ruumigruppe tasemel, kus te selle määrate, ning lisada ja eemaldada ruumi liikmeid. Serveri tasemel lubab see ka luua ruumigruppe ja muuta nende järjekorda. Selle õigusega kontosid aeglane režiim ei piira.",
+      "room_remove_member": "Lubab kontol eemaldada liikme kanaliruumist koos põhjendusega. See võib liikme ka peatada, et ta ei saaks ruumiga uuesti liituda. Modereerimise leht vajab seda õigust serveri tasemel.",
+      "message_read": "Lubab kontol lugeda sõnumeid, lõimi, manuseid, otsingutulemusi ja trükkimise märke. Konto peab olema ka ruumi või otsesõnumi liige. Kui keelate selle õiguse, võib message.read-interactions siiski anda juurdepääsu konto enda vestlustele.",
+      "message_read_interactions": "Lubab kontol lugeda ainult lõimi, mille see alustas, lõimi, kus teine konto seda otse mainis, ja saadud otsesõnumeid. Neid lõimi saab see lugeda tervikuna. Kasutage seda, et piirata boteid nende endi vestlustega.",
+      "message_post": "Lubab kontol postitada sõnumeid ja vastata lõimedes. Otsesõnumite tasemel saavad inimesed ka otsesõnumeid alustada. Konto peab olema ruumi liige ja ruumi lõimerežiim peab sõnumit lubama. Ainult message.post keelamine ei peata lõimevastuseid, kui message.post-in-thread on lubatud. Kogu postitamise peatamiseks keelake ka message.post-in-thread ja message.post-in-interactions.",
+      "message_post_interactions": "Lubab kontol vastata ainult lõimedes, mille see alustas, lõimedes, kus teine konto seda otse mainis, ja saadud otsesõnumites. See ei luba lugeda teisi lõimi ega postitada uusi sõnumeid. Kasutage seda koos message.read-interactions õigusega, et piirata konto tema enda vestlustega.",
+      "message_post_in_thread": "Lubab kontol vastata igas lõimes, mida see saab lugeda, kuid mitte postitada ruumi uusi sõnumeid. message.post luba hõlmab ka seda õigust, seega keeld siin ei peata nende kontode vastuseid.",
+      "message_attach": "Lubab kontol lisada uutele sõnumitele faile. Keelake see, et peatada ruumis üleslaadimised, kuid lubada endiselt tekstisõnumeid.",
+      "message_echo": "Lubab kontol näidata lõimevastust ka ruumi ajajoonel, et seda näeksid ka need, kes lõime ei jälgi.",
+      "message_manage": "Lubab kontol muuta või kustutada teiste kontode sõnumeid. Oma sõnumeid saavad kõik alati ilma selle õiguseta muuta ja kustutada. Selle õigusega kontosid aeglane režiim ei piira. Otsesõnumis saavad seda kasutada ainult osalejad.",
+      "message_react": "Lubab kontol lisada ja eemaldada reaktsioone sõnumitele, mida see saab lugeda.",
+      "role_manage": "Lubab kontol luua, muuta, järjestada ja kustutada rolle ning nende õiguste seadeid. Selle õigusega saab konto muuta, mida iga roll serveris teha tohib. Andke see ainult inimestele, kellele usaldate kogu serveri.",
+      "role_assign": "Lubab kontol anda liikmetele rolle ja neid eemaldada. Konto, mis ei ole omanik, saab määrata ainult rolle, mille lubadest tal endal on. Rolli owner saavad määrata ainult omanikud.",
+      "admin_view_users": "Lubab kontol näha serveri halduses liikmete nimekirja. Toimingud liikmetega vajavad oma õigusi, näiteks role.assign või user.manage-accounts.",
+      "admin_view_audit": "Lubab kontol näha serveri halduses sündmuste logi. Sündmuste logi salvestab halduslikud muudatused ning privilegeeritud režiimi iga käivitamise ja lõpetamise.",
+      "user_delete_any": "Lubab kontol kustutada ükskõik millise liikme konto. Andke see ainult inimestele, kes võivad otsustada kellegi serverist eemaldamise üle.",
+      "user_delete_self": "Lubab inimestel kustutada oma konto. Keelake see, kui kontosid peavad kustutama ainult administraatorid.",
+      "user_invite": "Lubab kontol loetleda, luua, kopeerida ja tühistada kutselinke. See näeb ja saab kasutada kõiki aktiivseid kutselinke, mitte ainult enda omi.",
+      "user_manage_accounts": "Lubab kontol luua teistele liikmetele kontosid, muuta konto identiteeti, lähtestada paroole, lisada kinnitatud e-posti aadresse ja tühistada sisselogimise ooteaegu. Samuti lubab see lisada konto ruumi või eemaldada selle ruumist rea Liitunud kaudu.",
+      "user_manage_permissions": "Lubab kontol muuta ühe liikme või boti õiguste seadeid otse, rollidest eraldi. Seda on vaja ka inimese kehtivate õiguste nägemiseks.",
+      "bot_create": "Lubab inimestel luua enda omanduses boteid. Bot saab ainult õigused, mille lubate otse botil, ja mitte kunagi rohkem, kui on tema omanikul.",
+      "bot_manage": "Lubab kontol hallata kõiki serveri boteid, ka teistele inimestele kuuluvaid.",
+      "call_start": "Lubab kontol alustada kõnet ruumis või otsesõnumis. Kõnes osalemiseks vajab see ka call.join õigust.",
+      "call_join": "Lubab kontol liituda käimasoleva kõnega, ka ainult kuulajana. Heli või video saatmiseks on vaja call.voice, call.camera või call.screenshare õigust.",
+      "call_voice": "Lubab kontol saata kõnedes mikrofoni heli. Ilma selleta saab konto siiski kuulata.",
+      "call_camera": "Lubab kontol saata kõnedes kaamera videot.",
+      "call_screenshare": "Lubab kontol jagada kõnedes ekraani, akent, vahelehte või rakendust koos heliga. See ei luba mikrofoni heli; selleks on vaja call.voice õigust."
     }
   }
 }

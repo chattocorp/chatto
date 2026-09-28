@@ -51,7 +51,7 @@
       "allow": "consentire",
       "deny": "negare",
       "winning_decision": "(decisione vincente)",
-      "included_by": "Included by {permission}",
+      "included_by": "Inclusa in {permission}",
       "level_server": "Server",
       "level_group": "Gruppo",
       "level_room": "Stanza",
@@ -124,6 +124,15 @@
         "effective_inherited": "Effettivo: {state} (ereditato)",
         "manage_role": "Gestisci {role}",
         "no_scopes": "Nessun ambito disponibile per questo {subject}."
+      },
+      "help": {
+        "open": "Informazioni su {permission}",
+        "category": "Categoria",
+        "scopes": "Impostabile per",
+        "privileged": "Richiede la modalità privilegiata",
+        "privileged_detail": "Gli account devono attivare la modalità privilegiata per usare questa autorizzazione.",
+        "includes": "Include",
+        "included_by": "Inclusa in"
       }
     },
     "permission_categories": {
@@ -171,6 +180,40 @@
       "call_voice": "Usare il microfono nelle chiamate",
       "call_camera": "Usare la videocamera nelle chiamate",
       "call_screenshare": "Condividere uno schermo o un’applicazione, incluso l’audio acquisito"
+    },
+    "permission_help": {
+      "server_manage": "Consente a un account di modificare il nome, la descrizione, il logo e le altre impostazioni del server. Consente anche di modificare la directory pubblica dei vicini. Concedila solo a persone che possono parlare a nome dell’intero server.",
+      "server_manage_neighbors": "Consente a un account di aggiungere, modificare e rimuovere voci nella directory pubblica dei vicini. Non consente di modificare le altre impostazioni del server.",
+      "room_create": "Consente a un account di creare stanze. Nell’ambito di un gruppo di stanze, consente di creare stanze solo in quel gruppo.",
+      "room_join": "Consente a un account di entrare nelle stanze da solo. Senza di essa, un account può comunque diventare membro quando qualcuno lo aggiunge o quando una stanza universale aggiunge il suo ruolo. Per nascondere completamente una stanza, nega anche room.list.",
+      "room_list": "Consente a un account di vedere le stanze nella directory delle stanze e negli elenchi delle stanze. Un account può vedere una stanza senza poterci entrare, ad esempio per richiedere l’accesso. Negala in una stanza riservata per nasconderla a chi non ne è membro.",
+      "room_manage": "Consente a un account di configurare, rinominare, archiviare ed eliminare stanze e gruppi di stanze nell’ambito in cui la imposti, e di aggiungere o rimuovere membri dalle stanze. Nell’ambito del server, consente anche di creare e ordinare i gruppi di stanze. Gli account con questa autorizzazione non sono limitati dalla modalità lenta.",
+      "room_remove_member": "Consente a un account di rimuovere un membro da una stanza indicando un motivo. Può anche sospendere il membro, in modo che non possa rientrare nella stanza. La pagina Moderazione richiede questa autorizzazione nell’ambito del server.",
+      "message_read": "Consente a un account di leggere messaggi, thread, allegati, risultati di ricerca e indicatori di digitazione. L’account deve anche essere membro della stanza o del messaggio diretto. Se neghi questa autorizzazione, message.read-interactions può comunque dare accesso alle conversazioni dell’account stesso.",
+      "message_read_interactions": "Consente a un account di leggere solo i thread che ha avviato, i thread in cui un altro account lo ha menzionato direttamente e i messaggi diretti che ha ricevuto. Può leggere questi thread per intero. Usala per limitare i bot alle proprie conversazioni.",
+      "message_post": "Consente a un account di pubblicare messaggi e rispondere nei thread. Nell’ambito dei messaggi diretti, le persone possono anche avviare messaggi diretti. L’account deve essere membro della stanza, e la modalità thread della stanza deve consentire il messaggio. Negare solo message.post non impedisce le risposte nei thread quando message.post-in-thread è consentita. Per impedire ogni pubblicazione, nega anche message.post-in-thread e message.post-in-interactions.",
+      "message_post_interactions": "Consente a un account di rispondere solo nei thread che ha avviato, nei thread in cui un altro account lo ha menzionato direttamente e nei messaggi diretti che ha ricevuto. Non consente di leggere altri thread né di pubblicare nuovi messaggi. Usala con message.read-interactions per limitare un account alle proprie conversazioni.",
+      "message_post_in_thread": "Consente a un account di rispondere in ogni thread che può leggere, ma non di pubblicare nuovi messaggi nella stanza. Un’autorizzazione per message.post include anche questa, quindi negarla qui non impedisce le risposte di quegli account.",
+      "message_attach": "Consente a un account di allegare file ai nuovi messaggi. Negala per impedire i caricamenti in una stanza continuando a consentire i messaggi di testo.",
+      "message_echo": "Consente a un account di mostrare una risposta di thread anche nella cronologia della stanza, così che la vedano anche le persone che non seguono il thread.",
+      "message_manage": "Consente a un account di modificare o eliminare i messaggi di altri account. Tutti possono sempre modificare ed eliminare i propri messaggi senza questa autorizzazione. Gli account con questa autorizzazione non sono limitati dalla modalità lenta. In un messaggio diretto, solo i partecipanti possono usarla.",
+      "message_react": "Consente a un account di aggiungere e rimuovere reazioni ai messaggi che può leggere.",
+      "role_manage": "Consente a un account di creare, modificare, ordinare ed eliminare ruoli e le loro impostazioni di autorizzazione. Con questa autorizzazione, un account può cambiare ciò che ogni ruolo del server può fare. Concedila solo a persone a cui affideresti l’intero server.",
+      "role_assign": "Consente a un account di assegnare ruoli ai membri e di rimuoverli. Un account che non è proprietario può assegnare solo ruoli di cui possiede anche le autorizzazioni. Solo i proprietari possono assegnare il ruolo owner.",
+      "admin_view_users": "Consente a un account di vedere l’elenco dei membri nell’amministrazione del server. Le azioni sui membri richiedono autorizzazioni proprie, come role.assign o user.manage-accounts.",
+      "admin_view_audit": "Consente a un account di vedere il registro eventi nell’amministrazione del server. Il registro eventi annota le modifiche amministrative e ogni attivazione e disattivazione della modalità privilegiata.",
+      "user_delete_any": "Consente a un account di eliminare l’account di qualsiasi membro. Concedila solo a persone che possono decidere di rimuovere qualcuno dal server.",
+      "user_delete_self": "Consente alle persone di eliminare il proprio account. Negala se solo gli amministratori devono eliminare gli account.",
+      "user_invite": "Consente a un account di elencare, creare, copiare e revocare link di invito. Può vedere e usare tutti i link di invito attivi, non solo i propri.",
+      "user_manage_accounts": "Consente a un account di creare account, modificare l’identità di un account, reimpostare password, collegare indirizzi email verificati e azzerare i tempi di attesa di accesso di altri membri. Consente anche di aggiungere un account a una stanza o di rimuoverlo con la riga Iscritto.",
+      "user_manage_permissions": "Consente a un account di modificare direttamente le impostazioni di autorizzazione di un singolo membro o bot, al di fuori dei ruoli. È anche necessaria per vedere le autorizzazioni effettive di una persona.",
+      "bot_create": "Consente alle persone di creare bot di loro proprietà. Un bot riceve solo le autorizzazioni che consenti direttamente sul bot, e mai più di quelle del suo proprietario.",
+      "bot_manage": "Consente a un account di gestire tutti i bot del server, compresi quelli di altre persone.",
+      "call_start": "Consente a un account di avviare una chiamata in una stanza o in un messaggio diretto. Per partecipare alla chiamata serve anche call.join.",
+      "call_join": "Consente a un account di partecipare a una chiamata in corso, anche solo in ascolto. Per inviare audio o video servono call.voice, call.camera o call.screenshare.",
+      "call_voice": "Consente a un account di inviare l’audio del microfono nelle chiamate. Senza di essa, l’account può comunque ascoltare.",
+      "call_camera": "Consente a un account di inviare il video della fotocamera nelle chiamate.",
+      "call_screenshare": "Consente a un account di condividere uno schermo, una finestra, una scheda o un’applicazione nelle chiamate, con il relativo audio. Non consente l’audio del microfono; per quello serve call.voice."
     }
   }
 }

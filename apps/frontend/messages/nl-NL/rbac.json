@@ -51,7 +51,7 @@
       "allow": "toegestaan",
       "deny": "ontkennen",
       "winning_decision": "(winnende beslissing)",
-      "included_by": "Included by {permission}",
+      "included_by": "Onderdeel van {permission}",
       "level_server": "Server",
       "level_group": "Groep",
       "level_room": "Kamer",
@@ -124,6 +124,15 @@
         "effective_inherited": "Effectief: {state} (overgenomen)",
         "manage_role": "{role} beheren",
         "no_scopes": "Geen bereiken beschikbaar voor dit type ({subject})."
+      },
+      "help": {
+        "open": "Over {permission}",
+        "category": "Categorie",
+        "scopes": "In te stellen voor",
+        "privileged": "Vereist de bevoorrechte modus",
+        "privileged_detail": "Accounts moeten de bevoorrechte modus inschakelen om dit recht te gebruiken.",
+        "includes": "Omvat",
+        "included_by": "Onderdeel van"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "De openbare burengids beheren",
       "room_create": "Maak nieuwe kamers",
       "room_join": "Sluit je aan bij bestaande kamers",
       "room_list": "Bekijk kamers in de directory. Een gebruiker kan toestemming krijgen om een ​​ruimte te zien (bijvoorbeeld om toegang aan te vragen) zonder dat hij er toegang toe mag hebben.",
@@ -171,6 +180,40 @@
       "call_voice": "De microfoon gebruiken in oproepen",
       "call_camera": "De camera gebruiken in oproepen",
       "call_screenshare": "Een scherm of toepassing delen, inclusief opgenomen audio"
+    },
+    "permission_help": {
+      "server_manage": "Staat een account toe de servernaam, beschrijving, het logo en andere serverinstellingen te wijzigen. Het staat ook wijzigingen in de openbare burengids toe. Geef het alleen aan mensen die namens de hele server kunnen spreken.",
+      "server_manage_neighbors": "Staat een account toe items in de openbare burengids toe te voegen, te wijzigen en te verwijderen. Het staat geen wijzigingen in andere serverinstellingen toe.",
+      "room_create": "Staat een account toe kanaalkamers aan te maken. Op het niveau van een kamergroep staat het nieuwe kamers alleen in die groep toe.",
+      "room_join": "Staat een account toe zelf lid te worden van kanaalkamers. Zonder dit recht kan een account toch lid worden als iemand het toevoegt of als een universele kamer zijn rol toevoegt. Weiger ook room.list om een kamer volledig te verbergen.",
+      "room_list": "Staat een account toe kamers te zien in de kamerlijst en in kameroverzichten. Een account kan een kamer zien zonder er lid van te mogen worden, bijvoorbeeld om toegang aan te vragen. Weiger het in een beperkte kamer om die kamer te verbergen voor niet-leden.",
+      "room_manage": "Staat een account toe kamers en kamergroepen te configureren, te hernoemen, te archiveren en te verwijderen op het niveau waar je het instelt, en kamerleden toe te voegen of te verwijderen. Op serverniveau staat het ook toe kamergroepen aan te maken en te ordenen. Accounts met dit recht worden niet beperkt door de langzame modus.",
+      "room_remove_member": "Staat een account toe een lid met een reden uit een kanaalkamer te verwijderen. Het kan het lid ook schorsen, zodat het de kamer niet opnieuw kan betreden. De pagina Moderatie heeft dit recht op serverniveau nodig.",
+      "message_read": "Staat een account toe berichten, threads, bijlagen, zoekresultaten en typindicatoren te lezen. Het account moet ook lid zijn van de kamer of het privégesprek. Als je dit recht weigert, kan message.read-interactions nog steeds toegang geven tot de eigen gesprekken van het account.",
+      "message_read_interactions": "Staat een account toe alleen de threads te lezen die het zelf is begonnen, de threads waarin een ander account het direct heeft genoemd en de privéberichten die het heeft ontvangen. Het kan deze threads volledig lezen. Gebruik het om bots te beperken tot hun eigen gesprekken.",
+      "message_post": "Staat een account toe berichten te plaatsen en in threads te antwoorden. Op het niveau van privéberichten kunnen mensen ook privégesprekken starten. Het account moet lid zijn van de kamer, en de threadmodus van de kamer moet het bericht toestaan. Alleen message.post weigeren houdt threadantwoorden niet tegen als message.post-in-thread is toegestaan. Weiger ook message.post-in-thread en message.post-in-interactions om alle berichten tegen te houden.",
+      "message_post_interactions": "Staat een account toe alleen te antwoorden in de threads die het zelf is begonnen, de threads waarin een ander account het direct heeft genoemd en de privéberichten die het heeft ontvangen. Het staat niet toe andere threads te lezen of nieuwe berichten te plaatsen. Gebruik het samen met message.read-interactions om een account te beperken tot zijn eigen gesprekken.",
+      "message_post_in_thread": "Staat een account toe te antwoorden in elke thread die het kan lezen, maar geen nieuwe berichten in de kamer te plaatsen. Een toestemming voor message.post omvat ook dit recht, dus een weigering hier houdt antwoorden van die accounts niet tegen.",
+      "message_attach": "Staat een account toe bestanden aan nieuwe berichten toe te voegen. Weiger het om uploads in een kamer tegen te houden en tekstberichten toch toe te staan.",
+      "message_echo": "Staat een account toe een threadantwoord ook in de tijdlijn van de kamer te tonen, zodat mensen die de thread niet volgen het ook zien.",
+      "message_manage": "Staat een account toe berichten van andere accounts te bewerken of te verwijderen. Iedereen kan zijn eigen berichten altijd zonder dit recht bewerken en verwijderen. Accounts met dit recht worden niet beperkt door de langzame modus. In een privégesprek kunnen alleen deelnemers het gebruiken.",
+      "message_react": "Staat een account toe reacties toe te voegen aan en te verwijderen van berichten die het kan lezen.",
+      "role_manage": "Staat een account toe rollen en hun rechteninstellingen aan te maken, te wijzigen, te ordenen en te verwijderen. Met dit recht kan een account veranderen wat elke rol op de server mag. Geef het alleen aan mensen aan wie je de hele server toevertrouwt.",
+      "role_assign": "Staat een account toe rollen aan leden te geven en ze weer te verwijderen. Een account dat geen eigenaar is, kan alleen rollen toewijzen waarvan het de toestemmingen zelf heeft. Alleen eigenaren kunnen de rol owner toewijzen.",
+      "admin_view_users": "Staat een account toe de ledenlijst in Serverbeheer te zien. Acties op leden hebben hun eigen rechten nodig, zoals role.assign of user.manage-accounts.",
+      "admin_view_audit": "Staat een account toe het gebeurtenislogboek in Serverbeheer te zien. Het gebeurtenislogboek legt beheerwijzigingen vast en elke start en stop van de bevoorrechte modus.",
+      "user_delete_any": "Staat een account toe het account van elk lid te verwijderen. Geef het alleen aan mensen die mogen beslissen iemand van de server te verwijderen.",
+      "user_delete_self": "Staat mensen toe hun eigen account te verwijderen. Weiger het als alleen beheerders accounts mogen verwijderen.",
+      "user_invite": "Staat een account toe uitnodigingslinks te bekijken, aan te maken, te kopiëren en in te trekken. Het kan alle actieve uitnodigingslinks zien en gebruiken, niet alleen de eigen links.",
+      "user_manage_accounts": "Staat een account toe voor andere leden accounts aan te maken, de accountidentiteit te wijzigen, wachtwoorden opnieuw in te stellen, geverifieerde e-mailadressen toe te voegen en inlogwachttijden te wissen. Het staat ook toe een account met de rij Lid geworden aan een kamer toe te voegen of eruit te verwijderen.",
+      "user_manage_permissions": "Staat een account toe de rechteninstellingen van één lid of bot direct te wijzigen, los van rollen. Het is ook nodig om de effectieve rechten van een persoon te zien.",
+      "bot_create": "Staat mensen toe eigen bots aan te maken. Een bot krijgt alleen de rechten die je direct op de bot toestaat, en nooit meer dan zijn eigenaar heeft.",
+      "bot_manage": "Staat een account toe alle bots op de server te beheren, ook bots van andere mensen.",
+      "call_start": "Staat een account toe een gesprek te starten in een kamer of privégesprek. Om aan het gesprek deel te nemen, heeft het ook call.join nodig.",
+      "call_join": "Staat een account toe deel te nemen aan een actief gesprek, ook alleen als luisteraar. Om audio of video te versturen zijn call.voice, call.camera of call.screenshare nodig.",
+      "call_voice": "Staat een account toe microfoongeluid te versturen in gesprekken. Zonder dit recht kan het account nog steeds luisteren.",
+      "call_camera": "Staat een account toe camerabeeld te versturen in gesprekken.",
+      "call_screenshare": "Staat een account toe een scherm, venster, tabblad of toepassing te delen in gesprekken, inclusief geluid. Het staat geen microfoongeluid toe; daarvoor is call.voice nodig."
     }
   }
 }

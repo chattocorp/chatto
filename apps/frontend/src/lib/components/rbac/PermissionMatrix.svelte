@@ -41,6 +41,8 @@ focusing a cell highlights its permission row and role column.
   } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
+  import PermissionHelpDialog from './PermissionHelpDialog.svelte';
+  import PermissionRowLabel from './PermissionRowLabel.svelte';
   import { decisionTitle, decisionWord } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '@tanstack/svelte-query';
@@ -214,6 +216,13 @@ focusing a cell highlights its permission row and role column.
     return chains;
   });
   let permissionFilter = $state('');
+  let helpPermission = $state<string | null>(null);
+  let helpVisible = $state(false);
+
+  function showHelp(permission: string) {
+    helpPermission = permission;
+    helpVisible = true;
+  }
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
@@ -445,11 +454,12 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        <span
-          data-testid="permission-name"
-          title={getPermissionDescription(permission)}
-          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}>{permission}</span
-        >
+        <PermissionRowLabel
+          label={permission}
+          {highlighted}
+          helpLabel={m('rbac.permissions.help.open', { permission })}
+          onhelp={() => showHelp(permission)}
+        />
       {/snippet}
       {#snippet cell(permission, role)}
         {@const permissionId = permission}
@@ -514,4 +524,5 @@ focusing a cell highlights its permission row and role column.
       {/snippet}
     </MatrixTable>
   </Panel>
+  <PermissionHelpDialog bind:visible={helpVisible} bind:permission={helpPermission} {permissions} />
 {/if}

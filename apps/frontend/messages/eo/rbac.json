@@ -51,7 +51,7 @@
       "allow": "permesi",
       "deny": "nei",
       "winning_decision": "(gajna decido)",
-      "included_by": "Included by {permission}",
+      "included_by": "Inkluzivita en {permission}",
       "level_server": "Servilo",
       "level_group": "Grupo",
       "level_room": "Ĉambro",
@@ -124,6 +124,15 @@
         "effective_inherited": "Efektive: {state} (heredita)",
         "manage_role": "Administri {role}",
         "no_scopes": "Neniuj ampleksoj disponeblaj por ĉi tiu {subject}."
+      },
+      "help": {
+        "open": "Pri {permission}",
+        "category": "Kategorio",
+        "scopes": "Agordebla por",
+        "privileged": "Bezonas privilegian reĝimon",
+        "privileged_detail": "Kontoj devas ŝalti privilegian reĝimon por uzi ĉi tiun permeson.",
+        "includes": "Inkluzivas",
+        "included_by": "Inkluzivita en"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Administri la publikan najbaran katalogon",
       "room_create": "Krei novajn ĉambrojn",
       "room_join": "Aliĝu al ekzistantaj ĉambroj",
       "room_list": "Vidu ĉambrojn en la dosierujo. Uzanto povas esti permesita vidi ĉambron (ekz. por peti aliron) sen esti permesita aliĝi al ĝi.",
@@ -171,6 +180,40 @@
       "call_voice": "Uzi la mikrofonon dum vokoj",
       "call_camera": "Uzi la kameraon dum vokoj",
       "call_screenshare": "Kunhavigi ekranon aŭ aplikaĵon, inkluzive de kaptita sono"
+    },
+    "permission_help": {
+      "server_manage": "Permesas al konto ŝanĝi la nomon, priskribon, emblemon kaj aliajn agordojn de la servilo. Ĝi ankaŭ permesas ŝanĝi la publikan najbaran katalogon. Donu ĝin nur al homoj, kiuj povas paroli por la tuta servilo.",
+      "server_manage_neighbors": "Permesas al konto aldoni, ŝanĝi kaj forigi erojn en la publika najbara katalogo. Ĝi ne permesas ŝanĝi aliajn agordojn de la servilo.",
+      "room_create": "Permesas al konto krei kanalajn ĉambrojn. Ĉe la nivelo de ĉambrogrupo, ĝi permesas novajn ĉambrojn nur en tiu grupo.",
+      "room_join": "Permesas al konto mem aliĝi al kanalaj ĉambroj. Sen ĝi, konto tamen povas iĝi membro, kiam iu aldonas ĝin aŭ kiam universala ĉambro aldonas ĝian rolon. Por tute kaŝi ĉambron, rifuzu ankaŭ room.list.",
+      "room_list": "Permesas al konto vidi ĉambrojn en la ĉambra katalogo kaj en ĉambraj listoj. Konto povas vidi ĉambron sen rajto aliĝi al ĝi, ekzemple por peti aliron. Rifuzu ĝin en limigita ĉambro por kaŝi tiun ĉambron de nemembroj.",
+      "room_manage": "Permesas al konto agordi, renomi, arĥivi kaj forigi ĉambrojn kaj ĉambrogrupojn ĉe la nivelo, kie vi agordas ĝin, kaj aldoni aŭ forigi ĉambranojn. Ĉe la servila nivelo, ĝi ankaŭ permesas krei kaj ordigi ĉambrogrupojn. Kontojn kun ĉi tiu permeso la malrapida reĝimo ne limigas.",
+      "room_remove_member": "Permesas al konto forigi membron el kanala ĉambro kun kialo. Ĝi ankaŭ povas suspendi la membron, por ke tiu ne povu denove aliĝi al la ĉambro. La paĝo Modereco bezonas ĉi tiun permeson ĉe la servila nivelo.",
+      "message_read": "Permesas al konto legi mesaĝojn, fadenojn, kunsendaĵojn, serĉrezultojn kaj tajpindikilojn. La konto ankaŭ devas esti membro de la ĉambro aŭ de la rekta mesaĝo. Se vi rifuzas ĉi tiun permeson, message.read-interactions ankoraŭ povas doni aliron al la propraj konversacioj de la konto.",
+      "message_read_interactions": "Permesas al konto legi nur la fadenojn, kiujn ĝi komencis, la fadenojn, kie alia konto rekte menciis ĝin, kaj la rektajn mesaĝojn, kiujn ĝi ricevis. Ĝi povas legi tiujn fadenojn tute. Uzu ĝin por limigi robotojn al iliaj propraj konversacioj.",
+      "message_post": "Permesas al konto afiŝi mesaĝojn kaj respondi en fadenoj. Ĉe la nivelo de rektaj mesaĝoj, homoj ankaŭ povas komenci rektajn mesaĝojn. La konto devas esti membro de la ĉambro, kaj la fadenreĝimo de la ĉambro devas permesi la mesaĝon. Rifuzi nur message.post ne haltigas respondojn en fadenoj, se message.post-in-thread estas permesita. Por haltigi ĉian afiŝadon, rifuzu ankaŭ message.post-in-thread kaj message.post-in-interactions.",
+      "message_post_interactions": "Permesas al konto respondi nur en la fadenoj, kiujn ĝi komencis, en la fadenoj, kie alia konto rekte menciis ĝin, kaj en la rektaj mesaĝoj, kiujn ĝi ricevis. Ĝi ne permesas legi aliajn fadenojn aŭ afiŝi novajn mesaĝojn. Uzu ĝin kun message.read-interactions por limigi konton al ĝiaj propraj konversacioj.",
+      "message_post_in_thread": "Permesas al konto respondi en ĉiu fadeno, kiun ĝi povas legi, sed ne afiŝi novajn mesaĝojn en la ĉambro. Permeso por message.post ankaŭ inkluzivas ĉi tiun, do rifuzo ĉi tie ne haltigas respondojn de tiuj kontoj.",
+      "message_attach": "Permesas al konto kunsendi dosierojn al novaj mesaĝoj. Rifuzu ĝin por haltigi alŝutojn en ĉambro sed daŭre permesi tekstajn mesaĝojn.",
+      "message_echo": "Permesas al konto montri fadenan respondon ankaŭ en la tempolinio de la ĉambro, por ke homoj, kiuj ne sekvas la fadenon, ankaŭ vidu ĝin.",
+      "message_manage": "Permesas al konto redakti aŭ forigi mesaĝojn de aliaj kontoj. Ĉiu ĉiam povas redakti kaj forigi siajn proprajn mesaĝojn sen ĉi tiu permeso. Kontojn kun ĉi tiu permeso la malrapida reĝimo ne limigas. En rekta mesaĝo, nur partoprenantoj povas uzi ĝin.",
+      "message_react": "Permesas al konto aldoni kaj forigi reagojn al mesaĝoj, kiujn ĝi povas legi.",
+      "role_manage": "Permesas al konto krei, ŝanĝi, ordigi kaj forigi rolojn kaj iliajn permesajn agordojn. Per ĉi tiu permeso, konto povas ŝanĝi tion, kion ĉiu rolo en la servilo rajtas fari. Donu ĝin nur al homoj, al kiuj vi konfidas la tutan servilon.",
+      "role_assign": "Permesas al konto doni rolojn al membroj kaj forpreni ilin. Konto, kiu ne estas posedanto, povas atribui nur rolojn, kies permesojn ĝi mem havas. Nur posedantoj povas atribui la rolon owner.",
+      "admin_view_users": "Permesas al konto vidi la membroliston en la servila administrado. Agoj pri membroj bezonas proprajn permesojn, ekzemple role.assign aŭ user.manage-accounts.",
+      "admin_view_audit": "Permesas al konto vidi la protokolon de eventoj en la servila administrado. La protokolo registras administrajn ŝanĝojn kaj ĉiun komencon kaj finon de la privilegia reĝimo.",
+      "user_delete_any": "Permesas al konto forigi la konton de iu ajn membro. Donu ĝin nur al homoj, kiuj rajtas decidi forigi iun el la servilo.",
+      "user_delete_self": "Permesas al homoj forigi sian propran konton. Rifuzu ĝin, se nur administrantoj forigu kontojn.",
+      "user_invite": "Permesas al konto listigi, krei, kopii kaj nuligi invitajn ligilojn. Ĝi povas vidi kaj uzi ĉiujn aktivajn invitajn ligilojn, ne nur siajn proprajn.",
+      "user_manage_accounts": "Permesas al konto krei kontojn, ŝanĝi kontan identecon, restarigi pasvortojn, aldoni kontrolitajn retpoŝtadresojn kaj forigi ensalutajn atendotempojn por aliaj membroj. Ĝi ankaŭ permesas aldoni konton al ĉambro aŭ forigi ĝin per la vico Aliĝis.",
+      "user_manage_permissions": "Permesas al konto rekte ŝanĝi la permesajn agordojn de unu membro aŭ roboto, ekster roloj. Ĝi ankaŭ necesas por vidi la efektivajn permesojn de persono.",
+      "bot_create": "Permesas al homoj krei robotojn, kiujn ili posedas. Roboto ricevas nur la permesojn, kiujn vi rekte permesas al la roboto, kaj neniam pli ol ĝia posedanto havas.",
+      "bot_manage": "Permesas al konto administri ĉiujn robotojn en la servilo, ankaŭ robotojn de aliaj homoj.",
+      "call_start": "Permesas al konto komenci vokon en ĉambro aŭ rekta mesaĝo. Por partopreni en la voko, ĝi ankaŭ bezonas call.join.",
+      "call_join": "Permesas al konto aliĝi al aktiva voko, ankaŭ nur kiel aŭskultanto. Por sendi sonon aŭ videon necesas call.voice, call.camera aŭ call.screenshare.",
+      "call_voice": "Permesas al konto sendi mikrofonan sonon en vokoj. Sen ĝi, la konto tamen povas aŭskulti.",
+      "call_camera": "Permesas al konto sendi kameraan videon en vokoj.",
+      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice."
     }
   }
 }

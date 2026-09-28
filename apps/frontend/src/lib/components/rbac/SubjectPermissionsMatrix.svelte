@@ -27,8 +27,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   };
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixTable } from '$lib/ui/matrix';
-  import { Hint } from '$lib/ui';
-  import { ShortcutTextInput } from '$lib/ui/form';
+  import { Dialog, Hint } from '$lib/ui';
+  import { Button, ShortcutTextInput } from '$lib/ui/form';
   import {
     getIncludingPermissions,
     getPermissionCategory,
@@ -36,6 +36,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     getPermissionDescription
   } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
+  import PermissionHelpDialog from './PermissionHelpDialog.svelte';
+  import PermissionRowLabel from './PermissionRowLabel.svelte';
   import { decisionTitle, decisionWord, scopeKindLabel } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
 
@@ -150,6 +152,18 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     return chains;
   });
   let permissionFilter = $state('');
+  let helpPermission = $state<string | null>(null);
+  let helpVisible = $state(false);
+  let membershipHelpVisible = $state(false);
+
+  function showHelp(permission: string) {
+    if (permission === membershipRow) {
+      membershipHelpVisible = true;
+      return;
+    }
+    helpPermission = permission;
+    helpVisible = true;
+  }
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
@@ -317,14 +331,13 @@ scrolling; the table only scrolls horizontally when its columns overflow.
             </span>
           {/snippet}
           {#snippet rowHeader(permission, highlighted)}
-            <span
-              data-testid="permission-name"
-              title={permission === membershipRow
-                ? m('rbac.permissions.membership.description')
-                : getPermissionDescription(permission)}
-              class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
-              >{permission === membershipRow ? m('room.directory.joined') : permission}</span
-            >
+            {@const label = permission === membershipRow ? m('room.directory.joined') : permission}
+            <PermissionRowLabel
+              {label}
+              {highlighted}
+              helpLabel={m('rbac.permissions.help.open', { permission: label })}
+              onhelp={() => showHelp(permission)}
+            />
           {/snippet}
           {#snippet cell(permission, scope)}
             {@const permissionId = permission}
@@ -482,3 +495,13 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     {/if}
   </div>
 </div>
+
+<PermissionHelpDialog bind:visible={helpVisible} bind:permission={helpPermission} {permissions} />
+<Dialog bind:visible={membershipHelpVisible} title={m('room.directory.joined')} size="sm">
+  <p>{m('rbac.permissions.membership.description')}</p>
+  {#snippet primaryAction()}
+    <Button defaultAction onclick={() => (membershipHelpVisible = false)}>
+      {m('common.got_it')}
+    </Button>
+  {/snippet}
+</Dialog>

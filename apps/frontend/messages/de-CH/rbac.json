@@ -1,0 +1,16 @@
+{
+  "rbac": {
+    "permission_descriptions": {
+      "call_screenshare": "Bildschirm oder Anwendung einschliesslich aufgenommenem Audio teilen"
+    },
+    "permission_help": {
+      "server_manage": "Erlaubt einem Konto, den Servernamen, die Beschreibung, das Logo und andere Servereinstellungen zu ändern. Ausserdem erlaubt sie Änderungen am öffentlichen Nachbarverzeichnis. Gib sie nur Personen, die für den ganzen Server sprechen können.",
+      "room_manage": "Erlaubt einem Konto, Räume und Raumgruppen in dem Bereich, in dem du sie setzt, zu konfigurieren, umzubenennen, zu archivieren und zu löschen sowie Raummitglieder hinzuzufügen oder zu entfernen. Im Serverbereich erlaubt sie ausserdem, Raumgruppen zu erstellen und zu sortieren. Konten mit dieser Berechtigung sind nicht an den langsamen Modus gebunden.",
+      "message_read": "Erlaubt einem Konto, Nachrichten, Threads, Anhänge, Suchergebnisse und Tippanzeigen zu lesen. Das Konto muss ausserdem Mitglied des Raums oder der Direktnachricht sein. Wenn du diese Berechtigung verweigerst, kann message.read-interactions trotzdem Zugriff auf die eigenen Unterhaltungen des Kontos geben.",
+      "message_post": "Erlaubt einem Konto, Nachrichten zu posten und in Threads zu antworten. Im Bereich Direktnachrichten können Personen ausserdem Direktnachrichten starten. Das Konto muss Mitglied des Raums sein, und der Thread-Modus des Raums muss die Nachricht zulassen. Eine Verweigerung von message.post allein verhindert keine Thread-Antworten, wenn message.post-in-thread erlaubt ist. Um jedes Posten zu verhindern, verweigere zusätzlich message.post-in-thread und message.post-in-interactions.",
+      "user_manage_accounts": "Erlaubt einem Konto, für andere Mitglieder Konten zu erstellen, die Kontoidentität zu ändern, Passwörter zurückzusetzen, verifizierte E-Mail-Adressen hinzuzufügen und Anmeldesperren aufzuheben. Ausserdem erlaubt sie, ein Konto über die Zeile „Beigetreten“ zu einem Raum hinzuzufügen oder daraus zu entfernen.",
+      "user_manage_permissions": "Erlaubt einem Konto, die Berechtigungseinstellungen eines einzelnen Mitglieds oder Bots direkt zu ändern, unabhängig von Rollen. Sie ist ausserdem nötig, um die wirksamen Berechtigungen einer Person zu sehen.",
+      "call_start": "Erlaubt einem Konto, einen Anruf in einem Raum oder einer Direktnachricht zu starten. Um am Anruf teilzunehmen, braucht es ausserdem call.join."
+    }
+  }
+}

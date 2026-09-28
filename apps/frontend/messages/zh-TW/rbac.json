@@ -51,7 +51,7 @@
       "allow": "允許",
       "deny": "拒絕",
       "winning_decision": "（最終決定）",
-      "included_by": "Included by {permission}",
+      "included_by": "包含於 {permission}",
       "level_server": "伺服器",
       "level_group": "群組",
       "level_room": "聊天室",
@@ -124,6 +124,15 @@
         "effective_inherited": "目前生效：{state}（繼承）",
         "manage_role": "管理 {role}",
         "no_scopes": "此{subject}沒有可用的範圍。"
+      },
+      "help": {
+        "open": "關於 {permission}",
+        "category": "類別",
+        "scopes": "可設定範圍",
+        "privileged": "需要特權模式",
+        "privileged_detail": "帳戶必須啟用特權模式才能使用此權限。",
+        "includes": "包含",
+        "included_by": "包含於"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "更新伺服器設定（名稱、說明、標誌）",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "管理公開的鄰居目錄",
       "room_create": "建立新聊天室",
       "room_join": "加入現有聊天室",
       "room_list": "在聊天室目錄中查看聊天室。可允許使用者查看聊天室（例如申請存取權），但不允許加入。",
@@ -171,6 +180,40 @@
       "call_voice": "在通話中使用麥克風",
       "call_camera": "在通話中使用攝影機",
       "call_screenshare": "分享螢幕或應用程式，包括擷取的音訊"
+    },
+    "permission_help": {
+      "server_manage": "允許帳戶變更伺服器名稱、說明、標誌和其他伺服器設定，也允許變更公開的鄰居目錄。請只授予能代表整個伺服器的人。",
+      "server_manage_neighbors": "允許帳戶在公開的鄰居目錄中新增、變更和移除項目。不允許變更其他伺服器設定。",
+      "room_create": "允許帳戶建立頻道聊天室。在聊天室群組範圍內設定時，只允許在該群組中建立聊天室。",
+      "room_join": "允許帳戶自行加入頻道聊天室。沒有此權限時，如果有人新增該帳戶，或全員聊天室新增其角色，該帳戶仍可成為成員。若要完全隱藏聊天室，還需拒絕 room.list。",
+      "room_list": "允許帳戶在聊天室目錄和聊天室清單中看到聊天室。帳戶可以在沒有加入權限的情況下看到聊天室，例如用來申請存取。在受限聊天室中拒絕此權限，可對非成員隱藏該聊天室。",
+      "room_manage": "允許帳戶在設定此權限的範圍內設定、重新命名、封存和刪除聊天室及聊天室群組，並新增或移除聊天室成員。在伺服器範圍內，還允許建立聊天室群組並調整其順序。擁有此權限的帳戶不受慢速模式限制。",
+      "room_remove_member": "允許帳戶附上理由將成員移出頻道聊天室，也可以停權該成員，使其無法再次加入聊天室。內容管理頁面需要伺服器範圍的此權限。",
+      "message_read": "允許帳戶閱讀訊息、討論串、附件、搜尋結果和輸入狀態提示。帳戶也必須是該聊天室或私訊的成員。如果拒絕此權限，message.read-interactions 仍可讓帳戶存取自己的對話。",
+      "message_read_interactions": "只允許帳戶閱讀自己發起的討論串、其他帳戶直接提及它的討論串，以及它收到的私訊。它可以完整閱讀這些討論串。可用來將機器人限制在自己的對話中。",
+      "message_post": "允許帳戶發佈訊息並在討論串中回覆。在私訊範圍內，使用者還可以發起私訊。帳戶必須是聊天室成員，且聊天室的討論串模式必須允許該訊息。僅拒絕 message.post 時，如果允許了 message.post-in-thread，仍無法阻止討論串回覆。若要阻止所有發佈，還需拒絕 message.post-in-thread 和 message.post-in-interactions。",
+      "message_post_interactions": "只允許帳戶在自己發起的討論串、其他帳戶直接提及它的討論串，以及它收到的私訊中回覆。不允許閱讀其他討論串或發佈新訊息。可與 message.read-interactions 搭配使用，將帳戶限制在自己的對話中。",
+      "message_post_in_thread": "允許帳戶在其能閱讀的每個討論串中回覆，但不能在聊天室中發佈新訊息。message.post 的允許也包含此權限，因此在此拒絕不會阻止這些帳戶回覆。",
+      "message_attach": "允許帳戶在新訊息中附加檔案。拒絕此權限可阻止聊天室中的上傳，同時仍允許文字訊息。",
+      "message_echo": "允許帳戶將討論串回覆同時顯示在聊天室時間軸中，讓未追蹤該討論串的人也能看到。",
+      "message_manage": "允許帳戶編輯或刪除其他帳戶的訊息。每個人都可以在沒有此權限的情況下編輯和刪除自己的訊息。擁有此權限的帳戶不受慢速模式限制。在私訊中，只有參與者才能使用此權限。",
+      "message_react": "允許帳戶對其能閱讀的訊息新增和移除回應。",
+      "role_manage": "允許帳戶建立、變更、排序和刪除角色及其權限設定。擁有此權限的帳戶可以改變伺服器上每個角色能做的事。請只授予你能託付整個伺服器的人。",
+      "role_assign": "允許帳戶為成員授予和移除角色。非擁有者帳戶只能指派其本身也具有相應允許的角色。只有擁有者可以指派 owner 角色。",
+      "admin_view_users": "允許帳戶在伺服器管理中查看成員清單。對成員的操作需要各自的權限，例如 role.assign 或 user.manage-accounts。",
+      "admin_view_audit": "允許帳戶在伺服器管理中查看事件記錄。事件記錄會記下管理變更，以及每次特權模式的開啟和關閉。",
+      "user_delete_any": "允許帳戶刪除任何成員的帳戶。請只授予有權決定將某人移出伺服器的人。",
+      "user_delete_self": "允許使用者刪除自己的帳戶。如果只應由管理員刪除帳戶，請拒絕此權限。",
+      "user_invite": "允許帳戶列出、建立、複製和撤銷邀請連結。它可以查看和使用所有有效的邀請連結，而不只是自己的。",
+      "user_manage_accounts": "允許帳戶為其他成員建立帳戶、變更帳戶身分、重設密碼、新增已驗證的電子郵件地址並清除登入冷卻。也允許透過「已加入」列將帳戶新增到聊天室或從中移除。",
+      "user_manage_permissions": "允許帳戶在角色之外直接變更單一成員或機器人的權限設定。查看某人的有效權限時也需要此權限。",
+      "bot_create": "允許使用者建立自己擁有的機器人。機器人只會獲得你直接在機器人上允許的權限，且永遠不會超過其擁有者所擁有的權限。",
+      "bot_manage": "允許帳戶管理伺服器上的所有機器人，包括其他人擁有的機器人。",
+      "call_start": "允許帳戶在聊天室或私訊中發起通話。若要參與通話，還需要 call.join。",
+      "call_join": "允許帳戶加入進行中的通話，也可以只作為聆聽者加入。傳送音訊或視訊需要 call.voice、call.camera 或 call.screenshare。",
+      "call_voice": "允許帳戶在通話中傳送麥克風音訊。沒有此權限時，帳戶仍可聆聽。",
+      "call_camera": "允許帳戶在通話中傳送攝影機視訊。",
+      "call_screenshare": "允許帳戶在通話中分享螢幕、視窗、分頁或應用程式及其音訊。不允許傳送麥克風音訊；這需要 call.voice。"
     }
   }
 }

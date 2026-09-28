@@ -51,7 +51,7 @@
       "allow": "autoriser",
       "deny": "refuser",
       "winning_decision": "(décision gagnante)",
-      "included_by": "Included by {permission}",
+      "included_by": "Incluse dans {permission}",
       "level_server": "Serveur",
       "level_group": "Groupe",
       "level_room": "Chambre",
@@ -124,6 +124,15 @@
         "effective_inherited": "Effectif : {state} (hérité)",
         "manage_role": "Gérer {role}",
         "no_scopes": "Aucune portée disponible pour ce {subject}."
+      },
+      "help": {
+        "open": "À propos de {permission}",
+        "category": "Catégorie",
+        "scopes": "Configurable pour",
+        "privileged": "Nécessite le mode privilégié",
+        "privileged_detail": "Les comptes doivent activer le mode privilégié pour utiliser cette autorisation.",
+        "includes": "Inclut",
+        "included_by": "Incluse dans"
       }
     },
     "permission_categories": {
@@ -171,6 +180,40 @@
       "call_voice": "Utiliser le microphone pendant les appels",
       "call_camera": "Utiliser la caméra pendant les appels",
       "call_screenshare": "Partager un écran ou une application, y compris le son capturé"
+    },
+    "permission_help": {
+      "server_manage": "Permet à un compte de modifier le nom, la description, le logo et les autres paramètres du serveur. Elle permet aussi de modifier le répertoire public des voisins. Ne l’accordez qu’aux personnes qui peuvent parler au nom de tout le serveur.",
+      "server_manage_neighbors": "Permet à un compte d’ajouter, de modifier et de supprimer des entrées dans le répertoire public des voisins. Elle ne permet pas de modifier les autres paramètres du serveur.",
+      "room_create": "Permet à un compte de créer des salons. Au niveau d’un groupe de salons, elle permet de créer des salons uniquement dans ce groupe.",
+      "room_join": "Permet à un compte de se joindre à des salons par lui-même. Sans elle, un compte peut quand même devenir membre si quelqu’un l’ajoute ou si un salon universel ajoute son rôle. Pour masquer complètement un salon, refusez aussi room.list.",
+      "room_list": "Permet à un compte de voir les salons dans le répertoire des salons et dans les listes de salons. Un compte peut voir un salon sans avoir le droit de le rejoindre, par exemple pour demander l’accès. Refusez-la sur un salon restreint pour le masquer aux non-membres.",
+      "room_manage": "Permet à un compte de configurer, renommer, archiver et supprimer des salons et des groupes de salons au niveau où vous la définissez, ainsi que d’ajouter ou de retirer des membres. Au niveau du serveur, elle permet aussi de créer et d’ordonner les groupes de salons. Les comptes qui ont cette autorisation ne sont pas limités par le mode lent.",
+      "room_remove_member": "Permet à un compte de retirer un membre d’un salon en indiquant un motif. Il peut aussi suspendre le membre pour l’empêcher de rejoindre à nouveau le salon. La page Modération nécessite cette autorisation au niveau du serveur.",
+      "message_read": "Permet à un compte de lire les messages, les fils de discussion, les pièces jointes, les résultats de recherche et les indicateurs de saisie. Le compte doit aussi être membre du salon ou de la conversation privée. Si vous refusez cette autorisation, message.read-interactions peut quand même donner accès aux conversations du compte.",
+      "message_read_interactions": "Permet à un compte de lire uniquement les fils qu’il a lancés, les fils où un autre compte l’a mentionné directement et les messages privés qu’il a reçus. Il peut lire ces fils en entier. Utilisez-la pour limiter les bots à leurs propres conversations.",
+      "message_post": "Permet à un compte de publier des messages et de répondre dans les fils. Au niveau des messages privés, les personnes peuvent aussi démarrer des conversations privées. Le compte doit être membre du salon, et le mode des fils de discussion du salon doit autoriser le message. Un refus de message.post seul n’empêche pas les réponses dans les fils si message.post-in-thread est autorisée. Pour empêcher toute publication, refusez aussi message.post-in-thread et message.post-in-interactions.",
+      "message_post_interactions": "Permet à un compte de répondre uniquement dans les fils qu’il a lancés, les fils où un autre compte l’a mentionné directement et les messages privés qu’il a reçus. Elle ne permet ni de lire d’autres fils ni de publier de nouveaux messages. Utilisez-la avec message.read-interactions pour limiter un compte à ses propres conversations.",
+      "message_post_in_thread": "Permet à un compte de répondre dans chaque fil qu’il peut lire, mais pas de publier de nouveaux messages dans le salon. Une autorisation de message.post inclut aussi celle-ci : un refus ici n’empêche donc pas les réponses de ces comptes.",
+      "message_attach": "Permet à un compte de joindre des fichiers aux nouveaux messages. Refusez-la pour empêcher les envois de fichiers dans un salon tout en autorisant les messages texte.",
+      "message_echo": "Permet à un compte d’afficher aussi une réponse de fil dans le fil du salon, pour que les personnes qui ne suivent pas le fil la voient.",
+      "message_manage": "Permet à un compte de modifier ou de supprimer les messages d’autres comptes. Chacun peut toujours modifier et supprimer ses propres messages sans cette autorisation. Les comptes qui ont cette autorisation ne sont pas limités par le mode lent. Dans une conversation privée, seuls les participants peuvent l’utiliser.",
+      "message_react": "Permet à un compte d’ajouter et de retirer des réactions sur les messages qu’il peut lire.",
+      "role_manage": "Permet à un compte de créer, modifier, ordonner et supprimer des rôles et leurs paramètres d’autorisation. Avec cette autorisation, un compte peut changer ce que chaque rôle du serveur peut faire. Ne l’accordez qu’aux personnes à qui vous confiez tout le serveur.",
+      "role_assign": "Permet à un compte d’attribuer des rôles aux membres et de les retirer. Un compte qui n’est pas propriétaire ne peut attribuer que les rôles dont il possède lui-même les autorisations. Seuls les propriétaires peuvent attribuer le rôle owner.",
+      "admin_view_users": "Permet à un compte de voir la liste des membres dans l’administration du serveur. Les actions sur les membres nécessitent leurs propres autorisations, comme role.assign ou user.manage-accounts.",
+      "admin_view_audit": "Permet à un compte de voir le journal des événements dans l’administration du serveur. Le journal enregistre les modifications administratives ainsi que chaque activation et désactivation du mode privilégié.",
+      "user_delete_any": "Permet à un compte de supprimer le compte de n’importe quel membre. Ne l’accordez qu’aux personnes qui peuvent décider de retirer quelqu’un du serveur.",
+      "user_delete_self": "Permet aux personnes de supprimer leur propre compte. Refusez-la si seuls les administrateurs doivent supprimer des comptes.",
+      "user_invite": "Permet à un compte de lister, créer, copier et révoquer des liens d’invitation. Il peut voir et utiliser tous les liens d’invitation actifs, pas seulement les siens.",
+      "user_manage_accounts": "Permet à un compte de créer des comptes, de modifier l’identité d’un compte, de réinitialiser des mots de passe, de joindre des adresses courriel vérifiées et d’effacer les délais de connexion pour d’autres membres. Elle permet aussi d’ajouter un compte à un salon ou de l’en retirer avec la ligne Rejoint.",
+      "user_manage_permissions": "Permet à un compte de modifier directement les paramètres d’autorisation d’un membre ou d’un bot, en dehors des rôles. Elle est aussi nécessaire pour voir les autorisations effectives d’une personne.",
+      "bot_create": "Permet aux personnes de créer des bots dont elles sont propriétaires. Un bot n’obtient que les autorisations que vous accordez directement au bot, et jamais plus que son propriétaire.",
+      "bot_manage": "Permet à un compte de gérer tous les bots du serveur, y compris ceux d’autres personnes.",
+      "call_start": "Permet à un compte de démarrer un appel dans un salon ou une conversation privée. Il a aussi besoin de call.join pour participer à l’appel.",
+      "call_join": "Permet à un compte de se joindre à un appel en cours, y compris seulement pour écouter. Envoyer de l’audio ou de la vidéo nécessite call.voice, call.camera ou call.screenshare.",
+      "call_voice": "Permet à un compte d’envoyer le son de son micro pendant les appels. Sans elle, le compte peut quand même écouter.",
+      "call_camera": "Permet à un compte d’envoyer la vidéo de sa caméra pendant les appels.",
+      "call_screenshare": "Permet à un compte de partager un écran, une fenêtre, un onglet ou une application pendant les appels, avec le son. Elle ne permet pas d’envoyer le son du micro ; il faut pour cela call.voice."
     }
   }
 }

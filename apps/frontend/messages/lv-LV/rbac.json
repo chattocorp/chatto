@@ -51,7 +51,7 @@
       "allow": "atļaut",
       "deny": "noliegt",
       "winning_decision": "(uzvarējušais lēmums)",
-      "included_by": "Included by {permission}",
+      "included_by": "Ietverta atļaujā {permission}",
       "level_server": "Serveris",
       "level_group": "Grupa",
       "level_room": "Istaba",
@@ -124,6 +124,15 @@
         "effective_inherited": "Spēkā: {state} (mantots)",
         "manage_role": "Pārvaldīt lomu {role}",
         "no_scopes": "Šim tipam ({subject}) nav pieejamu tvērumu."
+      },
+      "help": {
+        "open": "Par atļauju {permission}",
+        "category": "Kategorija",
+        "scopes": "Var iestatīt",
+        "privileged": "Nepieciešams privileģētais režīms",
+        "privileged_detail": "Lai izmantotu šo atļauju, kontam jāieslēdz privileģētais režīms.",
+        "includes": "Ietver",
+        "included_by": "Ietverta"
       }
     },
     "permission_categories": {
@@ -139,7 +148,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
+      "server_manage_neighbors": "Pārvaldīt publisko kaimiņu katalogu",
       "room_create": "Izveidojiet jaunas telpas",
       "room_join": "Pievienojieties esošajām telpām",
       "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
@@ -171,6 +180,40 @@
       "call_voice": "Izmantot mikrofonu zvanos",
       "call_camera": "Izmantot kameru zvanos",
       "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio"
+    },
+    "permission_help": {
+      "server_manage": "Ļauj kontam mainīt servera nosaukumu, aprakstu, logotipu un citus servera iestatījumus. Tā ļauj arī mainīt publisko kaimiņu katalogu. Piešķiriet to tikai cilvēkiem, kas var runāt visa servera vārdā.",
+      "server_manage_neighbors": "Ļauj kontam pievienot, mainīt un noņemt ierakstus publiskajā kaimiņu katalogā. Tā neļauj mainīt citus servera iestatījumus.",
+      "room_create": "Ļauj kontam izveidot kanālu telpas. Telpu grupas līmenī tā ļauj izveidot jaunas telpas tikai šajā grupā.",
+      "room_join": "Ļauj kontam pašam pievienoties kanālu telpām. Bez tās konts tomēr var kļūt par dalībnieku, ja kāds to pievieno vai ja universāla telpa pievieno tā lomu. Lai telpu pilnībā paslēptu, aizliedziet arī room.list.",
+      "room_list": "Ļauj kontam redzēt telpas telpu katalogā un telpu sarakstos. Konts var redzēt telpu arī bez tiesībām tai pievienoties, piemēram, lai pieprasītu piekļuvi. Aizliedziet to ierobežotā telpā, lai paslēptu to no personām, kas nav dalībnieki.",
+      "room_manage": "Ļauj kontam konfigurēt, pārdēvēt, arhivēt un dzēst telpas un telpu grupas līmenī, kurā to iestatāt, kā arī pievienot un noņemt telpu dalībniekus. Servera līmenī tā ļauj arī izveidot telpu grupas un mainīt to secību. Kontus ar šo atļauju neierobežo lēnais režīms.",
+      "room_remove_member": "Ļauj kontam noņemt dalībnieku no kanāla telpas, norādot iemeslu. Tas var arī apturēt dalībnieku, lai viņš nevarētu atkal pievienoties telpai. Moderēšanas lapai šī atļauja nepieciešama servera līmenī.",
+      "message_read": "Ļauj kontam lasīt ziņas, pavedienus, pielikumus, meklēšanas rezultātus un rakstīšanas indikatorus. Kontam arī jābūt telpas vai tiešās ziņas dalībniekam. Ja aizliedzat šo atļauju, message.read-interactions joprojām var dot piekļuvi paša konta sarunām.",
+      "message_read_interactions": "Ļauj kontam lasīt tikai pavedienus, ko tas sācis, pavedienus, kuros cits konts to tieši pieminējis, un saņemtās tiešās ziņas. Šos pavedienus tas var lasīt pilnībā. Izmantojiet to, lai ierobežotu botus ar to pašu sarunām.",
+      "message_post": "Ļauj kontam publicēt ziņas un atbildēt pavedienos. Tiešo ziņu līmenī cilvēki var arī sākt tiešās ziņas. Kontam jābūt telpas dalībniekam, un telpas pavedienu režīmam jāatļauj ziņa. Tikai message.post aizliegums neaptur atbildes pavedienos, ja message.post-in-thread ir atļauta. Lai apturētu jebkādu publicēšanu, aizliedziet arī message.post-in-thread un message.post-in-interactions.",
+      "message_post_interactions": "Ļauj kontam atbildēt tikai pavedienos, ko tas sācis, pavedienos, kuros cits konts to tieši pieminējis, un saņemtajās tiešajās ziņās. Tā neļauj lasīt citus pavedienus vai publicēt jaunas ziņas. Izmantojiet to kopā ar message.read-interactions, lai ierobežotu kontu ar tā paša sarunām.",
+      "message_post_in_thread": "Ļauj kontam atbildēt katrā pavedienā, ko tas var lasīt, bet ne publicēt jaunas ziņas telpā. message.post atļauja ietver arī šo atļauju, tāpēc aizliegums šeit neaptur šo kontu atbildes.",
+      "message_attach": "Ļauj kontam pievienot failus jaunām ziņām. Aizliedziet to, lai telpā apturētu augšupielādes, bet joprojām atļautu teksta ziņas.",
+      "message_echo": "Ļauj kontam parādīt pavediena atbildi arī telpas laika joslā, lai to redzētu arī tie, kas pavedienam neseko.",
+      "message_manage": "Ļauj kontam rediģēt vai dzēst citu kontu ziņas. Savas ziņas ikviens vienmēr var rediģēt un dzēst bez šīs atļaujas. Kontus ar šo atļauju neierobežo lēnais režīms. Tiešajā ziņā to var izmantot tikai dalībnieki.",
+      "message_react": "Ļauj kontam pievienot un noņemt reakcijas ziņām, ko tas var lasīt.",
+      "role_manage": "Ļauj kontam izveidot, mainīt, kārtot un dzēst lomas un to atļauju iestatījumus. Ar šo atļauju konts var mainīt, ko drīkst darīt katra servera loma. Piešķiriet to tikai cilvēkiem, kuriem uzticat visu serveri.",
+      "role_assign": "Ļauj kontam piešķirt lomas dalībniekiem un tās noņemt. Konts, kas nav īpašnieks, var piešķirt tikai lomas, kuru atļaujas ir arī tam pašam. Lomu owner var piešķirt tikai īpašnieki.",
+      "admin_view_users": "Ļauj kontam redzēt dalībnieku sarakstu servera administrēšanā. Darbībām ar dalībniekiem vajadzīgas savas atļaujas, piemēram, role.assign vai user.manage-accounts.",
+      "admin_view_audit": "Ļauj kontam redzēt notikumu žurnālu servera administrēšanā. Notikumu žurnāls reģistrē administratīvās izmaiņas un katru privileģētā režīma sākumu un beigas.",
+      "user_delete_any": "Ļauj kontam dzēst jebkura dalībnieka kontu. Piešķiriet to tikai cilvēkiem, kas drīkst lemt par kāda noņemšanu no servera.",
+      "user_delete_self": "Ļauj cilvēkiem dzēst savu kontu. Aizliedziet to, ja kontus drīkst dzēst tikai administratori.",
+      "user_invite": "Ļauj kontam uzskaitīt, izveidot, kopēt un atsaukt uzaicinājuma saites. Tas var redzēt un izmantot visas aktīvās uzaicinājuma saites, ne tikai savas.",
+      "user_manage_accounts": "Ļauj kontam citiem dalībniekiem izveidot kontus, mainīt konta identitāti, atiestatīt paroles, pievienot verificētas e-pasta adreses un notīrīt pieteikšanās gaidīšanas laikus. Tā ļauj arī pievienot kontu telpai vai noņemt to no telpas ar rindu Pievienojās.",
+      "user_manage_permissions": "Ļauj kontam tieši mainīt viena dalībnieka vai bota atļauju iestatījumus neatkarīgi no lomām. Tā ir vajadzīga arī, lai redzētu personas spēkā esošās atļaujas.",
+      "bot_create": "Ļauj cilvēkiem izveidot savus botus. Bots saņem tikai atļaujas, ko atļaujat tieši botam, un nekad vairāk, nekā ir tā īpašniekam.",
+      "bot_manage": "Ļauj kontam pārvaldīt visus servera botus, arī citiem cilvēkiem piederošus.",
+      "call_start": "Ļauj kontam sākt zvanu telpā vai tiešajā ziņā. Lai piedalītos zvanā, tam vajadzīga arī call.join.",
+      "call_join": "Ļauj kontam pievienoties notiekošam zvanam, arī tikai kā klausītājam. Lai sūtītu audio vai video, vajadzīga call.voice, call.camera vai call.screenshare.",
+      "call_voice": "Ļauj kontam zvanos sūtīt mikrofona audio. Bez tās konts joprojām var klausīties.",
+      "call_camera": "Ļauj kontam zvanos sūtīt kameras video.",
+      "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice."
     }
   }
 }

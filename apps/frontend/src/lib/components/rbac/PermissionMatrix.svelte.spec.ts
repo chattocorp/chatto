@@ -175,10 +175,24 @@ describe('PermissionMatrix', () => {
         (permission) => permission.textContent
       )
     ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
-    expect(container.querySelector('[data-testid="permission-name"]')?.getAttribute('title')).toBe(
-      "Edit a room's settings and permissions, and delete rooms"
+  });
+
+  it('explains a permission in a help dialog from its row', async () => {
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    // A DOM click keeps the pointer from hovering rows in later tests.
+    (
+      container.querySelector('button[aria-label="About room.create"]') as HTMLButtonElement
+    ).click();
+
+    const help = page.getByTestId('permission-help');
+    await expect.element(help).toHaveTextContent('Create new rooms');
+    await expect.element(help).toHaveTextContent('At Room group scope');
+    await expect.element(help).toHaveTextContent('Needs privileged mode');
+    expect(container.querySelector('[data-testid="permission-name"]')?.hasAttribute('title')).toBe(
+      false
     );
-    expect(container.querySelector('button[aria-label^="About "]')).toBeNull();
   });
 
   it('shows that message.read includes the nested interaction permission', async () => {
