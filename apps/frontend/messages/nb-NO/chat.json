@@ -89,7 +89,11 @@
       "message_missing": "Meldingen er ikke lenger tilgjengelig",
       "in_room": "in",
       "in_room_capitalized": "Inn",
-      "load_failed": "Kunne ikke laste inn tråder"
+      "load_failed": "Kunne ikke laste inn tråder",
+      "notifications_count": {
+        "one": "{count} varsel",
+        "other": "{count} varsler"
+      }
     },
     "profile": {
       "title": "Profil",

@@ -89,7 +89,11 @@
       "message_missing": "Mensagem não está mais disponível",
       "in_room": "em",
       "in_room_capitalized": "Em",
-      "load_failed": "Falha ao carregar tópicos"
+      "load_failed": "Falha ao carregar tópicos",
+      "notifications_count": {
+        "one": "{count} notificação",
+        "other": "{count} notificações"
+      }
     },
     "profile": {
       "title": "Perfil",

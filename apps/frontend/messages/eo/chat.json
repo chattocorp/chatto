@@ -89,7 +89,11 @@
       "message_missing": "Mesaĝo ne plu havebla",
       "in_room": "en",
       "in_room_capitalized": "En",
-      "load_failed": "Malsukcesis ŝargi fadenojn"
+      "load_failed": "Malsukcesis ŝargi fadenojn",
+      "notifications_count": {
+        "one": "{count} sciigo",
+        "other": "{count} sciigoj"
+      }
     },
     "profile": {
       "title": "Profilo",

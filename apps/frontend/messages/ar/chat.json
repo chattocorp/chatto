@@ -97,7 +97,15 @@
       "message_missing": "لم تعد الرسالة متاحة",
       "in_room": "في",
       "in_room_capitalized": "في",
-      "load_failed": "فشل في تحميل المواضيع"
+      "load_failed": "فشل في تحميل المواضيع",
+      "notifications_count": {
+        "zero": "{count} إشعارات",
+        "one": "{count} إشعار",
+        "two": "{count} إشعاران",
+        "few": "{count} إشعارات",
+        "many": "{count} إشعارًا",
+        "other": "{count} إشعار"
+      }
     },
     "profile": {
       "title": "الملف الشخصي",

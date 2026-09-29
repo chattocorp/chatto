@@ -89,7 +89,11 @@
       "message_missing": "Sõnum pole enam saadaval",
       "in_room": "sisse",
       "in_room_capitalized": "sisse",
-      "load_failed": "Lõimede laadimine ebaõnnestus"
+      "load_failed": "Lõimede laadimine ebaõnnestus",
+      "notifications_count": {
+        "one": "{count} teatis",
+        "other": "{count} teatist"
+      }
     },
     "profile": {
       "title": "Profiil",

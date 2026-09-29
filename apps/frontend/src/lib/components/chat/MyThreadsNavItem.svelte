@@ -47,7 +47,9 @@
       color={hasImportantAttention ? 'warning' : 'ambient'}
       testid="my-threads-notification-badge"
     />
-    <span class="sr-only">{m('room_list.notifications', { count: notificationCount })}</span>
+    <span class="sr-only"
+      >{m('chat.threads.notifications_count', { count: notificationCount })}</span
+    >
   {:else if serverScope.store.hasUnreadFollowedThreadInLoadedRooms()}
     <UnreadDot class="ms-auto" color="neutral" testid="my-threads-unread-dot" />
   {/if}

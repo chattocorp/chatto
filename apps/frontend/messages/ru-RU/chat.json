@@ -93,7 +93,13 @@
       "message_missing": "Сообщение больше не доступно",
       "in_room": "в",
       "in_room_capitalized": "В",
-      "load_failed": "Не удалось загрузить темы"
+      "load_failed": "Не удалось загрузить темы",
+      "notifications_count": {
+        "one": "{count} уведомление",
+        "few": "{count} уведомления",
+        "many": "{count} уведомлений",
+        "other": "{count} уведомления"
+      }
     },
     "profile": {
       "title": "Профиль",

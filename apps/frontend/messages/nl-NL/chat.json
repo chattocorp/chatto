@@ -89,7 +89,11 @@
       "message_missing": "Bericht niet langer beschikbaar",
       "in_room": "binnen",
       "in_room_capitalized": "Binnen",
-      "load_failed": "Kan discussies niet laden"
+      "load_failed": "Kan discussies niet laden",
+      "notifications_count": {
+        "one": "{count} melding",
+        "other": "{count} meldingen"
+      }
     },
     "profile": {
       "title": "Profiel",

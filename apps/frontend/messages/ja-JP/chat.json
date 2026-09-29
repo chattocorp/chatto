@@ -89,7 +89,11 @@
       "message_missing": "メッセージは利用できなくなりました",
       "in_room": "で",
       "in_room_capitalized": "で",
-      "load_failed": "スレッドの読み込みに失敗しました"
+      "load_failed": "スレッドの読み込みに失敗しました",
+      "notifications_count": {
+        "one": "{count} 件の通知",
+        "other": "{count} 件の通知"
+      }
     },
     "profile": {
       "title": "プロフィール",

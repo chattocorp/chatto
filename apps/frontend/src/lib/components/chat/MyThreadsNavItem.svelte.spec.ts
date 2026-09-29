@@ -67,6 +67,8 @@ describe('MyThreadsNavItem', () => {
     const badge = await waitForTestId(container, 'my-threads-notification-badge');
     expect(badge.textContent).toBe('1');
     expect(badge.classList).toContain('bg-attention');
+    expect(container.querySelector('a')?.textContent).toContain('1 notification');
+    expect(container.querySelector('a')?.textContent).not.toContain('1 notifications');
     expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 
@@ -96,6 +98,7 @@ describe('MyThreadsNavItem', () => {
     const badge = await waitForTestId(container, 'my-threads-notification-badge');
     expect(badge.textContent).toBe('3');
     expect(badge.classList).toContain('bg-attention');
+    expect(container.querySelector('a')?.textContent).toContain('3 notifications');
   });
 
   it('ignores notification attention for a thread that is not followed', async () => {

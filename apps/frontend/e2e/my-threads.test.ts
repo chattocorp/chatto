@@ -243,7 +243,7 @@ test.describe('My Threads', () => {
     await roomPage.postThreadReply(`Reply from A ${Date.now()}`);
     await roomPage.closeThread();
 
-    // Stay on the room page (not My Threads) — sidebar dot should not be visible yet
+    // Stay on the room page (not My Threads) — sidebar indicator should not be visible yet
     // Use toPass() to allow subscriptions to settle before asserting absence
     await expect(async () => {
       await expect(myThreads.sidebarUnreadIndicator).not.toBeVisible();
@@ -257,12 +257,12 @@ test.describe('My Threads', () => {
       `Reply from B ${Date.now()}`
     );
 
-    // Sidebar unread dot should appear (User A is still on room page)
+    // Sidebar unread indicator should appear (User A is still on room page)
     await expect(myThreads.sidebarUnreadIndicator).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    // Navigate to My Threads — sidebar dot should still be visible (visiting the list
+    // Navigate to My Threads — sidebar indicator should still be visible (visiting the list
     // doesn't mark threads as read; you need to open each thread individually)
     await myThreads.goto();
     await expect(myThreads.sidebarUnreadIndicator).toBeVisible();
@@ -297,7 +297,7 @@ test.describe('My Threads', () => {
       `Reply from B ${Date.now()}`
     );
 
-    // Sidebar unread dot should appear
+    // Sidebar unread indicator should appear
     await expect(myThreads.sidebarUnreadIndicator).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -307,7 +307,7 @@ test.describe('My Threads', () => {
     await rootMsgAgain.openThread();
     await roomPage.expectThreadPaneVisible();
 
-    // Sidebar unread dot should clear after opening the thread
+    // Sidebar unread indicator should clear after opening the thread
     await expect(async () => {
       await expect(myThreads.sidebarUnreadIndicator).not.toBeVisible();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
