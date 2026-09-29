@@ -132,6 +132,11 @@ export interface MessageContext {
 export interface ServerContext extends ServerStoreContext {
   /** Remove this server from its client; see {@link Server.close}. */
   readonly remove: () => void;
+  /**
+   * The server's token is fixed, as `ChattoClient.connect` adds it. Its
+   * account never changes, so a privacy reset does not fail its requests.
+   */
+  readonly fixedToken: boolean;
 }
 
 /** Received events that wait for the handler, dropped beyond this number. */
@@ -292,7 +297,9 @@ export class Server extends ServerStateStore {
   /**
    * Create a typed Connect client for a public service, with this server's
    * authentication. After `close()`, clients send nothing, responses in
-   * flight fail, and this method throws a `Canceled` `ConnectError`.
+   * flight fail, and this method throws a `Canceled` `ConnectError`. For a
+   * server without a fixed token, a response that arrives after a privacy
+   * reset fails too, because the account can have changed.
    */
   service<T extends ServiceType>(service: T): Client<T> {
     const closed = this.#closed;
@@ -309,11 +316,14 @@ export class Server extends ServerStateStore {
       base.transport ??
       ((interceptors: Interceptor[]) =>
         createConnectTransport({ baseUrl: base.baseUrl, useBinaryFormat: true, interceptors }));
+    const fixedToken = this.#serverContext.fixedToken;
     const config: ConnectAPIConfig = {
       ...base,
-      // Fail responses that arrive after close(), not after a privacy
-      // reset: the host, not a shared cache, receives these responses.
-      dataGeneration: () => (closed.peek() ? 1 : 0),
+      // Fail responses that arrive after close(). With a fixed token, the
+      // account cannot change, so a privacy reset does not fail them: the
+      // host, not a shared cache, receives these responses.
+      dataGeneration: () =>
+        closed.peek() ? -1 : fixedToken ? 0 : (base.dataGeneration?.() ?? 0),
       transport: (interceptors) => send([refuseAfterClose, ...interceptors])
     };
     return createServiceClient(service, config);

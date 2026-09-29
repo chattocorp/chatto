@@ -19,6 +19,7 @@ vi.mock('../api/viewer.js', async (original) => ({
 
 import { createClient, type ChattoClient } from '../client.js';
 import type { Server } from './server.js';
+import { emptyServerSession } from './sessions.js';
 import { setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
 import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
 import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
@@ -349,6 +350,40 @@ describe('connections in Node', () => {
     mocks.discovery.mockResolvedValue({ ...profile, version: '0.1.0' });
     connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
     await expect(connection.ready()).rejects.toThrow('version is not supported');
+  });
+
+  it('fails a response across a privacy reset for a server without a fixed token', async () => {
+    const { ViewerService } = await import('@chatto/api-types/api/v1/viewer_connect');
+    const responses: (() => void)[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) =>
+            responses.push(() =>
+              resolve(
+                new Response(new Uint8Array(), {
+                  headers: { 'Content-Type': 'application/proto' }
+                })
+              )
+            )
+          )
+      )
+    );
+    try {
+      client.registry.addServer(
+        { id: 'renewable', url: 'https://chat.example', name: 'chat', iconUrl: null, addedAt: 1 },
+        { ...emptyServerSession(), token: 'session-token' }
+      );
+      const server = client.registry.getStore('renewable');
+      const pending = server.service(ViewerService).getViewer({});
+      await vi.waitFor(() => expect(responses.length).toBeGreaterThan(0));
+      server.connection.invalidatePrivateData();
+      for (const respond of responses) respond();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('leaves nothing behind when setup fails, so a later connect works', async () => {

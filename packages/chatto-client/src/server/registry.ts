@@ -1356,7 +1356,11 @@ export class ServerRegistry {
       () => this.sessions.ensure(serverId),
       this.isOriginServer(serverId),
       serverConnection,
-      { realtime: this.#context.realtime, remove: () => this.removeServer(serverId) },
+      {
+        realtime: this.#context.realtime,
+        remove: () => this.removeServer(serverId),
+        fixedToken: this.#fixedTokenServers.has(serverId)
+      },
       undefined,
       () => {
         if (this.isOriginServer(serverId) && !store.currentUser.user) {
