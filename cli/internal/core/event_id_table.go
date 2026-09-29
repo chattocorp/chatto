@@ -20,7 +20,7 @@ import (
 // component keeps handle-indexed state, such as coldHandleSlice values, in its own
 // model. A projection created outside the content view owns a private table.
 //
-// The table is append-only: handles stay valid for the table's lifetime and
+// Handle assignment is append-only: handles stay valid for the table's lifetime and
 // are never reused. Handles are process-local and must not be persisted;
 // snapshots store the ID strings. A restore or cold replay of one component
 // interns IDs again and receives the existing handles.

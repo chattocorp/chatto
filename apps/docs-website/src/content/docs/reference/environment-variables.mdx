@@ -200,6 +200,10 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
   Set the approximate maximum size of each server process's timeline read cache. Chatto evicts the least-recently-used `EVT` records when the cache exceeds this limit. Supports values such as `128MiB` and `1GiB`. Set this value to `-1` to disable the byte limit. The idle timeout remains active. Chatto logs both effective cache settings at info level during startup. Set `CHATTO_LOG_LEVEL=debug` to also log cache hit and miss summaries, read durations, LRU eviction counts, expiry counts, and cache clears.
 </EnvVar>
 
+<EnvVar name="CHATTO_CORE_PROJECTION_COLD_AFTER" toml="core.projection_cold_after" default="30d">
+  Compress the in-memory state of messages older than this duration. Chatto measures the age from the newest event, not from the current time. Compression reduces the memory of large message histories. Reads of old messages become slightly slower. Results do not change. Set this value to `0` to disable compression. Supports values such as `30d`, `1w`, and `720h`.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
   Persist encrypted projection snapshots and replay only the later `EVT` delta for eligible projections at startup. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, expired, or unavailable. User profile state is eligible, but password verifiers, external identities, and OAuth consent remain outside snapshots and cold-replay from focused event subjects. One elected replica attempts publication after boot and every 23–24 hours.
 </EnvVar>

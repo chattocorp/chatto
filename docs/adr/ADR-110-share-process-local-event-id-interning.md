@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 
-**Status:** Accepted
+**Status:** Accepted. Amended by [ADR-111](ADR-111-compress-old-message-state-in-ram.md): the table can move the IDs of old handles into compact cold pages.
 
 ## Context
 
@@ -43,8 +43,8 @@ example in a test, owns a private table.
 
 The table follows these rules:
 
-- The table is append-only. A handle stays valid for the life of the process,
-  and Chatto never reuses a handle.
+- Handle assignment is append-only. A handle stays valid for the life of the
+  process, and Chatto never reuses a handle.
 - A handle is process-local. Snapshots, events, and API responses store ID
   strings and never store handles. A restore interns the strings again.
 - The table contains no projection state. It does not decide projection
@@ -57,7 +57,8 @@ The table follows these rules:
   while they hold a projection lock.
 - The table stores ID bytes in immutable, append-only arena chunks. A returned
   ID string refers to arena bytes without a copy. Chatto never writes arena
-  bytes that a location names.
+  bytes that a location names. ADR-111 can move old IDs into cold pages and
+  release their arena chunks; returned strings keep the released bytes alive.
 
 Projection state that grows with history follows these conventions:
 
@@ -85,14 +86,14 @@ results.
 - Together, the two projections retain about 600 more bytes for each
   additional message. A replay of 25, 50, and 100 percent of the history gave
   this value. The growth is still linear. A server with one million messages
-  needs about 600 MB for each replica. A cold tier for old history can remove
-  this limit later.
+  needs about 600 MB for each replica. ADR-111 compresses the state of old
+  messages.
 - Replay time decreases. A single lookup by event ID costs about 12 ns more,
   because it takes a shard read lock. Concurrent lookups of different IDs
   rarely contend: on 14 CPUs, they stay within about 10 percent of their
   earlier cost.
-- The table does not shrink until the process restarts. IDs from deleted rooms
-  and failed restores stay in it.
+- The table does not remove IDs until the process restarts. IDs from deleted
+  rooms and failed restores stay in it. ADR-111 stores old IDs more compactly.
 - The table uses `unsafe.String` to return IDs without a copy. Its correctness
   depends on the immutability rule for arena bytes.
 - Estimates of projection size exclude the shared table from each component
