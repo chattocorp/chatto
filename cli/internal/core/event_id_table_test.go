@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -222,9 +223,9 @@ func TestEventIDTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
 }
 
 func TestEventIDTable_FreezeKeepsHandlesAndLookups(t *testing.T) {
-	previous := idLocationPageSize
-	idLocationPageSize = 8
-	t.Cleanup(func() { idLocationPageSize = previous })
+	previous := idLocationPageShift
+	idLocationPageShift = 3
+	t.Cleanup(func() { idLocationPageShift = previous })
 
 	table := newEventIDTable()
 	long := strings.Repeat("L", idArenaMaxChunkBytes/4+1)
@@ -280,16 +281,16 @@ func TestEventIDTable_FreezeKeepsHandlesAndLookups(t *testing.T) {
 		t.Fatal("estimate is not positive")
 	}
 	for chunk, bytes := range table.arena.loadChunks() {
-		if bytes != nil && chunk != table.arena.target-1 && table.chunkLastHandle[chunk] <= uint32(len(ids)/idLocationPageSize*idLocationPageSize) {
+		if bytes != nil && chunk != table.arena.target-1 && table.chunkLastHandle[chunk] <= uint32(len(ids)>>idLocationPageShift<<idLocationPageShift) {
 			t.Fatalf("chunk %d holds only frozen IDs but was not released", chunk)
 		}
 	}
 }
 
 func TestEventIDTable_FreezeResolvesCollisionsAcrossHotAndCold(t *testing.T) {
-	previous := idLocationPageSize
-	idLocationPageSize = 2
-	t.Cleanup(func() { idLocationPageSize = previous })
+	previous := idLocationPageShift
+	idLocationPageShift = 1
+	t.Cleanup(func() { idLocationPageShift = previous })
 
 	table := newEventIDTable()
 	first := table.intern("E1")
@@ -319,17 +320,19 @@ func TestEventIDTable_FreezeResolvesCollisionsAcrossHotAndCold(t *testing.T) {
 }
 
 func TestEventIDTable_ConcurrentFreezeInternAndRead(t *testing.T) {
-	previous := idLocationPageSize
-	idLocationPageSize = 16
-	t.Cleanup(func() { idLocationPageSize = previous })
+	previous := idLocationPageShift
+	idLocationPageShift = 4
+	t.Cleanup(func() { idLocationPageShift = previous })
 
 	table := newEventIDTable()
 	const writers, perWriter = 4, 2_000
-	var wg sync.WaitGroup
+	idOf := func(writer, i int) string { return fmt.Sprintf("E%d-%d", writer, i) }
+	var written [writers]atomic.Int64
+	var writing sync.WaitGroup
 	for writer := range writers {
-		wg.Go(func() {
+		writing.Go(func() {
 			for i := range perWriter {
-				id := fmt.Sprintf("E%d-%d", writer, i)
+				id := idOf(writer, i)
 				handle := table.intern(id)
 				if got := table.id(handle); got != id {
 					t.Errorf("id(%d) = %q, want %q", handle, got, id)
@@ -339,18 +342,55 @@ func TestEventIDTable_ConcurrentFreezeInternAndRead(t *testing.T) {
 					t.Errorf("lookup(%q) = %d, %v; want %d", id, got, ok, handle)
 					return
 				}
+				written[writer].Store(int64(i + 1))
 			}
 		})
 	}
-	wg.Go(func() {
-		for boundary := uint32(1); boundary < writers*perWriter; boundary += 97 {
-			table.freezeBelow(boundary)
+	done := make(chan struct{})
+	var others sync.WaitGroup
+	// The freezer keeps freezing everything interned so far.
+	others.Go(func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				table.freezeBelow(uint32(table.len() + 1))
+			}
 		}
 	})
-	wg.Wait()
+	// Readers look up IDs that a freeze can move at the same time.
+	for reader := range 2 {
+		others.Go(func() {
+			for n := 0; ; n++ {
+				select {
+				case <-done:
+					return
+				default:
+				}
+				writer := (reader + n) % writers
+				count := int(written[writer].Load())
+				if count == 0 {
+					continue
+				}
+				id := idOf(writer, n%count)
+				handle, ok := table.lookup(id)
+				if !ok || table.id(handle) != id {
+					t.Errorf("concurrent lookup(%q) = %d, %v", id, handle, ok)
+					return
+				}
+			}
+		})
+	}
+	writing.Wait()
+	close(done)
+	others.Wait()
+	if cold := table.cold.Load(); cold == nil || len(cold.pages) == 0 {
+		t.Fatal("no page was frozen during the run")
+	}
 	for writer := range writers {
 		for i := range perWriter {
-			id := fmt.Sprintf("E%d-%d", writer, i)
+			id := idOf(writer, i)
 			handle, ok := table.lookup(id)
 			if !ok || table.id(handle) != id {
 				t.Fatalf("lookup(%q) after run = %d, %v", id, handle, ok)

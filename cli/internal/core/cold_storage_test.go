@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -17,7 +19,7 @@ func init() {
 	if os.Getenv("CHATTO_TEST_COLD_STORAGE") == "1" {
 		coldBlockShift = 1
 		coldStorageTestWindow = time.Nanosecond
-		idLocationPageSize = 4
+		idLocationPageShift = 2
 	}
 }
 
@@ -159,8 +161,8 @@ func TestColdStorageTestModeFreezesTimelineRows(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if p.entries.frozenLen() == 0 || p.bodyStates.frozenLen() == 0 || p.rowByEvent.frozenLen() == 0 {
-		t.Fatalf("frozen rows=%d bodies=%d index=%d, want all above zero", p.entries.frozenLen(), p.bodyStates.frozenLen(), p.rowByEvent.frozenLen())
+	if p.entries.frozenLen() == 0 || p.bodyStates.frozenLen() == 0 || p.rowByEvent.rows.frozenLen() == 0 {
+		t.Fatalf("frozen rows=%d bodies=%d index=%d, want all above zero", p.entries.frozenLen(), p.bodyStates.frozenLen(), p.rowByEvent.rows.frozenLen())
 	}
 	for i := range 10 {
 		if entry, ok := p.Get(fmt.Sprintf("M%d", i)); !ok || !entry.CreatedAt.Equal(fixedTime(i)) {
@@ -211,5 +213,70 @@ func TestColdStorageTestModeFreezesHandleIndexedState(t *testing.T) {
 	}
 	if !badges.unread("U1", "") {
 		t.Fatal("frozen root messages gave no Badge attention")
+	}
+}
+
+// TestColdSlice_PacksLargeOverlays proves that bulk changes of frozen rows
+// are packed into new blocks instead of staying in the overlay.
+func TestColdSlice_PacksLargeOverlays(t *testing.T) {
+	slice := newColdSlice[uint32](uint32ColdCodec{})
+	rows := 64 * coldBlockRows()
+	for i := range rows {
+		slice.append(uint32(i + 1))
+	}
+	slice.freezeBefore(rows)
+	for i := 0; i < rows; i += 3 {
+		slice.set(i, 0)
+	}
+	if limit := max(coldBlockRows(), rows/coldOverlayDivisor); len(slice.changed) > limit {
+		t.Fatalf("overlay holds %d rows, want at most %d", len(slice.changed), limit)
+	}
+	for i := range rows {
+		want := uint32(i + 1)
+		if i%3 == 0 {
+			want = 0
+		}
+		if got := slice.get(i); got != want {
+			t.Fatalf("get(%d) = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestRoomTimelineColdWindowIgnoresFutureCreationTimes proves that one event
+// with a future creation time does not make current rows cold.
+func TestRoomTimelineColdWindowIgnoresFutureCreationTimes(t *testing.T) {
+	previousShift, previousWindow := coldBlockShift, coldStorageTestWindow
+	coldBlockShift, coldStorageTestWindow = 1, 0
+	t.Cleanup(func() { coldBlockShift, coldStorageTestWindow = previousShift, previousWindow })
+
+	post := func(p *RoomTimelineProjection, id string, at time.Time, seq uint64) {
+		t.Helper()
+		event := postedEvent(postedOpts{envelopeID: id, roomID: "R1", actorID: "U1"})
+		event.CreatedAt = timestamppb.New(at)
+		if err := p.Apply(event, seq); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Now()
+	current := NewRoomTimelineProjection()
+	current.configureColdStorage(24*time.Hour, nil)
+	for i := range 6 {
+		post(current, fmt.Sprintf("M%d", i), now.Add(-time.Duration(6-i)*time.Minute), uint64(i+1))
+	}
+	post(current, "FUTURE", now.AddDate(70, 0, 0), 7)
+	post(current, "LAST", now, 8)
+	if frozen := current.entries.frozenLen(); frozen != 0 {
+		t.Fatalf("a future creation time froze %d current rows", frozen)
+	}
+
+	old := NewRoomTimelineProjection()
+	old.configureColdStorage(24*time.Hour, nil)
+	for i := range 6 {
+		post(old, fmt.Sprintf("M%d", i), now.Add(-48*time.Hour+time.Duration(i)*time.Minute), uint64(i+1))
+	}
+	post(old, "FUTURE", now.AddDate(70, 0, 0), 7)
+	post(old, "LAST", now, 8)
+	if old.entries.frozenLen() == 0 {
+		t.Fatal("rows older than the window did not freeze")
 	}
 }

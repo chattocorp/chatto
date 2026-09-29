@@ -27,9 +27,9 @@ type RoomTimelineProjection struct {
 	// components; a standalone projection owns a private table.
 	eventIDs       *eventIDTable
 	sharedEventIDs bool
-	// rowByEvent maps an eventIDs handle minus one to its one-based row
-	// index; zero means no row.
-	rowByEvent coldSlice[uint32]
+	// rowByEvent maps an eventIDs handle to its one-based row index; zero
+	// means no row.
+	rowByEvent coldHandleSlice[uint32]
 	roomIDs    map[string]uint32
 	rooms      []string
 	userIDs    map[string]uint32
@@ -86,7 +86,7 @@ type RoomTimelineProjection struct {
 	// the other components of the content view. It is nil when unused.
 	coldWatermark *coldWatermark
 	// latestCreatedAt is the newest applied row creation time in Unix
-	// nanoseconds. The cold window counts back from it, not from the clock.
+	// nanoseconds. The cold window counts back from it (see coldCutoff).
 	latestCreatedAt int64
 }
 
@@ -352,7 +352,7 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 // later row with the same ID replaces the earlier target.
 func (p *RoomTimelineProjection) indexEventLocked(idx int) {
 	if handle := p.entries.get(idx).event; handle != 0 {
-		p.rowByEvent.set(int(handle)-1, uint32(idx+1))
+		p.rowByEvent.set(handle, uint32(idx+1))
 	}
 }
 
@@ -363,8 +363,8 @@ func (p *RoomTimelineProjection) rowIndexLocked(eventID string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	row := p.rowByEvent.get(int(handle) - 1)
-	return int(row) - 1, row != 0
+	row, ok := p.rowByEvent.get(handle)
+	return int(row) - 1, ok
 }
 
 func eventCreatedAt(event *evtv1.Event) time.Time {
@@ -523,7 +523,7 @@ func newRoomTimelineProjection(eventIDs *eventIDTable) *RoomTimelineProjection {
 		sharedEventIDs:             shared,
 		bodyEventIDs:               new(idArena),
 		entries:                    newColdSlice[timelineRow](timelineRowColdCodec{}),
-		rowByEvent:                 newColdSlice[uint32](uint32ColdCodec{}),
+		rowByEvent:                 newColdHandleSlice[uint32](uint32ColdCodec{}),
 		bodyStates:                 newColdSlice[timelineBodyState](timelineBodyStateColdCodec{}),
 		roomIDs:                    make(map[string]uint32),
 		rooms:                      []string{""},
@@ -752,13 +752,19 @@ func (p *RoomTimelineProjection) freezeColdLocked() {
 	if window <= 0 {
 		return
 	}
-	cutoff := p.latestCreatedAt - int64(window)
 	frozen, rows := p.entries.frozenLen(), coldBlockRows()
-	if p.entries.len()-frozen < rows || p.entries.get(frozen+rows-1).createdAt >= cutoff {
+	if p.entries.len()-frozen < rows {
+		return
+	}
+	// Rows are nearly in creation order. The check uses the last row of the
+	// next block, so a younger row in that block, for example next to
+	// historical imports, can freeze early. Its later changes go to the
+	// overlay.
+	if !isCold(p.entries.get(frozen+rows-1).createdAt, p.latestCreatedAt, window) {
 		return
 	}
 	hot := frozen + rows
-	for hot < p.entries.len() && p.entries.get(hot).createdAt < cutoff {
+	for hot < p.entries.len() && isCold(p.entries.get(hot).createdAt, p.latestCreatedAt, window) {
 		hot++
 	}
 	p.entries.freezeBefore(hot)
@@ -777,7 +783,7 @@ func (p *RoomTimelineProjection) freezeColdLocked() {
 	// hot row approximates the boundary between cold and hot messages.
 	if firstHot < p.entries.len() {
 		if handle := p.entries.get(firstHot).event; handle != 0 {
-			p.rowByEvent.freezeBefore(int(handle) - 1)
+			p.rowByEvent.freezeBelow(handle)
 			p.coldWatermark.advance(handle)
 			p.eventIDs.freezeBelow(handle)
 		}
@@ -887,7 +893,7 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 		if author != user {
 			continue
 		}
-		if mapped := p.rowByEvent.get(int(row.event) - 1); mapped == 0 || int(mapped) != idx+1 {
+		if mapped, _ := p.rowByEvent.get(row.event); int(mapped) != idx+1 {
 			continue
 		}
 		eventID := p.eventIDs.id(row.event)

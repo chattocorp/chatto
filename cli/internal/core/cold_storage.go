@@ -2,6 +2,7 @@ package core
 
 import (
 	"math/bits"
+	"slices"
 	"time"
 	"unsafe"
 )
@@ -25,6 +26,15 @@ func coldWindowOrTest(window time.Duration) time.Duration {
 		return coldStorageTestWindow
 	}
 	return window
+}
+
+// isCold reports whether a row created at createdAt is cold. The window counts
+// back from the newest applied creation time, so replays freeze like live
+// processing. The wall clock caps that time: one event with a future creation
+// time must not make all current rows cold. The clock is read only for rows
+// that the uncapped cutoff makes cold.
+func isCold(createdAt, latestCreatedAt int64, window time.Duration) bool {
+	return createdAt < latestCreatedAt-int64(window) && createdAt < time.Now().UnixNano()-int64(window)
 }
 
 // coldBlockRows returns the number of rows in one frozen block.
@@ -129,9 +139,16 @@ func (p *packedColumns) estimatedBytes() int64 {
 		3*int64(unsafe.Sizeof([]uint64(nil)))
 }
 
+// coldOverlayDivisor bounds the overlay of a cold slice. When the overlay holds
+// more than 1/coldOverlayDivisor of the frozen rows, set packs the changed
+// blocks again and clears the overlay. Bulk changes of old rows, such as a
+// room deletion, therefore do not keep one map entry per row.
+const coldOverlayDivisor = 16
+
 // coldSlice is a dense slice whose leading rows can be frozen into packed
 // blocks. Frozen rows stay readable through get. A set of a frozen row stores
-// the new value in a sparse overlay, because blocks never change.
+// the new value in a sparse overlay, because a packed block cannot change in
+// place. A large overlay is packed into new blocks.
 //
 // Callers synchronize access. Reads do not change the slice, so concurrent
 // readers under a shared lock are safe.
@@ -205,6 +222,9 @@ func (s *coldSlice[T]) set(i int, value T) {
 			s.changed = make(map[int]T)
 		}
 		s.changed[i] = value
+		if len(s.changed) > max(coldBlockRows(), frozen/coldOverlayDivisor) {
+			s.packOverlay()
+		}
 		return
 	}
 	if missing := i - s.len() + 1; missing > 0 {
@@ -214,6 +234,28 @@ func (s *coldSlice[T]) set(i int, value T) {
 		s.hot = append(s.hot, make([]T, missing)...)
 	}
 	s.hot[i-frozen] = value
+}
+
+// packOverlay replaces each block with overlay rows by a new block that
+// contains the current values, and then clears the overlay.
+func (s *coldSlice[T]) packOverlay() {
+	changedBlocks := make([]int, 0, len(s.changed))
+	for i := range s.changed {
+		changedBlocks = append(changedBlocks, i>>coldBlockShift)
+	}
+	slices.Sort(changedBlocks)
+	values := make([]coldFields, coldBlockRows())
+	columns := s.codec.columns()
+	for _, block := range slices.Compact(changedBlocks) {
+		base := block << coldBlockShift
+		for row := range values {
+			values[row] = s.codec.encode(s.get(base + row))
+		}
+		packed := packColumns(columns, values)
+		s.blocks[block] = &packed
+	}
+	// Go maps do not shrink, so drop the map instead of clearing it.
+	s.changed = nil
 }
 
 // append adds a row at the end.
@@ -292,7 +334,8 @@ func (s *coldHandleSlice[T]) set(handle uint32, value T) {
 	s.rows.set(int(handle)-1, value)
 }
 
-// len returns one more than the highest handle with a stored slot.
+// len returns the number of stored slots, which is the highest handle with a
+// slot.
 func (s *coldHandleSlice[T]) len() int {
 	return s.rows.len()
 }

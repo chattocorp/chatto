@@ -271,15 +271,19 @@ production wiring, for example in a test, owns a private table.
 
 Old per-message rows are compressed in RAM (ADR-111). A message is cold when
 its creation time is older than `core.projection_cold_after` (default 30
-days), measured from the newest applied event. Commit packs complete blocks
-of 256 cold rows into read-only, bit-packed blocks. Reads decode frozen rows
-in place, and writes to frozen rows go to a sparse overlay. Room Timeline rows,
+days), measured from the newest applied event and capped at the wall clock.
+After each apply, the projection packs complete blocks of 256 cold rows into
+read-only, bit-packed blocks. Reads decode frozen rows in place. Writes to
+frozen rows go to a sparse overlay, which is packed again when it holds more
+than 1/16 of the frozen rows. Room Timeline rows,
 its row index, and body states; Threads message references; Reactions message
 rooms; and the Badge message records use these cold slices. The Room Timeline
 publishes the event ID handle boundary of its cold rows. Threads, Reactions,
 and the event ID table freeze their handle-indexed state below that boundary.
 The event ID table moves the IDs of frozen pages into cold pages with a sorted
-hash index and releases arena chunks that hold only frozen IDs. Read results
+hash index and releases arena chunks that hold only frozen IDs. It freezes in
+batches of at least 1/8 of the frozen pages, and it publishes the cold index
+before it removes hot entries shard by shard. Read results
 and snapshots do not change. Restore builds the uncompressed state and then
 freezes it.
 

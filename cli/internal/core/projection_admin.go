@@ -375,8 +375,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 
 	eventIndexBytes := p.rowByEvent.estimatedBytes()
 	var indexedEvents int64
-	for handle := range p.rowByEvent.len() {
-		if p.rowByEvent.get(handle) != 0 {
+	for index := range p.rowByEvent.len() {
+		if p.rowByEvent.at(index) != 0 {
 			indexedEvents++
 		}
 	}

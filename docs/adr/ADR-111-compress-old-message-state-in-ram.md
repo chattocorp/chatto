@@ -43,9 +43,11 @@ EVT for this purpose and does not change the projector framework.
 ### Cold window
 
 - A message is cold when its creation time is older than the cold window,
-  measured from the creation time of the newest applied event. Wall-clock time
-  does not affect it, so replays and restores at one applied sequence hold the
-  same cold set.
+  measured from the creation time of the newest applied event. Replays and
+  live processing therefore freeze the same rows.
+- The wall clock caps the newest creation time. One event with a future
+  creation time, for example from an import, must not make all current
+  messages cold.
 - The default window is 30 days. Operators set it with
   `core.projection_cold_after`. The value `0` keeps all state uncompressed.
   Because results do not change, a change of the window needs no replay.
@@ -57,11 +59,16 @@ EVT for this purpose and does not change the projector framework.
   the smallest value of the column, with the smallest bit width that holds the
   largest offset. A column with one value in all rows uses no bits.
 - A read of a frozen row decodes it in place, without an allocation. A write to
-  a frozen row stores the new value in a sparse overlay map, because blocks
-  never change.
-- Commit freezes complete blocks whose rows are all cold. Each apply freezes at
-  most the blocks that became cold, so no event pays for a complete sweep. A
-  restore builds the uncompressed state and then freezes it.
+  a frozen row stores the new value in a sparse overlay map, because a packed
+  block cannot change in place. When the overlay holds more than 1/16 of the
+  frozen rows, the slice packs the changed blocks again and clears the
+  overlay. Bulk changes, such as a room deletion, therefore do not keep one
+  map entry for each row.
+- After each apply, a projection freezes the next complete block when its last
+  row is cold. Rows are nearly in creation order, so the check is cheap and
+  each row is examined about once. A block can contain a few younger rows, for
+  example next to historical imports. Their later changes go to the overlay.
+- A restore builds the uncompressed state and then freezes it.
 
 These structures use cold slices:
 
@@ -72,20 +79,29 @@ These structures use cold slices:
 
 ### Cold boundary
 
-The Room Timeline decides which messages are cold. It publishes a handle
-boundary: all event ID handles below the boundary belong to cold rows or to
-events without a row. Threads, Reactions, and the event ID table freeze their
-handle-indexed state below this boundary. The Badge index has its own replay
-frontier, so it applies the cold window to its own records.
+The Room Timeline publishes the event ID handle of its oldest hot row as the
+cold boundary. Threads, Reactions, and the event ID table freeze their
+handle-indexed state below this boundary. Handles follow first-intern order,
+so the boundary approximates message age. Some handles below it can belong to
+younger messages. They freeze early, and their later changes go to overlays.
+The Badge index has its own replay frontier, so it applies the cold window to
+its own records.
 
 ### Event ID table
 
 The event ID table of ADR-110 freezes location pages below the cold boundary.
-It copies the IDs of a frozen page into one cold page and adds their hashes to
-a sorted cold index. It then removes their hot hash entries and releases arena
-chunks that hold only frozen IDs. Handles stay valid, and a lookup or ID read
-returns the same result as before. A read of an ID from a handle still takes
-no lock.
+It copies the IDs of the frozen pages into cold pages and merges their hashes
+into a sorted cold index. It builds this state without index locks, because
+frozen pages and their arena bytes never change. It then publishes the new
+cold state and removes the hot hash entries shard by shard. Each ID is always
+in the hot index, the cold index, or both, so a lookup never misses. Last, it
+releases arena chunks that hold only frozen IDs.
+
+Each freeze copies the complete cold index. The table therefore freezes only
+when the new pages add at least 1/8 of the frozen pages. The total copy cost
+stays linear in the number of IDs, and at most that share of old IDs stays
+hot. Handles stay valid, and a lookup or ID read returns the same result as
+before. A read of an ID from a handle still takes no lock.
 
 ## Alternatives
 
@@ -112,7 +128,7 @@ Server Content View and the Notification Decisions projection:
   A differential check with windows of 0, 30 days, and one nanosecond
   compared all snapshots and a digest of all read results with the previous
   version.
-- A complete replay of the copy takes about 6% longer with a 30-day window.
+- A complete replay of the copy takes about 8% longer with a 30-day window.
 - Reads of cold messages are two to three times slower. A lookup of one cold
   message takes about 0.9 µs instead of 0.3 µs. A page of 50 old timeline
   entries takes about 0.3 ms instead of 0.13 ms. Reads of hot messages do not

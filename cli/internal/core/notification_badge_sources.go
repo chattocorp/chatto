@@ -224,6 +224,9 @@ type notificationBadgeSources struct {
 	// coldCursor is the first message slot not yet known to be old. Records
 	// only age, so the freeze scan never revisits slots below it.
 	coldCursor int
+	// coldProbe is the slot where the last freeze scan stopped. Slots from
+	// coldCursor up to it held no record, so the next scan starts there.
+	coldProbe int
 }
 
 // newNotificationBadgeSources returns an empty index that interns event IDs in
@@ -259,19 +262,20 @@ func (b *notificationBadgeSources) freezeColdLocked() {
 	if window <= 0 {
 		return
 	}
-	cutoff := b.latestCreatedAt - int64(window)
 	next := max(b.coldCursor, b.messages.rows.frozenLen())
-	for slot := next; slot < b.messages.len(); slot++ {
+	slot := max(next, b.coldProbe)
+	for ; slot < b.messages.len(); slot++ {
 		record := b.messages.at(slot)
 		if record == (badgeMessage{}) {
 			continue
 		}
-		if record.createdAt >= cutoff {
+		if !isCold(record.createdAt, b.latestCreatedAt, window) {
 			break
 		}
 		next = slot + 1
 	}
 	b.coldCursor = next
+	b.coldProbe = slot
 	b.messages.freezeBelow(uint32(next + 1))
 }
 

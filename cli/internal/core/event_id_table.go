@@ -6,7 +6,6 @@ import (
 	"hash/maphash"
 	"maps"
 	"slices"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -46,13 +45,16 @@ import (
 type eventIDTable struct {
 	seed   maphash.Seed
 	shards [eventIDShardCount]eventIDShard
-	// mu serializes handle assignment and freezing: count, pages, arena
-	// writes, and chunkLastHandle.
+	// mu serializes handle assignment and page publication: count, pages,
+	// arena writes, and chunkLastHandle.
 	mu sync.Mutex
+	// freezeMu serializes freezes. A freeze reads the cold state that the
+	// previous freeze published.
+	freezeMu sync.Mutex
 	// count is the number of interned IDs.
 	count int
 	// pages is the published directory of location pages indexed by
-	// (handle-1)/idLocationPageSize. A page never changes after publication.
+	// (handle-1)>>idLocationPageShift. Locations below count never change.
 	// Frozen pages are nil; their IDs are in cold.
 	pages atomic.Pointer[[]idLocationPage]
 	arena idArena
@@ -113,9 +115,9 @@ type eventIDShard struct {
 	_       [128 - (unsafe.Sizeof(sync.RWMutex{})+2*unsafe.Sizeof(map[uint64]uint32(nil))+unsafe.Sizeof(0))%128]byte
 }
 
-// idLocationPageSize is the number of handle locations in one page. Tests
-// lower it.
-var idLocationPageSize = 1 << 10
+// idLocationPageShift sets the number of handle locations in one page to
+// 1<<idLocationPageShift. Tests lower it.
+var idLocationPageShift = 10
 
 // idLocationPage holds the arena locations of one page of handles.
 type idLocationPage []idLocation
@@ -165,14 +167,14 @@ func (t *eventIDTable) appendID(id string) uint32 {
 	if t.count == int(^uint32(0)) {
 		panic("core: event ID table handle space exhausted")
 	}
-	pageIndex, slot := t.count/idLocationPageSize, t.count%idLocationPageSize
+	pageIndex, slot := t.count>>idLocationPageShift, t.count&(1<<idLocationPageShift-1)
 	pages := t.loadPages()
 	if pageIndex == len(pages) {
 		// Publish a new directory instead of appending in place, so a reader
 		// never observes a directory that is being modified.
 		next := make([]idLocationPage, len(pages)+1)
 		copy(next, pages)
-		next[pageIndex] = make(idLocationPage, idLocationPageSize)
+		next[pageIndex] = make(idLocationPage, 1<<idLocationPageShift)
 		t.pages.Store(&next)
 		pages = next
 	}
@@ -207,13 +209,15 @@ func (t *eventIDTable) lookupLocked(shard *eventIDShard, hash uint64, id string)
 	if handle, ok := shard.collisions[id]; ok {
 		return handle, true
 	}
-	// A freeze swaps the cold index and the shard maps while it holds every
-	// shard lock, so the caller's shard lock makes this read consistent.
+	// A freeze publishes the cold index before it removes hot entries under
+	// the shard lock, so an ID that this lookup does not find above is in
+	// this cold index.
 	cold := t.cold.Load()
 	if cold == nil {
 		return 0, false
 	}
-	for i := sort.Search(len(cold.hashes), func(i int) bool { return cold.hashes[i] >= hash }); i < len(cold.hashes) && cold.hashes[i] == hash; i++ {
+	i, _ := slices.BinarySearch(cold.hashes, hash)
+	for ; i < len(cold.hashes) && cold.hashes[i] == hash; i++ {
 		if t.id(cold.handles[i]) == id {
 			return cold.handles[i], true
 		}
@@ -228,7 +232,7 @@ func (t *eventIDTable) id(handle uint32) string {
 		return ""
 	}
 	index := int(handle - 1)
-	page, slot := index/idLocationPageSize, index%idLocationPageSize
+	page, slot := index>>idLocationPageShift, index&(1<<idLocationPageShift-1)
 	// Load the chunk directory before the page directory. A freeze removes a
 	// page before it releases its chunks, so a hot page that this read sees
 	// still has its chunks in the loaded chunk directory.
@@ -240,60 +244,59 @@ func (t *eventIDTable) id(handle uint32) string {
 	return t.cold.Load().pages[page].id(slot)
 }
 
+// coldIndexGrowthDivisor limits how often a freeze copies the cold index. A
+// freeze waits until the new pages hold at least 1/coldIndexGrowthDivisor of
+// the frozen pages, so the total copy cost stays linear in the number of IDs.
+// Up to that share of old IDs therefore stays hot.
+const coldIndexGrowthDivisor = 8
+
 // freezeBelow moves the IDs of complete pages whose handles are all below
 // boundary into cold pages, and releases arena chunks that then hold only
 // frozen IDs. Handles and results do not change. Freezing is idempotent and
 // never moves the boundary back.
+//
+// The freeze builds the new cold state without index locks, because frozen
+// pages and their arena bytes never change. It publishes the cold state
+// before it removes the hot entries shard by shard, so each ID is always in
+// the hot index, the cold index, or both. A lookup therefore never misses,
+// and each shard lock is held only for the removal of its own entries.
 func (t *eventIDTable) freezeBelow(boundary uint32) {
 	if boundary <= 1 {
 		return
 	}
-	for i := range t.shards {
-		t.shards[i].mu.Lock()
-	}
-	t.mu.Lock()
-	defer func() {
-		t.mu.Unlock()
-		for i := range t.shards {
-			t.shards[i].mu.Unlock()
-		}
-	}()
+	t.freezeMu.Lock()
+	defer t.freezeMu.Unlock()
 	previous := t.cold.Load()
 	if previous == nil {
 		previous = &eventIDColdState{}
 	}
 	frozen := len(previous.pages)
-	limit := min(int(boundary-1), t.count) / idLocationPageSize
-	if limit <= frozen {
+	t.mu.Lock()
+	limit := min(int(boundary-1), t.count) >> idLocationPageShift
+	t.mu.Unlock()
+	if limit-frozen < max(1, frozen/coldIndexGrowthDivisor) {
 		return
 	}
 
+	// The mutex above orders these reads after the writes of all complete
+	// pages.
 	pages := t.loadPages()
 	chunks := t.arena.loadChunks()
-	next := &eventIDColdState{pages: append(slices.Clip(previous.pages), make([]*eventIDColdPage, 0, limit-frozen)...)}
+	pageSize := 1 << idLocationPageShift
+	next := &eventIDColdState{pages: slices.Grow(slices.Clone(previous.pages), limit-frozen)}
 	type entry struct {
 		hash   uint64
 		handle uint32
 	}
-	added := make([]entry, 0, (limit-frozen)*idLocationPageSize)
-	ends := make([]coldFields, idLocationPageSize)
+	added := make([]entry, 0, (limit-frozen)*pageSize)
+	ends := make([]coldFields, pageSize)
 	for page := frozen; page < limit; page++ {
 		var data []byte
 		for slot, location := range pages[page] {
 			id := idArenaString(chunks, location)
 			data = append(data, id...)
 			ends[slot][0] = uint64(len(data))
-			handle := uint32(page*idLocationPageSize + slot + 1)
-			hash := maphash.String(t.seed, id)
-			added = append(added, entry{hash: hash, handle: handle})
-			// Remove the hot index entry; the cold index replaces it.
-			shard := t.shard(hash)
-			if shard.byHash[hash] == handle {
-				delete(shard.byHash, hash)
-				shard.removed++
-			} else {
-				delete(shard.collisions, id)
-			}
+			added = append(added, entry{hash: maphash.String(t.seed, id), handle: uint32(page<<idLocationPageShift + slot + 1)})
 		}
 		next.pages = append(next.pages, &eventIDColdPage{data: slices.Clip(data), ends: packColumns(1, ends)})
 	}
@@ -313,13 +316,32 @@ func (t *eventIDTable) freezeBelow(boundary uint32) {
 	}
 	t.cold.Store(next)
 
-	for i := range t.shards {
-		shard := &t.shards[i]
+	// The high hash bits select the shard, so the sorted entries are grouped
+	// by shard.
+	for len(added) > 0 {
+		shard := t.shard(added[0].hash)
+		shard.mu.Lock()
+		for len(added) > 0 && t.shard(added[0].hash) == shard {
+			entry := added[0]
+			added = added[1:]
+			if shard.byHash[entry.hash] == entry.handle {
+				delete(shard.byHash, entry.hash)
+				shard.removed++
+			} else {
+				index := int(entry.handle - 1)
+				delete(shard.collisions, next.pages[index>>idLocationPageShift].id(index&(pageSize-1)))
+			}
+		}
 		if shard.removed > len(shard.byHash) {
 			shard.byHash = maps.Clone(shard.byHash)
 			shard.removed = 0
 		}
+		shard.mu.Unlock()
 	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	pages = t.loadPages()
 	hot := make([]idLocationPage, len(pages))
 	copy(hot, pages)
 	for page := frozen; page < limit; page++ {
@@ -330,7 +352,7 @@ func (t *eventIDTable) freezeBelow(boundary uint32) {
 	// Arena chunks follow handle order, except that the chunk for short IDs
 	// can outlive chunks for long IDs. Release chunks whose last handle is
 	// frozen, but never the chunk that receives new short IDs.
-	firstHot := uint32(limit*idLocationPageSize + 1)
+	firstHot := uint32(limit<<idLocationPageShift + 1)
 	t.arena.release(func(chunk int) bool {
 		return chunk < len(t.chunkLastHandle) && t.chunkLastHandle[chunk] < firstHot && chunk != t.arena.target-1
 	})
