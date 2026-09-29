@@ -135,37 +135,20 @@ describe('connectChatto in Node', () => {
     expect(gaps).toEqual([false, true, false, true]);
   });
 
-  it('delivers events that arrive before the first listener', async () => {
+  it('keeps delivering an event to later listeners when one listener throws', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
     await vi.waitFor(() => expect(eventBusManager.getBus(connection!.serverId)).toBeDefined());
-    const bus = eventBusManager.getBus(connection.serverId)!;
-    const publish = (id: string) =>
-      bus.publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id }) }));
-    publish('early');
-    await connection.ready();
     const received: string[] = [];
+    connection.onEvent(() => {
+      throw new Error('listener failed');
+    });
     connection.onEvent((event) => received.push(event.id));
-    publish('during-registration');
-    expect(received).toEqual([]);
-    await Promise.resolve();
-    publish('late');
-    expect(received).toEqual(['early', 'during-registration', 'late']);
-  });
-
-  it('reports a gap when too many events arrive before the first listener', async () => {
-    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
-    await vi.waitFor(() => expect(eventBusManager.getBus(connection!.serverId)).toBeDefined());
-    const bus = eventBusManager.getBus(connection.serverId)!;
-    for (let index = 0; index <= 1000; index++) {
-      bus.publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id: `e${index}` }) }));
-    }
-    const gaps: boolean[] = [];
-    const received: string[] = [];
-    connection.onReset(({ gap }) => gaps.push(gap));
-    connection.onEvent((event) => received.push(event.id));
-    await Promise.resolve();
-    expect(gaps).toEqual([true]);
-    expect(received).toEqual(['e1000']);
+    eventBusManager
+      .getBus(connection.serverId)!
+      .publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id: 'e1' }) }));
+    expect(received).toEqual(['e1']);
+    logged.mockRestore();
   });
 
   it('leaves no timers behind after close', async () => {
@@ -316,6 +299,7 @@ describe('connectChatto in Node', () => {
 
       await expect(viewer.getViewer({})).rejects.toThrow('connection is closed');
       expect(responses).toHaveLength(2);
+      expect(() => connection!.service(ViewerService)).toThrow('connection is closed');
     } finally {
       vi.unstubAllGlobals();
     }

@@ -18,10 +18,11 @@ frontend.
 import { connectChatto } from '@chatto/client';
 
 const chatto = connectChatto({ serverUrl, apiKey });
-const { viewerId } = await chatto.ready({ signal });
+// Realtime can start before ready() resolves: add listeners first.
 chatto.onEvent((event) => {
   if (event.event.case === 'messagePosted') handle(event);
 });
+const { viewerId } = await chatto.ready({ signal });
 const rooms = [...chatto.store.projection.rooms.values()];
 // Close the connection when the host stops.
 chatto.close();
@@ -31,8 +32,8 @@ chatto.close();
 - `chatto.service(Service)` creates a typed Connect client with the
   connection's authentication.
 - `onEvent` listeners run in order after the store applied an event. They must
-  not throw. Realtime can start before `ready()` resolves; the first listener
-  receives the events that arrived before it. `onReset` reports projection
+  not throw; a listener error is logged. Add listeners before you wait for
+  `ready()`, because realtime can start first. `onReset` reports projection
   resets. `gap: true` means that events can be missing, for example because a
   new snapshot replaced a stream that the server could not resume.
 - `close()` stops realtime delivery and all timers, and rejects a pending

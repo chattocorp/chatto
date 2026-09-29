@@ -351,3 +351,59 @@ test('removes its abort listener when consumption fails', async () => {
   await expect(consuming).rejects.toThrow('handler failed');
   expect(removed).toHaveBeenCalledWith('abort', added.mock.calls[0]?.[1]);
 });
+
+test('keeps events and gaps that arrive before ready() for the first consumer', async () => {
+  let identify!: (identity: { viewerId: string }) => void;
+  const fake = fakeConnection(() => {}, new Promise((resolve) => (identify = resolve)));
+  const creating = createBotClient(fake.chatto);
+  fake.emit(new RealtimeEvent({ id: 'before-ready' }));
+  fake.reset(true);
+  identify({ viewerId: 'bot' });
+  const bot = await creating;
+  fake.setStatus('connected');
+  const controller = new AbortController();
+  const handled: string[] = [];
+  const statuses: unknown[] = [];
+  const consuming = bot.consumeEvents({
+    signal: controller.signal,
+    onStatus: (status) => statuses.push(status),
+    onEvent: (event) => {
+      handled.push(event.id);
+    }
+  });
+  await vi.waitFor(() => expect(handled).toEqual(['before-ready']));
+  expect(statuses).toEqual([{ state: 'ready', gap: true }]);
+  controller.abort();
+  await consuming;
+  expect(fake.listenerCount).toBe(0);
+});
+
+test('stops listening when ready() rejects', async () => {
+  const fake = fakeConnection(() => {}, Promise.reject(new Error('rejected the API key')));
+  await expect(createBotClient(fake.chatto)).rejects.toThrow('rejected the API key');
+  expect(fake.listenerCount).toBe(0);
+});
+
+test('reports a message without text without a body', async () => {
+  const fake = fakeConnection((router) =>
+    router.service(MessageService, {
+      getMessage: ({ eventId }) => ({
+        message: {
+          id: eventId,
+          roomId: 'room',
+          actorId: 'alice',
+          body: eventId === 'text' ? 'hi' : ''
+        }
+      })
+    })
+  );
+  const bot = await createBotClient(fake.chatto);
+  await expect(bot.getMessage({ roomId: 'room', messageId: 'files' })).resolves.toEqual({
+    id: 'files',
+    roomId: 'room',
+    authorId: 'alice'
+  });
+  await expect(bot.getMessage({ roomId: 'room', messageId: 'text' })).resolves.toMatchObject({
+    body: 'hi'
+  });
+});

@@ -80,16 +80,16 @@ export interface ChattoConnection {
    * Create a typed Connect client for a public service, with this
    * connection's authentication. The fixed token always belongs to the same
    * account, so projection resets do not fail these requests. After
-   * `close()`, clients send nothing, and responses in flight fail.
+   * `close()`, clients send nothing, responses in flight fail, and this
+   * method throws a `Canceled` `ConnectError`.
    */
   service<T extends ServiceType>(service: T): Client<T>;
   /**
    * Receive semantic realtime events after the store applied them. Listeners
    * run in order and must not throw; handle asynchronous work yourself.
-   * Realtime can start before `ready()` resolves: events that arrive before
-   * the first listener are delivered to it in a microtask after it is added.
-   * When more than 1000 such events arrive, they are dropped and `onReset`
-   * reports a gap. Returns a function that removes the listener.
+   * Realtime can start before `ready()` resolves, so add listeners before
+   * you wait for it. A listener error is logged and does not stop other
+   * listeners. Returns a function that removes the listener.
    */
   onEvent(listener: (event: RealtimeEvent) => void): () => void;
   /**
@@ -106,9 +106,6 @@ export interface ChattoConnection {
    */
   close(): void;
 }
-
-/** Events kept for the first `onEvent` listener; more are dropped as a gap. */
-const MAX_EARLY_EVENTS = 1000;
 
 /** The open connection. The client runtime keeps one server live at a time. */
 let openConnection: ChattoConnection | null = null;
@@ -160,38 +157,15 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   // publishes a reset and then a snapshot before the next connection.
   let connectedSinceReset = false;
   const closed = signal(false);
-  // Realtime can start before ready() resolves. Keep the events that arrive
-  // before the first onEvent listener, and deliver them to it. Null after
-  // they were delivered.
-  let earlyEvents: RealtimeEvent[] | null = [];
-  let earlyEventsDropped = false;
-  let earlyFlushScheduled = false;
-
-  const deliver = (event: RealtimeEvent) => {
-    if (earlyEvents) {
-      if (earlyEvents.length >= MAX_EARLY_EVENTS) {
-        earlyEvents = [];
-        earlyEventsDropped = true;
+  /** Call each listener; one failing listener does not stop the others. */
+  const notify = <T>(listeners: Set<(value: T) => void>, value: T) => {
+    for (const listener of [...listeners]) {
+      try {
+        listener(value);
+      } catch (error) {
+        console.error('[chatto-client] a realtime listener failed', error);
       }
-      earlyEvents.push(event);
-      return;
     }
-    for (const listener of [...eventListeners]) listener(event);
-  };
-
-  /** Deliver early events to the first listener, after its registration returns. */
-  const flushEarlyEvents = () => {
-    if (earlyFlushScheduled || !earlyEvents) return;
-    earlyFlushScheduled = true;
-    queueMicrotask(() => {
-      const events = earlyEvents ?? [];
-      earlyEvents = null;
-      if (closed.peek()) return;
-      if (earlyEventsDropped) {
-        for (const listener of [...resetListeners]) listener({ gap: true });
-      }
-      for (const event of events) deliver(event);
-    });
   };
 
   /** Realtime status; never creates a connection for a server that close() removed. */
@@ -216,10 +190,10 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
             resets++;
             const reset: ChattoReset = { gap: resets > 1 && connectedSinceReset };
             connectedSinceReset = false;
-            for (const listener of [...resetListeners]) listener(reset);
+            notify(resetListeners, reset);
           }
           const event = update.event;
-          if (event) deliver(event);
+          if (event) notify(eventListeners, event);
         })
       );
     });
@@ -302,6 +276,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
       });
     },
     service<T extends ServiceType>(service: T): Client<T> {
+      if (closed.peek()) throw new ConnectError('The Chatto connection is closed', Code.Canceled);
       const base = serverConnectionManager.getClient(serverId).apiConfig;
       // After close(), send nothing: the token must not outlive the connection.
       const refuseAfterClose: Interceptor = (next) => (request) => {
@@ -323,7 +298,6 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     },
     onEvent(listener) {
       eventListeners.add(listener);
-      flushEarlyEvents();
       return () => eventListeners.delete(listener);
     },
     onReset(listener) {

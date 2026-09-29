@@ -194,7 +194,8 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
       authorId: message.actorId,
       ...(message.threadRootEventId ? { threadRootId: message.threadRootEventId } : {}),
       ...(message.inReplyTo ? { inReplyTo: message.inReplyTo } : {}),
-      ...(message.body !== undefined ? { body: message.body } : {})
+      // A message without text has an empty body; report it as absent.
+      ...(message.body ? { body: message.body } : {})
     };
   }
 
@@ -362,33 +363,79 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
 
 export type BotApi = ReturnType<typeof createBotApi>;
 
+/** Realtime events and gaps that wait for {@link BotClient.consumeEvents}. */
+interface Inbox {
+  queue: RealtimeEvent[];
+  /** Events can be missing; reported with the next `ready`. */
+  pendingGap: boolean;
+  /** Called after the queue dropped its backlog. */
+  onOverflow?: () => void;
+  wake?: () => void;
+  close(): void;
+}
+
+/** Subscribe to the connection's events and resets. */
+function openInbox(chatto: ChattoConnection): Inbox {
+  const inbox: Inbox = { queue: [], pendingGap: false, close: () => {} };
+  const stopEvents = chatto.onEvent((event) => {
+    if (inbox.queue.length >= MAX_QUEUED_EVENTS) {
+      // Keep the bot responsive: drop the backlog and report the loss.
+      inbox.queue = [];
+      inbox.pendingGap = true;
+      inbox.onOverflow?.();
+    }
+    inbox.queue.push(event);
+    inbox.wake?.();
+  });
+  const stopResets = chatto.onReset(({ gap }) => {
+    if (gap) inbox.pendingGap = true;
+  });
+  inbox.close = () => {
+    stopEvents();
+    stopResets();
+  };
+  return inbox;
+}
+
 /**
  * Wait until the connection accepted its token, then create the bot client:
  * the {@link createBotApi} helpers and an ordered realtime event loop.
  * Rejects like {@link ChattoConnection.ready}: when the server rejects the
  * token, when the viewer read fails (for example because the server is
  * unreachable), when the connection closes, or when `signal` aborts.
+ *
+ * The client receives events from the start, also while it waits for
+ * `ready()`, and keeps them for the first `consumeEvents` call.
  */
 export async function createBotClient(
   chatto: ChattoConnection,
   { signal }: { signal?: AbortSignal } = {}
 ) {
-  const { viewerId } = await chatto.ready({ signal });
+  // Realtime can start before ready() resolves; subscribe first.
+  let firstInbox: Inbox | undefined = openInbox(chatto);
+  let viewerId: string;
+  try {
+    ({ viewerId } = await chatto.ready({ signal }));
+  } catch (error) {
+    firstInbox.close();
+    throw error;
+  }
 
   /**
    * Handle realtime events in order until `signal` aborts. The connection
    * keeps receiving events while a handler runs; up to 1000 wait in memory.
-   * Resolves on abort. Rejects when `onEvent` or `onStatus` throws, when the
-   * server ends the session, or when the connection closes.
+   * The first call also receives the events that arrived after the client
+   * was created. Resolves on abort. Rejects when `onEvent` or `onStatus`
+   * throws, when the server ends the session, or when the connection closes.
    */
   async function consumeEvents({ signal, onEvent, onStatus }: ConsumeEventsOptions): Promise<void> {
     signal.throwIfAborted();
-    let queue: RealtimeEvent[] = [];
-    let wake: (() => void) | undefined;
+    const inbox = firstInbox ?? openInbox(chatto);
+    firstInbox = undefined;
     let failure: { error: unknown } | undefined;
     const fail = (error: unknown) => {
       failure ??= { error };
-      wake?.();
+      inbox.wake?.();
     };
     let lastStatus: string | undefined;
     // Report outside reactive tracking, and only changes. A failing status
@@ -406,21 +453,12 @@ export async function createBotClient(
     };
     // A reset gap is reported with the next `ready`, so hosts are not told
     // `ready` while the stream reconnects or a replacement snapshot loads.
-    let pendingGap = false;
-    const stopEvents = chatto.onEvent((event) => {
-      if (queue.length >= MAX_QUEUED_EVENTS) {
-        // Keep the bot responsive: drop the backlog and report the loss. The
-        // stream itself is healthy, so report at once when it is connected.
-        queue = [];
-        if (untrack(() => chatto.status) === 'connected') report({ state: 'ready', gap: true });
-        else pendingGap = true;
-      }
-      queue.push(event);
-      wake?.();
-    });
-    const stopResets = chatto.onReset(({ gap }) => {
-      if (gap) pendingGap = true;
-    });
+    // A dropped backlog is reported at once when the stream is connected.
+    inbox.onOverflow = () => {
+      if (untrack(() => chatto.status) !== 'connected') return;
+      inbox.pendingGap = false;
+      report({ state: 'ready', gap: true });
+    };
     let connectedBefore = false;
     const stopEffects = effectRoot(() => {
       effect(() => {
@@ -435,8 +473,8 @@ export async function createBotClient(
         if (failure || untrack(() => chatto.closed || chatto.sessionEnded)) return;
         if (status === 'connected') {
           connectedBefore = true;
-          report({ state: 'ready', gap: pendingGap });
-          pendingGap = false;
+          report({ state: 'ready', gap: inbox.pendingGap });
+          inbox.pendingGap = false;
         } else if (status === 'connecting') {
           report({ state: connectedBefore ? 'reconnecting' : 'connecting' });
         } else if (status === 'disconnected') {
@@ -445,22 +483,21 @@ export async function createBotClient(
       });
     });
     // Abort wakes the loop directly; no promise outlives one wait.
-    const onAbort = () => wake?.();
+    const onAbort = () => inbox.wake?.();
     signal.addEventListener('abort', onAbort, { once: true });
     try {
       while (!signal.aborted) {
         if (failure) throw failure.error;
-        const event = queue.shift();
+        const event = inbox.queue.shift();
         if (!event) {
-          await new Promise<void>((resolve) => (wake = resolve));
-          wake = undefined;
+          await new Promise<void>((resolve) => (inbox.wake = resolve));
+          inbox.wake = undefined;
           continue;
         }
         await onEvent(event);
       }
     } finally {
-      stopEvents();
-      stopResets();
+      inbox.close();
       stopEffects();
       signal.removeEventListener('abort', onAbort);
     }

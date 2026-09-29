@@ -17,5 +17,10 @@
  * for example with `setVoiceCallFactory`.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- augmentation target
-export interface Register {}
+export interface Register {
+  /**
+   * Marks the interface as the registration target. Applications add their
+   * own members; this one is never set.
+   */
+  readonly __chattoRegister?: never;
+}

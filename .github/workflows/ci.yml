@@ -60,7 +60,11 @@ jobs:
               - 'pkg/**'
             runling:
               - 'packages/runling/**'
+              # The Runling bot example uses the Chatto client packages.
               - 'packages/chatto-client/**'
+              - 'packages/chatto-bot-client/**'
+              - 'packages/api-types/**'
+              - 'examples/runling-bot/**'
             chattobot:
               - 'packages/chatto-bot-client/**'
               - 'packages/chattobot/**'
