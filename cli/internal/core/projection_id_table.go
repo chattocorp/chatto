@@ -86,30 +86,3 @@ func sortedHandleKeys[V any](ids handleIDResolver, values map[uint32]V) []uint32
 	slices.SortFunc(handles, func(a, b uint32) int { return cmp.Compare(ids.id(a), ids.id(b)) })
 	return handles
 }
-
-// handleSlice stores one value per ID-table handle in a dense slice indexed by
-// handle minus one. The zero value of T means "no value", so handles of IDs
-// without a value cost only one zero element.
-type handleSlice[T comparable] []T
-
-// get returns the value for handle and whether it is set.
-func (s handleSlice[T]) get(handle uint32) (T, bool) {
-	var zero T
-	if handle == 0 || int(handle) > len(s) {
-		return zero, false
-	}
-	value := s[handle-1]
-	return value, value != zero
-}
-
-// set stores value for handle and grows the slice when necessary. Handle zero
-// is ignored.
-func (s *handleSlice[T]) set(handle uint32, value T) {
-	if handle == 0 {
-		return
-	}
-	if missing := int(handle) - len(*s); missing > 0 {
-		*s = append(*s, make([]T, missing)...)
-	}
-	(*s)[handle-1] = value
-}

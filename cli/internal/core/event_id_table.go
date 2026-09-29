@@ -17,7 +17,7 @@ import (
 //
 // ServerContentView components share one table, so an event ID that the room
 // timeline, thread, and reaction components all index is held once. Each
-// component keeps handle-indexed state, such as handleSlice values, in its own
+// component keeps handle-indexed state, such as coldHandleSlice values, in its own
 // model. A projection created outside the content view owns a private table.
 //
 // The table is append-only: handles stay valid for the table's lifetime and
