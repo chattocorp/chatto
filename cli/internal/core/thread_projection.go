@@ -519,10 +519,6 @@ func (p *ThreadProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func threadFollowKeyPart(roomID, threadRootEventID string) string {
-	return roomID + "\x00" + threadRootEventID
-}
-
 func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRootEventID string, state ThreadFollowState) {
 	if userID == "" || roomID == "" || threadRootEventID == "" {
 		return

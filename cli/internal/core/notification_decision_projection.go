@@ -347,13 +347,13 @@ func notificationDeliveryModeFieldCount(modes *evtv1.NotificationDeliveryModes) 
 }
 
 type notificationDecisionSnapshot struct {
-	rooms         *RoomDirectoryProjection
-	groups        *RoomGroupLayoutProjection
-	rbac          *RBACProjection
-	config        *ConfigProjection
-	activeUsers   map[string]struct{}
-	badges        *notificationBadgeSources
-	at            time.Time
+	rooms       *RoomDirectoryProjection
+	groups      *RoomGroupLayoutProjection
+	rbac        *RBACProjection
+	config      *ConfigProjection
+	activeUsers map[string]struct{}
+	badges      *notificationBadgeSources
+	at          time.Time
 }
 
 func (s *notificationDecisionSnapshot) roomKind(roomID string) (RoomKind, bool) {
