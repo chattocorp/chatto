@@ -3,12 +3,12 @@
 The internal [`@chatto/client`](../../packages/chatto-client/README.md) package
 is the Chatto client. The bundled frontend, ChattoBot, and the local Runling
 bot use it. It owns the ConnectRPC facades, sessions, the realtime transport
-and projection, and the server and room stores. It does not add server
-endpoints or depend on Runling or a UI framework. Hosts retain credential
-loading, webhook handling, and conversation state; see
-[ADR-110](../adr/ADR-110-move-client-state-into-chatto-client.md).
+and projection, the server data, and the Store boundary events. It does not
+add server endpoints or depend on Runling or a UI framework. Hosts retain
+their UI state, credential loading, webhook handling, and conversation state;
+see [ADR-110](../adr/ADR-110-move-client-state-into-chatto-client.md).
 
-The client also owns what bots need: connections with fixed API keys, an
+The client also owns what bots need: servers with fixed API keys, an
 ordered message loop with a context per addressed message, message splitting,
 thread history, reactions, typing refresh, addressing recognition, reply
 context, conversation keys, and accepted-delivery tracking. It has no Runling

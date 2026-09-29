@@ -27,6 +27,9 @@ frontends must use the same code, and tests must cover this code without a
 UI framework. A host must be able to run several independent clients, for
 example several bots that connect to different servers.
 
+The client must serve integrations. State that only one host's UI uses, such
+as sidebar grouping, search sessions, or call media, must not be part of it.
+
 ## Decision
 
 `@chatto/client` (`packages/chatto-client/`) contains the Chatto client. The
@@ -42,9 +45,11 @@ The package owns this client behavior:
 - Client instances (`client`): `createClient()` creates an isolated client
   with its own registry, connection manager, realtime transports, and
   runtime.
-- Connections with fixed tokens and the message loop for bots
-  (`connection`), and stateless requests (`api`), with the shared request
-  helpers (`messaging/`).
+- Servers (`server/server`): one type for every server of a client, with its
+  state, its events, its requests, and the message loop for bots. Stateless
+  requests (`api`) share the request helpers (`messaging/`).
+- Boundary events of each server (`server/storeEvents`); see
+  [Server data and host state](#server-data-and-host-state).
 - Re-exports of the protocol messages and services (`types`,
   `types/admin`), generated from `@chatto/api-types`.
 - The ConnectRPC facades, the transport interceptors, and the privacy fences
@@ -52,11 +57,12 @@ The package owns this client behavior:
 - Sessions, bearer renewal, and origin cookie sessions (`auth/`, `server/registry`).
 - Server connections and the realtime transport (`server/serverConnection`,
   `server/realtimeTransport`, `realtime/eventBus`).
-- The realtime projection and the server and room stores (`server/`, `room/`).
-- The snapshot query cache on `@tanstack/query-core` (`query/`).
+- The realtime projection and the server data: rooms and room groups,
+  notification occurrences and counts, user profiles, presence, active calls,
+  and the paged room and thread timelines (`server/`, `room/`).
 - The client runtime: recovery, realtime ownership, and session termination
   (`server/runtime`).
-- Page lifecycle tracking and asset URL helpers (`util/`).
+- Asset URL helpers (`util/`).
 
 The frontend keeps these parts:
 
@@ -65,11 +71,47 @@ The frontend keeps these parts:
   The frontend makes the message with `errorMessage()`.
 - Its one client (`$lib/client`), with device storage, the origin server,
   and one live server.
-- The LiveKit and audio implementation of voice calls. The package defines
-  `VoiceCallController`. The frontend passes its implementation to
-  `createClient` as the `voiceCall` factory and registers its type through
-  the `Register` interface in `@chatto/client/register`.
-- Svelte bindings for TanStack Query and device UI preferences.
+- The UI state of each server (`$lib/state/server/serverUi`): read views and
+  notification attention, sidebar navigation with notification counts,
+  optimistic unread and membership state, pending highlights, message search
+  sessions, the admin room-layout editor, and the LiveKit voice call with its
+  call overlays.
+- Timeline scroll positions and jumped mode (`$lib/state/room`). The client
+  keeps the paged window and the anchor event that a reset reloads around.
+- The snapshot query cache on TanStack Query (`$lib/query`) and the
+  view-shaped API modules for admin tools, first-run setup, Web Push, and the
+  cross-tab session channel (`$lib/api`, `$lib/auth`).
+- Page lifecycle tracking and device UI preferences, such as the presence
+  choice.
+
+### Server data and host state
+
+The client keeps server data and the operations on it. A host keeps its own
+state next to each server:
+
+- Host state that derives from server data needs no cleanup: it follows the
+  server. Examples are sidebar groups and badge counts.
+- A host that copies server data, for example search results or cached
+  reads, clears the copy at the server's boundary events: `onReset`,
+  `onRoomAccessLost`, `onRoomAccessRestored`, `onUserDeleted`,
+  `onAuthorityChanged`, `onPermissionsChanged`, `onSessionEnded`, and
+  `onDispose`. `onUpdate` reports each applied event and resource. The server
+  emits each event synchronously, inside the write that crossed the
+  boundary, after it cleared its own copies.
+- A failing listener of a privacy boundary fails the private-data cleanup:
+  the server does not report its projection as current until a later reset
+  succeeds. The server waits for the promises of `onPermissionsChanged`
+  listeners before it reports the permission check as complete.
+- `registry.watchStores` gives a host each server when the registry creates
+  it, before realtime data arrives.
+
+The client scrubs its own data at every boundary. It cannot make a host clear
+the host's copies; a copy is the host's to clear.
+
+We considered host extensions that the client creates through factories and
+calls through optional hooks, as the first voice-call integration did. We
+rejected them: the client would still know the host's state, and an optional
+hook does not make an extension clear its copies either.
 
 ### Reactivity
 
@@ -103,23 +145,24 @@ the Vitest browser setup, and in Storybook.
   such as the snapshot query cache and user stores, is keyed by server ID,
   and a server ID belongs to one client in a process.
 - Client options select the storage (`memory`, the default, or `device`), the
-  origin server with its cookie session, the live servers (`all`, the
-  default, or one `selected` server), and the voice-call factory. A process
-  can have one client with device storage and one for the origin server.
-  When an application registers a voice-call type, `createClient` requires
-  its factory, so stores always have the registered type.
-- `client.connect({ serverUrl, apiKey })` registers a server with a fixed
-  token. A fixed token is never renewed or written to device storage. The
+  origin server with its cookie session, and the live servers (`all`, the
+  default, or one `selected` server). A process can have one client with
+  device storage and one for the origin server.
+- `client.connect({ serverUrl, apiKey })` adds a server with a fixed token
+  and returns it. `client.server(id)` returns a server that the client has.
+  Both return the same `Server` type, so a bot and the frontend use the same
+  object. A fixed token is never renewed or written to device storage. The
   server's rejection or a session termination ends the session. A browser
   page cannot connect its own origin this way, because those requests also
-  carry the page's cookie session. A client can hold several connections, and
-  a connection's server is always live. The client runs its runtime while it
-  has connections, or after the application calls `start()`.
-- `connection.run(handler)` waits until the server accepted the key, also
+  carry the page's cookie session. A server that `connect` added is always
+  live. The client runs its runtime while it has such servers, or after the
+  application calls `start()`. `server.close()` removes a server from its
+  client.
+- `server.run(handler)` waits until the server accepted the key, also
   through retries while the server is unreachable, then handles the messages
   addressed to the viewer in order and gives each one a context with the
   operations to answer it.
-  `connection.consumeEvents` is the ordered loop for all events.
+  `server.consumeEvents` is the ordered loop for all events.
 - `createApi({ serverUrl, apiKey })` makes stateless typed requests with
   Connect JSON and has the same request helpers. It rejects redirects and does
   not load the stores. Use it for short work, such as a webhook handler, and
@@ -143,6 +186,12 @@ MIT. `REUSE.toml` records the package boundary.
 - The client is tested in the package with Vitest. Most tests use happy-dom
   because they cover browser behavior, such as the origin server and storage.
   A test makes sure that core modules do not import Svelte or frontend code.
+- The frontend creates the UI state of each server when the registry creates
+  the server, outside reactive reads, so that Svelte tracks the voice call's
+  `$state`. The same watch connects the query cache to the server's boundary
+  events.
+- Frontend specs with hand-written server mocks mock `serverUi` so that the
+  mock also carries the UI state; `createTestServerScope` does this itself.
 - Bots receive the frontend's recovery, projection, and privacy fences.
 - A module can no longer reach a global registry. Code that needs one
   receives it from its client, and the frontend imports its client from

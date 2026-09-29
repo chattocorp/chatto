@@ -16,20 +16,25 @@ Do not generate playground links for code written into this repository.
 
 - Prefer store classes and small components. Stores own the data lifecycle.
   Components render state and call named store methods.
-- The client state layer lives in `@chatto/client`
-  (`packages/chatto-client/`): connections, sessions, the realtime projection,
-  and the server and room stores. Follow
-  [its instructions](../../packages/chatto-client/AGENTS.md) when you change it.
-  Import its modules as `@chatto/client/<path>`. Server-scoped state belongs in
-  `ServerStateStore` or a related per-server store there (ADR-110).
+- Server data lives in `@chatto/client` (`packages/chatto-client/`):
+  connections, sessions, the realtime projection, and the server and room
+  data. Follow [its instructions](../../packages/chatto-client/AGENTS.md) when
+  you change it. Import its modules as `@chatto/client/<path>`. Put data and
+  operations that integrations can use there (ADR-110).
   `$lib/client` creates the frontend's one client and exports it with its
   parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
   Import them from there.
   Each client read in a `$derived`, `$effect`, or template creates a small
   Svelte render effect; read a store value once before a loop.
 - The frontend keeps UI state, Svelte context, routing, translated text,
-  toasts, sounds, and the LiveKit voice-call implementation. Client stores keep
-  error objects; format them with `errorMessage()` where you show them.
+  toasts, sounds, and the LiveKit voice-call implementation. Per-server UI
+  state, such as navigation, notification attention, search sessions, and the
+  voice call, lives in `serverUi(store)` (`$lib/state/server/serverUi`).
+  Derive it from the store where you can. A copy of server data is the
+  frontend's to clear: subscribe it to the store's boundary events
+  (`onReset`, `onRoomAccessLost`, `onUserDeleted`, and the others in
+  `@chatto/client/server/storeEvents`). Client stores keep error objects;
+  format them with `errorMessage()` where you show them.
 - Component-local `$state` is fine for UI-only state such as open/closed, hover,
   focus, draft text, and drag position.
 - Component render DTOs live in focused modules under `$lib/render`, or under
@@ -330,11 +335,12 @@ Do not generate playground links for code written into this repository.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Import
   `createQuery`, `createInfiniteQuery`, and `createMutation` from
   `$lib/query/client`, which binds them to the shared client in
-  `@chatto/client/query/client`. Scope private query
-  keys by server and connection session, keep the cache memory-only, and purge
-  it at authentication and privacy boundaries. Keep realtime projections,
-  timelines, notifications, presence, calls, and message search in their
-  owning per-server stores; see ADR-062.
+  `$lib/query/queryClient`. Scope private query
+  keys by server and connection session, and keep the cache memory-only.
+  `connectQueryCaches` in `$lib/query/cacheRegistry` purges it at the
+  store's authentication and privacy boundaries. Keep realtime projections,
+  timelines, notifications, and presence in the client's per-server stores,
+  and calls and message search in `serverUi`; see ADR-062.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
 - When a snapshot query also reconciles a realtime-owned store, do not replay a
@@ -436,10 +442,14 @@ Do not generate playground links for code written into this repository.
   `$lib/test-utils/serverScope.svelte`. Replace the scope module with the
   `serverScopeModule` of that file, call `createTestServerScope` in
   `beforeEach`, and change the fixture's state in tests. Do not write a new
-  `useServerScope` mock by hand.
+  `useServerScope` mock by hand. The fixture's store also serves as its
+  `serverUi` state; add fake UI members, such as `voiceCall`, with the `ui`
+  option. A spec with a hand-written store mock replaces
+  `$lib/state/server/serverUi` with `serverUiIsStore` from
+  `$lib/test-utils/serverUiMock`.
 - `vitest-setup-client.ts` imports `@chatto/client/svelte` and
   `$lib/query/client` before each browser spec. Because of this, `vi.mock` of
-  `$lib/query/client`, `@chatto/client/query/client`, or
+  `$lib/query/client`, `$lib/query/queryClient`, or
   `@tanstack/svelte-query` in a browser spec has no effect. Keep the setup
   imports small: a module that the setup file imports cannot be mocked by a
   spec. Test against the

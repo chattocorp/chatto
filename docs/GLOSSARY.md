@@ -278,10 +278,18 @@ explicit reads, commands, pagination, and history. See
 
 **Chatto client** — The framework-neutral client package `@chatto/client`
 (`packages/chatto-client/`), and an instance that `createClient()` creates.
-An instance is isolated: it owns its servers, sessions, connections, Client
-Projections, reactive server and room stores, and Client runtime. The bundled
-frontend has one instance; a bot creates its own. `@chatto/client/svelte`
-adapts the package to Svelte. See
+An instance is isolated: it owns its servers, sessions, Client Projections,
+and Client runtime. Each server of an instance is one `Server` object with
+its reactive data, its Store boundary events, and its requests; a bot and the
+bundled frontend use the same type. The client keeps server data only; a
+host keeps its UI state. The bundled frontend has one instance; a bot creates
+its own. `@chatto/client/svelte` adapts the package to Svelte. See
+[ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
+
+**Store boundary event** — An event of one server of a Chatto client that
+reports a privacy or authorization boundary, such as a projection reset, a
+lost room, a deleted account, a changed authority, or an ended session. A host
+that copies server data clears the copy at these events. See
 [ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
 
 **Client runtime** — Background work of one Chatto client instance: recovery

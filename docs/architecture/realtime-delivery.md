@@ -23,10 +23,11 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 The client in [`@chatto/client`](../../packages/chatto-client/README.md)
 consumes this protocol for the bundled frontend and for headless hosts. Bots
 connect with `createClient().connect()` and a bearer API key. They use the
-same realtime transport, projection, and recovery as the frontend. A bot
-client keeps every connected server live. A connection handles events in
-order, reports a gap when a later snapshot replaces the stream, and supplies
-addressing recognition and process-local accepted-delivery tracking. The
+same realtime transport, projection, and recovery as the frontend, through the
+same `Server` object. A bot client keeps every connected server live. A server
+handles events in order, reports a gap when a later snapshot replaces the
+stream, and supplies addressing recognition and process-local
+accepted-delivery tracking. The
 [ChattoBot package](../../packages/chattobot/README.md) routes message events
 into new or active Runling conversations. It accepts a delivery after inbox
 insertion or successful run registration. Runling itself has no Chatto runtime
@@ -394,7 +395,13 @@ The hub and public event mapper both check this boundary.
 
 Each server has one [`EventBus`](../../packages/chatto-client/src/realtime/eventBus.ts).
 The bus sends every update to the `ServerStateStore` reducer first. Then it sends
-the same update to the listeners, in the order that they subscribed. A semantic
+the same update to the listeners, in the order that they subscribed. The store
+reports its privacy and authorization boundaries through
+[Store boundary events](../../packages/chatto-client/src/server/storeEvents.ts).
+The frontend's per-server UI state
+([`serverUi`](../../apps/frontend/src/lib/state/server/serverUi.ts)) and query
+cache ([`cacheRegistry`](../../apps/frontend/src/lib/query/cacheRegistry.ts))
+clear their copies of server data at these events. A semantic
 event, such as a typing or presence change, is the update's `event` field.
 Components subscribe through `useProjectionEvent` or `useTypingEvent`. An error
 in a listener is logged. It does not stop the other

@@ -2,10 +2,10 @@
 
 **Date:** 2026-07-31
 
-**Updated:** 2026-09-28. [ADR-110](ADR-110-move-client-state-into-chatto-client.md)
-moves the query client, keys, and cache purges into `@chatto/client/query/*`
-on `@tanstack/query-core`. The frontend keeps the Svelte `create*` bindings in
-`$lib/query/client`.
+**Updated:** 2026-09-29. [ADR-110](ADR-110-move-client-state-into-chatto-client.md)
+keeps the query cache in the frontend (`$lib/query`), outside the
+`@chatto/client` package. `connectQueryCaches` purges and refreshes it at the
+boundary events of each server store, instead of calls from the store.
 
 ## Status
 
