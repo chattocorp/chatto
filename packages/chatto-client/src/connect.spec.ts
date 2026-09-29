@@ -331,6 +331,51 @@ describe('connectChatto in Node', () => {
     await expect(connection.ready()).rejects.toThrow('version is not supported');
   });
 
+  it('leaves nothing behind when setup fails, so a later connect works', async () => {
+    // Fail only the connection's own bus subscription.
+    const original = eventBusManager.getBus.bind(eventBusManager);
+    const getBus = vi.spyOn(eventBusManager, 'getBus').mockImplementation((id) => {
+      if (new Error().stack?.includes('subscribeToBus')) throw new Error('bus unavailable');
+      return original(id);
+    });
+    const before = serverRegistry.servers.length;
+    try {
+      expect(() => connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(
+        'bus unavailable'
+      );
+    } finally {
+      getBus.mockRestore();
+    }
+    expect(serverRegistry.servers).toHaveLength(before);
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
+  });
+
+  it('reports an unsupported release that a later discovery attempt finds', async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mocks.discovery.mockRejectedValueOnce(new TypeError('fetch failed'));
+      mocks.discovery.mockResolvedValue({ ...profile, version: '0.1.0' });
+      mocks.viewer.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ id: 'bot', login: 'bot' } as CurrentUser), 10)
+          )
+      );
+      connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      const ready = connection.ready();
+      await vi.advanceTimersByTimeAsync(20);
+      await expect(ready).resolves.toEqual({ viewerId: 'bot' });
+      expect(connection.realtimeUnsupported).toBe(false);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(connection.realtimeUnsupported).toBe(true);
+    } finally {
+      logged.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('stops waiting when the caller aborts', async () => {
     mocks.viewer.mockReturnValue(new Promise(() => {}));
     connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });

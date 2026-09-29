@@ -118,9 +118,15 @@ function runClientRuntime(): ClientRuntime {
       });
     });
   });
-  // Start recovery only after the effects started, so a failed start leaves
-  // no recovery timer behind.
-  const stopRecovery = startServerRecovery(serverRegistry);
+  // A failed start leaves neither effects nor a recovery timer behind.
+  let stopRecovery: () => void;
+  try {
+    stopRecovery = startServerRecovery(serverRegistry);
+  } catch (error) {
+    stopped = true;
+    disposeEffects();
+    throw error;
+  }
 
   return {
     setActiveServer(serverId) {

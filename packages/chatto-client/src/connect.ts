@@ -75,8 +75,9 @@ export interface ChattoConnection {
    */
   readonly sessionEnded: boolean;
   /**
-   * Whether the server closed realtime because it does not support this
-   * client's protocol. No events arrive; close the connection. Reactive.
+   * Whether the server does not support this client's realtime protocol:
+   * discovery reported an unsupported release, or the server closed the
+   * stream for that reason. No events arrive; close the connection. Reactive.
    */
   readonly realtimeUnsupported: boolean;
   /** Whether {@link close} was called. Reactive. */
@@ -113,6 +114,15 @@ export interface ChattoConnection {
   close(): void;
 }
 
+/**
+ * Whether discovery reported a server release without a supported realtime
+ * projection. The runtime then never opens the realtime stream.
+ */
+function releaseUnsupported(store: ServerStateStore): boolean {
+  const { serverInfo } = store;
+  return !serverInfo.loading && serverInfo.error === null && !serverInfo.isSupportedVersion;
+}
+
 /** The open connection. The client runtime keeps one server live at a time. */
 let openConnection: ChattoConnection | null = null;
 
@@ -144,17 +154,6 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   // Throws when an application runtime already runs in this process.
   const runtime = startClientRuntime();
   usedServerIds.add(serverId);
-  try {
-    serverRegistry.addServer(
-      { id: serverId, url: url.origin, name: url.host, iconUrl: null, addedAt: Date.now() },
-      { ...emptyServerSession(), token: options.apiKey },
-      { fixedToken: true }
-    );
-  } catch (error) {
-    runtime.stop();
-    throw error;
-  }
-  runtime.setActiveServer(serverId);
 
   const eventListeners = new Set<(event: RealtimeEvent) => void>();
   const resetListeners = new Set<(reset: ChattoReset) => void>();
@@ -187,7 +186,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   // The event bus starts when the server is authenticated and discovery
   // finished, which can be before the viewer loads. Subscribe whenever the
   // runtime creates (or replaces) this server's bus.
-  const disposeBusSubscription = effectRoot(() => {
+  const subscribeToBus = () => {
     effect(() => {
       if (currentStatus() === 'connected') connectedSinceReset = true;
     });
@@ -213,7 +212,24 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         })
       );
     });
-  });
+  };
+
+  // A failed setup leaves no runtime, server, or subscription behind.
+  let disposeBusSubscription: (() => void) | undefined;
+  try {
+    serverRegistry.addServer(
+      { id: serverId, url: url.origin, name: url.host, iconUrl: null, addedAt: Date.now() },
+      { ...emptyServerSession(), token: options.apiKey },
+      { fixedToken: true }
+    );
+    disposeBusSubscription = effectRoot(subscribeToBus);
+    runtime.setActiveServer(serverId);
+  } catch (error) {
+    disposeBusSubscription?.();
+    runtime.stop();
+    serverRegistry.removeServer(serverId);
+    throw error;
+  }
 
   const store = () => serverRegistry.getStore(serverId);
 
@@ -232,8 +248,12 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
       return (serverRegistry.getServer(serverId)?.reauthRequiredAt ?? null) !== null;
     },
     get realtimeUnsupported() {
-      if (closed.get() || !serverRegistry.tryGetStore(serverId)) return false;
-      return serverConnectionManager.getClient(serverId).realtimeUnsupported;
+      const current = closed.get() ? undefined : serverRegistry.tryGetStore(serverId);
+      if (!current) return false;
+      return (
+        serverConnectionManager.getClient(serverId).realtimeUnsupported ||
+        releaseUnsupported(current)
+      );
     },
     get closed() {
       return closed.get();
@@ -273,7 +293,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
               // Discovery that fails does not block requests, but a server
               // release without a supported realtime projection sends no events.
               if (serverInfo.loading) return;
-              if (serverInfo.error === null && !serverInfo.isSupportedVersion) {
+              if (releaseUnsupported(current)) {
                 finish(() => reject(new Error('The Chatto server version is not supported')));
               } else {
                 finish(() => resolve({ viewerId }));
@@ -328,7 +348,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
       if (closed.peek()) return;
       closed.set(true);
       if (openConnection === connection) openConnection = null;
-      disposeBusSubscription();
+      disposeBusSubscription?.();
       runtime.stop();
       serverRegistry.removeServer(serverId);
     }

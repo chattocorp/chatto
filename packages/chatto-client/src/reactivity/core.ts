@@ -341,10 +341,17 @@ class Owner {
     this.#children.delete(child);
   }
 
+  /** Dispose every child. A failing cleanup is logged and does not stop the others. */
   disposeChildren(): void {
     const children = [...this.#children];
     this.#children.clear();
-    for (const child of children) child.dispose();
+    for (const child of children) {
+      try {
+        child.dispose();
+      } catch (error) {
+        reportEffectError(error);
+      }
+    }
   }
 
   dispose(): void {
@@ -441,10 +448,14 @@ class EffectNode {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#parent?.release(this);
-    this.#teardown();
-    this.#owner.dispose();
-    for (const source of this.#sources.keys()) source.removeObserver(this);
-    this.#sources.clear();
+    try {
+      this.#teardown();
+    } finally {
+      // A failing cleanup must not leave the effect linked or its children live.
+      this.#owner.dispose();
+      for (const source of this.#sources.keys()) source.removeObserver(this);
+      this.#sources.clear();
+    }
   }
 }
 

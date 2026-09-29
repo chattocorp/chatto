@@ -46,6 +46,8 @@ chatto.close();
 - Debug output is off outside browsers. Call `setDebugLogging(true)` to
   write it to the console.
 - `ready()` rejects when the server release does not support this client.
+  When the server reports this later, `realtimeUnsupported` becomes true and
+  no events arrive; close the connection.
 - A browser page cannot use `connectChatto` for its own origin; that server
   uses the page's cookie session.
 - When the server is unreachable or fails, `ready()` rejects and the

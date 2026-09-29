@@ -397,3 +397,25 @@ describe('batch errors', () => {
     logged.mockRestore();
   });
 });
+
+describe('disposal', () => {
+  it('disposes every effect of a root when one cleanup throws', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const source = signal(0);
+    const runs = vi.fn();
+    const dispose = effectRoot(() => {
+      effect(() => {
+        source.get();
+        return () => {
+          throw new Error('cleanup failed');
+        };
+      });
+      effect(() => runs(source.get()));
+    });
+    dispose();
+    source.set(1);
+    expect(runs).toHaveBeenCalledTimes(1);
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+});

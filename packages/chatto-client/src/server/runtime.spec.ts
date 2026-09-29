@@ -24,8 +24,19 @@ const mocks = vi.hoisted(() => ({
   clearServerAuthentication: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   fixedTokens: new Set<string>(),
-  getClient: vi.fn((serverId: string) => ({ serverId }))
+  getClient: vi.fn((serverId: string) => ({ serverId })),
+  recoveryFails: false
 }));
+
+vi.mock('./serverRecovery.js', async (original) => {
+  const actual = await original<typeof import('./serverRecovery.js')>();
+  return {
+    startServerRecovery: (...args: Parameters<typeof actual.startServerRecovery>) => {
+      if (mocks.recoveryFails) throw new Error('recovery could not start');
+      return actual.startServerRecovery(...args);
+    }
+  };
+});
 
 vi.mock('./registry.js', () => ({
   serverRegistry: {
@@ -118,6 +129,18 @@ describe('startClientRuntime', () => {
         return Boolean(this.currentUser.user);
       }
     });
+  });
+
+  it('leaves no effects behind when recovery cannot start', async () => {
+    mocks.recoveryFails = true;
+    try {
+      expect(() => startClientRuntime()).toThrow('recovery could not start');
+    } finally {
+      mocks.recoveryFails = false;
+    }
+    await Promise.resolve();
+    expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
+    runtime = startClientRuntime();
   });
 
   it('runs one runtime at a time', () => {
