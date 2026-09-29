@@ -22,7 +22,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
-	for index := range p.entries {
+	for index := range p.entries.len() {
 		entry := p.entryAtLocked(index)
 		row := &projectionv1.TimelineEntrySnapshot{
 			StreamSequence:    entry.StreamSeq,
@@ -41,9 +41,10 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 		}
 		snapshot.Entries = append(snapshot.Entries, row)
 	}
-	bodyIDs := make([]string, 0, len(p.bodyStates)+len(p.orphanBodyStates))
-	for _, entry := range p.entries {
-		if entry.bodyIndex != 0 && p.bodyStates[entry.bodyIndex-1].currentSequence != 0 {
+	bodyIDs := make([]string, 0, p.bodyStates.len()+len(p.orphanBodyStates))
+	for index := range p.entries.len() {
+		entry := p.entries.get(index)
+		if entry.bodyIndex != 0 && p.bodyStates.get(int(entry.bodyIndex)-1).currentSequence != 0 {
 			bodyIDs = append(bodyIDs, p.eventIDs.id(entry.event))
 		}
 	}
@@ -108,6 +109,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	// with the other ServerContentView components.
 	restored := newRoomTimelineProjection(p.eventIDs)
 	restored.sharedEventIDs = p.sharedEventIDs
+	restored.coldWindow, restored.coldWatermark = p.coldWindow, p.coldWatermark
 	restored.replayGuard = guard
 	var previousEntrySequence uint64
 	for _, row := range snapshot.GetEntries() {
@@ -285,14 +287,16 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 	}
-	for index := range restored.entries {
+	for index := range restored.entries.len() {
 		entry := restored.entryAtLocked(index)
 		if entry.IsMessagePost() {
 			restored.refreshAttachmentMessageLocked(entry.RoomID, entry.EventID)
 		}
 	}
 
+	restored.freezeColdLocked()
 	p.Lock()
+	p.latestCreatedAt = restored.latestCreatedAt
 	p.entries, p.rowByEvent, p.roomIDs, p.rooms, p.userIDs, p.users, p.byRoom, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.orphanBodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.rowByEvent, restored.roomIDs, restored.rooms, restored.userIDs, restored.users, restored.byRoom, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.orphanBodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom
 	p.bodyHistory, p.orphanBodyHistory, p.bodyEventIDs = restored.bodyHistory, restored.orphanBodyHistory, restored.bodyEventIDs
 	p.Unlock()

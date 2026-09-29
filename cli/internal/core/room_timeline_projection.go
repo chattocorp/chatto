@@ -19,14 +19,17 @@ import (
 // timeline readers walk on every page load.
 type RoomTimelineProjection struct {
 	events.MemoryProjection
-	entries []timelineRow
+	// entries holds the rows in append order. Rows of messages older than
+	// the cold window are frozen into packed blocks (ADR-111).
+	entries coldSlice[timelineRow]
 	// eventIDs interns the event IDs that rows and message references use. The
 	// ServerContentView shares one table with the thread and reaction
 	// components; a standalone projection owns a private table.
 	eventIDs       *eventIDTable
 	sharedEventIDs bool
-	// rowByEvent maps an eventIDs handle to its one-based row index.
-	rowByEvent handleSlice[uint32]
+	// rowByEvent maps an eventIDs handle minus one to its one-based row
+	// index; zero means no row.
+	rowByEvent coldSlice[uint32]
 	roomIDs    map[string]uint32
 	rooms      []string
 	userIDs    map[string]uint32
@@ -42,7 +45,7 @@ type RoomTimelineProjection struct {
 	// bodyStates is a dense array addressed by message rows. Only bodies that
 	// arrive before their post need an event-ID map until that post is indexed.
 	// Complete encrypted bodies remain in EVT.
-	bodyStates       []timelineBodyState
+	bodyStates       coldSlice[timelineBodyState]
 	orphanBodyStates map[string]timelineBodyState
 	// bodyEventIDs stores the body event IDs that body states locate. Replaced
 	// body IDs stay in the arena until a snapshot restore rebuilds it; edits
@@ -76,6 +79,15 @@ type RoomTimelineProjection struct {
 	shreddedUsers        map[string]struct{}
 	pinnedMessagesByRoom map[string]map[string]PinnedMessageState
 	latestPinByRoom      map[string]latestRoomPinState
+	// coldWindow is the age after which message rows and body states are
+	// frozen. Zero keeps every row hot.
+	coldWindow time.Duration
+	// coldWatermark receives the event ID handle of the oldest hot row for
+	// the other components of the content view. It is nil when unused.
+	coldWatermark *coldWatermark
+	// latestCreatedAt is the newest applied row creation time in Unix
+	// nanoseconds. The cold window counts back from it, not from the clock.
+	latestCreatedAt int64
 }
 
 type latestRoomPinState struct {
@@ -294,7 +306,7 @@ func (s timelineBodyState) active() bool { return s.flags&timelineBodyActive != 
 func (s timelineBodyState) attachmentCount() uint32 { return s.flags & timelineBodyMaxAttachments }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
-	idx := len(p.entries)
+	idx := p.entries.len()
 	eventID := event.GetId()
 	entry := timelineRow{
 		streamSeq: seq,
@@ -305,7 +317,7 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 		kind:      timelineKind(evtstream.EventTypeOf(event)),
 	}
 	if posted := event.GetMessagePosted(); posted != nil {
-		entry.bodyIndex = uint32(len(p.bodyStates) + 1)
+		entry.bodyIndex = uint32(p.bodyStates.len() + 1)
 		entry.author = p.internUserLocked(posted.GetAuthorId())
 		entry.historicalImport = posted.GetHistoricalImport()
 		inThreadID := posted.GetInThread()
@@ -320,9 +332,10 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 		entry.reply = inThreadID != ""
 		entry.echoOf = p.eventIDs.intern(posted.GetEchoOfEventId())
 	}
-	p.entries = append(p.entries, entry)
+	p.entries.append(entry)
+	p.latestCreatedAt = max(p.latestCreatedAt, entry.createdAt)
 	if entry.bodyIndex != 0 {
-		p.bodyStates = append(p.bodyStates, p.orphanBodyStates[eventID])
+		p.bodyStates.append(p.orphanBodyStates[eventID])
 		delete(p.orphanBodyStates, eventID)
 		if history := p.orphanBodyHistory[eventID]; len(history) != 0 {
 			if p.bodyHistory == nil {
@@ -338,8 +351,8 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 // indexEventLocked makes row idx the event-ID lookup target for its event. A
 // later row with the same ID replaces the earlier target.
 func (p *RoomTimelineProjection) indexEventLocked(idx int) {
-	if handle := p.entries[idx].event; handle != 0 {
-		p.rowByEvent.set(handle, uint32(idx+1))
+	if handle := p.entries.get(idx).event; handle != 0 {
+		p.rowByEvent.set(int(handle)-1, uint32(idx+1))
 	}
 }
 
@@ -350,8 +363,8 @@ func (p *RoomTimelineProjection) rowIndexLocked(eventID string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	row, ok := p.rowByEvent.get(handle)
-	return int(row) - 1, ok
+	row := p.rowByEvent.get(int(handle) - 1)
+	return int(row) - 1, row != 0
 }
 
 func eventCreatedAt(event *evtv1.Event) time.Time {
@@ -388,7 +401,7 @@ func (p *RoomTimelineProjection) internUserLocked(id string) uint32 {
 }
 
 func (p *RoomTimelineProjection) appendRestoredEntryLocked(entry TimelineEntry) int {
-	idx := len(p.entries)
+	idx := p.entries.len()
 	row := timelineRow{
 		streamSeq: entry.StreamSeq, event: p.eventIDs.intern(entry.EventID), createdAt: timelineUnixNanos(entry.CreatedAt),
 		threadRoot: p.eventIDs.intern(entry.ThreadRootEventID),
@@ -399,10 +412,11 @@ func (p *RoomTimelineProjection) appendRestoredEntryLocked(entry TimelineEntry) 
 		kind: timelineKind(entry.EventType), historicalImport: entry.HistoricalImport,
 	}
 	if row.kind == timelineMessagePosted {
-		row.bodyIndex = uint32(len(p.bodyStates) + 1)
-		p.bodyStates = append(p.bodyStates, timelineBodyState{})
+		row.bodyIndex = uint32(p.bodyStates.len() + 1)
+		p.bodyStates.append(timelineBodyState{})
 	}
-	p.entries = append(p.entries, row)
+	p.entries.append(row)
+	p.latestCreatedAt = max(p.latestCreatedAt, row.createdAt)
 	return idx
 }
 
@@ -410,8 +424,8 @@ func (p *RoomTimelineProjection) appendRestoredEntryLocked(entry TimelineEntry) 
 // The fallback retains body facts that precede their MessagePosted fact.
 func (p *RoomTimelineProjection) bodyStateLocked(eventID string) (timelineBodyState, bool) {
 	if idx, ok := p.rowIndexLocked(eventID); ok {
-		if bodyIndex := p.entries[idx].bodyIndex; bodyIndex != 0 {
-			state := p.bodyStates[bodyIndex-1]
+		if bodyIndex := p.entries.get(idx).bodyIndex; bodyIndex != 0 {
+			state := p.bodyStates.get(int(bodyIndex) - 1)
 			return state, state.currentSequence != 0
 		}
 	}
@@ -421,8 +435,8 @@ func (p *RoomTimelineProjection) bodyStateLocked(eventID string) (timelineBodySt
 
 func (p *RoomTimelineProjection) putBodyStateLocked(eventID string, state timelineBodyState) {
 	if idx, ok := p.rowIndexLocked(eventID); ok {
-		if bodyIndex := p.entries[idx].bodyIndex; bodyIndex != 0 {
-			p.bodyStates[bodyIndex-1] = state
+		if bodyIndex := p.entries.get(idx).bodyIndex; bodyIndex != 0 {
+			p.bodyStates.set(int(bodyIndex)-1, state)
 			return
 		}
 	}
@@ -431,7 +445,7 @@ func (p *RoomTimelineProjection) putBodyStateLocked(eventID string, state timeli
 
 func (p *RoomTimelineProjection) bodyHistoryLocked(eventID string) []uint64 {
 	if idx, ok := p.rowIndexLocked(eventID); ok {
-		if bodyIndex := p.entries[idx].bodyIndex; bodyIndex != 0 {
+		if bodyIndex := p.entries.get(idx).bodyIndex; bodyIndex != 0 {
 			return p.bodyHistory[bodyIndex]
 		}
 	}
@@ -443,7 +457,7 @@ func (p *RoomTimelineProjection) putBodyHistoryLocked(eventID string, history []
 		return
 	}
 	if idx, ok := p.rowIndexLocked(eventID); ok {
-		if bodyIndex := p.entries[idx].bodyIndex; bodyIndex != 0 {
+		if bodyIndex := p.entries.get(idx).bodyIndex; bodyIndex != 0 {
 			if p.bodyHistory == nil {
 				p.bodyHistory = make(map[uint32][]uint64)
 			}
@@ -460,10 +474,10 @@ func (p *RoomTimelineProjection) putBodyHistoryLocked(eventID string, history []
 // entryAtLocked reconstructs a detached read value; callers may return it
 // after releasing the projection lock without another copy.
 func (p *RoomTimelineProjection) entryAtLocked(idx int) *TimelineEntry {
-	if idx < 0 || idx >= len(p.entries) {
+	if idx < 0 || idx >= p.entries.len() {
 		return nil
 	}
-	row := &p.entries[idx]
+	row := p.entries.get(idx)
 	var inThread uint32
 	if row.reply {
 		inThread = row.threadRoot
@@ -508,6 +522,9 @@ func newRoomTimelineProjection(eventIDs *eventIDTable) *RoomTimelineProjection {
 		eventIDs:                   eventIDs,
 		sharedEventIDs:             shared,
 		bodyEventIDs:               new(idArena),
+		entries:                    newColdSlice[timelineRow](timelineRowColdCodec{}),
+		rowByEvent:                 newColdSlice[uint32](uint32ColdCodec{}),
+		bodyStates:                 newColdSlice[timelineBodyState](timelineBodyStateColdCodec{}),
 		roomIDs:                    make(map[string]uint32),
 		rooms:                      []string{""},
 		userIDs:                    make(map[string]uint32),
@@ -560,6 +577,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 	}
 	p.Lock()
 	defer p.Unlock()
+	defer p.freezeColdLocked()
 	if requested := event.GetUserKeyShreddingRequested(); requested != nil {
 		p.applyUserKeyShreddedLocked(requested.GetUserId(), eventCreatedAt(event))
 		return nil
@@ -712,6 +730,59 @@ func (p *RoomTimelineProjection) LatestPinEventID(roomID string) string {
 	return p.latestPinByRoom[roomID].PinEventID
 }
 
+// configureColdStorage makes the projection freeze the rows and body states
+// of messages that are older than window, counted back from the newest
+// applied message. It publishes the cold boundary to watermark, which can be
+// nil. A zero window keeps every row hot. Call it before the projection
+// applies events.
+func (p *RoomTimelineProjection) configureColdStorage(window time.Duration, watermark *coldWatermark) {
+	p.Lock()
+	defer p.Unlock()
+	p.coldWindow = window
+	p.coldWatermark = watermark
+	p.freezeColdLocked()
+}
+
+// freezeColdLocked freezes rows, body states, and event index entries of
+// messages older than the cold window. It runs after each applied event and
+// returns quickly until a complete block of rows is old. Freezing changes
+// only the memory layout; every read returns the same result.
+func (p *RoomTimelineProjection) freezeColdLocked() {
+	window := coldWindowOrTest(p.coldWindow)
+	if window <= 0 {
+		return
+	}
+	cutoff := p.latestCreatedAt - int64(window)
+	frozen, rows := p.entries.frozenLen(), coldBlockRows()
+	if p.entries.len()-frozen < rows || p.entries.get(frozen+rows-1).createdAt >= cutoff {
+		return
+	}
+	hot := frozen + rows
+	for hot < p.entries.len() && p.entries.get(hot).createdAt < cutoff {
+		hot++
+	}
+	p.entries.freezeBefore(hot)
+	firstHot := p.entries.frozenLen()
+	// Body states are assigned in row order, so the first hot message row
+	// marks the first body state that stays hot.
+	bodies := p.bodyStates.len()
+	for idx := firstHot; idx < p.entries.len(); idx++ {
+		if bodyIndex := p.entries.get(idx).bodyIndex; bodyIndex != 0 {
+			bodies = int(bodyIndex) - 1
+			break
+		}
+	}
+	p.bodyStates.freezeBefore(bodies)
+	// Event handles follow first-intern order, so the handle of the oldest
+	// hot row approximates the boundary between cold and hot messages.
+	if firstHot < p.entries.len() {
+		if handle := p.entries.get(firstHot).event; handle != 0 {
+			p.rowByEvent.freezeBefore(int(handle) - 1)
+			p.coldWatermark.advance(handle)
+		}
+	}
+}
+
 func (p *RoomTimelineProjection) CompleteStartupReplay() {
 	p.Lock()
 	defer p.Unlock()
@@ -787,8 +858,8 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 	}
 	// Compare row handles directly. Materializing a TimelineEntry for every
 	// row made each shredding fact allocate in proportion to the timeline.
-	for idx := range p.entries {
-		row := &p.entries[idx]
+	for idx := range p.entries.len() {
+		row := p.entries.get(idx)
 		if row.kind != timelineMessagePosted {
 			continue
 		}
@@ -801,7 +872,7 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 		if author != user {
 			continue
 		}
-		if mapped, ok := p.rowByEvent.get(row.event); !ok || int(mapped) != idx+1 {
+		if mapped := p.rowByEvent.get(int(row.event) - 1); mapped == 0 || int(mapped) != idx+1 {
 			continue
 		}
 		eventID := p.eventIDs.id(row.event)
@@ -1217,11 +1288,12 @@ func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 	p.RLock()
 	defer p.RUnlock()
 	var out []uint64
-	for _, row := range p.entries {
+	for idx := range p.entries.len() {
+		row := p.entries.get(idx)
 		if row.bodyIndex == 0 {
 			continue
 		}
-		state := p.bodyStates[row.bodyIndex-1]
+		state := p.bodyStates.get(int(row.bodyIndex) - 1)
 		if state.currentSequence == 0 {
 			continue
 		}

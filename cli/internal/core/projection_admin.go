@@ -351,7 +351,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		roomIndexBytes += projectionMapEntryOverhead + int64(len(roomID)) + int64(cap(roomEntries))*4
 		entries += int64(len(roomEntries))
 	}
-	rawBytes := int64(cap(p.entries)) * int64(unsafe.Sizeof(timelineRow{}))
+	rawBytes := p.entries.estimatedBytes()
 	var sharedIDBytes int64
 	for _, id := range p.rooms {
 		sharedIDBytes += int64(unsafe.Sizeof("")) + int64(len(id))
@@ -373,10 +373,10 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		messagePostIndexBytes += int64(cap(roomEntries)) * 4
 	}
 
-	eventIndexBytes := int64(cap(p.rowByEvent)) * 4
+	eventIndexBytes := p.rowByEvent.estimatedBytes()
 	var indexedEvents int64
-	for _, row := range p.rowByEvent {
-		if row != 0 {
+	for handle := range p.rowByEvent.len() {
+		if p.rowByEvent.get(handle) != 0 {
 			indexedEvents++
 		}
 	}
@@ -387,7 +387,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	appliedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	var bodyStateBytes, activeBodyReferenceBytes, activeBodyReferences, supersededSeqBytes, supersededSeqs int64
-	bodyStateBytes = int64(cap(p.bodyStates))*int64(unsafe.Sizeof(timelineBodyState{})) + p.bodyEventIDs.retainedBytes()
+	bodyStateBytes = p.bodyStates.estimatedBytes() + p.bodyEventIDs.retainedBytes()
 	countBody := func(state timelineBodyState) {
 		if state.currentSequence == 0 {
 			return
@@ -397,8 +397,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 			activeBodyReferenceBytes += int64(unsafe.Sizeof(state)) + int64(state.currentEventID.length())
 		}
 	}
-	for _, state := range p.bodyStates {
-		countBody(state)
+	for index := range p.bodyStates.len() {
+		countBody(p.bodyStates.get(index))
 	}
 	for eventID, state := range p.orphanBodyStates {
 		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + int64(unsafe.Sizeof(timelineBodyState{}))
@@ -468,7 +468,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "private_event_ids", Value: privateEventIDCount(p.sharedEventIDs, p.eventIDs), Bytes: eventIDBytes},
 		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: appliedEventIDsBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
-		{Name: "body_state_index", Value: int64(len(p.bodyStates) + len(p.orphanBodyStates)), Bytes: bodyStateBytes},
+		{Name: "body_state_index", Value: int64(p.bodyStates.len() + len(p.orphanBodyStates)), Bytes: bodyStateBytes},
 		{Name: "active_body_references", Value: activeBodyReferences, Bytes: activeBodyReferenceBytes},
 		{Name: "superseded_body_event_seqs", Value: supersededSeqs, Bytes: supersededSeqBytes},
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
