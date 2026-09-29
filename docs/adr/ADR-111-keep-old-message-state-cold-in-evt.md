@@ -126,6 +126,25 @@ event like a preparation failure.
 During replay, most referenced messages are still hot at the time of the
 referring event, so replay does few cold reads.
 
+### Direct reads from EVT
+
+Cold reads and preloads read EVT records by exact stream sequence. The EVT
+stream enables `allow_direct`, and the exact EVT reader of ADR-090 uses
+JetStream DirectGet for these reads. Any stream replica can then answer, and
+the reads avoid the JetStream API of the stream leader.
+
+A replica can lag behind the leader. The exact reader requests only sequences
+that the projection has already applied, so a missing record on a replica
+means lag and not deletion. The reader then repeats the read on the stream
+leader. A record that the leader also does not have is an error, as ADR-090
+requires.
+
+Reads that must observe the newest committed state do not use DirectGet: the
+subject-tail captures of read-your-writes waits, the tail validation of
+request-time authorization (ADR-087), and OCC positions. The NATS client uses
+DirectGet automatically for all stream message reads when `allow_direct` is
+set, so these reads send explicit stream-leader requests.
+
 ### Snapshots
 
 Snapshots contain the skeleton, the hot state, and the overlays. The component
@@ -148,6 +167,9 @@ the Server Content View and the Notification Decisions projection once.
   deletes the obsolete body records.
 - The shared framework gets a new optional preload step. It needs its own
   tests and must keep replay order and snapshot semantics.
+- Exact EVT reads spread over all stream replicas. Tests must cover a missing
+  record on a lagging replica and must show that tail and OCC reads always go
+  to the stream leader.
 - The upgrade needs one cold replay of the affected projections. A rollback to
   an earlier binary also needs one cold replay, because it rejects the new
   snapshot contracts. EVT does not change, so both directions are safe.
@@ -173,6 +195,7 @@ window setting or with a normal rollback.
 - [ADR-007](ADR-007-per-user-encryption-with-crypto-shredding.md)
 - [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md)
 - [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md)
+- [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md)
 - [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md)
 - [ADR-089](ADR-089-server-content-view.md)
 - [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md)
