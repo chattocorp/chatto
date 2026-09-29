@@ -1,20 +1,20 @@
 # Chatto client
 
 `@chatto/client` is the client for Chatto 0.5 servers. It connects to one or
-more servers, keeps their state current through the realtime API, and exposes
-that state as reactive stores. It also has the request helpers that bots and
-integrations use. It has no dependency on a UI framework. The bundled Chatto
-frontend, ChattoBot, and the Runling bot example use it.
+more servers, keeps their data current through the realtime API, and exposes
+that data as reactive state. It also has the requests and the message loop
+that bots and integrations use. It keeps server data only: state of a host's
+UI belongs to the host. It has no dependency on a UI framework. The bundled
+Chatto frontend, ChattoBot, and the Runling bot example use it.
 
 It is an internal workspace package and is not published to npm yet. Module
 paths can change.
 
-## Clients and connections
+## Clients and servers
 
-A client is an isolated set of servers with their stores, connections,
-realtime transports, and background work. Create one client for each
-independent host. A process can have several clients, and each client can
-connect several servers:
+A client is an isolated set of servers with their realtime transports and
+background work. Create one client for each independent host. A process can
+have several clients, and each client can connect several servers:
 
 ```ts
 import { createClient } from '@chatto/client';
@@ -29,25 +29,27 @@ try {
     us.run((ctx) => ctx.reply('Hello from US'))
   ]);
 } finally {
-  // Stop every connection and all background work.
+  // Close every server and stop all background work.
   client.close();
 }
 ```
 
-`connect()` registers a server with a fixed bearer token, such as a bot API
-key. The token is kept only in memory: it is never renewed or written to
-device storage.
+`connect()` adds a server with a fixed bearer token, such as a bot API key,
+and returns it. The token is kept only in memory: it is never renewed or
+written to device storage. `client.server(id)` returns a server that the
+client has. Both return the same `Server` type: the server's data, events,
+and requests are one object.
 
 ### Answering messages
 
-`connection.run(handler)` waits until the server accepted the key, also while
+`server.run(handler)` waits until the server accepted the key, also while
 the server is unreachable, then calls `handler` for each message addressed to
 the viewer (the account of the key):
 direct messages, mentions, and replies to the viewer's messages. Messages are
 handled in order. The handler receives a context:
 
 ```ts
-await connection.run(
+await server.run(
   async (ctx) => {
     ctx.message; // the addressed message: id, roomId, threadRootId, authorId, body, reasons
     const thread = await ctx.readThread(); // messages with `fromViewer`
@@ -57,7 +59,7 @@ await connection.run(
     await ctx.addReaction('eyes');
   },
   {
-    signal, // stops the loop; without it, the loop stops when the connection closes
+    signal, // stops the loop; without it, the loop stops when the server closes
     reasons: ['mention', 'direct_message'], // default: all three
     onStatus: (status) => console.log(status.state),
     onError: (error) => console.error(error) // keep running after a failure
@@ -70,13 +72,13 @@ your own cancellable work. `ctx.conversationKey` scopes a conversation to the
 viewer, room, thread, and sender. `ctx.refreshTyping()` refreshes the typing
 indicator once.
 
-`run` resolves when `signal` aborts or the connection closes. It rejects when
+`run` resolves when `signal` aborts or the server closes. It rejects when
 the server rejects the key or does not support this client, and, without
 `onError`, with the first failure of the handler.
 
 ### Events, status, and state
 
-- `connection.consumeEvents({ signal, onEvent, onStatus })` handles every
+- `server.consumeEvents({ signal, onEvent, onStatus })` handles every
   realtime event in order. `run` uses it. `onEvent(event, { signal })`
   receives a signal that aborts when the loop stops for any reason, for
   example when the server ends the session. Up to 1000 received events wait
@@ -86,34 +88,35 @@ the server rejects the key or does not support this client, and, without
   because the server could not resume the stream after a reconnect. While
   `run` waits for the server, a `connecting` status with an `error` reports
   each failed attempt, for example an unreachable server.
-- The connection receives events from its creation, also before `ready()`
-  resolves, and keeps them for the first `consumeEvents` or `run` call. A
-  later call reports a gap first.
-- `onEvent(listener)` and `onReset(listener)` receive events and projection
-  resets directly, without a loop.
-- `connection.store` is the server's reactive state store, as the frontend
-  uses it.
+- A server that `connect` added receives events from its creation, also
+  before `ready()` resolves, and keeps them for the first `consumeEvents` or
+  `run` call. A later call reports a gap first.
+- `onEvent(listener)` and `onSnapshot(listener)` receive events and new
+  snapshots directly, without a loop.
+- The server's data is reactive: for example `roomList.rooms`,
+  `notifications.occurrences`, `projection.users`, and `rooms.messages(id)`
+  for a paged, live room timeline.
 
 ### Readiness and failures
 
 - `ready()` rejects when the server rejects the key, when the server is
   unreachable or fails, or when the server release does not support this
-  client. The connection retries in the background; call `ready()` again to
+  client. The server retries in the background; call `ready()` again to
   wait for the next attempt. `run()` waits through these retries.
 - `sessionEnded` becomes true when the server rejects or revokes the key.
   `realtimeUnsupported` becomes true when the server does not support this
   client's realtime protocol. In both cases no events arrive, and the event
-  loops reject; close the connection.
-- A connection's server keeps a persistent WebSocket, also in a client with
-  one selected live server.
-- `connection.close()` stops the connection's realtime delivery. Requests in
-  flight through the connection fail, even when the server applied them, and
-  no new requests are sent. When the last connection of a client closes, the
-  client stops its timers, so a Node host can exit.
+  loops reject; close the server.
+- A server that `connect` added keeps a persistent WebSocket, also in a
+  client with one selected live server.
+- `server.close()` removes the server from its client and stops its realtime
+  delivery. Requests in flight fail, even when the server applied them, and no
+  new requests are sent. When the last server that `connect` added closes,
+  the client stops its timers, so a Node host can exit.
 
 ### Requests
 
-A connection and a stateless `Api` have the same request helpers. Each
+A server and a stateless `Api` have the same request helpers. Each
 request has a ten-second timeout and is never retried; a failed write can
 still have reached the server.
 
@@ -135,14 +138,14 @@ and `ctx.reply` return the `ids` of the new messages. Other helpers are
 custom typing updates, and `createDeliveryTracker` for replay filters.
 
 For any other request, `service(Service)` creates a typed Connect client with
-the connection's authentication. `@chatto/client/types` has the protocol's
+the server's authentication. `@chatto/client/types` has the protocol's
 messages and services, and `@chatto/client/types/admin` the administration
 API:
 
 ```ts
 import { UserService } from '@chatto/client/types';
 
-const { user } = await connection.service(UserService).getUser({
+const { user } = await server.service(UserService).getUser({
   target: { case: 'userId', value: authorId }
 });
 ```
@@ -151,7 +154,7 @@ const { user } = await connection.service(UserService).getUser({
 
 `createApi` makes requests without a realtime connection or retained state,
 for example in a webhook handler, or for work that can continue after a
-connection closes:
+server closes:
 
 ```ts
 import { createApi } from '@chatto/client';
@@ -163,7 +166,7 @@ await api.reply(message, 'Done', { signal });
 
 It uses Connect JSON, rejects redirects, and loads no stores. Pass
 `viewerId` when the host already knows the account of the key, for example
-from `connection.ready()`; `ready()` then sends no request.
+from `server.ready()`; `ready()` then sends no request.
 
 ### Debug output
 
@@ -174,8 +177,9 @@ to the console.
 
 Requests contact only the configured servers. Each server receives the host's
 IP address, its credentials, and the request data. The client does not log
-tokens or message content. Private query data is fenced by connection and
-purged at authentication and privacy boundaries (ADR-062).
+tokens or message content. The client removes its copies of private data at
+authentication, authorization, and privacy boundaries, and reports these
+boundaries to the host; see [State of the host](#state-of-the-host).
 
 ## Applications with a UI
 
@@ -194,7 +198,7 @@ export const client = createClient({
 
 client.start(); // pair each start() with a stop(), for example on unmount
 client.setActiveServer(serverId);
-const store = client.registry.getStore(serverId);
+const server = client.server(serverId);
 ```
 
 A process can have one client with device storage and one for the origin
@@ -202,22 +206,27 @@ server.
 
 ### State of the host
 
-The client keeps server data. A host keeps its own state, such as search
-results, call media, or a query cache, next to each store:
+The client keeps server data. A host keeps its own state, such as sidebar
+grouping, search results, call media, or a query cache, next to each server:
 
-- Derive state from the store where possible. Derived state follows the
-  store and needs no cleanup.
-- A host that copies server data must clear the copy at the store's boundary
-  events: `onReset`, `onRoomAccessLost`, `onUserDeleted`,
-  `onPermissionsChanged`, and `onDispose`. `onUpdate` reports every applied
-  event and resource.
-- `registry.watchStores(setup)` calls `setup` for each store when the
-  registry creates it, before the store receives realtime data.
+- Derive state from the server where possible. Derived state follows the
+  server and needs no cleanup.
+- A host that copies server data must clear the copy at the server's
+  boundary events: `onReset`, `onRoomAccessLost`, `onRoomAccessRestored`,
+  `onUserDeleted`, `onAuthorityChanged`, `onPermissionsChanged`,
+  `onSessionEnded`, and `onDispose`. `onUpdate` reports every applied event
+  and resource. The server emits each event synchronously, after it removed
+  its own copies.
+- A listener that throws at a privacy boundary fails the private-data
+  cleanup: the server then does not report its projection as current. The
+  server waits for a promise that an `onPermissionsChanged` listener returns.
+- `registry.watchStores(setup)` calls `setup` for each server when the
+  registry creates it, before the server receives realtime data.
 
 ### Svelte
 
-Import `@chatto/client/svelte` once, before a component reads a store. Svelte
-then tracks store reads in components, `$derived`, and `$effect`:
+Import `@chatto/client/svelte` once, before a component reads a server.
+Svelte then tracks reads in components, `$derived`, and `$effect`:
 
 ```svelte
 <script lang="ts">
@@ -225,10 +234,10 @@ then tracks store reads in components, `$derived`, and `$effect`:
   import { client } from '$lib/client';
 
   let { serverId } = $props();
-  const store = $derived(client.registry.getStore(serverId));
+  const server = $derived(client.server(serverId));
 </script>
 
-{#each store.navigation.rooms as room (room.id)}
+{#each server?.roomList.rooms ?? [] as room (room.id)}
   <p>{room.name}</p>
 {/each}
 ```
@@ -238,7 +247,7 @@ Other frameworks can use `setReadHook` and `subscribe` from
 
 ### Voice calls
 
-The store tracks each server's active calls in `projection.activeCalls`. It
+A server tracks its active calls in `projection.activeCalls`. The client
 contains no media implementation. A host that joins calls implements the
 media, reads call permissions from the projected rooms, and leaves a call at
 `onRoomAccessLost` and `onDispose`.

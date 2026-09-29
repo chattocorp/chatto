@@ -1,24 +1,24 @@
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
-import type { CurrentUser } from './api/viewer.js';
+import type { CurrentUser } from '../api/viewer.js';
 
-vi.mock('./api/server.js', async (original) => ({
-  ...(await original<typeof import('./api/server.js')>()),
+vi.mock('../api/server.js', async (original) => ({
+  ...(await original<typeof import('../api/server.js')>()),
   getPublicServerInfo: vi.fn(async () => ({ name: 'Bot server', version: '0.5.0' }))
 }));
-vi.mock('./api/viewer.js', async (original) => ({
-  ...(await original<typeof import('./api/viewer.js')>()),
+vi.mock('../api/viewer.js', async (original) => ({
+  ...(await original<typeof import('../api/viewer.js')>()),
   getCurrentUserViaConnect: vi.fn(async () => ({ id: 'bot', login: 'bot' }) as CurrentUser)
 }));
 
-import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
-import { createAppClient } from './testing/appClient.js';
+import { setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
+import { createAppClient } from '../testing/appClient.js';
 
 // A client with device storage, like the bundled frontend, is the strongest
 // case: it writes its own servers, but never a fixed token.
 const client = createAppClient();
 const serverRegistry = client.registry;
 const connect = (options: { serverUrl: string; apiKey: string }) => client.connect(options);
-import { inertRealtimeSocket } from './testing/inertSocket.js';
+import { inertRealtimeSocket } from '../testing/inertSocket.js';
 
 beforeAll(() => setRealtimeSocketFactoryForTests(inertRealtimeSocket));
 afterAll(() => setRealtimeSocketFactoryForTests(null));
@@ -58,7 +58,7 @@ it('leaves no per-server records behind after close', async () => {
 
 it("refuses the page's own origin, which uses its cookie session, in every client", async () => {
   expect(() => connect({ serverUrl: location.origin, apiKey: 'key' })).toThrow('own origin');
-  const { createClient } = await import('./client.js');
+  const { createClient } = await import('../client.js');
   const memoryClient = createClient();
   expect(() => memoryClient.connect({ serverUrl: location.origin, apiKey: 'key' })).toThrow(
     'own origin'

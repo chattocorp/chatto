@@ -1,4 +1,4 @@
-import { createApi, createClient, type AddressedMessage, type Connection } from '@chatto/client';
+import { createApi, createClient, type AddressedMessage, type Server } from '@chatto/client';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
@@ -112,7 +112,7 @@ export const chattoSource: EventSource = async (ctx) => {
 
 async function consume(
   ctx: Parameters<EventSource>[0],
-  chatto: Connection,
+  chatto: Server,
   apiKey: string,
   allowedUserId: string | undefined,
   settings: Omit<ReturnType<typeof sourceSettings>, 'serverUrl' | 'apiKey' | 'allowedUserId'>,

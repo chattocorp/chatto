@@ -23,7 +23,7 @@ import {
   type ApiOptions,
   type ChattoClient,
   type ConnectOptions,
-  type Connection,
+  type Server,
   type ConsumeEventsOptions,
   type RealtimeEvent
 } from '@chatto/client';
@@ -55,7 +55,7 @@ export function fakeChatto(setup: FakeChattoSetup) {
   };
 
   const connections: FakeConnection[] = [];
-  function connect(options: ConnectOptions): Connection {
+  function connect(options: ConnectOptions): Server {
     const queue: RealtimeEvent[] = [];
     let wake: (() => void) | undefined;
     let consumers = 0;
@@ -123,11 +123,11 @@ export function fakeChatto(setup: FakeChattoSetup) {
         wake?.();
       }
     };
-    return connection as unknown as Connection;
+    return connection as unknown as Server;
   }
 
   const createClient = vi.fn((): ChattoClient => {
-    const opened: Connection[] = [];
+    const opened: Server[] = [];
     return {
       connect(options: ConnectOptions) {
         const connection = connect(options);

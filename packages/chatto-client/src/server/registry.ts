@@ -1,6 +1,6 @@
 import { ReactiveMap, batch, signal, untrack } from '../reactivity/index.js';
 import { clearUserStores } from './users.js';
-import { ServerStateStore } from './store.js';
+import { Server } from './server.js';
 import type { ServerConnectionManager } from './serverConnection.js';
 import type { EventBusManager } from './realtimeTransport.js';
 import { claimServerId, isServerIdClaimed, releaseServerId } from './serverIds.js';
@@ -409,7 +409,7 @@ export class ServerRegistry {
   /** Set by {@link dispose}; late async work then changes nothing. */
   #disposed = false;
   readonly sessions: ServerSessions;
-  #stores = new ReactiveMap<string, ServerStateStore>();
+  #stores = new ReactiveMap<string, Server>();
   #renewalPromises = new Map<string, Promise<string | null>>();
   /** In-flight viewer checks that confirm a rejected origin cookie session. */
   #authenticationChecks = new Map<string, Promise<boolean>>();
@@ -423,7 +423,7 @@ export class ServerRegistry {
    */
   readonly #fixedTokenServers = new Set<string>();
   /** Callbacks of {@link watchStores} for stores that the registry creates later. */
-  readonly #storeWatchers = new Set<(store: ServerStateStore) => void>();
+  readonly #storeWatchers = new Set<(store: Server) => void>();
 
   constructor(context: ServerRegistryContext, options: ServerRegistryOptions) {
     this.#context = context;
@@ -1040,7 +1040,13 @@ export class ServerRegistry {
       this.sessions.replace(registration.id, localSession);
       this.#persistAuthentication(registration.id);
       this.#persist();
-      this.#createStore(registration.id);
+      try {
+        this.#createStore(registration.id);
+      } catch (error) {
+        // A server without a store must not stay registered.
+        this.removeServer(registration.id);
+        throw error;
+      }
     });
   }
 
@@ -1249,7 +1255,7 @@ export class ServerRegistry {
    * Safe in computed values — stores are created atomically with registration,
    * so every registered server always has a store.
    */
-  getStore(serverId: string): ServerStateStore {
+  getStore(serverId: string): Server {
     const store = this.#stores.get(serverId);
     if (!store) {
       throw new Error(
@@ -1264,7 +1270,7 @@ export class ServerRegistry {
    * Get the state store for a registered server, or undefined if not found.
    * Use when the server may not be registered (e.g., unresolved URL segments).
    */
-  tryGetStore(serverId: string): ServerStateStore | undefined {
+  tryGetStore(serverId: string): Server | undefined {
     return this.#stores.get(serverId);
   }
 
@@ -1303,7 +1309,7 @@ export class ServerRegistry {
   }
 
   /** Check the private-data boundary before publishing a complete account response. */
-  #acceptViewer(id: string, owner: ServerStateStore, user: CurrentUser): void {
+  #acceptViewer(id: string, owner: Server, user: CurrentUser): void {
     batch(() => {
       if (this.#stores.get(id) !== owner) return;
       if (this.isOriginServer(id)) {
@@ -1340,17 +1346,17 @@ export class ServerRegistry {
   }
 
   /** Create a state store for a server and wire up remote user sync. */
-  #createStore(serverId: string, startNetwork = true): ServerStateStore {
+  #createStore(serverId: string, startNetwork = true): Server {
     const registration = this.catalog.get(serverId);
     if (!registration) throw new Error(`Server "${serverId}" not found in catalogue`);
     this.sessions.ensure(serverId);
     const serverConnection = this.#context.connections.getClient(serverId);
-    const store = new ServerStateStore(
+    const store = new Server(
       registration,
       () => this.sessions.ensure(serverId),
       this.isOriginServer(serverId),
       serverConnection,
-      { realtime: this.#context.realtime },
+      { realtime: this.#context.realtime, remove: () => this.removeServer(serverId) },
       undefined,
       () => {
         if (this.isOriginServer(serverId) && !store.currentUser.user) {
@@ -1374,9 +1380,9 @@ export class ServerRegistry {
    * store is disposed or when the returned function stops the watch. A
    * failing `setup` is logged and does not stop the others.
    */
-  watchStores(setup: (store: ServerStateStore) => (() => void) | void): () => void {
-    const detachers = new Map<ServerStateStore, () => void>();
-    const attach = (store: ServerStateStore) => {
+  watchStores(setup: (store: Server) => (() => void) | void): () => void {
+    const detachers = new Map<Server, () => void>();
+    const attach = (store: Server) => {
       let cleanup: (() => void) | void = undefined;
       try {
         cleanup = untrack(() => setup(store));

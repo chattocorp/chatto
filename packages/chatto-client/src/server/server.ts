@@ -1,26 +1,28 @@
 /**
- * A connection to one Chatto server with a fixed bearer token, such as a bot
- * API key. Create it with `ChattoClient.connect`.
+ * One Chatto server of a client: its reactive state, its realtime events, and
+ * the requests that integrations use.
  *
- * The connection uses its client's registry, server store, realtime
- * transport, and runtime. It receives realtime events from the start, also
- * before `ready()` resolves, and keeps them for the first `consumeEvents` or
- * `run` call.
+ * `ChattoClient.connect` adds a server with a fixed bearer token, such as a
+ * bot API key; `ChattoClient.server` returns a server that the client already
+ * has. Both are this type. A server that `connect` added receives realtime
+ * events from the start, also before `ready()` resolves, and keeps them for
+ * the first `consumeEvents` or `run` call.
  *
- * Requests contact only the configured server, which receives the host's IP
- * address, the token, and the request data.
+ * Requests contact only this server, which receives the host's IP address,
+ * the credentials, and the request data.
  */
 
 import type { ServiceType } from '@bufbuild/protobuf';
 import { Code, ConnectError, type Client, type Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { createChattoClient as createServiceClient, type ConnectAPIConfig } from './api/connect.js';
-import { effect, effectRoot, signal, untrack } from './reactivity/index.js';
-import type { ServerRegistry } from './server/registry.js';
-import type { EventBusManager } from './server/realtimeTransport.js';
-import type { ServerConnection, ServerConnectionManager } from './server/serverConnection.js';
-import type { ServerStateStore } from './server/store.js';
+import {
+  createChattoClient as createServiceClient,
+  type ConnectAPIConfig
+} from '../api/connect.js';
+import type { CurrentUser } from '../api/viewer.js';
+import type { PublicServerInfo } from '../api/server.js';
+import { effect, effectRoot, signal, untrack } from '../reactivity/index.js';
 import {
   conversationKey,
   MessagingRequests,
@@ -28,7 +30,7 @@ import {
   type AddressedMessage,
   type AddressingOptions,
   type AddressingReason
-} from './messaging/requests.js';
+} from '../messaging/requests.js';
 import type {
   ChattoMessage,
   Destination,
@@ -37,7 +39,11 @@ import type {
   ThreadLocation,
   ThreadRead,
   ThreadReadOptions
-} from './messaging/types.js';
+} from '../messaging/types.js';
+import type { ServerRegistration } from './catalog.js';
+import type { ServerConnection } from './serverConnection.js';
+import type { ServerSession } from './sessions.js';
+import { ServerStateStore, type ServerStoreContext } from './store.js';
 
 /** Settings for `ChattoClient.connect`. */
 export interface ConnectOptions {
@@ -47,18 +53,18 @@ export interface ConnectOptions {
   apiKey: string;
 }
 
-/** A projection reset; see {@link Connection.onReset}. */
-export interface ResetInfo {
+/** A new projection snapshot; see {@link Server.onSnapshot}. */
+export interface SnapshotInfo {
   /** Events since the previous connection can be missing. */
   readonly gap: boolean;
 }
 
-/** Realtime status of a connection. */
-export type ConnectionStatus = ServerConnection['status'];
+/** Realtime status of a server. */
+export type ServerStatus = ServerConnection['status'];
 
-/** Options for {@link Connection.consumeEvents}. */
+/** Options for {@link Server.consumeEvents}. */
 export interface ConsumeEventsOptions {
-  /** Stops consumption. Without it, consumption stops when the connection closes. */
+  /** Stops consumption. Without it, consumption stops when the server closes. */
   signal?: AbortSignal;
   /**
    * Handle one event. Events are handled in order; the next event waits until
@@ -75,9 +81,9 @@ export interface ConsumeEventsOptions {
   onStatus?: (status: RealtimeStatus) => void;
 }
 
-/** Options for {@link Connection.run}. */
+/** Options for {@link Server.run}. */
 export interface RunOptions {
-  /** Stops the handler loop. Without it, the loop stops when the connection closes. */
+  /** Stops the handler loop. Without it, the loop stops when the server closes. */
   signal?: AbortSignal;
   /** The addressing reasons to handle. Default: direct messages, mentions, and replies. */
   reasons?: readonly AddressingReason[];
@@ -95,18 +101,18 @@ export interface RunOptions {
   onError?: (error: unknown, event: RealtimeEvent) => void;
 }
 
-/** One addressed message and the operations to answer it; see {@link Connection.run}. */
+/** One addressed message and the operations to answer it; see {@link Server.run}. */
 export interface MessageContext {
   /** The message addressed to the viewer. */
   readonly message: AddressedMessage;
   /** Aborts when the loop stops. Pass it to your own cancellable work. */
   readonly signal: AbortSignal;
-  /** The account of the connection's API key. */
+  /** The account of the server's credentials. */
   readonly viewerId: string;
   /** The default conversation scope of the message; see `conversationKey`. */
   readonly conversationKey: string;
-  /** The connection that received the message. */
-  readonly connection: Connection;
+  /** The server that received the message. */
+  readonly server: Server;
   /**
    * Reply in the message's thread, with a reference to the message. Returns
    * the IDs of the new messages; see `postMessage`.
@@ -122,13 +128,10 @@ export interface MessageContext {
   addReaction(emoji: string): Promise<void>;
 }
 
-/** The parts of a client that a connection uses. */
-export interface ConnectionContext {
-  readonly registry: ServerRegistry;
-  readonly connections: ServerConnectionManager;
-  readonly realtime: EventBusManager;
-  /** Called once when the connection closes. */
-  readonly onClose: (connection: Connection) => void;
+/** What a server needs from its client, in addition to the store's context. */
+export interface ServerContext extends ServerStoreContext {
+  /** Remove this server from its client; see {@link Server.close}. */
+  readonly remove: () => void;
 }
 
 /** Received events that wait for the handler, dropped beyond this number. */
@@ -145,107 +148,93 @@ interface Inbox {
   close(): void;
 }
 
-/** A connection to one server; see the module documentation. */
-export class Connection {
-  /** Registry ID of the server in the connection's client. */
-  readonly serverId: string;
+/** One server of a client; see the module documentation. */
+export class Server extends ServerStateStore {
   /** Origin of the server. */
   readonly serverUrl: string;
-  readonly #context: ConnectionContext;
+  readonly #serverContext: ServerContext;
   readonly #closed = signal(false);
-  /** Aborts when the connection closes; every request of the connection includes it. */
+  /** Aborts when the server closes; every request of {@link service} includes it. */
   readonly #closeController = new AbortController();
   readonly #eventListeners = new Set<(event: RealtimeEvent) => void>();
-  readonly #resetListeners = new Set<(reset: ResetInfo) => void>();
+  readonly #snapshotListeners = new Set<(snapshot: SnapshotInfo) => void>();
   readonly #requests: MessagingRequests;
   #firstInbox: Inbox | undefined;
   #disposeBusSubscription: (() => void) | undefined;
 
-  /** Use `ChattoClient.connect`. The server must already be registered. */
-  constructor(serverId: string, serverUrl: string, context: ConnectionContext) {
-    this.serverId = serverId;
-    this.serverUrl = serverUrl;
-    this.#context = context;
+  /** The registry creates servers; use `ChattoClient.connect` or `ChattoClient.server`. */
+  constructor(
+    registration: ServerRegistration,
+    getSession: () => ServerSession,
+    originServer: boolean,
+    serverConnection: ServerConnection,
+    context: ServerContext,
+    publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>,
+    onAuthenticationRequired?: () => void,
+    onViewerLoaded?: (user: CurrentUser) => void
+  ) {
+    super(
+      registration,
+      getSession,
+      originServer,
+      serverConnection,
+      context,
+      publicServerInfoLoader,
+      onAuthenticationRequired,
+      onViewerLoaded
+    );
+    this.serverUrl = registration.url;
+    this.#serverContext = context;
     this.#requests = new MessagingRequests(this, async (options) => {
-      const current = this.viewerId;
+      const current = this.accountId;
       if (current) return current;
       return (await this.ready(options)).viewerId;
     });
-    // A connection handles events, so its server stays live in every client.
-    context.realtime.keepLive(serverId);
     this.#disposeBusSubscription = effectRoot(() => this.#subscribeToBus());
-    // Realtime can start before ready() resolves; keep events for the first consumer.
-    this.#firstInbox = this.#openInbox();
+    this.onDispose(() => this.#release());
   }
 
   /**
-   * The server's reactive state store, as applications with a UI use it.
-   * Available only while the connection is open.
+   * Keep the events that arrive from now on for the first `consumeEvents` or
+   * `run` call. `ChattoClient.connect` calls it when it adds the server.
    */
-  get store(): ServerStateStore {
-    return this.#context.registry.getStore(this.serverId);
-  }
-
-  /** The server's transport state. Available only while the connection is open. */
-  get serverConnection(): ServerConnection {
-    return this.#context.connections.getClient(this.serverId);
+  retainEvents(): void {
+    this.#firstInbox ??= this.#openInbox();
   }
 
   /** Realtime status, or `disconnected` after close. Reactive. */
-  get status(): ConnectionStatus {
-    if (this.#closed.get() || !this.#context.registry.tryGetStore(this.serverId))
-      return 'disconnected';
-    return this.#context.connections.getClient(this.serverId).status;
-  }
-
-  /** The account of the API key once it loaded, or null. Reactive. */
-  get viewerId(): string | null {
-    if (this.#closed.get()) return null;
-    return this.#context.registry.tryGetStore(this.serverId)?.accountId ?? null;
-  }
-
-  /**
-   * Whether the server ended the session, for example because it rejected or
-   * revoked the token. The connection does not recover; close it. Reactive.
-   */
-  get sessionEnded(): boolean {
-    return (this.#context.registry.getServer(this.serverId)?.reauthRequiredAt ?? null) !== null;
+  get status(): ServerStatus {
+    if (this.#closed.get()) return 'disconnected';
+    return this.connection.status;
   }
 
   /**
    * Whether the server does not support this client's realtime protocol:
    * discovery reported an unsupported release, or the server closed the
-   * stream for that reason. No events arrive; close the connection. Reactive.
+   * stream for that reason. No events arrive. Reactive.
    */
   get realtimeUnsupported(): boolean {
-    const current = this.#closed.get()
-      ? undefined
-      : this.#context.registry.tryGetStore(this.serverId);
-    if (!current) return false;
-    return (
-      this.#context.connections.getClient(this.serverId).realtimeUnsupported ||
-      releaseUnsupported(current)
-    );
+    if (this.#closed.get()) return false;
+    return this.connection.realtimeUnsupported || this.#releaseUnsupported();
   }
 
-  /** Whether {@link close} was called. Reactive. */
+  /** Whether the server was closed or removed from its client. Reactive. */
   get closed(): boolean {
     return this.#closed.get();
   }
 
   /**
-   * Wait until the server accepted the token and the viewer loaded. Rejects
-   * when the server rejects the token, when a viewer read fails (for example
-   * because the server is unreachable or returned an error), when discovery
-   * reports a server release that this client does not support, when the
-   * connection closes, or when `signal` aborts.
+   * Wait until the server accepted the credentials and the viewer loaded.
+   * Rejects when the server rejects them, when a viewer read fails (for
+   * example because the server is unreachable or returned an error), when
+   * discovery reports a server release that this client does not support,
+   * when the server closes, or when `signal` aborts.
    *
-   * The connection retries a failed viewer read in the background, with a
+   * The server retries a failed viewer read in the background, with a
    * backoff. A `ready()` call made between two attempts waits for the next
    * attempt and reports its result.
    */
   ready({ signal: abortSignal }: RequestOptions = {}): Promise<{ viewerId: string }> {
-    const { registry } = this.#context;
     return new Promise((resolve, reject) => {
       abortSignal?.throwIfAborted();
       // `stop` is read in a microtask, after effectRoot returned it.
@@ -264,23 +253,20 @@ export class Connection {
       const stop = effectRoot(() => {
         effect(() => {
           if (this.#closed.get()) {
-            finish(() => reject(new Error('The Chatto connection is closed')));
+            finish(() => reject(new Error('The Chatto server is closed')));
             return;
           }
-          const server = registry.getServer(this.serverId);
-          const current = registry.tryGetStore(this.serverId);
-          if (!server || !current) return;
-          if (server.reauthRequiredAt !== null) {
+          if (this.sessionEnded) {
             finish(() => reject(new Error('Chatto rejected the API key')));
             return;
           }
-          const { serverInfo, currentUser } = current;
-          const viewerId = current.accountId;
+          const { serverInfo, currentUser } = this;
+          const viewerId = this.accountId;
           if (viewerId) {
             // Discovery that fails does not block requests, but a server
             // release without a supported realtime projection sends no events.
             if (serverInfo.loading) return;
-            if (releaseUnsupported(current)) {
+            if (this.#releaseUnsupported()) {
               finish(() => reject(new Error('The Chatto server version is not supported')));
             } else {
               finish(() => resolve({ viewerId }));
@@ -304,20 +290,18 @@ export class Connection {
   }
 
   /**
-   * Create a typed Connect client for a public service, with this
-   * connection's authentication. The fixed token always belongs to the same
-   * account, so projection resets do not fail these requests. After
-   * `close()`, clients send nothing, responses in flight fail, and this
-   * method throws a `Canceled` `ConnectError`.
+   * Create a typed Connect client for a public service, with this server's
+   * authentication. After `close()`, clients send nothing, responses in
+   * flight fail, and this method throws a `Canceled` `ConnectError`.
    */
   service<T extends ServiceType>(service: T): Client<T> {
     const closed = this.#closed;
-    if (closed.peek()) throw new ConnectError('The Chatto connection is closed', Code.Canceled);
-    const base = this.#context.connections.getClient(this.serverId).apiConfig;
-    // After close(), send nothing: the token must not outlive the connection.
+    if (closed.peek()) throw new ConnectError('The Chatto server is closed', Code.Canceled);
+    const base = this.connection.apiConfig;
+    // After close(), send nothing: the credentials must not outlive the server.
     const closing = this.#closeController.signal;
     const refuseAfterClose: Interceptor = (next) => (request) => {
-      if (closed.peek()) throw new ConnectError('The Chatto connection is closed', Code.Canceled);
+      if (closed.peek()) throw new ConnectError('The Chatto server is closed', Code.Canceled);
       // close() cancels requests in flight, so no open request outlives it.
       return next({ ...request, signal: AbortSignal.any([request.signal, closing]) });
     };
@@ -346,24 +330,24 @@ export class Connection {
   }
 
   /**
-   * Receive projection resets, after the store applied the reset's snapshot.
-   * The first reset delivers the initial snapshot. `gap` is true when a later
-   * reset replaced a stream that the server could not resume after it
-   * connected or delivered events. Returns a function that removes the
-   * listener.
+   * Receive each new projection snapshot, after the store applied it. The
+   * first snapshot is the initial one. `gap` is true when a later snapshot
+   * replaced a stream that the server could not resume after it connected or
+   * delivered events. Returns a function that removes the listener. To clear
+   * copies of server data at a reset, use `onReset` instead.
    */
-  onReset(listener: (reset: ResetInfo) => void): () => void {
-    this.#resetListeners.add(listener);
-    return () => this.#resetListeners.delete(listener);
+  onSnapshot(listener: (snapshot: SnapshotInfo) => void): () => void {
+    this.#snapshotListeners.add(listener);
+    return () => this.#snapshotListeners.delete(listener);
   }
 
   /**
-   * Handle realtime events in order. The connection keeps receiving events
-   * while a handler runs; up to 1000 wait in memory. The first call also
-   * receives the events that arrived after the connection was created; a
-   * later call reports a gap first.
+   * Handle realtime events in order. The server keeps receiving events while
+   * a handler runs; up to 1000 wait in memory. After {@link retainEvents},
+   * the first call also receives the events that arrived since then; a later
+   * call reports a gap first.
    *
-   * Resolves when `signal` aborts or the connection closes. Rejects when
+   * Resolves when `signal` aborts or the server closes. Rejects when
    * `onEvent` or `onStatus` throws, when the server ends the session, or when
    * the server does not support the realtime protocol.
    */
@@ -385,8 +369,8 @@ export class Connection {
     };
     let lastStatus: string | undefined;
     // Report outside reactive tracking, and only changes. A failing status
-    // callback stops consumption; it must not throw into the connection code
-    // that changed the status.
+    // callback stops consumption; it must not throw into the code that
+    // changed the status.
     const report = (status: RealtimeStatus) => {
       const key = JSON.stringify(status);
       if (key === lastStatus && !('gap' in status && status.gap)) return;
@@ -409,7 +393,7 @@ export class Connection {
     const stopEffects = effectRoot(() => {
       effect(() => {
         if (this.#closed.get()) {
-          stop(new Error('The Chatto connection is closed'));
+          stop(new Error('The Chatto server is closed'));
           inbox.wake?.();
         } else if (this.sessionEnded)
           fail(new Error('Chatto ended the session; the API key can be revoked'));
@@ -420,7 +404,7 @@ export class Connection {
         const status = this.status;
         const ended = () =>
           untrack(() => this.#closed.get() || this.sessionEnded || this.realtimeUnsupported);
-        // A closed connection or ended session does not reconnect; the loop
+        // A closed server or ended session does not reconnect; the loop
         // stops instead of reporting a reconnect.
         if (failure || ended()) return;
         if (status === 'connected') {
@@ -431,7 +415,7 @@ export class Connection {
           report({ state: connectedBefore ? 'reconnecting' : 'connecting' });
         } else if (status === 'disconnected') {
           // The runtime ends a terminated session one microtask later. Report
-          // a reconnect only for a connection that can still reconnect.
+          // a reconnect only for a server that can still reconnect.
           queueMicrotask(() => {
             if (failure || ended() || untrack(() => this.status) !== 'disconnected') return;
             report({ state: 'reconnecting' });
@@ -471,12 +455,12 @@ export class Connection {
    *
    * Waits for {@link ready} first, also through failed attempts while the
    * server is unreachable, and then behaves like {@link consumeEvents}.
-   * Resolves when `signal` aborts or the connection closes. Rejects when the
+   * Resolves when `signal` aborts or the server closes. Rejects when the
    * server rejects the key or does not support this client, and, without
    * `onError`, with the first failure of the handler.
    *
    * ```ts
-   * await connection.run(async (ctx) => {
+   * await server.run(async (ctx) => {
    *   await ctx.withTyping(() => ctx.reply(`You said: ${ctx.message.body}`));
    * });
    * ```
@@ -580,20 +564,35 @@ export class Connection {
   }
 
   /**
-   * Stop realtime delivery and remove the server and its state. Requests in
-   * flight through this connection then fail, even when the server applied
-   * them. Use `createApi` for work that can outlive the connection.
+   * Remove this server from its client: stop its realtime delivery, cancel
+   * its requests in flight, and release its state. Requests in flight fail,
+   * even when the server applied them. Use `createApi` for work that can
+   * outlive the server. A server in device storage is removed from it too.
    */
   close(): void {
     if (this.#closed.peek()) return;
+    this.#serverContext.remove();
+    // A server that the registry did not know is released here.
+    this.#release();
+  }
+
+  /** End every use of this server; its client removed or replaced it. */
+  #release(): void {
+    if (this.#closed.peek()) return;
     this.#closed.set(true);
-    this.#closeController.abort(new Error('The Chatto connection is closed'));
+    this.#closeController.abort(new Error('The Chatto server is closed'));
     this.#firstInbox?.close();
     this.#firstInbox = undefined;
     this.#disposeBusSubscription?.();
-    this.#context.realtime.keepLive(this.serverId, false);
-    this.#context.registry.removeServer(this.serverId);
-    this.#context.onClose(this);
+  }
+
+  /**
+   * Whether discovery reported a server release without a supported realtime
+   * projection. The runtime then never opens the realtime stream.
+   */
+  #releaseUnsupported(): boolean {
+    const { serverInfo } = this;
+    return !serverInfo.loading && serverInfo.error === null && !serverInfo.isSupportedVersion;
   }
 
   /**
@@ -636,7 +635,7 @@ export class Connection {
       signal,
       viewerId,
       conversationKey: conversationKey(viewerId, message),
-      connection: this,
+      server: this,
       reply: (body) => this.#requests.reply(message, body, { signal }),
       readThread: (options) => this.#requests.readThread(thread, { ...options, signal }),
       refreshTyping: () => this.#requests.refreshTyping(destination, { signal }),
@@ -648,7 +647,7 @@ export class Connection {
     };
   }
 
-  /** Subscribe to the connection's events and resets. */
+  /** Subscribe to the server's events and resets. */
   #openInbox(pendingGap = false): Inbox {
     const inbox: Inbox = { queue: [], pendingGap, close: () => {} };
     const stopEvents = this.onEvent((event) => {
@@ -661,7 +660,7 @@ export class Connection {
       inbox.queue.push(event);
       inbox.wake?.();
     });
-    const stopResets = this.onReset(({ gap }) => {
+    const stopResets = this.onSnapshot(({ gap }) => {
       if (gap) inbox.pendingGap = true;
     });
     inbox.close = () => {
@@ -686,7 +685,7 @@ export class Connection {
     // skip the events that followed them.
     let eventsSinceReset = false;
     /** The reset that listeners have not received yet. */
-    let pendingReset: ResetInfo | null = null;
+    let pendingReset: SnapshotInfo | null = null;
     const resetPublished = signal(0);
 
     effect(() => {
@@ -698,10 +697,10 @@ export class Connection {
       resetPublished.get();
       const reset = pendingReset;
       pendingReset = null;
-      if (reset) untrack(() => notify(this.#resetListeners, reset));
+      if (reset) untrack(() => notify(this.#snapshotListeners, reset));
     });
     effect(() => {
-      const bus = this.#context.realtime.getBus(this.serverId);
+      const bus = this.#serverContext.realtime.getBus(this.serverId);
       if (!bus) return;
       return untrack(() =>
         bus.subscribe((update) => {
@@ -733,13 +732,4 @@ function notify<T>(listeners: Set<(value: T) => void>, value: T): void {
       console.error('[chatto-client] a realtime listener failed', error);
     }
   }
-}
-
-/**
- * Whether discovery reported a server release without a supported realtime
- * projection. The runtime then never opens the realtime stream.
- */
-function releaseUnsupported(store: ServerStateStore): boolean {
-  const { serverInfo } = store;
-  return !serverInfo.loading && serverInfo.error === null && !serverInfo.isSupportedVersion;
 }

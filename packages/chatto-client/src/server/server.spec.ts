@@ -1,31 +1,31 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import type { ConnectAPIConfig } from './api/connect.js';
-import type { CurrentUser } from './api/viewer.js';
+import type { ConnectAPIConfig } from '../api/connect.js';
+import type { CurrentUser } from '../api/viewer.js';
 
 const mocks = vi.hoisted(() => ({
   discovery: vi.fn(),
   viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>()
 }));
-vi.mock('./api/server.js', async (original) => ({
-  ...(await original<typeof import('./api/server.js')>()),
+vi.mock('../api/server.js', async (original) => ({
+  ...(await original<typeof import('../api/server.js')>()),
   getPublicServerInfo: mocks.discovery
 }));
-vi.mock('./api/viewer.js', async (original) => ({
-  ...(await original<typeof import('./api/viewer.js')>()),
+vi.mock('../api/viewer.js', async (original) => ({
+  ...(await original<typeof import('../api/viewer.js')>()),
   getCurrentUserViaConnect: mocks.viewer
 }));
 
-import { createClient, type ChattoClient } from './client.js';
-import type { Connection } from './connection.js';
-import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
-import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
-import { RealtimeResourceUpdate } from './api/realtimeResources.js';
-import { batch } from './reactivity/index.js';
+import { createClient, type ChattoClient } from '../client.js';
+import type { Server } from './server.js';
+import { setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
+import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
+import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
+import { batch } from '../reactivity/index.js';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { inertRealtimeSocket } from './testing/inertSocket.js';
+import { inertRealtimeSocket } from '../testing/inertSocket.js';
 
 const profile = {
   name: 'Bot server',
@@ -40,7 +40,7 @@ const profile = {
 
 describe('connections in Node', () => {
   let client: ChattoClient;
-  let connection: Connection | undefined;
+  let connection: Server | undefined;
 
   beforeEach(() => {
     client = createClient();
@@ -65,7 +65,7 @@ describe('connections in Node', () => {
       url: 'https://chat.example',
       token: 'key'
     });
-    expect(connection.store.accountId).toBe('bot');
+    expect(connection.accountId).toBe('bot');
   });
 
   it('never renews the fixed token and rejects when the server refuses it', async () => {
@@ -141,16 +141,16 @@ describe('connections in Node', () => {
     await vi.waitFor(() => expect(client.realtime.getBus(connection!.serverId)).toBeDefined());
     const bus = client.realtime.getBus(connection.serverId)!;
     const gaps: boolean[] = [];
-    connection.onReset(({ gap }) => gaps.push(gap));
+    connection.onSnapshot(({ gap }) => gaps.push(gap));
     const reset = () => bus.publish(new RealtimeProjectionUpdate({ reset: true }));
 
     reset(); // initial snapshot
-    connection.serverConnection.setRealtimeConnectionStatus('connected');
+    connection.connection.setRealtimeConnectionStatus('connected');
     reset(); // a resync after a connected stream
-    connection.serverConnection.setRealtimeConnectionStatus('connecting');
+    connection.connection.setRealtimeConnectionStatus('connecting');
     reset(); // its snapshot, before the next connection
-    connection.serverConnection.setRealtimeConnectionStatus('connected');
-    connection.serverConnection.setRealtimeConnectionStatus('connecting');
+    connection.connection.setRealtimeConnectionStatus('connected');
+    connection.connection.setRealtimeConnectionStatus('connecting');
     reset(); // a snapshot that replaced a stream that could not resume
 
     expect(gaps).toEqual([false, true, false, true]);
@@ -184,7 +184,7 @@ describe('connections in Node', () => {
     await vi.waitFor(() => expect(client.realtime.getBus(connection!.serverId)).toBeDefined());
     const bus = client.realtime.getBus(connection.serverId)!;
     const roomsAtReset: number[] = [];
-    connection.onReset(() => roomsAtReset.push(connection!.store.projection.rooms.size));
+    connection.onSnapshot(() => roomsAtReset.push(connection!.projection.rooms.size));
     batch(() => {
       bus.publish(new RealtimeProjectionUpdate({ reset: true }));
       bus.publish(
@@ -233,11 +233,11 @@ describe('connections in Node', () => {
     let settled = false;
     const ready = connection.ready().finally(() => (settled = true));
     await vi.waitFor(() => expect(mocks.viewer).toHaveBeenCalled());
-    connection.store.currentUser.invalidateVerification();
+    connection.currentUser.invalidateVerification();
     resolveViewer({ id: 'bot', login: 'bot' } as CurrentUser);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(settled).toBe(false);
-    await connection.store.currentUser.load();
+    await connection.currentUser.load();
     await expect(ready).resolves.toEqual({ viewerId: 'bot' });
   });
 
@@ -325,7 +325,7 @@ describe('connections in Node', () => {
 
       const beforeReset = viewer.getViewer({});
       await vi.waitFor(() => expect(responses).toHaveLength(1));
-      connection.serverConnection.invalidatePrivateData();
+      connection.connection.invalidatePrivateData();
       responses[0]!();
       await expect(beforeReset).resolves.toBeDefined();
 
@@ -337,9 +337,9 @@ describe('connections in Node', () => {
       responses[1]!();
       await expect(beforeClose).rejects.toThrow();
 
-      await expect(viewer.getViewer({})).rejects.toThrow('connection is closed');
+      await expect(viewer.getViewer({})).rejects.toThrow('server is closed');
       expect(responses).toHaveLength(2);
-      expect(() => connection!.service(ViewerService)).toThrow('connection is closed');
+      expect(() => connection!.service(ViewerService)).toThrow('server is closed');
     } finally {
       vi.unstubAllGlobals();
     }

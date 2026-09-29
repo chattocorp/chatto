@@ -1,9 +1,9 @@
 # Instructions for Agents Working in `packages/chatto-client/`
 
 `@chatto/client` is the Chatto client: isolated client instances with their
-servers, connections, realtime transports, stores, and runtime; ConnectRPC
-facades and sessions; the snapshot query cache; and the request helpers and
-message loop for bots. The bundled frontend, ChattoBot, and the Runling
+servers, realtime transports, and runtime; server data and its boundary
+events; ConnectRPC facades and sessions; and the request helpers and message
+loop for bots. The bundled frontend, ChattoBot, and the Runling
 examples use it. See
 [ADR-110](../../docs/adr/ADR-110-move-client-state-into-chatto-client.md).
 
@@ -18,7 +18,7 @@ examples use it. See
 - Keep client state in the client instance (`src/client.ts`): its registry,
   connection manager, realtime manager, and runtime. Do not add module-level
   state that one client could change for another. Process-wide state, such
-  as the query cache and user stores, must be keyed by server ID; server IDs
+  as the user stores, must be keyed by server ID; server IDs
   are unique in a process (`src/server/serverIds.ts`).
 - Keep the package integration-shaped: server data, requests, and the
   operations that integrations need. State that exists only for one host's
@@ -63,7 +63,7 @@ examples use it. See
 - Every module is importable as `@chatto/client/<path>`. The `@chatto/source`
   export condition resolves to TypeScript source for workspace consumers; Node
   hosts use `dist/`. Run `mise build-chatto-client` before Node consumers.
-- The root entry has the public API: `createClient`, `Connection`,
+- The root entry has the public API: `createClient`, `Server`,
   `createApi`, the request helpers, and their types. `src/types.ts` and
   `src/types/admin.ts` re-export `@chatto/api-types`; regenerate them with
   `node scripts/generate-types.mjs`.

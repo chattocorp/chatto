@@ -102,6 +102,19 @@ describe('isolated clients', () => {
     expect(second.viewerId).toBe('second-viewer');
   });
 
+  it('return one server type for connected and registered servers', async () => {
+    const shared = client();
+    const connected = shared.connect({ serverUrl: 'https://chat.example', apiKey: 'first' });
+    expect(shared.server(connected.serverId)).toBe(connected);
+    await connected.ready();
+    // The server is the store: its state and requests are one object.
+    expect(connected.accountId).toBe('first-viewer');
+
+    connected.close();
+    expect(connected.closed).toBe(true);
+    expect(shared.server(connected.serverId)).toBeUndefined();
+  });
+
   it('keep every connection of a bot client live', async () => {
     const sockets: string[] = [];
     setRealtimeSocketFactoryForTests((url) => {
@@ -124,7 +137,7 @@ describe('isolated clients', () => {
     await vi.waitFor(() => expect(app.realtime.getBus(connection.serverId)).toBeDefined());
     await new Promise((resolve) => setTimeout(resolve, 20));
     // A polled server's transport is dormant between catch-ups; a live one connects.
-    expect(connection.serverConnection.status).toBe('connecting');
+    expect(connection.connection.status).toBe('connecting');
   });
 });
 

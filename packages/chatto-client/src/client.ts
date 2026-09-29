@@ -1,6 +1,6 @@
 /**
- * A Chatto client: an isolated set of servers with their registry, stores,
- * connections, realtime transports, and runtime.
+ * A Chatto client: an isolated set of servers with their registry, realtime
+ * transports, and runtime.
  *
  * Create one client per independent host, such as a bot, or one per page in
  * an application with a UI. Clients in one process share nothing that one
@@ -9,7 +9,7 @@
  */
 
 import { parseServerUrl } from './util/serverUrl.js';
-import { Connection, type ConnectOptions } from './connection.js';
+import type { ConnectOptions, Server } from './server/server.js';
 import { EventBusManager, type LiveServers } from './server/realtimeTransport.js';
 import { ServerRegistry } from './server/registry.js';
 import { ServerConnectionManager } from './server/serverConnection.js';
@@ -41,7 +41,7 @@ export interface ClientOptions {
 
 /** Clients that use device storage or the origin server; a process can have one of each. */
 const exclusiveClients = new Map<'deviceStorage' | 'originServer', ChattoClient>();
-/** Numbers the server IDs of connections, so that no ID is used twice in a process. */
+/** Numbers the server IDs of `connect`, so that no ID is used twice in a process. */
 let connectionCount = 0;
 
 /** An isolated Chatto client; see the module documentation. */
@@ -52,7 +52,8 @@ export class ChattoClient {
   readonly connections: ServerConnectionManager;
   /** The client's event buses and realtime transports. */
   readonly realtime: EventBusManager;
-  readonly #openConnections = new Set<Connection>();
+  /** Servers that {@link connect} added and that are not closed. */
+  readonly #connected = new Set<Server>();
   #runtime: ClientRuntime | null = null;
   /** Calls of {@link start} without a matching {@link stop}. */
   #starts = 0;
@@ -90,7 +91,7 @@ export class ChattoClient {
 
   /**
    * End one {@link start}. The runtime stops when every start has ended and
-   * no connection is open.
+   * no server that {@link connect} added is open.
    */
   stop(): void {
     this.#starts = Math.max(0, this.#starts - 1);
@@ -107,11 +108,13 @@ export class ChattoClient {
   }
 
   /**
-   * Connect a server with a fixed bearer token, such as a bot API key. The
-   * token is never renewed or written to device storage. A client can hold
-   * several connections, also to the same server with different tokens.
+   * Add a server with a fixed bearer token, such as a bot API key, and keep
+   * its realtime stream live. The token is never renewed or written to device
+   * storage. A client can add a server several times, also with different
+   * tokens; each call adds a separate server with its own ID. The server
+   * keeps its realtime events for the first `consumeEvents` or `run` call.
    */
-  connect(options: ConnectOptions): Connection {
+  connect(options: ConnectOptions): Server {
     if (this.#closed) throw new Error('The Chatto client is closed');
     const url = parseServerUrl(options.serverUrl);
     if (!options.apiKey) throw new Error('A Chatto API key is required');
@@ -120,41 +123,49 @@ export class ChattoClient {
     if (typeof window !== 'undefined' && window.location?.origin === url.origin) {
       throw new Error('A browser page cannot connect its own origin with an API key');
     }
-    // Never reuse an ID: a late request of a closed connection cannot affect a newer one.
+    // Never reuse an ID: a late request of a closed server cannot affect a newer one.
     const serverId = `${url.hostname.replace(/[^a-z0-9-]/gi, '-')}~${++connectionCount}`;
     this.registry.addServer(
       { id: serverId, url: url.origin, name: url.host, iconUrl: null, addedAt: Date.now() },
       { ...emptyServerSession(), token: options.apiKey },
       { fixedToken: true }
     );
-    let connection: Connection | undefined;
+    const server = this.registry.getStore(serverId);
     try {
-      connection = new Connection(serverId, url.origin, {
-        registry: this.registry,
-        connections: this.connections,
-        realtime: this.realtime,
-        onClose: (closed) => this.#connectionClosed(closed)
+      // Realtime can start before ready() resolves; keep events for the first consumer.
+      server.retainEvents();
+      // A server that a host handles events of stays live in every client.
+      this.realtime.keepLive(serverId);
+      this.#connected.add(server);
+      server.onDispose(() => {
+        this.realtime.keepLive(serverId, false);
+        this.#connected.delete(server);
+        // Without work left, no timer must keep a Node host alive.
+        this.#stopRuntimeWhenIdle();
       });
       this.#ensureRuntime();
-      this.#openConnections.add(connection);
     } catch (error) {
       // Leave nothing behind: no server, live transport, or subscription.
-      if (connection) connection.close();
-      else this.registry.removeServer(serverId);
+      server.close();
       throw error;
     }
-    return connection;
+    return server;
+  }
+
+  /** A server of this client by ID, or undefined. */
+  server(serverId: string): Server | undefined {
+    return this.registry.tryGetStore(serverId);
   }
 
   /**
-   * Close every connection, stop the runtime and all realtime transports, and
-   * release the servers. Device storage is left as it is. The client cannot
-   * be used afterwards.
+   * Close every server that {@link connect} added, stop the runtime and all
+   * realtime transports, and release the servers. Device storage is left as
+   * it is. The client cannot be used afterwards.
    */
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
-    for (const connection of [...this.#openConnections]) connection.close();
+    for (const server of [...this.#connected]) server.close();
     this.#stopRuntime();
     this.realtime.stopAll();
     this.registry.dispose();
@@ -175,15 +186,9 @@ export class ChattoClient {
     this.#runtime = null;
   }
 
-  #connectionClosed(connection: Connection): void {
-    this.#openConnections.delete(connection);
-    // Without work left, no timer must keep a Node host alive.
-    this.#stopRuntimeWhenIdle();
-  }
-
-  /** Stop the runtime when no start and no connection needs it; no timer then keeps Node alive. */
+  /** Stop the runtime when no start and no connected server needs it; no timer then keeps Node alive. */
   #stopRuntimeWhenIdle(): void {
-    if (this.#starts === 0 && this.#openConnections.size === 0) this.#stopRuntime();
+    if (this.#starts === 0 && this.#connected.size === 0) this.#stopRuntime();
   }
 }
 
@@ -192,8 +197,8 @@ export class ChattoClient {
  *
  * ```ts
  * const client = createClient();
- * const connection = client.connect({ serverUrl, apiKey });
- * await connection.run((ctx) => ctx.reply(`Hello, ${ctx.message.authorId}`));
+ * const server = client.connect({ serverUrl, apiKey });
+ * await server.run((ctx) => ctx.reply(`Hello, ${ctx.message.authorId}`));
  * ```
  */
 export function createClient(options: ClientOptions = {}): ChattoClient {

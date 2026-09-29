@@ -4,26 +4,26 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { CreateMessageRequest, CreateMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type { ConnectAPIConfig } from './api/connect.js';
-import type { CurrentUser } from './api/viewer.js';
-import type { RealtimeStatus } from './messaging/types.js';
+import type { ConnectAPIConfig } from '../api/connect.js';
+import type { CurrentUser } from '../api/viewer.js';
+import type { RealtimeStatus } from '../messaging/types.js';
 
 const mocks = vi.hoisted(() => ({
   viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>()
 }));
-vi.mock('./api/server.js', async (original) => ({
-  ...(await original<typeof import('./api/server.js')>()),
+vi.mock('../api/server.js', async (original) => ({
+  ...(await original<typeof import('../api/server.js')>()),
   getPublicServerInfo: vi.fn(async () => ({ name: 'Chat', version: '0.5.0' }))
 }));
-vi.mock('./api/viewer.js', async (original) => ({
-  ...(await original<typeof import('./api/viewer.js')>()),
+vi.mock('../api/viewer.js', async (original) => ({
+  ...(await original<typeof import('../api/viewer.js')>()),
   getCurrentUserViaConnect: mocks.viewer
 }));
 
-import { createClient, type ChattoClient } from './client.js';
-import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
-import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
-import { inertRealtimeSocket } from './testing/inertSocket.js';
+import { createClient, type ChattoClient } from '../client.js';
+import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
+import { setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
+import { inertRealtimeSocket } from '../testing/inertSocket.js';
 
 function dmEvent(id = 'incoming', body = 'hello') {
   return new RealtimeEvent({
@@ -81,7 +81,7 @@ async function connection() {
     emit: (event: RealtimeEvent) => bus.publish(new RealtimeProjectionUpdate({ event })),
     reset: () => bus.publish(new RealtimeProjectionUpdate({ reset: true })),
     setStatus: (status: 'connected' | 'connecting' | 'disconnected') =>
-      connection.serverConnection.setRealtimeConnectionStatus(status)
+      connection.connection.setRealtimeConnectionStatus(status)
   };
 }
 
@@ -154,7 +154,7 @@ describe('consumeEvents', () => {
         onEvent: () => {}
       });
       if (end === 'session') client.registry.handleAuthenticationRequired(chatto.serverId);
-      else chatto.serverConnection.markRealtimeUnsupported();
+      else chatto.connection.markRealtimeUnsupported();
       await expect(consuming).rejects.toThrow(
         end === 'session' ? 'ended the session' : 'realtime protocol'
       );
@@ -235,7 +235,7 @@ describe('consumeEvents', () => {
     bus.publish(new RealtimeProjectionUpdate({ event: dmEvent('before-ready') }));
     identify({ id: 'bot', login: 'bot' } as CurrentUser);
     await chatto.ready();
-    chatto.serverConnection.setRealtimeConnectionStatus('connected');
+    chatto.connection.setRealtimeConnectionStatus('connected');
 
     const handled: string[] = [];
     const statuses: RealtimeStatus[] = [];
@@ -330,7 +330,7 @@ describe('run', () => {
     const running = chatto.run(async (ctx) => {
       contexts.push({ key: ctx.conversationKey, body: ctx.message.body });
       expect(ctx.viewerId).toBe('bot');
-      expect(ctx.connection).toBe(chatto);
+      expect(ctx.server).toBe(chatto);
       await expect(ctx.reply(`You said: ${ctx.message.body}`)).resolves.toEqual({
         ids: ['reply']
       });

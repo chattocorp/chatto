@@ -138,6 +138,8 @@ export class ServerStateStore {
     );
   }
   #privacyCleanupFailed = false;
+  /** Set by {@link dispose}; the store then reads no session. */
+  #disposed = false;
   readonly #realtime: EventBusManager;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
@@ -1388,6 +1390,15 @@ export class ServerStateStore {
   }
 
   /**
+   * Whether the server ended the viewer's session, for example because it
+   * rejected or revoked the token. Reactive.
+   */
+  get sessionEnded(): boolean {
+    if (this.#disposed) return false;
+    return this.#getSession().reauthRequiredAt !== null;
+  }
+
+  /**
    * Whether this server uses cookie auth (origin) vs bearer auth (remote).
    * Read from the live registered server so it stays correct if the token
    * field is ever updated.
@@ -1434,6 +1445,7 @@ export class ServerStateStore {
     // Listeners release their copies and media first; a failing listener
     // does not stop the privacy cleanup below.
     this.#events.dispose.emit();
+    this.#disposed = true;
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

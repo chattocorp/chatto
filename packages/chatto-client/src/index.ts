@@ -2,8 +2,9 @@
  * The Chatto client.
  *
  * - {@link createClient} creates an isolated client. `client.connect()`
- *   connects a server with an API key; the connection's `run()` handles the
- *   messages addressed to it.
+ *   adds a server with an API key; the server's `run()` handles the messages
+ *   addressed to it. `client.server(id)` returns a server that the client
+ *   has, the same type.
  * - {@link createApi} makes stateless requests, for example in a webhook
  *   handler.
  * - `@chatto/client/types` re-exports the protocol messages and services.
@@ -14,14 +15,15 @@
 
 export { createClient, ChattoClient, type ClientOptions } from './client.js';
 export {
-  Connection,
+  Server,
   type ConnectOptions,
-  type ConnectionStatus,
   type ConsumeEventsOptions,
   type MessageContext,
-  type ResetInfo,
-  type RunOptions
-} from './connection.js';
+  type RunOptions,
+  type ServerStatus,
+  type SnapshotInfo
+} from './server/server.js';
+export type { AuthorityChange, ProjectionReset, RoomAccessLoss } from './server/storeEvents.js';
 export { Api, createApi, type ApiOptions } from './api.js';
 export {
   conversationKey,
