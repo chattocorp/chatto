@@ -53,7 +53,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroup,
     type RoomsListGroupItem
   } from '$lib/state/server/navigation';
-  import type { CallRoomParticipant } from '@chatto/client/server/activeCallRooms';
+  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
