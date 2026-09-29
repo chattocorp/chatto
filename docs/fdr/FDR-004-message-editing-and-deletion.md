@@ -12,6 +12,9 @@ attachments and initially leave a "[Message deleted]" placeholder.
 
 ## Behavior
 
+- Edit mode shows a muted label inside the composer input surface. The close
+  button cancels the edit without saving changes. Its tooltip shows
+  the Escape shortcut.
 - Authors can edit their own messages within a 3-hour window from posting time.
   After the window closes, the author needs effective `message.manage` to edit
   it. This permission also lets a user edit other users' messages at any time.
