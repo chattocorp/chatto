@@ -456,6 +456,9 @@ func (c *ChattoConfig) Validate() error {
 	if c.Core.EVTReadCacheIdleTTL.Duration() < 0 {
 		errs = append(errs, "core.evt_read_cache_idle_ttl must be positive")
 	}
+	if c.Core.ProjectionColdAfter != nil && c.Core.ProjectionColdAfter.Duration() < 0 {
+		errs = append(errs, "core.projection_cold_after must be 0 or positive")
+	}
 	if c.Core.EVTReadCacheMaxBytes != nil && c.Core.EVTReadCacheMaxBytes.Bytes() != -1 && c.Core.EVTReadCacheMaxBytes.Bytes() <= 0 {
 		errs = append(errs, "core.evt_read_cache_max_bytes must be -1 (unlimited) or a positive size")
 	}

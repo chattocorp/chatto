@@ -33,11 +33,13 @@ type ReactionProjection struct {
 	byMessage map[uint32][]reactionProjectionEntry
 	roomSeq   map[string]uint64
 	// messageRooms holds the ids room handle of each posted message handle.
-	messageRooms handleSlice[uint32]
+	messageRooms coldHandleSlice[uint32]
 	// echoOriginal maps an echo message handle to its original message handle.
 	echoOriginal map[uint32]uint32
 	assetRoom    map[string]string
 	replayGuard  projectionReplayGuard
+	// coldWatermark tells which message handles are cold; nil freezes nothing.
+	coldWatermark *coldWatermark
 }
 
 type ReactionMutationSnapshot struct {
@@ -73,6 +75,7 @@ func newReactionProjection(messages *eventIDTable) *ReactionProjection {
 		ids:            newProjectionIDTable(),
 		messages:       messages,
 		sharedEventIDs: shared,
+		messageRooms:   newColdHandleSlice[uint32](uint32ColdCodec{}),
 		byMessage:      make(map[uint32][]reactionProjectionEntry),
 		roomSeq:        make(map[string]uint64),
 		echoOriginal:   make(map[uint32]uint32),
@@ -92,6 +95,7 @@ func (p *ReactionProjection) Apply(event *evtv1.Event, seq uint64) error {
 
 	p.Lock()
 	defer p.Unlock()
+	defer p.freezeColdLocked()
 
 	roomID := p.roomSeqIDLocked(event)
 	if roomID == "" {
@@ -118,6 +122,19 @@ func (p *ReactionProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyRemoved(e.ReactionRemoved, event.GetActorId())
 	}
 	return nil
+}
+
+// configureColdStorage makes the projection freeze the message rooms below
+// the cold boundary that watermark publishes (ADR-111).
+func (p *ReactionProjection) configureColdStorage(watermark *coldWatermark) {
+	p.Lock()
+	defer p.Unlock()
+	p.coldWatermark = watermark
+}
+
+// freezeColdLocked freezes the message rooms of cold messages.
+func (p *ReactionProjection) freezeColdLocked() {
+	p.messageRooms.freezeBelow(coldHandleBoundary(p.coldWatermark, p.messageRooms.len()))
 }
 
 func (p *ReactionProjection) CompleteStartupReplay() {

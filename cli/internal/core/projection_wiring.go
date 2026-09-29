@@ -178,11 +178,17 @@ func initializeCoreProjections(
 	// Decisions projection index the same message IDs. One shared table holds
 	// each ID once for all of them.
 	eventIDs := newEventIDTable()
+	// The room timeline decides which messages are cold and publishes the
+	// boundary for the other content view components (ADR-111).
+	coldBoundary := &coldWatermark{}
 	roomTimeline := newRoomTimelineProjection(eventIDs)
+	roomTimeline.configureColdStorage(infra.coldAfter, coldBoundary)
 	callState := NewCallStateProjection()
 	assets := NewAssetProjection()
 	threads := newThreadProjection(eventIDs)
+	threads.configureColdStorage(coldBoundary)
 	reactions := newReactionProjection(eventIDs)
+	reactions.configureColdStorage(coldBoundary)
 	users := newUserProjectionWithDEKResolver(infra.dekResolver)
 	userAuth := users.AuthProjection()
 	contentKeys := NewContentKeyProjection()
@@ -260,6 +266,7 @@ func initializeCoreProjections(
 	// Notification Decisions indexes the same message IDs as the content view,
 	// so it interns them in the same process-wide table.
 	notificationDecisions := newNotificationDecisionProjection(eventIDs)
+	notificationDecisions.configureColdStorage(infra.coldAfter)
 	projections.notificationDecisions, err = registerProjection(
 		registrar, notificationDecisions, projectionsnapshot.ProjectionNotificationDecisionsKey,
 		"Notification Decisions", notificationDecisions.adminProjectionEstimate, sharedSnapshots,

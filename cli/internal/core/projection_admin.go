@@ -525,12 +525,12 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 		idTableBytes += p.eventIDs.estimatedBytes()
 	}
 	var messageRefs int64
-	for _, ref := range p.messageRefs {
-		if ref.room != 0 {
+	for slot := range p.messageRefs.len() {
+		if p.messageRefs.at(slot).room != 0 {
 			messageRefs++
 		}
 	}
-	messageRefBytes := int64(len(p.messageRefs)) * int64(unsafe.Sizeof(threadMessageRef{}))
+	messageRefBytes := p.messageRefs.estimatedBytes()
 	interactionBytes := int64(len(p.interactions)) * (int64(unsafe.Sizeof(threadInteractionKey{})) + 4 + projectionCompactMapEntryOverhead)
 	followBytes := followStateBytes + followerBytes + followedByUserBytes
 	totalEntries := entries + int64(len(p.followState)) + messageRefs + int64(len(p.interactions))
@@ -578,7 +578,7 @@ func (p *ReactionProjection) adminProjectionEstimate() (int64, int64, []Projecti
 	if !p.sharedEventIDs {
 		idTableBytes += p.messages.estimatedBytes()
 	}
-	messageRoomBytes := int64(len(p.messageRooms))*4 + int64(len(p.echoOriginal))*(projectionCompactMapEntryOverhead+8)
+	messageRoomBytes := p.messageRooms.estimatedBytes() + int64(len(p.echoOriginal))*(projectionCompactMapEntryOverhead+8)
 	var assetRoomBytes int64
 	for assetID, roomID := range p.assetRoom {
 		assetRoomBytes += projectionMapEntryOverhead + int64(len(assetID)+len(roomID))
@@ -593,7 +593,7 @@ func (p *ReactionProjection) adminProjectionEstimate() (int64, int64, []Projecti
 		{Name: "active_reactions", Value: active, Bytes: reactionBytes},
 		{Name: "room_seq_index", Value: int64(len(p.roomSeq)), Bytes: roomSeqBytes},
 		{Name: "interned_ids", Value: int64(p.ids.len()) + privateEventIDCount(p.sharedEventIDs, p.messages), Bytes: idTableBytes},
-		{Name: "message_room_index", Value: int64(len(p.messageRooms)), Bytes: messageRoomBytes},
+		{Name: "message_room_index", Value: int64(p.messageRooms.len()), Bytes: messageRoomBytes},
 		{Name: "asset_room_index", Value: int64(len(p.assetRoom)), Bytes: assetRoomBytes},
 		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},

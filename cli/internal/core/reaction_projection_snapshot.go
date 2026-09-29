@@ -45,8 +45,9 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 		slices.SortFunc(rows, func(a, b *projectionv1.StringStringSnapshot) int { return strings.Compare(a.Key, b.Key) })
 		return rows
 	}
-	messageRooms := make([]*projectionv1.StringStringSnapshot, 0, len(p.messageRooms))
-	for i, room := range p.messageRooms {
+	messageRooms := make([]*projectionv1.StringStringSnapshot, 0, p.messageRooms.len())
+	for i := range p.messageRooms.len() {
+		room := p.messageRooms.at(i)
 		if room != 0 {
 			messageRooms = append(messageRooms, &projectionv1.StringStringSnapshot{Key: p.messages.id(uint32(i + 1)), Value: p.ids.id(room)})
 		}
@@ -80,6 +81,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 	// shared with the other ServerContentView components.
 	restored := newReactionProjection(p.messages)
 	restored.sharedEventIDs = p.sharedEventIDs
+	restored.coldWatermark = p.coldWatermark
 	restored.replayGuard = guard
 	for _, message := range snapshot.GetMessages() {
 		if message.GetMessageEventId() == "" {
@@ -156,6 +158,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 	for _, row := range snapshot.GetAssetRooms() {
 		restored.assetRoom[row.GetKey()] = row.GetValue()
 	}
+	restored.freezeColdLocked()
 	p.Lock()
 	p.ids, p.byMessage, p.roomSeq, p.messageRooms, p.echoOriginal, p.assetRoom, p.replayGuard = restored.ids, restored.byMessage, restored.roomSeq, restored.messageRooms, restored.echoOriginal, restored.assetRoom, restored.replayGuard
 	p.Unlock()

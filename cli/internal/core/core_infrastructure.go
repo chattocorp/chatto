@@ -30,6 +30,9 @@ type coreInfrastructure struct {
 	eventReader           *evtstream.Reader
 	notificationPublisher *notificationstream.Publisher
 	snapshotRepository    *projectionsnapshot.Repository
+	// coldAfter is the age after which projection state of a message moves
+	// to compact read-only storage (ADR-111). Zero disables it.
+	coldAfter time.Duration
 }
 
 func initializeCoreInfrastructure(
@@ -85,6 +88,7 @@ func initializeCoreInfrastructure(
 		eventReader:           eventReader,
 		notificationPublisher: notificationstream.NewPublisher(js, storage.notificationStream, notificationPhysicalCleanupGrace, logger.WithPrefix("core.NotificationStream")),
 		snapshotRepository:    snapshotRepository,
+		coldAfter:             cfg.ProjectionColdAfterOrDefault(),
 	}, nil
 }
 

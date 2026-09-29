@@ -236,3 +236,63 @@ func (s *coldSlice[T]) estimatedBytes() int64 {
 	bytes += int64(len(s.changed)) * (projectionCompactMapEntryOverhead + 8 + int64(unsafe.Sizeof(zero)))
 	return bytes
 }
+
+// coldHandleSlice stores one value per ID-table handle, like handleSlice, and
+// can freeze the values of low handles. The zero value of T means "no value".
+type coldHandleSlice[T comparable] struct {
+	rows coldSlice[T]
+}
+
+func newColdHandleSlice[T comparable](codec coldCodec[T]) coldHandleSlice[T] {
+	return coldHandleSlice[T]{rows: newColdSlice[T](codec)}
+}
+
+// get returns the value for handle and whether it is set.
+func (s *coldHandleSlice[T]) get(handle uint32) (T, bool) {
+	var zero T
+	if handle == 0 {
+		return zero, false
+	}
+	value := s.rows.get(int(handle) - 1)
+	return value, value != zero
+}
+
+// set stores value for handle. Handle zero is ignored.
+func (s *coldHandleSlice[T]) set(handle uint32, value T) {
+	if handle == 0 {
+		return
+	}
+	s.rows.set(int(handle)-1, value)
+}
+
+// len returns one more than the highest handle with a stored slot.
+func (s *coldHandleSlice[T]) len() int {
+	return s.rows.len()
+}
+
+// at returns the value of handle index+1, for iteration over all slots.
+func (s *coldHandleSlice[T]) at(index int) T {
+	return s.rows.get(index)
+}
+
+// freezeBelow freezes the complete blocks of handles below handle.
+func (s *coldHandleSlice[T]) freezeBelow(handle uint32) {
+	if handle > 1 {
+		s.rows.freezeBefore(int(handle) - 1)
+	}
+}
+
+// estimatedBytes approximates the heap size of the slice.
+func (s *coldHandleSlice[T]) estimatedBytes() int64 {
+	return s.rows.estimatedBytes()
+}
+
+// coldHandleBoundary returns the handle below which a component that follows
+// watermark can freeze its state. In the cold test mode, a component without
+// a watermark freezes all complete blocks.
+func coldHandleBoundary(watermark *coldWatermark, slots int) uint32 {
+	if watermark == nil && coldStorageTestWindow != 0 {
+		return uint32(slots + 1)
+	}
+	return watermark.below()
+}

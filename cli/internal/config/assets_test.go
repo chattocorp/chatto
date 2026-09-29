@@ -463,3 +463,21 @@ func TestSkipSetupWizardConfiguration(t *testing.T) {
 		t.Fatal("true environment override ignored")
 	}
 }
+
+func TestCoreConfig_ProjectionColdAfter(t *testing.T) {
+	var cfg CoreConfig
+	if got := cfg.ProjectionColdAfterOrDefault(); got != 30*24*time.Hour {
+		t.Fatalf("default = %s, want 720h", got)
+	}
+	disabled := Duration(0)
+	cfg.ProjectionColdAfter = &disabled
+	if got := cfg.ProjectionColdAfterOrDefault(); got != 0 {
+		t.Fatalf("disabled = %s, want 0", got)
+	}
+	var chatto ChattoConfig
+	negative := Duration(-time.Hour)
+	chatto.Core.ProjectionColdAfter = &negative
+	if err := chatto.Validate(); err == nil || !strings.Contains(err.Error(), "core.projection_cold_after must be 0 or positive") {
+		t.Fatalf("Validate() = %v, want projection_cold_after error", err)
+	}
+}

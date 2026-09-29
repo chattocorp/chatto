@@ -32,6 +32,9 @@ type NotificationDecisionProjection struct {
 	// eventIDs is the event ID table that badges use, or nil for a private
 	// table. It does not change after construction.
 	eventIDs *eventIDTable
+	// coldWindow is the age after which Badge message records are frozen.
+	// It does not change after configuration.
+	coldWindow time.Duration
 	// badges indexes the sources of computed Badge attention, thread follow
 	// states, and thread reply counts.
 	badges *notificationBadgeSources
@@ -149,15 +152,28 @@ func (p *NotificationDecisionProjection) Restore(data []byte) error {
 	if err != nil {
 		return err
 	}
+	badges.coldWindow = p.coldWindow
 	if err := badges.restoreThreadState(snapshot.GetThreadFollows(), snapshot.GetThreads()); err != nil {
 		return err
 	}
+	badges.freezeColdLocked()
 	p.mu.Lock()
 	p.rooms, p.groups, p.rbac, p.config = rooms, groups, rbac, config
 	p.activeUsers = activeUsers
 	p.badges = badges
 	p.mu.Unlock()
 	return nil
+}
+
+// configureColdStorage makes the Badge source index freeze message records
+// that are older than window (ADR-111). A zero window keeps every record hot.
+// Call it before the projection applies events.
+func (p *NotificationDecisionProjection) configureColdStorage(window time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.coldWindow = window
+	p.badges.coldWindow = window
+	p.badges.freezeColdLocked()
 }
 
 func (p *NotificationDecisionProjection) CompleteStartupReplay() {
@@ -305,8 +321,8 @@ func (p *NotificationDecisionProjection) adminProjectionEstimate() (int64, int64
 	policyEntries := notificationPolicyEntryCount(p.config)
 	decisionEntries := int64(len(p.activeUsers)) + policyEntries
 	var badgeMessages int64
-	for _, record := range p.badges.messages {
-		if record != (badgeMessage{}) {
+	for slot := range p.badges.messages.len() {
+		if p.badges.messages.at(slot) != (badgeMessage{}) {
 			badgeMessages++
 		}
 	}

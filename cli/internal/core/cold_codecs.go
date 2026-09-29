@@ -110,3 +110,51 @@ func (w *coldWatermark) advance(handle uint32) {
 		}
 	}
 }
+
+// threadMessageRefColdCodec stores one thread message reference.
+type threadMessageRefColdCodec struct{}
+
+func (threadMessageRefColdCodec) columns() int { return 2 }
+
+func (threadMessageRefColdCodec) encode(ref threadMessageRef) (fields coldFields) {
+	fields[0], fields[1] = uint64(ref.room), uint64(ref.root)
+	return fields
+}
+
+func (threadMessageRefColdCodec) decode(fields coldFields) threadMessageRef {
+	return threadMessageRef{room: uint32(fields[0]), root: uint32(fields[1])}
+}
+
+// badgeMessageColdCodec stores one Badge source index message record.
+type badgeMessageColdCodec struct{}
+
+func (badgeMessageColdCodec) columns() int { return 7 }
+
+func (badgeMessageColdCodec) encode(record badgeMessage) (fields coldFields) {
+	fields[0] = record.seq
+	fields[1] = uint64(record.createdAt)
+	fields[2] = uint64(record.room)
+	fields[3] = uint64(record.thread)
+	fields[4] = uint64(record.actor)
+	fields[5] = uint64(record.author)
+	if record.retracted {
+		fields[6] |= 1
+	}
+	if record.source {
+		fields[6] |= 2
+	}
+	return fields
+}
+
+func (badgeMessageColdCodec) decode(fields coldFields) badgeMessage {
+	return badgeMessage{
+		seq:       fields[0],
+		createdAt: int64(fields[1]),
+		room:      uint32(fields[2]),
+		thread:    uint32(fields[3]),
+		actor:     uint32(fields[4]),
+		author:    uint32(fields[5]),
+		retracted: fields[6]&1 != 0,
+		source:    fields[6]&2 != 0,
+	}
+}

@@ -202,8 +202,9 @@ type ThreadProjection struct {
 	// components; a standalone projection owns a private table.
 	eventIDs       *eventIDTable
 	sharedEventIDs bool
-	// messageRefs is indexed by eventIDs handle minus one.
-	messageRefs handleSlice[threadMessageRef]
+	// messageRefs holds the reference of each message handle. References of
+	// cold messages are frozen (ADR-111).
+	messageRefs coldHandleSlice[threadMessageRef]
 	// interactions maps each relationship to its room handle.
 	interactions    map[threadInteractionKey]uint32
 	summaryByThread map[uint32]*threadSummary
@@ -215,6 +216,8 @@ type ThreadProjection struct {
 	followedByUser map[uint32][]threadFollowTarget
 	replayGuard    projectionReplayGuard
 	shreddedUsers  map[string]struct{}
+	// coldWatermark tells which message handles are cold; nil freezes nothing.
+	coldWatermark *coldWatermark
 }
 
 // NewThreadProjection returns an empty projection with a private event ID
@@ -238,6 +241,7 @@ func newThreadProjection(eventIDs *eventIDTable) *ThreadProjection {
 		principalIDs:    newProjectionIDTable(),
 		eventIDs:        eventIDs,
 		sharedEventIDs:  shared,
+		messageRefs:     newColdHandleSlice[threadMessageRef](threadMessageRefColdCodec{}),
 		interactions:    make(map[threadInteractionKey]uint32),
 		summaryByThread: make(map[uint32]*threadSummary),
 		followState:     make(map[threadFollowKey]compactThreadFollowState),
@@ -298,6 +302,7 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 	}
 	p.Lock()
 	defer p.Unlock()
+	defer p.freezeColdLocked()
 
 	if p.replayGuard.seen(event, seq) {
 		return nil
@@ -538,9 +543,9 @@ func (p *ThreadProjection) removeRoomInteractionStateLocked(roomID string) {
 	if !ok {
 		return
 	}
-	for i := range p.messageRefs {
-		if p.messageRefs[i].room == room {
-			p.messageRefs[i] = threadMessageRef{}
+	for slot := range p.messageRefs.len() {
+		if p.messageRefs.at(slot).room == room {
+			p.messageRefs.set(uint32(slot+1), threadMessageRef{})
 		}
 	}
 	for key, interactionRoom := range p.interactions {
@@ -559,6 +564,19 @@ func (p *ThreadProjection) applyUserKeyShreddedLocked(userID string, markApplied
 		p.recomputeSummaryLocked(threadRoot)
 	}
 	markApplied()
+}
+
+// configureColdStorage makes the projection freeze the message references
+// below the cold boundary that watermark publishes (ADR-111).
+func (p *ThreadProjection) configureColdStorage(watermark *coldWatermark) {
+	p.Lock()
+	defer p.Unlock()
+	p.coldWatermark = watermark
+}
+
+// freezeColdLocked freezes the message references of cold messages.
+func (p *ThreadProjection) freezeColdLocked() {
+	p.messageRefs.freezeBelow(coldHandleBoundary(p.coldWatermark, p.messageRefs.len()))
 }
 
 func (p *ThreadProjection) CompleteStartupReplay() {

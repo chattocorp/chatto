@@ -84,8 +84,9 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		eventID string
 		ref     threadMessageRef
 	}
-	messages := make([]messageRow, 0, len(p.messageRefs))
-	for i, ref := range p.messageRefs {
+	messages := make([]messageRow, 0, p.messageRefs.len())
+	for i := range p.messageRefs.len() {
+		ref := p.messageRefs.at(i)
 		if ref.room != 0 {
 			messages = append(messages, messageRow{eventID: p.eventIDs.id(uint32(i + 1)), ref: ref})
 		}
@@ -135,7 +136,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		channelRooms    map[string]struct{}
 		dmRooms         map[string]map[string]struct{}
 		principalIDs    projectionIDTable
-		messageRefs     handleSlice[threadMessageRef]
+		messageRefs     coldHandleSlice[threadMessageRef]
 		interactions    map[threadInteractionKey]uint32
 		summaryByThread map[uint32]*threadSummary
 		followState     map[threadFollowKey]compactThreadFollowState
@@ -373,6 +374,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		}
 	}
 
+	p.freezeColdLocked()
 	return nil
 }
 
@@ -384,7 +386,7 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.principalIDs = newProjectionIDTable()
 	// The event ID table is append-only and can be shared with other
 	// ServerContentView components, so a restore keeps it.
-	p.messageRefs = nil
+	p.messageRefs = newColdHandleSlice[threadMessageRef](threadMessageRefColdCodec{})
 	p.interactions = make(map[threadInteractionKey]uint32)
 	p.summaryByThread = make(map[uint32]*threadSummary)
 	p.followState = make(map[threadFollowKey]compactThreadFollowState)

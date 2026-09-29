@@ -144,6 +144,7 @@ type CoreConfig struct {
 	ProjectionSnapshotRetention Duration          `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
 	ProjectionSnapshotS3Cleanup *bool             `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
 	EVTReadCacheIdleTTL         Duration          `toml:"evt_read_cache_idle_ttl,commented" env:"CHATTO_CORE_EVT_READ_CACHE_IDLE_TTL" comment:"How long an EVT record stays in the process-local timeline read cache after its last access. Supports '15m', '1h', etc. Default: 15m."`
+	ProjectionColdAfter         *Duration         `toml:"projection_cold_after,commented" env:"CHATTO_CORE_PROJECTION_COLD_AFTER" comment:"Age after which the in-memory projection state of a message moves to compact read-only storage. Reads stay the same but use less memory. Supports '30d', '720h', etc. Use 0 to keep all state in the uncompressed form. Default: 30d."`
 	EVTReadCacheMaxBytes        *ByteSizeLimit    `toml:"evt_read_cache_max_bytes,commented" env:"CHATTO_CORE_EVT_READ_CACHE_MAX_BYTES" comment:"Approximate maximum bytes retained by the process-local EVT read cache. Supports '256MiB', '1GiB', etc. Use -1 for no byte limit. Default: 256MiB."`
 	Assets                      AssetsConfig      `toml:"assets"`
 	AuthTokenTTL                time.Duration     `toml:"-" env:"-"` // Human session renewal window and per-cookie lifetime, set from AuthConfig.TokenTTLOrDefault().
@@ -178,6 +179,20 @@ func (c *CoreConfig) EVTReadCacheIdleTTLOrDefault() time.Duration {
 		return 15 * time.Minute
 	}
 	return c.EVTReadCacheIdleTTL.Duration()
+}
+
+// defaultProjectionColdAfter is the default age after which projection state
+// of a message moves to compact read-only storage.
+const defaultProjectionColdAfter = 30 * 24 * time.Hour
+
+// ProjectionColdAfterOrDefault returns the age after which projection state
+// of a message moves to compact read-only storage, or 30 days when it is
+// unset. Zero keeps all state uncompressed.
+func (c *CoreConfig) ProjectionColdAfterOrDefault() time.Duration {
+	if c.ProjectionColdAfter == nil {
+		return defaultProjectionColdAfter
+	}
+	return c.ProjectionColdAfter.Duration()
 }
 
 // EVTReadCacheMaxBytesOrDefault returns the approximate process-local cache

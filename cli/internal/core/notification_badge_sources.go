@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"time"
-	"unsafe"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
@@ -194,7 +193,7 @@ type notificationBadgeSources struct {
 	// messages holds the record of each indexed message post, indexed by
 	// eventIDs handle. Records are pointer-free and stay indexed after their
 	// sources expire, because later replies and reactions address them.
-	messages handleSlice[badgeMessage]
+	messages coldHandleSlice[badgeMessage]
 	rooms    map[uint32]*badgeRoomSources
 	// reactions holds the current indexed reactions. The reaction projection
 	// keeps the first of repeated adds; so does the index.
@@ -219,6 +218,12 @@ type notificationBadgeSources struct {
 	// latestCreatedAt is the creation time of the newest indexed source. The
 	// sweep and the snapshot drop sources that are expired relative to it.
 	latestCreatedAt int64
+	// coldWindow is the age after which message records are frozen (ADR-111).
+	// Zero keeps every record hot.
+	coldWindow time.Duration
+	// coldCursor is the first message slot not yet known to be old. Records
+	// only age, so the freeze scan never revisits slots below it.
+	coldCursor int
 }
 
 // newNotificationBadgeSources returns an empty index that interns event IDs in
@@ -232,6 +237,7 @@ func newNotificationBadgeSources(eventIDs *eventIDTable) *notificationBadgeSourc
 		ids:            newProjectionIDTable(),
 		eventIDs:       eventIDs,
 		sharedEventIDs: shared,
+		messages:       newColdHandleSlice[badgeMessage](badgeMessageColdCodec{}),
 		rooms:          make(map[uint32]*badgeRoomSources),
 		reactions:      make(map[badgeReactionKey]struct{}),
 		memberSince:    make(map[badgeMembershipKey]uint64),
@@ -242,6 +248,31 @@ func newNotificationBadgeSources(eventIDs *eventIDTable) *notificationBadgeSourc
 		followers:      make(map[badgeThreadKey][]uint32),
 		replyCounts:    make(map[uint32]uint64),
 	}
+}
+
+// freezeColdLocked freezes the message records that are older than the cold
+// window, counted back from the newest source. Slots without a record freeze
+// only below an old record, so a message that this projection has not applied
+// yet rarely lands in a frozen block. Freezing changes only memory layout.
+func (b *notificationBadgeSources) freezeColdLocked() {
+	window := coldWindowOrTest(b.coldWindow)
+	if window <= 0 {
+		return
+	}
+	cutoff := b.latestCreatedAt - int64(window)
+	next := max(b.coldCursor, b.messages.rows.frozenLen())
+	for slot := next; slot < b.messages.len(); slot++ {
+		record := b.messages.at(slot)
+		if record == (badgeMessage{}) {
+			continue
+		}
+		if record.createdAt >= cutoff {
+			break
+		}
+		next = slot + 1
+	}
+	b.coldCursor = next
+	b.messages.freezeBelow(uint32(next + 1))
 }
 
 // message returns the indexed record of a message handle.
@@ -352,6 +383,7 @@ func (b *notificationBadgeSources) addTargeted(sources *badgeRoomSources, user, 
 
 // apply indexes one decision-projection fact.
 func (b *notificationBadgeSources) apply(event *evtv1.Event, seq uint64) {
+	defer b.freezeColdLocked()
 	switch payload := event.GetEvent().(type) {
 	case *evtv1.Event_MessagePosted:
 		var replyCount uint64
@@ -512,9 +544,9 @@ func (b *notificationBadgeSources) endMembership(userID, roomID string) {
 func (b *notificationBadgeSources) deleteRoom(room uint32) {
 	delete(b.rooms, room)
 	delete(b.universalSince, room)
-	for i, record := range b.messages {
-		if record.room == room {
-			b.messages[i] = badgeMessage{}
+	for slot := range b.messages.len() {
+		if b.messages.at(slot).room == room {
+			b.messages.set(uint32(slot+1), badgeMessage{})
 		}
 	}
 	for key := range b.reactions {
@@ -931,7 +963,7 @@ func (b *notificationBadgeSources) estimatedBytes() int64 {
 	if !b.sharedEventIDs {
 		bytes += b.eventIDs.estimatedBytes()
 	}
-	bytes += int64(cap(b.messages)) * int64(unsafe.Sizeof(badgeMessage{}))
+	bytes += b.messages.estimatedBytes()
 	bytes += int64(len(b.reactions)) * (projectionCompactMapEntryOverhead + 12)
 	bytes += int64(len(b.memberSince)+len(b.accountSince)+len(b.universalSince)) * (projectionCompactMapEntryOverhead + 16)
 	for _, sources := range b.rooms {
@@ -962,10 +994,10 @@ func (b *notificationBadgeSources) estimatedBytes() int64 {
 func (b *notificationBadgeSources) snapshot() *projectionv1.NotificationBadgeSourcesSnapshot {
 	snapshot := &projectionv1.NotificationBadgeSourcesSnapshot{LatestCreatedAtUnixNanos: b.latestCreatedAt}
 	cutoff := expiredBefore(b.latestCreatedAt)
-	messages := make([]uint32, 0, len(b.messages))
-	for i, record := range b.messages {
-		if record != (badgeMessage{}) {
-			messages = append(messages, uint32(i+1))
+	messages := make([]uint32, 0, b.messages.len())
+	for slot := range b.messages.len() {
+		if b.messages.at(slot) != (badgeMessage{}) {
+			messages = append(messages, uint32(slot+1))
 		}
 	}
 	slices.SortFunc(messages, func(a, c uint32) int { return cmp.Compare(b.messageRecord(a).seq, b.messageRecord(c).seq) })
