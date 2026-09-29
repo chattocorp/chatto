@@ -174,8 +174,9 @@ func initializeCoreProjections(
 	roomDirectory := NewRoomDirectoryProjection()
 	serverConfig := NewConfigProjection()
 	roomGroupLayout := NewRoomGroupLayoutProjection()
-	// The room timeline, thread, and reaction components index the same
-	// message IDs. One shared table holds each ID once for all three.
+	// The room timeline, thread, and reaction components and the Notification
+	// Decisions projection index the same message IDs. One shared table holds
+	// each ID once for all of them.
 	eventIDs := newEventIDTable()
 	roomTimeline := newRoomTimelineProjection(eventIDs)
 	callState := NewCallStateProjection()
@@ -256,7 +257,9 @@ func initializeCoreProjections(
 		return nil, err
 	}
 
-	notificationDecisions := NewNotificationDecisionProjection()
+	// Notification Decisions indexes the same message IDs as the content view,
+	// so it interns them in the same process-wide table.
+	notificationDecisions := newNotificationDecisionProjection(eventIDs)
 	projections.notificationDecisions, err = registerProjection(
 		registrar, notificationDecisions, projectionsnapshot.ProjectionNotificationDecisionsKey,
 		"Notification Decisions", notificationDecisions.adminProjectionEstimate, sharedSnapshots,

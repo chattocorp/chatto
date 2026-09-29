@@ -254,16 +254,25 @@ current Room Timeline schema stores only compact timeline and body references.
 Its schema fingerprint rejects the earlier `v7` payload-bearing schema.
 
 The Room Timeline, Threads, and Reactions components of the Server Content
-View intern event IDs in one shared event ID table. The table holds each event
-ID once for all three components. The components store `uint32` handles
-instead of ID strings. The table keeps ID bytes in an append-only arena and
+View and the Notification Decisions projection intern event IDs in one
+process-wide event ID table. The table holds each event ID once for all of
+them. They store `uint32` handles instead of ID strings. The table contains
+no projection state, so projections with independent replay frontiers can
+share it. The table keeps ID bytes in an append-only arena and
 indexes them with pointer-free hash keys, so the garbage collector does not
 scan them. Handles are process-local; snapshots store ID strings, and a
 restore interns them again. The table has its own lock, because the components
-apply and read under different component locks. A read of an ID from a handle
-does not lock. The components keep separate models, and only the table is
-shared. A component that is created outside the content view, for example in
-a test, owns a private table.
+apply and read under different locks. A read of an ID from a handle does not
+lock. The components and projections keep separate models, and only the
+table is shared. A component or projection that is created outside the
+production wiring, for example in a test, owns a private table.
+
+The Notification Decisions Badge source index keeps one pointer-free record
+per message post in a dense slice indexed by event ID handle. The records stay
+after their sources expire, because later replies and reactions address them.
+The index also holds explicit thread follow states, thread followers, and
+thread reply counts with handle keys. User, room, and emoji IDs use a small
+private table of the index.
 
 The Room Timeline component shares room and user IDs between compact event
 rows. Each row keeps a small event-kind value and its creation time in Unix
@@ -384,8 +393,8 @@ match the admin projection diagnostics. Composite projections expose nested
 read models, but only their parent projector is started by `ChattoCore.Run`.
 `chatto_projection_component_estimated_bytes` reports separate room-timeline,
 threads, reactions, and shared event ID table (`event_ids`) estimates inside
-the Server Content View. The component estimates do not include the shared
-table. These estimates are
+the Server Content View. The component estimates and the Notification
+Decisions estimate do not include the shared table. These estimates are
 diagnostic approximations; retained-heap benchmarks measure their actual Go
 heap cost. `BenchmarkProjectionRetainedHeapFromStore` replays the `EVT` stream
 of a copied NATS data directory from `CHATTO_BENCH_EVT_STORE_DIR` to measure
