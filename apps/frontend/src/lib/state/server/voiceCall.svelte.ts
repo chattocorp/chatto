@@ -735,9 +735,20 @@ export class VoiceCallState implements VoiceCallController {
     }
   }
 
-  /** The store was disposed: leave the call and release its media. */
+  /**
+   * The store was disposed: release the call's media at once, then record
+   * the leave as best effort. The store and its call UI are gone, so the
+   * media must not wait for the server.
+   */
   dispose(): void {
-    void this.leave();
+    const roomId = this.roomId;
+    const room = this.room;
+    if (!room) return;
+    this.suppressDisconnectToast = true;
+    room.disconnect();
+    this.cleanup();
+    this.suppressDisconnectToast = false;
+    if (roomId) void this.recordLeaveIntent(roomId);
   }
 
   /**

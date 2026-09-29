@@ -432,6 +432,11 @@ export class ServerRegistry {
     const persisted = options.deviceStorage
       ? restorePersistedServerState()
       : { registrations: [], sessions: new Map<string, ServerSession>() };
+    // Check every ID before claiming one, so a failed construction claims nothing.
+    const taken = persisted.registrations.find((registration) =>
+      isServerIdClaimed(registration.id)
+    );
+    if (taken) throw new Error(`Server ID "${taken.id}" belongs to another Chatto client`);
     for (const registration of persisted.registrations) claimServerId(registration.id, this);
     this.catalog = new ServerCatalog(persisted.registrations);
     this.sessions = new ServerSessions(persisted.sessions);

@@ -8,6 +8,7 @@
  * they remove it.
  */
 
+import { ReactiveMap, untrack } from '../reactivity/index.js';
 import type { RegisteredServer } from './registry.js';
 
 /** The registry side of the directory; see {@link claimServerId}. */
@@ -15,11 +16,12 @@ export interface ServerIdOwner {
   getServer(serverId: string): RegisteredServer | undefined;
 }
 
-const owners = new Map<string, ServerIdOwner>();
+/** Reactive, so that a lookup made before a server registers updates. */
+const owners = new ReactiveMap<string, ServerIdOwner>();
 
 /** Record that `owner` holds `serverId`. Throws when another owner holds it. */
 export function claimServerId(serverId: string, owner: ServerIdOwner): void {
-  const current = owners.get(serverId);
+  const current = untrack(() => owners.get(serverId));
   if (current && current !== owner) {
     throw new Error(`Server ID "${serverId}" belongs to another Chatto client`);
   }
@@ -28,15 +30,15 @@ export function claimServerId(serverId: string, owner: ServerIdOwner): void {
 
 /** Release `serverId` if `owner` holds it. */
 export function releaseServerId(serverId: string, owner: ServerIdOwner): void {
-  if (owners.get(serverId) === owner) owners.delete(serverId);
+  if (untrack(() => owners.get(serverId)) === owner) owners.delete(serverId);
 }
 
-/** Whether any client holds `serverId`. */
+/** Whether any client holds `serverId`. Not reactive. */
 export function isServerIdClaimed(serverId: string): boolean {
-  return owners.has(serverId);
+  return untrack(() => owners.has(serverId));
 }
 
-/** The registry that holds `serverId`, if any. */
+/** The registry that holds `serverId`, if any. Reactive. */
 export function ownerOfServerId(serverId: string): ServerIdOwner | undefined {
   return owners.get(serverId);
 }

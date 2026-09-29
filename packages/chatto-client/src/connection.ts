@@ -149,7 +149,7 @@ export class Connection {
   readonly serverUrl: string;
   readonly #context: ConnectionContext;
   readonly #closed = signal(false);
-  /** Aborts when the connection closes; message contexts include it. */
+  /** Aborts when the connection closes; every request of the connection includes it. */
   readonly #closeController = new AbortController();
   readonly #eventListeners = new Set<(event: RealtimeEvent) => void>();
   readonly #resetListeners = new Set<(reset: ResetInfo) => void>();
@@ -308,9 +308,11 @@ export class Connection {
     if (closed.peek()) throw new ConnectError('The Chatto connection is closed', Code.Canceled);
     const base = this.#context.connections.getClient(this.serverId).apiConfig;
     // After close(), send nothing: the token must not outlive the connection.
+    const closing = this.#closeController.signal;
     const refuseAfterClose: Interceptor = (next) => (request) => {
       if (closed.peek()) throw new ConnectError('The Chatto connection is closed', Code.Canceled);
-      return next(request);
+      // close() cancels requests in flight, so no open request outlives it.
+      return next({ ...request, signal: AbortSignal.any([request.signal, closing]) });
     };
     const send =
       base.transport ??
@@ -606,7 +608,12 @@ export class Connection {
         return (await this.ready({ signal: stopSignal })).viewerId;
       } catch (error) {
         if (stopSignal?.aborted || this.#closed.peek()) return undefined;
-        if (this.sessionEnded || this.realtimeUnsupported) throw error;
+        // Report the condition that recovery cannot fix, not the attempt that
+        // happened to fail last.
+        if (this.sessionEnded) throw new Error('Chatto rejected the API key', { cause: error });
+        if (this.realtimeUnsupported) {
+          throw new Error('The Chatto server version is not supported', { cause: error });
+        }
         onStatus?.({ state: 'connecting', error: error as Error });
       }
     }

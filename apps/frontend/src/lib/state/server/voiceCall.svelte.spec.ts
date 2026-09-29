@@ -367,6 +367,20 @@ describe('VoiceCallState', () => {
     vi.unstubAllGlobals();
   });
 
+  it('releases media at once when its store is disposed, before the leave is recorded', async () => {
+    const leave = deferredVoid();
+    const state = new VoiceCallState(
+      createVoiceCallClient({ leaveCall: vi.fn(() => leave.promise.then(() => true)) }),
+      () => ({ start: true, join: true, voice: false, camera: false, screenshare: false })
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    const room = lastRoom!;
+    state.dispose();
+    expect(room.disconnect).toHaveBeenCalled();
+    expect(state.connected).toBe(false);
+    leave.resolve();
+  });
+
   it('denies a join when permission data is absent', async () => {
     const client = createVoiceCallClient();
     const state = new VoiceCallState(client);

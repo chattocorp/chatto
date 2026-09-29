@@ -302,20 +302,21 @@ describe('connections in Node', () => {
   it('fails service requests at close, but not at a privacy reset', async () => {
     const { ViewerService } = await import('@chatto/api-types/api/v1/viewer_connect');
     const responses: (() => void)[] = [];
+    const requestSignals: AbortSignal[] = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        () =>
-          new Promise<Response>((resolve) =>
-            responses.push(() =>
-              resolve(
-                new Response(new Uint8Array(), {
-                  headers: { 'Content-Type': 'application/proto' }
-                })
-              )
+      vi.fn((_url: string, init: RequestInit) => {
+        requestSignals.push(init.signal!);
+        return new Promise<Response>((resolve) =>
+          responses.push(() =>
+            resolve(
+              new Response(new Uint8Array(), {
+                headers: { 'Content-Type': 'application/proto' }
+              })
             )
           )
-      )
+        );
+      })
     );
     try {
       connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
@@ -331,6 +332,8 @@ describe('connections in Node', () => {
       const beforeClose = viewer.getViewer({});
       await vi.waitFor(() => expect(responses).toHaveLength(2));
       connection.close();
+      // close() cancels the request in flight, so no open request outlives it.
+      expect(requestSignals[1]!.aborted).toBe(true);
       responses[1]!();
       await expect(beforeClose).rejects.toThrow();
 
@@ -391,6 +394,15 @@ describe('connections in Node', () => {
       logged.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  it('rejects run() with the terminal condition, not the last failed attempt', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.discovery.mockResolvedValue({ ...profile, version: '0.1.0' });
+    mocks.viewer.mockRejectedValue(new TypeError('fetch failed'));
+    connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await expect(connection.run(() => {})).rejects.toThrow('version is not supported');
+    logged.mockRestore();
   });
 
   it('stops waiting when the caller aborts', async () => {
