@@ -57,10 +57,14 @@ export interface ChattoConnection {
   readonly status: ChattoConnectionStatus;
   /**
    * Wait until the server accepted the token and the viewer loaded. Rejects
-   * when the server rejects the token, when the viewer read fails (for
-   * example because the server is unreachable), when the connection closes,
-   * or when `signal` aborts. The connection keeps retrying in the background;
-   * a later `ready()` can succeed.
+   * when the server rejects the token, when a viewer read fails (for example
+   * because the server is unreachable or returned an error), when the
+   * connection closes, or when `signal` aborts.
+   *
+   * The connection retries a failed viewer read in the background, with a
+   * backoff. A `ready()` call made between two attempts waits for the next
+   * attempt and reports its result, so a host can call `ready()` again after
+   * a rejection without a delay of its own.
    */
   ready(options?: { signal?: AbortSignal }): Promise<{ viewerId: string }>;
   /**
@@ -191,6 +195,9 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         };
         const abort = () => finish(() => reject(signal!.reason));
         signal?.addEventListener('abort', abort, { once: true });
+        // A failure is reported only for a viewer read that this call saw in
+        // progress. Between two recovery attempts, wait for the next one.
+        let sawViewerRead = false;
         stop = effectRoot(() => {
           effect(() => {
             if (closed.get()) {
@@ -209,10 +216,12 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
               finish(() => resolve({ viewerId }));
               return;
             }
-            // The viewer read finished without an account: the server is
-            // unreachable or failed. Report it instead of waiting for recovery.
-            if (!current.currentUser.loading) {
-              finish(() => reject(new Error('Could not reach the Chatto server')));
+            if (current.currentUser.loading) {
+              sawViewerRead = true;
+            } else if (sawViewerRead) {
+              // The viewer read finished without an account: the server is
+              // unreachable or failed. The error itself is logged by the store.
+              finish(() => reject(new Error('Could not load the viewer from the Chatto server')));
             }
           });
         });

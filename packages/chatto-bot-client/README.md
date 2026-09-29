@@ -30,7 +30,10 @@ try {
 ```
 
 The host supplies `serverUrl`, `apiKey`, and `signal`. `createBotClient` waits
-until the server accepted the key and resolves the bot's identity once.
+until the server accepted the key and resolves the bot's identity once. It
+rejects when the server rejects the key or when the server is unreachable or
+fails. The connection retries in the background, so the host can call
+`createBotClient` again.
 Requests contact only the configured Chatto server. That server receives the
 host IP address, the key, and request data. The bot package adds no external
 service or logging.

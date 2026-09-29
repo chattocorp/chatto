@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-
 /** Show-once bearer credentials returned by a human authentication flow. */
 export type NewBearerSession = {
   token: string;

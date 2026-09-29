@@ -39,6 +39,9 @@ chatto.close();
 - The token is kept only in memory: it is never renewed or written to device
   storage. When the server rejects it, `ready()` rejects and `sessionEnded`
   becomes true. Close the connection then.
+- When the server is unreachable or fails, `ready()` rejects and the
+  connection retries in the background with a backoff. Call `ready()` again
+  to wait for the next attempt.
 
 `createChattoApi` makes stateless requests without a realtime connection, for
 example in a webhook handler. Import it from `@chatto/client/apiClient`, which

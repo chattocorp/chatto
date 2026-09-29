@@ -154,8 +154,27 @@ describe('connectChatto in Node', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     mocks.viewer.mockRejectedValue(new TypeError('fetch failed'));
     connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
-    await expect(connection.ready()).rejects.toThrow('Could not reach the Chatto server');
+    await expect(connection.ready()).rejects.toThrow('Could not load the viewer');
     logged.mockRestore();
+  });
+
+  it('waits for the next recovery attempt when ready() is called again after a failure', async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mocks.viewer.mockRejectedValueOnce(new TypeError('fetch failed'));
+      connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      await expect(connection.ready()).rejects.toThrow('Could not load the viewer');
+      let settled = false;
+      const retry = connection.ready().finally(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(500);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(retry).resolves.toEqual({ viewerId: 'bot' });
+    } finally {
+      logged.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('stops waiting when the caller aborts', async () => {

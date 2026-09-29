@@ -5,7 +5,7 @@
  * up through serialized, short-lived connections to the same event stream.
  */
 
-import { ReactiveMap } from '../reactivity/index.js';
+import { batch, ReactiveMap } from '../reactivity/index.js';
 import {
   EventBus,
   RealtimeProjectionUpdate,
@@ -385,50 +385,56 @@ class EventBusManager {
                 heartbeatCount++;
                 commitEventCursor(frame.frame.value.cursor);
                 return;
-              case 'snapshot':
-                if (snapshotReceived || !frame.frame.value.server) {
+              case 'snapshot': {
+                const snapshot = frame.frame.value;
+                const server = snapshot.server;
+                if (snapshotReceived || !server) {
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'invalid snapshot frame');
                   return;
                 }
                 snapshotReceived = true;
                 try {
-                  const retainView = sync.hasDisplayableView;
-                  sync.acceptProjectionEvent(undefined, true);
-                  bus.publish(
-                    new RealtimeProjectionUpdate({
-                      reset: true,
-                      privacyReset: !retainView,
-                      retainView
-                    })
-                  );
-                  const resources = [
-                    { case: 'server' as const, value: frame.frame.value.server },
-                    {
-                      case: 'rooms' as const,
-                      value: new ListRoomsResponse({ rooms: frame.frame.value.rooms })
-                    },
-                    {
-                      case: 'roomGroups' as const,
-                      value: new ListRoomGroupsResponse({ groups: frame.frame.value.roomGroups })
-                    },
-                    { case: 'users' as const, value: { users: frame.frame.value.users } },
-                    {
-                      case: 'activeCalls' as const,
-                      value: new ListActiveCallsResponse({ calls: frame.frame.value.activeCalls })
-                    }
-                  ];
-                  for (const resource of resources) {
+                  // Effects run once, after the reset and every resource applied.
+                  batch(() => {
+                    const retainView = sync.hasDisplayableView;
+                    sync.acceptProjectionEvent(undefined, true);
                     bus.publish(
                       new RealtimeProjectionUpdate({
-                        resource: new RealtimeResourceUpdate({ resource, replace: true })
+                        reset: true,
+                        privacyReset: !retainView,
+                        retainView
                       })
                     );
-                  }
+                    const resources = [
+                      { case: 'server' as const, value: server },
+                      {
+                        case: 'rooms' as const,
+                        value: new ListRoomsResponse({ rooms: snapshot.rooms })
+                      },
+                      {
+                        case: 'roomGroups' as const,
+                        value: new ListRoomGroupsResponse({ groups: snapshot.roomGroups })
+                      },
+                      { case: 'users' as const, value: { users: snapshot.users } },
+                      {
+                        case: 'activeCalls' as const,
+                        value: new ListActiveCallsResponse({ calls: snapshot.activeCalls })
+                      }
+                    ];
+                    for (const resource of resources) {
+                      bus.publish(
+                        new RealtimeProjectionUpdate({
+                          resource: new RealtimeResourceUpdate({ resource, replace: true })
+                        })
+                      );
+                    }
+                  });
                 } catch (error) {
                   console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
                 }
                 return;
+              }
               case 'event': {
                 const resetGeneration = sync.resetGeneration;
                 try {

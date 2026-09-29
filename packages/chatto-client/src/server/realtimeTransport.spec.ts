@@ -20,6 +20,7 @@ import {
 import type { ConnectionStatus, ServerConnection } from './serverConnection.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import type { EventBus, ProjectionHandler } from '../realtime/eventBus.js';
+import { effect, signal } from '../reactivity/index.js';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -508,6 +509,21 @@ describe('eventBusManager realtime transport', () => {
       })
     );
     expect(sync.hasDisplayableView).toBe(true);
+  });
+
+  it('applies a snapshot before effects run', async () => {
+    const applied = signal(0);
+    const observed: number[] = [];
+    const stop = effect(() => {
+      observed.push(applied.get());
+    });
+    const { socket } = await startAndSubscribe(undefined, () => applied.update((count) => count + 1));
+
+    await socket.receive(snapshotFrame());
+    stop();
+
+    // One reset and five resources, observed once.
+    expect(observed).toEqual([0, 6]);
   });
 
   it('rejects a second snapshot on the same subscription', async () => {

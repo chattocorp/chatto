@@ -378,6 +378,23 @@ class EffectNode {
     pendingEffects.push(this);
   }
 
+  /**
+   * Forget a pending run without running. Stale computed sources are brought
+   * up to date, so they propagate the next change again. A later change to a
+   * source schedules the effect again.
+   */
+  cancelPending(): void {
+    this.#stale = false;
+    for (const source of this.#sources.keys()) {
+      if (!(source instanceof ComputedNode)) continue;
+      try {
+        source.refresh();
+      } catch (error) {
+        reportEffectError(error);
+      }
+    }
+  }
+
   /** Run if a source changed since the previous run. */
   runIfStale(): void {
     if (!this.#stale || this.#disposed) return;
@@ -394,6 +411,7 @@ class EffectNode {
     // change to one of them retries the effect.
     const sources = new Map<Source, number>();
     const previousOwner = activeOwner;
+    const versionBeforeRun = globalVersion;
     activeOwner = this.#owner;
     try {
       const cleanup = collectSources(this, sources, this.#fn);
@@ -407,7 +425,7 @@ class EffectNode {
         relink(this, previousSources, sources, true);
         // A source that was not linked yet can have changed during this run,
         // for example a signal that the run itself wrote. Run again then.
-        if (sourcesChanged(sources)) this.markStale();
+        if (globalVersion !== versionBeforeRun && sourcesChanged(sources)) this.markStale();
       }
     }
   }
@@ -454,10 +472,11 @@ function flushEffects(): void {
       pendingEffects = [];
       for (const [index, effect] of effects.entries()) {
         if (++runs > MAX_EFFECT_RUNS_PER_FLUSH) {
-          // Stop this flush. The remaining effects stay queued and stale, so
-          // the next write runs them; no computed or effect loses its
-          // scheduling state.
-          pendingEffects = [...effects.slice(index), ...pendingEffects];
+          // Drop the loop. Later changes to their sources schedule the
+          // dropped effects again; unrelated writes do not restart the loop.
+          const dropped = [...effects.slice(index), ...pendingEffects];
+          pendingEffects = [];
+          for (const effect of dropped) effect.cancelPending();
           reportEffectError(new Error('Effect update loop exceeded the maximum number of runs'));
           return;
         }

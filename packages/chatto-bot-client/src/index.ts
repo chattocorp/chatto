@@ -258,7 +258,8 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
    * newest `limit` replies (100 by default); `olderOmitted` tells whether older
    * replies exist. With `after`, a `cursor` from an earlier read, returns only
    * newer messages and reads as many pages as needed. Messages carry the
-   * author's display name and login from the page. Rejects missing pages and
+   * author's display name and login from the page. Rejects an empty `after`
+   * cursor (omit `after` to read from the start), missing pages, and
    * pagination that does not advance.
    */
   async function readThread(
@@ -266,6 +267,7 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
     signal?: AbortSignal,
     { after, limit = THREAD_PAGE_SIZE }: { after?: string; limit?: number } = {}
   ): Promise<ThreadRead> {
+    if (after === '') throw new Error('A thread cursor must not be empty');
     const readSignal = AbortSignal.any([
       ...(signal ? [signal] : []),
       AbortSignal.timeout(THREAD_READ_TIMEOUT_MS)
@@ -285,7 +287,6 @@ export function createBotApi(source: ServiceSource, viewerId: string) {
       return page;
     };
     const pages: RoomTimelinePage[] = [];
-    if (after === '') throw new Error('A thread cursor must not be empty');
     let cursor = after;
     let olderOmitted = false;
     if (after === undefined) {
@@ -364,7 +365,9 @@ export type BotApi = ReturnType<typeof createBotApi>;
 /**
  * Wait until the connection accepted its token, then create the bot client:
  * the {@link createBotApi} helpers and an ordered realtime event loop.
- * Rejects when the server rejects the token or when `signal` aborts.
+ * Rejects like {@link ChattoConnection.ready}: when the server rejects the
+ * token, when the viewer read fails (for example because the server is
+ * unreachable), when the connection closes, or when `signal` aborts.
  */
 export async function createBotClient(
   chatto: ChattoConnection,

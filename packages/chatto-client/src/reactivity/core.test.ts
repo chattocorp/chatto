@@ -309,6 +309,21 @@ describe('effect loops', () => {
     logged.mockRestore();
   });
 
+  it('does not restart a stopped loop on an unrelated write', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const count = signal(0);
+    let runs = 0;
+    effect(() => {
+      runs++;
+      count.set(count.get() + 1);
+    });
+    const afterLoop = runs;
+    signal(0).set(1);
+    expect(runs).toBe(afterLoop);
+    expect(logged).toHaveBeenCalledTimes(1);
+    logged.mockRestore();
+  });
+
   it('keeps computeds between a stopped loop and its observers live', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     const source = signal(0);
