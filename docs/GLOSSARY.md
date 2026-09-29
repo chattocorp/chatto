@@ -284,20 +284,20 @@ its reactive data, its Store boundary events, and its requests; a bot and the
 bundled frontend use the same type. The client keeps server data only; a
 host keeps its UI state. The bundled frontend has one instance; a bot creates
 its own. `@chatto/client/svelte` adapts the package to Svelte. See
-[ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
+[ADR-111](adr/ADR-111-move-client-state-into-chatto-client.md).
 
 **Store boundary event** — An event of one server of a Chatto client that
 reports a privacy or authorization boundary, such as a projection reset, a
 lost room, a deleted account, a changed authority, or an ended session. A host
 that copies server data clears the copy at these events. See
-[ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
+[ADR-111](adr/ADR-111-move-client-state-into-chatto-client.md).
 
 **Client runtime** — Background work of one Chatto client instance: recovery
 of discovery and saved sessions, realtime ownership, and remote session
 termination. It keeps the realtime transports of the client's live servers
 open: every server of a bot client, or the active server of an application.
 See
-[ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
+[ADR-111](adr/ADR-111-move-client-state-into-chatto-client.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
 realtime snapshot. The server sends later authorized public events only after

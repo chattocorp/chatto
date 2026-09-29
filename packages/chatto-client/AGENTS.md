@@ -5,7 +5,7 @@ servers, realtime transports, and runtime; server data and its boundary
 events; ConnectRPC facades and sessions; and the request helpers and message
 loop for bots. The bundled frontend, ChattoBot, and the Runling
 examples use it. See
-[ADR-110](../../docs/adr/ADR-110-move-client-state-into-chatto-client.md).
+[ADR-111](../../docs/adr/ADR-111-move-client-state-into-chatto-client.md).
 
 ## Boundary
 

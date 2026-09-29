@@ -134,11 +134,12 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
 [ADR-054](../adr/ADR-054-optional-projection-persistence.md),
-[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md), and
-[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md),
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md),
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md),
 [ADR-088](../adr/ADR-088-componentized-projections-behind-one-apply-barrier.md),
-and [ADR-089](../adr/ADR-089-server-content-view.md).
+[ADR-089](../adr/ADR-089-server-content-view.md), and
+[ADR-110](../adr/ADR-110-share-process-local-event-id-interning.md).
 
 The asset-processing runtime unit owns a private, non-snapshotted
 `AssetProjection`. It uses the same canonical and legacy replay subjects as the
@@ -255,7 +256,7 @@ Its schema fingerprint rejects the earlier `v7` payload-bearing schema.
 
 The Room Timeline, Threads, and Reactions components of the Server Content
 View and the Notification Decisions projection intern event IDs in one
-process-wide event ID table. The table holds each event ID once for all of
+process-wide event ID table (ADR-110). The table holds each event ID once for all of
 them. They store `uint32` handles instead of ID strings. The table contains
 no projection state, so projections with independent replay frontiers can
 share it. The table keeps ID bytes in an append-only arena and
@@ -278,7 +279,8 @@ private table of the index.
 The Room Timeline component shares room and user IDs between compact event
 rows. Each row keeps a small event-kind value and its creation time in Unix
 nanoseconds. Rows contain no Go pointers. Each row stores event ID handles for
-its event, thread root, containing thread, and echo source. A handle can name
+its event, thread root, and echo source, and a flag marks thread replies. A
+reply's containing thread is its thread root. A handle can name
 an event that has not arrived or that is outside the timeline. A dense slice
 indexed by event ID handle locates the row of an event, and the row locates
 the message's current body state in a dense array. Body authors use the
@@ -296,6 +298,11 @@ display preview. Follow state, thread followers, and followed threads use
 handle keys and keep follows in follow order. Room deletion removes the room's
 message references and relationships. The message IDs of that room stay in
 the shared event ID table.
+
+Content Keys keeps each DEK epoch in one flat map keyed by user handle,
+purpose, and epoch, with only the key references, the interned wrapping
+algorithm, and the wrapping metadata. Reads return a new
+`UserDEKGeneratedEvent`.
 
 Reactions interns emoji, user, and room IDs in one table and message IDs in
 the shared event ID table. It keeps the source event ID of each active
@@ -322,7 +329,8 @@ revision OCC for publication.
 
 Room Timeline retains one body-state entry per message. It stores the current
 body-event ID and EVT sequence, the author ID, the current attachment count,
-and an active flag. The body-event ID is in an append-only arena of the
+and an active flag. The active flag and the attachment count share one
+32-bit field. The body-event ID is in an append-only arena of the
 component, so the entry contains no Go pointers. A sequence slice is allocated only after an edit. Its
 component codec preserves the complete body-event sequence history. Complete
 encrypted body payloads remain in EVT and are not part of the snapshot cohort.

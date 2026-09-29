@@ -6,7 +6,7 @@ bot use it. It owns the ConnectRPC facades, sessions, the realtime transport
 and projection, the server data, and the Store boundary events. It does not
 add server endpoints or depend on Runling or a UI framework. Hosts retain
 their UI state, credential loading, webhook handling, and conversation state;
-see [ADR-110](../adr/ADR-110-move-client-state-into-chatto-client.md).
+see [ADR-111](../adr/ADR-111-move-client-state-into-chatto-client.md).
 
 The client also owns what bots need: servers with fixed API keys, an
 ordered message loop with a context per addressed message, message splitting,

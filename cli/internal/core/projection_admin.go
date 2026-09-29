@@ -392,7 +392,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		if state.currentSequence == 0 {
 			return
 		}
-		if state.active {
+		if state.active() {
 			activeBodyReferences++
 			activeBodyReferenceBytes += int64(unsafe.Sizeof(state)) + int64(state.currentEventID.length())
 		}
@@ -708,38 +708,26 @@ func (p *UserAuthProjection) adminProjectionEstimate() (int64, int64, []Projecti
 func (p *ContentKeyProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.RLock()
 	defer p.RUnlock()
-	var users, purposes, epochs, active, bytes int64
-	for userID, byPurpose := range p.byUserPurposeEpoch {
-		users++
-		bytes += projectionMapEntryOverhead + int64(len(userID))
-		for _, byEpoch := range byPurpose {
-			purposes++
-			bytes += projectionMapEntryOverhead
-			for _, event := range byEpoch {
-				epochs++
-				bytes += projectionMapEntryOverhead
-				if event != nil {
-					bytes += int64(proto.Size(event))
-				}
-			}
-		}
+	users := make(map[uint32]struct{})
+	bytes := p.users.estimatedBytes()
+	for id, record := range p.keys {
+		users[id.user] = struct{}{}
+		bytes += projectionCompactMapEntryOverhead + int64(unsafe.Sizeof(id)+unsafe.Sizeof(record))
+		bytes += int64(len(record.contentKeyRef) + len(record.wrappingKeyRef) + cap(record.wrappingMetadata))
 	}
-	var activeBytes int64
-	for userID, byPurpose := range p.activeEpoch {
-		activeBytes += projectionMapEntryOverhead + int64(len(userID))
-		for range byPurpose {
-			active++
-			activeBytes += projectionMapEntryOverhead + 8
-		}
+	for algorithm := range p.algorithms {
+		bytes += projectionMapEntryOverhead + int64(len(algorithm))
 	}
+	activeBytes := int64(len(p.activeEpoch)) * (projectionCompactMapEntryOverhead + int64(unsafe.Sizeof(contentKeyPurposeID{})) + 4)
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	seenBytes := estimateStringSetBytes(retainedEventIDs)
-	bytes += activeBytes + seenBytes
-	return epochs, bytes, []ProjectionAdminMetric{
-		{Name: "users", Value: users, Bytes: 0},
-		{Name: "purposes", Value: purposes, Bytes: 0},
-		{Name: "dek_epochs", Value: epochs, Bytes: bytes - activeBytes - seenBytes},
-		{Name: "active_epochs", Value: active, Bytes: activeBytes},
+	epochs := int64(len(p.keys))
+	total := bytes + activeBytes + seenBytes
+	return epochs, total, []ProjectionAdminMetric{
+		{Name: "users", Value: int64(len(users)), Bytes: 0},
+		{Name: "purposes", Value: int64(len(p.activeEpoch)), Bytes: 0},
+		{Name: "dek_epochs", Value: epochs, Bytes: bytes},
+		{Name: "active_epochs", Value: int64(len(p.activeEpoch)), Bytes: activeBytes},
 		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}

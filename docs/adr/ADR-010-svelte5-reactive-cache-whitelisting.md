@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Updated:** 2026-09-28. [ADR-110](ADR-110-move-client-state-into-chatto-client.md)
+**Updated:** 2026-09-28. [ADR-111](ADR-111-move-client-state-into-chatto-client.md)
 moves the event caches into `@chatto/client`, which uses its own signals
 instead of runes. The signals also compare by reference, so this decision
 still applies to `signal`, `ReactiveMap`, and `ReactiveSet`.

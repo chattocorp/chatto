@@ -1,4 +1,4 @@
-# ADR-110: Move the Client State Layer into `@chatto/client`
+# ADR-111: Move the Client State Layer into `@chatto/client`
 
 **Date:** 2026-09-28
 

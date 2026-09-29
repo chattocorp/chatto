@@ -16,7 +16,7 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md),
 [ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md),
 [ADR-095](../adr/ADR-095-direct-message-permission-scope-and-threads.md), and
-[ADR-110](../adr/ADR-110-move-client-state-into-chatto-client.md).
+[ADR-111](../adr/ADR-111-move-client-state-into-chatto-client.md).
 
 ## Public protocol
 

@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.10](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.9...v0.5.0-beta.10) (2026-09-29)
+
+
+### Features
+
+* **chattobot:** implement changes through green CI with supervisor-led updates ([#2746](https://github.com/chattocorp/chatto/issues/2746)) ([936b7c8](https://github.com/chattocorp/chatto/commit/936b7c802d82b2bc123cd584290e764d936c814d))
+* **core:** compute Badge attention from projections ([#2703](https://github.com/chattocorp/chatto/issues/2703)) ([2066748](https://github.com/chattocorp/chatto/commit/2066748885358a427a40a97f82781d270ca2c6bc))
+* **frontend:** explain permissions in a help dialog ([#2709](https://github.com/chattocorp/chatto/issues/2709)) ([9f8181e](https://github.com/chattocorp/chatto/commit/9f8181e89203e962c21343fb9000ab71eddaf7c4))
+* **frontend:** show a notification count badge on My Threads ([#2751](https://github.com/chattocorp/chatto/issues/2751)) ([b4479cd](https://github.com/chattocorp/chatto/commit/b4479cd4e2e672d95fa02e49481fc028c28711d2))
+* **frontend:** split room notification badges and read up to the visible message ([#2736](https://github.com/chattocorp/chatto/issues/2736)) ([84c7609](https://github.com/chattocorp/chatto/commit/84c7609c3b0ab440fcf9f3dcdf14611a59b8117c))
+* **frontend:** split the bot detail page into tabbed sections ([#2739](https://github.com/chattocorp/chatto/issues/2739)) ([9423db0](https://github.com/chattocorp/chatto/commit/9423db014ec0262189c04f7964f61876fd1d234b))
+* **frontend:** tab the member and room settings pages and label room toggles ([#2744](https://github.com/chattocorp/chatto/issues/2744)) ([e3ab2d8](https://github.com/chattocorp/chatto/commit/e3ab2d848c287b4be391f546208905e5949cf330))
+
+
+### Bug Fixes
+
+* **dm:** keep deleted accounts as DM participants ([#2722](https://github.com/chattocorp/chatto/issues/2722)) ([8ef2dc8](https://github.com/chattocorp/chatto/commit/8ef2dc8258439501d6dc722d0b461884983a331e))
+* **frontend:** give server gutter icons two states and warn only after failures ([#2714](https://github.com/chattocorp/chatto/issues/2714)) ([d027d0a](https://github.com/chattocorp/chatto/commit/d027d0aee9cca9c9d09061b9401cf271bb9ee1db))
+* **frontend:** hide focus rings after touch and pointer input ([#2711](https://github.com/chattocorp/chatto/issues/2711)) ([fb1a0ec](https://github.com/chattocorp/chatto/commit/fb1a0ecc9290f23003abef09b48c8fd637d4604c))
+* **frontend:** localize RBAC matrix labels and error fallbacks ([#2700](https://github.com/chattocorp/chatto/issues/2700)) ([8b969e1](https://github.com/chattocorp/chatto/commit/8b969e1c2218b5922859fb42a0befa600b982158))
+* **frontend:** open the identity password prompt ready for input ([#2731](https://github.com/chattocorp/chatto/issues/2731)) ([0ecc985](https://github.com/chattocorp/chatto/commit/0ecc985d8e15ee1c97a665e06ee6eb932f7d256c))
+* **frontend:** render composer autocomplete in the top layer ([#2721](https://github.com/chattocorp/chatto/issues/2721)) ([d4b35c9](https://github.com/chattocorp/chatto/commit/d4b35c93798732561f6adc213e6e3b195ed353c6))
+* **release:** use tagged version for frontend builds ([#2708](https://github.com/chattocorp/chatto/issues/2708)) ([175b2b1](https://github.com/chattocorp/chatto/commit/175b2b10756e021086052a5ba5ed791e095dc630))
+
+
+### Performance Improvements
+
+* **core:** compact notification decision state and share event IDs ([#2750](https://github.com/chattocorp/chatto/issues/2750)) ([114c71b](https://github.com/chattocorp/chatto/commit/114c71ba14b61354e19e7793be347b03dacc9da6))
+* **core:** compact thread state and shard the event ID index ([#2752](https://github.com/chattocorp/chatto/issues/2752)) ([e35aa51](https://github.com/chattocorp/chatto/commit/e35aa5121c4839c3b8aa603842f2100b08413e15))
+* **core:** share one event ID table across content view components ([#2748](https://github.com/chattocorp/chatto/issues/2748)) ([97fd1a4](https://github.com/chattocorp/chatto/commit/97fd1a4cf1ef66064e3d1f55bb7c8cfeb1a51dbc))
+
 ## [0.5.0-beta.9](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.8...v0.5.0-beta.9) (2026-09-27)
 
 

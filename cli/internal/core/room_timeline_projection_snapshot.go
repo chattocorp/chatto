@@ -59,8 +59,8 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			CurrentBodySequence: state.currentSequence,
 			CurrentBodyEventId:  p.bodyEventIDs.string(state.currentEventID),
 			AuthorId:            p.users[state.author],
-			AttachmentCount:     state.attachmentCount,
-			Active:              state.active,
+			AttachmentCount:     state.attachmentCount(),
+			Active:              state.active(),
 		}
 		snapshot.Bodies = append(snapshot.Bodies, row)
 	}
@@ -186,12 +186,18 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if !row.GetActive() && row.GetAttachmentCount() != 0 {
 			return fmt.Errorf("room timeline snapshot inactive body %q has attachments", id)
 		}
+		if row.GetAttachmentCount() > timelineBodyMaxAttachments {
+			return fmt.Errorf("room timeline snapshot body %q has too many attachments", id)
+		}
+		flags := row.GetAttachmentCount()
+		if row.GetActive() {
+			flags |= timelineBodyActive
+		}
 		restored.putBodyStateLocked(id, timelineBodyState{
 			currentSequence: row.GetCurrentBodySequence(),
 			currentEventID:  restored.bodyEventIDs.add(row.GetCurrentBodyEventId()),
 			author:          restored.internUserLocked(row.GetAuthorId()),
-			attachmentCount: row.GetAttachmentCount(),
-			active:          row.GetActive(),
+			flags:           flags,
 		})
 		restored.putBodyHistoryLocked(id, append([]uint64(nil), sequences[:len(sequences)-1]...))
 	}

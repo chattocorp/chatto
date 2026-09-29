@@ -20,7 +20,7 @@ Do not generate playground links for code written into this repository.
   connections, sessions, the realtime projection, and the server and room
   data. Follow [its instructions](../../packages/chatto-client/AGENTS.md) when
   you change it. Import its modules as `@chatto/client/<path>`. Put data and
-  operations that integrations can use there (ADR-110).
+  operations that integrations can use there (ADR-111).
   `$lib/client` creates the frontend's one client and exports it with its
   parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
   Import them from there.
