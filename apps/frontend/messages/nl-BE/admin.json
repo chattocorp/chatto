@@ -138,7 +138,14 @@
       "bio_placeholder": "Vertel anderen iets over dit lid",
       "bio_description": "Maximaal {max} tekens, getoond op het profiel van het lid.",
       "update_failed": "Kan gebruiker niet bijwerken",
-      "cooldown_clear_failed": "Kan wachttijd voor gebruikersnaamwijziging niet wissen"
+      "cooldown_clear_failed": "Kan wachttijd voor gebruikersnaamwijziging niet wissen",
+      "tabs": {
+        "label": "Onderdelen van het lid",
+        "profile": "Profiel",
+        "account": "Account",
+        "roles": "Rollen",
+        "permissions": "Rechten"
+      }
     },
     "member_delete": {
       "title": "Lid verwijderen",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Rechten - {name}",
       "back_to_rooms": "Terug naar kamers",
       "group_permissions_hint": "Overschrijvingen per groep voor de kanaalkamers in deze groep. Standaardwaarden overgenomen van het serverbereik. Individuele kamers kunnen de machtigingen verder overschrijven vanaf hun eigen machtigingspagina.",
-      "room_permissions_hint": "Overschrijvingen per kamer voor deze kamer. Waarden die hier worden ingesteld, hebben voorrang op de standaardinstellingen van de groep en de server.",
+      "room_permissions_hint": "Deze instellingen gelden alleen in deze kamer. Ze vervangen de instellingen van de kamergroep en de server voor dezelfde rol of gebruiker. Wil je dat alleen bepaalde rollen hier iets mogen, stel dan Weigeren in voor everyone en Toestaan voor die rollen.",
       "loading": "Kamers laden...",
       "empty_groups": "Nog geen kamergroepen",
       "empty_groups_body": "Maak een set om kamers te organiseren.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Kamer bewerken",
       "room_description_placeholder": "Optionele beschrijving voor deze kamer",
       "slow_mode": "Langzame modus",
-      "slow_mode_description": "Stel in hoelang leden tussen berichten in deze ruimte moeten wachten.",
       "slow_mode_off": "Uit",
       "slow_mode_custom": "{interval} (huidige waarde)",
-      "threading_mode": "Threadmodus",
       "threading_mode_description": "Vereist dwingt threads af; Aangemoedigd maakt antwoorden in een thread de hoofdactie; Ingeschakeld laat de keuze vrij; Uitgeschakeld blokkeert nieuwe threadactiviteit.",
       "threading_mode_required": "Verplicht",
       "threading_mode_required_description": "Elk bericht start een thread.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Kan lid niet verwijderen: {error}",
       "move_room_failed": "Kan kamer niet verplaatsen: {error}",
       "move_link_failed": "Kan link niet verplaatsen: {error}",
-      "reorder_rooms_failed": "Kan kamers niet opnieuw rangschikken: {error}"
+      "reorder_rooms_failed": "Kan kamers niet opnieuw rangschikken: {error}",
+      "tabs": {
+        "label": "Onderdelen van de ruimte",
+        "general": "Algemeen",
+        "members": "Leden",
+        "permissions": "Rechten"
+      },
+      "settings": {
+        "name_title": "Naam en beschrijving",
+        "name_subtitle": "Leden zien deze in de lijst met kamers en bovenaan de kamer.",
+        "visibility_title": "Zichtbaarheid",
+        "visibility_subtitle": "Kies wie lid is van deze kamer.",
+        "universal_description": "Elk lid dat deze kamer kan betreden, is automatisch lid.",
+        "visibility_help": "Gebruik een universele kamer voor nieuws dat alle leden moeten krijgen, zoals aankondigingen. Leden kunnen een universele kamer niet verlaten, maar ze kunnen de kamer dempen. Als je universeel uitzet, blijven de leden die eerder lid werden in de kamer.",
+        "slow_mode_subtitle": "Beperk hoe vaak elk lid in deze kamer kan posten.",
+        "slow_mode_interval": "Minimale tijd tussen berichten",
+        "slow_mode_help": "Eén timer geldt voor berichten, antwoorden in threads en bijlagen. Leden met de machtiging room.manage of message.manage zijn uitgezonderd. Tijdens het wachten kunnen leden nog steeds concepten schrijven, hun berichten bewerken en reacties toevoegen.",
+        "threading_title": "Threadmodus",
+        "threading_subtitle": "Kies hoe gesprekken in deze kamer threads gebruiken.",
+        "threading_help": "Een wijziging geldt alleen voor nieuwe berichten. Bestaande threads blijven zoals ze zijn. Verplicht past bij kamers waar elk bericht een eigen onderwerp is, zoals supportaanvragen. Aangemoedigd houdt drukke kamers overzichtelijk, maar dwingt geen threads af."
+      }
     },
     "security": {
       "title": "Beveiliging",

@@ -89,7 +89,11 @@
       "message_missing": "Nachricht nicht mehr verfügbar",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "Threads konnten nicht geladen werden"
+      "load_failed": "Threads konnten nicht geladen werden",
+      "notifications_count": {
+        "one": "{count} Benachrichtigung",
+        "other": "{count} Benachrichtigungen"
+      }
     },
     "profile": {
       "title": "Profil",

@@ -138,7 +138,14 @@
       "bio_placeholder": "Opowiedz innym trochę o tym członku",
       "bio_description": "Do {max} znaków, wyświetlane w profilu członka.",
       "update_failed": "Nie udało się zaktualizować użytkownika",
-      "cooldown_clear_failed": "Nie udało się wyczyścić czasu odnowienia zmiany nazwy użytkownika"
+      "cooldown_clear_failed": "Nie udało się wyczyścić czasu odnowienia zmiany nazwy użytkownika",
+      "tabs": {
+        "label": "Sekcje członka",
+        "profile": "Profil",
+        "account": "Konto",
+        "roles": "Role",
+        "permissions": "Uprawnienia"
+      }
     },
     "member_delete": {
       "title": "Usuń członka",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Uprawnienia - {name}",
       "back_to_rooms": "Powrót do pokoi",
       "group_permissions_hint": "Zastąpienie poszczególnych grup pomieszczeń kanałów w tej grupie. Wartości domyślne dziedziczone z zakresu serwera. Poszczególne pokoje mogą dodatkowo zastępować uprawnienia na własnej stronie uprawnień.",
-      "room_permissions_hint": "Zastąpienia poszczególnych pokoi dla tego pokoju. Wartości ustawione tutaj mają pierwszeństwo przed wartościami domyślnymi grupy i całego serwera.",
+      "room_permissions_hint": "Te ustawienia obowiązują tylko w tym pokoju. Zastępują ustawienia grupy pokojów i serwera dla tej samej roli lub użytkownika. Aby tylko niektóre role mogły tu coś zrobić, ustaw Odmów dla everyone i Zezwól dla tych ról.",
       "loading": "Ładowanie pokoi...",
       "empty_groups": "Nie ma jeszcze grup pokoi",
       "empty_groups_body": "Stwórz zestaw, aby rozpocząć porządkowanie pomieszczeń.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Edytuj pokój",
       "room_description_placeholder": "Opcjonalny opis tego pokoju",
       "slow_mode": "Tryb powolny",
-      "slow_mode_description": "Ustaw, jak długo członkowie muszą czekać między wiadomościami w tym pokoju.",
       "slow_mode_off": "Wyłączony",
       "slow_mode_custom": "{interval} (bieżąca wartość)",
-      "threading_mode": "Tryb wątków",
       "threading_mode_description": "Wymagane zawsze używa wątków; Zalecane ustawia odpowiedź w wątku jako główną akcję; Włączone pozostawia wybór; Wyłączone blokuje nową aktywność w wątkach.",
       "threading_mode_required": "Wymagany",
       "threading_mode_required_description": "Każda wiadomość rozpoczyna wątek.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Nie udało się usunąć członka: {error}",
       "move_room_failed": "Nie udało się przenieść pokoju: {error}",
       "move_link_failed": "Nie udało się przenieść linku: {error}",
-      "reorder_rooms_failed": "Nie udało się zmienić kolejności pokoi: {error}"
+      "reorder_rooms_failed": "Nie udało się zmienić kolejności pokoi: {error}",
+      "tabs": {
+        "label": "Sekcje pokoju",
+        "general": "Ogólne",
+        "members": "Członkowie",
+        "permissions": "Uprawnienia"
+      },
+      "settings": {
+        "name_title": "Nazwa i opis",
+        "name_subtitle": "Członkowie widzą je na liście pokojów i u góry pokoju.",
+        "visibility_title": "Widoczność",
+        "visibility_subtitle": "Wybierz, kto jest członkiem tego pokoju.",
+        "universal_description": "Każdy członek, który może dołączyć do tego pokoju, jest jego członkiem automatycznie.",
+        "visibility_help": "Używaj pokoju uniwersalnego do wiadomości, które muszą dotrzeć do wszystkich członków, na przykład ogłoszeń. Członkowie nie mogą opuścić pokoju uniwersalnego, ale mogą go wyciszyć. Jeśli wyłączysz tryb uniwersalny, członkowie, którzy dołączyli wcześniej, pozostaną w pokoju.",
+        "slow_mode_subtitle": "Ogranicz, jak często każdy członek może pisać w tym pokoju.",
+        "slow_mode_interval": "Minimalny czas między wpisami",
+        "slow_mode_help": "Jeden licznik obejmuje wiadomości, odpowiedzi w wątkach i załączniki. Członkowie z uprawnieniem room.manage lub message.manage są wyłączeni z ograniczenia. Podczas oczekiwania członkowie nadal mogą pisać wersje robocze, edytować swoje wiadomości i dodawać reakcje.",
+        "threading_title": "Tryb wątków",
+        "threading_subtitle": "Wybierz, jak rozmowy w tym pokoju korzystają z wątków.",
+        "threading_help": "Zmiana dotyczy tylko nowych wiadomości. Istniejące wątki pozostają bez zmian. Tryb wymagany sprawdza się w pokojach, w których każda wiadomość to osobny temat, na przykład zgłoszenia do pomocy technicznej. Tryb zalecany utrzymuje czytelność aktywnych pokojów, ale nie wymusza wątków."
+      }
     },
     "security": {
       "title": "Bezpieczeństwo",

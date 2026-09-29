@@ -89,7 +89,11 @@
       "message_missing": "Message no longer available",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "Failed to load threads"
+      "load_failed": "Failed to load threads",
+      "notifications_count": {
+        "one": "{count} notification",
+        "other": "{count} notifications"
+      }
     },
     "profile": {
       "title": "Profile",

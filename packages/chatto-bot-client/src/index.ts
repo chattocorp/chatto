@@ -4,7 +4,8 @@ import type {
   Destination,
   RealtimeEvent,
   ThreadLocation,
-  ThreadMessage
+  ThreadMessage,
+  ThreadRead
 } from '@chatto/client';
 import { addressedMessage, type AddressingOptions } from './addressing.js';
 export {
@@ -20,17 +21,28 @@ export interface BotThreadMessage extends ThreadMessage {
   role: 'bot' | 'human';
 }
 
-/** Read thread text with roles relative to a known bot identity. */
+/** A thread read whose messages carry roles relative to this bot. */
+export interface BotThreadRead extends Omit<ThreadRead, 'messages'> {
+  messages: BotThreadMessage[];
+}
+
+/** Read thread text with roles relative to a known bot identity. `options` selects the newest
+ * replies or, with `after`, only newer messages, as for `client.readThread`. */
 export async function readBotThread(
   client: Pick<ChattoClient, 'readThread'>,
   viewerId: string,
   location: ThreadLocation,
-  signal?: AbortSignal
-): Promise<BotThreadMessage[]> {
-  return (await client.readThread(location, signal)).map((message) => ({
-    ...message,
-    role: message.authorId === viewerId ? 'bot' : 'human'
-  }));
+  signal?: AbortSignal,
+  options?: { after?: string; limit?: number }
+): Promise<BotThreadRead> {
+  const read = await client.readThread(location, signal, options);
+  return {
+    ...read,
+    messages: read.messages.map((message) => ({
+      ...message,
+      role: message.authorId === viewerId ? 'bot' : 'human'
+    }))
+  };
 }
 
 /** Reply in the original thread and reference the message that prompted the reply. */
@@ -73,8 +85,11 @@ export async function createBotClient(
     conversationKey: (message: ChattoMessage) => conversationKey(viewerId, message),
     reply: (message: ChattoMessage, body: string, signal?: AbortSignal) =>
       client.postMessage(replyDestination(message), body, signal),
-    readThread: (location: ThreadLocation, signal?: AbortSignal) =>
-      readBotThread(client, viewerId, location, signal)
+    readThread: (
+      location: ThreadLocation,
+      signal?: AbortSignal,
+      options?: { after?: string; limit?: number }
+    ) => readBotThread(client, viewerId, location, signal, options)
   };
 }
 

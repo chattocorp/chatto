@@ -138,7 +138,14 @@
       "bio_placeholder": "Erzähl anderen ein wenig über dieses Mitglied",
       "bio_description": "Bis zu {max} Zeichen, wird im Profil des Mitglieds angezeigt.",
       "update_failed": "Benutzer konnte nicht aktualisiert werden",
-      "cooldown_clear_failed": "Sperre für Benutzernamensänderung konnte nicht aufgehoben werden"
+      "cooldown_clear_failed": "Sperre für Benutzernamensänderung konnte nicht aufgehoben werden",
+      "tabs": {
+        "label": "Bereiche des Mitglieds",
+        "profile": "Profil",
+        "account": "Konto",
+        "roles": "Rollen",
+        "permissions": "Berechtigungen"
+      }
     },
     "member_delete": {
       "title": "Mitglied löschen",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Berechtigungen - {name}",
       "back_to_rooms": "Zurück zu Räumen",
       "group_permissions_hint": "Überschreibungen pro Gruppe für die Kanalräume in dieser Gruppe. Vorgaben werden vom Serverbereich geerbt. Einzelne Räume können Berechtigungen auf ihrer eigenen Berechtigungsseite weiter überschreiben.",
-      "room_permissions_hint": "Überschreibungen für diesen Raum. Werte, die hier gesetzt werden, haben Vorrang vor der Gruppe und den serverweiten Vorgaben.",
+      "room_permissions_hint": "Diese Einstellungen gelten nur in diesem Raum. Sie ersetzen für dieselbe Rolle oder denselben Benutzer die Einstellungen der Raumgruppe und des Servers. Wenn hier nur bestimmte Rollen etwas tun dürfen, setze Verweigern für everyone und Erlauben für diese Rollen.",
       "loading": "Räume werden geladen...",
       "empty_groups": "Noch keine Raumgruppen",
       "empty_groups_body": "Erstelle ein Set, um Räume zu organisieren.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Raum bearbeiten",
       "room_description_placeholder": "Optionale Beschreibung für diesen Raum",
       "slow_mode": "Langsamer Modus",
-      "slow_mode_description": "Lege fest, wie lange Mitglieder zwischen Nachrichten in diesem Raum warten müssen.",
       "slow_mode_off": "Aus",
       "slow_mode_custom": "{interval} (aktueller Wert)",
-      "threading_mode": "Thread-Modus",
       "threading_mode_description": "Erforderlich erzwingt Threads; Empfohlen macht die Thread-Antwort zur Hauptaktion; Aktiviert lässt die Wahl offen; Deaktiviert blockiert neue Thread-Aktivität.",
       "threading_mode_required": "Erforderlich",
       "threading_mode_required_description": "Jede Nachricht startet einen Thread.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Mitglied konnte nicht entfernt werden: {error}",
       "move_room_failed": "Raum konnte nicht verschoben werden: {error}",
       "move_link_failed": "Link konnte nicht verschoben werden: {error}",
-      "reorder_rooms_failed": "Räume konnten nicht neu angeordnet werden: {error}"
+      "reorder_rooms_failed": "Räume konnten nicht neu angeordnet werden: {error}",
+      "tabs": {
+        "label": "Bereiche des Raums",
+        "general": "Allgemein",
+        "members": "Mitglieder",
+        "permissions": "Berechtigungen"
+      },
+      "settings": {
+        "name_title": "Name & Beschreibung",
+        "name_subtitle": "Mitglieder sehen beides in der Raumliste und oben im Raum.",
+        "visibility_title": "Sichtbarkeit",
+        "visibility_subtitle": "Lege fest, wer Mitglied dieses Raums ist.",
+        "universal_description": "Jedes Mitglied, das diesem Raum beitreten kann, ist automatisch Mitglied.",
+        "visibility_help": "Nutze einen universellen Raum für Neuigkeiten, die alle Mitglieder erhalten müssen, zum Beispiel Ankündigungen. Mitglieder können einen universellen Raum nicht verlassen, aber stummschalten. Wenn du „Universell“ ausschaltest, bleiben die Mitglieder, die vorher beigetreten sind, im Raum.",
+        "slow_mode_subtitle": "Begrenze, wie oft jedes Mitglied in diesem Raum posten kann.",
+        "slow_mode_interval": "Mindestzeit zwischen Beiträgen",
+        "slow_mode_help": "Ein Timer gilt für Nachrichten, Thread-Antworten und Anhänge. Mitglieder mit der Berechtigung room.manage oder message.manage sind ausgenommen. Während der Wartezeit können Mitglieder weiterhin Entwürfe schreiben, ihre Nachrichten bearbeiten und Reaktionen hinzufügen.",
+        "threading_title": "Thread-Modus",
+        "threading_subtitle": "Lege fest, wie Unterhaltungen in diesem Raum Threads verwenden.",
+        "threading_help": "Eine Änderung gilt nur für neue Nachrichten. Bestehende Threads bleiben unverändert. „Erforderlich“ passt zu Räumen, in denen jede Nachricht ein eigenes Thema ist, zum Beispiel Support-Anfragen. „Empfohlen“ hält belebte Räume übersichtlich, erzwingt aber keine Threads."
+      }
     },
     "security": {
       "title": "Sicherheit",

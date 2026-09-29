@@ -158,7 +158,7 @@ test('preserves reply targets and reacts to the triggering message', async () =>
   });
 });
 
-test('reads overlapping history pages with one root and stable conversation order', async () => {
+test('reads the root and the newest replies with author names, then only newer messages', async () => {
   const request = vi
     .fn<typeof fetch>()
     .mockResolvedValueOnce(
@@ -166,41 +166,96 @@ test('reads overlapping history pages with one root and stable conversation orde
         page: {
           events: [event('root', 'hello'), event('two', 'again'), event('three', 'answer', 'bot')],
           hasOlder: true,
-          startCursor: 'older'
+          endCursor: 'c3',
+          includes: {
+            users: {
+              human: { login: 'alice', displayName: 'Alice Doe', bio: 'private' },
+              bot: { login: 'chatto_bot' }
+            }
+          }
         }
       })
     )
     .mockResolvedValueOnce(
-      Response.json({ page: { events: [event('one', 'first'), event('two', 'again')] } })
+      Response.json({ page: { events: [event('four', 'more')], hasNewer: true, endCursor: 'c4' } })
+    )
+    .mockResolvedValueOnce(
+      Response.json({ page: { events: [event('five', 'last')], hasNewer: false, endCursor: 'c5' } })
     );
   const client = createChattoClient({
     serverUrl: 'https://chat.example',
     apiKey: 'secret',
     fetch: request
   });
-  const messages = await client.readThread(delivery);
-  expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two', 'three']);
-  expect(messages.at(-1)!.authorId).toBe('bot');
-  expect(messages.at(-1)).not.toHaveProperty('role');
-  expect(JSON.parse(String(request.mock.calls[1]![1]!.body))).toMatchObject({
-    before: 'older',
+  const first = await client.readThread(delivery);
+  expect(first).toEqual({
+    messages: [
+      {
+        id: 'root',
+        authorId: 'human',
+        authorName: 'Alice Doe',
+        authorLogin: 'alice',
+        body: 'hello'
+      },
+      {
+        id: 'two',
+        authorId: 'human',
+        authorName: 'Alice Doe',
+        authorLogin: 'alice',
+        body: 'again'
+      },
+      {
+        id: 'three',
+        authorId: 'bot',
+        authorName: 'chatto_bot',
+        authorLogin: 'chatto_bot',
+        body: 'answer'
+      }
+    ],
+    cursor: 'c3',
+    olderOmitted: true
+  });
+  expect(JSON.parse(String(request.mock.calls[0]![1]!.body))).toEqual({
+    roomId: 'room',
     threadRootEventId: 'root',
     limit: 100
+  });
+  const next = await client.readThread(delivery, undefined, { after: first.cursor });
+  expect(next.messages.map((message) => message.id)).toEqual(['four', 'five']);
+  expect(next.cursor).toBe('c5');
+  expect(JSON.parse(String(request.mock.calls[1]![1]!.body))).toMatchObject({ after: 'c3' });
+  expect(JSON.parse(String(request.mock.calls[2]![1]!.body))).toMatchObject({ after: 'c4' });
+  expect(JSON.stringify(first)).not.toContain('private');
+});
+
+test('an up-to-date thread keeps its cursor', async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(Response.json({ page: { events: [], hasNewer: false } }));
+  const client = createChattoClient({
+    serverUrl: 'https://chat.example',
+    apiKey: 'k',
+    fetch: request
+  });
+  expect(await client.readThread(delivery, undefined, { after: 'c3' })).toEqual({
+    messages: [],
+    cursor: 'c3',
+    olderOmitted: false
   });
 });
 
 test.each([
-  {},
-  { page: { hasOlder: true } },
-  { page: { hasOlder: true, startCursor: 'repeated' } }
-])('rejects incomplete or non-progressing history %#', async (response) => {
+  [{}, undefined],
+  [{ page: { hasNewer: true } }, 'c1'],
+  [{ page: { hasNewer: true, endCursor: 'c1' } }, 'c1']
+])('rejects missing or non-progressing pages %#', async (response, after) => {
   const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(response));
   const client = createChattoClient({
     serverUrl: 'https://chat.example',
     apiKey: 'secret',
     fetch: request
   });
-  await expect(client.readThread(delivery)).rejects.toThrow(
+  await expect(client.readThread(delivery, undefined, after ? { after } : {})).rejects.toThrow(
     /thread page|pagination did not advance/
   );
   expect(request.mock.calls.length).toBeLessThanOrEqual(2);

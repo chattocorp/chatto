@@ -1,54 +1,32 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   createExternalIdentityAPI,
   createExternalIdentityFlowAPI
 } from '$lib/api-client/externalIdentities';
 import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getPendingExternalIdentity: vi.fn(),
-  createExternalIdentityAccount: vi.fn(),
-  cancelExternalIdentityFlow: vi.fn(),
-  confirmExternalIdentityLink: vi.fn(),
-  listExternalIdentities: vi.fn(),
-  startExternalIdentityLink: vi.fn(),
-  disconnectExternalIdentity: vi.fn()
-}));
+const flow = mockService(ExternalIdentityAuthService);
+const account = mockService(MyAccountService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
+function config() {
+  return fakeServer(
+    (router) =>
+      router.service(ExternalIdentityAuthService, flow).service(MyAccountService, account),
+    { baseUrl: 'https://remote.example.test/api/connect' }
+  );
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
 });
 
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
-
 describe('createExternalIdentityFlowAPI', () => {
-  beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.getPendingExternalIdentity.mockReset();
-    mocks.createExternalIdentityAccount.mockReset();
-    mocks.cancelExternalIdentityFlow.mockReset();
-    mocks.confirmExternalIdentityLink.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      getPendingExternalIdentity: mocks.getPendingExternalIdentity,
-      createExternalIdentityAccount: mocks.createExternalIdentityAccount,
-      cancelExternalIdentityFlow: mocks.cancelExternalIdentityFlow,
-      confirmExternalIdentityLink: mocks.confirmExternalIdentityLink
-    });
-  });
-
   it('maps pending external identity metadata', async () => {
-    mocks.getPendingExternalIdentity.mockResolvedValue({
+    flow.getPendingExternalIdentity.mockReturnValue({
       pending: {
         kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
         providerId: 'github-main',
@@ -62,9 +40,7 @@ describe('createExternalIdentityFlowAPI', () => {
       }
     });
 
-    const api = createExternalIdentityFlowAPI({
-      baseUrl: 'https://origin.example.test/api/connect'
-    });
+    const api = createExternalIdentityFlowAPI(config());
     await expect(api.getPending('token-1')).resolves.toEqual({
       kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
       providerId: 'github-main',
@@ -76,17 +52,11 @@ describe('createExternalIdentityFlowAPI', () => {
       boundUserId: null,
       redirectPath: '/chat/-/settings/account'
     });
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://origin.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
+    expect(receivedRequest(flow.getPendingExternalIdentity)).toMatchObject({ token: 'token-1' });
   });
 
   it('sends the editable username and display name when creating an account', async () => {
-    mocks.createExternalIdentityAccount.mockResolvedValue({
+    flow.createExternalIdentityAccount.mockReturnValue({
       userId: 'user-1',
       login: 'octo',
       token: 'session-token',
@@ -94,7 +64,7 @@ describe('createExternalIdentityFlowAPI', () => {
       expiresIn: 900n,
       refreshTokenExpiresIn: 7_776_000n
     });
-    const api = createExternalIdentityFlowAPI();
+    const api = createExternalIdentityFlowAPI(config());
 
     await expect(
       api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
@@ -102,36 +72,22 @@ describe('createExternalIdentityFlowAPI', () => {
       userId: 'user-1',
       login: 'octo'
     });
-    expect(mocks.createExternalIdentityAccount).toHaveBeenCalledWith(
-      {
-        token: 'flow-token',
-        login: 'octo',
-        displayName: 'Octo Person'
-      },
-      {
-        headers: { 'X-Chatto-Authentication-Mode': 'cookie' }
-      }
-    );
+    expect(receivedRequest(flow.createExternalIdentityAccount)).toMatchObject({
+      token: 'flow-token',
+      login: 'octo',
+      displayName: 'Octo Person'
+    });
+    expect(
+      receivedContext(flow.createExternalIdentityAccount)?.requestHeader.get(
+        'X-Chatto-Authentication-Mode'
+      )
+    ).toBe('cookie');
   });
 });
 
 describe('createExternalIdentityAPI', () => {
-  beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listExternalIdentities.mockReset();
-    mocks.startExternalIdentityLink.mockReset();
-    mocks.disconnectExternalIdentity.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listExternalIdentities: mocks.listExternalIdentities,
-      startExternalIdentityLink: mocks.startExternalIdentityLink,
-      disconnectExternalIdentity: mocks.disconnectExternalIdentity
-    });
-  });
-
   it('lists providers and resolves provider links against the server origin', async () => {
-    mocks.listExternalIdentities.mockResolvedValue({
+    account.listExternalIdentities.mockReturnValue({
       providers: [
         {
           provider: {
@@ -155,11 +111,7 @@ describe('createExternalIdentityAPI', () => {
       ]
     });
 
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = createExternalIdentityAPI(config());
 
     await expect(api.list()).resolves.toEqual({
       providers: [
@@ -182,85 +134,63 @@ describe('createExternalIdentityAPI', () => {
         }
       ]
     });
-    expect(mocks.listExternalIdentities).toHaveBeenCalledWith({}, {});
+    expect(account.listExternalIdentities).toHaveBeenCalledOnce();
   });
 
   it('passes cancellation through when listing identities', async () => {
-    mocks.listExternalIdentities.mockResolvedValue({ providers: [], linkedIdentities: [] });
-    const signal = new AbortController().signal;
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
-
-    await api.list({ signal });
-
-    expect(mocks.listExternalIdentities).toHaveBeenCalledWith({}, { signal });
+    await expect(
+      createExternalIdentityAPI(config()).list({ signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('rejects provider rows without shared provider metadata', async () => {
-    mocks.listExternalIdentities.mockResolvedValue({
+    account.listExternalIdentities.mockReturnValue({
       providers: [{ linkUrl: '/auth/providers/github-main?intent=link' }],
       linkedIdentities: []
     });
 
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = createExternalIdentityAPI(config());
 
     await expect(api.list()).rejects.toThrow(
       'external identity provider response did not include provider metadata'
     );
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('nope', Code.Unauthenticated);
-    mocks.listExternalIdentities.mockRejectedValue(err);
-
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'stale'
+  it('propagates Connect errors', async () => {
+    account.listExternalIdentities.mockImplementation(() => {
+      throw new ConnectError('nope', Code.Unauthenticated);
     });
 
-    await expect(api.list()).rejects.toBe(err);
+    await expect(createExternalIdentityAPI(config()).list()).rejects.toMatchObject({
+      code: Code.Unauthenticated,
+      rawMessage: 'nope'
+    });
   });
 
   it('starts provider linking', async () => {
-    mocks.startExternalIdentityLink.mockResolvedValue({
+    account.startExternalIdentityLink.mockReturnValue({
       startUrl: 'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
     });
 
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = createExternalIdentityAPI(config());
 
     await expect(
       api.startLink({ providerId: 'github-main', redirectPath: '/chat/-/settings/account' })
     ).resolves.toBe(
       'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
     );
-    expect(mocks.startExternalIdentityLink).toHaveBeenCalledWith({
+    expect(receivedRequest(account.startExternalIdentityLink)).toMatchObject({
       providerId: 'github-main',
       redirectPath: '/chat/-/settings/account'
     });
   });
 
   it('rejects an unsafe provider-link navigation URL from a remote server', async () => {
-    mocks.startExternalIdentityLink.mockResolvedValue({
+    account.startExternalIdentityLink.mockReturnValue({
       startUrl: 'javascript:alert(document.domain)'
     });
 
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = createExternalIdentityAPI(config());
 
     await expect(
       api.startLink({ providerId: 'github-main', redirectPath: '/chat/-/settings/account' })
@@ -268,16 +198,12 @@ describe('createExternalIdentityAPI', () => {
   });
 
   it('disconnects a linked identity', async () => {
-    mocks.disconnectExternalIdentity.mockResolvedValue({});
+    account.disconnectExternalIdentity.mockReturnValue({});
 
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = createExternalIdentityAPI(config());
 
     await expect(api.disconnect('abc123', 'current-password')).resolves.toBeUndefined();
-    expect(mocks.disconnectExternalIdentity).toHaveBeenCalledWith({
+    expect(receivedRequest(account.disconnectExternalIdentity)).toMatchObject({
       subjectHash: 'abc123',
       currentPassword: 'current-password'
     });

@@ -89,7 +89,11 @@
       "message_missing": "Zpráva již není dostupná",
       "in_room": "v",
       "in_room_capitalized": "In",
-      "load_failed": "Nepodařilo se načíst vlákna"
+      "load_failed": "Nepodařilo se načíst vlákna",
+      "notifications_count": {
+        "one": "{count} oznámení",
+        "other": "{count} oznámení"
+      }
     },
     "profile": {
       "title": "Profil",

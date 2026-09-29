@@ -620,6 +620,12 @@
         "history": "最近的失敗",
         "no_failures": "沒有保留的失敗記錄。",
         "more_failures": "載入更多"
+      },
+      "tabs": {
+        "label": "機器人分區",
+        "overview": "總覽",
+        "integrations": "整合",
+        "permissions": "權限"
       }
     }
   }

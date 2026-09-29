@@ -38,10 +38,13 @@ credentials, and URLs. The package does not log requests or responses.
   associate every chunk with its prompting message. The thread root stays separate.
   `createMessage` also accepts this destination field; its explicit reply argument
   takes precedence. Existing destinations need no changes.
-- `readThread({ roomId, threadRootId }, signal)` reads all history pages, puts
-  the root first, and removes page overlap. It returns textual messages with
-  IDs and authors, without bot-specific roles.
-  It rejects missing pages and repeated or missing pagination cursors.
+- `readThread({ roomId, threadRootId }, signal, { after, limit })` reads a
+  thread. Without `after`, it returns the root and the newest `limit` replies
+  (100 by default), and `olderOmitted` tells whether older replies exist. With
+  `after`, a `cursor` from an earlier read, it returns only newer messages and
+  reads as many pages as needed. Messages carry their IDs, authors, and the
+  author's display name and login from the page. They carry no bot-specific
+  roles. It rejects missing pages and repeated or missing pagination cursors.
 - `addReaction` targets a message event. The host chooses the emoji.
 - `refreshTyping` makes one presence request. `withTyping` refreshes during
   work without overlapping requests and aborts the current refresh when work

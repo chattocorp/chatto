@@ -1,50 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { buildRoomSettingsUpdate, type RoomSettingsValues } from './roomSettings';
-import { RoomThreadingMode } from '$lib/roomThreading';
+import { buildRoomDetailsPatch, type RoomDetailsValues } from './roomSettings';
 
-const original: RoomSettingsValues = {
-  name: 'general',
-  description: 'General discussion',
-  universal: false,
-  slowModeSeconds: 0,
-  threadingMode: RoomThreadingMode.ENABLED
-};
+const original: RoomDetailsValues = { name: 'general', description: 'General discussion' };
 
-describe('buildRoomSettingsUpdate', () => {
-  it('omits unchanged metadata from a Universal-only update', () => {
-    expect(buildRoomSettingsUpdate('room-1', { ...original, universal: true }, original)).toEqual({
-      roomId: 'room-1',
-      universal: true
+describe('buildRoomDetailsPatch', () => {
+  it('omits the description from a name-only update', () => {
+    expect(buildRoomDetailsPatch({ ...original, name: 'announcements' }, original)).toEqual({
+      name: 'announcements'
     });
   });
 
-  it('omits Universal from a metadata-only update', () => {
-    expect(
-      buildRoomSettingsUpdate(
-        'room-1',
-        { ...original, name: 'announcements', description: '' },
-        original
-      )
-    ).toEqual({
-      roomId: 'room-1',
-      name: 'announcements',
+  it('clears an emptied description and omits the unchanged name', () => {
+    expect(buildRoomDetailsPatch({ ...original, description: '   ' }, original)).toEqual({
       description: null
     });
   });
 
-  it('includes Slow Mode only when its value changes', () => {
-    expect(
-      buildRoomSettingsUpdate('room-1', { ...original, slowModeSeconds: 30 }, original)
-    ).toEqual({ roomId: 'room-1', slowModeSeconds: 30 });
-  });
-
-  it('includes Threading Mode only when its value changes', () => {
-    expect(
-      buildRoomSettingsUpdate(
-        'room-1',
-        { ...original, threadingMode: RoomThreadingMode.REQUIRED },
-        original
-      )
-    ).toEqual({ roomId: 'room-1', threadingMode: RoomThreadingMode.REQUIRED });
+  it('normalizes the name before comparing it', () => {
+    expect(buildRoomDetailsPatch({ ...original, name: 'Küche' }, original)).toEqual({
+      name: 'Küche'
+    });
+    expect(buildRoomDetailsPatch({ ...original }, original)).toEqual({});
   });
 });

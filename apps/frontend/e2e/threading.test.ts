@@ -224,10 +224,9 @@ test.describe('Message Threading', () => {
       const generalRow = adminPage.locator('.cursor-grab', { hasText: 'general' });
       await generalRow.getByTitle('Edit room').click();
 
-      const threadingModes = adminPage.getByRole('radiogroup', { name: 'Threading mode' });
+      const threadingModes = adminPage.getByRole('radiogroup', { name: 'Threading Mode' });
       const setThreadingMode = async (mode: 'Encouraged' | 'Required' | 'Disabled') => {
         await threadingModes.getByRole('radio', { name: new RegExp(`^${mode}`) }).click();
-        await adminPage.getByRole('button', { name: 'Save changes' }).click();
       };
 
       await setThreadingMode('Encouraged');
@@ -1016,7 +1015,7 @@ test.describe('Message Threading', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    await page.getByRole('button', { name: 'Hide members', exact: true }).click();
+    await page.getByRole('button', { name: 'Members', exact: true, pressed: true }).click();
     await expect(roomPage.memberList).not.toBeVisible();
     await page.evaluate(() => {
       const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');

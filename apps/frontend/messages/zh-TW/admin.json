@@ -138,7 +138,14 @@
       "bio_placeholder": "向其他人簡單介紹一下此成員",
       "bio_description": "最多 {max} 個字元，顯示在成員的個人檔案中。",
       "update_failed": "無法更新使用者",
-      "cooldown_clear_failed": "無法清除使用者名稱變更冷卻期"
+      "cooldown_clear_failed": "無法清除使用者名稱變更冷卻期",
+      "tabs": {
+        "label": "成員分區",
+        "profile": "個人檔案",
+        "account": "帳號",
+        "roles": "角色",
+        "permissions": "權限"
+      }
     },
     "member_delete": {
       "title": "刪除成員",
@@ -205,7 +212,7 @@
       "permissions_page_title": "權限 - {name}",
       "back_to_rooms": "返回聊天室",
       "group_permissions_hint": "此群組內頻道聊天室的群組層級覆寫。預設值繼承自伺服器範圍。個別聊天室可在各自的權限頁面進一步覆寫權限。",
-      "room_permissions_hint": "此聊天室的個別覆寫。在此設定的值優先於群組及伺服器全域預設值。",
+      "room_permissions_hint": "這些設定只在此聊天室中生效。對於同一角色或使用者，它們會取代聊天室群組和伺服器的設定。如果只想讓部分角色在這裡執行某項操作，請為 everyone 設定「拒絕」，並為這些角色設定「允許」。",
       "loading": "正在載入聊天室...",
       "empty_groups": "尚無聊天室群組",
       "empty_groups_body": "建立一個群組以開始整理聊天室。",
@@ -228,10 +235,8 @@
       "edit_room_action": "編輯聊天室",
       "room_description_placeholder": "此聊天室的選填說明",
       "slow_mode": "慢速模式",
-      "slow_mode_description": "設定成員在此房間中傳送訊息的間隔時間。",
       "slow_mode_off": "關閉",
       "slow_mode_custom": "{interval}（目前值）",
-      "threading_mode": "討論串模式",
       "threading_mode_description": "「必須」一律使用討論串；「建議」將討論串回覆設為主要動作；「啟用」讓成員自由選擇；「停用」會禁止新的討論串活動。",
       "threading_mode_required": "必須",
       "threading_mode_required_description": "每則訊息都會開啟討論串。",
@@ -296,7 +301,27 @@
       "remove_member_failed": "無法移除成員：{error}",
       "move_room_failed": "無法移動聊天室：{error}",
       "move_link_failed": "無法移動連結：{error}",
-      "reorder_rooms_failed": "無法調整聊天室順序：{error}"
+      "reorder_rooms_failed": "無法調整聊天室順序：{error}",
+      "tabs": {
+        "label": "房間分區",
+        "general": "一般",
+        "members": "成員",
+        "permissions": "權限"
+      },
+      "settings": {
+        "name_title": "名稱和描述",
+        "name_subtitle": "成員會在聊天室清單和聊天室頂端看到這些資訊。",
+        "visibility_title": "可見範圍",
+        "visibility_subtitle": "選擇誰是此聊天室的成員。",
+        "universal_description": "每位可以加入此聊天室的成員都會自動成為其成員。",
+        "visibility_help": "對於所有成員都必須收到的消息（例如公告），請使用全員聊天室。成員無法離開全員聊天室，但可以將其設為靜音。如果關閉全員模式，先前加入的成員仍會留在聊天室中。",
+        "slow_mode_subtitle": "限制每位成員在此聊天室中發文的頻率。",
+        "slow_mode_interval": "兩次發文之間的最短時間",
+        "slow_mode_help": "一個計時器同時適用於訊息、討論串回覆和附件。擁有 room.manage 或 message.manage 權限的成員不受限制。等待期間，成員仍可以撰寫草稿、編輯自己的訊息和新增表情回應。",
+        "threading_title": "討論串模式",
+        "threading_subtitle": "選擇此聊天室中的對話如何使用討論串。",
+        "threading_help": "變更只會套用到新訊息。現有討論串保持不變。「必須」適合每則訊息都是獨立主題的聊天室，例如支援請求。「建議」可以讓熱絡的聊天室保持易讀，但不會強制使用討論串。"
+      }
     },
     "security": {
       "title": "安全性",

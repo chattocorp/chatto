@@ -91,7 +91,12 @@
       "message_missing": "ההודעה אינה זמינה עוד",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "טעינת השרשורים נכשלה"
+      "load_failed": "טעינת השרשורים נכשלה",
+      "notifications_count": {
+        "one": "{count} התראה",
+        "two": "{count} התראות",
+        "other": "{count} התראות"
+      }
     },
     "profile": {
       "title": "פרופיל",

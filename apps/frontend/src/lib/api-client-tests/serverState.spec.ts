@@ -1,5 +1,10 @@
 import { protoInt64 } from '@bufbuild/protobuf';
+import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
 import {
   deleteServerBanner,
   deleteServerLogo,
@@ -10,68 +15,30 @@ import {
   uploadServerBanner,
   uploadServerLogo
 } from '$lib/api-client/serverState';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getServer: vi.fn(),
-  getMotd: vi.fn(),
-  getRuntimeConfig: vi.fn(),
-  getViewer: vi.fn(),
-  updateServerConfig: vi.fn(),
-  uploadServerLogo: vi.fn(),
-  deleteServerLogo: vi.fn(),
-  uploadServerBanner: vi.fn(),
-  deleteServerBanner: vi.fn(),
-  getServerSecurityConfig: vi.fn(),
-  updateBlockedUsernames: vi.fn()
-}));
+const discovery = mockService(ServerDiscoveryService);
+const server = mockService(ServerService);
+const viewer = mockService(ViewerService);
+const admin = mockService(AdminServerService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function serverConfig() {
+  return fakeServer((router) =>
+    router
+      .service(ServerDiscoveryService, discovery)
+      .service(ServerService, server)
+      .service(ViewerService, viewer)
+      .service(AdminServerService, admin)
+  );
+}
 
 describe('getAuthenticatedServerState', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.getServer.mockReset();
-    mocks.getMotd.mockReset();
-    mocks.getRuntimeConfig.mockReset();
-    mocks.getViewer.mockReset();
-    mocks.updateServerConfig.mockReset();
-    mocks.uploadServerLogo.mockReset();
-    mocks.deleteServerLogo.mockReset();
-    mocks.uploadServerBanner.mockReset();
-    mocks.deleteServerBanner.mockReset();
-    mocks.getServerSecurityConfig.mockReset();
-    mocks.updateBlockedUsernames.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      getServer: mocks.getServer,
-      getMotd: mocks.getMotd,
-      getRuntimeConfig: mocks.getRuntimeConfig,
-      getViewer: mocks.getViewer,
-      updateServerConfig: mocks.updateServerConfig,
-      uploadServerLogo: mocks.uploadServerLogo,
-      deleteServerLogo: mocks.deleteServerLogo,
-      uploadServerBanner: mocks.uploadServerBanner,
-      deleteServerBanner: mocks.deleteServerBanner,
-      getServerSecurityConfig: mocks.getServerSecurityConfig,
-      updateBlockedUsernames: mocks.updateBlockedUsernames
-    });
+    vi.resetAllMocks();
   });
 
   it('loads authenticated server state and maps optional and int64 fields', async () => {
-    mocks.getServer.mockResolvedValue({
+    discovery.getServer.mockReturnValue({
       profile: {
         name: 'Remote Chatto',
         version: '9.8.7',
@@ -81,8 +48,8 @@ describe('getAuthenticatedServerState', () => {
         description: 'description'
       }
     });
-    mocks.getMotd.mockResolvedValue({ motd: 'hello' });
-    mocks.getRuntimeConfig.mockResolvedValue({
+    server.getMotd.mockReturnValue({ motd: 'hello' });
+    server.getRuntimeConfig.mockReturnValue({
       runtime: {
         pushNotificationsEnabled: true,
         vapidPublicKey: 'vapid',
@@ -93,7 +60,7 @@ describe('getAuthenticatedServerState', () => {
         messageEditWindowSeconds: 7200
       }
     });
-    mocks.getViewer.mockResolvedValue({
+    viewer.getViewer.mockReturnValue({
       viewerPermissions: {
         permissions: [
           { permission: 'server.manage', granted: true },
@@ -126,21 +93,12 @@ describe('getAuthenticatedServerState', () => {
       }
     });
 
-    const state = await getAuthenticatedServerState({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const state = await getAuthenticatedServerState(serverConfig());
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://chat.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
-    expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal: undefined });
-    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal: undefined });
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(receivedRequest(discovery.getServer)).toMatchObject({});
+    expect(receivedRequest(server.getMotd)).toMatchObject({});
+    expect(receivedRequest(server.getRuntimeConfig)).toMatchObject({});
+    expect(receivedRequest(viewer.getViewer)).toMatchObject({});
     expect(state).toEqual({
       name: 'Remote Chatto',
       version: '9.8.7',
@@ -203,11 +161,11 @@ describe('getAuthenticatedServerState', () => {
   });
 
   it('maps absent optional fields to null', async () => {
-    mocks.getServer.mockResolvedValue({
+    discovery.getServer.mockReturnValue({
       profile: {}
     });
-    mocks.getMotd.mockResolvedValue({});
-    mocks.getRuntimeConfig.mockResolvedValue({
+    server.getMotd.mockReturnValue({});
+    server.getRuntimeConfig.mockReturnValue({
       runtime: {
         pushNotificationsEnabled: false,
         videoProcessingEnabled: false,
@@ -216,17 +174,14 @@ describe('getAuthenticatedServerState', () => {
         messageEditWindowSeconds: 10800
       }
     });
-    mocks.getViewer.mockResolvedValue({});
+    viewer.getViewer.mockReturnValue({});
 
-    const state = await getAuthenticatedServerState({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const state = await getAuthenticatedServerState(serverConfig());
 
-    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
-    expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal: undefined });
-    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal: undefined });
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(receivedRequest(discovery.getServer)).toMatchObject({});
+    expect(receivedRequest(server.getMotd)).toMatchObject({});
+    expect(receivedRequest(server.getRuntimeConfig)).toMatchObject({});
+    expect(receivedRequest(viewer.getViewer)).toMatchObject({});
     expect(state.name).toBe('Chatto');
     expect(state.version).toBe('');
     expect(state.logoUrl).toBeNull();
@@ -245,25 +200,13 @@ describe('getAuthenticatedServerState', () => {
   });
 
   it('passes cancellation through every authenticated snapshot request', async () => {
-    mocks.getServer.mockResolvedValue({ profile: {} });
-    mocks.getMotd.mockResolvedValue({});
-    mocks.getRuntimeConfig.mockResolvedValue({});
-    mocks.getViewer.mockResolvedValue({});
-    const signal = new AbortController().signal;
-
-    await getAuthenticatedServerState(
-      { baseUrl: '/api/connect', bearerToken: 'token' },
-      { signal }
-    );
-
-    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal });
-    expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal });
-    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal });
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal });
+    await expect(
+      getAuthenticatedServerState(serverConfig(), { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('updates server config and maps the returned profile', async () => {
-    mocks.updateServerConfig.mockResolvedValue({
+    admin.updateServerConfig.mockReturnValue({
       publicProfile: {
         name: 'Connect Server',
         description: 'Connect description',
@@ -276,26 +219,14 @@ describe('getAuthenticatedServerState', () => {
       }
     });
 
-    const profile = await updateServerConfig(
-      {
-        baseUrl: 'https://chat.example.test/api/connect',
-        bearerToken: 'token'
-      },
-      {
-        name: 'Connect Server',
-        description: 'Connect description',
-        motd: 'Connect MOTD',
-        welcomeMessage: 'Connect welcome'
-      }
-    );
+    const profile = await updateServerConfig(serverConfig(), {
+      name: 'Connect Server',
+      description: 'Connect description',
+      motd: 'Connect MOTD',
+      welcomeMessage: 'Connect welcome'
+    });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://chat.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.updateServerConfig).toHaveBeenCalledWith({
+    expect(receivedRequest(admin.updateServerConfig)).toMatchObject({
       serverName: 'Connect Server',
       description: 'Connect description',
       motd: 'Connect MOTD',
@@ -314,33 +245,30 @@ describe('getAuthenticatedServerState', () => {
   });
 
   it('updates server branding through AdminServerService', async () => {
-    mocks.uploadServerLogo.mockResolvedValue({
+    admin.uploadServerLogo.mockReturnValue({
       publicProfile: {
         name: 'Connect Server',
         logoUrl: 'https://cdn/new-logo.webp'
       }
     });
-    mocks.deleteServerLogo.mockResolvedValue({
+    admin.deleteServerLogo.mockReturnValue({
       publicProfile: {
         name: 'Connect Server'
       }
     });
-    mocks.uploadServerBanner.mockResolvedValue({
+    admin.uploadServerBanner.mockReturnValue({
       publicProfile: {
         name: 'Connect Server',
         bannerUrl: 'https://cdn/new-banner.webp'
       }
     });
-    mocks.deleteServerBanner.mockResolvedValue({
+    admin.deleteServerBanner.mockReturnValue({
       publicProfile: {
         name: 'Connect Server'
       }
     });
 
-    const config = {
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    };
+    const config = serverConfig();
 
     await expect(
       uploadServerLogo(
@@ -357,47 +285,42 @@ describe('getAuthenticatedServerState', () => {
     ).resolves.toMatchObject({ bannerUrl: 'https://cdn/new-banner.webp' });
     await expect(deleteServerBanner(config)).resolves.toMatchObject({ bannerUrl: null });
 
-    expect(mocks.uploadServerLogo).toHaveBeenCalledWith({
+    expect(receivedRequest(admin.uploadServerLogo)).toMatchObject({
       image: {
         image: new Uint8Array([1, 2, 3]),
         filename: 'logo.png',
         contentType: 'image/png'
       }
     });
-    expect(mocks.deleteServerLogo).toHaveBeenCalledWith({});
-    expect(mocks.uploadServerBanner).toHaveBeenCalledWith({
+    expect(admin.deleteServerLogo).toHaveBeenCalledOnce();
+    expect(receivedRequest(admin.uploadServerBanner)).toMatchObject({
       image: {
         image: new Uint8Array([4, 5, 6]),
         filename: 'banner.png',
         contentType: 'image/png'
       }
     });
-    expect(mocks.deleteServerBanner).toHaveBeenCalledWith({});
+    expect(admin.deleteServerBanner).toHaveBeenCalledOnce();
   });
 
   it('loads and updates security config through AdminServerService', async () => {
-    mocks.getServerSecurityConfig.mockResolvedValue({
+    admin.getServerSecurityConfig.mockReturnValue({
       blockedUsernames: ['root', 'admin']
     });
-    mocks.updateBlockedUsernames.mockResolvedValue({
+    admin.updateBlockedUsernames.mockReturnValue({
       blockedUsernames: ['root', 'admin', 'reserved']
     });
 
-    const config = {
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    };
-    const signal = new AbortController().signal;
-
-    await expect(getServerSecurityConfig(config, { signal })).resolves.toEqual({
+    const config = serverConfig();
+    await expect(getServerSecurityConfig(config)).resolves.toEqual({
       blockedUsernames: 'root\nadmin'
     });
     await expect(updateBlockedUsernames(config, 'root\nadmin\nreserved')).resolves.toEqual({
       blockedUsernames: 'root\nadmin\nreserved'
     });
 
-    expect(mocks.getServerSecurityConfig).toHaveBeenCalledWith({}, { signal });
-    expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith({
+    expect(receivedRequest(admin.getServerSecurityConfig)).toMatchObject({});
+    expect(receivedRequest(admin.updateBlockedUsernames)).toMatchObject({
       blockedUsernames: ['root', 'admin', 'reserved'],
       updateMask: { paths: ['blocked_usernames'] }
     });

@@ -39,6 +39,17 @@ source and console. Without `--watch`, restart to load code or configuration cha
    CHATTO_IMPLEMENTATION_MODEL=openrouter/z-ai/glm-5.3-flash
    ```
 
+   Each agent also has a reasoning effort setting: `off`, `minimal`, `low`,
+   `medium`, `high`, `xhigh`, or `max`. Higher effort follows instructions more
+   reliably, but costs more and answers more slowly. An unknown value stops the
+   bot at startup with a configuration error.
+
+   | Setting                          | Agents                      | Default  |
+   | -------------------------------- | --------------------------- | -------- |
+   | `CHATTO_AGENT_THINKING`          | Supervisor and web research | `low`    |
+   | `CHATTO_INVESTIGATION_THINKING`  | Source investigation        | `medium` |
+   | `CHATTO_IMPLEMENTATION_THINKING` | Implementation worker       | `medium` |
+
    `runling serve` loads `.env` from its working directory at startup. Restart
    the bot after changes. Existing shell environment variables take precedence
    over values in `.env`. OpenRouter and its selected model provider receive
@@ -75,6 +86,16 @@ When unset or empty, all users can address the bot. Messages from other users
 are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
 They do not start runs or trigger reactions. This filters incoming requests;
 thread history loaded for an allowed request can still include other participants.
+
+At the start of a conversation, the supervisor reads the thread root and the
+newest 100 replies. On later turns, it reads only the messages that arrived
+after its previous read, and it keeps the earlier messages in its conversation.
+It does not see edits or deletions of messages that it already read. Each
+message carries its author's display name and login from the thread page, so
+the supervisor can tell people apart and address them. The bot reads no other
+profile fields. The model provider receives these names in the prompts, and
+they can appear in run journals and the detailed server log when the model
+repeats them.
 
 ### Maintainers
 
@@ -230,6 +251,10 @@ enters a conversation, Runling blocks `implementChatto`, `askImplementation`, an
 that asks the user to start a new thread. Read-only investigation and
 `task_cancel` remain available.
 
+The supervisor can cancel a task with `task_cancel` only in a turn that a
+person's message started. Task notifications do not authorize cancellation, in
+the same way that they do not authorize new work.
+
 A later conversation in the same thread reads the complete thread again,
 including bot replies that used research results. Runling does not track that
 text as untrusted. Start a new thread, not only a new conversation, for work that
@@ -341,8 +366,15 @@ separate Chatto, Authling, and Runling product boundaries.
 
 The investigator records structured findings through `recordFinding`. The host
 extracts excerpts from relative file paths and line ranges in the retained
-checkout. Optional supplied quotes must match the source. Invalid citations are rejected. Only accepted findings
-reach the owner. Source checks do not establish that a claim follows from the excerpt.
+checkout. Optional supplied quotes must match the source. A citation covers at
+most 40 lines and 3,000 characters, and an investigation records at most 12
+findings. The host rejects an invalid citation with the reason, such as a
+missing file or a range that is too long, so the investigator can correct it.
+The finding limit is a normal answer that asks the investigator to finish, not a
+tool failure. Only accepted findings reach the owner. Each accepted finding
+reaches the owner at once with its checked excerpts, as task output. The final
+result carries the claims and their locations without the excerpts, which keeps
+it well below the task result limit. Source checks do not establish that a claim follows from the excerpt.
 A completed investigation without accepted findings gets one
 corrective turn in the same session and checkout. If it still supplies no findings,
 the result is blocked with `missing_evidence`. `missing_outcome` identifies a
@@ -409,11 +441,38 @@ Ask the bot to implement a specific change, for example: “Implement the fix we
 discussed and open a PR.” The owner announces the task, then starts a separate
 implementation worker. Questions and investigation requests do not authorize
 implementation. The investigator stays read-only. Follow-up messages can steer
-the implementation through the same `task_send` channel. If the worker does not
-consume a forwarded clarification, publication stops. Use `/cancel` to stop the
-whole flow, including after the worker finishes editing. The host reports check
-and publication progress. It posts the verified PR link as soon as publication
-is confirmed, then posts a separate CI result.
+the implementation through the same `task_send` channel. Before publication, if
+the worker does not consume a forwarded clarification, publication stops. After
+publication, the worker waits for CI, and a forwarded message starts its next
+turn. Use `/cancel` to stop the whole flow, including while CI runs.
+
+Only the supervisor talks to the user, in the user's language and its own words.
+The implementation task reports only to the supervisor task (Runling ADR-006),
+as task notices that wake the supervisor model:
+
+- **Milestones.** Each core stage is a notice whose `data.milestone` names it
+  and whose `data` holds its facts: `validating` (the change is ready and host
+  checks run), `published` (with `prUrl`), `ci_failed` (with the failed check
+  names, the attempt, and its limit), `ci_rerun_pending`, `ci_rerunning`,
+  `ci_fix_pushed`, `change_pushed`, and `messages_handled`, which carries the
+  worker's answer to messages that arrived while CI ran. The notice text describes the stage for
+  the model, not for the user. Add later stages, such as planning or review, as
+  new milestones.
+- **Progress.** While the worker works, it reports short updates with
+  `reportProgress`: its approach, test results, and what it does next. The host
+  redacts them like other worker text and sends at most one per minute. An
+  earlier update waits until the minute ends, and a newer one replaces it. After
+  eight minutes without an update, the host sends the number of changed files
+  and test runs so far. The supervisor passes on only what is new, in one short
+  sentence.
+- **The result.** When the task finishes, the supervisor writes the final
+  message from the result: the CI outcome, the PR URL, a summary of the change,
+  and its notes.
+
+Notices are not coalesced, so no milestone is lost. The host writes no message
+text. It only guards facts: when the supervisor's reply to a new PR or a final
+result leaves out the PR URL, the host appends the URL, and when the supervisor
+says nothing, the host posts the URL alone.
 
 When a user asks the owner to ask the implementation worker a question, the owner
 uses `askImplementation`. The worker's answer wakes the owner, which can reply
@@ -424,47 +483,64 @@ Ordinary clarifications still use `task_send`.
 Each new implementation fetches the configured base branch and creates a new
 `chattobot/<id>` branch in a separate worktree. It does not include uncommitted
 changes from the supplied checkout. The host first runs
-`mise x -- pnpm install --frozen-lockfile` in that worktree. The worker uses
+`mise x -- pnpm install --frozen-lockfile` in that worktree. Then it builds the
+workspace packages that the frontend imports, such as the generated API types,
+so that focused frontend tests can load. The worker uses
 `apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
 to read the current diff, including new files, or select one changed path when
 the complete diff is too long. `runCheck` runs an approved repository check,
 including frontend lint and build. `runFocusedTests` runs selected existing
 frontend test or spec files in one Vitest project. The worker can save brief
 handoff notes for a later attempt.
-Patch and check failures return bounded diagnostics to the worker. After a
-worker-requested check fails, the host runs it on the base commit and reports
-whether the base passed, failed, or could not be checked. A failed base check
-does not establish the cause. Worker checks are recorded separately from the
-final host checks because edits can make earlier results stale. Repository
+Patch and check failures return bounded diagnostics to the worker. Worker checks
+are recorded separately from the final host checks because edits can make earlier results stale. Repository
 setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final
-checks before publication. To continue, ask the bot to resume the exact
-`implementation-<id>` artifact from its stopped result. The host verifies that
-it belongs to the same thread and reuses its branch and worktree. Artifacts
-created before conversations were shared by thread belong to their original
-author's conversation key and cannot be resumed through the bot. The next
-worker receives the original request and saved handoff, and must check the
-handoff against the retained diff.
+checks before publication.
 
-After the worker reports its edits, the host runs `check:frontend` and
-`test:frontend` for changes limited to `apps/frontend/`; other changes run the
-root `check` and `test` scripts. Commands run through `mise x -- pnpm run`.
-Changes to Go source or module files also run `mise run test-cli`.
+An implementation that stops before publication can continue. This includes a
+cancellation, a blocked worker, and a restart of the bot. The worker keeps its
+conversation in `worker-session.jsonl` in the artifact folder. Each state update
+names the artifact, so the supervisor still knows it after a cancellation. Each
+supervisor prompt also lists up to three unfinished implementations of the
+thread (`resumableImplementations`), so a new conversation after `/cancel` or a
+restart can offer to continue too. The supervisor says that the work is kept
+and offers to continue it. When the user agrees, it resumes the exact
+`implementation-<id>` artifact. The host verifies that the artifact belongs to
+the same thread and reuses its branch and worktree. With a saved conversation,
+the worker continues it with its full context: it checks the diff, because its
+last step may not have finished, and carries on. Without one, as for older
+artifacts, the worker receives the original request and the saved handoff, and
+must check the handoff against the retained diff. In both cases it also receives
+the new instructions from each resume request, which the artifact keeps (at
+most five); where they differ, the latest instructions apply. Artifacts created
+before conversations were shared by thread belong to their original author's
+conversation key and cannot be resumed through the bot.
+
+After the worker reports its edits, the host prepares the tree as the
+repository expects. It regenerates protobuf code with `mise run codegen-proto`
+when files under `proto/` changed, and formats the changed files with Prettier
+and gofmt. Then it runs typecheck and lint for the affected area:
+`check:frontend` and `lint:frontend` for changes limited to `apps/frontend/`,
+and the root `check` and `lint` scripts otherwise. Commands run through
+`mise x -- pnpm run`. Protobuf changes also run `mise run lint-proto`, and
+changes to Go source or module files also run `mise run lint-cli`. These checks
+are fast and do not fail intermittently. The host does not run test suites: CI
+runs them on the pull request, and the worker runs focused tests for the code it
+changed. Some local browser tests fail intermittently, so a local test failure
+would often block a correct change.
 The worker must finish its edits before it requests final validation. For a
 large, actionable change, it can save progress with `checkpointWork` and get
 another work turn in the same implementation. A checkpoint does not start
 validation or publication. Three checkpoints with no source changes stop the
-attempt and retain the handoff for review. A proposed
-human review can be recorded as a PR review need unless the user requires that
-review before publication. A blocked or failed worker report ends the attempt
+attempt and retain the handoff for review. The worker writes
+the content that the change needs, including copy and translations. A missing
+reviewer or approval does not stop it; it lists review needs in the PR notes,
+unless the user requires that review before publication. A blocked or failed worker report ends the attempt
 and requires a new user request. The host reports the worker's bounded,
 redacted reason and the number of worker checks it ran. It says when final host
-validation did not run. After a failed final check, the host runs the same
-command on a clean worktree at the base commit. If it also fails, the host
-stops and reports that the cause is not known. If it passes, the host sends
-bounded diagnostic output to the same
-worker, with at most two repair turns. If the base check cannot run, the host
-reports that the comparison is unknown and lets the worker try to repair.
+validation did not run. After a failed final check, the host sends bounded
+diagnostic output to the same worker, with at most two repair turns.
 The final result also retains failed-check diagnostics
 for supervisor questions, with known host credentials, URLs, email addresses,
 and IPv4 addresses removed. These private diagnostics are not operational logs
@@ -494,11 +570,24 @@ The host commits the changes with a Conventional Commit title, pushes only the
 new branch, and creates a ready-for-review PR. Its body describes what changed,
 why, verification, and limitations. It does not merge or deploy. The host reads
 back the PR URL, branch, base branch, state, and commit before reporting success.
-It watches GitHub checks for up to 30 minutes and posts a second message when
-they pass, fail, are all skipped, stay pending, or cannot be read. It verifies
-that the PR still points to ChattoBot's published commit before it reports a
-CI result. If the head changes, it reports that change instead. CI failure
-does not undo the published PR. Review the PR Checks tab for individual failures.
+
+Then the host follows CI on the PR. It polls GitHub checks every 30 seconds and
+stops at the first failed or cancelled check. It gives the failed check names
+and the end of up to three failed GitHub Actions job logs, redacted like other
+diagnostics, to the same worker. The worker either fixes the failure or, when
+the failure is unrelated to its change, calls `rerunFailedChecks`. The host
+validates a fix with typecheck and lint, commits it, and pushes it to the same
+branch. GitHub reruns jobs only in finished workflow runs. For a rerun, the host
+waits until the runs finish, reruns their failed jobs, and reads CI again.
+While it waits, a new failure still goes to the worker at once. The worker gets at most three CI failures
+(`MAX_CI_REPAIRS`). A message that arrives while CI runs interrupts the wait and
+goes to the worker's next turn; its validated edits are also pushed.
+The host posts the final CI result when checks pass, still fail after three
+repair attempts, are all skipped, stay pending for 30 minutes, or cannot be
+read. It also reports when the worker cannot produce a fix or the push fails.
+Before each result, it verifies that the PR still points to ChattoBot's last
+commit. If someone else pushes to the branch, it stops following CI. CI failure
+does not undo the published PR.
 If a publication response is lost, it checks for the existing PR rather than
 creating another one. An unverified result is reported as uncertain and is not
 automatically retried.
@@ -510,15 +599,31 @@ prepared, and publication metadata. Check that metadata and GitHub before
 retrying an interrupted publication. Remove retained worktrees with
 `git worktree remove` when no longer needed, then remove their local branches
 and artifact directories. There is no automatic cleanup or restart recovery.
+Stopping the bot interrupts a running implementation, so avoid restarts, including
+reloads in `mise dev-chattobot`, while one runs. An implementation keeps running
+until CI on its PR finishes. After a restart, ask the bot to continue a stopped
+artifact that has no PR. A restart after publication stops CI repair; the PR
+stays open.
 
 The host executes dependency setup and repository validation scripts. Although
 the worker has no shell tool, edited code can run during validation.
 A worktree is not a security sandbox. Use an isolated host and
 trusted maintainers; set `CHATTO_MAINTAINER_USER_IDS` to control who can start
 work, and `CHATTO_ALLOWED_USER_ID` to restrict who can address the bot at all.
+An editor or other tool that finds the retained worktrees can run Git in them
+and briefly hold their index lock. The host retries a Git command that fails
+for that reason. When a host command fails anyway, the stopped result names the
+stage and the command, for example `git add failed (exit 128)`, without its
+output. Worker and model-provider errors stay generic, because they can contain
+private details.
+
+The worker's saved conversation holds its complete model context, including
+source excerpts and the request. It stays in the private artifact folder.
 Do not place production credentials on that host. The model provider receives
-relevant request context, source content, and check output. GitHub receives the
-host's network address, Git credentials, commits, and PR content; public
+relevant request context, thread messages with their authors' display names and
+logins, source content, and check output. GitHub receives the
+host's network address, Git credentials, commits, PR content, and CI log and rerun
+requests; public
 repositories make the published changes and PR notes public. Commands for
 dependency installation or verification can contact package registries and
 other services used by the checkout. Package registries receive the host's
@@ -533,8 +638,21 @@ and typing indicators. `workflows/implement.ts` owns the `implementChatto` tool.
 The implementation run is in `implementation-task.ts`, which uses
 `implementation-tools.ts` (worker tools), `implementation-validation.ts` (host
 checks), `implementation-publication.ts` (commit, push, and PR),
+`implementation-ci.ts` (PR checks, failed job logs, and reruns),
 `implementation-artifacts.ts` (retained state), `implementation-safety.ts`
 (redaction and protected paths), and `implementation-settings.ts`.
+
+To run an implementation without Chatto, use `workflows/implement-cli.ts` with
+the same `.env` settings:
+
+```sh
+mise x -- pnpm exec runling run workflows/implement-cli.ts \
+  --input '{"request":"Fix the typo on the login page"}'
+```
+
+Add `"context"` for more detail. The host posts no chat messages; follow the run
+in the terminal. Artifacts from these runs have no owner key, so the bot cannot
+resume them.
 
 Retained implementation metadata stores an owner key: the SHA-256 hash of the
 conversation key from `deliveryConversationKey`. A resume request succeeds only

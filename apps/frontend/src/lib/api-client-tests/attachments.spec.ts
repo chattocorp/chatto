@@ -17,26 +17,18 @@ import {
   MessageVideoVariant
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { createAttachmentAPI } from '$lib/api-client/attachments';
+import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listRoomAttachments: vi.fn(),
-  batchGetAssets: vi.fn(),
-  getAsset: vi.fn()
-}));
+const assets = mockService(AssetService);
+const rooms = mockService(RoomService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function attachmentAPI() {
+  return createAttachmentAPI(
+    fakeServer((router) => router.service(AssetService, assets).service(RoomService, rooms))
+  );
+}
 
 function assetUrl(url: string) {
   return new MessageAssetUrl({
@@ -47,51 +39,30 @@ function assetUrl(url: string) {
 
 describe('createAttachmentAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listRoomAttachments.mockReset();
-    mocks.batchGetAssets.mockReset();
-    mocks.getAsset.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockImplementation((service) => {
-      if (service.typeName === 'chatto.api.v1.RoomService') {
-        return {
-          listRoomAttachments: mocks.listRoomAttachments
-        };
-      }
-      return {
-        getAsset: mocks.getAsset,
-        batchGetAssets: mocks.batchGetAssets
-      };
-    });
+    vi.resetAllMocks();
   });
 
   it('reads file size metadata and forwards cancellation', async () => {
-    mocks.getAsset.mockResolvedValue(
+    assets.getAsset.mockReturnValue(
       new GetAssetResponse({ asset: new Asset({ id: 'html', size: 1536n }) })
     );
-    const api = createAttachmentAPI({
-      baseUrl: 'https://remote.example/api/connect',
-      bearerToken: 'test-token'
+    const api = attachmentAPI();
+    await expect(api.getMetadata('room', 'html')).resolves.toEqual({ size: 1536 });
+    expect(receivedRequest(assets.getAsset)).toMatchObject({ roomId: 'room', assetId: 'html' });
+
+    await expect(api.getMetadata('room', 'html', AbortSignal.abort())).rejects.toMatchObject({
+      code: Code.Canceled
     });
-    const controller = new AbortController();
-    await expect(api.getMetadata('room', 'html', controller.signal)).resolves.toEqual({
-      size: 1536
-    });
-    expect(mocks.getAsset).toHaveBeenCalledWith(
-      { roomId: 'room', assetId: 'html' },
-      { signal: controller.signal }
-    );
   });
 
   it('does not report a missing asset as a zero-byte file', async () => {
-    mocks.getAsset.mockResolvedValue(new GetAssetResponse());
-    const api = createAttachmentAPI({ baseUrl: '/api/connect', bearerToken: null });
+    assets.getAsset.mockReturnValue(new GetAssetResponse());
+    const api = attachmentAPI();
     await expect(api.getMetadata('room', 'missing')).rejects.toThrow('Asset metadata unavailable');
   });
 
   it('lists room attachments and maps attachment metadata', async () => {
-    mocks.listRoomAttachments.mockResolvedValue(
+    rooms.listRoomAttachments.mockReturnValue(
       new ListRoomAttachmentsResponse({
         page: { totalCount: 2n, hasMore: true },
         attachments: [
@@ -131,11 +102,7 @@ describe('createAttachmentAPI', () => {
       })
     );
 
-    const api = createAttachmentAPI({
-      serverId: 'server_1',
-      baseUrl: 'https://server.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = attachmentAPI();
 
     const page = await api.listRoomAttachments({
       roomId: 'room_1',
@@ -144,20 +111,11 @@ describe('createAttachmentAPI', () => {
       thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://server.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.listRoomAttachments).toHaveBeenCalledWith(
-      {
-        roomId: 'room_1',
-        page: { limit: 50, offset: 0 },
-        thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
-      },
-      { headers: undefined }
-    );
+    expect(receivedRequest(rooms.listRoomAttachments)).toMatchObject({
+      roomId: 'room_1',
+      page: { limit: 50, offset: 0 },
+      thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
+    });
     expect(page).toMatchObject({
       totalCount: 2,
       hasMore: true,
@@ -185,7 +143,7 @@ describe('createAttachmentAPI', () => {
   });
 
   it('refreshes asset URLs and maps video variants', async () => {
-    mocks.batchGetAssets.mockResolvedValue(
+    assets.batchGetAssets.mockReturnValue(
       new BatchGetAssetsResponse({
         assets: [
           new Asset({
@@ -210,10 +168,7 @@ describe('createAttachmentAPI', () => {
       })
     );
 
-    const api = createAttachmentAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = attachmentAPI();
 
     const urls = await api.refreshAssetUrls('room_1', ['att_1'], {
       width: 960,
@@ -221,7 +176,7 @@ describe('createAttachmentAPI', () => {
       fit: ImageFitMode.CONTAIN
     });
 
-    expect(mocks.batchGetAssets).toHaveBeenCalledWith({
+    expect(receivedRequest(assets.batchGetAssets)).toMatchObject({
       roomId: 'room_1',
       assetIds: ['att_1'],
       thumbnail: { width: 960, height: 800, fit: ImageFitMode.CONTAIN }
@@ -235,7 +190,7 @@ describe('createAttachmentAPI', () => {
   });
 
   it('keeps missing refreshed attachment URLs nullable', async () => {
-    mocks.batchGetAssets.mockResolvedValue(
+    assets.batchGetAssets.mockReturnValue(
       new BatchGetAssetsResponse({
         assets: [
           new Asset({
@@ -256,10 +211,7 @@ describe('createAttachmentAPI', () => {
       })
     );
 
-    const api = createAttachmentAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = attachmentAPI();
 
     const urls = await api.refreshAssetUrls('room_1', ['att_1'], {
       width: 960,
@@ -273,7 +225,7 @@ describe('createAttachmentAPI', () => {
   });
 
   it('omits missing assets from refreshed URL results', async () => {
-    mocks.batchGetAssets.mockResolvedValue(
+    assets.batchGetAssets.mockReturnValue(
       new BatchGetAssetsResponse({
         assets: [
           new Asset({
@@ -285,10 +237,7 @@ describe('createAttachmentAPI', () => {
       })
     );
 
-    const api = createAttachmentAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    const api = attachmentAPI();
 
     const urls = await api.refreshAssetUrls('room_1', ['att_1', 'missing'], {
       width: 120,
@@ -296,7 +245,7 @@ describe('createAttachmentAPI', () => {
       fit: ImageFitMode.COVER
     });
 
-    expect(mocks.batchGetAssets).toHaveBeenCalledWith({
+    expect(receivedRequest(assets.batchGetAssets)).toMatchObject({
       roomId: 'room_1',
       assetIds: ['att_1', 'missing'],
       thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
@@ -306,7 +255,7 @@ describe('createAttachmentAPI', () => {
   });
 
   it('lists attachments with missing asset URLs as null', async () => {
-    mocks.listRoomAttachments.mockResolvedValue(
+    rooms.listRoomAttachments.mockReturnValue(
       new ListRoomAttachmentsResponse({
         attachments: [
           new RoomAttachmentListItem({
@@ -332,10 +281,7 @@ describe('createAttachmentAPI', () => {
       })
     );
 
-    const api = createAttachmentAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = attachmentAPI();
 
     const page = await api.listRoomAttachments({
       roomId: 'room_1',
@@ -348,15 +294,12 @@ describe('createAttachmentAPI', () => {
     expect(page.items[0]?.attachment.videoProcessing?.variants[0]?.assetUrl).toBeNull();
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('session expired', Code.Unauthenticated);
-    mocks.listRoomAttachments.mockRejectedValue(err);
-
-    const api = createAttachmentAPI({
-      serverId: 'server_1',
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
+  it('propagates Connect errors', async () => {
+    rooms.listRoomAttachments.mockImplementation(() => {
+      throw new ConnectError('session expired', Code.Unauthenticated);
     });
+
+    const api = attachmentAPI();
 
     await expect(
       api.listRoomAttachments({
@@ -365,6 +308,6 @@ describe('createAttachmentAPI', () => {
         offset: 0,
         thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       })
-    ).rejects.toBe(err);
+    ).rejects.toMatchObject({ code: Code.Unauthenticated, rawMessage: 'session expired' });
   });
 });

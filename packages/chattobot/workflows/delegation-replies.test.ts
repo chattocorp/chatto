@@ -94,7 +94,7 @@ test.each(['accepted', 'refused'])(
           thread_root_id: 'root',
           message: { id: 'message', author_id: 'human', body: 'Assess this' }
         },
-        readThread: async () => [],
+        readThread: async () => ({ messages: [], olderOmitted: false }),
         maintainers: ['human'],
         onBusy() {},
         setReplyContext() {},

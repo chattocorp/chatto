@@ -33,6 +33,11 @@ export type ConnectAPIConfig = {
   renewBearerToken?: (force: boolean) => Promise<string | null>;
   /** Current private-data generation for this exact connection. */
   dataGeneration?: () => number;
+  /**
+   * Build the transport from Chatto's interceptors instead of using HTTP.
+   * Tests pass an in-memory fake server; see `$lib/test-utils/fakeServer`.
+   */
+  transport?: (interceptors: Interceptor[]) => Transport;
 };
 
 /** An obsolete response was discarded. No response data escapes this boundary. */
@@ -125,15 +130,17 @@ export function createChattoTransport(
   config: { baseUrl: string } & Partial<ConnectAPIConfig>,
   options: { useBinaryFormat?: boolean } = {}
 ): Transport {
+  const interceptors = [
+    // Outermost, so it sees errors from every inner interceptor.
+    authenticationRequiredInterceptor(config),
+    ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
+    bearerRenewalInterceptor(config)
+  ];
+  if (config.transport) return config.transport(interceptors);
   return createConnectTransport({
     baseUrl: config.baseUrl,
     useBinaryFormat: options.useBinaryFormat ?? true,
-    interceptors: [
-      // Outermost, so it sees errors from every inner interceptor.
-      authenticationRequiredInterceptor(config),
-      ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
-      bearerRenewalInterceptor(config)
-    ]
+    interceptors
   });
 }
 

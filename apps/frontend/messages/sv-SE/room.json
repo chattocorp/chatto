@@ -216,7 +216,7 @@
       "no_files": "Inga filer i det här rummet ännu.",
       "files": "Filer",
       "pins": "Fästa meddelanden",
-      "call": "Ring",
+      "call": "Samtal",
       "jump_to_file": "Hoppa till {filename}",
       "loading_files": "Laddar filer...",
       "loading_members": "Laddar medlemmar...",
@@ -227,12 +227,11 @@
       "remove_failed": "Det gick inte att ta bort användaren från rummet",
       "remove_success": "{name} togs bort från rummet",
       "members_load_failed": "Det gick inte att läsa in rumsmedlemmar",
-      "members_refresh_failed": "Det gick inte att uppdatera rumsmedlemmar"
+      "members_refresh_failed": "Det gick inte att uppdatera rumsmedlemmar",
+      "search": "Sök"
     },
     "pins": {
-      "show": "Visa fästa meddelanden",
       "unseen": "Nya fästa meddelanden",
-      "hide": "Dölj fästa meddelanden",
       "pin": "Fäst meddelande",
       "unpin": "Lossa meddelande",
       "unpin_prompt": "Vill du verkligen ta bort den här fästningen?",

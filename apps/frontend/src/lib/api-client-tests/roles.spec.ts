@@ -1,67 +1,26 @@
+import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
+import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
 import { createRoleAPI } from '$lib/api-client/roles';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listRoles: vi.fn(),
-  getPublicRole: vi.fn(),
-  batchGetRoles: vi.fn(),
-  listAdminRoles: vi.fn(),
-  getRole: vi.fn(),
-  listMembers: vi.fn(),
-  createRole: vi.fn(),
-  updateRole: vi.fn(),
-  deleteRole: vi.fn()
-}));
+const roles = mockService(RoleService);
+const adminRoles = mockService(AdminRoleService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function roleAPI() {
+  return createRoleAPI(
+    fakeServer((router) => router.service(RoleService, roles).service(AdminRoleService, adminRoles))
+  );
+}
 
 describe('createRoleAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listRoles.mockReset();
-    mocks.getPublicRole.mockReset();
-    mocks.batchGetRoles.mockReset();
-    mocks.listAdminRoles.mockReset();
-    mocks.getRole.mockReset();
-    mocks.listMembers.mockReset();
-    mocks.createRole.mockReset();
-    mocks.updateRole.mockReset();
-    mocks.deleteRole.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockImplementation((service) => {
-      if (service.typeName === 'chatto.api.v1.RoleService') {
-        return {
-          listRoles: mocks.listRoles,
-          getRole: mocks.getPublicRole,
-          batchGetRoles: mocks.batchGetRoles
-        };
-      }
-      return {
-        listRoles: mocks.listAdminRoles,
-        getRole: mocks.getRole,
-        listMembers: mocks.listMembers,
-        createRole: mocks.createRole,
-        updateRole: mocks.updateRole,
-        deleteRole: mocks.deleteRole
-      };
-    });
+    vi.resetAllMocks();
   });
 
   it('lists public roles', async () => {
-    mocks.listRoles.mockResolvedValue({
+    roles.listRoles.mockReturnValue({
       roles: [
         {
           name: 'moderator',
@@ -73,11 +32,11 @@ describe('createRoleAPI', () => {
         }
       ]
     });
-    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const api = roleAPI();
 
     const result = await api.listRoles();
 
-    expect(mocks.listRoles).toHaveBeenCalledWith({});
+    expect(roles.listRoles).toHaveBeenCalledOnce();
     expect(result).toEqual({
       roles: [
         {
@@ -105,9 +64,9 @@ describe('createRoleAPI', () => {
       position: 100,
       pingable: true
     };
-    mocks.getPublicRole.mockResolvedValue({ role });
-    mocks.batchGetRoles.mockResolvedValue({ roles: [role] });
-    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    roles.getRole.mockReturnValue({ role });
+    roles.batchGetRoles.mockReturnValue({ roles: [role] });
+    const api = roleAPI();
 
     await expect(api.getPublicRole('moderator')).resolves.toMatchObject({
       name: 'moderator',
@@ -117,12 +76,12 @@ describe('createRoleAPI', () => {
       { name: 'moderator' }
     ]);
 
-    expect(mocks.getPublicRole).toHaveBeenCalledWith({ name: 'moderator' });
-    expect(mocks.batchGetRoles).toHaveBeenCalledWith({ names: ['moderator', 'missing'] });
+    expect(receivedRequest(roles.getRole)).toMatchObject({ name: 'moderator' });
+    expect(receivedRequest(roles.batchGetRoles)).toMatchObject({ names: ['moderator', 'missing'] });
   });
 
   it('lists admin roles with viewer capabilities', async () => {
-    mocks.listAdminRoles.mockResolvedValue({
+    adminRoles.listRoles.mockReturnValue({
       roles: [
         {
           role: {
@@ -140,12 +99,10 @@ describe('createRoleAPI', () => {
       viewerCanManageRoles: true,
       viewerCanAssignRoles: false
     });
-    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
-    const signal = new AbortController().signal;
+    const api = roleAPI();
+    const result = await api.listAdminRoles();
 
-    const result = await api.listAdminRoles({ signal });
-
-    expect(mocks.listAdminRoles).toHaveBeenCalledWith({}, { signal });
+    expect(adminRoles.listRoles).toHaveBeenCalledOnce();
     expect(result).toEqual({
       roles: [
         {
@@ -165,7 +122,7 @@ describe('createRoleAPI', () => {
   });
 
   it('gets role metadata', async () => {
-    mocks.getRole.mockResolvedValue({
+    adminRoles.getRole.mockReturnValue({
       role: {
         role: {
           name: 'helpdesk',
@@ -181,12 +138,10 @@ describe('createRoleAPI', () => {
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
     });
-    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: null });
-    const signal = new AbortController().signal;
+    const api = roleAPI();
+    const result = await api.getRole('helpdesk');
 
-    const result = await api.getRole('helpdesk', { signal });
-
-    expect(mocks.getRole).toHaveBeenCalledWith({ name: 'helpdesk' }, { signal });
+    expect(receivedRequest(adminRoles.getRole)).toMatchObject({ name: 'helpdesk' });
     expect(result).toEqual({
       roles: [],
       role: {
@@ -206,21 +161,26 @@ describe('createRoleAPI', () => {
 
   it('loads an explicit role member page with cancellation', async () => {
     const user = { id: 'user-1', login: 'alice', displayName: 'Alice', isBot: true };
-    mocks.listMembers.mockResolvedValue({
-      members: [{ ...user, bot: { ownerUserId: 'owner' } }],
+    adminRoles.listMembers.mockReturnValue({
+      members: [
+        { id: 'user-1', login: 'alice', displayName: 'Alice', bot: { ownerUserId: 'owner' } }
+      ],
       page: { totalCount: 31n, hasMore: true }
     });
-    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
-    const signal = new AbortController().signal;
-    expect(await api.listMembers('helpdesk', { limit: 20, offset: 20 }, { signal })).toEqual({
+    const api = roleAPI();
+    expect(await api.listMembers('helpdesk', { limit: 20, offset: 20 })).toEqual({
       users: [user],
       totalCount: 31,
       hasMore: true
     });
-    expect(mocks.listMembers).toHaveBeenCalledWith(
-      { name: 'helpdesk', page: { limit: 20, offset: 20 } },
-      { signal }
-    );
+    expect(receivedRequest(adminRoles.listMembers)).toMatchObject({
+      name: 'helpdesk',
+      page: { limit: 20, offset: 20 }
+    });
+
+    await expect(
+      api.listMembers('helpdesk', { limit: 20, offset: 20 }, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('creates updates and deletes roles', async () => {
@@ -246,12 +206,12 @@ describe('createRoleAPI', () => {
       permissions: role.permissions,
       permissionDenials: role.permissionDenials
     };
-    mocks.createRole.mockResolvedValue({ role: apiRole });
-    mocks.updateRole.mockResolvedValue({
+    adminRoles.createRole.mockReturnValue({ role: apiRole });
+    adminRoles.updateRole.mockReturnValue({
       role: { ...apiRole, role: { ...apiRole.role, displayName: 'Support' } }
     });
-    mocks.deleteRole.mockResolvedValue({});
-    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    adminRoles.deleteRole.mockReturnValue({});
+    const api = roleAPI();
 
     await expect(api.createRole(role)).resolves.toEqual(role);
     await expect(
@@ -264,14 +224,19 @@ describe('createRoleAPI', () => {
     ).resolves.toMatchObject({ displayName: 'Support' });
     await expect(api.deleteRole('helpdesk')).resolves.toBe(true);
 
-    expect(mocks.createRole).toHaveBeenCalledWith(role);
-    expect(mocks.updateRole).toHaveBeenCalledWith({
+    expect(receivedRequest(adminRoles.createRole)).toMatchObject({
+      name: 'helpdesk',
+      displayName: 'Helpdesk',
+      description: 'Support queue',
+      pingable: true
+    });
+    expect(receivedRequest(adminRoles.updateRole)).toMatchObject({
       name: 'helpdesk',
       displayName: 'Support',
       description: 'Support queue',
       pingable: false,
       updateMask: { paths: ['display_name', 'description', 'pingable'] }
     });
-    expect(mocks.deleteRole).toHaveBeenCalledWith({ name: 'helpdesk' });
+    expect(receivedRequest(adminRoles.deleteRole)).toMatchObject({ name: 'helpdesk' });
   });
 });

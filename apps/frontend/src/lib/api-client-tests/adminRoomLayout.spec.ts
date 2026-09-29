@@ -1,75 +1,35 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { RoomThreadingMode } from '$lib/roomThreading';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getRoom: vi.fn(),
-  getRoomGroup: vi.fn(),
-  listRoomGroups: vi.fn(),
-  createRoomGroup: vi.fn(),
-  updateRoomGroup: vi.fn(),
-  deleteRoomGroup: vi.fn(),
-  reorderRoomGroups: vi.fn(),
-  moveRoomGroup: vi.fn(),
-  moveRoomToGroup: vi.fn(),
-  reorderSidebarItemsInGroup: vi.fn(),
-  moveSidebarItem: vi.fn(),
-  createSidebarLink: vi.fn(),
-  updateSidebarLink: vi.fn(),
-  deleteSidebarLink: vi.fn(),
-  moveSidebarLinkToGroup: vi.fn()
-}));
+const mocks = mockService(AdminRoomLayoutService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function roomLayoutAPI() {
+  return createAdminRoomLayoutAPI(
+    fakeServer((router) => router.service(AdminRoomLayoutService, mocks))
+  );
+}
 
 describe('createAdminRoomLayoutAPI', () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      getRoom: mocks.getRoom,
-      getRoomGroup: mocks.getRoomGroup,
-      listRoomGroups: mocks.listRoomGroups,
-      createRoomGroup: mocks.createRoomGroup,
-      updateRoomGroup: mocks.updateRoomGroup,
-      deleteRoomGroup: mocks.deleteRoomGroup,
-      reorderRoomGroups: mocks.reorderRoomGroups,
-      moveRoomGroup: mocks.moveRoomGroup,
-      moveRoomToGroup: mocks.moveRoomToGroup,
-      reorderSidebarItemsInGroup: mocks.reorderSidebarItemsInGroup,
-      moveSidebarItem: mocks.moveSidebarItem,
-      createSidebarLink: mocks.createSidebarLink,
-      updateSidebarLink: mocks.updateSidebarLink,
-      deleteSidebarLink: mocks.deleteSidebarLink,
-      moveSidebarLinkToGroup: mocks.moveSidebarLinkToGroup
-    });
+    vi.resetAllMocks();
   });
 
   it('reads layout and sends group, room, link, and reorder commands through Connect', async () => {
-    mocks.getRoom.mockResolvedValue({
+    mocks.getRoom.mockReturnValue({
       room: { id: 'r1', name: 'general', description: 'General chat' },
       viewerCanManageRoom: false,
       viewerCanManagePermissions: true
     });
-    mocks.getRoomGroup.mockResolvedValue({
+    mocks.getRoomGroup.mockReturnValue({
       group: { id: 'g1', name: 'Lobby', items: [] },
       viewerCanManageGroup: true,
       viewerCanManagePermissions: true
     });
-    mocks.listRoomGroups.mockResolvedValue({
+    mocks.listRoomGroups.mockReturnValue({
       groups: [
         {
           id: 'g1',
@@ -91,29 +51,26 @@ describe('createAdminRoomLayoutAPI', () => {
         }
       ]
     });
-    mocks.createRoomGroup.mockResolvedValue({
+    mocks.createRoomGroup.mockReturnValue({
       group: { id: 'g2', name: 'Projects', description: 'Project rooms', items: [] }
     });
-    mocks.updateRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Renamed', items: [] } });
-    mocks.deleteRoomGroup.mockResolvedValue({});
-    mocks.reorderRoomGroups.mockResolvedValue({ groups: [] });
-    mocks.moveRoomGroup.mockResolvedValue({ groups: [] });
-    mocks.moveRoomToGroup.mockResolvedValue({});
-    mocks.reorderSidebarItemsInGroup.mockResolvedValue({ group: undefined });
-    mocks.moveSidebarItem.mockResolvedValue({ group: undefined });
-    mocks.createSidebarLink.mockResolvedValue({
+    mocks.updateRoomGroup.mockReturnValue({ group: { id: 'g2', name: 'Renamed', items: [] } });
+    mocks.deleteRoomGroup.mockReturnValue({});
+    mocks.reorderRoomGroups.mockReturnValue({ groups: [] });
+    mocks.moveRoomGroup.mockReturnValue({ groups: [] });
+    mocks.moveRoomToGroup.mockReturnValue({});
+    mocks.reorderSidebarItemsInGroup.mockReturnValue({ group: undefined });
+    mocks.moveSidebarItem.mockReturnValue({ group: undefined });
+    mocks.createSidebarLink.mockReturnValue({
       sidebarLink: { id: 'docs', label: 'Docs', url: '/docs' }
     });
-    mocks.updateSidebarLink.mockResolvedValue({
+    mocks.updateSidebarLink.mockReturnValue({
       sidebarLink: { id: 'docs', label: 'Docs', url: '/help' }
     });
-    mocks.deleteSidebarLink.mockResolvedValue({});
-    mocks.moveSidebarLinkToGroup.mockResolvedValue({});
+    mocks.deleteSidebarLink.mockReturnValue({});
+    mocks.moveSidebarLinkToGroup.mockReturnValue({});
 
-    const api = createAdminRoomLayoutAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = roomLayoutAPI();
 
     await expect(api.getRoom('r1')).resolves.toMatchObject({
       id: 'r1',
@@ -191,79 +148,80 @@ describe('createAdminRoomLayoutAPI', () => {
     await api.deleteSidebarLink('docs');
     await api.moveSidebarLinkToGroup({ linkId: 'docs', groupId: 'g1' });
 
-    expect(mocks.getRoom).toHaveBeenCalledWith({ roomId: 'r1' }, {});
-    expect(mocks.getRoomGroup).toHaveBeenCalledWith({ groupId: 'g1' }, {});
-    expect(mocks.listRoomGroups).toHaveBeenCalledWith({});
-    expect(mocks.createRoomGroup).toHaveBeenCalledWith({ name: 'Projects', description: '' });
-    expect(mocks.updateRoomGroup).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.getRoom)).toMatchObject({ roomId: 'r1' });
+    expect(receivedRequest(mocks.getRoomGroup)).toMatchObject({ groupId: 'g1' });
+    expect(mocks.listRoomGroups).toHaveBeenCalledOnce();
+    expect(receivedRequest(mocks.createRoomGroup)).toMatchObject({
+      name: 'Projects',
+      description: ''
+    });
+    expect(receivedRequest(mocks.updateRoomGroup)).toMatchObject({
       groupId: 'g2',
       name: 'Renamed',
       description: undefined,
       updateMask: { paths: ['name'] }
     });
-    expect(mocks.deleteRoomGroup).toHaveBeenCalledWith({ groupId: 'g2' });
-    expect(mocks.reorderRoomGroups).toHaveBeenCalledWith({ orderedGroupIds: ['g2', 'g1'] });
-    expect(mocks.moveRoomGroup).toHaveBeenCalledWith({ groupId: 'g2', beforeGroupId: 'g1' });
-    expect(mocks.moveRoomToGroup).toHaveBeenCalledWith({ roomId: 'room-1', groupId: 'g2' });
-    expect(mocks.reorderSidebarItemsInGroup).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.deleteRoomGroup)).toMatchObject({ groupId: 'g2' });
+    expect(receivedRequest(mocks.reorderRoomGroups)).toMatchObject({
+      orderedGroupIds: ['g2', 'g1']
+    });
+    expect(receivedRequest(mocks.moveRoomGroup)).toMatchObject({
+      groupId: 'g2',
+      beforeGroupId: 'g1'
+    });
+    expect(receivedRequest(mocks.moveRoomToGroup)).toMatchObject({
+      roomId: 'room-1',
+      groupId: 'g2'
+    });
+    expect(receivedRequest(mocks.reorderSidebarItemsInGroup)).toMatchObject({
       groupId: 'g2',
       items: [
         { item: { case: 'roomId', value: 'room-1' } },
         { item: { case: 'sidebarLinkId', value: 'docs' } }
       ]
     });
-    expect(mocks.moveSidebarItem).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.moveSidebarItem)).toMatchObject({
       item: { item: { case: 'roomId', value: 'room-1' } },
       groupId: 'g2',
       before: { item: { case: 'sidebarLinkId', value: 'docs' } }
     });
-    expect(mocks.createSidebarLink).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.createSidebarLink)).toMatchObject({
       groupId: 'g2',
       label: 'Docs',
       url: '/docs'
     });
-    expect(mocks.updateSidebarLink).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.updateSidebarLink)).toMatchObject({
       linkId: 'docs',
       label: 'Docs',
       url: '/help',
       updateMask: { paths: ['label', 'url'] }
     });
-    expect(mocks.deleteSidebarLink).toHaveBeenCalledWith({ linkId: 'docs' });
-    expect(mocks.moveSidebarLinkToGroup).toHaveBeenCalledWith({ linkId: 'docs', groupId: 'g1' });
+    expect(receivedRequest(mocks.deleteSidebarLink)).toMatchObject({ linkId: 'docs' });
+    expect(receivedRequest(mocks.moveSidebarLinkToGroup)).toMatchObject({
+      linkId: 'docs',
+      groupId: 'g1'
+    });
   });
 
   it('forwards cancellation signals for room detail snapshots', async () => {
-    mocks.getRoom.mockResolvedValue({ room: undefined });
-    mocks.getRoomGroup.mockResolvedValue({ group: undefined });
-    const api = createAdminRoomLayoutAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'token'
+    const api = roomLayoutAPI();
+
+    await expect(api.getRoom('r1', { signal: AbortSignal.abort() })).rejects.toMatchObject({
+      code: Code.Canceled
     });
-    const signal = new AbortController().signal;
-
-    await api.getRoom('r1', { signal });
-    await api.getRoomGroup('g1', { signal });
-
-    expect(mocks.getRoom).toHaveBeenCalledWith(
-      { roomId: 'r1' },
-      expect.objectContaining({ signal })
-    );
-    expect(mocks.getRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'g1' },
-      expect.objectContaining({ signal })
-    );
+    await expect(api.getRoomGroup('g1', { signal: AbortSignal.abort() })).rejects.toMatchObject({
+      code: Code.Canceled
+    });
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('authentication required', Code.Unauthenticated);
-    mocks.createRoomGroup.mockRejectedValue(err);
-
-    const api = createAdminRoomLayoutAPI({
-      serverId: 'remote',
-      baseUrl: '/api/connect',
-      bearerToken: null
+  it('propagates Connect errors', async () => {
+    mocks.createRoomGroup.mockImplementation(() => {
+      throw new ConnectError('authentication required', Code.Unauthenticated);
     });
 
-    await expect(api.createRoomGroup({ name: 'Projects' })).rejects.toBe(err);
+    await expect(roomLayoutAPI().createRoomGroup({ name: 'Projects' })).rejects.toMatchObject({
+      code: Code.Unauthenticated,
+      rawMessage: 'authentication required'
+    });
   });
 });

@@ -15,11 +15,21 @@ export type ImplementationProcess = (
     unsetEnv?: string[];
     /** Return local patch/validation diagnostics to the worker. Auth/publication output stays private. */
     captureDiagnostics?: boolean;
+    /** Keep the end of large standard output instead of failing at the output limit, for logs. */
+    keepTail?: boolean;
   }
 ) => Promise<string>;
 
-/** Safe message for host logs; captured diagnostics are only for the worker's repair context. */
-export class ImplementationCommandError extends Error {
+/** A command failure with a host-written message that names only the program and its
+ * subcommand, such as `git add failed (exit 128)`. The message can reach users; command output
+ * never does. */
+export class HostCommandError extends Error {
+  /** True when git reported that another process holds a lock, such as `index.lock`. */
+  lockHeld = false;
+}
+
+/** A failure with captured output, which only the worker's repair context receives. */
+export class ImplementationCommandError extends HostCommandError {
   constructor(
     message: string,
     readonly output: string
@@ -28,6 +38,10 @@ export class ImplementationCommandError extends Error {
   }
 }
 
+/** The program and its first plain subcommand, such as `git add`, without values or paths. */
+const commandLabel = (command: string, args: string[]) =>
+  [command, args.find((arg) => /^[a-z][a-z-]*$/.test(arg))].filter(Boolean).join(' ');
+
 /** Bound output and stop the process group on cancellation, including test children. */
 export const implementationProcess: ImplementationProcess = async (command, args, options) => {
   const signal = AbortSignal.any([
@@ -35,6 +49,7 @@ export const implementationProcess: ImplementationProcess = async (command, args
     AbortSignal.timeout(options.timeoutMs ?? 60_000)
   ]);
   signal.throwIfAborted();
+  const label = commandLabel(command, args);
   return new Promise<string>((resolve, reject) => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -68,8 +83,9 @@ export const implementationProcess: ImplementationProcess = async (command, args
       escalation = setTimeout(() => kill('SIGKILL'), 1000);
     };
     const receive = (data: Buffer, stderr = false) => {
-      if (output.length + errors.length + data.length > 1_000_000) {
-        failure = new Error('Command output limit exceeded');
+      if (options.keepTail && !stderr) output = (output + data.toString()).slice(-1_000_000);
+      else if (output.length + errors.length + data.length > 1_000_000) {
+        failure = new HostCommandError(`${label} exceeded the output limit`);
         stop();
       } else if (stderr) errors += data.toString();
       else output += data.toString();
@@ -80,24 +96,22 @@ export const implementationProcess: ImplementationProcess = async (command, args
     signal.addEventListener('abort', stop, { once: true });
     if (signal.aborted) stop();
     child.on('error', () => {
-      failure = new Error('Command could not start');
+      failure = new HostCommandError(`${label} could not start`);
     });
     child.on('close', (code) => {
       signal.removeEventListener('abort', stop);
       if (escalation) kill('SIGKILL');
       clearTimeout(escalation);
-      if (signal.aborted) reject(new Error('Command cancelled or timed out'));
+      if (signal.aborted) reject(new HostCommandError(`${label} was cancelled or timed out`));
       else if (failure) reject(failure);
-      else if (code !== 0)
-        reject(
-          options.captureDiagnostics
-            ? new ImplementationCommandError(
-                `Command failed (exit ${code ?? 'signal'})`,
-                `${output}\n${errors}`
-              )
-            : new Error(`Command failed (exit ${code ?? 'signal'})`)
-        );
-      else resolve(output);
+      else if (code !== 0) {
+        const message = `${label} failed (exit ${code ?? 'signal'})`;
+        const error = options.captureDiagnostics
+          ? new ImplementationCommandError(message, `${output}\n${errors}`)
+          : new HostCommandError(message);
+        error.lockHeld = /\.lock'?: File exists|Unable to create '[^']*\.lock'/.test(errors);
+        reject(error);
+      } else resolve(output);
     });
   });
 };

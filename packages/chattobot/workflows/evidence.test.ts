@@ -2,7 +2,14 @@ import { mkdtemp, rm, writeFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
-import { verifyFinding, renderFindings, evidenceCollector, type Finding } from './evidence.ts';
+import {
+  CitationError,
+  verifyFinding,
+  renderFindings,
+  evidenceCollector,
+  withoutExcerpts,
+  type Finding
+} from './evidence.ts';
 import type { AgentExtensionAPI } from 'runling/agents';
 
 const folders: string[] = [];
@@ -59,7 +66,7 @@ test('rejects symlinks outside the checkout and cancelled reads', async () => {
   await expect(verifyFinding(root, finding, AbortSignal.abort())).rejects.toThrow();
 });
 
-test('the tool records only accepted citations and bounds report size', async () => {
+test('the tool records only accepted citations and bounds the number of findings', async () => {
   const { root, finding } = await fixture();
   const collector = evidenceCollector(root, new AbortController().signal);
   let execute!: (id: string, value: Finding) => Promise<{ isError?: boolean }>;
@@ -76,8 +83,66 @@ test('the tool records only accepted citations and bounds report size', async ()
   expect(collector.findings).toEqual([]);
   await execute('good', finding);
   expect(collector.findings).toEqual([finding]);
-  const large = { ...finding, suggestedChange: 'x'.repeat(4000) };
-  for (let i = 0; i < 4; i++) await execute(`more-${i}`, large);
-  await expect(execute('overflow', large)).rejects.toThrow('Evidence budget');
-  expect(JSON.stringify(collector.findings).length).toBeLessThan(20_000);
+  for (let i = 1; i < 12; i++) await execute(`more-${i}`, finding);
+  expect(collector.findings).toHaveLength(12);
+  // The finding limit is a normal answer, not a tool failure that would stop the task.
+  const overflow = (await execute('overflow', finding)) as {
+    isError?: boolean;
+    content: { text: string }[];
+  };
+  expect(overflow.isError).toBeUndefined();
+  expect(overflow.content[0]!.text).toMatch(/finding limit \(12\) is reached/);
+  expect(collector.findings).toHaveLength(12);
+});
+
+test('results carry findings without their checked excerpts', async () => {
+  const { finding } = await fixture();
+  const checked = {
+    ...finding,
+    evidence: [{ path: 'example.txt', startLine: 1, endLine: 1, quote: 'original' }]
+  };
+  const [stripped] = withoutExcerpts([checked]);
+  expect(stripped!.evidence).toEqual([{ path: 'example.txt', startLine: 1, endLine: 1 }]);
+  expect(checked.evidence[0]!.quote).toBe('original');
+  expect(renderFindings([stripped!])).toContain('example.txt:1-1');
+  expect(renderFindings([stripped!])).not.toContain('original');
+});
+
+test('rejections say what to correct, without host paths', async () => {
+  const { root, finding } = await fixture();
+  const cases: [Partial<Finding['evidence'][number]>, RegExp][] = [
+    [{ path: 'missing.ts' }, /missing\.ts does not exist in the checkout/],
+    [{ startLine: 1, endLine: 999 }, /is not a line range of the file/],
+    [{ quote: 'something else' }, /The quote does not match/]
+  ];
+  for (const [change, message] of cases) {
+    const citation = { ...finding.evidence[0]!, ...change };
+    const error = await verifyFinding(
+      root,
+      { ...finding, evidence: [citation] },
+      new AbortController().signal
+    ).catch((reason: Error) => reason);
+    expect(error).toBeInstanceOf(CitationError);
+    expect((error as Error).message).toMatch(message);
+    expect((error as Error).message).not.toContain(root);
+  }
+});
+
+test('a citation covers at most 40 lines', async () => {
+  const { root, finding } = await fixture();
+  const { writeFile } = await import('node:fs/promises');
+  const { join } = await import('node:path');
+  await writeFile(
+    join(root, 'long.ts'),
+    Array.from({ length: 60 }, (_, n) => `line ${n}`).join('\n')
+  );
+  const citation = { path: 'long.ts', startLine: 1, endLine: 41 };
+  await expect(
+    verifyFinding(root, { ...finding, evidence: [citation] }, new AbortController().signal)
+  ).rejects.toThrow('covers more than 40 lines');
+  await verifyFinding(
+    root,
+    { ...finding, evidence: [{ ...citation, endLine: 40 }] },
+    new AbortController().signal
+  );
 });

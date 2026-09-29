@@ -189,7 +189,8 @@ test('passes implementation configuration through the realtime source and captur
     directory: '/configured/chatto',
     repository: 'example/chatto',
     baseBranch: 'main',
-    model: 'test/worker'
+    model: 'test/worker',
+    thinkingLevel: 'medium'
   });
   expect(original.investigation?.baseRef).toBe('refs/remotes/origin/main');
   expect(original.maintainers).toEqual(['alice', 'bob']);

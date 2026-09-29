@@ -344,6 +344,18 @@ export class AdminPage {
   }
 
   /**
+   * Open a section of the member details page through its tab and wait until
+   * the tab marks it as the current page.
+   */
+  async openMemberSection(section: 'Profile' | 'Account' | 'Roles' | 'Permissions'): Promise<void> {
+    const tab = this.page
+      .getByRole('navigation', { name: 'Member sections' })
+      .getByRole('link', { name: section, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-current', 'page');
+  }
+
+  /**
    * Assert that access is denied.
    */
   async expectAccessDenied(): Promise<void> {

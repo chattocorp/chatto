@@ -138,7 +138,14 @@
       "bio_placeholder": "Berätta lite om den här medlemmen för andra",
       "bio_description": "Upp till {max} tecken, visas i medlemmens profil.",
       "update_failed": "Det gick inte att uppdatera användaren",
-      "cooldown_clear_failed": "Det gick inte att rensa väntetiden för byte av användarnamn"
+      "cooldown_clear_failed": "Det gick inte att rensa väntetiden för byte av användarnamn",
+      "tabs": {
+        "label": "Avsnitt för medlemmen",
+        "profile": "Profil",
+        "account": "Konto",
+        "roles": "Roller",
+        "permissions": "Behörigheter"
+      }
     },
     "member_delete": {
       "title": "Ta bort medlem",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Behörigheter – {name}",
       "back_to_rooms": "Tillbaka till rummen",
       "group_permissions_hint": "Åsidosättanden per grupp för kanalrummen i denna grupp. Standardvärden ärvda från serveromfånget. Enskilda rum kan ytterligare åsidosätta behörigheter från sin egen behörighetssida.",
-      "room_permissions_hint": "Åsidosätter per rum för det här rummet. Värden som anges här har företräde framför gruppens och servergemensamma standardvärden.",
+      "room_permissions_hint": "De här inställningarna gäller bara i det här rummet. De ersätter inställningarna för rumsgruppen och servern för samma roll eller användare. Om bara vissa roller ska kunna göra något här väljer du Neka för everyone och Tillåt för de rollerna.",
       "loading": "Laddar rum...",
       "empty_groups": "Inga rumsgrupper än",
       "empty_groups_body": "Skapa en uppsättning för att börja organisera rum.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Redigera rum",
       "room_description_placeholder": "Valfri beskrivning för detta rum",
       "slow_mode": "Långsamt läge",
-      "slow_mode_description": "Ange hur länge medlemmar måste vänta mellan meddelanden i det här rummet.",
       "slow_mode_off": "Av",
       "slow_mode_custom": "{interval} (aktuellt värde)",
-      "threading_mode": "Trådläge",
       "threading_mode_description": "Krävs använder alltid trådar; Uppmuntras gör trådsvar till huvudåtgärden; Aktiverat lämnar valet öppet; Inaktiverat blockerar ny trådaktivitet.",
       "threading_mode_required": "Krävs",
       "threading_mode_required_description": "Varje meddelande startar en tråd.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Det gick inte att ta bort medlemmen: {error}",
       "move_room_failed": "Det gick inte att flytta rummet: {error}",
       "move_link_failed": "Det gick inte att flytta länken: {error}",
-      "reorder_rooms_failed": "Det gick inte att ändra ordning på rummen: {error}"
+      "reorder_rooms_failed": "Det gick inte att ändra ordning på rummen: {error}",
+      "tabs": {
+        "label": "Avsnitt för rummet",
+        "general": "Allmänt",
+        "members": "Medlemmar",
+        "permissions": "Behörigheter"
+      },
+      "settings": {
+        "name_title": "Namn och beskrivning",
+        "name_subtitle": "Medlemmar ser dessa i rumslistan och högst upp i rummet.",
+        "visibility_title": "Synlighet",
+        "visibility_subtitle": "Välj vem som är medlem i det här rummet.",
+        "universal_description": "Alla medlemmar som kan gå med i det här rummet är automatiskt medlemmar.",
+        "visibility_help": "Använd ett universellt rum för nyheter som alla medlemmar måste få, till exempel tillkännagivanden. Medlemmar kan inte lämna ett universellt rum, men de kan tysta det. Om du stänger av universellt stannar medlemmarna som gick med tidigare kvar i rummet.",
+        "slow_mode_subtitle": "Begränsa hur ofta varje medlem kan skriva i det här rummet.",
+        "slow_mode_interval": "Minsta tid mellan inlägg",
+        "slow_mode_help": "En timer gäller för meddelanden, trådsvar och bilagor. Medlemmar med behörigheten room.manage eller message.manage är undantagna. Medan de väntar kan medlemmar fortfarande skriva utkast, redigera sina meddelanden och lägga till reaktioner.",
+        "threading_title": "Trådläge",
+        "threading_subtitle": "Välj hur konversationer i det här rummet använder trådar.",
+        "threading_help": "En ändring gäller bara nya meddelanden. Befintliga trådar förblir som de är. Krävs passar rum där varje meddelande är ett eget ämne, till exempel supportärenden. Rekommenderat håller livliga rum lättlästa, men tvingar inte fram trådar."
+      }
     },
     "security": {
       "title": "Säkerhet",

@@ -620,6 +620,12 @@
         "history": "Son hatalar",
         "no_failures": "Saklanan hata yok.",
         "more_failures": "Daha fazla yükle"
+      },
+      "tabs": {
+        "label": "Bot bölümleri",
+        "overview": "Genel Bakış",
+        "integrations": "Entegrasyonlar",
+        "permissions": "İzinler"
       }
     }
   }

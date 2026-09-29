@@ -216,7 +216,7 @@
       "no_files": "V této místnosti zatím nejsou žádné soubory.",
       "files": "Soubory",
       "pins": "Připnuté zprávy",
-      "call": "Zavolejte",
+      "call": "Hovor",
       "jump_to_file": "Přejít na {filename}",
       "loading_files": "Načítání souborů...",
       "loading_members": "Načítání členů...",
@@ -227,12 +227,11 @@
       "remove_failed": "Uživatele se nepodařilo odebrat z místnosti",
       "remove_success": "{name} byl odebrán z místnosti",
       "members_load_failed": "Nepodařilo se načíst členy místnosti",
-      "members_refresh_failed": "Nepodařilo se obnovit členy místnosti"
+      "members_refresh_failed": "Nepodařilo se obnovit členy místnosti",
+      "search": "Hledat"
     },
     "pins": {
-      "show": "Zobrazit připnuté zprávy",
       "unseen": "Nové připnuté zprávy",
-      "hide": "Skrýt připnuté zprávy",
       "pin": "Připnout zprávu",
       "unpin": "Odepnout zprávu",
       "unpin_prompt": "Opravdu chcete tuto zprávu odepnout?",

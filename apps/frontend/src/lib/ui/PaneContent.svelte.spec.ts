@@ -15,8 +15,8 @@ describe('PaneContent', () => {
 
     expect(scrollArea.className).toContain('overflow-y-auto');
     expect(fader.className).toContain('relative');
-    expect(content.className).toContain('max-w-5xl');
-    expect(content.className).toContain('w-full');
+    expect(content.classList).toContain('max-w-pane');
+    expect(content.classList).toContain('w-full');
   });
 
   it('allows a wider column for browsing grids', () => {
@@ -25,8 +25,9 @@ describe('PaneContent', () => {
     });
     const content = container.querySelector('[data-testid="content"]')!.parentElement!;
 
-    expect(content.className).toContain('max-w-6xl');
-    expect(content.className).not.toContain('max-w-5xl');
+    expect(content.classList).toContain('max-w-pane-wide');
+    expect(content.classList).not.toContain('max-w-pane');
+    expect(content.dataset.paneContent).toBe('wide');
   });
 
   it('can give a primary child the available page height', () => {

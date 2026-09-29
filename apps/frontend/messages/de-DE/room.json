@@ -227,12 +227,11 @@
       "remove_failed": "Benutzer konnte nicht aus dem Raum entfernt werden",
       "remove_success": "{name} wurde aus dem Raum entfernt",
       "members_load_failed": "Raummitglieder konnten nicht geladen werden",
-      "members_refresh_failed": "Raummitglieder konnten nicht aktualisiert werden"
+      "members_refresh_failed": "Raummitglieder konnten nicht aktualisiert werden",
+      "search": "Suchen"
     },
     "pins": {
-      "show": "Angepinnte Nachrichten anzeigen",
       "unseen": "Neue angepinnte Nachrichten",
-      "hide": "Angepinnte Nachrichten ausblenden",
       "pin": "Nachricht anpinnen",
       "unpin": "Pin entfernen",
       "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",

@@ -620,6 +620,12 @@
         "history": "כשלים אחרונים",
         "no_failures": "אין כשלים שמורים.",
         "more_failures": "טעינת עוד"
+      },
+      "tabs": {
+        "label": "אזורי הבוט",
+        "overview": "סקירה כללית",
+        "integrations": "שילובים",
+        "permissions": "הרשאות"
       }
     }
   }

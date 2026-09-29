@@ -71,9 +71,14 @@ func (t *projectionIDTable) estimatedBytes() int64 {
 	return bytes
 }
 
+// handleIDResolver resolves a handle from projectionIDTable or eventIDTable.
+type handleIDResolver interface {
+	id(handle uint32) string
+}
+
 // sortedHandleKeys returns the handle keys of values ordered by their IDs, so
 // snapshots stay deterministic regardless of interning order.
-func sortedHandleKeys[V any](ids *projectionIDTable, values map[uint32]V) []uint32 {
+func sortedHandleKeys[V any](ids handleIDResolver, values map[uint32]V) []uint32 {
 	handles := make([]uint32, 0, len(values))
 	for handle := range values {
 		handles = append(handles, handle)

@@ -3,6 +3,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
 import {
@@ -10,46 +11,23 @@ import {
   getCurrentUserViaConnect,
   getViewerStateViaConnect
 } from '$lib/api-client/viewer';
-import { authenticationRequiredInterceptor } from '$lib/api-client/connect';
+import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
+import { fakeServer, mockService, receivedContext } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getViewer: vi.fn(),
-  activatePrivilegedMode: vi.fn(),
-  deactivatePrivilegedMode: vi.fn()
-}));
+const mocks = mockService(ViewerService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function config(extra: Partial<ConnectAPIConfig> = {}) {
+  return fakeServer((router) => router.service(ViewerService, mocks), extra);
+}
 
 describe('getCurrentUserViaConnect', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.getViewer.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.activatePrivilegedMode.mockReset();
-    mocks.deactivatePrivilegedMode.mockReset();
-    mocks.createClient.mockReturnValue({
-      getViewer: mocks.getViewer,
-      activatePrivilegedMode: mocks.activatePrivilegedMode,
-      deactivatePrivilegedMode: mocks.deactivatePrivilegedMode
-    });
+    vi.resetAllMocks();
   });
 
   it('loads current user state and maps protobuf fields', async () => {
-    mocks.getViewer.mockResolvedValue({
+    mocks.getViewer.mockReturnValue({
       user: {
         profile: {
           id: 'U1',
@@ -76,21 +54,9 @@ describe('getCurrentUserViaConnect', () => {
       }
     });
 
-    const user = await getCurrentUserViaConnect({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const user = await getCurrentUserViaConnect(config());
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://chat.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.getViewer).toHaveBeenCalledWith(
-      {},
-      { contextValues: expect.anything(), timeoutMs: 10_000 }
-    );
+    expect(receivedContext(mocks.getViewer)?.timeoutMs()).toBeGreaterThan(9_000);
     expect(user).toEqual({
       id: 'U1',
       login: 'alice',
@@ -119,7 +85,7 @@ describe('getCurrentUserViaConnect', () => {
   });
 
   it('maps unspecified presence as offline', async () => {
-    mocks.getViewer.mockResolvedValue({
+    mocks.getViewer.mockReturnValue({
       user: {
         profile: {
           id: 'U2',
@@ -132,15 +98,8 @@ describe('getCurrentUserViaConnect', () => {
       }
     });
 
-    const user = await getCurrentUserViaConnect({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const user = await getCurrentUserViaConnect(config());
 
-    expect(mocks.getViewer).toHaveBeenCalledWith(
-      {},
-      { contextValues: expect.anything(), timeoutMs: 10_000 }
-    );
     expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
     expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.publicTimezone).toBeNull();
@@ -151,7 +110,7 @@ describe('getCurrentUserViaConnect', () => {
   });
 
   it('loads viewer capabilities', async () => {
-    mocks.getViewer.mockResolvedValue({
+    mocks.getViewer.mockReturnValue({
       user: {
         profile: {
           id: 'U3',
@@ -178,16 +137,7 @@ describe('getCurrentUserViaConnect', () => {
       }
     });
 
-    const signal = new AbortController().signal;
-    const viewer = await getViewerStateViaConnect(
-      {
-        baseUrl: '/api/connect',
-        bearerToken: 'token'
-      },
-      { signal }
-    );
-
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { contextValues: expect.anything(), signal });
+    const viewer = await getViewerStateViaConnect(config());
 
     expect(viewer).toEqual(
       expect.objectContaining({
@@ -207,27 +157,25 @@ describe('getCurrentUserViaConnect', () => {
   });
 
   it('leaves the reaction to a rejected viewer read to the caller', async () => {
-    mocks.getViewer.mockResolvedValue({
-      user: { profile: { id: 'U1', login: 'alice', displayName: 'Alice' } }
+    mocks.getViewer.mockImplementation(() => {
+      throw new ConnectError('session expired', Code.Unauthenticated);
     });
-    await getViewerStateViaConnect({
-      serverId: 'origin',
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
-    const { contextValues } = mocks.getViewer.mock.calls[0][1];
     const onAuthenticationRequired = vi.fn();
-    const err = new ConnectError('session expired', Code.Unauthenticated);
     configureApiClientHooks({ onAuthenticationRequired });
     try {
-      const invoke = authenticationRequiredInterceptor({ serverId: 'origin' })(() =>
-        Promise.reject(err)
-      );
-      await expect(invoke({ contextValues } as never)).rejects.toBe(err);
+      await expect(getViewerStateViaConnect(config({ serverId: 'origin' }))).rejects.toMatchObject({
+        code: Code.Unauthenticated
+      });
       expect(onAuthenticationRequired).not.toHaveBeenCalled();
     } finally {
       configureApiClientHooks({});
     }
+  });
+
+  it('cancels a viewer read with the caller signal', async () => {
+    await expect(
+      getViewerStateViaConnect(config(), { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('activates and deactivates privileged mode through the viewer service', async () => {
@@ -237,37 +185,34 @@ describe('getCurrentUserViaConnect', () => {
     const inactiveCapabilities = {
       grants: [{ capability: 'admin.view-system', granted: false }]
     };
-    const viewerPermissions = { canManageInvites: true };
+    const viewerPermissions = { permissions: [{ permission: 'invite.create', granted: true }] };
     const refreshedViewer = { privilegedMode: inactive, capabilities: inactiveCapabilities };
-    mocks.activatePrivilegedMode.mockResolvedValue({
+    mocks.activatePrivilegedMode.mockReturnValue({
       privilegedMode: active,
       capabilities: activeCapabilities,
       viewerPermissions
     });
-    mocks.deactivatePrivilegedMode.mockResolvedValue({
+    mocks.deactivatePrivilegedMode.mockReturnValue({
       privilegedMode: inactive,
       capabilities: inactiveCapabilities,
       viewerPermissions
     });
-    mocks.getViewer.mockResolvedValue(refreshedViewer);
-    const api = createPrivilegedModeAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    mocks.getViewer.mockReturnValue(refreshedViewer);
+    const api = createPrivilegedModeAPI(config());
 
-    await expect(api.activate()).resolves.toEqual({
+    await expect(api.activate()).resolves.toMatchObject({
       privilegedMode: active,
       capabilities: activeCapabilities,
       viewerPermissions
     });
-    await expect(api.deactivate()).resolves.toEqual({
+    await expect(api.deactivate()).resolves.toMatchObject({
       privilegedMode: inactive,
       capabilities: inactiveCapabilities,
       viewerPermissions
     });
-    await expect(api.refresh()).resolves.toBe(refreshedViewer);
-    expect(mocks.activatePrivilegedMode).toHaveBeenCalledWith({});
-    expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledWith({});
-    expect(mocks.getViewer).toHaveBeenCalledWith({});
+    await expect(api.refresh()).resolves.toMatchObject(refreshedViewer);
+    expect(mocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(mocks.getViewer).toHaveBeenCalledOnce();
   });
 });

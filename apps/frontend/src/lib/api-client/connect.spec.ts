@@ -208,11 +208,11 @@ describe('authenticationRequiredInterceptor', () => {
     }));
 });
 
-describe('createChattoTransport request headers', () => {
-  async function sentHeaders(
+describe('createChattoTransport requests', () => {
+  async function sentRequest(
     config: Omit<Parameters<typeof createChattoClient>[1], 'baseUrl'>,
     minimumCursor?: string
-  ): Promise<Headers> {
+  ): Promise<{ url: string; headers: Headers }> {
     const fetch = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         new Response(new Uint8Array(), {
@@ -230,14 +230,15 @@ describe('createChattoTransport request headers', () => {
         { roomId: 'room' },
         { headers: minimumCursorHeaders(minimumCursor) }
       );
-      return new Headers(fetch.mock.calls[0][1]?.headers);
+      const [url, init] = fetch.mock.calls[0];
+      return { url: String(url), headers: new Headers(init?.headers) };
     } finally {
       vi.unstubAllGlobals();
     }
   }
 
   it('sends the renewed bearer token together with the realtime cursor', async () => {
-    const headers = await sentHeaders(
+    const { headers } = await sentRequest(
       { serverId: 'remote', bearerToken: 'stale', renewBearerToken: async () => 'access-1' },
       'cursor-7'
     );
@@ -246,13 +247,19 @@ describe('createChattoTransport request headers', () => {
   });
 
   it('sends a fixed bearer token without a renewal function', async () => {
-    const headers = await sentHeaders({ bearerToken: 'fixed-token' });
+    const { headers } = await sentRequest({ bearerToken: 'fixed-token' });
     expect(headers.get('Authorization')).toBe('Bearer fixed-token');
     expect(headers.has('Chatto-Realtime-Minimum-Cursor')).toBe(false);
   });
 
   it('sends no bearer token for a cookie session', async () => {
-    const headers = await sentHeaders({ serverId: 'origin', bearerToken: null });
+    const { headers } = await sentRequest({ serverId: 'origin', bearerToken: null });
     expect(headers.has('Authorization')).toBe(false);
+  });
+
+  it('posts binary protobuf to the configured Connect endpoint', async () => {
+    const { url, headers } = await sentRequest({ bearerToken: null });
+    expect(url).toBe('http://localhost:1234/api/connect/chatto.api.v1.RoomService/ListMembers');
+    expect(headers.get('Content-Type')).toBe('application/proto');
   });
 });

@@ -138,7 +138,14 @@
       "bio_placeholder": "このメンバーについて簡単に紹介してください",
       "bio_description": "最大 {max} 文字。メンバーのプロフィールに表示されます。",
       "update_failed": "ユーザーの更新に失敗しました",
-      "cooldown_clear_failed": "ユーザー名変更のクールダウンの解除に失敗しました"
+      "cooldown_clear_failed": "ユーザー名変更のクールダウンの解除に失敗しました",
+      "tabs": {
+        "label": "メンバーのセクション",
+        "profile": "プロフィール",
+        "account": "アカウント",
+        "roles": "役割",
+        "permissions": "権限"
+      }
     },
     "member_delete": {
       "title": "メンバーを削除",
@@ -205,7 +212,7 @@
       "permissions_page_title": "権限 - {name}",
       "back_to_rooms": "部屋に戻る",
       "group_permissions_hint": "このグループのチャンネル ルームのグループごとのオーバーライド。デフォルトはサーバースコープから継承されます。個々のルームは、独自の権限ページから権限をさらにオーバーライドできます。",
-      "room_permissions_hint": "このルームに対するルームごとのオーバーライド。ここで設定した値は、グループおよびサーバー全体のデフォルトよりも優先されます。",
+      "room_permissions_hint": "これらの設定はこのルームでのみ適用されます。同じロールまたはユーザーについて、ルームグループとサーバーの設定に代わります。ここで一部のロールだけに操作を許可するには、everyone に拒否を、それらのロールに許可を設定します。",
       "loading": "ルームを読み込み中...",
       "empty_groups": "ルームグループはまだありません",
       "empty_groups_body": "セットを作成してルームの整理を始めます。",
@@ -228,10 +235,8 @@
       "edit_room_action": "編集室",
       "room_description_placeholder": "このルームの説明 (オプション)",
       "slow_mode": "低速モード",
-      "slow_mode_description": "このルームでメンバーが次のメッセージを送信するまでの待ち時間を設定します。",
       "slow_mode_off": "オフ",
       "slow_mode_custom": "{interval}（現在の値）",
-      "threading_mode": "スレッドモード",
       "threading_mode_description": "必須では常にスレッドを使用し、推奨ではスレッド返信が主操作になります。有効では自由に選択でき、無効では新しいスレッド活動を禁止します。",
       "threading_mode_required": "必須",
       "threading_mode_required_description": "すべてのメッセージでスレッドが始まります。",
@@ -296,7 +301,27 @@
       "remove_member_failed": "メンバーの削除に失敗しました: {error}",
       "move_room_failed": "ルームの移動に失敗しました: {error}",
       "move_link_failed": "リンクの移動に失敗しました: {error}",
-      "reorder_rooms_failed": "ルームの並べ替えに失敗しました: {error}"
+      "reorder_rooms_failed": "ルームの並べ替えに失敗しました: {error}",
+      "tabs": {
+        "label": "ルームのセクション",
+        "general": "一般",
+        "members": "メンバー",
+        "permissions": "権限"
+      },
+      "settings": {
+        "name_title": "名前と説明",
+        "name_subtitle": "メンバーはルーム一覧とルーム上部でこれらを確認できます。",
+        "visibility_title": "表示範囲",
+        "visibility_subtitle": "このルームのメンバーを選択します。",
+        "universal_description": "このルームに参加できるメンバーは全員、自動的にメンバーになります。",
+        "visibility_help": "お知らせなど、全メンバーに届ける必要がある情報にはユニバーサルルームを使います。メンバーはユニバーサルルームから退出できませんが、ミュートはできます。ユニバーサルをオフにしても、以前に参加したメンバーはルームに残ります。",
+        "slow_mode_subtitle": "各メンバーがこのルームに投稿できる頻度を制限します。",
+        "slow_mode_interval": "投稿の最小間隔",
+        "slow_mode_help": "メッセージ、スレッドの返信、添付ファイルには 1 つのタイマーが適用されます。room.manage または message.manage の権限を持つメンバーは対象外です。待機中も、メンバーは下書きの作成、自分のメッセージの編集、リアクションの追加ができます。",
+        "threading_title": "スレッドモード",
+        "threading_subtitle": "このルームの会話でスレッドをどのように使うかを選択します。",
+        "threading_help": "変更は新しいメッセージにのみ適用されます。既存のスレッドはそのまま残ります。「必須」は、サポート依頼のように各メッセージが別の話題になるルームに適しています。「推奨」は、スレッドを強制せずに活発なルームを読みやすく保ちます。"
+      }
     },
     "security": {
       "title": "セキュリティ",

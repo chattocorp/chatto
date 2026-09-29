@@ -216,7 +216,7 @@
       "no_files": "Nessun file ancora in questa stanza.",
       "files": "File",
       "pins": "Messaggi fissati",
-      "call": "Chiama",
+      "call": "Chiamata",
       "jump_to_file": "Vai a {filename}",
       "loading_files": "Caricamento file...",
       "loading_members": "Caricamento membri...",
@@ -227,12 +227,11 @@
       "remove_failed": "Impossibile rimuovere l’utente dalla stanza",
       "remove_success": "{name} è stato rimosso dalla stanza",
       "members_load_failed": "Impossibile caricare i membri della stanza",
-      "members_refresh_failed": "Impossibile aggiornare i membri della stanza"
+      "members_refresh_failed": "Impossibile aggiornare i membri della stanza",
+      "search": "Cerca"
     },
     "pins": {
-      "show": "Mostra i messaggi fissati",
       "unseen": "Nuovi messaggi fissati",
-      "hide": "Nascondi i messaggi fissati",
       "pin": "Fissa il messaggio",
       "unpin": "Rimuovi il messaggio fissato",
       "unpin_prompt": "Vuoi davvero rimuovere questo messaggio fissato?",

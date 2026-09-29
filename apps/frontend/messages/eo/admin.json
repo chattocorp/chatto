@@ -138,7 +138,14 @@
       "bio_placeholder": "Rakontu al aliaj iomete pri ĉi tiu membro",
       "bio_description": "Ĝis {max} signoj, montrataj en la profilo de la membro.",
       "update_failed": "Malsukcesis ĝisdatigi uzanton",
-      "cooldown_clear_failed": "Malsukcesis nuligi la malvarmigon de uzantnoma ŝanĝo"
+      "cooldown_clear_failed": "Malsukcesis nuligi la malvarmigon de uzantnoma ŝanĝo",
+      "tabs": {
+        "label": "Sekcioj de la membro",
+        "profile": "Profilo",
+        "account": "Konto",
+        "roles": "Roloj",
+        "permissions": "Permesoj"
+      }
     },
     "member_delete": {
       "title": "Forigi membron",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Permesoj - {name}",
       "back_to_rooms": "Reen al ĉambroj",
       "group_permissions_hint": "Po-grupaj anstataŭaĵoj por la kanalĉambroj en ĉi tiu grupo. Defaŭltoj hereditaj de la servila amplekso. Individuaj ĉambroj povas plue superregi permesojn de sia propra permespaĝo.",
-      "room_permissions_hint": "Anstataŭigoj por ĉambro por ĉi tiu ĉambro. Valoroj ĉi tie fiksitaj havas prioritaton super la defaŭltoj de la grupo kaj tutservilo.",
+      "room_permissions_hint": "Ĉi tiuj agordoj validas nur en ĉi tiu ĉambro. Ili anstataŭas la agordojn de la ĉambrogrupo kaj de la servilo por la sama rolo aŭ uzanto. Por permesi ion ĉi tie nur al kelkaj roloj, agordu Rifuzi por everyone kaj Permesi por tiuj roloj.",
       "loading": "Ŝarĝante ĉambrojn...",
       "empty_groups": "Ankoraŭ neniuj ĉambrogrupoj",
       "empty_groups_body": "Kreu aron por komenci organizi ĉambrojn.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Redaktu ĉambron",
       "room_description_placeholder": "Laŭvola priskribo por ĉi tiu ĉambro",
       "slow_mode": "Malrapida reĝimo",
-      "slow_mode_description": "Agordu kiom longe membroj devas atendi inter mesaĝoj en ĉi tiu ĉambro.",
       "slow_mode_off": "Malŝaltita",
       "slow_mode_custom": "{interval} (nuna valoro)",
-      "threading_mode": "Fadenreĝimo",
       "threading_mode_description": "Deviga ĉiam uzas fadenojn; Rekomendita faras respondon en fadeno la ĉefa ago; Ŝaltita lasas la elekton libera; Malŝaltita blokas novan fadenan agadon.",
       "threading_mode_required": "Deviga",
       "threading_mode_required_description": "Ĉiu mesaĝo komencas fadenon.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Malsukcesis forigi membron: {error}",
       "move_room_failed": "Malsukcesis movi ĉambron: {error}",
       "move_link_failed": "Malsukcesis movi ligilon: {error}",
-      "reorder_rooms_failed": "Malsukcesis reordigi ĉambrojn: {error}"
+      "reorder_rooms_failed": "Malsukcesis reordigi ĉambrojn: {error}",
+      "tabs": {
+        "label": "Sekcioj de la ĉambro",
+        "general": "Ĝenerala",
+        "members": "Membroj",
+        "permissions": "Permesoj"
+      },
+      "settings": {
+        "name_title": "Nomo kaj priskribo",
+        "name_subtitle": "Membroj vidas ilin en la listo de ĉambroj kaj supre en la ĉambro.",
+        "visibility_title": "Videbleco",
+        "visibility_subtitle": "Elektu, kiu estas membro de ĉi tiu ĉambro.",
+        "universal_description": "Ĉiu membro, kiu povas aliĝi al ĉi tiu ĉambro, estas aŭtomate membro.",
+        "visibility_help": "Uzu universalan ĉambron por novaĵoj, kiujn ĉiuj membroj devas ricevi, ekzemple anoncoj. Membroj ne povas forlasi universalan ĉambron, sed ili povas silentigi ĝin. Se vi malŝaltas la universalan reĝimon, la membroj, kiuj aliĝis antaŭe, restas en la ĉambro.",
+        "slow_mode_subtitle": "Limigu, kiom ofte ĉiu membro povas afiŝi en ĉi tiu ĉambro.",
+        "slow_mode_interval": "Minimuma tempo inter afiŝoj",
+        "slow_mode_help": "Unu tempomezurilo validas por mesaĝoj, fadenaj respondoj kaj kunsendaĵoj. Membroj kun la permeso room.manage aŭ message.manage estas esceptitaj. Dum ili atendas, membroj ankoraŭ povas skribi malnetojn, redakti siajn mesaĝojn kaj aldoni reagojn.",
+        "threading_title": "Fadenreĝimo",
+        "threading_subtitle": "Elektu, kiel konversacioj en ĉi tiu ĉambro uzas fadenojn.",
+        "threading_help": "Ŝanĝo validas nur por novaj mesaĝoj. Ekzistantaj fadenoj restas senŝanĝaj. Deviga taŭgas por ĉambroj, kie ĉiu mesaĝo estas aparta temo, ekzemple helppetoj. Instigita tenas aktivajn ĉambrojn facile legeblaj, sed ne devigas fadenojn."
+      }
     },
     "security": {
       "title": "Sekureco",

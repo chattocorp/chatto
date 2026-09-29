@@ -138,7 +138,14 @@
       "bio_placeholder": "Pastāstiet citiem nedaudz par šo dalībnieku",
       "bio_description": "Līdz {max} rakstzīmēm, tiek rādīts dalībnieka profilā.",
       "update_failed": "Neizdevās atjaunināt lietotāju",
-      "cooldown_clear_failed": "Neizdevās atiestatīt lietotājvārda maiņas gaidīšanas laiku"
+      "cooldown_clear_failed": "Neizdevās atiestatīt lietotājvārda maiņas gaidīšanas laiku",
+      "tabs": {
+        "label": "Dalībnieka sadaļas",
+        "profile": "Profils",
+        "account": "Konts",
+        "roles": "Lomas",
+        "permissions": "Atļaujas"
+      }
     },
     "member_delete": {
       "title": "Dzēst dalībnieku",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Atļaujas — {name}",
       "back_to_rooms": "Atpakaļ uz istabām",
       "group_permissions_hint": "Šīs grupas kanālu telpu ignorēšana katrā grupā. Noklusējumi mantoti no servera darbības jomas. Atsevišķas telpas var tālāk ignorēt atļaujas no savas atļauju lapas.",
-      "room_permissions_hint": "Šīs telpas ignorēšana katrā istabā. Šeit iestatītajām vērtībām ir prioritāte pār grupas un servera noklusējuma vērtībām.",
+      "room_permissions_hint": "Šie iestatījumi attiecas tikai uz šo istabu. Tie aizstāj istabu grupas un servera iestatījumus tai pašai lomai vai lietotājam. Lai šeit kaut ko atļautu tikai dažām lomām, iestatiet Aizliegt lomai everyone un Atļaut šīm lomām.",
       "loading": "Notiek telpu ielāde...",
       "empty_groups": "Vēl nav telpu grupu",
       "empty_groups_body": "Izveidojiet komplektu, lai sāktu kārtot telpas.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Rediģēt istabu",
       "room_description_placeholder": "Šīs telpas apraksts pēc izvēles",
       "slow_mode": "Lēnais režīms",
-      "slow_mode_description": "Iestatiet, cik ilgi dalībniekiem jāgaida starp ziņojumiem šajā telpā.",
       "slow_mode_off": "Izslēgts",
       "slow_mode_custom": "{interval} (pašreizējā vērtība)",
-      "threading_mode": "Pavedienu režīms",
       "threading_mode_description": "Obligātais režīms vienmēr izmanto pavedienus; Ieteicamais padara atbildi pavedienā par galveno darbību; Iespējots atstāj izvēli; Atspējots bloķē jaunas darbības pavedienos.",
       "threading_mode_required": "Obligāts",
       "threading_mode_required_description": "Katrs ziņojums sāk pavedienu.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Neizdevās noņemt dalībnieku: {error}",
       "move_room_failed": "Neizdevās pārvietot telpu: {error}",
       "move_link_failed": "Neizdevās pārvietot saiti: {error}",
-      "reorder_rooms_failed": "Neizdevās pārkārtot telpas: {error}"
+      "reorder_rooms_failed": "Neizdevās pārkārtot telpas: {error}",
+      "tabs": {
+        "label": "Istabas sadaļas",
+        "general": "Vispārīgi",
+        "members": "Biedri",
+        "permissions": "Atļaujas"
+      },
+      "settings": {
+        "name_title": "Nosaukums un apraksts",
+        "name_subtitle": "Dalībnieki tos redz istabu sarakstā un istabas augšdaļā.",
+        "visibility_title": "Redzamība",
+        "visibility_subtitle": "Izvēlieties, kas ir šīs istabas dalībnieki.",
+        "universal_description": "Katrs dalībnieks, kurš var pievienoties šai istabai, automātiski ir tās dalībnieks.",
+        "visibility_help": "Izmantojiet universālu istabu ziņām, kas jāsaņem visiem dalībniekiem, piemēram, paziņojumiem. Dalībnieki nevar pamest universālu istabu, taču viņi to var apklusināt. Ja izslēgsiet universālo režīmu, dalībnieki, kuri pievienojās iepriekš, paliks istabā.",
+        "slow_mode_subtitle": "Ierobežojiet, cik bieži katrs dalībnieks var publicēt šajā istabā.",
+        "slow_mode_interval": "Minimālais laiks starp publikācijām",
+        "slow_mode_help": "Viens taimeris attiecas uz ziņām, pavedienu atbildēm un pielikumiem. Dalībniekiem ar atļauju room.manage vai message.manage ierobežojums nav spēkā. Gaidīšanas laikā dalībnieki joprojām var rakstīt melnrakstus, rediģēt savas ziņas un pievienot reakcijas.",
+        "threading_title": "Pavedienu režīms",
+        "threading_subtitle": "Izvēlieties, kā sarunas šajā istabā izmanto pavedienus.",
+        "threading_help": "Izmaiņas attiecas tikai uz jaunām ziņām. Esošie pavedieni paliek nemainīgi. Obligāts režīms der istabām, kur katra ziņa ir atsevišķa tēma, piemēram, atbalsta pieprasījumiem. Ieteicams režīms saglabā aktīvas istabas viegli lasāmas, bet pavedienus neuzspiež."
+      }
     },
     "security": {
       "title": "Drošība",

@@ -89,7 +89,11 @@
       "message_missing": "Messaggio non più disponibile",
       "in_room": "dentro",
       "in_room_capitalized": "Dentro",
-      "load_failed": "Impossibile caricare i thread"
+      "load_failed": "Impossibile caricare i thread",
+      "notifications_count": {
+        "one": "{count} notifica",
+        "other": "{count} notifiche"
+      }
     },
     "profile": {
       "title": "Profilo",

@@ -4,7 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { NotificationAttentionLevel } from '$lib/api-client/notifications';
-  import { UnreadDot } from '$lib/ui';
+  import { NotificationBadge, UnreadDot } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let { active }: { active: boolean } = $props();
@@ -24,11 +24,7 @@
       );
     })
   );
-  const hasNotification = $derived(threadNotifications.length > 0);
-
-  const hasUnread = $derived(
-    hasNotification || serverScope.store.hasUnreadFollowedThreadInLoadedRooms()
-  );
+  const notificationCount = $derived(threadNotifications.length);
 
   const hasImportantAttention = $derived(
     threadNotifications.some(
@@ -44,11 +40,17 @@
 >
   <span aria-hidden="true" class="iconify sidebar-icon icon-[uil--comment-alt-lines]"></span>
   {m('chat.threads.title')}
-  {#if hasUnread}
-    <UnreadDot
+  {#if notificationCount > 0}
+    <NotificationBadge
       class="ms-auto"
-      color={hasImportantAttention ? 'warning' : 'neutral'}
-      testid="my-threads-unread-dot"
+      count={notificationCount}
+      color={hasImportantAttention ? 'warning' : 'ambient'}
+      testid="my-threads-notification-badge"
     />
+    <span class="sr-only"
+      >{m('chat.threads.notifications_count', { count: notificationCount })}</span
+    >
+  {:else if serverScope.store.hasUnreadFollowedThreadInLoadedRooms()}
+    <UnreadDot class="ms-auto" color="neutral" testid="my-threads-unread-dot" />
   {/if}
 </a>

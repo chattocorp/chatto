@@ -620,6 +620,12 @@
         "history": "Нещодавні помилки",
         "no_failures": "Немає збережених помилок.",
         "more_failures": "Завантажити ще"
+      },
+      "tabs": {
+        "label": "Розділи бота",
+        "overview": "Огляд",
+        "integrations": "Інтеграції",
+        "permissions": "Дозволи"
       }
     }
   }

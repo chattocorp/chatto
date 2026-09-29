@@ -89,7 +89,11 @@
       "message_missing": "Le message n'est plus disponible",
       "in_room": "dans",
       "in_room_capitalized": "Dans",
-      "load_failed": "Échec du chargement des discussions"
+      "load_failed": "Échec du chargement des discussions",
+      "notifications_count": {
+        "one": "{count} notification",
+        "other": "{count} notifications"
+      }
     },
     "profile": {
       "title": "Profil",

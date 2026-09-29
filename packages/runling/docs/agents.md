@@ -7,8 +7,8 @@ agent exports from `runling` remain available.
 Choose `output: "text"` for conversational agents:
 
 ```ts
-const bot = await agent({ cwd: directory, model, output: "text" });
-const result = await bot.run(ctx, "Hello", { onText: text => console.log(text) });
+const bot = await agent({ cwd: directory, model, output: 'text' });
+const result = await bot.run(ctx, 'Hello', { onText: (text) => console.log(text) });
 ```
 
 Set `systemPrompt` to replace Pi's default coding-agent prompt for a different
@@ -39,30 +39,28 @@ sign in again on the agent host. Raw provider diagnostics are not in this summar
 Use a connection when a task needs live input and asynchronous output:
 
 ```ts
-import { agent, connectAgent } from "runling/agents";
-import { task, type WorkflowContext } from "runling";
+import { agent, connectAgent } from 'runling/agents';
+import { task, type WorkflowContext } from 'runling';
 
-type Update = { type: "text"; text: string }
-  | { type: "delivery"; text: string; consumed: boolean };
+type Update =
+  { type: 'text'; text: string } | { type: 'delivery'; text: string; consumed: boolean };
 
-export const investigate = task(async (
-  ctx: WorkflowContext<string, Update>,
-  directory: string,
-  question: string,
-) => {
-  await using worker = await agent({
-    cwd: directory,
-    model: "openai-codex/gpt-5.6-sol",
-    tools: ["read", "grep", "find", "ls"],
-  });
-  await using connection = connectAgent(ctx, worker, {
-    inbox: ctx.inbox,
-    onText: text => ctx.emit({ type: "text", text }),
-    onDelivery: (text, consumed) => ctx.emit({ type: "delivery", text, consumed }),
-  });
+export const investigate = task(
+  async (ctx: WorkflowContext<string, Update>, directory: string, question: string) => {
+    await using worker = await agent({
+      cwd: directory,
+      model: 'openai-codex/gpt-5.6-sol',
+      tools: ['read', 'grep', 'find', 'ls']
+    });
+    await using connection = connectAgent(ctx, worker, {
+      inbox: ctx.inbox,
+      onText: (text) => ctx.emit({ type: 'text', text }),
+      onDelivery: (text, consumed) => ctx.emit({ type: 'delivery', text, consumed })
+    });
 
-  return await connection.runOutcome(question);
-});
+    return await connection.runOutcome(question);
+  }
+);
 ```
 
 The parent can [spawn this task](task-channels.md), send messages, and consume
@@ -94,6 +92,24 @@ is idempotent, closes the inbox iterator, and prevents reuse. It does not dispos
 the supplied agent. Within an `await using` scope, use `return await` so the
 connection stays alive until the interaction finishes.
 
+## Continuing an agent's conversation
+
+By default, an agent keeps its conversation in memory, and the conversation ends
+with the process. Set `sessionFile` to a path to keep it in a JSONL file
+instead. When that file exists, a new agent with the same `sessionFile`
+continues the conversation with its full context, for example after the task
+was cancelled or the process restarted. When it does not exist, the agent
+starts a new conversation there. Pi writes the file after the first model reply.
+
+```ts
+const worker = await agent({ model, cwd, sessionFile: join(artifactDirectory, "worker.jsonl") });
+```
+
+The file contains the complete model context: prompts, tool results, and
+replies. Keep it private, like other workflow data. A fork does not use the
+file. `sessionFile` cannot be combined with `trust`, because the untrusted mark
+is kept only in memory; a continued conversation would lose it.
+
 ## Untrusted content
 
 Set `trust` when an agent can read content that other people control, such as web
@@ -101,9 +117,9 @@ pages, and also has tools that must not act on that content:
 
 ```ts
 await using owner = await agent({
-  cwd: ".",
-  tools: ["researchWeb", "publishChange"],
-  trust: { untrusted: ["researchWeb"], blockAfterUntrusted: ["publishChange"] },
+  cwd: '.',
+  tools: ['researchWeb', 'publishChange'],
+  trust: { untrusted: ['researchWeb'], blockAfterUntrusted: ['publishChange'] }
 });
 ```
 
@@ -126,31 +142,40 @@ through `createTrustExtension(policy).extension`. See
 agent tool. Register it inside the run so it uses that run's context:
 
 ```ts
-import { agent, defineAgentExtension, taskTool } from "runling/agents";
-import { task, Type } from "runling";
+import { agent, defineAgentExtension, taskTool } from 'runling/agents';
+import { task, Type } from 'runling';
 
-const greet = task({
-  name: "Greet",
-  input: Type.Object({ name: Type.String() }),
-  output: Type.String(),
-}, (_ctx, { name }) => `Hello, ${name}`);
+const greet = task(
+  {
+    name: 'Greet',
+    input: Type.Object({ name: Type.String() }),
+    output: Type.String()
+  },
+  (_ctx, { name }) => `Hello, ${name}`
+);
 
 export const workflow = task(async (ctx) => {
-  const tools = defineAgentExtension(pi => {
-    pi.registerTool(taskTool(ctx, {
-      name: "greet",
-      label: "Greet",
-      description: "Return a greeting for a name.",
-      parameters: greet.input,
-    }, greet));
+  const tools = defineAgentExtension((pi) => {
+    pi.registerTool(
+      taskTool(
+        ctx,
+        {
+          name: 'greet',
+          label: 'Greet',
+          description: 'Return a greeting for a name.',
+          parameters: greet.input
+        },
+        greet
+      )
+    );
   });
 
   await using worker = await agent({
-    cwd: ".",
-    tools: ["greet"],
-    extensions: [tools],
+    cwd: '.',
+    tools: ['greet'],
+    extensions: [tools]
   });
-  return await worker.runOutcome(ctx, "Greet Ada.");
+  return await worker.runOutcome(ctx, 'Greet Ada.');
 });
 ```
 
@@ -182,11 +207,16 @@ including when a user asks for progress. Do not infer current state from an old
 notification or a worker's earlier intention.
 
 ```ts
-await ctx.emit({ type: "state", value: {
-  phase: "validating", completedChecks: ["types"], pendingChecks: ["tests"],
-} });
+await ctx.emit({
+  type: 'state',
+  value: {
+    phase: 'validating',
+    completedChecks: ['types'],
+    pendingChecks: ['tests']
+  }
+});
 const connection = connectAgent(ctx, worker, {
-  onText: text => ctx.emit({ type: "output", text }),
+  onText: (text) => ctx.emit({ type: 'output', text })
 });
 ```
 
@@ -208,7 +238,7 @@ console prefix; full agent and task IDs remain in structured logs.
 
 `output` silently buffers published agent text. It does not collect reasoning
 or raw tool output. The buffer retains the last 16 messages, with at most 4,000
-characters each, a sequence number, receipt time, and `output`, `finding`, or `reply` kind.
+characters each, a sequence number, receipt time, and `output`, `finding`, `reply`, or `notice` kind.
 Entries set `truncated` when text was shortened; `droppedOutput` counts evicted
 messages. Findings and legacy text updates also
 enter the buffer. Output is historical, untrusted reference data, not proof of
@@ -222,8 +252,23 @@ with `task.reply`. The owner reads the fresh task snapshot to get the answer.
 An application can set `replyTo` to keep a question ID with the answer. The
 application decides how to mark a question and when to emit its reply.
 
-- `observe(name, run)` adopts an ordinary run with string input messages and
+Use `ctx.emit({ type: "notice", text, data })` for a message that the owner should
+see now, such as progress or a milestone that the owner passes on to its user.
+The optional `data` object carries structured facts, such as a URL that the
+owner must pass on exactly; it is JSON of at most 16,000 serialized characters.
+Runling retains the notice as `notice` output and wakes the owner at once with
+`task.notice`; the notification includes the text and data. Notices are not
+coalesced: each one reaches the owner, in order. Limit how often a child sends them.
+A task communicates only with its owner and its children (see
+[ADR-006](adr/ADR-006-parent-child-communication.md)). A task that has progress for a
+user sends a notice; the owner decides what reaches the user.
+
+- `observe(name, run, { onUpdate })` adopts an ordinary run with string input messages and
   `AgentTaskUpdate` output messages. It returns a snapshot with the run's ID.
+  The optional `onUpdate(update, task)` hook runs in the owner for each child
+  update, in order, before the update changes the snapshot. Use it when the
+  owner's host code must act on a child update, for example to report a verified
+  fact. A failing hook does not stop the child.
   The task can return any result type. The run retains that value; the agent
   snapshot formats it as text, with JSON for non-string values. Do not separately
   iterate the adopted run's output. Observing the same run again is idempotent.
@@ -286,9 +331,10 @@ For example, inside a tool callback:
 
 ```ts
 const run = ctx.spawn((ctx: WorkflowContext<string, AgentTaskUpdate>) =>
-  investigate(ctx, { question: input.question }));
+  investigate(ctx, { question: input.question })
+);
 try {
-  return JSON.stringify(tasks.observe("Investigate", run));
+  return JSON.stringify(tasks.observe('Investigate', run));
 } catch (error) {
   await run[Symbol.asyncDispose]();
   throw error;
@@ -306,7 +352,7 @@ The owning conversation connects the manager as follows:
 try {
   return await runAgentConversation(ctx, owner, initialMessage, {
     notifications: tasks.notifications,
-    keepAlive: () => tasks.active,
+    keepAlive: () => tasks.active
   });
 } finally {
   await tasks.dispose();

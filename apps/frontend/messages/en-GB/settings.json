@@ -620,6 +620,12 @@
         "history": "Recent failures",
         "no_failures": "No retained failures.",
         "more_failures": "Load more"
+      },
+      "tabs": {
+        "label": "Bot sections",
+        "overview": "Overview",
+        "integrations": "Integrations",
+        "permissions": "Permissions"
       }
     }
   }

@@ -89,7 +89,11 @@
       "message_missing": "Mesaj artık kullanılamıyor",
       "in_room": "içinde",
       "in_room_capitalized": "içinde",
-      "load_failed": "Konular yüklenemedi"
+      "load_failed": "Konular yüklenemedi",
+      "notifications_count": {
+        "one": "{count} bildirim",
+        "other": "{count} bildirim"
+      }
     },
     "profile": {
       "title": "Profil",

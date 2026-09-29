@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
+import { connectPost } from './fixtures/connectHelpers';
 import { createAndLoginTestUser, loginAsAdmin, verifyAdminEmail } from './fixtures/testUser';
 import * as routes from './routes';
 
@@ -189,13 +190,25 @@ test.describe('Route accessibility', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
     const roomId = page.url().split('/').pop()!;
+    const { bot } = await connectPost<{ bot: { user: { id: string } } }>(
+      page,
+      'chatto.api.v1.BotService/CreateBot',
+      { login: 'accessibility_bot', displayName: 'Accessibility Bot' }
+    );
+    const botRoute = `${routes.serverAdminBots}/${bot.user.id}`;
 
     for (const [state, route] of [
       ['members', routes.serverAdminMembers],
       ['member detail', routes.serverAdminMember(admin.id!)],
+      ['member account', `${routes.serverAdminMember(admin.id!)}/account`],
+      ['member roles', `${routes.serverAdminMember(admin.id!)}/roles`],
+      ['member permissions', routes.serverAdminMemberPermissions(admin.id!)],
       ['roles', routes.serverAdminPermissions],
       ['role permission matrix', routes.serverAdminPermission('admin')],
       ['bots', routes.serverAdminBots],
+      ['bot overview', botRoute],
+      ['bot integrations', `${botRoute}/integrations`],
+      ['bot permissions', `${botRoute}/permissions`],
       ['event log', routes.serverAdmin('event-log')],
       ['invite links', routes.serverAdmin('invite-links')],
       ['moderation', routes.serverAdmin('moderation')],
@@ -203,7 +216,9 @@ test.describe('Route accessibility', () => {
       ['security', routes.serverAdminSecurity],
       ['system', routes.serverAdminSystem],
       ['room layout editor', routes.serverAdminRooms],
-      ['room management', `${routes.serverAdminRooms}/${roomId}`]
+      ['room management', `${routes.serverAdminRooms}/${roomId}`],
+      ['room members', `${routes.serverAdminRooms}/${roomId}/members`],
+      ['room permissions', `${routes.serverAdminRooms}/${roomId}/permissions`]
     ] as const) {
       await scanRoute(page, state, route);
     }
@@ -305,7 +320,7 @@ test.describe('Call accessibility', () => {
     await chatPage.enterRoom('general');
     await page
       .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByLabel('Show call')
+      .getByLabel('Call', { exact: true })
       .click();
     await expect(page.getByTestId('call-join-button')).toBeVisible();
     await settle(page);

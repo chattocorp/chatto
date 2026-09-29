@@ -55,7 +55,7 @@ test('room Files sidebar previews files and separately jumps to their messages',
 
   await page
     .locator('[data-testid="room-sidebar-toggle"]:visible')
-    .getByLabel('Show files')
+    .getByLabel('Files', { exact: true })
     .click();
   await expect(page.getByRole('heading', { name: 'Files' })).toBeVisible();
 
@@ -103,7 +103,7 @@ test('mobile Files panel stays open when Escape closes the file viewer', async (
   await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Mobile file preview');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Actions for #general' }).click();
-  await page.getByRole('button', { name: 'Show files', exact: true }).click();
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
 
   const filesPanel = page.locator(
     '[data-testid="room-sidebar-mobile-pane"] nav[aria-label="Files"]'
@@ -142,7 +142,7 @@ test('Files keeps its rows and scroll position during room and closed-thread pos
   if (!rootId) throw new Error('Missing root message ID');
   await page
     .locator('[data-testid="room-sidebar-toggle"]:visible')
-    .getByLabel('Show files')
+    .getByLabel('Files', { exact: true })
     .click();
   const panel = page.locator('aside[aria-label="Room extras"] nav[aria-label="Files"]');
   await expect(panel.getByTestId('room-file-row')).toHaveCount(10);

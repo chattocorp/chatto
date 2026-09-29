@@ -55,12 +55,11 @@ asynchronously through `/api/webhooks/chatto`.
 ## Agent behavior
 
 Each delivery creates an independent agent session with a general-purpose chat
-system prompt. This replaces Pi’s default coding-agent role. For channel mentions and DMs, the workflow loads every page of the current thread
+system prompt. This replaces Pi’s default coding-agent role. For channel mentions and DMs, the workflow loads the thread root and its newest 100 replies
 before calling the agent. Context includes the root, human messages, and prior
 bot replies in display order, without truncating message text. Every ping
 loads fresh context; there is no persistent conversation cache. The agent
-can call `read_thread` to refresh the
-complete thread. Chatto checks access on each API request.
+can call `read_thread` to refresh this context. Chatto checks access on each API request.
 The agent can use `web_fetch` to read public HTTP and HTTPS pages. This tool
 retains the old test bot’s network protections: public addresses only, pinned
 DNS results, at most five redirects with destination checks, a 30-second

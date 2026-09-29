@@ -324,7 +324,12 @@ test.each([true, false])(
       expect(result.outcome).toBe(withPlan ? 'completed' : 'blocked');
       if (withPlan) {
         expect(plans.get(handle.id)).toEqual({ ...plan, baseCommit: result.baseCommit });
-        expect(result.findings[0].evidence[0].quote).toBe('original');
+        // The result carries claims and locations; the host checked the excerpt when recording.
+        expect(result.findings[0].evidence[0]).toEqual({
+          path: 'example.txt',
+          startLine: 1,
+          endLine: 1
+        });
       } else expect(plans.size).toBe(0);
     } finally {
       await tasks.dispose();

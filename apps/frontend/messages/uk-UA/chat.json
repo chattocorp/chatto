@@ -93,7 +93,13 @@
       "message_missing": "Повідомлення більше не доступне",
       "in_room": "в",
       "in_room_capitalized": "В",
-      "load_failed": "Не вдалося завантажити теми"
+      "load_failed": "Не вдалося завантажити теми",
+      "notifications_count": {
+        "one": "{count} сповіщення",
+        "few": "{count} сповіщення",
+        "many": "{count} сповіщень",
+        "other": "{count} сповіщення"
+      }
     },
     "profile": {
       "title": "Профіль",

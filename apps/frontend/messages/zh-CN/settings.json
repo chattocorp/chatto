@@ -620,6 +620,12 @@
         "history": "最近的失败",
         "no_failures": "没有保留的失败记录。",
         "more_failures": "加载更多"
+      },
+      "tabs": {
+        "label": "机器人分区",
+        "overview": "概览",
+        "integrations": "集成",
+        "permissions": "权限"
       }
     }
   }

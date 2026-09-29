@@ -93,7 +93,13 @@
       "message_missing": "Wiadomość nie jest już dostępna",
       "in_room": "w",
       "in_room_capitalized": "W",
-      "load_failed": "Nie udało się wczytać wątków"
+      "load_failed": "Nie udało się wczytać wątków",
+      "notifications_count": {
+        "one": "{count} powiadomienie",
+        "few": "{count} powiadomienia",
+        "many": "{count} powiadomień",
+        "other": "{count} powiadomienia"
+      }
     },
     "profile": {
       "title": "Profil",

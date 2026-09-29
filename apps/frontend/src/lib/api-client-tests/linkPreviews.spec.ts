@@ -10,38 +10,22 @@ import {
 } from '@chatto/api-types/api/v1/link_previews_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  fetchLinkPreview: vi.fn()
-}));
+const mocks = mockService(MessageService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function linkPreviewAPI() {
+  return createLinkPreviewAPI(fakeServer((router) => router.service(MessageService, mocks)));
+}
 
 describe('createLinkPreviewAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.fetchLinkPreview.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      fetchLinkPreview: mocks.fetchLinkPreview
-    });
+    vi.resetAllMocks();
   });
 
   it('fetches a preview and maps optional fields', async () => {
-    mocks.fetchLinkPreview.mockResolvedValue(
+    mocks.fetchLinkPreview.mockReturnValue(
       new FetchLinkPreviewResponse({
         preview: new LinkPreview({
           url: 'https://example.com/story',
@@ -56,11 +40,7 @@ describe('createLinkPreviewAPI', () => {
       })
     );
 
-    const api = createLinkPreviewAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = linkPreviewAPI();
 
     await expect(api.fetchLinkPreview('https://example.com/story')).resolves.toMatchObject({
       url: 'https://example.com/story',
@@ -73,22 +53,21 @@ describe('createLinkPreviewAPI', () => {
       embedType: 'generic',
       embedId: null
     });
-    expect(mocks.fetchLinkPreview).toHaveBeenCalledWith({ url: 'https://example.com/story' });
+    expect(receivedRequest(mocks.fetchLinkPreview)).toMatchObject({
+      url: 'https://example.com/story'
+    });
   });
 
   it('returns null when the server has no preview', async () => {
-    mocks.fetchLinkPreview.mockResolvedValue(new FetchLinkPreviewResponse());
+    mocks.fetchLinkPreview.mockReturnValue(new FetchLinkPreviewResponse());
 
-    const api = createLinkPreviewAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = linkPreviewAPI();
 
     await expect(api.fetchLinkPreview('https://example.com/missing')).resolves.toBeNull();
   });
 
   it('maps a native Bluesky post snapshot', async () => {
-    mocks.fetchLinkPreview.mockResolvedValue(
+    mocks.fetchLinkPreview.mockReturnValue(
       new FetchLinkPreviewResponse({
         preview: new LinkPreview({
           url: 'https://bsky.app/profile/bsky.app/post/example',
@@ -139,10 +118,7 @@ describe('createLinkPreviewAPI', () => {
       })
     );
 
-    const api = createLinkPreviewAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = linkPreviewAPI();
 
     await expect(
       api.fetchLinkPreview('https://bsky.app/profile/bsky.app/post/example')
@@ -171,16 +147,13 @@ describe('createLinkPreviewAPI', () => {
     });
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('auth required', Code.Unauthenticated);
-    mocks.fetchLinkPreview.mockRejectedValue(err);
-
-    const api = createLinkPreviewAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'expired'
+  it('propagates Connect errors', async () => {
+    mocks.fetchLinkPreview.mockImplementation(() => {
+      throw new ConnectError('auth required', Code.Unauthenticated);
     });
 
-    await expect(api.fetchLinkPreview('https://example.com/story')).rejects.toBe(err);
+    await expect(
+      linkPreviewAPI().fetchLinkPreview('https://example.com/story')
+    ).rejects.toMatchObject({ code: Code.Unauthenticated, rawMessage: 'auth required' });
   });
 });

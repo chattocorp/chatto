@@ -49,13 +49,37 @@ export interface ThreadLocation {
 export interface ThreadMessage {
   id: string;
   authorId?: string;
+  /** The author's display name, or login when no display name is set. */
+  authorName?: string;
+  authorLogin?: string;
   body: string;
+}
+
+/** Messages from one thread read, with a cursor for reading newer messages later. */
+export interface ThreadRead {
+  messages: ThreadMessage[];
+  /** Pass as `after` to read only newer messages. Absent when the thread has no messages. */
+  cursor?: string;
+  /** True when older replies exist that this read left out. */
+  olderOmitted: boolean;
 }
 
 interface ThreadEvent {
   id?: string;
   messagePosted?: { message?: { actorId?: string; body?: string } };
 }
+
+interface ThreadPage {
+  events?: ThreadEvent[];
+  hasOlder?: boolean;
+  hasNewer?: boolean;
+  startCursor?: string;
+  endCursor?: string;
+  includes?: { users?: Record<string, { login?: string; displayName?: string }> };
+}
+
+/** Most replies that one thread page returns. */
+const THREAD_PAGE_LIMIT = 100;
 
 /** Create a bearer-authenticated client for the Chatto 0.5 Connect JSON API. */
 export function createChattoClient(options: ChattoClientOptions) {
@@ -157,53 +181,80 @@ export function createChattoClient(options: ChattoClientOptions) {
   }
 
   /** Read all history pages with a 30-second total limit, preserving root-first order. */
+  /**
+   * Read a thread. Without `after`, returns the root and the newest `limit` replies (100 by
+   * default); `olderOmitted` tells whether older replies exist. With `after`, a cursor from an
+   * earlier read, returns only the messages posted after it. Authors carry the names that
+   * Chatto includes with each page. Rejects missing pages and repeated pagination cursors.
+   */
   async function readThread(
     location: ThreadLocation,
-    signal?: AbortSignal
-  ): Promise<ThreadMessage[]> {
+    signal?: AbortSignal,
+    { after, limit = THREAD_PAGE_LIMIT }: { after?: string; limit?: number } = {}
+  ): Promise<ThreadRead> {
     const rootId = location.threadRootId;
     const readSignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(30_000)]);
-    let root: ThreadEvent | undefined;
-    let replies: ThreadEvent[] = [];
-    let before: string | undefined;
-    const cursors = new Set<string>();
-    do {
-      const { page } = await rpc<{
-        page?: { events?: ThreadEvent[]; hasOlder?: boolean; startCursor?: string };
-      }>(
+    const readPage = async (cursor?: { after: string }) => {
+      const { page } = await rpc<{ page?: ThreadPage }>(
         'ThreadService/GetThreadEvents',
-        {
-          roomId: location.roomId,
-          threadRootEventId: rootId,
-          limit: 100,
-          ...(before ? { before } : {})
-        },
+        { roomId: location.roomId, threadRootEventId: rootId, limit, ...cursor },
         readSignal
       );
       if (!page) throw new Error('Chatto did not return the thread page');
-      const events = page.events ?? [];
-      root ??= events.find((event) => event.id === rootId);
-      replies = [...events.filter((event) => event.id !== rootId), ...replies];
-      if (!page.hasOlder) break;
-      before = page.startCursor;
-      if (!before || cursors.has(before)) throw new Error('Thread pagination did not advance');
-      cursors.add(before);
-    } while (true);
+      return page;
+    };
+    const pages: ThreadPage[] = [];
+    let cursor = after;
+    let olderOmitted = false;
+    if (after === undefined) {
+      const page = await readPage();
+      pages.push(page);
+      cursor = page.endCursor || undefined;
+      olderOmitted = !!page.hasOlder;
+    } else {
+      const seen = new Set<string>();
+      do {
+        if (seen.has(cursor!)) throw new Error('Thread pagination did not advance');
+        seen.add(cursor!);
+        const page = await readPage({ after: cursor! });
+        pages.push(page);
+        if (!page.hasNewer) {
+          cursor = page.endCursor || cursor;
+          break;
+        }
+        if (!page.endCursor) throw new Error('Thread pagination did not advance');
+        cursor = page.endCursor;
+      } while (true);
+    }
 
+    const users = Object.assign(
+      {},
+      ...pages.map((page) => page.includes?.users ?? {})
+    ) as NonNullable<NonNullable<ThreadPage['includes']>['users']>;
+    const events = pages.flatMap((page) => page.events ?? []);
+    const root = events.find((event) => event.id === rootId);
     const seen = new Set<string>();
-    return [...(root ? [root] : []), ...replies].flatMap((event) => {
+    const messages = [
+      ...(root ? [root] : []),
+      ...events.filter((event) => event.id !== rootId)
+    ].flatMap((event) => {
       if (!event.id || seen.has(event.id)) return [];
       seen.add(event.id);
       const message = event.messagePosted?.message;
       if (!message?.body) return [];
+      const user = message.actorId ? users[message.actorId] : undefined;
+      const name = user?.displayName || user?.login;
       return [
         {
           id: event.id,
           authorId: message.actorId,
+          ...(name ? { authorName: name } : {}),
+          ...(user?.login ? { authorLogin: user.login } : {}),
           body: message.body
         }
       ];
     });
+    return { messages, ...(cursor ? { cursor } : {}), olderOmitted };
   }
 
   return {

@@ -176,10 +176,20 @@ func (c *ChattoCore) ReadServerContentView(
 	})
 }
 
-func (v *ServerContentView) adminProjectionEstimate(components ...events.SnapshotComponentModel) (int64, int64, []ProjectionAdminMetric) {
+// adminProjectionEstimate adds the estimates of every component and of the
+// event ID table that components share. A nil table means that no table is
+// shared.
+func (v *ServerContentView) adminProjectionEstimate(eventIDs *eventIDTable, components ...events.SnapshotComponentModel) (int64, int64, []ProjectionAdminMetric) {
 	var entries int64
 	var estimatedBytes int64
 	var metrics []ProjectionAdminMetric
+	if eventIDs != nil {
+		// Components exclude a shared table from their own estimates, so the
+		// view counts it once.
+		idCount, idBytes := int64(eventIDs.len()), eventIDs.estimatedBytes()
+		estimatedBytes += idBytes
+		metrics = append(metrics, ProjectionAdminMetric{Name: "component_event_ids", Value: idCount, Bytes: idBytes})
+	}
 	for _, component := range components {
 		estimator, ok := component.(interface {
 			adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric)
@@ -190,13 +200,16 @@ func (v *ServerContentView) adminProjectionEstimate(components ...events.Snapsho
 		componentEntries, componentBytes, componentMetrics := estimator.adminProjectionEstimate()
 		entries += componentEntries
 		estimatedBytes += componentBytes
-		// The parent estimate includes every component. Expose these two
-		// separately so room/thread memory changes can be measured directly.
+		// The parent estimate includes every component. Expose the components
+		// whose size grows with message history separately so their memory
+		// changes can be measured directly.
 		switch component.(type) {
 		case *RoomTimelineProjection:
 			metrics = append(metrics, ProjectionAdminMetric{Name: "component_room_timeline", Value: componentEntries, Bytes: componentBytes})
 		case *ThreadProjection:
 			metrics = append(metrics, ProjectionAdminMetric{Name: "component_threads", Value: componentEntries, Bytes: componentBytes})
+		case *ReactionProjection:
+			metrics = append(metrics, ProjectionAdminMetric{Name: "component_reactions", Value: componentEntries, Bytes: componentBytes})
 		}
 		metrics = append(metrics, componentMetrics...)
 	}

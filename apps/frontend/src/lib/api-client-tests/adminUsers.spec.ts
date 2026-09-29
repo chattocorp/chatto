@@ -1,63 +1,29 @@
+import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listMembers: vi.fn(),
-  batchGetMembers: vi.fn(),
-  getMember: vi.fn(),
-  assignRole: vi.fn(),
-  revokeRole: vi.fn(),
-  changeUserPassword: vi.fn(),
-  deleteUser: vi.fn(),
-  clearUsernameCooldown: vi.fn()
-}));
+const mocks = mockService(AdminUserService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function adminUserAPI() {
+  return createAdminUserManagementAPI(
+    fakeServer((router) => router.service(AdminUserService, mocks))
+  );
+}
 
 describe('createAdminUserManagementAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listMembers.mockReset();
-    mocks.batchGetMembers.mockReset();
-    mocks.getMember.mockReset();
-    mocks.assignRole.mockReset();
-    mocks.revokeRole.mockReset();
-    mocks.changeUserPassword.mockReset();
-    mocks.deleteUser.mockReset();
-    mocks.clearUsernameCooldown.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listMembers: mocks.listMembers,
-      batchGetMembers: mocks.batchGetMembers,
-      getMember: mocks.getMember,
-      assignRole: mocks.assignRole,
-      revokeRole: mocks.revokeRole,
-      changeUserPassword: mocks.changeUserPassword,
-      deleteUser: mocks.deleteUser,
-      clearUsernameCooldown: mocks.clearUsernameCooldown
-    });
+    vi.resetAllMocks();
   });
 
   it('lists admin members and maps timestamps and roles', async () => {
     const createdAt = new Date('2026-01-02T03:04:05.000Z');
-    mocks.listMembers.mockResolvedValue({
+    mocks.listMembers.mockReturnValue({
       userIds: ['user-1'],
       page: { totalCount: 1n, hasMore: false }
     });
-    mocks.batchGetMembers.mockResolvedValue({
+    mocks.batchGetMembers.mockReturnValue({
       members: [
         {
           user: {
@@ -69,7 +35,7 @@ describe('createAdminUserManagementAPI', () => {
             bot: { ownerUserId: 'owner' }
           },
           roles: ['admin'],
-          createdAt: { toDate: () => createdAt },
+          createdAt: Timestamp.fromDate(createdAt),
           hasVerifiedEmail: true,
           verifiedEmails: ['first@example.test', 'alice@example.test'],
           primaryVerifiedEmail: 'alice@example.test',
@@ -77,25 +43,17 @@ describe('createAdminUserManagementAPI', () => {
           lastLoginChange: undefined
         }
       ],
-      roles: [{ name: 'admin', displayName: 'Admin' }],
-      page: { totalCount: 1n, hasMore: false }
+      roles: [{ name: 'admin', displayName: 'Admin' }]
     });
-    const api = createAdminUserManagementAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    const api = adminUserAPI();
 
     const result = await api.listMembers({ search: 'alice', limit: 20, offset: 0 });
 
-    expect(mocks.batchGetMembers).toHaveBeenCalledWith({ userIds: ['user-1'] }, {});
-
-    expect(mocks.listMembers).toHaveBeenCalledWith(
-      {
-        search: 'alice',
-        page: { limit: 20, offset: 0 }
-      },
-      {}
-    );
+    expect(receivedRequest(mocks.batchGetMembers)).toMatchObject({ userIds: ['user-1'] });
+    expect(receivedRequest(mocks.listMembers)).toMatchObject({
+      search: 'alice',
+      page: { limit: 20, offset: 0 }
+    });
     expect(result).toEqual({
       consumedCount: 1,
       users: [
@@ -123,10 +81,10 @@ describe('createAdminUserManagementAPI', () => {
 
   it('counts IDs omitted during hydration and skips the batch for an empty page', async () => {
     mocks.listMembers
-      .mockResolvedValueOnce({ userIds: ['missing'], page: { totalCount: 2n, hasMore: true } })
-      .mockResolvedValueOnce({ userIds: [], page: { totalCount: 0n, hasMore: false } });
-    mocks.batchGetMembers.mockResolvedValue({ members: [], roles: [] });
-    const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+      .mockReturnValueOnce({ userIds: ['missing'], page: { totalCount: 2n, hasMore: true } })
+      .mockReturnValueOnce({ userIds: [], page: { totalCount: 0n, hasMore: false } });
+    mocks.batchGetMembers.mockReturnValue({ members: [], roles: [] });
+    const api = adminUserAPI();
     expect(await api.listMembers({ limit: 20, offset: 0 })).toEqual({
       users: [],
       roles: [],
@@ -146,7 +104,7 @@ describe('createAdminUserManagementAPI', () => {
 
   it('gets admin member details and maps permission metadata', async () => {
     const lastLoginChange = new Date('2026-02-03T04:05:06.000Z');
-    mocks.getMember.mockResolvedValue({
+    mocks.getMember.mockReturnValue({
       member: {
         user: {
           id: 'user-2',
@@ -160,7 +118,7 @@ describe('createAdminUserManagementAPI', () => {
         hasVerifiedEmail: false,
         verifiedEmails: [],
         viewerCanDeleteAccount: false,
-        lastLoginChange: { toDate: () => lastLoginChange }
+        lastLoginChange: Timestamp.fromDate(lastLoginChange)
       },
       roles: [
         {
@@ -184,14 +142,13 @@ describe('createAdminUserManagementAPI', () => {
       revocableRoleNames: ['moderator'],
       roleAssignmentLimitsEnforced: true
     });
-    const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = adminUserAPI();
 
     const result = await api.getMember('user-2');
 
-    expect(mocks.getMember).toHaveBeenCalledWith(
-      { target: { case: 'userId', value: 'user-2' } },
-      {}
-    );
+    expect(receivedRequest(mocks.getMember)).toMatchObject({
+      target: { case: 'userId', value: 'user-2' }
+    });
     expect(result).toEqual({
       member: {
         id: 'user-2',
@@ -226,7 +183,7 @@ describe('createAdminUserManagementAPI', () => {
   });
 
   it('gets a member by login', async () => {
-    mocks.getMember.mockResolvedValue({
+    mocks.getMember.mockReturnValue({
       member: undefined,
       roles: [],
       availablePermissions: [],
@@ -235,11 +192,13 @@ describe('createAdminUserManagementAPI', () => {
       viewerCanManageUserPermissions: false,
       roleAssignmentLimitsEnforced: false
     });
-    const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = adminUserAPI();
 
     await api.getMember({ login: 'alice' });
 
-    expect(mocks.getMember).toHaveBeenCalledWith({ target: { case: 'login', value: 'alice' } }, {});
+    expect(receivedRequest(mocks.getMember)).toMatchObject({
+      target: { case: 'login', value: 'alice' }
+    });
   });
 
   it('assigns and revokes roles', async () => {
@@ -255,12 +214,9 @@ describe('createAdminUserManagementAPI', () => {
       verifiedEmails: [],
       viewerCanDeleteAccount: false
     };
-    mocks.assignRole.mockResolvedValue({ member });
-    mocks.revokeRole.mockResolvedValue({ member: { ...member, roles: [] } });
-    const api = createAdminUserManagementAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    mocks.assignRole.mockReturnValue({ member });
+    mocks.revokeRole.mockReturnValue({ member: { ...member, roles: [] } });
+    const api = adminUserAPI();
 
     await expect(api.assignRole('user-1', 'moderator')).resolves.toMatchObject({
       changed: true,
@@ -271,21 +227,27 @@ describe('createAdminUserManagementAPI', () => {
       member: { id: 'user-1', roles: [] }
     });
 
-    expect(mocks.assignRole).toHaveBeenCalledWith({ userId: 'user-1', roleName: 'moderator' });
-    expect(mocks.revokeRole).toHaveBeenCalledWith({ userId: 'user-1', roleName: 'moderator' });
+    expect(receivedRequest(mocks.assignRole)).toMatchObject({
+      userId: 'user-1',
+      roleName: 'moderator'
+    });
+    expect(receivedRequest(mocks.revokeRole)).toMatchObject({
+      userId: 'user-1',
+      roleName: 'moderator'
+    });
   });
 
   it('clears username cooldown', async () => {
-    mocks.clearUsernameCooldown.mockResolvedValue({});
-    const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
+    mocks.clearUsernameCooldown.mockReturnValue({});
+    const api = adminUserAPI();
 
     await expect(api.clearUsernameCooldown('user-1')).resolves.toBe(true);
 
-    expect(mocks.clearUsernameCooldown).toHaveBeenCalledWith({ userId: 'user-1' });
+    expect(receivedRequest(mocks.clearUsernameCooldown)).toMatchObject({ userId: 'user-1' });
   });
 
   it('sets a user password', async () => {
-    mocks.changeUserPassword.mockResolvedValue({
+    mocks.changeUserPassword.mockReturnValue({
       member: {
         user: {
           id: 'user-1',
@@ -302,10 +264,7 @@ describe('createAdminUserManagementAPI', () => {
         lastLoginChange: undefined
       }
     });
-    const api = createAdminUserManagementAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    const api = adminUserAPI();
 
     await expect(api.changeUserPassword('user-1', 'newpassword456')).resolves.toMatchObject({
       id: 'user-1',
@@ -314,21 +273,18 @@ describe('createAdminUserManagementAPI', () => {
       roles: ['admin']
     });
 
-    expect(mocks.changeUserPassword).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.changeUserPassword)).toMatchObject({
       userId: 'user-1',
       password: 'newpassword456'
     });
   });
 
   it('deletes a user', async () => {
-    mocks.deleteUser.mockResolvedValue({});
-    const api = createAdminUserManagementAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    mocks.deleteUser.mockReturnValue({});
+    const api = adminUserAPI();
 
     await expect(api.deleteUser({ userId: 'user-1' })).resolves.toBe(true);
 
-    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'user-1' });
+    expect(receivedRequest(mocks.deleteUser)).toMatchObject({ userId: 'user-1' });
   });
 });

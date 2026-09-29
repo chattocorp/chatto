@@ -47,7 +47,7 @@ test('registers the run before acknowledgement and still replies if reactions fa
   const bot = createChattoBot({
     acknowledge,
     createAgent,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     post: async () => {},
     typing: async () => {},
     timeout: 0
@@ -78,7 +78,7 @@ test('cancellation during the initial reaction prevents queued messages reaching
       reactionSignal = signal;
       await pending.promise;
     },
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     post: async () => {},
     typing: async () => {},
     createAgent: async () => ({

@@ -216,7 +216,7 @@
       "no_files": "Aucun fichier pour l'instant dans cette salle.",
       "files": "Fichiers",
       "pins": "Messages épinglés",
-      "call": "Appeler",
+      "call": "Appel",
       "jump_to_file": "Aller à {filename}",
       "loading_files": "Chargement des fichiers...",
       "loading_members": "Chargement des membres...",
@@ -227,12 +227,11 @@
       "remove_failed": "Impossible de retirer l’utilisateur du salon",
       "remove_success": "{name} a été retiré du salon",
       "members_load_failed": "Échec du chargement des membres du salon",
-      "members_refresh_failed": "Échec de l'actualisation des membres du salon"
+      "members_refresh_failed": "Échec de l'actualisation des membres du salon",
+      "search": "Rechercher"
     },
     "pins": {
-      "show": "Afficher les messages épinglés",
       "unseen": "Nouveaux messages épinglés",
-      "hide": "Masquer les messages épinglés",
       "pin": "Épingler le message",
       "unpin": "Désépingler le message",
       "unpin_prompt": "Voulez-vous vraiment retirer cette épingle du message ?",

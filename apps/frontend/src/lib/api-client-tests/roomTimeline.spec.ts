@@ -1,4 +1,9 @@
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
@@ -26,57 +31,32 @@ import {
   createRoomTimelineAPI,
   roomTimelinePageToEventConnectionPage
 } from '$lib/api-client/roomTimeline';
+import { fakeServer, mockService, receivedContext, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
-  getMessage: vi.fn(),
-  batchGetUsers: vi.fn(),
-  getThreadEvents: vi.fn(),
-  getThreadEventsAround: vi.fn()
-}));
+const messages = mockService(MessageService);
+const threads = mockService(ThreadService);
+const users = mockService(UserService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
+function config(extra: Partial<ConnectAPIConfig> = {}) {
+  return fakeServer(
+    (router) =>
+      router
+        .service(MessageService, messages)
+        .service(ThreadService, threads)
+        .service(UserService, users),
+    extra
+  );
+}
 
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function timelineAPI() {
+  return createRoomTimelineAPI(config({ bearerToken: 'remote-token' }));
+}
 
 describe('createRoomTimelineAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-    mocks.getMessage.mockReset();
-    mocks.batchGetUsers.mockReset();
-    mocks.batchGetUsers.mockResolvedValue({ users: [] });
-    mocks.getThreadEvents.mockReset();
-    mocks.getThreadEventsAround.mockReset();
+    vi.resetAllMocks();
+    users.batchGetUsers.mockReturnValue({ users: [] });
     resetUserStoresForTests();
-
-    configureApiClientHooks({
-      onAuthenticationRequired: mocks.handleAuthenticationRequired
-    });
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockImplementation((service) => {
-      if (service?.typeName === 'chatto.api.v1.UserService') {
-        return {
-          batchGetUsers: mocks.batchGetUsers
-        };
-      }
-      return {
-        getMessage: mocks.getMessage,
-        getThreadEvents: mocks.getThreadEvents,
-        getThreadEventsAround: mocks.getThreadEventsAround
-      };
-    });
   });
 
   it.each(['reset', 'dispose'])(
@@ -85,19 +65,15 @@ describe('createRoomTimelineAPI', () => {
       configureApiClientHooks({});
       const store = getUserStore('remote', 'session');
       let finish!: (response: { page: RoomTimelinePage }) => void;
-      mocks.getThreadEvents.mockImplementation(
+      threads.getThreadEvents.mockImplementation(
         () =>
           new Promise((resolve) => {
             finish = resolve;
           })
       );
-      const api = createRoomTimelineAPI({
-        serverId: 'remote',
-        queryScope: 'session',
-        baseUrl: 'https://remote.example.test/api/connect',
-        bearerToken: null
-      });
+      const api = createRoomTimelineAPI(config({ serverId: 'remote', queryScope: 'session' }));
       const pending = api.getThreadEvents({ roomId: 'room', threadRootEventId: 'root', limit: 20 });
+      await vi.waitFor(() => expect(threads.getThreadEvents).toHaveBeenCalled());
       if (boundary === 'reset') store.clear();
       else disposeUserStore('remote', 'session');
       finish({
@@ -116,7 +92,7 @@ describe('createRoomTimelineAPI', () => {
   );
 
   it('does not turn a timeline deletion include into a shared user tombstone', async () => {
-    mocks.getThreadEvents.mockResolvedValue({
+    threads.getThreadEvents.mockReturnValue({
       page: new RoomTimelinePage({
         includes: {
           users: {
@@ -139,12 +115,7 @@ describe('createRoomTimelineAPI', () => {
       })
     });
     const store = getUserStore('remote', 'session');
-    const api = createRoomTimelineAPI({
-      serverId: 'remote',
-      queryScope: 'session',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = createRoomTimelineAPI(config({ serverId: 'remote', queryScope: 'session' }));
 
     const page = await api.getThreadEvents({
       roomId: 'room',
@@ -159,7 +130,7 @@ describe('createRoomTimelineAPI', () => {
   });
 
   it('sends thread page requests with opaque cursors', async () => {
-    mocks.getThreadEvents.mockResolvedValue({
+    threads.getThreadEvents.mockReturnValue({
       page: new RoomTimelinePage({
         startCursor: 'tl:opaque-start',
         endCursor: 'tl:opaque-end',
@@ -168,11 +139,7 @@ describe('createRoomTimelineAPI', () => {
       })
     });
 
-    const api = createRoomTimelineAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = timelineAPI();
 
     const page = await api.getThreadEvents({
       roomId: 'room-1',
@@ -181,21 +148,12 @@ describe('createRoomTimelineAPI', () => {
       before: 'tl:opaque-before'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://remote.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.getThreadEvents).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        threadRootEventId: 'root-1',
-        limit: 50,
-        cursor: { case: 'before', value: 'tl:opaque-before' }
-      },
-      { headers: undefined }
-    );
+    expect(receivedRequest(threads.getThreadEvents)).toMatchObject({
+      roomId: 'room-1',
+      threadRootEventId: 'root-1',
+      limit: 50,
+      cursor: { case: 'before', value: 'tl:opaque-before' }
+    });
     expect(page).toMatchObject({
       startCursor: 'tl:opaque-start',
       endCursor: 'tl:opaque-end',
@@ -205,14 +163,11 @@ describe('createRoomTimelineAPI', () => {
   });
 
   it('sends thread-around requests with the anchor event id', async () => {
-    mocks.getThreadEventsAround.mockResolvedValue({
+    threads.getThreadEventsAround.mockReturnValue({
       page: new RoomTimelinePage({ hasOlder: true, hasNewer: true })
     });
 
-    const api = createRoomTimelineAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = timelineAPI();
 
     await api.getThreadEventsAround({
       roomId: 'room-1',
@@ -221,19 +176,16 @@ describe('createRoomTimelineAPI', () => {
       limit: 50
     });
 
-    expect(mocks.getThreadEventsAround).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        threadRootEventId: 'root-1',
-        eventId: 'reply-20',
-        limit: 50
-      },
-      { headers: undefined }
-    );
+    expect(receivedRequest(threads.getThreadEventsAround)).toMatchObject({
+      roomId: 'room-1',
+      threadRootEventId: 'root-1',
+      eventId: 'reply-20',
+      limit: 50
+    });
   });
 
   it('gets messages and hydrates their authors', async () => {
-    mocks.getMessage.mockResolvedValue({
+    messages.getMessage.mockReturnValue({
       message: new Message({
         id: 'reply-1',
         actorId: 'u1',
@@ -242,7 +194,7 @@ describe('createRoomTimelineAPI', () => {
         threadRootEventId: 'root-1'
       })
     });
-    mocks.batchGetUsers.mockResolvedValue({
+    users.batchGetUsers.mockReturnValue({
       users: [
         {
           user: {
@@ -255,25 +207,18 @@ describe('createRoomTimelineAPI', () => {
       ]
     });
 
-    const api = createRoomTimelineAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = timelineAPI();
 
     const message = await api.getMessage({
       roomId: 'room-1',
       eventId: 'reply-1'
     });
 
-    expect(mocks.getMessage).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        eventId: 'reply-1'
-      },
-      { headers: undefined }
-    );
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith({ userIds: ['u1'] }, { headers: undefined });
+    expect(receivedRequest(messages.getMessage)).toMatchObject({
+      roomId: 'room-1',
+      eventId: 'reply-1'
+    });
+    expect(receivedRequest(users.batchGetUsers)).toMatchObject({ userIds: ['u1'] });
     expect(message).toMatchObject({
       id: 'reply-1',
       actor: { id: 'u1', displayName: 'Alice' },
@@ -282,14 +227,10 @@ describe('createRoomTimelineAPI', () => {
   });
 
   it('bounds realtime-triggered message reads by the event cursor', async () => {
-    mocks.getMessage.mockResolvedValue({
+    messages.getMessage.mockReturnValue({
       message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
     });
-    const api = createRoomTimelineAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = timelineAPI();
 
     await api.getMessage({
       roomId: 'room-1',
@@ -297,34 +238,26 @@ describe('createRoomTimelineAPI', () => {
       minimumCursor: 'opaque-event-cursor'
     });
 
-    const options = mocks.getMessage.mock.calls[0]?.[1];
-    expect(options?.headers).toBeInstanceOf(Headers);
-    expect((options?.headers as Headers).get('Chatto-Realtime-Minimum-Cursor')).toBe(
-      'opaque-event-cursor'
-    );
-    expect((options?.headers as Headers).has('Authorization')).toBe(false);
-    expect(options?.timeoutMs).toBe(10_000);
-    const userOptions = mocks.batchGetUsers.mock.calls[0]?.[1];
-    expect(userOptions?.headers).toBeInstanceOf(Headers);
-    expect((userOptions?.headers as Headers).get('Chatto-Realtime-Minimum-Cursor')).toBe(
-      'opaque-event-cursor'
-    );
-    expect((userOptions?.headers as Headers).has('Authorization')).toBe(false);
-    expect(userOptions?.timeoutMs).toBe(10_000);
+    for (const handler of [messages.getMessage, users.batchGetUsers]) {
+      const context = receivedContext(handler);
+      expect(context?.requestHeader.get('Chatto-Realtime-Minimum-Cursor')).toBe(
+        'opaque-event-cursor'
+      );
+      expect(context?.requestHeader.get('Authorization')).toBe('Bearer remote-token');
+      expect(context?.timeoutMs()).toBeGreaterThan(9_000);
+    }
   });
 
   it.each([undefined, 'opaque-event-cursor'])(
     'fails message hydration without inventing a deleted author (cursor: %s)',
     async (minimumCursor) => {
-      mocks.getMessage.mockResolvedValue({
+      messages.getMessage.mockReturnValue({
         message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
       });
-      const failure = new Error('user projection unavailable');
-      mocks.batchGetUsers.mockRejectedValue(failure);
-      const api = createRoomTimelineAPI({
-        baseUrl: 'https://remote.example.test/api/connect',
-        bearerToken: null
+      users.batchGetUsers.mockImplementation(() => {
+        throw new ConnectError('user projection unavailable', Code.Unavailable);
       });
+      const api = timelineAPI();
 
       await expect(
         api.getMessage({
@@ -332,7 +265,7 @@ describe('createRoomTimelineAPI', () => {
           eventId: 'message-1',
           minimumCursor
         })
-      ).rejects.toBe(failure);
+      ).rejects.toMatchObject({ code: Code.Unavailable });
     }
   );
 });

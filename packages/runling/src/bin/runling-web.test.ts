@@ -18,7 +18,8 @@ test('development server uses the same server options', () => {
     host: 'localhost',
     port: 4173,
     open: true,
-    watch: false
+    watch: false,
+    quietLog: false
   });
 });
 

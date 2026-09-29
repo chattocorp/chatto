@@ -3,40 +3,25 @@ import {
   AdminAssetCleanupHealth,
   AdminDurableWorkerHealth
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
+import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
+import { fakeServer, mockService } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  getSystemInfo: vi.fn()
-}));
+const mocks = mockService(AdminDiagnosticsService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function config() {
+  return fakeServer((router) => router.service(AdminDiagnosticsService, mocks));
+}
 
 describe('getAdminSystemInfo', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.getSystemInfo.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      getSystemInfo: mocks.getSystemInfo
-    });
+    vi.resetAllMocks();
   });
 
   it('loads admin diagnostics and maps int64 and optional fields', async () => {
-    mocks.getSystemInfo.mockResolvedValue({
+    mocks.getSystemInfo.mockReturnValue({
       systemInfo: {
         connection: {
           connected: true,
@@ -173,22 +158,8 @@ describe('getAdminSystemInfo', () => {
       ]
     });
 
-    const controller = new AbortController();
-    const info = await getAdminSystemInfo(
-      {
-        baseUrl: 'https://chat.example.test/api/connect',
-        bearerToken: 'token'
-      },
-      { signal: controller.signal }
-    );
+    const info = await getAdminSystemInfo(config());
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://chat.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.getSystemInfo).toHaveBeenCalledWith({}, { signal: controller.signal });
     expect(info.connection.maxPayload).toBe(1048576);
     expect(info.account.storageUsed).toBe(750);
     expect(info.accountAvailable).toBe(true);
@@ -230,16 +201,12 @@ describe('getAdminSystemInfo', () => {
   });
 
   it('maps missing nested sections to empty defaults', async () => {
-    mocks.getSystemInfo.mockResolvedValue({
+    mocks.getSystemInfo.mockReturnValue({
       projections: []
     });
 
-    const info = await getAdminSystemInfo({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const info = await getAdminSystemInfo(config());
 
-    expect(mocks.getSystemInfo).toHaveBeenCalledWith({}, { signal: undefined });
     expect(info.connection.connected).toBe(false);
     expect(info.account.storageUsed).toBe(0);
     expect(info.accountAvailable).toBe(false);
@@ -266,7 +233,7 @@ describe('getAdminSystemInfo', () => {
   });
 
   it('treats explicitly unavailable cleanup diagnostics as unavailable', async () => {
-    mocks.getSystemInfo.mockResolvedValue({
+    mocks.getSystemInfo.mockReturnValue({
       projections: [],
       projectionsAvailable: false,
       assetCleanup: {
@@ -277,10 +244,16 @@ describe('getAdminSystemInfo', () => {
       }
     });
 
-    const info = await getAdminSystemInfo({ baseUrl: '/api/connect', bearerToken: null });
+    const info = await getAdminSystemInfo(config());
 
     expect(info.assetCleanup.available).toBe(false);
     expect(info.assetCleanup.health).toBe('unavailable');
     expect(info.projectionsAvailable).toBe(false);
+  });
+
+  it('cancels the diagnostics read with the caller signal', async () => {
+    await expect(
+      getAdminSystemInfo(config(), { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 });

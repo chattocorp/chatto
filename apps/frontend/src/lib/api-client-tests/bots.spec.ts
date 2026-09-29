@@ -1,49 +1,26 @@
 import { Timestamp } from '@bufbuild/protobuf';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
+import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listBots: vi.fn(),
-  getBot: vi.fn(),
-  createBot: vi.fn(),
-  createBotApiKey: vi.fn(),
-  revokeBotApiKey: vi.fn(),
-  createBotIncomingWebhook: vi.fn(),
-  revokeBotIncomingWebhook: vi.fn(),
-  reassignBotOwner: vi.fn()
-}));
+const mocks = mockService(BotService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return { ...actual, createClient: mocks.createClient };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+/** A bot API whose requests reach the mocked handlers through the real client. */
+function botAPI() {
+  return createBotAPI(fakeServer((router) => router.service(BotService, mocks)));
+}
 
 describe('createBotAPI', () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listBots: mocks.listBots,
-      getBot: mocks.getBot,
-      createBot: mocks.createBot,
-      createBotApiKey: mocks.createBotApiKey,
-      revokeBotApiKey: mocks.revokeBotApiKey,
-      createBotIncomingWebhook: mocks.createBotIncomingWebhook,
-      revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
-      reassignBotOwner: mocks.reassignBotOwner
-    });
+    vi.resetAllMocks();
   });
 
   it('lists bots and maps key metadata without exposing a verifier', async () => {
     const createdAt = new Date('2026-08-20T10:00:00Z');
-    mocks.listBots.mockResolvedValue({
+    mocks.listBots.mockReturnValue({
       bots: [
         {
           user: {
@@ -61,12 +38,9 @@ describe('createBotAPI', () => {
         }
       ]
     });
-    const signal = new AbortController().signal;
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const api = botAPI();
 
-    await expect(
-      api.listBots({ search: 'helper', limit: 20, offset: 40 }, { signal })
-    ).resolves.toEqual({
+    await expect(api.listBots({ search: 'helper', limit: 20, offset: 40 })).resolves.toEqual({
       bots: [
         {
           id: 'U-bot',
@@ -85,10 +59,27 @@ describe('createBotAPI', () => {
       totalCount: 1,
       hasMore: false
     });
-    expect(mocks.listBots).toHaveBeenCalledWith(
-      { search: 'helper', page: { limit: 20, offset: 40 } },
-      { signal }
-    );
+    expect(receivedRequest(mocks.listBots)).toMatchObject({
+      search: 'helper',
+      page: { limit: 20, offset: 40 }
+    });
+  });
+
+  it('passes cancellation to the server', async () => {
+    mocks.listBots.mockReturnValue({ bots: [] });
+
+    // Without the signal, the call would succeed.
+    await expect(
+      botAPI().listBots({ limit: 1, offset: 0 }, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
+  });
+
+  it('surfaces server errors with their Connect code', async () => {
+    mocks.getBot.mockImplementation(() => {
+      throw new ConnectError('bot not found', Code.NotFound);
+    });
+
+    await expect(botAPI().getBot('missing')).rejects.toMatchObject({ code: Code.NotFound });
   });
 
   it('creates and revokes named API keys with safe usage metadata', async () => {
@@ -105,9 +96,9 @@ describe('createBotAPI', () => {
         }
       ]
     };
-    mocks.createBotApiKey.mockResolvedValue({ bot: apiBot, apiKey: 'show-once-secret' });
-    mocks.revokeBotApiKey.mockResolvedValue({ bot: { ...apiBot, apiKeys: [] } });
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    mocks.createBotApiKey.mockReturnValue({ bot: apiBot, apiKey: 'show-once-secret' });
+    mocks.revokeBotApiKey.mockReturnValue({ bot: { ...apiBot, apiKeys: [] } });
+    const api = botAPI();
 
     await expect(api.createBotAPIKey('one', 'Production')).resolves.toMatchObject({
       bot: {
@@ -123,9 +114,15 @@ describe('createBotAPI', () => {
       },
       apiKey: 'show-once-secret'
     });
-    expect(mocks.createBotApiKey).toHaveBeenCalledWith({ botUserId: 'one', name: 'Production' });
+    expect(receivedRequest(mocks.createBotApiKey)).toMatchObject({
+      botUserId: 'one',
+      name: 'Production'
+    });
     await expect(api.revokeBotAPIKey('one', 'K-one')).resolves.toMatchObject({ apiKeys: [] });
-    expect(mocks.revokeBotApiKey).toHaveBeenCalledWith({ botUserId: 'one', keyId: 'K-one' });
+    expect(receivedRequest(mocks.revokeBotApiKey)).toMatchObject({
+      botUserId: 'one',
+      keyId: 'K-one'
+    });
   });
 
   it('manages named incoming webhooks and maps safe usage metadata', async () => {
@@ -142,14 +139,14 @@ describe('createBotAPI', () => {
         }
       ]
     };
-    mocks.createBotIncomingWebhook.mockResolvedValue({
+    mocks.createBotIncomingWebhook.mockReturnValue({
       bot: apiBot,
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    mocks.revokeBotIncomingWebhook.mockResolvedValue({
+    mocks.revokeBotIncomingWebhook.mockReturnValue({
       bot: { ...apiBot, incomingWebhooks: [] }
     });
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const api = botAPI();
 
     await expect(api.createBotIncomingWebhook('one', 'Production')).resolves.toMatchObject({
       bot: {
@@ -166,7 +163,7 @@ describe('createBotAPI', () => {
       },
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.createBotIncomingWebhook)).toMatchObject({
       botUserId: 'one',
       name: 'Production'
     });
@@ -181,11 +178,11 @@ describe('createBotAPI', () => {
       user: { id, login: `${id}_bot`, displayName: id },
       ownerUserId: 'U-owner'
     });
-    mocks.listBots.mockResolvedValue({
+    mocks.listBots.mockReturnValue({
       bots: [bot('one')],
-      page: { totalCount: 2, hasMore: true }
+      page: { totalCount: 2n, hasMore: true }
     });
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = botAPI();
 
     await expect(api.listBots({ limit: 1, offset: 0 })).resolves.toMatchObject({
       bots: [{ id: 'one' }],
@@ -193,25 +190,27 @@ describe('createBotAPI', () => {
       hasMore: true
     });
     expect(mocks.listBots).toHaveBeenCalledOnce();
-    expect(mocks.listBots).toHaveBeenCalledWith({ search: '', page: { limit: 1, offset: 0 } }, {});
+    expect(receivedRequest(mocks.listBots)).toMatchObject({
+      search: '',
+      page: { limit: 1, offset: 0 }
+    });
   });
 
   it('gets one bot by stable user ID', async () => {
-    mocks.getBot.mockResolvedValue({
+    mocks.getBot.mockReturnValue({
       bot: {
         user: { id: 'one', login: 'one_bot', displayName: 'One' },
         ownerUserId: 'U-owner'
       }
     });
-    const signal = new AbortController().signal;
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = botAPI();
 
-    await expect(api.getBot('one', { signal })).resolves.toMatchObject({ id: 'one' });
-    expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { signal });
+    await expect(api.getBot('one')).resolves.toMatchObject({ id: 'one' });
+    expect(receivedRequest(mocks.getBot)).toMatchObject({ botUserId: 'one' });
   });
 
   it('treats unknown credential last-use states as unavailable', async () => {
-    mocks.getBot.mockResolvedValue({
+    mocks.getBot.mockReturnValue({
       bot: {
         user: { id: 'one', login: 'one_bot', displayName: 'One' },
         ownerUserId: 'U-owner',
@@ -224,7 +223,7 @@ describe('createBotAPI', () => {
         ]
       }
     });
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = botAPI();
 
     await expect(api.getBot('one')).resolves.toMatchObject({
       incomingWebhooks: [{ id: 'W-one', lastUsedState: 'unavailable', lastUsedAt: null }]
@@ -232,19 +231,19 @@ describe('createBotAPI', () => {
   });
 
   it('reassigns a bot owner and returns the updated bot', async () => {
-    mocks.reassignBotOwner.mockResolvedValue({
+    mocks.reassignBotOwner.mockReturnValue({
       bot: {
         user: { id: 'one', login: 'one_bot', displayName: 'One' },
         ownerUserId: 'U-new-owner'
       }
     });
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const api = botAPI();
 
     await expect(api.reassignBotOwner('one', 'U-new-owner')).resolves.toMatchObject({
       id: 'one',
       ownerUserId: 'U-new-owner'
     });
-    expect(mocks.reassignBotOwner).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.reassignBotOwner)).toMatchObject({
       botUserId: 'one',
       ownerUserId: 'U-new-owner'
     });

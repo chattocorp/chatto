@@ -125,6 +125,7 @@ a side stripe or cast shadow for navigation selection.
 | Short, visible settings choice list         | `ChoiceRow` inside a `radiogroup`                                                      | Repeating indicator and selected-state markup                 |
 | Compact choice from a long or variable list | `Select`                                                                               | Expanding every device or option into a separate row          |
 | Compact one-of-many mode                    | `SegmentedControl`                                                                     | Separate buttons or independently styled chips                |
+| Sections of one resource page               | `TabNav` in the `tabs` snippet of `PaneHeader`, with one route for each section        | `SegmentedControl` or buttons that switch content in place    |
 | Selectable non-table collection             | `selectable-list` and `selectable-list-item`                                           | Feature-local hover recipes                                   |
 | Newest-first activity record                | `ActivityListRow` inside `selectable-list`                                             | Repeating row, unread, pending, and action-shell recipes      |
 | Modal form                                  | `FormDialog`                                                                           | A dialog containing an unrelated hand-rolled form footer      |
@@ -134,6 +135,7 @@ a side stripe or cast shadow for navigation selection.
 | Context-menu command                        | `MenuItem` inside `MenuSection`                                                        | `sidebar-item` or repeated icon and state markup              |
 | Standard pane page                          | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections                  | Hand-rolled page widths, scrolling, and section cards         |
 | Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                    |
+| Named panel toggles in a pane header        | `pane-header-label-button`; show the label with a `pane-header` query                  | Labels that push the title out of a narrow header             |
 | Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes                |
 | Destructive inline icon action              | `icon-action icon-action-danger`                                                       | A local `hover:text-danger`, which the shared hover overrides |
 | Icon-only committed action                  | `Button size="icon"` with `label`                                                      | `btn-*` recipes on a raw square button                        |
@@ -342,10 +344,11 @@ Follow these defaults:
   optional subtitle, back affordance, and icon actions.
 - Keep the outer `pane-page` wrapper. This semantic utility lets the pane shrink
   inside the application shell without creating an accidental second page
-  scrollbar.
-- Let `PaneContent` own scrolling, the `max-w-5xl` content width, and page
+  scrollbar. It also stops the `PaneHeader` row at the content width, so header
+  tabs and actions stay next to the content on wide screens.
+- Let `PaneContent` own scrolling, the `max-w-pane` content width, and page
   padding. Do not reproduce those constraints in each route. Set `wide` for a
-  browsing grid, such as the room directory masonry, to use `max-w-6xl`.
+  browsing grid, such as the room directory masonry, to use `max-w-pane-wide`.
 - Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
   deliberately dense surface, not as a page-by-page styling choice.
 - Give peer panels short, descriptive titles. A form panel names the task or

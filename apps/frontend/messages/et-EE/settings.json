@@ -620,6 +620,12 @@
         "history": "Hiljutised tõrked",
         "no_failures": "Säilitatud tõrkeid pole.",
         "more_failures": "Laadi rohkem"
+      },
+      "tabs": {
+        "label": "Boti jaotised",
+        "overview": "Ülevaade",
+        "integrations": "Integratsioonid",
+        "permissions": "Load"
       }
     }
   }

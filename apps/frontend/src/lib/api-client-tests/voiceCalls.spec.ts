@@ -1,55 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
+import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  joinCall: vi.fn(),
-  createCallToken: vi.fn(),
-  createCallMediaPublisherToken: vi.fn(),
-  leaveCall: vi.fn()
-}));
-
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+const mocks = mockService(VoiceCallService);
 
 describe('createVoiceCallAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.joinCall.mockReset();
-    mocks.createCallToken.mockReset();
-    mocks.createCallMediaPublisherToken.mockReset();
-    mocks.leaveCall.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      joinCall: mocks.joinCall,
-      createCallToken: mocks.createCallToken,
-      createCallMediaPublisherToken: mocks.createCallMediaPublisherToken,
-      leaveCall: mocks.leaveCall
-    });
+    vi.resetAllMocks();
   });
 
   it('maps call commands', async () => {
-    mocks.joinCall.mockResolvedValue({ joined: true });
-    mocks.leaveCall.mockResolvedValue({ left: true });
-    mocks.createCallToken.mockResolvedValue({ token: 'jwt', e2eeKey: 'key', callId: 'call-1' });
-    mocks.createCallMediaPublisherToken.mockResolvedValue({
+    mocks.joinCall.mockReturnValue({ joined: true });
+    mocks.leaveCall.mockReturnValue({ left: true });
+    mocks.createCallToken.mockReturnValue({ token: 'jwt', e2eeKey: 'key', callId: 'call-1' });
+    mocks.createCallMediaPublisherToken.mockReturnValue({
       token: 'publisher-jwt',
       e2eeKey: 'key',
       callId: 'call-1'
     });
 
-    const api = createVoiceCallAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = createVoiceCallAPI(fakeServer((router) => router.service(VoiceCallService, mocks)));
 
     await expect(api.joinCall('room-1')).resolves.toBe(true);
     await expect(api.createCallToken('room-1')).resolves.toEqual({
@@ -64,8 +35,8 @@ describe('createVoiceCallAPI', () => {
     });
     await expect(api.leaveCall('room-1')).resolves.toBe(true);
 
-    expect(mocks.joinCall).toHaveBeenCalledWith({ roomId: 'room-1' });
-    expect(mocks.createCallToken).toHaveBeenCalledWith({ roomId: 'room-1' });
-    expect(mocks.leaveCall).toHaveBeenCalledWith({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.joinCall)).toMatchObject({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.createCallToken)).toMatchObject({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.leaveCall)).toMatchObject({ roomId: 'room-1' });
   });
 });

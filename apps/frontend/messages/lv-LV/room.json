@@ -216,7 +216,7 @@
       "no_files": "Šajā telpā vēl nav neviena faila.",
       "files": "Faili",
       "pins": "Piespraustās ziņas",
-      "call": "Zvaniet",
+      "call": "Zvans",
       "jump_to_file": "Pāriet uz {filename}",
       "loading_files": "Notiek failu ielāde...",
       "loading_members": "Notiek dalībnieku ielāde...",
@@ -227,12 +227,11 @@
       "remove_failed": "Neizdevās noņemt lietotāju no telpas",
       "remove_success": "{name} noņemts no telpas",
       "members_load_failed": "Neizdevās ielādēt telpas dalībniekus",
-      "members_refresh_failed": "Neizdevās atsvaidzināt telpas dalībniekus"
+      "members_refresh_failed": "Neizdevās atsvaidzināt telpas dalībniekus",
+      "search": "Meklēt"
     },
     "pins": {
-      "show": "Rādīt piespraustās ziņas",
       "unseen": "Jaunas piespraustās ziņas",
-      "hide": "Paslēpt piespraustās ziņas",
       "pin": "Piespraust ziņu",
       "unpin": "Atspraust ziņu",
       "unpin_prompt": "Vai tiešām vēlaties noņemt šīs ziņas piespraudi?",

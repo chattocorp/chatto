@@ -216,7 +216,7 @@
       "no_files": "Aún no hay archivos en esta sala.",
       "files": "Archivos",
       "pins": "Mensajes fijados",
-      "call": "Llamar",
+      "call": "Llamada",
       "jump_to_file": "Saltar a {filename}",
       "loading_files": "Cargando archivos...",
       "loading_members": "Cargando miembros...",
@@ -227,12 +227,11 @@
       "remove_failed": "No se pudo eliminar al usuario de la sala",
       "remove_success": "Se eliminó a {name} de la sala",
       "members_load_failed": "No se pudieron cargar los miembros de la sala",
-      "members_refresh_failed": "No se pudieron actualizar los miembros de la sala"
+      "members_refresh_failed": "No se pudieron actualizar los miembros de la sala",
+      "search": "Buscar"
     },
     "pins": {
-      "show": "Mostrar mensajes fijados",
       "unseen": "Nuevos mensajes fijados",
-      "hide": "Ocultar mensajes fijados",
       "pin": "Fijar mensaje",
       "unpin": "Desfijar mensaje",
       "unpin_prompt": "¿Seguro que quieres quitar este mensaje fijado?",

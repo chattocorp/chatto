@@ -89,7 +89,11 @@
       "message_missing": "訊息已無法使用",
       "in_room": "位於",
       "in_room_capitalized": "位於",
-      "load_failed": "無法載入討論串"
+      "load_failed": "無法載入討論串",
+      "notifications_count": {
+        "one": "{count} 則通知",
+        "other": "{count} 則通知"
+      }
     },
     "profile": {
       "title": "個人資料",

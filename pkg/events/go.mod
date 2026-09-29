@@ -3,16 +3,16 @@ module hmans.de/chatto/pkg/events
 go 1.26.0
 
 require (
-	github.com/jellydator/ttlcache/v3 v3.4.0
+	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/nats-io/nats-server/v2 v2.14.7
-	github.com/nats-io/nats.go v1.53.1
-	golang.org/x/sync v0.19.0
+	github.com/nats-io/nats.go v1.54.0
+	golang.org/x/sync v0.23.0
 )
 
 require (
 	github.com/antithesishq/antithesis-sdk-go v0.8.0-default-no-op // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
-	github.com/klauspost/compress v1.20.0 // indirect
+	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/nats-io/jwt/v2 v2.8.2 // indirect
 	github.com/nats-io/nkeys v0.4.16 // indirect

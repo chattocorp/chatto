@@ -227,12 +227,11 @@
       "remove_failed": "無法將使用者移出聊天室",
       "remove_success": "已將 {name} 移出聊天室",
       "members_load_failed": "無法載入聊天室成員",
-      "members_refresh_failed": "無法重新整理聊天室成員"
+      "members_refresh_failed": "無法重新整理聊天室成員",
+      "search": "搜尋"
     },
     "pins": {
-      "show": "顯示已釘選訊息",
       "unseen": "有新的已釘選訊息",
-      "hide": "隱藏已釘選訊息",
       "pin": "釘選訊息",
       "unpin": "取消釘選",
       "unpin_prompt": "確定要取消釘選這則訊息嗎？",

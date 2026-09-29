@@ -1,38 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNeighborAPI } from '$lib/api-client/neighbors';
+import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listNeighbors: vi.fn(),
-  createNeighbor: vi.fn(),
-  updateNeighbor: vi.fn(),
-  deleteNeighbor: vi.fn()
-}));
-
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return { ...actual, createClient: mocks.createClient };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+const mocks = mockService(AdminServerService);
 
 describe('createNeighborAPI', () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listNeighbors: mocks.listNeighbors,
-      createNeighbor: mocks.createNeighbor,
-      updateNeighbor: mocks.updateNeighbor,
-      deleteNeighbor: mocks.deleteNeighbor
-    });
+    vi.resetAllMocks();
   });
 
   it('maps CRUD requests and opaque revisions', async () => {
-    const api = createNeighborAPI({ baseUrl: 'https://local.example', bearerToken: 'token' });
+    const api = createNeighborAPI(
+      fakeServer((router) => router.service(AdminServerService, mocks))
+    );
     const first = {
       id: 'N1',
       origin: 'https://one.example',
@@ -43,22 +24,25 @@ describe('createNeighborAPI', () => {
       origin: 'https://two.example',
       revision: 'E2'
     };
-    mocks.listNeighbors.mockResolvedValue({ neighbors: [first] });
-    mocks.createNeighbor.mockResolvedValue({ neighbor: first });
-    mocks.updateNeighbor.mockResolvedValue({ neighbor: second });
-    mocks.deleteNeighbor.mockResolvedValue({});
+    mocks.listNeighbors.mockReturnValue({ neighbors: [first] });
+    mocks.createNeighbor.mockReturnValue({ neighbor: first });
+    mocks.updateNeighbor.mockReturnValue({ neighbor: second });
+    mocks.deleteNeighbor.mockReturnValue({});
 
     await expect(api.list()).resolves.toEqual([first]);
     await expect(api.create(first.origin)).resolves.toEqual(first);
     await expect(api.update(first, second.origin)).resolves.toEqual(second);
     await expect(api.delete(second)).resolves.toBeUndefined();
 
-    expect(mocks.updateNeighbor).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.updateNeighbor)).toMatchObject({
       neighborId: 'N1',
       origin: 'https://two.example',
       revision: 'E1',
       updateMask: { paths: ['origin'] }
     });
-    expect(mocks.deleteNeighbor).toHaveBeenCalledWith({ neighborId: 'N1', revision: 'E2' });
+    expect(receivedRequest(mocks.deleteNeighbor)).toMatchObject({
+      neighborId: 'N1',
+      revision: 'E2'
+    });
   });
 });

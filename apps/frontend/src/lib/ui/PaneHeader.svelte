@@ -24,6 +24,15 @@ Use `backHref` for navigation-style "back to parent route" affordances
 be set; if both are passed the button wins (it's the more deliberate
 choice).
 
+Pass a `TabNav` in the `tabs` snippet when the pane shows one section of a
+resource with several routed sections. The tabs sit before the actions, like
+the room sidebar toggles, and the header becomes the `pane-header` size
+container that switches the tabs between labelled and icon-only forms.
+
+Inside a `pane-page`, the header row stops at the width of the `PaneContent`
+column, so end-side tabs and actions stay next to the content on wide screens.
+The bottom border still spans the pane. Elsewhere the row fills the pane.
+
 Set `collapseActions` to put actions behind a three-dot button below 32 rem
 of pane width. `collapsedActions` can keep important actions visible in that
 state. Expansion stays inside the header and lets the title truncate.
@@ -42,6 +51,7 @@ shared viewport detector reports an open software keyboard.
     subtitle,
     subtitleContent,
     afterTitle,
+    tabs,
     actions,
     collapseActions = false,
     hideOnKeyboard = false,
@@ -58,6 +68,8 @@ shared viewport detector reports an open software keyboard.
     /** Rich visual subtitle; keep subtitle as its plain-text equivalent. */
     subtitleContent?: Snippet;
     afterTitle?: Snippet;
+    /** Section navigation, normally a `TabNav`, shown before the actions. */
+    tabs?: Snippet;
     actions?: Snippet;
     /** Collapse actions below 32 rem of pane width. Expand them beside the title. */
     collapseActions?: boolean;
@@ -109,15 +121,15 @@ shared viewport detector reports an open software keyboard.
 
 <div
   class={[
-    'shrink-0',
-    collapseActions && '@container/pane-header',
+    'shrink-0 border-b border-border',
+    (collapseActions || tabs) && '@container/pane-header',
     hideOnKeyboard && 'keyboard-hide-mobile'
   ]}
 >
   <div
     data-page-reveal
     class={[
-      'flex h-14 shrink-0 items-center justify-between border-b border-border pe-2',
+      'flex h-14 max-w-(--pane-header-max-width) shrink-0 items-center justify-between pe-2',
       hasBack ? 'ps-2' : 'ps-4'
     ]}
   >
@@ -144,7 +156,8 @@ shared viewport detector reports an open software keyboard.
         </a>
       {/if}
       <div class="flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
-        <div class="flex min-w-0 items-baseline gap-3">
+        <!-- The subtitle shrinks first. The title truncates only when it alone fills the row. -->
+        <div class="flex max-w-full min-w-0 shrink-0 items-baseline gap-3">
           {#if title || titleContent}
             <h1 class="min-w-0 font-black">
               {#if titleContent}{@render titleContent()}{:else}<bdi class="block truncate"
@@ -167,6 +180,11 @@ shared viewport detector reports an open software keyboard.
         {/if}
       </div>
     </div>
+    {#if tabs}
+      <div class="flex shrink-0 items-center">
+        {@render tabs()}
+      </div>
+    {/if}
     {#if actions}
       <div class="flex shrink-0 items-center">
         <div

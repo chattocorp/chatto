@@ -24,44 +24,54 @@ const event = (id: string, body: string, actorId = 'alice') => ({
   messagePosted: { message: { actorId, body } }
 });
 
-test('loads all pages in order with one root and no overlapping messages', async () => {
+test('reads the newest replies with roles and names, then only messages after the cursor', async () => {
   const request = vi
     .fn<typeof fetch>()
     .mockResolvedValueOnce(
       Response.json({
         page: {
-          events: [event('root', 'Hello'), event('three', 'drei'), event('ping', "What's next?")],
+          events: [
+            event('root', 'Hello'),
+            event('two', 'zwei', 'bot'),
+            event('ping', "What's next?")
+          ],
           hasOlder: true,
-          startCursor: 'older'
+          endCursor: 'c1',
+          includes: { users: { alice: { login: 'alice', displayName: 'Alice Doe' } } }
         }
       })
     )
     .mockResolvedValueOnce(
       Response.json({
-        page: {
-          events: [event('one', 'eins'), event('two', 'zwei', 'bot'), event('three', 'drei')]
-        }
+        page: { events: [event('three', 'drei')], hasNewer: false, endCursor: 'c2' }
       })
     );
-  const messages = await reader(request)(delivery, new AbortController().signal);
-  expect(messages.map((message) => message.id)).toEqual(['root', 'one', 'two', 'three', 'ping']);
-  expect(messages[2]?.role).toBe('bot');
+  const read = reader(request);
+  const first = await read(delivery, new AbortController().signal);
+  expect(first).toMatchObject({ cursor: 'c1', olderOmitted: true });
+  expect(first.messages.map(({ id, role, authorName }) => [id, role, authorName])).toEqual([
+    ['root', 'human', 'Alice Doe'],
+    ['two', 'bot', undefined],
+    ['ping', 'human', 'Alice Doe']
+  ]);
+  const next = await read(delivery, new AbortController().signal, first.cursor);
+  expect(next.messages.map((message) => message.id)).toEqual(['three']);
   expect(JSON.parse(request.mock.calls[1]![1]!.body as string)).toEqual({
     roomId: 'room',
     threadRootEventId: 'root',
     limit: 100,
-    before: 'older'
+    after: 'c1'
   });
   expect(request.mock.calls[0]![1]?.redirect).toBe('error');
 });
 
 test('fails when pagination repeats instead of returning incomplete history', async () => {
-  const request = vi.fn<typeof fetch>().mockImplementation(async () =>
-    Response.json({
-      page: { events: [], hasOlder: true, startCursor: 'same' }
-    })
-  );
-  await expect(reader(request)(delivery, new AbortController().signal)).rejects.toThrow(
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () =>
+      Response.json({ page: { events: [], hasNewer: true, endCursor: 'same' } })
+    );
+  await expect(reader(request)(delivery, new AbortController().signal, 'same')).rejects.toThrow(
     'pagination did not advance'
   );
 });
@@ -72,12 +82,12 @@ test('reports permission failures before composing a reply', async () => {
 });
 
 test.each([null, 'existing-root'])('reads DM thread context for root %s', async (threadRoot) => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(
-    Response.json({
-      page: { events: [event('one', 'Hello'), event('two', 'Hi', 'bot')] }
-    })
-  );
-  const messages = await reader(request)(
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json({ page: { events: [event('one', 'Hello'), event('two', 'Hi', 'bot')] } })
+    );
+  const { messages } = await reader(request)(
     { ...delivery, triggers: ['direct_message'], thread_root_id: threadRoot },
     new AbortController().signal
   );

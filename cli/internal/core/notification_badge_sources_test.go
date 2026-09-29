@@ -23,7 +23,13 @@ type badgeTestFixture struct {
 
 func newBadgeTestFixture(t *testing.T) *badgeTestFixture {
 	t.Helper()
-	f := &badgeTestFixture{t: t, p: NewNotificationDecisionProjection(), read: make(map[string]notificationReadBoundary)}
+	return newBadgeTestFixtureFor(t, NewNotificationDecisionProjection())
+}
+
+// newBadgeTestFixtureFor prepares a room with two members in p.
+func newBadgeTestFixtureFor(t *testing.T, p *NotificationDecisionProjection) *badgeTestFixture {
+	t.Helper()
+	f := &badgeTestFixture{t: t, p: p, read: make(map[string]notificationReadBoundary)}
 	f.apply(&evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}})
 	f.apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}})
 	for _, userID := range []string{"U1", "U2"} {
@@ -394,5 +400,139 @@ func TestBadgeUnretractedQueryCountsTheRetractedMessage(t *testing.T) {
 	})
 	if !live {
 		t.Fatal("attention with the message counted as live is off, so the retraction would send no hint")
+	}
+}
+
+func threadFollowEvent(userID, rootID string, follow bool) *evtv1.Event {
+	if follow {
+		return &evtv1.Event{Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: rootID, UserId: userID}}}
+	}
+	return &evtv1.Event{Event: &evtv1.Event_ThreadUnfollowed{ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: rootID, UserId: userID}}}
+}
+
+// threadState reads the follow state, followers, and reply count of ROOT.
+func threadState(t *testing.T, p *NotificationDecisionProjection, userID string) (ThreadFollowState, []string, uint64) {
+	t.Helper()
+	var (
+		state     ThreadFollowState
+		followers []string
+		replies   uint64
+	)
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		state = snapshot.threadFollowState(userID, "R1", "ROOT")
+		followers = snapshot.threadFollowerIDs("R1", "ROOT")
+		replies = snapshot.threadReplyCount("ROOT")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
+	}
+	return state, followers, replies
+}
+
+func TestNotificationThreadFollowStateTransitions(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.post("ROOT", "U1", "")
+	f.post("REPLY-1", "U2", "ROOT")
+	f.post("REPLY-2", "U1", "ROOT")
+	for _, event := range []*evtv1.Event{
+		threadFollowEvent("U2", "ROOT", true),
+		threadFollowEvent("U1", "ROOT", true),
+		threadFollowEvent("U1", "ROOT", false),
+		threadFollowEvent("U1", "ROOT", true),
+		threadFollowEvent("U3", "ROOT", false),
+	} {
+		f.apply(event)
+	}
+
+	state, followers, replies := threadState(t, f.p, "U1")
+	if state != ThreadFollowStateFollowing || !slices.Equal(followers, []string{"U1", "U2"}) || replies != 2 {
+		t.Fatalf("U1 state=%q followers=%v replies=%d; want following, [U1 U2], 2", state, followers, replies)
+	}
+	if state, _, _ := threadState(t, f.p, "U3"); state != ThreadFollowStateUnfollowed {
+		t.Fatalf("U3 state = %q, want unfollowed", state)
+	}
+	if state, _, _ := threadState(t, f.p, "U-UNKNOWN"); state != ThreadFollowStateNone {
+		t.Fatalf("unknown user state = %q, want none", state)
+	}
+	f.apply(threadFollowEvent("U2", "ROOT", false))
+	if _, followers, _ := threadState(t, f.p, "U2"); !slices.Equal(followers, []string{"U1"}) {
+		t.Fatalf("followers after U2 unfollow = %v, want [U1]", followers)
+	}
+}
+
+// TestNotificationDecisionsShareEventIDsAcrossRestore verifies that the
+// decision projection adds no event IDs that the content view already holds
+// and keeps sharing the table after a snapshot restore.
+func TestNotificationDecisionsShareEventIDsAcrossRestore(t *testing.T) {
+	eventIDs := newEventIDTable()
+	timeline := newRoomTimelineProjection(eventIDs)
+	f := newBadgeTestFixtureFor(t, newNotificationDecisionProjection(eventIDs))
+	f.setMode("U1", &evtv1.NotificationDeliveryModes{FollowedThreads: badgeMode, Reactions: badgeMode})
+	posts := []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1"}),
+		postedEvent(postedOpts{envelopeID: "REPLY", roomID: "R1", actorID: "U2", inThread: "ROOT"}),
+	}
+	for i, event := range posts {
+		event.CreatedAt = timestamppb.Now()
+		if err := timeline.Apply(event, uint64(i+1)); err != nil {
+			t.Fatalf("apply timeline: %v", err)
+		}
+	}
+	known := eventIDs.len()
+	for _, event := range posts {
+		f.apply(event)
+	}
+	f.apply(threadFollowEvent("U1", "ROOT", true))
+	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "ROOT", Emoji: "tada"}}})
+	if got := eventIDs.len(); got != known {
+		t.Fatalf("shared event IDs after decision replay = %d, want %d", got, known)
+	}
+
+	data, err := f.p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := newNotificationDecisionProjection(eventIDs)
+	if err := restored.Restore(data); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if restored.badges.eventIDs != eventIDs || eventIDs.len() != known {
+		t.Fatalf("restore used table %p with %d IDs, want shared table with %d IDs", restored.badges.eventIDs, eventIDs.len(), known)
+	}
+	again, err := restored.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot after restore: %v", err)
+	}
+	if !bytes.Equal(data, again) {
+		t.Fatal("restored snapshot differs from the original")
+	}
+	if state, followers, replies := threadState(t, restored, "U1"); state != ThreadFollowStateFollowing || !slices.Equal(followers, []string{"U1"}) || replies != 1 {
+		t.Fatalf("restored thread state = %q, %v, %d; want following, [U1], 1", state, followers, replies)
+	}
+	query := badgeQuery{userID: "U1", roomID: "R1", now: time.Now()}
+	if !badgeUnread(t, restored, query) || !badgeUnread(t, f.p, query) {
+		t.Fatal("restored projection lost Badge attention from the reply and reaction")
+	}
+}
+
+func TestBadgeRoomDeletionClearsMessageRecords(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.post("ROOT", "U1", "")
+	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "ROOT", Emoji: "tada"}}})
+	f.apply(&evtv1.Event{Event: &evtv1.Event_RoomDeleted{RoomDeleted: &evtv1.RoomDeletedEvent{RoomId: "R1"}}})
+
+	if err := f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		if roomID, _, _, users := snapshot.badgeAudience("ROOT"); roomID != "" || len(users) != 0 {
+			t.Fatalf("badgeAudience after room deletion = %q, %v; want none", roomID, users)
+		}
+		if got := len(snapshot.badges.reactions); got != 0 {
+			t.Fatalf("reactions after room deletion = %d, want 0", got)
+		}
+		if got := len(snapshot.badges.snapshot().GetMessages()); got != 0 {
+			t.Fatalf("snapshot messages after room deletion = %d, want 0", got)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
 	}
 }

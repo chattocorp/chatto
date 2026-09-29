@@ -91,7 +91,12 @@
       "message_missing": "Ziņa vairs nav pieejama",
       "in_room": "iekšā",
       "in_room_capitalized": "In",
-      "load_failed": "Neizdevās ielādēt pavedienus"
+      "load_failed": "Neizdevās ielādēt pavedienus",
+      "notifications_count": {
+        "zero": "{count} paziņojumu",
+        "one": "{count} paziņojums",
+        "other": "{count} paziņojumi"
+      }
     },
     "profile": {
       "title": "Profils",

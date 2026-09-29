@@ -70,11 +70,15 @@ exercise more authority than its human owner currently possesses.
 - A human user with `bot.create` can create a bot account and becomes its
   owner.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
-  bots. Selecting a bot opens its detail page. The page edits the login,
-  display name, and bio, and manages the avatar, API keys, deletion, metadata,
-  and permissions. An account manager who does not manage bots can see all
-  bots and manage their profiles and avatars. The account manager cannot
-  manage their credentials or lifecycle.
+  bots. Selecting a bot opens its detail page. The page has three sections,
+  and each section has its own route: **Overview** edits the login, display
+  name, bio, and avatar, and shows the metadata, owner reassignment, and
+  deletion; **Integrations** manages outbound webhooks, incoming webhooks, and
+  API keys; **Permissions** manages the permissions of the bot. Tabs link the
+  sections. The owner and bot managers see all three sections. An account
+  manager who does not manage bots can see all bots and manage their profiles
+  and avatars, and sees only **Overview**. The account manager cannot manage
+  their credentials or lifecycle.
   Bot custom-status and personal-settings management are not supported.
 - The user context menu of a bot shows **Manage bot** to its owner, to a human
   with `bot.manage`, and to a human with `user.manage-accounts`. The item

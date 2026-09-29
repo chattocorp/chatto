@@ -138,7 +138,14 @@
       "bio_placeholder": "Řekněte ostatním něco o tomto členovi",
       "bio_description": "Až {max} znaků, zobrazí se v profilu člena.",
       "update_failed": "Nepodařilo se aktualizovat uživatele",
-      "cooldown_clear_failed": "Nepodařilo se zrušit omezení změny uživatelského jména"
+      "cooldown_clear_failed": "Nepodařilo se zrušit omezení změny uživatelského jména",
+      "tabs": {
+        "label": "Sekce člena",
+        "profile": "Profil",
+        "account": "Účet",
+        "roles": "Role",
+        "permissions": "Oprávnění"
+      }
     },
     "member_delete": {
       "title": "Odstranit člena",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Oprávnění – {name}",
       "back_to_rooms": "Zpět do pokojů",
       "group_permissions_hint": "Přepisy pro skupiny kanálů v této skupině. Výchozí hodnoty zděděné z oboru serveru. Jednotlivé místnosti mohou dále přepsat oprávnění ze své vlastní stránky oprávnění.",
-      "room_permissions_hint": "Přepsání na pokoj pro tuto místnost. Zde nastavené hodnoty mají přednost před výchozími hodnotami skupiny a celého serveru.",
+      "room_permissions_hint": "Tato nastavení platí jen v této místnosti. Pro stejnou roli nebo uživatele nahrazují nastavení skupiny místností a serveru. Pokud chcete něco povolit jen některým rolím, nastavte zde Zakázat pro everyone a Povolit pro tyto role.",
       "loading": "Načítání místností...",
       "empty_groups": "Zatím žádné skupiny místností",
       "empty_groups_body": "Vytvořte sadu a začněte organizovat místnosti.",
@@ -219,7 +226,7 @@
       "rename_group_action": "Přejmenovat skupinu",
       "group_permissions": "Oprávnění skupiny",
       "delete_group_blocked": "Před odstraněním přesuňte všechny položky z této skupiny",
-      "universal_room": "Univerzální pokoj",
+      "universal_room": "Univerzální místnost",
       "universal": "Univerzální",
       "archived": "Archivováno",
       "drop_rooms": "Sem dejte pokoje",
@@ -228,10 +235,8 @@
       "edit_room_action": "Upravit místnost",
       "room_description_placeholder": "Volitelný popis této místnosti",
       "slow_mode": "Pomalý režim",
-      "slow_mode_description": "Nastavte, jak dlouho musí členové čekat mezi zprávami v této místnosti.",
       "slow_mode_off": "Vypnuto",
       "slow_mode_custom": "{interval} (aktuální hodnota)",
-      "threading_mode": "Režim vláken",
       "threading_mode_description": "Povinné vždy používá vlákna; Doporučené nastaví odpověď ve vlákně jako hlavní akci; Povolené ponechá volbu; Zakázané blokuje novou aktivitu ve vláknech.",
       "threading_mode_required": "Povinný",
       "threading_mode_required_description": "Každá zpráva založí vlákno.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Nepodařilo se odebrat člena: {error}",
       "move_room_failed": "Nepodařilo se přesunout místnost: {error}",
       "move_link_failed": "Nepodařilo se přesunout odkaz: {error}",
-      "reorder_rooms_failed": "Nepodařilo se změnit pořadí místností: {error}"
+      "reorder_rooms_failed": "Nepodařilo se změnit pořadí místností: {error}",
+      "tabs": {
+        "label": "Sekce místnosti",
+        "general": "Obecné",
+        "members": "Členové",
+        "permissions": "Oprávnění"
+      },
+      "settings": {
+        "name_title": "Název a popis",
+        "name_subtitle": "Členové je vidí v seznamu místností a v horní části místnosti.",
+        "visibility_title": "Viditelnost",
+        "visibility_subtitle": "Určete, kdo je členem této místnosti.",
+        "universal_description": "Každý člen, který se může připojit k této místnosti, je automaticky jejím členem.",
+        "visibility_help": "Univerzální místnost použijte pro zprávy, které musí dostat všichni členové, například oznámení. Členové nemohou univerzální místnost opustit, ale mohou ji ztlumit. Pokud univerzální režim vypnete, členové, kteří se připojili dříve, v místnosti zůstanou.",
+        "slow_mode_subtitle": "Omezte, jak často může každý člen v této místnosti psát.",
+        "slow_mode_interval": "Minimální doba mezi příspěvky",
+        "slow_mode_help": "Jeden časovač platí pro zprávy, odpovědi ve vláknech i přílohy. Členové s oprávněním room.manage nebo message.manage jsou vyjmuti. Během čekání mohou členové dál psát koncepty, upravovat své zprávy a přidávat reakce.",
+        "threading_title": "Režim vláken",
+        "threading_subtitle": "Určete, jak konverzace v této místnosti používají vlákna.",
+        "threading_help": "Změna platí jen pro nové zprávy. Existující vlákna zůstanou beze změny. Povinný režim se hodí pro místnosti, kde je každá zpráva samostatné téma, například žádosti o podporu. Doporučený režim udrží rušné místnosti přehledné, ale vlákna nevynucuje."
+      }
     },
     "security": {
       "title": "Bezpečnost",

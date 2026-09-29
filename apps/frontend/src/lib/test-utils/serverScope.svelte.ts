@@ -1,4 +1,5 @@
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
+import { fakeServer, type FakeServerRoutes } from './fakeServer';
 import type { CurrentUser } from '$lib/api-client/viewer';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '$lib/state/server/permissions';
@@ -27,6 +28,11 @@ export type TestServerScopeOptions = {
    * runs the real factory with a stub config, so `vi.mock` of an API module works.
    */
   api?: object;
+  /**
+   * Services of an in-memory fake server. With them, `getAPI` runs the real API
+   * factories and clients against these handlers. See {@link fakeServer}.
+   */
+  routes?: FakeServerRoutes;
   /**
    * Extra `store.serverInfo` members, such as `livekitUrl`. Getters are kept.
    * `isSupportedVersion` reads the fixture, unless the `store` option replaces
@@ -100,12 +106,13 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
       },
       bearerToken: null,
       get apiConfig(): ConnectAPIConfig {
-        return {
+        const config: ConnectAPIConfig = {
           serverId: t.serverId,
           queryScope: t.queryScope,
           baseUrl: `https://${t.serverId}.example.test/api/connect`,
           bearerToken: null
         };
+        return options.routes ? fakeServer(options.routes, config) : config;
       },
       getAPI<T>(factory: (config: ConnectAPIConfig) => T): T {
         return (options.api as T | undefined) ?? factory(this.apiConfig);

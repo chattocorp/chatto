@@ -11,7 +11,9 @@ export const protectedPath = (path: string) =>
 
 /** Remove common private values before retaining worker or check text. */
 function redactImplementationText(output: string, worktree: string): string {
-  let text = stripVTControlCharacters(output).split(worktree).join('<worktree>');
+  let text = stripVTControlCharacters(output);
+  // An empty worktree would match between every character.
+  if (worktree) text = text.split(worktree).join('<worktree>');
   for (const [key, value] of Object.entries(process.env)) {
     if (value && value.length >= 4 && /KEY|TOKEN|PASSWORD|SECRET|CREDENTIAL/i.test(key))
       text = text.split(value).join('[redacted]');

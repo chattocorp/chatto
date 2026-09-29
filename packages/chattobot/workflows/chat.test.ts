@@ -33,7 +33,6 @@ test.each([
         thread: [{ id: 'earlier', role: 'human', body: 'eins, zwei, drei' }],
         currentMessage: 'Hello!',
         origin: 'user',
-        recentUserMessages: ['Hello!'],
         requesterIsMaintainer: false,
         backgroundTasks: [],
         savedImplementationPlans: []
@@ -58,7 +57,10 @@ test.each([
     model: 'test/model',
     investigation: thread ? { directory: '/configured/chatto' } : undefined,
     timeout: 0,
-    readThread: async () => [{ id: 'earlier', role: 'human', body: 'eins, zwei, drei' }]
+    readThread: async () => ({
+      messages: [{ id: 'earlier', role: 'human' as const, body: 'eins, zwei, drei' }],
+      olderOmitted: false
+    })
   });
   let running: Promise<unknown> | undefined;
   let starts = 0;
@@ -119,7 +121,7 @@ test('implementation is a separate opt-in tool with host-result reporting instru
     typing: async () => {},
     post: async () => {},
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     implementation: { directory: '/configured/chatto', repository: 'example/chatto' },
     createAgent: async (options) => {
       expect(options.tools).toEqual([
@@ -131,7 +133,7 @@ test('implementation is a separate opt-in tool with host-result reporting instru
       ]);
       expect(options.systemPrompt).toContain('conversational assistant');
       expect(options.instructions?.join('\n')).toContain(
-        'use only the host-provided prUrl as a Markdown link'
+        'the pull request URL exactly as result.prUrl'
       );
       expect(options.instructions?.join('\n')).not.toContain('Implementation is disabled.');
       return {
@@ -153,7 +155,7 @@ test('does not post malformed model channel output or its possible reasoning', a
     typing: async () => {},
     post,
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     createAgent: async () => ({
       dispose() {},
       steer: async () => false,
@@ -178,7 +180,10 @@ test('language context uses human input even when the thread contains a wrong-la
     typing: async () => {},
     post: async () => {},
     timeout: 0,
-    readThread: async () => [{ id: 'prior', role: 'bot', body: '我正在调查' }],
+    readThread: async () => ({
+      messages: [{ id: 'prior', role: 'bot' as const, body: '我正在调查' }],
+      olderOmitted: false
+    }),
     createAgent: async (options) => {
       expect(options.instructions?.join('\n')).toContain(
         'Never adopt a language from your own earlier replies'
@@ -190,7 +195,7 @@ test('language context uses human input even when the thread contains a wrong-la
           expect(JSON.parse(prompt)).toMatchObject({
             origin: 'user',
             currentMessage: 'Hello!',
-            recentUserMessages: ['Hello!']
+            thread: [{ id: 'prior', role: 'bot', body: '我正在调查' }]
           });
           return { outcome: 'completed', summary: '', usage: emptyTokenUsage() };
         }
@@ -207,7 +212,7 @@ test('an owner can finish a turn silently without posting its internal no-update
     typing: async () => {},
     post,
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     createAgent: async () => ({
       dispose: () => {},
       steer: async () => false,
@@ -232,7 +237,7 @@ test.each([
     typing: async () => {},
     post,
     timeout: 0,
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     createAgent: async () => ({
       dispose: () => {},
       steer: async () => false,
@@ -265,7 +270,7 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
       firstRead = false;
       await history;
     }
-    return [];
+    return { messages: [], olderOmitted: false };
   });
   const runOutcome = vi.fn(async (_ctx, prompt: string) => {
     messages.push(JSON.parse(prompt).currentMessage);
@@ -323,13 +328,25 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
   expect(runOutcome).toHaveBeenCalledOnce();
 });
 
-test('refreshes history for a later mention in the same conversation', async () => {
+test('a later turn gets only new thread messages, read after the saved cursor', async () => {
   const prompts: string[] = [];
   const acknowledged: string[] = [];
   const readThread = vi
     .fn()
-    .mockResolvedValueOnce([{ id: 'root', role: 'human', body: 'Hey' }])
-    .mockResolvedValue([{ id: 'count', role: 'human', body: 'eins, zwei, drei' }]);
+    .mockResolvedValueOnce({
+      messages: [{ id: 'root', role: 'human', body: 'Hey' }],
+      cursor: 'c1',
+      olderOmitted: true
+    })
+    .mockResolvedValue({
+      messages: [
+        { id: 'reply', role: 'bot', body: 'Reply' },
+        { id: 'count', role: 'human', authorName: 'Bob', body: 'eins, zwei, drei' },
+        { id: 'follow-up', role: 'human', authorName: 'Alice', body: "What's next?" }
+      ],
+      cursor: 'c2',
+      olderOmitted: false
+    });
   const post = vi.fn(async () => {
     if (post.mock.calls.length === 1) {
       await bot.route(
@@ -368,18 +385,83 @@ test('refreshes history for a later mention in the same conversation', async () 
     })
   });
 
-  await bot(createWorkflowContext(), { ...delivery, triggers: ['mention'] });
+  await bot(
+    { ...createWorkflowContext(), run: { id: 'run', reference: 'funky-comics-8426' } },
+    { ...delivery, triggers: ['mention'] }
+  );
   expect(prompts).toHaveLength(2);
   expect(acknowledged).toEqual(['root']);
+  // Only the first turn names the run, for the supervisor to announce.
+  expect(JSON.parse(prompts[0]!)).toMatchObject({
+    runName: 'funky-comics-8426',
+    thread: [{ id: 'root', role: 'human', body: 'Hey' }],
+    olderThreadMessagesOmitted: true
+  });
+  // The second turn reads after the cursor and gets only what the supervisor has not seen:
+  // not its own reply, and not the message that woke it.
+  expect(readThread.mock.calls[1]![2]).toBe('c1');
   expect(JSON.parse(prompts[1]!)).toEqual({
-    thread: [{ id: 'count', role: 'human', body: 'eins, zwei, drei' }],
+    newThreadMessages: [
+      { id: 'count', role: 'human', authorName: 'Bob', body: 'eins, zwei, drei' }
+    ],
     currentMessage: "What's next?",
+    currentAuthor: 'Alice',
     savedImplementationPlans: [],
     origin: 'user',
-    recentUserMessages: ['Hello!', "What's next?"],
     requesterIsMaintainer: false,
     backgroundTasks: []
   });
+});
+
+test('a queued message read in an earlier turn keeps its author', async () => {
+  const prompts: string[] = [];
+  const readThread = vi
+    .fn()
+    .mockResolvedValueOnce({
+      messages: [
+        { id: 'root', role: 'human', authorName: 'Carol', body: 'Hey' },
+        { id: 'queued', role: 'human', authorName: 'Dana', body: 'Und jetzt?' }
+      ],
+      cursor: 'c1',
+      olderOmitted: false
+    })
+    .mockResolvedValue({ messages: [], cursor: 'c1', olderOmitted: false });
+  const post = vi.fn(async () => {
+    if (post.mock.calls.length === 1) {
+      await bot.route(
+        { start: async () => Promise.reject(new Error('Unexpected run')) },
+        {
+          ...delivery,
+          id: 'queued',
+          triggers: ['mention'],
+          thread_root_id: 'root',
+          message: { ...delivery.message, id: 'queued', body: 'Und jetzt?' }
+        }
+      );
+    }
+  });
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    readThread,
+    post,
+    typing: async () => {},
+    timeout: 0.05,
+    createAgent: async () => ({
+      async runOutcome(_ctx, prompt, options) {
+        prompts.push(prompt);
+        options?.onText?.('Reply');
+        return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
+      },
+      steer: async () => false,
+      dispose: () => {}
+    })
+  });
+
+  await bot(createWorkflowContext(), { ...delivery, triggers: ['mention'] });
+  expect(prompts).toHaveLength(2);
+  const second = JSON.parse(prompts[1]!);
+  expect(second).toMatchObject({ currentMessage: 'Und jetzt?', currentAuthor: 'Dana' });
+  expect(second).not.toHaveProperty('newThreadMessages');
 });
 
 test('web research runs in a separate agent and blocks delegation in the supervisor', async () => {
@@ -403,7 +485,7 @@ test('web research runs in a separate agent and blocks delegation in the supervi
     acknowledge: async () => {},
     post,
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0,
     createAgent,
     implementation: { directory: '/unused', repository: 'example/chatto' },
@@ -429,7 +511,7 @@ test('web research runs in a separate agent and blocks delegation in the supervi
     acknowledge: async () => {},
     post: async () => {},
     typing: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     timeout: 0,
     createAgent
   })(createWorkflowContext(), {
@@ -463,7 +545,7 @@ test('maintainer tools follow the author of the latest human message', async () 
   });
   const bot = createChattoBot({
     acknowledge: async () => {},
-    readThread: async () => [],
+    readThread: async () => ({ messages: [], olderOmitted: false }),
     post,
     typing: async () => {},
     timeout: 0.05,

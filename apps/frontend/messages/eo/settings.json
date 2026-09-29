@@ -620,6 +620,12 @@
         "history": "Lastatempaj malsukcesoj",
         "no_failures": "Neniuj konservitaj malsukcesoj.",
         "more_failures": "Ŝargi pli"
+      },
+      "tabs": {
+        "label": "Sekcioj de la boto",
+        "overview": "Superrigardo",
+        "integrations": "Integriĝoj",
+        "permissions": "Permesoj"
       }
     }
   }

@@ -1,27 +1,17 @@
 import { protoInt64, Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listEvents: vi.fn(),
-  listEventTypes: vi.fn(),
-  getEvent: vi.fn()
-}));
+const mocks = mockService(AdminEventLogService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function eventLogAPI() {
+  return createAdminEventLogAPI(
+    fakeServer((router) => router.service(AdminEventLogService, mocks))
+  );
+}
 
 function apiEntry(sequence: string) {
   return {
@@ -39,21 +29,11 @@ function apiEntry(sequence: string) {
 
 describe('createAdminEventLogAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listEvents.mockReset();
-    mocks.listEventTypes.mockReset();
-    mocks.getEvent.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listEvents: mocks.listEvents,
-      listEventTypes: mocks.listEventTypes,
-      getEvent: mocks.getEvent
-    });
+    vi.resetAllMocks();
   });
 
   it('lists filtered events and maps int64 and timestamps', async () => {
-    mocks.listEvents.mockResolvedValue({
+    mocks.listEvents.mockReturnValue({
       entries: [apiEntry('12')],
       hasOlder: true,
       endCursor: '12',
@@ -62,10 +42,7 @@ describe('createAdminEventLogAPI', () => {
       scanLimit: 5000,
       scanLimited: true
     });
-    const api = createAdminEventLogAPI({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const api = eventLogAPI();
 
     const page = await api.listEvents({
       limit: 50,
@@ -78,25 +55,16 @@ describe('createAdminEventLogAPI', () => {
       }
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://chat.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.listEvents).toHaveBeenCalledWith(
-      {
-        limit: 50,
-        before: '20',
-        filter: {
-          eventType: 'UserJoinedRoomEvent',
-          actorId: 'actor-1',
-          createdAtFrom: Timestamp.fromDate(new Date('2026-01-01T00:00:00.000Z')),
-          createdAtTo: Timestamp.fromDate(new Date('2026-01-02T00:00:00.000Z'))
-        }
-      },
-      {}
-    );
+    expect(receivedRequest(mocks.listEvents)).toMatchObject({
+      limit: 50,
+      before: '20',
+      filter: {
+        eventType: 'UserJoinedRoomEvent',
+        actorId: 'actor-1',
+        createdAtFrom: Timestamp.fromDate(new Date('2026-01-01T00:00:00.000Z')),
+        createdAtTo: Timestamp.fromDate(new Date('2026-01-02T00:00:00.000Z'))
+      }
+    });
     expect(page.totalCount).toBe('9007199254740993');
     expect(page.entries[0]).toMatchObject({
       sequence: '12',
@@ -107,7 +75,7 @@ describe('createAdminEventLogAPI', () => {
   });
 
   it('omits empty filters', async () => {
-    mocks.listEvents.mockResolvedValue({
+    mocks.listEvents.mockReturnValue({
       entries: [],
       hasOlder: false,
       totalCount: protoInt64.zero,
@@ -115,43 +83,39 @@ describe('createAdminEventLogAPI', () => {
       scanLimit: 50,
       scanLimited: false
     });
-    const api = createAdminEventLogAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = eventLogAPI();
 
     const page = await api.listEvents({ limit: 50 });
 
-    expect(mocks.listEvents).toHaveBeenCalledWith(
-      {
-        limit: 50,
-        before: undefined,
-        filter: undefined
-      },
-      {}
-    );
+    expect(receivedRequest(mocks.listEvents)).toMatchObject({ limit: 50, before: undefined });
+    expect(receivedRequest(mocks.listEvents)?.filter).toBeUndefined();
     expect(page.entries).toEqual([]);
     expect(page.endCursor).toBeNull();
   });
 
   it('lists event types and gets one event', async () => {
-    mocks.listEventTypes.mockResolvedValue({
+    mocks.listEventTypes.mockReturnValue({
       eventTypes: ['UserJoinedRoomEvent', 'decode-error']
     });
-    mocks.getEvent.mockResolvedValue({
+    mocks.getEvent.mockReturnValue({
       entry: apiEntry('7')
     });
-    const api = createAdminEventLogAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = eventLogAPI();
 
     await expect(api.listEventTypes()).resolves.toEqual(['UserJoinedRoomEvent', 'decode-error']);
     await expect(api.getEvent('7')).resolves.toMatchObject({
       sequence: '7',
       payloadJson: '{"id":"event-7"}'
     });
-    expect(mocks.listEventTypes).toHaveBeenCalledWith({}, {});
-    expect(mocks.getEvent).toHaveBeenCalledWith({ sequence: '7' }, {});
+    expect(mocks.listEventTypes).toHaveBeenCalledOnce();
+    expect(receivedRequest(mocks.getEvent)).toMatchObject({ sequence: '7' });
   });
 
   it('maps a missing event to null', async () => {
-    mocks.getEvent.mockRejectedValue(new ConnectError('not found', Code.NotFound));
-    const api = createAdminEventLogAPI({ baseUrl: '/api/connect', bearerToken: null });
+    mocks.getEvent.mockImplementation(() => {
+      throw new ConnectError('not found', Code.NotFound);
+    });
+    const api = eventLogAPI();
 
     await expect(api.getEvent('404')).resolves.toBeNull();
   });

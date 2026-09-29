@@ -405,6 +405,15 @@ Do not generate playground links for code written into this repository.
   authenticated remote server with an anonymous origin server.
 - Use helpers from `$lib/test-utils` rather than re-rolling connection/context
   mocks.
+- Test code that calls the ConnectRPC API against an in-memory fake server
+  rather than mocking `@connectrpc/connect`, `@connectrpc/connect-web`, or an
+  API module. `fakeServer(routes)` gives an API config for an API factory, and
+  `createTestServerScope({ routes })` serves a component. Register handlers from
+  `mockService(Service)`: they keep the method types, so wrong fixture shapes
+  fail type checking, while the real client, interceptors, and mapping run.
+  Assert on `receivedRequest(handler)` and `receivedContext(handler)` (headers,
+  timeout). Test cancellation with `AbortSignal.abort()` and expect
+  `Code.Canceled`. Throw a `ConnectError` from a handler to test an error.
 - Mock the `/chat/[serverId]` scope with `createTestServerScope` from
   `$lib/test-utils/serverScope.svelte`. Replace the scope module with the
   `serverScopeModule` of that file, call `createTestServerScope` in

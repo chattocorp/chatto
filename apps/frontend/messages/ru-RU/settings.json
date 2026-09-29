@@ -620,6 +620,12 @@
         "history": "Недавние ошибки",
         "no_failures": "Нет сохранённых ошибок.",
         "more_failures": "Загрузить ещё"
+      },
+      "tabs": {
+        "label": "Разделы бота",
+        "overview": "Обзор",
+        "integrations": "Интеграции",
+        "permissions": "Разрешения"
       }
     }
   }

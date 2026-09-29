@@ -620,6 +620,12 @@
         "history": "最近の失敗",
         "no_failures": "保存されている失敗はありません。",
         "more_failures": "さらに読み込む"
+      },
+      "tabs": {
+        "label": "ボットのセクション",
+        "overview": "概要",
+        "integrations": "連携",
+        "permissions": "権限"
       }
     }
   }

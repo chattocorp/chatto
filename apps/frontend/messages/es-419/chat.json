@@ -89,7 +89,11 @@
       "message_missing": "Mensaje ya no disponible",
       "in_room": "en",
       "in_room_capitalized": "En",
-      "load_failed": "No se pudieron cargar los hilos"
+      "load_failed": "No se pudieron cargar los hilos",
+      "notifications_count": {
+        "one": "{count} notificación",
+        "other": "{count} notificaciones"
+      }
     },
     "profile": {
       "title": "Perfil",

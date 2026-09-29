@@ -1,47 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { createAccountAPI } from '$lib/api-client/account';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  changePassword: vi.fn(),
-  updateSettings: vi.fn(),
-  requestAccountDeletion: vi.fn(),
-  deleteMyAccount: vi.fn()
-}));
+const mocks = mockService(MyAccountService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function accountAPI() {
+  return createAccountAPI(fakeServer((router) => router.service(MyAccountService, mocks)));
+}
 
 describe('createAccountAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.changePassword.mockReset();
-    mocks.updateSettings.mockReset();
-    mocks.requestAccountDeletion.mockReset();
-    mocks.deleteMyAccount.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      changePassword: mocks.changePassword,
-      updateSettings: mocks.updateSettings,
-      requestAccountDeletion: mocks.requestAccountDeletion,
-      deleteMyAccount: mocks.deleteMyAccount
-    });
+    vi.resetAllMocks();
   });
 
   it('updates settings and maps time format enums', async () => {
-    mocks.updateSettings.mockResolvedValue({
+    mocks.updateSettings.mockReturnValue({
       settings: {
         timezone: 'Europe/Berlin',
         timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
@@ -49,10 +24,7 @@ describe('createAccountAPI', () => {
       }
     });
 
-    const api = createAccountAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = accountAPI();
 
     await expect(
       api.updateSettings({
@@ -66,7 +38,7 @@ describe('createAccountAPI', () => {
       shareTimezone: true
     });
 
-    expect(mocks.updateSettings).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.updateSettings)).toMatchObject({
       timezone: 'Europe/Berlin',
       timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
       shareTimezone: true,
@@ -75,34 +47,28 @@ describe('createAccountAPI', () => {
   });
 
   it('sets a password', async () => {
-    mocks.changePassword.mockResolvedValue({});
+    mocks.changePassword.mockReturnValue({});
 
-    const api = createAccountAPI({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    const api = accountAPI();
 
     await expect(
       api.changePassword({ password: 'newpassword456', currentPassword: 'oldpassword123' })
     ).resolves.toBeUndefined();
 
-    expect(mocks.changePassword).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.changePassword)).toMatchObject({
       password: 'newpassword456',
       currentPassword: 'oldpassword123'
     });
   });
 
   it('sends empty timezone when clearing settings', async () => {
-    mocks.updateSettings.mockResolvedValue({
+    mocks.updateSettings.mockReturnValue({
       settings: {
         timeFormat: TimeFormat.TIME_FORMAT_AUTO
       }
     });
 
-    const api = createAccountAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = accountAPI();
 
     await expect(api.updateSettings({ timezone: null })).resolves.toEqual({
       timezone: null,
@@ -110,7 +76,7 @@ describe('createAccountAPI', () => {
       shareTimezone: undefined
     });
 
-    expect(mocks.updateSettings).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.updateSettings)).toMatchObject({
       timezone: '',
       timeFormat: undefined,
       shareTimezone: undefined,
@@ -119,18 +85,15 @@ describe('createAccountAPI', () => {
   });
 
   it('requests and confirms account deletion', async () => {
-    mocks.requestAccountDeletion.mockResolvedValue({ confirmationToken: 'AD-token' });
-    mocks.deleteMyAccount.mockResolvedValue({});
+    mocks.requestAccountDeletion.mockReturnValue({ confirmationToken: 'AD-token' });
+    mocks.deleteMyAccount.mockReturnValue({});
 
-    const api = createAccountAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
+    const api = accountAPI();
 
     await expect(api.requestAccountDeletion()).resolves.toBe('AD-token');
     await expect(api.deleteMyAccount('AD-token')).resolves.toBe(true);
 
-    expect(mocks.requestAccountDeletion).toHaveBeenCalledWith({});
-    expect(mocks.deleteMyAccount).toHaveBeenCalledWith({ confirmationToken: 'AD-token' });
+    expect(mocks.requestAccountDeletion).toHaveBeenCalledOnce();
+    expect(receivedRequest(mocks.deleteMyAccount)).toMatchObject({ confirmationToken: 'AD-token' });
   });
 });

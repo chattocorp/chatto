@@ -21,8 +21,8 @@ permissions and cannot sign in through the login forms.
 1. Open **Server Admin → Bots** and select **Create Bot**.
 2. Enter a username and a display name.
 3. Copy the API key before you close the dialog. Chatto cannot show it again.
-4. Open the detail page of the bot. Enable the server, room-group, or room
-   permissions that the integration needs.
+4. Open the detail page of the bot and select **Permissions**. Enable the
+   server, room-group, or room permissions that the integration needs.
 5. Enable `room.join` for the rooms that the bot needs. In the **Joined** row
    at the top of the matrix, select each room to add the bot, and confirm.
    Clear a room to remove the bot.
@@ -128,7 +128,8 @@ integration. To replace a key, create a new key, move the integration to it,
 and revoke the old key. Revocation immediately makes only that key invalid and
 closes its realtime connections.
 
-The detail page shows when each key was created and approximately when Chatto
+The **Integrations** page of the bot shows when each key was created and
+approximately when Chatto
 last recorded its use. **No use recorded** does not prove that nobody used the
 key.
 
@@ -147,7 +148,8 @@ An incoming webhook lets an external tool post as the bot without an API key.
 
 <Steps>
 
-1. Open the detail page of the bot and select **Create Webhook**.
+1. Open the detail page of the bot, select **Integrations**, and then select
+   **Create Webhook**.
 2. Enter a name that identifies the caller. Optionally, select a destination
    channel room. Chatto adds its room ID to the URL.
 3. Copy the complete URL before you close the dialog. Chatto cannot show it
@@ -224,8 +226,8 @@ the bot.
 
 <Steps>
 
-1. Open the bot in **Server Admin → Bots**. In **Outbound webhooks**, select
-   **Create webhook**.
+1. Open the bot in **Server Admin → Bots** and select **Integrations**. In
+   **Outbound webhooks**, select **Create webhook**.
 2. Enter a name, the destination URL, and, if necessary, the complete
    `Authorization` header value.
 3. Copy the signing secret if your tool verifies signatures. Chatto shows it

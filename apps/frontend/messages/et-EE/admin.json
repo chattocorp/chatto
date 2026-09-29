@@ -138,7 +138,14 @@
       "bio_placeholder": "Räägi teistele sellest liikmest veidi",
       "bio_description": "Kuni {max} märki, kuvatakse liikme profiilis.",
       "update_failed": "Kasutaja uuendamine ebaõnnestus",
-      "cooldown_clear_failed": "Kasutajanime muutmise ooteaja tühistamine ebaõnnestus"
+      "cooldown_clear_failed": "Kasutajanime muutmise ooteaja tühistamine ebaõnnestus",
+      "tabs": {
+        "label": "Liikme jaotised",
+        "profile": "Profiil",
+        "account": "Konto",
+        "roles": "Rollid",
+        "permissions": "Load"
+      }
     },
     "member_delete": {
       "title": "Kustuta liige",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Load – {name}",
       "back_to_rooms": "Tagasi tubadesse",
       "group_permissions_hint": "Selle rühma kanaliruumide grupipõhised alistamised. Vaikeväärtused on päritud serveri ulatuselt. Üksikud ruumid saavad oma lubade lehel olevaid õigusi veelgi alistada.",
-      "room_permissions_hint": "Selle ruumi alistamised ruumipõhiselt. Siin seatud väärtused on ülimuslikud grupi ja serveriüleste vaikeväärtuste ees.",
+      "room_permissions_hint": "Need seaded kehtivad ainult selles ruumis. Need asendavad sama rolli või kasutaja puhul ruumirühma ja serveri seaded. Kui soovite, et siin saaksid midagi teha ainult mõned rollid, määrake everyone jaoks Keela ja nende rollide jaoks Luba.",
       "loading": "Ruumide laadimine...",
       "empty_groups": "Ruumigruppe pole veel",
       "empty_groups_body": "Ruumide korraldamise alustamiseks looge komplekt.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Redigeeri tuba",
       "room_description_placeholder": "Selle ruumi valikuline kirjeldus",
       "slow_mode": "Aeglane režiim",
-      "slow_mode_description": "Määra, kui kaua peavad liikmed selles ruumis sõnumite vahel ootama.",
       "slow_mode_off": "Väljas",
       "slow_mode_custom": "{interval} (praegune väärtus)",
-      "threading_mode": "Lõimerežiim",
       "threading_mode_description": "Nõutud kasutab alati lõimi; Soovitatud muudab lõimes vastamise põhitoiminguks; Lubatud jätab valiku vabaks; Keelatud blokeerib uue lõimetegevuse.",
       "threading_mode_required": "Kohustuslik",
       "threading_mode_required_description": "Iga sõnum alustab lõime.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Liikme eemaldamine ebaõnnestus: {error}",
       "move_room_failed": "Toa teisaldamine ebaõnnestus: {error}",
       "move_link_failed": "Lingi teisaldamine ebaõnnestus: {error}",
-      "reorder_rooms_failed": "Tubade ümberjärjestamine ebaõnnestus: {error}"
+      "reorder_rooms_failed": "Tubade ümberjärjestamine ebaõnnestus: {error}",
+      "tabs": {
+        "label": "Ruumi jaotised",
+        "general": "Üldine",
+        "members": "Liikmed",
+        "permissions": "Load"
+      },
+      "settings": {
+        "name_title": "Nimi ja kirjeldus",
+        "name_subtitle": "Liikmed näevad neid ruumide loendis ja ruumi ülaosas.",
+        "visibility_title": "Nähtavus",
+        "visibility_subtitle": "Valige, kes on selle ruumi liige.",
+        "universal_description": "Iga liige, kes saab selle ruumiga liituda, on automaatselt selle liige.",
+        "visibility_help": "Kasutage universaalset tuba uudiste jaoks, mis peavad jõudma kõigi liikmeteni, näiteks teadaanded. Liikmed ei saa universaalsest toast lahkuda, kuid nad saavad selle vaigistada. Kui lülitate universaalsuse välja, jäävad varem liitunud liikmed ruumi.",
+        "slow_mode_subtitle": "Piirake, kui sageli iga liige saab selles ruumis postitada.",
+        "slow_mode_interval": "Minimaalne aeg postituste vahel",
+        "slow_mode_help": "Üks taimer kehtib sõnumitele, lõimevastustele ja manustele. Õigusega room.manage või message.manage liikmed on erandid. Ootamise ajal saavad liikmed jätkuvalt mustandeid kirjutada, oma sõnumeid muuta ja reaktsioone lisada.",
+        "threading_title": "Lõimerežiim",
+        "threading_subtitle": "Valige, kuidas selle ruumi vestlused lõimi kasutavad.",
+        "threading_help": "Muudatus kehtib ainult uutele sõnumitele. Olemasolevad lõimed jäävad samaks. Kohustuslik sobib ruumidele, kus iga sõnum on eraldi teema, näiteks tugipäringud. Soovitatud hoiab aktiivsed ruumid loetavana, kuid ei sunni lõimi kasutama."
+      }
     },
     "security": {
       "title": "Turvalisus",

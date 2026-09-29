@@ -138,7 +138,14 @@
       "bio_placeholder": "Tell others a little about this member",
       "bio_description": "Up to {max} characters, shown on the profile of the member.",
       "update_failed": "Failed to update user",
-      "cooldown_clear_failed": "Failed to clear username cooldown"
+      "cooldown_clear_failed": "Failed to clear username cooldown",
+      "tabs": {
+        "label": "Member sections",
+        "profile": "Profile",
+        "account": "Account",
+        "roles": "Roles",
+        "permissions": "Permissions"
+      }
     },
     "member_delete": {
       "title": "Delete Member",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Permissions - {name}",
       "back_to_rooms": "Back to rooms",
       "group_permissions_hint": "Per-group overrides for the channel rooms in this group. Defaults inherited from the server scope. Individual rooms can further override permissions from their own permissions page.",
-      "room_permissions_hint": "Per-room overrides for this room. Values set here take precedence over the group's and the server-wide defaults.",
+      "room_permissions_hint": "These settings apply only in this room. They replace the room group and server settings for the same role or user. To let only some roles do something here, set Deny for everyone and Allow for those roles.",
       "loading": "Loading rooms...",
       "empty_groups": "No room groups yet",
       "empty_groups_body": "Create a set to start organising rooms.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Edit room",
       "room_description_placeholder": "Optional description for this room",
       "slow_mode": "Slow Mode",
-      "slow_mode_description": "Set how long members must wait between messages in this room.",
       "slow_mode_off": "Off",
       "slow_mode_custom": "{interval} (current value)",
-      "threading_mode": "Threading mode",
       "threading_mode_description": "Required always uses threads; Encouraged makes thread reply the primary action; Enabled leaves the choice open; Disabled blocks new thread activity.",
       "threading_mode_required": "Required",
       "threading_mode_required_description": "Every message starts a thread.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Failed to remove member: {error}",
       "move_room_failed": "Failed to move room: {error}",
       "move_link_failed": "Failed to move link: {error}",
-      "reorder_rooms_failed": "Failed to reorder rooms: {error}"
+      "reorder_rooms_failed": "Failed to reorder rooms: {error}",
+      "tabs": {
+        "label": "Room sections",
+        "general": "General",
+        "members": "Members",
+        "permissions": "Permissions"
+      },
+      "settings": {
+        "name_title": "Name & Description",
+        "name_subtitle": "Members see these in the room list and at the top of the room.",
+        "visibility_title": "Visibility",
+        "visibility_subtitle": "Choose who is a member of this room.",
+        "universal_description": "Every member who can join this room is a member automatically.",
+        "visibility_help": "Use a Universal room for news that all members must get, such as announcements. Members cannot leave a Universal room, but they can mute it. If you turn Universal off, the members who joined before stay in the room.",
+        "slow_mode_subtitle": "Limit how often each member can post in this room.",
+        "slow_mode_interval": "Minimum time between posts",
+        "slow_mode_help": "One timer covers messages, thread replies, and attachments. Members with the room.manage or message.manage permission are exempt. While members wait, they can still write drafts, edit their messages, and add reactions.",
+        "threading_title": "Threading Mode",
+        "threading_subtitle": "Choose how conversations in this room use threads.",
+        "threading_help": "A change applies only to new messages. Existing threads stay as they are. Required is good for rooms where each message is a separate topic, such as support requests. Encouraged keeps busy rooms easy to read, but does not force threads."
+      }
     },
     "security": {
       "title": "Security",

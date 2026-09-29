@@ -216,7 +216,7 @@
       "no_files": "Ankoraŭ neniuj dosieroj en ĉi tiu ĉambro.",
       "files": "Dosieroj",
       "pins": "Alpinglitaj mesaĝoj",
-      "call": "Voku",
+      "call": "Voko",
       "jump_to_file": "Saltu al {filename}",
       "loading_files": "Ŝarĝante dosierojn...",
       "loading_members": "Ŝarĝante membrojn...",
@@ -227,12 +227,11 @@
       "remove_failed": "Ne eblis forigi uzanton el ĉambro",
       "remove_success": "{name} estis forigita el ĉambro",
       "members_load_failed": "Malsukcesis ŝargi ĉambranojn",
-      "members_refresh_failed": "Malsukcesis refreŝigi ĉambranojn"
+      "members_refresh_failed": "Malsukcesis refreŝigi ĉambranojn",
+      "search": "Serĉi"
     },
     "pins": {
-      "show": "Montri alpinglitajn mesaĝojn",
       "unseen": "Novaj alpinglitaj mesaĝoj",
-      "hide": "Kaŝi alpinglitajn mesaĝojn",
       "pin": "Alpingli mesaĝon",
       "unpin": "Malpingli mesaĝon",
       "unpin_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun alpinglon?",

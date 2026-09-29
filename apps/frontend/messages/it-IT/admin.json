@@ -138,7 +138,14 @@
       "bio_placeholder": "Racconta agli altri qualcosa su questo membro",
       "bio_description": "Fino a {max} caratteri, mostrati nel profilo del membro.",
       "update_failed": "Impossibile aggiornare l'utente",
-      "cooldown_clear_failed": "Impossibile azzerare il tempo di attesa per il cambio del nome utente"
+      "cooldown_clear_failed": "Impossibile azzerare il tempo di attesa per il cambio del nome utente",
+      "tabs": {
+        "label": "Sezioni del membro",
+        "profile": "Profilo",
+        "account": "Account",
+        "roles": "Ruoli",
+        "permissions": "Autorizzazioni"
+      }
     },
     "member_delete": {
       "title": "Elimina membro",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Autorizzazioni - {name}",
       "back_to_rooms": "Torniamo alle stanze",
       "group_permissions_hint": "Sostituzioni per gruppo per le stanze canale in questo gruppo. Impostazioni predefinite ereditate dall'ambito del server. Le singole stanze possono inoltre sovrascrivere le autorizzazioni dalla propria pagina delle autorizzazioni.",
-      "room_permissions_hint": "Sostituisce per camera questa stanza. I valori impostati qui hanno la precedenza sui valori predefiniti del gruppo e dell'intero server.",
+      "room_permissions_hint": "Queste impostazioni valgono solo in questa stanza. Sostituiscono le impostazioni del gruppo di stanze e del server per lo stesso ruolo o utente. Per consentire un’azione qui solo ad alcuni ruoli, imposta Nega per everyone e Consenti per quei ruoli.",
       "loading": "Caricamento stanze...",
       "empty_groups": "Nessun gruppo di stanze ancora",
       "empty_groups_body": "Crea un set per iniziare a organizzare le stanze.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Modifica stanza",
       "room_description_placeholder": "Descrizione facoltativa per questa stanza",
       "slow_mode": "Modalità lenta",
-      "slow_mode_description": "Imposta quanto devono attendere i membri tra i messaggi in questa stanza.",
       "slow_mode_off": "Disattivata",
       "slow_mode_custom": "{interval} (valore attuale)",
-      "threading_mode": "Modalità thread",
       "threading_mode_description": "Obbligatoria impone i thread; Consigliata rende la risposta nel thread l’azione principale; Abilitata lascia libertà di scelta; Disabilitata blocca nuove attività nei thread.",
       "threading_mode_required": "Obbligatoria",
       "threading_mode_required_description": "Ogni messaggio avvia un thread.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Impossibile rimuovere il membro: {error}",
       "move_room_failed": "Impossibile spostare la stanza: {error}",
       "move_link_failed": "Impossibile spostare il collegamento: {error}",
-      "reorder_rooms_failed": "Impossibile riordinare le stanze: {error}"
+      "reorder_rooms_failed": "Impossibile riordinare le stanze: {error}",
+      "tabs": {
+        "label": "Sezioni della stanza",
+        "general": "Generale",
+        "members": "Membri",
+        "permissions": "Autorizzazioni"
+      },
+      "settings": {
+        "name_title": "Nome e descrizione",
+        "name_subtitle": "I membri li vedono nell’elenco delle stanze e in cima alla stanza.",
+        "visibility_title": "Visibilità",
+        "visibility_subtitle": "Scegli chi è membro di questa stanza.",
+        "universal_description": "Ogni membro che può entrare in questa stanza ne è membro automaticamente.",
+        "visibility_help": "Usa una stanza universale per le notizie che tutti i membri devono ricevere, come gli annunci. I membri non possono lasciare una stanza universale, ma possono silenziarla. Se disattivi l’opzione universale, i membri entrati prima restano nella stanza.",
+        "slow_mode_subtitle": "Limita la frequenza con cui ogni membro può pubblicare in questa stanza.",
+        "slow_mode_interval": "Tempo minimo tra i post",
+        "slow_mode_help": "Un solo timer vale per messaggi, risposte nei thread e allegati. I membri con il permesso room.manage o message.manage sono esenti. Durante l’attesa, i membri possono comunque scrivere bozze, modificare i propri messaggi e aggiungere reazioni.",
+        "threading_title": "Modalità thread",
+        "threading_subtitle": "Scegli come le conversazioni di questa stanza usano i thread.",
+        "threading_help": "Una modifica vale solo per i nuovi messaggi. I thread esistenti restano come sono. Obbligatoria è adatta alle stanze in cui ogni messaggio è un argomento a sé, come le richieste di assistenza. Consigliata mantiene leggibili le stanze molto attive, senza imporre i thread."
+      }
     },
     "security": {
       "title": "Sicurezza",

@@ -42,6 +42,8 @@ export type RunlingEventPayload =
       id: string;
       status: 'completed' | 'failed';
       durationMs: number;
+      /** Error message of a failed step, at most 2,000 characters. Journal only. */
+      error?: string;
     }
   | {
       type: 'command.started';

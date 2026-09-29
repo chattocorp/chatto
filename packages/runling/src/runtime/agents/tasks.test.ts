@@ -224,6 +224,98 @@ test('an explicit reply wakes the owner without waiting for the progress interva
   }
 });
 
+test('a notice wakes the owner at once with its text and is retained', async () => {
+  const tasks = createAgentTasks(createWorkflowContext(), {
+    progressIntervalMs: 120_000,
+    notifyActivity: false
+  });
+  const finish = Promise.withResolvers<string>();
+  const handle = tasks.start(
+    'Worker',
+    async (ctx) => {
+      await ctx.emit({
+        type: 'notice',
+        text: 'Tests pass; writing the docs next.',
+        data: { stage: 'testing', passed: 3 }
+      });
+      return finish.promise;
+    },
+    undefined
+  );
+  const reader = tasks.notifications[Symbol.asyncIterator]();
+  try {
+    expect(JSON.parse((await reader.next()).value!)).toMatchObject({
+      type: 'task.notice',
+      text: 'Tests pass; writing the docs next.',
+      data: { stage: 'testing', passed: 3 },
+      task: { id: handle.id, status: 'running' }
+    });
+    expect(tasks.get(handle.id).output.at(-1)).toMatchObject({
+      kind: 'notice',
+      text: 'Tests pass; writing the docs next.',
+      data: { stage: 'testing', passed: 3 }
+    });
+  } finally {
+    finish.resolve('done');
+    await tasks.dispose();
+  }
+});
+
+test('unread notices are not coalesced and arrive in order before completion', async () => {
+  const tasks = createAgentTasks(createWorkflowContext(), { notifyActivity: false });
+  const handle = tasks.start(
+    'Worker',
+    async (ctx) => {
+      await ctx.emit({ type: 'notice', text: 'Opened the PR', data: { milestone: 'published' } });
+      await ctx.emit({ type: 'notice', text: 'CI failed', data: { milestone: 'ci_failed' } });
+      return 'done';
+    },
+    undefined
+  );
+  await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
+  const reader = tasks.notifications[Symbol.asyncIterator]();
+  try {
+    const received = [];
+    for (let index = 0; index < 3; index++) received.push(JSON.parse((await reader.next()).value!));
+    expect(received.map((notice) => [notice.type, notice.data?.milestone])).toEqual([
+      ['task.notice', 'published'],
+      ['task.notice', 'ci_failed'],
+      ['task.completed', undefined]
+    ]);
+  } finally {
+    await tasks.dispose();
+  }
+});
+
+test('the owner hook sees every child update in order, and its failure does not stop the child', async () => {
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const seen: AgentTaskUpdate[] = [];
+  const run = ctx.spawn(async (child: WorkflowContext<string, AgentTaskUpdate>) => {
+    await child.emit({ type: 'state', value: { phase: 'published' } });
+    await child.emit({ type: 'finding', text: 'Checks passed' });
+    return 'done';
+  });
+  tasks.observe('Worker', run, {
+    onUpdate: async (update, task) => {
+      expect(task.id).toBe(run.id);
+      seen.push(update);
+      throw new Error('Owner hook failed');
+    }
+  });
+  try {
+    expect(await run.result).toBe('done');
+    await vi.waitFor(() => expect(tasks.get(run.id).status).toBe('completed'));
+    expect(seen).toEqual([
+      { type: 'state', value: { phase: 'published' } },
+      { type: 'finding', text: 'Checks passed' }
+    ]);
+    expect(tasks.get(run.id).progress).toBe('Checks passed');
+  } finally {
+    await tasks.dispose();
+  }
+});
+
 test('a pending reply is not replaced by later tool failure activity', async () => {
   const tasks = createAgentTasks(createWorkflowContext(), { toolFailureNoticeThreshold: 1 });
   const finish = Promise.withResolvers<string>();

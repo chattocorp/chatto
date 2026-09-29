@@ -138,7 +138,14 @@
       "bio_placeholder": "Diğerlerine bu üye hakkında biraz bilgi verin",
       "bio_description": "En fazla {max} karakter, üyenin profilinde gösterilir.",
       "update_failed": "Kullanıcı güncellenemedi",
-      "cooldown_clear_failed": "Kullanıcı adı değiştirme bekleme süresi temizlenemedi"
+      "cooldown_clear_failed": "Kullanıcı adı değiştirme bekleme süresi temizlenemedi",
+      "tabs": {
+        "label": "Üye bölümleri",
+        "profile": "Profil",
+        "account": "Hesap",
+        "roles": "Roller",
+        "permissions": "İzinler"
+      }
     },
     "member_delete": {
       "title": "Üyeyi sil",
@@ -205,7 +212,7 @@
       "permissions_page_title": "İzinler - {name}",
       "back_to_rooms": "Odalara geri dön",
       "group_permissions_hint": "Bu gruptaki kanal odaları için grup başına geçersiz kılmalar. Sunucu kapsamından devralınan varsayılanlar. Bireysel odalar ayrıca kendi izinler sayfalarından izinleri geçersiz kılabilir.",
-      "room_permissions_hint": "Bu oda için oda başına geçersiz kılmalar. Burada ayarlanan değerler, grubun ve sunucu genelindeki varsayılanlara göre önceliklidir.",
+      "room_permissions_hint": "Bu ayarlar yalnızca bu odada geçerlidir. Aynı rol veya kullanıcı için oda grubunun ve sunucunun ayarlarının yerini alır. Burada yalnızca bazı rollerin bir işlem yapabilmesi için everyone için Reddet, bu roller için İzin ver ayarlayın.",
       "loading": "Odalar yükleniyor...",
       "empty_groups": "Henüz oda grubu yok",
       "empty_groups_body": "Odaları düzenlemeye başlamak için bir set oluşturun.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Odayı düzenle",
       "room_description_placeholder": "Bu oda için isteğe bağlı açıklama",
       "slow_mode": "Yavaş mod",
-      "slow_mode_description": "Üyelerin bu odada mesajlar arasında ne kadar beklemesi gerektiğini ayarlayın.",
       "slow_mode_off": "Kapalı",
       "slow_mode_custom": "{interval} (geçerli değer)",
-      "threading_mode": "Konu modu",
       "threading_mode_description": "Zorunlu her zaman ileti dizilerini kullanır; Teşvik edilen, dizide yanıtlamayı birincil eylem yapar; Etkin seçimi serbest bırakır; Devre dışı yeni dizi etkinliğini engeller.",
       "threading_mode_required": "Zorunlu",
       "threading_mode_required_description": "Her mesaj bir ileti dizisi başlatır.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Üye kaldırılamadı: {error}",
       "move_room_failed": "Oda taşınamadı: {error}",
       "move_link_failed": "Bağlantı taşınamadı: {error}",
-      "reorder_rooms_failed": "Odalar yeniden sıralanamadı: {error}"
+      "reorder_rooms_failed": "Odalar yeniden sıralanamadı: {error}",
+      "tabs": {
+        "label": "Oda bölümleri",
+        "general": "Genel",
+        "members": "Üyeler",
+        "permissions": "İzinler"
+      },
+      "settings": {
+        "name_title": "Ad ve açıklama",
+        "name_subtitle": "Üyeler bunları oda listesinde ve odanın üst kısmında görür.",
+        "visibility_title": "Görünürlük",
+        "visibility_subtitle": "Bu odanın üyelerini seçin.",
+        "universal_description": "Bu odaya katılabilen her üye otomatik olarak odanın üyesidir.",
+        "visibility_help": "Tüm üyelerin alması gereken haberler, örneğin duyurular için evrensel oda kullanın. Üyeler evrensel bir odadan ayrılamaz, ancak odayı sessize alabilir. Evrensel seçeneğini kapatırsanız, daha önce katılan üyeler odada kalır.",
+        "slow_mode_subtitle": "Her üyenin bu odada ne sıklıkla gönderi paylaşabileceğini sınırlayın.",
+        "slow_mode_interval": "Gönderiler arasındaki en kısa süre",
+        "slow_mode_help": "Tek bir zamanlayıcı mesajlar, konu yanıtları ve ekler için geçerlidir. room.manage veya message.manage iznine sahip üyeler muaftır. Beklerken üyeler taslak yazmaya, mesajlarını düzenlemeye ve tepki eklemeye devam edebilir.",
+        "threading_title": "Konu modu",
+        "threading_subtitle": "Bu odadaki sohbetlerin konuları nasıl kullanacağını seçin.",
+        "threading_help": "Değişiklik yalnızca yeni mesajlar için geçerlidir. Mevcut konular olduğu gibi kalır. Zorunlu, destek talepleri gibi her mesajın ayrı bir konu olduğu odalar için uygundur. Teşvik edilen, konuları zorunlu kılmadan yoğun odaları okunaklı tutar."
+      }
     },
     "security": {
       "title": "Güvenlik",

@@ -57,12 +57,12 @@ This FDR covers human accounts from registration through deletion: signup, email
   confirmation token and when they use it. If an operator revokes the
   permission, the user cannot use a token that was created before revocation.
 - An administrator with `admin.view-users` and `user.delete-any` can delete
-  another human member from the member detail page in Server Administration.
-  The entry point links to a full-page confirmation that states what deletion
-  does. The administrator must type the member's login. Chatto does not request
-  the administrator's password or require a fresh credential for this action.
-  The admin page does not offer this action for the administrator's own account
-  or for a bot. Self-deletion stays in Account Settings, and bots follow
+  another human member from the **Account** section of the member detail page
+  in Server Administration. The entry point links to a full-page confirmation
+  that states what deletion does. The administrator must type the member's
+  login. Chatto does not request the administrator's password or require a
+  fresh credential for this action. The admin page does not offer this action
+  for the administrator's own account or for a bot. Self-deletion stays in Account Settings, and bots follow
   FDR-038.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.

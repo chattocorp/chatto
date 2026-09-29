@@ -620,6 +620,12 @@
         "history": "Fallos recientes",
         "no_failures": "No hay fallos guardados.",
         "more_failures": "Cargar más"
+      },
+      "tabs": {
+        "label": "Secciones del robot",
+        "overview": "Descripción general",
+        "integrations": "Integraciones",
+        "permissions": "Permisos"
       }
     }
   }

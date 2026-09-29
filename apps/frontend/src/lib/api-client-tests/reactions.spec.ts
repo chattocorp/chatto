@@ -1,41 +1,22 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createReactionAPI } from '$lib/api-client/reactions';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  addReaction: vi.fn(),
-  removeReaction: vi.fn()
-}));
+const mocks = mockService(MessageService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function reactionAPI() {
+  return createReactionAPI(fakeServer((router) => router.service(MessageService, mocks)));
+}
 
 describe('createReactionAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.addReaction.mockReset();
-    mocks.removeReaction.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      addReaction: mocks.addReaction,
-      removeReaction: mocks.removeReaction
-    });
+    vi.resetAllMocks();
   });
 
   it('adds a reaction', async () => {
-    mocks.addReaction.mockResolvedValue({
+    mocks.addReaction.mockReturnValue({
       added: true,
       reaction: {
         emoji: 'thumbsup',
@@ -45,24 +26,13 @@ describe('createReactionAPI', () => {
       }
     });
 
-    const api = createReactionAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
-    const result = await api.addReaction({
+    const result = await reactionAPI().addReaction({
       roomId: 'room-1',
       messageEventId: 'event-1',
       emoji: 'thumbsup'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://remote.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.addReaction).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.addReaction)).toMatchObject({
       roomId: 'room-1',
       messageEventId: 'event-1',
       emoji: 'thumbsup'
@@ -79,19 +49,15 @@ describe('createReactionAPI', () => {
   });
 
   it('removes a reaction and maps a missing summary to null', async () => {
-    mocks.removeReaction.mockResolvedValue({ removed: false, reaction: undefined });
+    mocks.removeReaction.mockReturnValue({ removed: false });
 
-    const api = createReactionAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
-    const result = await api.removeReaction({
+    const result = await reactionAPI().removeReaction({
       roomId: 'room-1',
       messageEventId: 'event-1',
       emoji: 'thumbsup'
     });
 
-    expect(mocks.removeReaction).toHaveBeenCalledWith({
+    expect(receivedRequest(mocks.removeReaction)).toMatchObject({
       roomId: 'room-1',
       messageEventId: 'event-1',
       emoji: 'thumbsup'
@@ -99,18 +65,13 @@ describe('createReactionAPI', () => {
     expect(result).toEqual({ removed: false, reaction: null });
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('authentication required', Code.Unauthenticated);
-    mocks.addReaction.mockRejectedValue(err);
-
-    const api = createReactionAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'expired-token'
+  it('propagates Connect errors', async () => {
+    mocks.addReaction.mockImplementation(() => {
+      throw new ConnectError('authentication required', Code.Unauthenticated);
     });
 
     await expect(
-      api.addReaction({ roomId: 'room-1', messageEventId: 'event-1', emoji: 'thumbsup' })
-    ).rejects.toBe(err);
+      reactionAPI().addReaction({ roomId: 'room-1', messageEventId: 'event-1', emoji: 'thumbsup' })
+    ).rejects.toMatchObject({ code: Code.Unauthenticated, rawMessage: 'authentication required' });
   });
 });

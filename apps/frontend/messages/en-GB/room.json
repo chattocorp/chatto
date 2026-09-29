@@ -227,12 +227,11 @@
       "remove_failed": "Failed to remove user from room",
       "remove_success": "Removed {name} from room",
       "members_load_failed": "Failed to load room members",
-      "members_refresh_failed": "Failed to refresh room members"
+      "members_refresh_failed": "Failed to refresh room members",
+      "search": "Search"
     },
     "pins": {
-      "show": "Show pinned messages",
       "unseen": "New pinned messages",
-      "hide": "Hide pinned messages",
       "pin": "Pin message",
       "unpin": "Unpin message",
       "unpin_prompt": "Are you sure you want to remove this pin?",

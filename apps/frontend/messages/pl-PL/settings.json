@@ -620,6 +620,12 @@
         "history": "Ostatnie błędy",
         "no_failures": "Brak zachowanych błędów.",
         "more_failures": "Wczytaj więcej"
+      },
+      "tabs": {
+        "label": "Sekcje bota",
+        "overview": "Przegląd",
+        "integrations": "Integracje",
+        "permissions": "Uprawnienia"
       }
     }
   }

@@ -138,7 +138,14 @@
       "bio_placeholder": "Fortell andre litt om dette medlemmet",
       "bio_description": "Opptil {max} tegn, vises på profilen til medlemmet.",
       "update_failed": "Kunne ikke oppdatere brukeren",
-      "cooldown_clear_failed": "Kunne ikke fjerne ventetiden for endring av brukernavn"
+      "cooldown_clear_failed": "Kunne ikke fjerne ventetiden for endring av brukernavn",
+      "tabs": {
+        "label": "Seksjoner for medlemmet",
+        "profile": "Profil",
+        "account": "Konto",
+        "roles": "Roller",
+        "permissions": "Tillatelser"
+      }
     },
     "member_delete": {
       "title": "Slett medlem",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Tillatelser – {name}",
       "back_to_rooms": "Tilbake til rommene",
       "group_permissions_hint": "Overstyringer per gruppe for kanalrommene i denne gruppen. Standarder som er arvet fra serveromfanget. Individuelle rom kan videre overstyre tillatelser fra deres egen tillatelsesside.",
-      "room_permissions_hint": "Overstyringer per rom for dette rommet. Verdier satt her har forrang over gruppens og server-omfattende standardverdier.",
+      "room_permissions_hint": "Disse innstillingene gjelder bare i dette rommet. De erstatter innstillingene for romgruppen og serveren for samme rolle eller bruker. Hvis bare noen roller skal kunne gjøre noe her, velger du Avvis for everyone og Tillat for disse rollene.",
       "loading": "Laster rom ...",
       "empty_groups": "Ingen romgrupper ennå",
       "empty_groups_body": "Lag et sett for å begynne å organisere rom.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Rediger rom",
       "room_description_placeholder": "Valgfri beskrivelse for dette rommet",
       "slow_mode": "Sakte modus",
-      "slow_mode_description": "Angi hvor lenge medlemmer må vente mellom meldinger i dette rommet.",
       "slow_mode_off": "Av",
       "slow_mode_custom": "{interval} (gjeldende verdi)",
-      "threading_mode": "Trådmodus",
       "threading_mode_description": "Påkrevd bruker alltid tråder; Oppmuntret gjør trådsvar til hovedhandlingen; Aktivert lar valget være åpent; Deaktivert blokkerer ny trådaktivitet.",
       "threading_mode_required": "Påkrevd",
       "threading_mode_required_description": "Hver melding starter en tråd.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Kunne ikke fjerne medlemmet: {error}",
       "move_room_failed": "Kunne ikke flytte rommet: {error}",
       "move_link_failed": "Kunne ikke flytte lenken: {error}",
-      "reorder_rooms_failed": "Kunne ikke omorganisere rommene: {error}"
+      "reorder_rooms_failed": "Kunne ikke omorganisere rommene: {error}",
+      "tabs": {
+        "label": "Seksjoner for rommet",
+        "general": "Generelt",
+        "members": "Medlemmer",
+        "permissions": "Tillatelser"
+      },
+      "settings": {
+        "name_title": "Navn og beskrivelse",
+        "name_subtitle": "Medlemmer ser dette i romlisten og øverst i rommet.",
+        "visibility_title": "Synlighet",
+        "visibility_subtitle": "Velg hvem som er medlem av dette rommet.",
+        "universal_description": "Alle medlemmer som kan bli med i dette rommet, er automatisk medlemmer.",
+        "visibility_help": "Bruk et universelt rom for nyheter som alle medlemmer må få, for eksempel kunngjøringer. Medlemmer kan ikke forlate et universelt rom, men de kan dempe det. Hvis du slår av universell, blir medlemmene som ble med tidligere, værende i rommet.",
+        "slow_mode_subtitle": "Begrens hvor ofte hvert medlem kan poste i dette rommet.",
+        "slow_mode_interval": "Minste tid mellom innlegg",
+        "slow_mode_help": "Én tidtaker gjelder for meldinger, trådsvar og vedlegg. Medlemmer med tillatelsen room.manage eller message.manage er unntatt. Mens de venter, kan medlemmer fortsatt skrive utkast, redigere meldingene sine og legge til reaksjoner.",
+        "threading_title": "Trådmodus",
+        "threading_subtitle": "Velg hvordan samtaler i dette rommet bruker tråder.",
+        "threading_help": "En endring gjelder bare for nye meldinger. Eksisterende tråder forblir som de er. Påkrevd passer for rom der hver melding er et eget emne, for eksempel støtteforespørsler. Anbefalt holder travle rom lettleste, men tvinger ikke frem tråder."
+      }
     },
     "security": {
       "title": "Sikkerhet",

@@ -138,7 +138,14 @@
       "bio_placeholder": "向其他人简单介绍一下此成员",
       "bio_description": "最多 {max} 个字符，显示在成员的个人资料中。",
       "update_failed": "更新用户失败",
-      "cooldown_clear_failed": "清除用户名更改冷却期失败"
+      "cooldown_clear_failed": "清除用户名更改冷却期失败",
+      "tabs": {
+        "label": "成员分区",
+        "profile": "个人资料",
+        "account": "账号",
+        "roles": "角色",
+        "permissions": "权限"
+      }
     },
     "member_delete": {
       "title": "删除成员",
@@ -205,7 +212,7 @@
       "permissions_page_title": "权限 - {name}",
       "back_to_rooms": "返回聊天室",
       "group_permissions_hint": "此群组内频道聊天室的群组级覆盖项。默认值继承自服务器作用域。各聊天室可在自己的权限页面中进一步覆盖权限。",
-      "room_permissions_hint": "此聊天室的单独覆盖项。此处设置的值优先于群组和服务器范围内的默认值。",
+      "room_permissions_hint": "这些设置仅在此聊天室中生效。对于同一角色或用户，它们会取代聊天室分组和服务器的设置。如果只想让部分角色在这里执行某项操作，请为 everyone 设置“拒绝”，并为这些角色设置“允许”。",
       "loading": "正在加载聊天室...",
       "empty_groups": "暂无聊天室群组",
       "empty_groups_body": "创建一个群组以开始整理聊天室。",
@@ -228,10 +235,8 @@
       "edit_room_action": "编辑聊天室",
       "room_description_placeholder": "此聊天室的可选说明",
       "slow_mode": "慢速模式",
-      "slow_mode_description": "设置成员在此房间中发送消息的间隔时间。",
       "slow_mode_off": "关闭",
       "slow_mode_custom": "{interval}（当前值）",
-      "threading_mode": "话题模式",
       "threading_mode_description": "“必需”始终使用话题；“鼓励”将话题回复设为主要操作；“启用”让成员自由选择；“禁用”会阻止新的话题活动。",
       "threading_mode_required": "必需",
       "threading_mode_required_description": "每条消息都会开启一个话题。",
@@ -296,7 +301,27 @@
       "remove_member_failed": "移除成员失败：{error}",
       "move_room_failed": "移动聊天室失败：{error}",
       "move_link_failed": "移动链接失败：{error}",
-      "reorder_rooms_failed": "调整聊天室顺序失败：{error}"
+      "reorder_rooms_failed": "调整聊天室顺序失败：{error}",
+      "tabs": {
+        "label": "房间分区",
+        "general": "常规",
+        "members": "成员",
+        "permissions": "权限"
+      },
+      "settings": {
+        "name_title": "名称和描述",
+        "name_subtitle": "成员会在聊天室列表和聊天室顶部看到这些信息。",
+        "visibility_title": "可见范围",
+        "visibility_subtitle": "选择谁是此聊天室的成员。",
+        "universal_description": "每个可以加入此聊天室的成员都会自动成为其成员。",
+        "visibility_help": "对于所有成员都必须收到的消息（例如公告），请使用全员聊天室。成员无法退出全员聊天室，但可以将其设为免打扰。如果关闭全员模式，之前加入的成员仍会留在聊天室中。",
+        "slow_mode_subtitle": "限制每个成员在此聊天室中发帖的频率。",
+        "slow_mode_interval": "两次发帖之间的最短时间",
+        "slow_mode_help": "一个计时器同时适用于消息、话题回复和附件。拥有 room.manage 或 message.manage 权限的成员不受限制。等待期间，成员仍可以撰写草稿、编辑自己的消息和添加表情回应。",
+        "threading_title": "话题模式",
+        "threading_subtitle": "选择此聊天室中的对话如何使用话题。",
+        "threading_help": "更改仅适用于新消息。现有话题保持不变。“必需”适用于每条消息都是独立主题的聊天室，例如支持请求。“鼓励”可以让活跃的聊天室保持易读，但不会强制使用话题。"
+      }
     },
     "security": {
       "title": "安全",

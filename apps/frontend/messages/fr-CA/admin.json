@@ -138,7 +138,14 @@
       "bio_placeholder": "Présentez un peu ce membre aux autres",
       "bio_description": "Jusqu'à {max} caractères, affichés sur le profil du membre.",
       "update_failed": "Échec de la mise à jour de l'utilisateur",
-      "cooldown_clear_failed": "Échec de la réinitialisation du délai de changement de nom d'utilisateur"
+      "cooldown_clear_failed": "Échec de la réinitialisation du délai de changement de nom d'utilisateur",
+      "tabs": {
+        "label": "Sections du membre",
+        "profile": "Profil",
+        "account": "Compte",
+        "roles": "Rôles",
+        "permissions": "Autorisations"
+      }
     },
     "member_delete": {
       "title": "Supprimer un membre",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Autorisations - {name}",
       "back_to_rooms": "Retour aux chambres",
       "group_permissions_hint": "Remplacements par groupe pour les salles de canaux de ce groupe. Valeurs héritées par défaut de la portée du serveur. Les salles individuelles peuvent en outre remplacer les autorisations de leur propre page d'autorisations.",
-      "room_permissions_hint": "Remplacements par pièce pour cette pièce. Les valeurs définies ici ont priorité sur les valeurs par défaut du groupe et du serveur.",
+      "room_permissions_hint": "Ces paramètres s’appliquent uniquement dans cette salle. Ils remplacent les paramètres du groupe de salles et du serveur pour le même rôle ou le même utilisateur. Pour que seuls certains rôles puissent faire une action ici, définissez Refuser pour everyone et Autoriser pour ces rôles.",
       "loading": "Chargement des salles...",
       "empty_groups": "Aucun groupe de salles pour l'instant",
       "empty_groups_body": "Créer un ensemble pour commencer à organiser les salles.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Modifier la salle",
       "room_description_placeholder": "Description facultative pour cette salle",
       "slow_mode": "Mode lent",
-      "slow_mode_description": "Définissez le délai d’attente des membres entre les messages dans ce salon.",
       "slow_mode_off": "Désactivé",
       "slow_mode_custom": "{interval} (valeur actuelle)",
-      "threading_mode": "Mode des fils de discussion",
       "threading_mode_description": "Obligatoire impose les fils; Encouragé fait de la réponse dans le fil l’action principale; Activé laisse le choix; Désactivé bloque toute nouvelle activité dans les fils.",
       "threading_mode_required": "Obligatoire",
       "threading_mode_required_description": "Chaque message crée un fil.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Échec du retrait du membre : {error}",
       "move_room_failed": "Échec du déplacement du salon : {error}",
       "move_link_failed": "Échec du déplacement du lien : {error}",
-      "reorder_rooms_failed": "Échec de la réorganisation des salons : {error}"
+      "reorder_rooms_failed": "Échec de la réorganisation des salons : {error}",
+      "tabs": {
+        "label": "Sections du salon",
+        "general": "Général",
+        "members": "Membres",
+        "permissions": "Autorisations"
+      },
+      "settings": {
+        "name_title": "Nom et description",
+        "name_subtitle": "Les membres les voient dans la liste des salles et en haut de la salle.",
+        "visibility_title": "Visibilité",
+        "visibility_subtitle": "Choisissez qui est membre de cette salle.",
+        "universal_description": "Chaque membre qui peut rejoindre cette salle en est automatiquement membre.",
+        "visibility_help": "Utilisez une salle universelle pour les nouvelles que tous les membres doivent recevoir, comme les annonces. Les membres ne peuvent pas quitter une salle universelle, mais ils peuvent la mettre en sourdine. Si vous désactivez l’option universelle, les membres qui l’ont rejointe auparavant y restent.",
+        "slow_mode_subtitle": "Limitez la fréquence à laquelle chaque membre peut publier dans cette salle.",
+        "slow_mode_interval": "Délai minimal entre deux publications",
+        "slow_mode_help": "Une seule minuterie couvre les messages, les réponses dans les fils et les pièces jointes. Les membres qui ont l’autorisation room.manage ou message.manage en sont exemptés. Pendant l’attente, les membres peuvent toujours écrire des brouillons, modifier leurs messages et ajouter des réactions.",
+        "threading_title": "Mode des fils de discussion",
+        "threading_subtitle": "Choisissez comment les conversations de cette salle utilisent les fils.",
+        "threading_help": "Un changement s’applique uniquement aux nouveaux messages. Les fils existants restent inchangés. Obligatoire convient aux salles où chaque message est un sujet distinct, comme les demandes de soutien. Recommandé garde les salles actives lisibles, sans imposer les fils."
+      }
     },
     "security": {
       "title": "Sécurité",

@@ -89,7 +89,11 @@
       "message_missing": "Meddelandet är inte längre tillgängligt",
       "in_room": "in",
       "in_room_capitalized": "In",
-      "load_failed": "Det gick inte att läsa in trådar"
+      "load_failed": "Det gick inte att läsa in trådar",
+      "notifications_count": {
+        "one": "{count} avisering",
+        "other": "{count} aviseringar"
+      }
     },
     "profile": {
       "title": "Profil",

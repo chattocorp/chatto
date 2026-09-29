@@ -138,7 +138,14 @@
       "bio_placeholder": "Conte aos outros um pouco sobre este membro",
       "bio_description": "Até {max} caracteres, exibidos no perfil do membro.",
       "update_failed": "Falha ao atualizar usuário",
-      "cooldown_clear_failed": "Falha ao remover o tempo de espera para alteração do nome de usuário"
+      "cooldown_clear_failed": "Falha ao remover o tempo de espera para alteração do nome de usuário",
+      "tabs": {
+        "label": "Seções do membro",
+        "profile": "Perfil",
+        "account": "Conta",
+        "roles": "Funções",
+        "permissions": "Permissões"
+      }
     },
     "member_delete": {
       "title": "Excluir membro",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Permissões - {name}",
       "back_to_rooms": "Voltar às salas",
       "group_permissions_hint": "Substituições por grupo para as salas de canal neste grupo. Padrões herdados do escopo do servidor. Salas individuais podem substituir ainda mais as permissões de suas próprias páginas de permissões.",
-      "room_permissions_hint": "Substituições por sala para esta sala. Os valores definidos aqui têm precedência sobre os padrões do grupo e do servidor.",
+      "room_permissions_hint": "Estas configurações valem apenas nesta sala. Elas substituem as configurações do grupo de salas e do servidor para a mesma função ou o mesmo usuário. Para que só algumas funções possam fazer algo aqui, defina Negar para everyone e Permitir para essas funções.",
       "loading": "Carregando salas...",
       "empty_groups": "Ainda não há grupos de salas",
       "empty_groups_body": "Crie um conjunto para começar a organizar as salas.",
@@ -219,7 +226,7 @@
       "rename_group_action": "Renomear grupo",
       "group_permissions": "Permissões de grupo",
       "delete_group_blocked": "Mova todos os itens deste grupo antes de excluir",
-      "universal_room": "Quarto universal",
+      "universal_room": "Sala universal",
       "universal": "Universal",
       "archived": "Arquivado",
       "drop_rooms": "Deixe as salas aqui",
@@ -228,10 +235,8 @@
       "edit_room_action": "Editar sala",
       "room_description_placeholder": "Descrição opcional para este quarto",
       "slow_mode": "Modo lento",
-      "slow_mode_description": "Defina quanto tempo os membros devem esperar entre mensagens nesta sala.",
       "slow_mode_off": "Desativado",
       "slow_mode_custom": "{interval} (valor atual)",
-      "threading_mode": "Modo de tópicos",
       "threading_mode_description": "Obrigatório sempre usa tópicos; Recomendado torna a resposta no tópico a ação principal; Ativado deixa a escolha livre; Desativado bloqueia novas atividades em tópicos.",
       "threading_mode_required": "Obrigatório",
       "threading_mode_required_description": "Cada mensagem inicia um tópico.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "Falha ao remover membro: {error}",
       "move_room_failed": "Falha ao mover sala: {error}",
       "move_link_failed": "Falha ao mover link: {error}",
-      "reorder_rooms_failed": "Falha ao reordenar salas: {error}"
+      "reorder_rooms_failed": "Falha ao reordenar salas: {error}",
+      "tabs": {
+        "label": "Seções da sala",
+        "general": "Geral",
+        "members": "Membros",
+        "permissions": "Permissões"
+      },
+      "settings": {
+        "name_title": "Nome e descrição",
+        "name_subtitle": "Os membros veem essas informações na lista de salas e no topo da sala.",
+        "visibility_title": "Visibilidade",
+        "visibility_subtitle": "Escolha quem é membro desta sala.",
+        "universal_description": "Todos os membros que podem entrar nesta sala são membros automaticamente.",
+        "visibility_help": "Use uma sala universal para notícias que todos os membros precisam receber, como anúncios. Os membros não podem sair de uma sala universal, mas podem silenciá-la. Se você desativar a opção universal, os membros que entraram antes continuam na sala.",
+        "slow_mode_subtitle": "Limite a frequência com que cada membro pode publicar nesta sala.",
+        "slow_mode_interval": "Tempo mínimo entre publicações",
+        "slow_mode_help": "Um único temporizador vale para mensagens, respostas em tópicos e anexos. Membros com a permissão room.manage ou message.manage são isentos. Enquanto esperam, os membros ainda podem escrever rascunhos, editar suas mensagens e adicionar reações.",
+        "threading_title": "Modo de tópicos",
+        "threading_subtitle": "Escolha como as conversas desta sala usam tópicos.",
+        "threading_help": "Uma alteração vale apenas para novas mensagens. Os tópicos existentes continuam iguais. Obrigatório é bom para salas em que cada mensagem é um assunto separado, como pedidos de suporte. Recomendado mantém salas movimentadas fáceis de ler, sem obrigar o uso de tópicos."
+      }
     },
     "security": {
       "title": "Segurança",

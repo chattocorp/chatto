@@ -227,12 +227,11 @@
       "remove_failed": "无法将用户移出聊天室",
       "remove_success": "已将 {name} 移出聊天室",
       "members_load_failed": "加载聊天室成员失败",
-      "members_refresh_failed": "刷新聊天室成员失败"
+      "members_refresh_failed": "刷新聊天室成员失败",
+      "search": "搜索"
     },
     "pins": {
-      "show": "显示置顶消息",
       "unseen": "有新的置顶消息",
-      "hide": "隐藏置顶消息",
       "pin": "置顶消息",
       "unpin": "取消置顶",
       "unpin_prompt": "确定要取消置顶这条消息吗？",

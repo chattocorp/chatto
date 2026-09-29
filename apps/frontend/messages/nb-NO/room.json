@@ -216,7 +216,7 @@
       "no_files": "Ingen filer i dette rommet ennå.",
       "files": "Filer",
       "pins": "Festede meldinger",
-      "call": "Ring",
+      "call": "Samtale",
       "jump_to_file": "Hopp til {filename}",
       "loading_files": "Laster inn filer...",
       "loading_members": "Laster inn medlemmer...",
@@ -227,12 +227,11 @@
       "remove_failed": "Kunne ikke fjerne brukeren fra rommet",
       "remove_success": "{name} ble fjernet fra rommet",
       "members_load_failed": "Kunne ikke laste inn rommedlemmer",
-      "members_refresh_failed": "Kunne ikke oppdatere rommedlemmer"
+      "members_refresh_failed": "Kunne ikke oppdatere rommedlemmer",
+      "search": "Søk"
     },
     "pins": {
-      "show": "Vis festede meldinger",
       "unseen": "Nye festede meldinger",
-      "hide": "Skjul festede meldinger",
       "pin": "Fest melding",
       "unpin": "Løsne melding",
       "unpin_prompt": "Er du sikker på at du vil løsne denne meldingen?",

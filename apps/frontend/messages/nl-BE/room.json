@@ -216,7 +216,7 @@
       "no_files": "Nog geen bestanden in deze kamer.",
       "files": "Bestanden",
       "pins": "Vastgezette berichten",
-      "call": "Bel",
+      "call": "Gesprek",
       "jump_to_file": "Ga naar {filename}",
       "loading_files": "Bestanden laden...",
       "loading_members": "Leden laden...",
@@ -227,12 +227,11 @@
       "remove_failed": "Gebruiker kon niet uit de kamer worden verwijderd",
       "remove_success": "{name} is uit de kamer verwijderd",
       "members_load_failed": "Kan kamerleden niet laden",
-      "members_refresh_failed": "Kan kamerleden niet vernieuwen"
+      "members_refresh_failed": "Kan kamerleden niet vernieuwen",
+      "search": "Zoeken"
     },
     "pins": {
-      "show": "Vastgezette berichten tonen",
       "unseen": "Nieuwe vastgezette berichten",
-      "hide": "Vastgezette berichten verbergen",
       "pin": "Bericht vastzetten",
       "unpin": "Bericht losmaken",
       "unpin_prompt": "Weet je zeker dat je deze vastzetting wilt verwijderen?",

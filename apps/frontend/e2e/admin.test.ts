@@ -849,6 +849,7 @@ test.describe('Identity Editing', () => {
         // Admin navigates to the user management page
         await adminPage.gotoUserManagement(regularUser.id!);
         await adminPage.expectUserManagementVisible();
+        await adminPage.openMemberSection('Account');
 
         // Identity panel should be visible
         await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible();
@@ -874,8 +875,9 @@ test.describe('Identity Editing', () => {
         // Toast confirmation
         await expect(page.getByText('User updated')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-        // The User Details panel reflects the new identity (without a page reload —
-        // the mutation refetches the query).
+        // The User Details panel on the Profile tab reflects the new identity
+        // (without a page reload — the mutation updates the shared query).
+        await adminPage.openMemberSection('Profile');
         const userDetailsPanel = page
           .locator('section, div')
           .filter({ hasText: 'User Details' })
@@ -885,6 +887,7 @@ test.describe('Identity Editing', () => {
 
         // The cooldown is unchanged because admin edits don't advance the user's
         // clock. The "Reset cooldown" button should still be enabled.
+        await adminPage.openMemberSection('Account');
         const resetCooldownButton = page.getByRole('button', { name: 'Reset cooldown' });
         await expect(resetCooldownButton).toBeEnabled();
         await resetCooldownButton.click();

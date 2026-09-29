@@ -220,7 +220,7 @@
       "no_files": "עדיין אין קבצים בחדר הזה.",
       "files": "קבצים",
       "pins": "הודעות מוצמדות",
-      "call": "התקשר",
+      "call": "שיחה",
       "jump_to_file": "קפוץ אל {filename}",
       "loading_files": "טוען קבצים...",
       "loading_members": "טוען חברים...",
@@ -231,12 +231,11 @@
       "remove_failed": "לא ניתן להסיר את המשתמש מהחדר",
       "remove_success": "{name} הוסר מהחדר",
       "members_load_failed": "טעינת חברי החדר נכשלה",
-      "members_refresh_failed": "רענון חברי החדר נכשל"
+      "members_refresh_failed": "רענון חברי החדר נכשל",
+      "search": "חיפוש"
     },
     "pins": {
-      "show": "הצגת הודעות מוצמדות",
       "unseen": "הודעות מוצמדות חדשות",
-      "hide": "הסתרת הודעות מוצמדות",
       "pin": "הצמדת הודעה",
       "unpin": "ביטול הצמדת הודעה",
       "unpin_prompt": "האם להסיר את ההצמדה של הודעה זו?",

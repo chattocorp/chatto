@@ -216,7 +216,7 @@
       "no_files": "Ainda não há arquivos nesta sala.",
       "files": "Arquivos",
       "pins": "Mensagens fixadas",
-      "call": "Ligar",
+      "call": "Chamada",
       "jump_to_file": "Ir para {filename}",
       "loading_files": "Carregando arquivos...",
       "loading_members": "Carregando membros...",
@@ -227,12 +227,11 @@
       "remove_failed": "Não foi possível remover o usuário da sala",
       "remove_success": "{name} foi removido da sala",
       "members_load_failed": "Falha ao carregar membros da sala",
-      "members_refresh_failed": "Falha ao atualizar membros da sala"
+      "members_refresh_failed": "Falha ao atualizar membros da sala",
+      "search": "Pesquisar"
     },
     "pins": {
-      "show": "Mostrar mensagens fixadas",
       "unseen": "Novas mensagens fixadas",
-      "hide": "Ocultar mensagens fixadas",
       "pin": "Fixar mensagem",
       "unpin": "Desafixar mensagem",
       "unpin_prompt": "Tem certeza de que deseja remover esta mensagem fixada?",

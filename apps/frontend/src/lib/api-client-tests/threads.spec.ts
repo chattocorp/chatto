@@ -6,94 +6,72 @@ import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_p
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { fakeServer, mockService, receivedRequest } from '$lib/test-utils';
 import {
   MessageSearchScope,
   MessageSearchGroupBy,
   MessageSearchOrder
 } from '@chatto/api-types/api/v1/message_search_pb';
 
-const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
-  createConnectTransport: vi.fn(),
-  listFollowedThreads: vi.fn(),
-  searchMessages: vi.fn(),
-  followThread: vi.fn(),
-  unfollowThread: vi.fn()
-}));
+const threads = mockService(ThreadService);
+const search = mockService(MessageSearchService);
 
-vi.mock('@connectrpc/connect', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
-  return {
-    ...actual,
-    createClient: mocks.createClient
-  };
-});
-
-vi.mock('@connectrpc/connect-web', () => ({
-  createConnectTransport: mocks.createConnectTransport
-}));
+function threadAPI() {
+  return createThreadAPI(
+    fakeServer((router) =>
+      router.service(ThreadService, threads).service(MessageSearchService, search)
+    )
+  );
+}
 
 describe('createThreadAPI', () => {
   beforeEach(() => {
-    mocks.createClient.mockReset();
-    mocks.createConnectTransport.mockReset();
-    mocks.listFollowedThreads.mockReset();
-    mocks.searchMessages.mockReset();
-    mocks.followThread.mockReset();
-    mocks.unfollowThread.mockReset();
-    mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listFollowedThreads: mocks.listFollowedThreads,
-      searchMessages: mocks.searchMessages,
-      followThread: mocks.followThread,
-      unfollowThread: mocks.unfollowThread
-    });
+    vi.resetAllMocks();
   });
 
   it('searches followed threads with normalized input, paging, and cancellation', async () => {
-    mocks.searchMessages.mockResolvedValue({
+    search.searchMessages.mockReturnValue({
       results: [],
       threadTotalCount: 25n,
       nextCursor: 'next-page'
     });
-    const signal = new AbortController().signal;
-    const api = createThreadAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
+    const api = threadAPI();
+    const result = await api.listFollowedThreads({
+      limit: 20,
+      offset: 0,
+      cursor: 'previous-page',
+      query: '  from:alice  '
     });
-    const result = await api.listFollowedThreads(
-      { limit: 20, offset: 0, cursor: 'previous-page', query: '  from:alice  ' },
-      { signal }
-    );
-    expect(mocks.createClient).toHaveBeenCalledWith(MessageSearchService, expect.anything());
-    expect(mocks.searchMessages).toHaveBeenCalledWith(
-      {
-        query: 'from:alice',
-        scope: MessageSearchScope.FOLLOWED_THREADS,
-        groupBy: MessageSearchGroupBy.THREAD,
-        order: MessageSearchOrder.THREAD_ACTIVITY,
-        pageSize: 20,
-        cursor: 'previous-page'
-      },
-      { signal }
-    );
-    expect(mocks.listFollowedThreads).not.toHaveBeenCalled();
+    expect(receivedRequest(search.searchMessages)).toMatchObject({
+      query: 'from:alice',
+      scope: MessageSearchScope.FOLLOWED_THREADS,
+      groupBy: MessageSearchGroupBy.THREAD,
+      order: MessageSearchOrder.THREAD_ACTIVITY,
+      pageSize: 20,
+      cursor: 'previous-page'
+    });
+    expect(threads.listFollowedThreads).not.toHaveBeenCalled();
     expect(result).toEqual({ threads: [], totalCount: 25, hasMore: true, nextCursor: 'next-page' });
-    mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
+    threads.listFollowedThreads.mockReturnValue({ threads: [], page: {} });
     await api.listFollowedThreads({ limit: 20, offset: 0, query: '   ' });
-    expect(mocks.listFollowedThreads).toHaveBeenCalledOnce();
+    expect(threads.listFollowedThreads).toHaveBeenCalledOnce();
+
+    await expect(
+      api.listFollowedThreads({ limit: 20, offset: 0, query: 'x' }, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('lists followed threads', async () => {
     const lastReplyAt = new Date('2025-01-02T03:04:05.000Z');
-    mocks.listFollowedThreads.mockResolvedValue({
+    threads.listFollowedThreads.mockReturnValue({
       threads: [
         {
           room: { id: 'room-1', name: 'general' },
           thread: {
             threadRootEventId: 'root-1',
             replyCount: 2,
-            lastReplyAt: { toDate: () => lastReplyAt },
+            lastReplyAt: Timestamp.fromDate(lastReplyAt),
             viewerState: { hasUnreadReplies: true }
           },
           rootMessage: undefined
@@ -103,17 +81,14 @@ describe('createThreadAPI', () => {
       includes: { users: {} }
     });
 
-    const api = createThreadAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = threadAPI();
     const page = await api.listFollowedThreads({ limit: 20, offset: 40 });
 
-    expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { includeDirectMessageThreads: true, unreadOnly: false, page: { limit: 20, offset: 40 } },
-      {}
-    );
+    expect(receivedRequest(threads.listFollowedThreads)).toMatchObject({
+      includeDirectMessageThreads: true,
+      unreadOnly: false,
+      page: { limit: 20, offset: 40 }
+    });
     expect(page).toEqual({
       threads: [
         {
@@ -137,7 +112,7 @@ describe('createThreadAPI', () => {
   });
 
   it('maps grouped search context while keeping the matching reply separate', async () => {
-    mocks.searchMessages.mockResolvedValue({
+    search.searchMessages.mockReturnValue({
       results: [
         {
           message: { id: 'matching-reply' },
@@ -156,10 +131,7 @@ describe('createThreadAPI', () => {
       nextCursor: '',
       includes: { users: {} }
     });
-    const api = createThreadAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = threadAPI();
     const page = await api.listFollowedThreads({ limit: 20, offset: 0, query: 'needle' });
     expect(page.threads).toHaveLength(1);
     expect(page.threads[0]).toMatchObject({
@@ -173,38 +145,26 @@ describe('createThreadAPI', () => {
   });
 
   it('asks the server for unread threads only when requested', async () => {
-    mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
-    const api = createThreadAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    threads.listFollowedThreads.mockReturnValue({ threads: [], page: {} });
+    const api = threadAPI();
 
     await api.listFollowedThreads({ limit: 20, offset: 0, unreadOnly: true });
 
-    expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { includeDirectMessageThreads: true, unreadOnly: true, page: { limit: 20, offset: 0 } },
-      {}
-    );
+    expect(receivedRequest(threads.listFollowedThreads)).toMatchObject({
+      includeDirectMessageThreads: true,
+      unreadOnly: true,
+      page: { limit: 20, offset: 0 }
+    });
   });
 
   it('passes cancellation through when listing followed threads', async () => {
-    mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
-    const signal = new AbortController().signal;
-    const api = createThreadAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
-
-    await api.listFollowedThreads({ limit: 20, offset: 0 }, { signal });
-
-    expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { includeDirectMessageThreads: true, unreadOnly: false, page: { limit: 20, offset: 0 } },
-      { signal }
-    );
+    await expect(
+      threadAPI().listFollowedThreads({ limit: 20, offset: 0 }, { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
   });
 
   it('maps root, latest reply, and participant user includes', async () => {
-    mocks.listFollowedThreads.mockResolvedValue({
+    threads.listFollowedThreads.mockReturnValue({
       threads: [
         {
           room: { id: 'room-1', name: 'general' },
@@ -241,7 +201,7 @@ describe('createThreadAPI', () => {
       }
     });
 
-    const api = createThreadAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = threadAPI();
     const page = await api.listFollowedThreads({ limit: 20, offset: 0 });
 
     expect(page.threads[0]).toMatchObject({
@@ -261,7 +221,7 @@ describe('createThreadAPI', () => {
   });
 
   it('maps direct-message identity and participant includes', async () => {
-    mocks.listFollowedThreads.mockResolvedValue({
+    threads.listFollowedThreads.mockReturnValue({
       threads: [
         {
           room: { id: 'dm-1', kind: RoomKind.DM },
@@ -278,7 +238,7 @@ describe('createThreadAPI', () => {
       }
     });
 
-    const api = createThreadAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const api = threadAPI();
     const page = await api.listFollowedThreads({ limit: 20, offset: 0 });
 
     expect(page.threads[0]).toMatchObject({
@@ -292,27 +252,17 @@ describe('createThreadAPI', () => {
   });
 
   it('follows a thread', async () => {
-    mocks.followThread.mockResolvedValue({
+    threads.followThread.mockReturnValue({
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: true }
     });
 
-    const api = createThreadAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'remote-token'
-    });
+    const api = threadAPI();
     const result = await api.followThread({
       roomId: 'room-1',
       threadRootEventId: 'root-1'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        baseUrl: 'https://remote.example.test/api/connect',
-        useBinaryFormat: true
-      })
-    );
-    expect(mocks.followThread).toHaveBeenCalledWith({
+    expect(receivedRequest(threads.followThread)).toMatchObject({
       roomId: 'room-1',
       threadRootEventId: 'root-1'
     });
@@ -322,20 +272,17 @@ describe('createThreadAPI', () => {
   });
 
   it('unfollows a thread', async () => {
-    mocks.unfollowThread.mockResolvedValue({
+    threads.unfollowThread.mockReturnValue({
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: false }
     });
 
-    const api = createThreadAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+    const api = threadAPI();
     const result = await api.unfollowThread({
       roomId: 'room-1',
       threadRootEventId: 'root-1'
     });
 
-    expect(mocks.unfollowThread).toHaveBeenCalledWith({
+    expect(receivedRequest(threads.unfollowThread)).toMatchObject({
       roomId: 'room-1',
       threadRootEventId: 'root-1'
     });
@@ -344,18 +291,13 @@ describe('createThreadAPI', () => {
     });
   });
 
-  it('propagates Connect errors unchanged', async () => {
-    const err = new ConnectError('authentication required', Code.Unauthenticated);
-    mocks.followThread.mockRejectedValue(err);
-
-    const api = createThreadAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'expired-token'
+  it('propagates Connect errors', async () => {
+    threads.followThread.mockImplementation(() => {
+      throw new ConnectError('authentication required', Code.Unauthenticated);
     });
 
-    await expect(api.followThread({ roomId: 'room-1', threadRootEventId: 'root-1' })).rejects.toBe(
-      err
-    );
+    await expect(
+      threadAPI().followThread({ roomId: 'room-1', threadRootEventId: 'root-1' })
+    ).rejects.toMatchObject({ code: Code.Unauthenticated, rawMessage: 'authentication required' });
   });
 });

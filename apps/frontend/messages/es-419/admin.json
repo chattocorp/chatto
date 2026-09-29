@@ -138,7 +138,14 @@
       "bio_placeholder": "Cuéntales a los demás un poco sobre este miembro",
       "bio_description": "Hasta {max} caracteres, se muestra en el perfil del miembro.",
       "update_failed": "No se pudo actualizar el usuario",
-      "cooldown_clear_failed": "No se pudo restablecer el tiempo de espera para cambiar el nombre de usuario"
+      "cooldown_clear_failed": "No se pudo restablecer el tiempo de espera para cambiar el nombre de usuario",
+      "tabs": {
+        "label": "Secciones del miembro",
+        "profile": "Perfil",
+        "account": "Cuenta",
+        "roles": "Funciones",
+        "permissions": "Permisos"
+      }
     },
     "member_delete": {
       "title": "Eliminar miembro",
@@ -205,7 +212,7 @@
       "permissions_page_title": "Permisos - {name}",
       "back_to_rooms": "Volver a salas",
       "group_permissions_hint": "Anulaciones por grupo para las salas de canales de este grupo. Valores predeterminados heredados del ámbito del servidor. Las salas individuales pueden anular aún más los permisos desde su propia página de permisos.",
-      "room_permissions_hint": "Anulaciones por sala para esta sala. Los valores establecidos aquí tienen prioridad sobre los valores predeterminados del grupo y de todo el servidor.",
+      "room_permissions_hint": "Estos ajustes solo se aplican en esta sala. Reemplazan los ajustes del grupo de salas y del servidor para la misma función o el mismo usuario. Para que solo algunas funciones puedan hacer algo aquí, establece Denegar para everyone y Permitir para esas funciones.",
       "loading": "Cargando salas...",
       "empty_groups": "Aún no hay grupos de salas",
       "empty_groups_body": "Crea un conjunto para empezar a organizar salas.",
@@ -228,10 +235,8 @@
       "edit_room_action": "Editar sala",
       "room_description_placeholder": "Descripción opcional para esta sala",
       "slow_mode": "Modo lento",
-      "slow_mode_description": "Define cuánto deben esperar los miembros entre mensajes en esta sala.",
       "slow_mode_off": "Desactivado",
       "slow_mode_custom": "{interval} (valor actual)",
-      "threading_mode": "Modo de hilos",
       "threading_mode_description": "Obligatorio impone los hilos; Recomendado hace que responder en el hilo sea la acción principal; Activado deja la elección abierta; Desactivado bloque nueva actividad en hilos.",
       "threading_mode_required": "Obligatorio",
       "threading_mode_required_description": "Cada mensaje inicia un hilo.",
@@ -296,7 +301,27 @@
       "remove_member_failed": "No se pudo quitar al miembro: {error}",
       "move_room_failed": "No se pudo mover la sala: {error}",
       "move_link_failed": "No se pudo mover el enlace: {error}",
-      "reorder_rooms_failed": "No se pudieron reordenar las salas: {error}"
+      "reorder_rooms_failed": "No se pudieron reordenar las salas: {error}",
+      "tabs": {
+        "label": "Secciones de la sala",
+        "general": "General",
+        "members": "Miembros",
+        "permissions": "Permisos"
+      },
+      "settings": {
+        "name_title": "Nombre y descripción",
+        "name_subtitle": "Los miembros los ven en la lista de salas y en la parte superior de la sala.",
+        "visibility_title": "Visibilidad",
+        "visibility_subtitle": "Elige quién es miembro de esta sala.",
+        "universal_description": "Todos los miembros que pueden unirse a esta sala son miembros automáticamente.",
+        "visibility_help": "Usa una sala universal para noticias que deben recibir todos los miembros, como los anuncios. Los miembros no pueden salir de una sala universal, pero sí pueden silenciarla. Si desactivas la opción universal, los miembros que se unieron antes siguen en la sala.",
+        "slow_mode_subtitle": "Limita la frecuencia con la que cada miembro puede publicar en esta sala.",
+        "slow_mode_interval": "Tiempo mínimo entre publicaciones",
+        "slow_mode_help": "Un solo temporizador cubre los mensajes, las respuestas en hilos y los archivos adjuntos. Los miembros con el permiso room.manage o message.manage están exentos. Mientras esperan, los miembros pueden seguir escribiendo borradores, editando sus mensajes y agregando reacciones.",
+        "threading_title": "Modo de hilos",
+        "threading_subtitle": "Elige cómo usan los hilos las conversaciones de esta sala.",
+        "threading_help": "Un cambio solo se aplica a los mensajes nuevos. Los hilos existentes no cambian. Obligatorio funciona bien en salas donde cada mensaje es un tema distinto, como las solicitudes de soporte. Recomendado mantiene legibles las salas con mucha actividad, pero no obliga a usar hilos."
+      }
     },
     "security": {
       "title": "Seguridad",
