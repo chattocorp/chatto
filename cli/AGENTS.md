@@ -389,6 +389,11 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 ```
 
 - Always set a timeout for targeted Go tests.
+- Run `mise test-cli-cold-storage` when you change a projection structure that
+  uses cold slices or the event ID table (ADR-111). It runs the core tests
+  with almost all message state frozen. CI runs it. Use `-count=1` when you
+  set `CHATTO_TEST_COLD_STORAGE=1` by hand, because the Go test cache does not
+  track it.
 - Run `mise lint-cli` before you push backend changes. CI runs it. It runs
   `go vet` and a staticcheck U1000 check over every build tag set. Delete
   unused code; do not silence the check.

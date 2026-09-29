@@ -496,6 +496,25 @@ jobs:
       - name: Run Go tests
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
+  test-cli-cold-storage:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-cli-cold-storage
+          # PR caches are isolated from main and cannot accelerate a merge run.
+          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Run core tests with compressed message state
+        run: mise test-cli-cold-storage
+
   test-oidc-conformance:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
@@ -523,7 +542,7 @@ jobs:
           retention-days: 14
 
   test-cli:
-    needs: [changes, test-cli-shared, test-cli-chatto]
+    needs: [changes, test-cli-shared, test-cli-chatto, test-cli-cold-storage]
     if: ${{ always() && (needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true') }}
     runs-on: ubuntu-latest
     steps:
@@ -532,10 +551,12 @@ jobs:
           CHATTO_CHANGED: ${{ needs.changes.outputs.chatto }}
           SHARED_RESULT: ${{ needs.test-cli-shared.result }}
           CHATTO_RESULT: ${{ needs.test-cli-chatto.result }}
+          COLD_STORAGE_RESULT: ${{ needs.test-cli-cold-storage.result }}
         run: |
           test "$SHARED_RESULT" = success
           if [[ "$CHATTO_CHANGED" == true ]]; then
             test "$CHATTO_RESULT" = success
+            test "$COLD_STORAGE_RESULT" = success
           fi
 
   test-authling-e2e:

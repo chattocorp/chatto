@@ -675,6 +675,14 @@ run = [
 ]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE", "../mise.toml", "../tools/dev-seed-smoke.mjs"]
 
+[tasks.test-cli-cold-storage]
+description = "Run core projection tests with almost all message state compressed (ADR-111)"
+depends = ["setup-cli"]
+dir = "cli"
+env = { CHATTO_TEST_COLD_STORAGE = "1" }
+run = "go test -trimpath -count=1 -tags test_endpoints ./internal/core/"
+sources = ["**/*.go"]
+
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
 depends = ["setup-appconfig"]
