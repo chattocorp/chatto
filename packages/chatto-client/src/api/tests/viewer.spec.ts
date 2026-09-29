@@ -211,4 +211,26 @@ describe('getCurrentUserViaConnect', () => {
     expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
     expect(mocks.getViewer).toHaveBeenCalledOnce();
   });
+
+  it('rejects privileged-mode answers without state or permissions', async () => {
+    const api = createPrivilegedModeAPI(config());
+    for (const [method, mock] of [
+      ['activate', mocks.activatePrivilegedMode],
+      ['deactivate', mocks.deactivatePrivilegedMode]
+    ] as const) {
+      mock.mockReturnValueOnce({});
+      await expect(api[method]()).rejects.toThrow('did not include state');
+      mock.mockReturnValueOnce({ privilegedMode: { available: true, active: true } });
+      await expect(api[method]()).rejects.toThrow('did not include effective permissions');
+    }
+  });
+
+  it('rejects viewer answers without a user or profile', async () => {
+    mocks.getViewer.mockReturnValueOnce({});
+    await expect(getViewerStateViaConnect(config())).rejects.toThrow('did not include a user');
+    mocks.getViewer.mockReturnValueOnce({ user: {} });
+    await expect(getViewerStateViaConnect(config())).rejects.toThrow(
+      'did not include a user profile'
+    );
+  });
 });

@@ -240,6 +240,23 @@ describe('createRoomCommandAPI', () => {
 
     const api = roomAPI();
 
+    await api.removeUser({
+      roomId: 'room-1',
+      userId: 'user-1',
+      reason: 'spam',
+      suspension: { kind: 'none' }
+    });
+    expect(receivedRequest(mocks.removeUser)?.suspension).toEqual({ case: undefined });
+    await api.removeUser({
+      roomId: 'room-1',
+      userId: 'user-1',
+      reason: 'spam',
+      suspension: { kind: 'indefinite' }
+    });
+    expect(receivedRequest(mocks.removeUser, 1)?.suspension).toEqual({
+      case: 'suspendIndefinitely',
+      value: true
+    });
     await expect(
       api.removeUser({
         roomId: 'room-1',
@@ -252,7 +269,7 @@ describe('createRoomCommandAPI', () => {
       api.liftSuspension({ roomId: 'room-1', userId: 'user-1', reason: 'appeal' })
     ).resolves.toBe(true);
 
-    expect(receivedRequest(mocks.removeUser)).toMatchObject({
+    expect(receivedRequest(mocks.removeUser, 2)).toMatchObject({
       roomId: 'room-1',
       userId: 'user-1',
       reason: 'policy',
@@ -428,5 +445,69 @@ describe('createRoomCommandAPI', () => {
         groupId: 'group-1'
       })
     ).rejects.toThrow('room description must be 500 characters or less');
+  });
+
+  it('archives and unarchives a room', async () => {
+    mocks.archiveRoom.mockReturnValue({ room: { id: 'room-1', name: 'general', archived: true } });
+    mocks.unarchiveRoom.mockReturnValue({});
+    const api = roomAPI();
+
+    await expect(api.archiveRoom('room-1')).resolves.toMatchObject({
+      id: 'room-1',
+      archived: true,
+      slowModeSeconds: 0
+    });
+    await expect(api.unarchiveRoom('room-1')).resolves.toBeNull();
+    expect(receivedRequest(mocks.unarchiveRoom)).toMatchObject({ roomId: 'room-1' });
+  });
+
+  it('explains which room field a rejected update exceeded', async () => {
+    const invalid = () => {
+      throw new ConnectError('invalid', Code.InvalidArgument);
+    };
+    mocks.updateRoom.mockImplementation(invalid);
+    const api = roomAPI();
+
+    await expect(api.updateRoom({ roomId: 'room-1', name: 'x'.repeat(31) })).rejects.toThrow(
+      'room name must be 30 characters or less'
+    );
+    await expect(
+      api.updateRoom({ roomId: 'room-1', description: 'x'.repeat(501) })
+    ).rejects.toThrow('room description must be 500 characters or less');
+    await expect(api.updateRoom({ roomId: 'room-1', name: 'ok' })).rejects.toMatchObject({
+      code: Code.InvalidArgument
+    });
+
+    mocks.updateRoom.mockImplementation(() => {
+      throw new ConnectError('denied', Code.PermissionDenied);
+    });
+    await expect(api.updateRoom({ roomId: 'room-1', name: 'x'.repeat(31) })).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
+  });
+
+  it('maps a suspension without hydrated references', async () => {
+    mocks.listSuspensions.mockReturnValue({
+      suspensions: [{ id: 'ban-1', roomId: 'room-1', userId: 'user-1', moderatorId: 'mod-1' }]
+    });
+
+    await expect(roomAPI().listSuspensions()).resolves.toMatchObject({
+      suspensions: [
+        {
+          id: 'ban-1',
+          room: null,
+          user: null,
+          moderator: null,
+          createdAt: null,
+          expiresAt: null
+        }
+      ],
+      totalCount: 0,
+      hasMore: false
+    });
+    expect(receivedRequest(mocks.listSuspensions)).toMatchObject({
+      roomId: '',
+      page: { limit: 100, offset: 0 }
+    });
   });
 });

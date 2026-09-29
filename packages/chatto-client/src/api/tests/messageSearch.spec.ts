@@ -130,4 +130,46 @@ describe('createMessageSearchAPI', () => {
       }
     ]);
   });
+
+  it('keeps results when room and actor hydration fail', async () => {
+    search.getStatus.mockReturnValue({ state: MessageSearchState.READY });
+    await expect(createAPI().getStatus()).resolves.toEqual({
+      state: MessageSearchState.READY,
+      retryAfterMs: null
+    });
+
+    search.searchMessages.mockReturnValue({
+      results: [
+        { relevanceScore: 1 },
+        { relevanceScore: 2, message: { id: 'message-1', roomId: 'room-1', actorId: '' } }
+      ]
+    });
+    rooms.batchGetRooms.mockImplementation(() => {
+      throw new Error('rooms unavailable');
+    });
+    users.batchGetUsers.mockImplementation(() => {
+      throw new Error('users unavailable');
+    });
+
+    await expect(
+      createAPI().searchMessages({ query: 'x', order: MessageSearchOrder.RELEVANCE, cursor: 'c' })
+    ).resolves.toEqual({
+      results: [
+        {
+          id: 'message-1',
+          roomId: 'room-1',
+          roomName: null,
+          roomKind: RoomKind.UNSPECIFIED,
+          actorId: '',
+          actor: null,
+          body: '',
+          createdAt: '',
+          threadRootEventId: null,
+          attachmentCount: 0,
+          relevanceScore: 2
+        }
+      ],
+      nextCursor: null
+    });
+  });
 });

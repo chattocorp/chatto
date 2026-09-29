@@ -360,4 +360,78 @@ describe('createPermissionAPI', () => {
       api.listRolePermissionDecisions('moderator', { signal: AbortSignal.abort() })
     ).rejects.toMatchObject({ code: Code.Canceled });
   });
+
+  it('maps DM and server scopes and allow decisions in both directions', async () => {
+    mocks.setRolePermission.mockImplementation((request) => ({
+      decision: {
+        permission: request.permission,
+        scope: request.scope,
+        decision: PermissionDecision.ALLOW
+      }
+    }));
+    const api = permissionAPI();
+
+    for (const scope of [{ tier: 'dm' }, { tier: 'server' }] as const) {
+      await expect(
+        api.setRolePermission({
+          roleName: 'everyone',
+          scope,
+          permission: 'message.post',
+          state: 'allow'
+        })
+      ).resolves.toEqual({ permission: 'message.post', scope, decision: 'ALLOW' });
+    }
+    expect(receivedRequest(mocks.setRolePermission, 0)).toMatchObject({
+      decision: PermissionDecision.ALLOW,
+      scope: { kind: PermissionScopeKind.DM, id: '' }
+    });
+    expect(receivedRequest(mocks.setRolePermission, 1)).toMatchObject({
+      scope: { kind: PermissionScopeKind.SERVER, id: '' }
+    });
+  });
+
+  it('rejects incomplete permission answers', async () => {
+    mocks.setUserPermission.mockReturnValue({});
+    mocks.listUserPermissionDecisions.mockReturnValueOnce({ userId: 'U1', decisions: [] });
+    mocks.listUserPermissionDecisions.mockReturnValueOnce({
+      userId: 'U1',
+      decisions: [],
+      scopes: [{ kind: PermissionScopeKind.UNSPECIFIED, id: '' }],
+      page: { totalCount: 0n, hasMore: false }
+    });
+    const api = permissionAPI();
+
+    await expect(
+      api.setUserPermission({
+        userId: 'U1',
+        scope: { tier: 'server' },
+        permission: 'room.create',
+        state: 'deny'
+      })
+    ).rejects.toThrow('did not include a decision');
+    await expect(api.listUserPermissionDecisions('U1')).rejects.toThrow(
+      'did not include scope page metadata'
+    );
+    await expect(api.listUserPermissionDecisions('U1')).rejects.toThrow(
+      'unsupported permission scope kind'
+    );
+  });
+
+  it('returns null for absent matrices and scopes a tier matrix to a group', async () => {
+    mocks.getRolePermissionTierMatrix.mockReturnValue({});
+    mocks.getRolePermissionMatrix.mockReturnValue({});
+    mocks.getUserPermissionMatrix.mockReturnValue({});
+    const api = permissionAPI();
+
+    await expect(api.getRolePermissionTierMatrix({ groupId: 'G1' })).resolves.toBeNull();
+    expect(receivedRequest(mocks.getRolePermissionTierMatrix)).toMatchObject({
+      scope: { kind: PermissionScopeKind.GROUP, id: 'G1' }
+    });
+    await expect(api.getRolePermissionTierMatrix({})).resolves.toBeNull();
+    expect(receivedRequest(mocks.getRolePermissionTierMatrix, 1)).toMatchObject({
+      scope: { kind: PermissionScopeKind.SERVER, id: '' }
+    });
+    await expect(api.getRolePermissionMatrix('everyone')).resolves.toBeNull();
+    await expect(api.getUserPermissionMatrix('U1', { scope: { tier: 'dm' } })).resolves.toBeNull();
+  });
 });

@@ -361,4 +361,26 @@ describe('createMemberDirectoryAPI', () => {
       ]
     });
   });
+
+  it('gets a user by login', async () => {
+    users.getUser.mockReturnValueOnce({ user: { user: { id: 'U1', login: 'ada' } } });
+    users.getUser.mockReturnValueOnce({});
+    users.getUser.mockImplementationOnce(() => {
+      throw new ConnectError('missing', Code.NotFound);
+    });
+    users.getUser.mockImplementationOnce(() => {
+      throw new ConnectError('denied', Code.PermissionDenied);
+    });
+    const api = directoryAPI();
+
+    await expect(api.getUserByLogin('ada')).resolves.toMatchObject({ id: 'U1', login: 'ada' });
+    expect(receivedRequest(users.getUser)).toMatchObject({
+      target: { case: 'login', value: 'ada' }
+    });
+    await expect(api.getUserByLogin('empty')).resolves.toBeNull();
+    await expect(api.getUserByLogin('missing')).resolves.toBeNull();
+    await expect(api.getUserByLogin('secret')).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
+  });
 });

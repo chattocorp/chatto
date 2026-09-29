@@ -1,4 +1,4 @@
-import { Code } from '@connectrpc/connect';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
 import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
@@ -238,5 +238,30 @@ describe('createRoleAPI', () => {
       updateMask: { paths: ['display_name', 'description', 'pingable'] }
     });
     expect(receivedRequest(adminRoles.deleteRole)).toMatchObject({ name: 'helpdesk' });
+  });
+
+  it('reads a public role and treats a missing role as null', async () => {
+    roles.getRole.mockReturnValueOnce({
+      role: { name: 'moderator', displayName: 'Moderator', description: '', position: 1 }
+    });
+    await expect(roleAPI().getPublicRole('moderator')).resolves.toMatchObject({
+      name: 'moderator',
+      displayName: 'Moderator'
+    });
+
+    roles.getRole.mockReturnValueOnce({});
+    await expect(roleAPI().getPublicRole('empty')).resolves.toBeNull();
+
+    roles.getRole.mockImplementationOnce(() => {
+      throw new ConnectError('missing', Code.NotFound);
+    });
+    await expect(roleAPI().getPublicRole('missing')).resolves.toBeNull();
+
+    roles.getRole.mockImplementationOnce(() => {
+      throw new ConnectError('denied', Code.PermissionDenied);
+    });
+    await expect(roleAPI().getPublicRole('secret')).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
   });
 });

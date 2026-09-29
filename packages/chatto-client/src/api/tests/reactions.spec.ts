@@ -74,4 +74,28 @@ describe('createReactionAPI', () => {
       reactionAPI().addReaction({ roomId: 'room-1', messageEventId: 'event-1', emoji: 'thumbsup' })
     ).rejects.toMatchObject({ code: Code.Unauthenticated, rawMessage: 'authentication required' });
   });
+
+  it('pages the users of a reaction', async () => {
+    mocks.listReactionUsers.mockReturnValue({
+      userIds: ['u1', 'u2'],
+      page: { totalCount: 5n, hasMore: true }
+    });
+    const input = { roomId: 'room-1', messageEventId: 'event-1', emoji: 'thumbsup' };
+    await expect(reactionAPI().listReactionUsers(input, 2)).resolves.toEqual({
+      userIds: ['u1', 'u2'],
+      totalCount: 5,
+      hasMore: true
+    });
+    expect(receivedRequest(mocks.listReactionUsers)).toMatchObject({
+      ...input,
+      page: { offset: 2, limit: 50 }
+    });
+
+    mocks.listReactionUsers.mockReturnValue({ userIds: [] });
+    await expect(reactionAPI().listReactionUsers(input, 0, 10)).resolves.toEqual({
+      userIds: [],
+      totalCount: 0,
+      hasMore: false
+    });
+  });
 });

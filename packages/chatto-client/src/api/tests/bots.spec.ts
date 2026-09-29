@@ -248,4 +248,65 @@ describe('createBotAPI', () => {
       ownerUserId: 'U-new-owner'
     });
   });
+
+  it('manages outbound webhooks', async () => {
+    mocks.listBotWebhookFailures.mockReturnValue({ failures: [], nextCursor: '' });
+    mocks.listBotOutboundWebhooks.mockReturnValue({ webhooks: [{ id: 'OW1', name: 'Hook' }] });
+    mocks.createBotOutboundWebhook.mockReturnValue({ webhook: { id: 'OW1' } });
+    mocks.updateBotOutboundWebhook.mockReturnValue({ webhook: { id: 'OW1' } });
+    mocks.revokeBotOutboundWebhook.mockReturnValue({});
+    const api = botAPI();
+
+    await api.listWebhookFailures('one', 'OW1');
+    expect(receivedRequest(mocks.listBotWebhookFailures)).toMatchObject({
+      botUserId: 'one',
+      webhookId: 'OW1',
+      cursor: '',
+      pageSize: 20
+    });
+    await expect(api.listOutboundWebhooks('one')).resolves.toMatchObject([{ id: 'OW1' }]);
+    await api.createOutboundWebhook({
+      botUserId: 'one',
+      name: 'Hook',
+      url: 'https://hooks.example.test',
+      authorization: 'Bearer x',
+      enabled: true
+    });
+    expect(receivedRequest(mocks.createBotOutboundWebhook)).toMatchObject({
+      name: 'Hook',
+      url: 'https://hooks.example.test'
+    });
+    await api.updateOutboundWebhook('one', 'OW1', { enabled: false });
+    expect(receivedRequest(mocks.updateBotOutboundWebhook)).toMatchObject({
+      botUserId: 'one',
+      webhookId: 'OW1',
+      enabled: false,
+      updateMask: { paths: ['enabled'] }
+    });
+    await api.revokeOutboundWebhook('one', 'OW1');
+    expect(receivedRequest(mocks.revokeBotOutboundWebhook)).toMatchObject({
+      botUserId: 'one',
+      webhookId: 'OW1'
+    });
+  });
+
+  it('creates and deletes a bot', async () => {
+    mocks.createBot.mockReturnValue({
+      bot: { user: { id: 'one', login: 'one_bot', displayName: 'One' }, ownerUserId: 'U1' },
+      apiKey: 'secret'
+    });
+    mocks.deleteBot.mockReturnValue({ deleted: true });
+    const api = botAPI();
+
+    await expect(api.createBot({ login: 'one_bot', displayName: 'One' })).resolves.toMatchObject({
+      bot: { id: 'one', avatarUrl: null, createdAt: null, apiKeys: [] },
+      apiKey: 'secret'
+    });
+    await expect(api.deleteBot('one')).resolves.toBe(true);
+  });
+
+  it('rejects a bot answer without bot metadata', async () => {
+    mocks.getBot.mockReturnValue({ bot: {} });
+    await expect(botAPI().getBot('one')).rejects.toThrow('did not include bot metadata');
+  });
 });

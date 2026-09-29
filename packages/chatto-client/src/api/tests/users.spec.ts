@@ -194,4 +194,12 @@ describe('createUserAPI', () => {
       timezone: null
     });
   });
+
+  it('updates profiles without a server store and rejects answers without a user', async () => {
+    const api = createUserAPI(fakeServer((router) => router.service(UserService, mocks)));
+    mocks.deleteAvatar.mockReturnValue({ user: { id: 'u1', login: 'ada' } });
+    await expect(api.deleteAvatar('u1')).resolves.toMatchObject({ id: 'u1', login: 'ada' });
+    mocks.deleteAvatar.mockReturnValue({});
+    await expect(api.deleteAvatar('u1')).rejects.toThrow('did not include a user');
+  });
 });
