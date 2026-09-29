@@ -3,6 +3,7 @@ package core
 import (
 	"strings"
 	"testing"
+	"unsafe"
 
 	"google.golang.org/protobuf/proto"
 
@@ -67,5 +68,16 @@ func TestRoomTimelineSnapshotRejectsUnrepresentableAttachmentCount(t *testing.T)
 	}
 	if err := NewRoomTimelineProjection().Restore(mutated); err == nil || !strings.Contains(err.Error(), "too many attachments") {
 		t.Fatalf("Restore error = %v, want too many attachments", err)
+	}
+}
+
+// TestRoomTimeline_PerMessageStructSizes guards the memory cost of the two
+// structs that the timeline keeps for every message.
+func TestRoomTimeline_PerMessageStructSizes(t *testing.T) {
+	if got := unsafe.Sizeof(timelineRow{}); got > 48 {
+		t.Fatalf("timelineRow is %d bytes, want at most 48", got)
+	}
+	if got := unsafe.Sizeof(timelineBodyState{}); got > 24 {
+		t.Fatalf("timelineBodyState is %d bytes, want at most 24", got)
 	}
 }
