@@ -411,6 +411,16 @@ func replayProjectionBenchmarkFixture(fixture []projectionBenchmarkWireEvent, sc
 	return targets, nil
 }
 
+// projectionBenchmarkColdAfter returns the cold window that
+// CHATTO_BENCH_COLD_AFTER sets for benchmark projections, or zero.
+func projectionBenchmarkColdAfter() time.Duration {
+	window, err := time.ParseDuration(os.Getenv("CHATTO_BENCH_COLD_AFTER"))
+	if err != nil {
+		return 0
+	}
+	return window
+}
+
 func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, error) {
 	newTarget := func(projection evtstream.Projection) projectionBenchmarkTarget {
 		return projectionBenchmarkTarget{
@@ -448,7 +458,9 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 	case "reactions":
 		return []projectionBenchmarkTarget{newTarget(NewReactionProjection())}, nil
 	case "notification_decisions":
-		return []projectionBenchmarkTarget{newTarget(NewNotificationDecisionProjection())}, nil
+		decisions := NewNotificationDecisionProjection()
+		decisions.configureColdStorage(projectionBenchmarkColdAfter())
+		return []projectionBenchmarkTarget{newTarget(decisions)}, nil
 	case "assets":
 		return []projectionBenchmarkTarget{newTarget(NewAssetProjection())}, nil
 	case "rbac":
@@ -466,6 +478,12 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 		assets := NewAssetProjection()
 		threads := newThreadProjection(eventIDs)
 		reactions := newReactionProjection(eventIDs)
+		if window := projectionBenchmarkColdAfter(); window > 0 {
+			watermark := &coldWatermark{}
+			timeline.configureColdStorage(window, watermark)
+			threads.configureColdStorage(watermark)
+			reactions.configureColdStorage(watermark)
+		}
 		contentKeys := NewContentKeyProjection()
 		rbac := NewRBACProjection()
 		view := newServerContentView(

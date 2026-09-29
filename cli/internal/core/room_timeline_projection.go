@@ -860,6 +860,20 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 	// Compare row handles directly. Materializing a TimelineEntry for every
 	// row made each shredding fact allocate in proportion to the timeline.
 	for idx := range p.entries.len() {
+		// Most rows belong to other users. Read only the columns that
+		// decide this for frozen rows.
+		if flags, frozen := p.entries.frozenColumn(idx, timelineColdFlags); frozen {
+			if timelineEventKind(flags&0xff) != timelineMessagePosted {
+				continue
+			}
+			author, _ := p.entries.frozenColumn(idx, timelineColdAuthor)
+			if author == 0 {
+				author, _ = p.entries.frozenColumn(idx, timelineColdActor)
+			}
+			if uint32(author) != user {
+				continue
+			}
+		}
 		row := p.entries.get(idx)
 		if row.kind != timelineMessagePosted {
 			continue

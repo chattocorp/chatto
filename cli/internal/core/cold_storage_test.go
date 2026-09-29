@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // CHATTO_TEST_COLD_STORAGE=1 runs the package with two-row blocks and a
@@ -164,5 +166,50 @@ func TestColdStorageTestModeFreezesTimelineRows(t *testing.T) {
 		if entry, ok := p.Get(fmt.Sprintf("M%d", i)); !ok || !entry.CreatedAt.Equal(fixedTime(i)) {
 			t.Fatalf("Get(M%d) = %+v, %v", i, entry, ok)
 		}
+	}
+}
+
+// TestColdStorageTestModeFreezesHandleIndexedState proves that the cold test
+// mode freezes the handle-indexed state of Threads, Reactions, and the Badge
+// index, and that reads of frozen messages keep their results.
+func TestColdStorageTestModeFreezesHandleIndexedState(t *testing.T) {
+	if os.Getenv("CHATTO_TEST_COLD_STORAGE") != "1" {
+		t.Skip("set CHATTO_TEST_COLD_STORAGE=1")
+	}
+	threads := NewThreadProjection()
+	reactions := NewReactionProjection()
+	badges := newBadgeTestFixture(t)
+	if err := threads.Apply(roomCreatedEvent("R1", "general", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 100); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 10 {
+		id := fmt.Sprintf("M%d", i)
+		if err := threads.Apply(postedEvent(postedOpts{envelopeID: id, roomID: "R1", actorID: "U1", at: i}), uint64(i+1)); err != nil {
+			t.Fatal(err)
+		}
+		applyReactionProjectionEvent(t, reactions, messagePostedProjectionEvent(id, ""))
+		applyReactionProjectionEvent(t, reactions, reactionAddedProjectionEvent("A"+id, id, "U1", "heart", i))
+		badges.post(id, "U2", "")
+	}
+	if threads.messageRefs.rows.frozenLen() == 0 {
+		t.Fatal("Threads froze no message references")
+	}
+	if reactions.messageRooms.rows.frozenLen() == 0 {
+		t.Fatal("Reactions froze no message rooms")
+	}
+	if badges.p.badges.messages.rows.frozenLen() == 0 {
+		t.Fatal("the Badge index froze no message records")
+	}
+	for i := range 10 {
+		id := fmt.Sprintf("M%d", i)
+		if root, ok := threads.ThreadRootForMessage("R1", id); !ok || root != id {
+			t.Fatalf("ThreadRootForMessage(%s) = %q, %v", id, root, ok)
+		}
+		if got := reactions.Reactions(id); len(got) != 1 || got[0].Emoji != "heart" {
+			t.Fatalf("Reactions(%s) = %+v", id, got)
+		}
+	}
+	if !badges.unread("U1", "") {
+		t.Fatal("frozen root messages gave no Badge attention")
 	}
 }

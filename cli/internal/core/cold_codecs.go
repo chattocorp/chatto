@@ -17,6 +17,13 @@ func (uint32ColdCodec) decode(fields coldFields) uint32 { return uint32(fields[0
 // timelineRowColdCodec stores one timeline row.
 type timelineRowColdCodec struct{}
 
+// Columns of timelineRowColdCodec that scans read without a full decode.
+const (
+	timelineColdActor  = 6
+	timelineColdAuthor = 7
+	timelineColdFlags  = 9
+)
+
 func (timelineRowColdCodec) columns() int { return 10 }
 
 func (timelineRowColdCodec) encode(row timelineRow) (fields coldFields) {
@@ -26,8 +33,8 @@ func (timelineRowColdCodec) encode(row timelineRow) (fields coldFields) {
 	fields[3] = uint64(row.threadRoot)
 	fields[4] = uint64(row.echoOf)
 	fields[5] = uint64(row.room)
-	fields[6] = uint64(row.actor)
-	fields[7] = uint64(row.author)
+	fields[timelineColdActor] = uint64(row.actor)
+	fields[timelineColdAuthor] = uint64(row.author)
 	fields[8] = uint64(row.bodyIndex)
 	flags := uint64(row.kind)
 	if row.reply {
@@ -36,7 +43,7 @@ func (timelineRowColdCodec) encode(row timelineRow) (fields coldFields) {
 	if row.historicalImport {
 		flags |= 1 << 9
 	}
-	fields[9] = flags
+	fields[timelineColdFlags] = flags
 	return fields
 }
 
@@ -48,12 +55,12 @@ func (timelineRowColdCodec) decode(fields coldFields) timelineRow {
 		threadRoot:       uint32(fields[3]),
 		echoOf:           uint32(fields[4]),
 		room:             uint32(fields[5]),
-		actor:            uint32(fields[6]),
-		author:           uint32(fields[7]),
+		actor:            uint32(fields[timelineColdActor]),
+		author:           uint32(fields[timelineColdAuthor]),
 		bodyIndex:        uint32(fields[8]),
-		kind:             timelineEventKind(fields[9] & 0xff),
-		reply:            fields[9]&(1<<8) != 0,
-		historicalImport: fields[9]&(1<<9) != 0,
+		kind:             timelineEventKind(fields[timelineColdFlags] & 0xff),
+		reply:            fields[timelineColdFlags]&(1<<8) != 0,
+		historicalImport: fields[timelineColdFlags]&(1<<9) != 0,
 	}
 }
 

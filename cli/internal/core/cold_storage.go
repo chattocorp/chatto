@@ -142,6 +142,8 @@ type coldSlice[T comparable] struct {
 	hot []T
 	// changed holds frozen rows that a set replaced after freezing.
 	changed map[int]T
+	// dead counts frozen rows that still occupy hot's backing array.
+	dead int
 }
 
 func newColdSlice[T comparable](codec coldCodec[T]) coldSlice[T] {
@@ -180,6 +182,18 @@ func (s *coldSlice[T]) get(i int) T {
 	return s.codec.decode(fields)
 }
 
+// frozenColumn returns one encoded column of row i when the row is frozen and
+// has no overlay value. Scans use it to skip rows without a full decode.
+func (s *coldSlice[T]) frozenColumn(i, column int) (uint64, bool) {
+	if i < 0 || i >= s.frozenLen() {
+		return 0, false
+	}
+	if _, ok := s.changed[i]; ok {
+		return 0, false
+	}
+	return s.blocks[i>>coldBlockShift].get(i&(coldBlockRows()-1), column), true
+}
+
 // set stores row i and extends the slice with zero values when necessary.
 func (s *coldSlice[T]) set(i int, value T) {
 	if i < 0 {
@@ -194,6 +208,9 @@ func (s *coldSlice[T]) set(i int, value T) {
 		return
 	}
 	if missing := i - s.len() + 1; missing > 0 {
+		if len(s.hot)+missing > cap(s.hot) {
+			s.dead = 0
+		}
 		s.hot = append(s.hot, make([]T, missing)...)
 	}
 	s.hot[i-frozen] = value
@@ -201,6 +218,10 @@ func (s *coldSlice[T]) set(i int, value T) {
 
 // append adds a row at the end.
 func (s *coldSlice[T]) append(value T) {
+	if len(s.hot) == cap(s.hot) {
+		// The reallocation copies only the hot rows.
+		s.dead = 0
+	}
 	s.hot = append(s.hot, value)
 }
 
@@ -221,9 +242,15 @@ func (s *coldSlice[T]) freezeBefore(n int) {
 		block := packColumns(columns, values)
 		s.blocks = append(s.blocks, &block)
 		s.hot = s.hot[rows:]
+		s.dead += rows
 	}
-	// Copy the hot rows so the frozen rows' backing array can be released.
-	s.hot = append(make([]T, 0, len(s.hot)+len(s.hot)/4+1), s.hot...)
+	// Frozen rows stay in hot's backing array until an append reallocates it
+	// or they outnumber the hot rows. Copying only then keeps the cost per
+	// row constant.
+	if s.dead > len(s.hot) {
+		s.hot = append(make([]T, 0, len(s.hot)+len(s.hot)/4+1), s.hot...)
+		s.dead = 0
+	}
 }
 
 // estimatedBytes approximates the heap size of the slice.
