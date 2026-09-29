@@ -49,10 +49,12 @@ function fixture(
         return Response.json({
           user: { profile: { id: options.wrongBot ? 'other' : 'bot' } }
         });
-      if (path.endsWith('GetUser'))
+      if (path.endsWith('GetUser')) {
+        assert.deepEqual(requestJson(init), { userId: 'human' });
         return Response.json({
           user: { user: { bot: options.botAuthor ? { ownerUserId: 'owner' } : undefined } }
         });
+      }
       if (path.endsWith('RefreshTypingIndicator')) {
         typing.push(requestJson(init));
         return Response.json({}, { status: options.typingFailure ? 503 : 200 });

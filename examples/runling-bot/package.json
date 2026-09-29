@@ -4,6 +4,7 @@
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
+    "check": "tsc --noEmit",
     "test": "node --test *.test.ts"
   },
   "dependencies": {
@@ -12,5 +13,9 @@
     "@chatto/client": "workspace:*",
     "runling": "workspace:*",
     "undici": "7.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "~5.9.3"
   }
 }

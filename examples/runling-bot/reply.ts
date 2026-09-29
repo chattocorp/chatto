@@ -93,7 +93,7 @@ export function createReplyWorkflow(
         const response = await api
           .service(UserService)
           .getUser(
-            { userId: input.message.author_id },
+            { target: { case: 'userId', value: input.message.author_id } },
             { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS }
           );
         const user = response.user?.user;

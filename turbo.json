@@ -35,7 +35,6 @@
       "outputs": ["dist/**"]
     },
     "check": { "dependsOn": ["^build"], "cache": false },
-    "@chatto/runling-bot#check": { "dependsOn": [], "cache": false },
     "lint": { "dependsOn": ["^build"], "cache": false },
     "@chatto/runling-bot#lint": { "dependsOn": [], "cache": false },
     "test": { "dependsOn": ["^build"], "cache": false },
