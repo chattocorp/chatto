@@ -98,6 +98,18 @@ export class ServerConnection {
   set #connectionFailed(value) {
     this.#connectionFailedSignal.set(value);
   }
+  readonly #realtimeUnsupportedSignal = signal(false);
+  /**
+   * Whether the server closed realtime because it does not support this
+   * client's protocol. The transport does not reconnect then. Reactive.
+   */
+  get realtimeUnsupported(): boolean {
+    return this.#realtimeUnsupportedSignal.get();
+  }
+  /** Record that the server does not support this client's realtime protocol. */
+  markRealtimeUnsupported(): void {
+    this.#realtimeUnsupportedSignal.set(true);
+  }
   #lastVisibleAt = Date.now();
   #visibilityHandler: (() => void) | null = null;
   #onlineHandler: (() => void) | null = null;
@@ -196,12 +208,12 @@ export class ServerConnection {
     this.#connectionFailed = false;
     if (this.status === 'connecting') {
       this.#pendingForcedReconnectReason = reason;
-      console.log('[ws:%s] Force reconnect queued — already connecting: %s', this.#host, reason);
+      debugLog('[ws:%s] Force reconnect queued — already connecting: %s', this.#host, reason);
       return;
     }
     if (this.#realtimeReconnect) {
       this.#pendingForcedReconnectReason = null;
-      console.log(
+      debugLog(
         '[ws:%s] Force realtime reconnect: %s (status: %s)',
         this.#host,
         reason,
@@ -211,7 +223,7 @@ export class ServerConnection {
       this.#realtimeReconnect(reason);
       return;
     }
-    console.log(
+    debugLog(
       '[ws:%s] Force realtime reconnect skipped — no realtime stream is registered: %s',
       this.#host,
       reason
@@ -245,7 +257,7 @@ export class ServerConnection {
     }
 
     if (status === 'connected') {
-      console.log('[ws:%s] Connected', this.#host);
+      debugLog('[ws:%s] Connected', this.#host);
       this.status = 'connected';
       this.#failedAttempts = 0;
       this.#connectionFailed = false;

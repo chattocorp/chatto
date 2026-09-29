@@ -137,8 +137,12 @@ export class ServerProjectionStore {
    */
   removeUser(userId: string): void {
     this.users.delete(userId);
+    const inCall = (call: (typeof this.activeCalls)[number]) =>
+      call.participants.some((participant) => participant.user?.id === userId);
+    // Publish only when a call changed, so other call observers stay quiet.
+    if (!this.activeCalls.some(inCall)) return;
     this.activeCalls = this.activeCalls.map((call) => {
-      if (!call.participants.some((participant) => participant.user?.id === userId)) return call;
+      if (!inCall(call)) return call;
       const next = call.clone();
       next.participants = next.participants.filter(
         (participant) => participant.user?.id !== userId

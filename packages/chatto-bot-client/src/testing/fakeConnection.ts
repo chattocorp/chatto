@@ -15,6 +15,7 @@ export function fakeConnection(
   const status = signal<ChattoConnectionStatus>('connecting');
   const sessionEnded = signal(false);
   const closed = signal(false);
+  const realtimeUnsupported = signal(false);
   const connection = {
     serverId: 'test',
     connection: {
@@ -30,6 +31,9 @@ export function fakeConnection(
     },
     get closed() {
       return closed.get();
+    },
+    get realtimeUnsupported() {
+      return realtimeUnsupported.get();
     },
     async ready({ signal }: { signal?: AbortSignal } = {}) {
       signal?.throwIfAborted();
@@ -63,6 +67,9 @@ export function fakeConnection(
     },
     endSession() {
       sessionEnded.set(true);
+    },
+    rejectRealtimeProtocol() {
+      realtimeUnsupported.set(true);
     },
     get listenerCount() {
       return eventListeners.size + resetListeners.size;

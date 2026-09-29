@@ -67,6 +67,10 @@ class FakeRealtimeSocket {
 
 class FakeServerConnection {
   status: ConnectionStatus = 'connecting';
+  realtimeUnsupported = false;
+  markRealtimeUnsupported() {
+    this.realtimeUnsupported = true;
+  }
   reconnectCount = 0;
   realtimeUrl = 'ws://chatto.test/api/realtime';
   bearerToken: string | null = 'token-1';
@@ -736,6 +740,7 @@ describe('eventBusManager realtime transport', () => {
     );
 
     expect(fake.status).toBe('disconnected');
+    expect(fake.realtimeUnsupported).toBe(true);
     expect(socket.closeCalls.at(-1)?.reason).toBe('unsupported_protocol');
     await vi.advanceTimersByTimeAsync(60_000);
     expect(sockets).toHaveLength(1);

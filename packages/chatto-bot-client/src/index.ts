@@ -375,8 +375,8 @@ interface Inbox {
 }
 
 /** Subscribe to the connection's events and resets. */
-function openInbox(chatto: ChattoConnection): Inbox {
-  const inbox: Inbox = { queue: [], pendingGap: false, close: () => {} };
+function openInbox(chatto: ChattoConnection, pendingGap = false): Inbox {
+  const inbox: Inbox = { queue: [], pendingGap, close: () => {} };
   const stopEvents = chatto.onEvent((event) => {
     if (inbox.queue.length >= MAX_QUEUED_EVENTS) {
       // Keep the bot responsive: drop the backlog and report the loss.
@@ -426,11 +426,13 @@ export async function createBotClient(
    * keeps receiving events while a handler runs; up to 1000 wait in memory.
    * The first call also receives the events that arrived after the client
    * was created. Resolves on abort. Rejects when `onEvent` or `onStatus`
-   * throws, when the server ends the session, or when the connection closes.
+   * throws, when the server ends the session or does not support the realtime
+   * protocol, or when the connection closes.
    */
   async function consumeEvents({ signal, onEvent, onStatus }: ConsumeEventsOptions): Promise<void> {
     signal.throwIfAborted();
-    const inbox = firstInbox ?? openInbox(chatto);
+    // Events between two calls were not received: a later call reports a gap.
+    const inbox = firstInbox ?? openInbox(chatto, true);
     firstInbox = undefined;
     let failure: { error: unknown } | undefined;
     const fail = (error: unknown) => {
@@ -465,6 +467,8 @@ export async function createBotClient(
         if (chatto.closed) fail(new Error('The Chatto connection is closed'));
         else if (chatto.sessionEnded)
           fail(new Error('Chatto ended the session; the API key can be revoked'));
+        else if (chatto.realtimeUnsupported)
+          fail(new Error("The Chatto server does not support this client's realtime protocol"));
       });
       effect(() => {
         const status = chatto.status;

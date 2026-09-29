@@ -25,6 +25,20 @@ describe('ServerProjectionStore', () => {
     expect(store.users.isDeleted('gone')).toBe(true);
   });
 
+  it('keeps the active calls when a removed account is in no call', () => {
+    const store = new ServerProjectionStore();
+    const calls = [
+      new ActiveCall({
+        participants: [new CallParticipant({ user: new User({ id: 'caller' }) })]
+      })
+    ];
+    store.activeCalls = calls;
+    store.removeUser('gone');
+    expect(store.activeCalls).toBe(calls);
+    store.removeUser('caller');
+    expect(store.activeCalls[0]?.participants).toEqual([]);
+  });
+
   it('merges a partial snapshot user list into cached profiles', () => {
     const store = new ServerProjectionStore();
     store.users.set(

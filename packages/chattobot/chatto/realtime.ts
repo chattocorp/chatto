@@ -1,5 +1,6 @@
 import { connectChatto, type ChattoConnection } from '@chatto/client';
 import { createChattoApi, type ChattoApi } from '@chatto/client/apiClient';
+import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { createBotApi, createBotClient, type AddressedMessage } from '@chatto/bot-client';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
@@ -38,11 +39,14 @@ export function messageDelivery(message: AddressedMessage, botId: string): Deliv
   };
 }
 
-/** Match the client's server URL rules without including the value in an error message. */
+/** Apply the client's server URL rules; the error never includes the value. */
 function isServerUrl(value: string): boolean {
-  if (!URL.canParse(value)) return false;
-  const url = new URL(value);
-  return (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password;
+  try {
+    parseServerUrl(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Parse maintainer Chatto user IDs, separated by commas or spaces. They are matched against

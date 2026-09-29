@@ -66,3 +66,12 @@ if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'Storage', { value: MemoryStorage, configurable: true });
   Object.defineProperty(globalThis, 'Storage', { value: MemoryStorage, configurable: true });
 }
+
+/**
+ * Tests must not reach the network. Fail every request that a test does not
+ * route to a fake server or a stubbed `fetch`, as an unreachable server would.
+ * Results then do not depend on what listens on the test machine.
+ */
+globalThis.fetch = async () => {
+  throw new TypeError('fetch failed: package tests do not use the network');
+};

@@ -44,7 +44,7 @@ import { RealtimeProjectionUpdate, type ProjectionHandler } from '../realtime/ev
 import type { ServerConnection } from './serverConnection.js';
 import type { ServerRegistration } from './catalog.js';
 import type { ServerSession } from './sessions.js';
-import { ReactiveMap, ReactiveSet, computed, signal } from '../reactivity/index.js';
+import { ReactiveMap, ReactiveSet, batch, computed, signal } from '../reactivity/index.js';
 import { ServerProjectionStore } from './projection.js';
 import { getUserStore } from './users.js';
 import type { RoomMember } from '../room/members.js';
@@ -451,9 +451,11 @@ export class ServerStateStore {
       this.#catchUpResourceReads--;
     });
     this.requireCurrentRealtimeProjection(generation);
-    for (const resource of batches.flat()) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
-    }
+    batch(() => {
+      for (const resource of batches.flat()) {
+        this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+      }
+    });
 
     // Presence and other user current values are not durable replay events.
     // Refresh every user that the retained projection still references after
@@ -487,15 +489,20 @@ export class ServerStateStore {
           : []
       )
     );
-    for (const resource of userResources) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }), presenceReadVersion);
-    }
-    for (const [userId, member] of requestedCachedUsers) {
-      if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
-      this.#deletedRealtimeUserIds.add(userId);
-      this.projection.removeUser(userId);
-      this.scrubRemovedUser(userId);
-    }
+    batch(() => {
+      for (const resource of userResources) {
+        this.publishProjectionUpdate(
+          new RealtimeProjectionUpdate({ resource }),
+          presenceReadVersion
+        );
+      }
+      for (const [userId, member] of requestedCachedUsers) {
+        if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
+        this.#deletedRealtimeUserIds.add(userId);
+        this.projection.removeUser(userId);
+        this.scrubRemovedUser(userId);
+      }
+    });
 
     if (this.#realtimeSnapshotPending) {
       await Promise.all(
@@ -878,11 +885,13 @@ export class ServerStateStore {
               update.cursor ?? undefined
             );
             if (!current()) return;
-            for (const resource of resources) {
-              this.publishProjectionUpdate(
-                new RealtimeProjectionUpdate({ resource, cursor: update.cursor })
-              );
-            }
+            batch(() => {
+              for (const resource of resources) {
+                this.publishProjectionUpdate(
+                  new RealtimeProjectionUpdate({ resource, cursor: update.cursor })
+                );
+              }
+            });
           } catch (error) {
             if (!current()) return;
             this.clearFailedPermissionResource(family);
@@ -1028,9 +1037,11 @@ export class ServerStateStore {
       })
       .then(async (resources) => {
         this.requireCurrentRealtimeProjection(generation);
-        for (const resource of resources) {
-          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
-        }
+        batch(() => {
+          for (const resource of resources) {
+            this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+          }
+        });
         if (family === 'rooms') {
           await this.hydrateProjectedDMUsers(minimumCursor, generation);
         }
@@ -1063,9 +1074,14 @@ export class ServerStateStore {
     const presenceReadVersion = this.presence.version;
     const resources = await this.#realtimeResources.readUsers(missingIds, minimumCursor);
     this.requireCurrentRealtimeProjection(generation);
-    for (const resource of resources) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }), presenceReadVersion);
-    }
+    batch(() => {
+      for (const resource of resources) {
+        this.publishProjectionUpdate(
+          new RealtimeProjectionUpdate({ resource }),
+          presenceReadVersion
+        );
+      }
+    });
   }
 
   private refreshRealtimeUsers(userIds: Iterable<string>, minimumCursor?: string): void {
@@ -1093,12 +1109,14 @@ export class ServerStateStore {
         const presenceReadVersion = this.presence.version;
         const resources = await this.#realtimeResources.readUsers(ids, cursor);
         this.requireCurrentRealtimeProjection(readGeneration);
-        for (const resource of resources) {
-          this.publishProjectionUpdate(
-            new RealtimeProjectionUpdate({ resource }),
-            presenceReadVersion
-          );
-        }
+        batch(() => {
+          for (const resource of resources) {
+            this.publishProjectionUpdate(
+              new RealtimeProjectionUpdate({ resource }),
+              presenceReadVersion
+            );
+          }
+        });
       }
     })()
       .catch((error) => {
@@ -1138,8 +1156,11 @@ export class ServerStateStore {
         })
       });
     }
-    this.ingestProjectionEvent(update, presenceReadVersion);
-    eventBusManager.getBus(this.serverId)?.notify(update);
+    // Effects run once, after the update applied, as for transport publishes.
+    batch(() => {
+      this.ingestProjectionEvent(update, presenceReadVersion);
+      eventBusManager.getBus(this.serverId)?.notify(update);
+    });
   }
 
   private invalidateRealtimeEvent(event: RealtimeEvent, refreshQueries = true): void {

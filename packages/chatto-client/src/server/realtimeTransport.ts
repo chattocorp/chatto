@@ -278,7 +278,10 @@ class EventBusManager {
       mode = 'dormant';
       current.onclose = null;
       if (socket === current) socket = null;
-      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      batch(() => {
+        serverConnection.markRealtimeUnsupported();
+        serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      });
       current.close(1000, 'unsupported_protocol');
       resolvePoll(false);
     };

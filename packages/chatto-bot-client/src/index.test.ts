@@ -223,7 +223,7 @@ test('consumes events in order, reports status and gaps, and stops on abort', as
 });
 
 test('stops when the server ends the session or the connection closes', async () => {
-  for (const end of ['session', 'close'] as const) {
+  for (const end of ['session', 'close', 'protocol'] as const) {
     const fake = fakeConnection();
     const bot = await createBotClient(fake.chatto);
     const statuses: string[] = [];
@@ -233,8 +233,11 @@ test('stops when the server ends the session or the connection closes', async ()
       onEvent: () => {}
     });
     if (end === 'session') fake.endSession();
+    else if (end === 'protocol') fake.rejectRealtimeProtocol();
     else fake.chatto.close();
-    await expect(consuming).rejects.toThrow(end === 'session' ? 'ended the session' : 'closed');
+    await expect(consuming).rejects.toThrow(
+      { session: 'ended the session', protocol: 'realtime protocol', close: 'closed' }[end]
+    );
     expect(fake.listenerCount).toBe(0);
     // An ended connection does not reconnect, so none is reported.
     expect(statuses).toEqual(['connecting']);
@@ -406,4 +409,22 @@ test('reports a message without text without a body', async () => {
   await expect(bot.getMessage({ roomId: 'room', messageId: 'text' })).resolves.toMatchObject({
     body: 'hi'
   });
+});
+
+test('reports a gap when consumption restarts', async () => {
+  const fake = fakeConnection();
+  fake.setStatus('connected');
+  const bot = await createBotClient(fake.chatto);
+  for (const expected of [false, true]) {
+    const controller = new AbortController();
+    const statuses: unknown[] = [];
+    const consuming = bot.consumeEvents({
+      signal: controller.signal,
+      onStatus: (status) => statuses.push(status),
+      onEvent: () => {}
+    });
+    expect(statuses).toEqual([{ state: 'ready', gap: expected }]);
+    controller.abort();
+    await consuming;
+  }
 });

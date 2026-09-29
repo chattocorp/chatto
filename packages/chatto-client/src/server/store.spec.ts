@@ -705,6 +705,37 @@ describe('ServerStateStore voice call', () => {
   });
 });
 
+describe('ServerStateStore catch-up', () => {
+  it('applies the resources of a catch-up before effects run', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms'
+        ? [roomResource([new RoomWithViewerState({ room: { id: 'R1', name: 'general' } })])]
+        : family === 'roomGroups'
+          ? [
+              new RealtimeResourceUpdate({
+                resource: {
+                  case: 'roomGroups',
+                  value: new ListRoomGroupsResponse({ groups: [{ id: 'G1', name: 'Group' }] })
+                }
+              })
+            ]
+          : []
+    );
+    const observed: string[] = [];
+    const stop = effect(() => {
+      observed.push(`${store.projection.rooms.has('R1')}:${store.projection.roomGroups.length}`);
+    });
+    try {
+      await store.completeRealtimeCatchUp('cursor');
+      expect(observed).toEqual(['false:0', 'true:1']);
+    } finally {
+      stop();
+      apiMocks.readRealtimeResource.mockReset().mockResolvedValue([]);
+    }
+  });
+});
+
 describe('ServerStateStore viewer', () => {
   it('loads the viewer with the connection renewal hook', async () => {
     const connection = new FakeServerConnection([]);

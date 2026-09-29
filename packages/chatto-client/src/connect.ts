@@ -74,6 +74,11 @@ export interface ChattoConnection {
    * revoked the token. The connection does not recover; close it. Reactive.
    */
   readonly sessionEnded: boolean;
+  /**
+   * Whether the server closed realtime because it does not support this
+   * client's protocol. No events arrive; close the connection. Reactive.
+   */
+  readonly realtimeUnsupported: boolean;
   /** Whether {@link close} was called. Reactive. */
   readonly closed: boolean;
   /**
@@ -214,6 +219,10 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     },
     get sessionEnded() {
       return (serverRegistry.getServer(serverId)?.reauthRequiredAt ?? null) !== null;
+    },
+    get realtimeUnsupported() {
+      if (closed.get() || !serverRegistry.tryGetStore(serverId)) return false;
+      return serverConnectionManager.getClient(serverId).realtimeUnsupported;
     },
     get closed() {
       return closed.get();
