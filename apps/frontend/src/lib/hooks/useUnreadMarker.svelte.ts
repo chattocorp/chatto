@@ -27,6 +27,16 @@ type UseUnreadMarkerOptions<TReadResult> = {
   getMarkerSkipActorId?: () => string | null | undefined;
   canMarkAsRead?: () => boolean;
   onMarkAsReadError?: (error: unknown) => void;
+  /**
+   * Choose how far an entry or return read reaches. Return an event ID to read
+   * through that event, `undefined` to read through the latest event, or
+   * `null` to wait. A waiting read starts as soon as the getter returns
+   * another value. The hook calls the getter only while such a read is due.
+   * Without this option, the read covers the latest event.
+   */
+  getLifecycleUpToEventId?: () => string | undefined | null;
+  /** Called when an entry or return read starts, with its `upToEventId`. */
+  onLifecycleRead?: (upToEventId: string | undefined) => void;
 };
 
 type ReadAttempt = {
@@ -77,9 +87,10 @@ export function isTransientReadError(error: unknown): boolean {
  * Shared unread separator lifecycle for room and thread timelines.
  *
  * A visible target is marked as read on entry and after the app returns to the
- * foreground. Focus still controls reads for messages that arrive while the
- * target stays open. Failed transient requests retry while the target stays
- * visible and readable.
+ * foreground. The owner can limit or delay that read with
+ * `getLifecycleUpToEventId`. Focus still controls reads for messages that
+ * arrive while the target stays open. Failed transient requests retry while the
+ * target stays visible and readable.
  *
  * The rendered separator is always a concrete event id. Server read-state
  * timestamp windows are resolved against the owning timeline events. The
@@ -93,7 +104,9 @@ export function useUnreadMarker<TReadResult>(
     getMarkerEvents,
     getMarkerSkipActorId,
     canMarkAsRead = () => true,
-    onMarkAsReadError
+    onMarkAsReadError,
+    getLifecycleUpToEventId,
+    onLifecycleRead
   }: UseUnreadMarkerOptions<TReadResult>
 ) {
   let unreadMarkerEventId = $state<string | null>(null);
@@ -112,6 +125,8 @@ export function useUnreadMarker<TReadResult>(
   let wasReadable = false;
   let lastForegroundRevision = 0;
   let lastOnlineRevision = 0;
+  // An entry or return read waits here until getLifecycleUpToEventId allows it.
+  let lifecycleDue = false;
   // True after a message that arrived while the viewer was away placed the
   // separator. Later arrivals keep it in place until the viewer returns.
   let awayMarkerPlaced = false;
@@ -239,10 +254,11 @@ export function useUnreadMarker<TReadResult>(
     };
   }
 
-  function startLifecycleAttempt(targetId: string) {
+  function startLifecycleAttempt(targetId: string, upToEventId: string | undefined) {
     cancelLifecycleAttempt();
-    const attempt = createAttempt(targetId, undefined, true);
+    const attempt = createAttempt(targetId, upToEventId, true);
     lifecycleAttempt = attempt;
+    onLifecycleRead?.(upToEventId);
     void runAttempt(attempt);
   }
 
@@ -335,6 +351,7 @@ export function useUnreadMarker<TReadResult>(
 
     if (!visible || !readable || !targetId) {
       cancelAllAttempts();
+      lifecycleDue = false;
     } else if (
       !initialized ||
       targetChanged ||
@@ -342,7 +359,17 @@ export function useUnreadMarker<TReadResult>(
       becamePresent ||
       becameReadable
     ) {
-      startLifecycleAttempt(targetId);
+      lifecycleDue = true;
+    }
+
+    // Read the getter only while a read is due, so that its dependencies
+    // rerun this effect only then.
+    if (lifecycleDue) {
+      const upToEventId = getLifecycleUpToEventId ? getLifecycleUpToEventId() : undefined;
+      if (upToEventId !== null) {
+        lifecycleDue = false;
+        startLifecycleAttempt(targetId, upToEventId);
+      }
     }
 
     if (foregroundChanged && visible && readable) {

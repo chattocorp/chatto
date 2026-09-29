@@ -32,7 +32,7 @@ It shows one chronological list:
 - Read notifications stay in the same chronological list with muted styling and no unread indicator.
 - Delete permanently removes a notification from the list.
 
-Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. All notifications expire 90 days after their source activity.
+Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. Chatto reads only up to the newest message that you can see. If you open an older message, newer notifications stay unread until you scroll to them. All notifications expire 90 days after their source activity.
 
 ## Notification Policy
 
@@ -48,7 +48,7 @@ Members use a matrix to control each notification cause at server, room-group, a
 
 Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
 
-Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. Important notifications use orange indicators and can play your selected sound.
+Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. In the room list, a room shows its Important and Ambient notifications as two separate counts. Each count opens its newest notification. Important notifications use orange indicators and can play your selected sound.
 
 The installed app icon shows an unnumbered badge for Important unread notifications. The window title shows their total count across signed-in servers. Ambient notifications do not contribute to either indicator, even when you enable pushes for them. An Important background push can set the app icon badge when the browser runs the app's notification handler and the server includes the attention level; otherwise, the badge stays unchanged until the app can update it.
 

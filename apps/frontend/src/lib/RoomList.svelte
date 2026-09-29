@@ -41,6 +41,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
+  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
@@ -773,11 +774,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void openRoomCallPanel(room.id);
   }
 
-  async function handleNotificationBadgeClick(event: MouseEvent, roomId: string, isDM: boolean) {
+  /**
+   * Open the newest unread notification that a room badge counts. Each badge
+   * opens its own attention level, so the viewer sees the activity that the
+   * clicked badge announced.
+   */
+  async function handleNotificationBadgeClick(
+    event: MouseEvent,
+    roomId: string,
+    isDM: boolean,
+    attentionLevel: NotificationAttentionLevel
+  ) {
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await notificationStore.resolveRoomNotification(roomId, { isDM });
+    const lookup = await notificationStore.resolveRoomNotification(roomId, {
+      isDM,
+      attentionLevel
+    });
     if (!serverScope.isCurrent()) return;
     const notification = lookup.notification;
 
@@ -804,6 +818,42 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     await goto(path);
   }
 </script>
+
+<!--
+  One room notification badge. Important attention uses notification orange.
+  All other unread notifications use the neutral badge before it.
+-->
+{#snippet notificationBadge(
+  roomId: string,
+  isDM: boolean,
+  attentionLevel: NotificationAttentionLevel,
+  count: number
+)}
+  {@const important = attentionLevel === NotificationAttentionLevel.IMPORTANT}
+  <button
+    type="button"
+    onclick={(e) => handleNotificationBadgeClick(e, roomId, isDM, attentionLevel)}
+    class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+    aria-label={!important
+      ? m('room_list.go_to_other_notifications', { count })
+      : isDM
+        ? m('room_list.go_to_dm_notifications', { count })
+        : m('room_list.go_to_notifications', { count })}
+  >
+    <NotificationBadge
+      {count}
+      color={important ? 'warning' : 'ambient'}
+      testid={`${isDM ? 'dm' : 'room'}-${important ? '' : 'ambient-'}notification-badge`}
+    />
+  </button>
+  <span class="sr-only">
+    {!important
+      ? m('room_list.other_notifications', { count })
+      : isDM
+        ? m('room_list.new_direct_messages', { count })
+        : m('room_list.notifications', { count })}
+  </span>
+{/snippet}
 
 {#snippet activeCallIcon()}
   <span
@@ -961,25 +1011,27 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {/if}
 
         {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
-          <button
-            type="button"
-            onclick={(e) => handleNotificationBadgeClick(e, room.id, isDM)}
-            class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-            aria-label={isDM
-              ? m('room_list.go_to_dm_notifications', { count: room.viewerNotificationCount })
-              : m('room_list.go_to_notifications', { count: room.viewerNotificationCount })}
-          >
-            <NotificationBadge
-              count={room.viewerNotificationCount}
-              color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
-              testid={isDM ? 'dm-notification-badge' : 'room-notification-badge'}
-            />
-          </button>
-          <span class="sr-only">
-            {isDM
-              ? m('room_list.new_direct_messages', { count: room.viewerNotificationCount })
-              : m('room_list.notifications', { count: room.viewerNotificationCount })}
-          </span>
+          {@const importantCount = room.viewerImportantNotificationCount}
+          {@const otherCount = Math.max(0, room.viewerNotificationCount - importantCount)}
+          <!-- The Important count stays at the row edge, where a single badge sits. -->
+          <div class="flex items-center gap-1">
+            {#if otherCount > 0}
+              {@render notificationBadge(
+                room.id,
+                isDM,
+                NotificationAttentionLevel.AMBIENT,
+                otherCount
+              )}
+            {/if}
+            {#if importantCount > 0}
+              {@render notificationBadge(
+                room.id,
+                isDM,
+                NotificationAttentionLevel.IMPORTANT,
+                importantCount
+              )}
+            {/if}
+          </div>
         {:else if showUnread}
           <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
           <span class="sr-only">{m('room_list.unread_messages')}</span>

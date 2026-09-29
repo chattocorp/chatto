@@ -3,6 +3,7 @@ import { NavigationStore } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from 'vitest/browser';
@@ -2216,7 +2217,8 @@ describe('RoomList', () => {
 
     await vi.waitFor(() => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
-        isDM: false
+        isDM: false,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
       });
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'channel-1',
@@ -2239,9 +2241,61 @@ describe('RoomList', () => {
 
     const { container } = render(RoomList);
 
-    const badge = q(container, '[data-testid="room-notification-badge"]');
+    const badge = q(container, '[data-testid="room-ambient-notification-badge"]');
     await expect.element(badge).toHaveClass('bg-text');
-    await expect.element(badge).not.toHaveClass('bg-attention');
+    await expect.element(badge).toHaveTextContent('2');
+    expect(q(container, '[data-testid="room-notification-badge"]')).toBeNull();
+  });
+
+  it('shows only the orange room badge when every notification is important', async () => {
+    setRoomNotificationCount('channel-1', 3);
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-notification-badge"]');
+    await expect.element(badge).toHaveClass('bg-attention');
+    await expect.element(badge).toHaveTextContent('3');
+    expect(q(container, '[data-testid="room-ambient-notification-badge"]')).toBeNull();
+  });
+
+  it('shows important and ambient counts side by side', async () => {
+    setRoomNotificationCount('channel-1', 5, 2);
+
+    const { container } = render(RoomList);
+
+    const important = q(container, '[data-testid="room-notification-badge"]');
+    const ambient = q(container, '[data-testid="room-ambient-notification-badge"]');
+    await expect.element(important).toHaveClass('bg-attention');
+    await expect.element(important).toHaveTextContent('2');
+    await expect.element(ambient).toHaveClass('bg-text');
+    await expect.element(ambient).toHaveTextContent('3');
+    expect(
+      ambient!.compareDocumentPosition(important!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('opens an ambient notification from the neutral badge', async () => {
+    setRoomNotificationCount('channel-1', 5, 2);
+    mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
+      ok: true,
+      totalCount: 3,
+      notification: notification('reaction-1', 'channel-1')
+    });
+    mocks.notificationPath.mockReturnValue('/chat/-/channel-1');
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-ambient-notification-badge"]');
+    await expect.element(badge).toBeInTheDocument();
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
+        isDM: false,
+        attentionLevel: NotificationAttentionLevel.AMBIENT
+      });
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
+    });
   });
 
   it('resolves a stale DM badge through the room-scoped notification query', async () => {
@@ -2264,7 +2318,7 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith(
         'dm-with-participants',
-        { isDM: true }
+        { isDM: true, attentionLevel: NotificationAttentionLevel.IMPORTANT }
       );
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith(
         'origin',
@@ -2300,7 +2354,8 @@ describe('RoomList', () => {
 
     await vi.waitFor(() => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
-        isDM: false
+        isDM: false,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
       });
       expect(mocks.goto).not.toHaveBeenCalled();
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();

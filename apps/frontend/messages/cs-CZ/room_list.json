@@ -8,6 +8,8 @@
     "call_participants": "{count} účastníků hovoru",
     "go_to_notifications": "Přejděte na {count} oznámení",
     "notifications": "{count} oznámení",
+    "go_to_other_notifications": "Přejděte na {count} dalších oznámení",
+    "other_notifications": "{count} dalších oznámení",
     "unread_messages": "nepřečtené zprávy",
     "go_to_dm_notifications": "Přejděte na {count} upozornění na přímé zprávy",
     "new_direct_messages": "{count} nových přímých zpráv",

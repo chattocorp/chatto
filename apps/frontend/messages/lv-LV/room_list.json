@@ -8,6 +8,8 @@
     "call_participants": "{count} dalībnieku zvanā",
     "go_to_notifications": "Dodieties uz {count} paziņojumiem",
     "notifications": "{count} paziņojumi",
+    "go_to_other_notifications": "Dodieties uz {count} citiem paziņojumiem",
+    "other_notifications": "{count} citi paziņojumi",
     "unread_messages": "nelasītas ziņas",
     "go_to_dm_notifications": "Atveriet sadaļu {count} tiešo ziņojumu paziņojumi",
     "new_direct_messages": "{count} jaunas tiešās ziņas",

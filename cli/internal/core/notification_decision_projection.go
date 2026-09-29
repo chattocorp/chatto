@@ -28,34 +28,35 @@ type NotificationDecisionProjection struct {
 	rbac   *RBACProjection
 	config *ConfigProjection
 
-	activeUsers   map[string]struct{}
-	threadFollows map[string]notificationThreadFollow
-	followers     map[string]map[string]struct{}
-	replyCounts   map[string]uint64
-	// badges indexes the sources of computed Badge attention.
+	activeUsers map[string]struct{}
+	// eventIDs is the event ID table that badges use, or nil for a private
+	// table. It does not change after construction.
+	eventIDs *eventIDTable
+	// badges indexes the sources of computed Badge attention, thread follow
+	// states, and thread reply counts.
 	badges *notificationBadgeSources
 }
 
-type notificationThreadFollow struct {
-	userID            string
-	roomID            string
-	threadRootEventID string
-	state             ThreadFollowState
+// NewNotificationDecisionProjection returns an empty projection with a private
+// event ID table.
+func NewNotificationDecisionProjection() *NotificationDecisionProjection {
+	return newNotificationDecisionProjection(nil)
 }
 
-func NewNotificationDecisionProjection() *NotificationDecisionProjection {
-	p := &NotificationDecisionProjection{
-		rooms:         NewRoomDirectoryProjection(),
-		groups:        NewRoomGroupLayoutProjection(),
-		rbac:          NewRBACProjection(),
-		config:        NewConfigProjection(),
-		activeUsers:   make(map[string]struct{}),
-		threadFollows: make(map[string]notificationThreadFollow),
-		followers:     make(map[string]map[string]struct{}),
-		replyCounts:   make(map[string]uint64),
-		badges:        newNotificationBadgeSources(),
+// newNotificationDecisionProjection returns an empty projection that interns
+// event IDs in eventIDs. Production passes the process's shared table, so a
+// message ID that the ServerContentView already holds costs nothing more here.
+// A nil table gives the projection a private table.
+func newNotificationDecisionProjection(eventIDs *eventIDTable) *NotificationDecisionProjection {
+	return &NotificationDecisionProjection{
+		rooms:       NewRoomDirectoryProjection(),
+		groups:      NewRoomGroupLayoutProjection(),
+		rbac:        NewRBACProjection(),
+		config:      NewConfigProjection(),
+		activeUsers: make(map[string]struct{}),
+		eventIDs:    eventIDs,
+		badges:      newNotificationBadgeSources(eventIDs),
 	}
-	return p
 }
 
 func (*NotificationDecisionProjection) Subjects() []string {
@@ -110,14 +111,10 @@ func (p *NotificationDecisionProjection) Apply(event *evtv1.Event, seq uint64) e
 	if err := p.rbac.Apply(event, seq); err != nil {
 		return err
 	}
-	if err := applyNotificationDecisionState(p.config, p.activeUsers, p.threadFollows, p.followers, p.replyCounts, event, seq); err != nil {
+	if err := applyNotificationDecisionState(p.config, p.activeUsers, event, seq); err != nil {
 		return err
 	}
-	var replyCount uint64
-	if threadRootEventID := event.GetMessagePosted().GetInThread(); threadRootEventID != "" {
-		replyCount = p.replyCounts[threadRootEventID]
-	}
-	p.badges.apply(event, seq, replyCount)
+	p.badges.apply(event, seq)
 	return nil
 }
 
@@ -132,7 +129,7 @@ func (*NotificationDecisionProjection) SnapshotContractID() string {
 func (p *NotificationDecisionProjection) Snapshot() ([]byte, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return encodeNotificationDecisionState(p.rooms, p.groups, p.rbac, p.config, p.activeUsers, p.threadFollows, p.replyCounts, p.badges)
+	return encodeNotificationDecisionState(p.rooms, p.groups, p.rbac, p.config, p.activeUsers, p.badges)
 }
 
 func (p *NotificationDecisionProjection) Restore(data []byte) error {
@@ -142,17 +139,22 @@ func (p *NotificationDecisionProjection) Restore(data []byte) error {
 			return fmt.Errorf("unmarshal notification decision snapshot: %w", err)
 		}
 	}
-	rooms, groups, rbac, config, activeUsers, threadFollows, followers, replyCounts, err := decodeNotificationDecisionState(snapshot)
+	rooms, groups, rbac, config, activeUsers, err := decodeNotificationDecisionState(snapshot)
 	if err != nil {
 		return err
 	}
-	badges, err := restoreNotificationBadgeSources(snapshot.GetBadgeSources())
+	// A restore that fails after this point leaves only extra IDs in the
+	// append-only event ID table.
+	badges, err := restoreNotificationBadgeSources(snapshot.GetBadgeSources(), p.eventIDs)
 	if err != nil {
+		return err
+	}
+	if err := badges.restoreThreadState(snapshot.GetThreadFollows(), snapshot.GetThreads()); err != nil {
 		return err
 	}
 	p.mu.Lock()
 	p.rooms, p.groups, p.rbac, p.config = rooms, groups, rbac, config
-	p.activeUsers, p.threadFollows, p.followers, p.replyCounts = activeUsers, threadFollows, followers, replyCounts
+	p.activeUsers = activeUsers
 	p.badges = badges
 	p.mu.Unlock()
 	return nil
@@ -175,17 +177,13 @@ func (p *NotificationDecisionProjection) withCurrent(at time.Time, evaluate func
 	defer p.mu.RUnlock()
 	return evaluate(&notificationDecisionSnapshot{
 		rooms: p.rooms, groups: p.groups, rbac: p.rbac, config: p.config,
-		activeUsers: p.activeUsers, threadFollows: p.threadFollows, followers: p.followers, replyCounts: p.replyCounts,
-		badges: p.badges, at: at,
+		activeUsers: p.activeUsers, badges: p.badges, at: at,
 	})
 }
 
 func applyNotificationDecisionState(
 	config *ConfigProjection,
 	activeUsers map[string]struct{},
-	threadFollows map[string]notificationThreadFollow,
-	followers map[string]map[string]struct{},
-	replyCounts map[string]uint64,
 	event *evtv1.Event,
 	seq uint64,
 ) error {
@@ -207,45 +205,8 @@ func applyNotificationDecisionState(
 			return err
 		}
 		delete(activeUsers, payload.UserAccountDeleted.GetUserId())
-	case *evtv1.Event_ThreadFollowed:
-		follow := payload.ThreadFollowed
-		setNotificationThreadFollow(threadFollows, followers, follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), ThreadFollowStateFollowing)
-	case *evtv1.Event_ThreadUnfollowed:
-		follow := payload.ThreadUnfollowed
-		setNotificationThreadFollow(threadFollows, followers, follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), ThreadFollowStateUnfollowed)
-	case *evtv1.Event_MessagePosted:
-		if threadRootEventID := payload.MessagePosted.GetInThread(); threadRootEventID != "" {
-			replyCounts[threadRootEventID]++
-		}
 	}
 	return nil
-}
-
-func setNotificationThreadFollow(
-	threadFollows map[string]notificationThreadFollow,
-	followers map[string]map[string]struct{},
-	userID, roomID, threadRootEventID string,
-	state ThreadFollowState,
-) {
-	if userID == "" || roomID == "" || threadRootEventID == "" {
-		return
-	}
-	threadKey := threadFollowKeyPart(roomID, threadRootEventID)
-	key := userID + "\x00" + threadKey
-	previous := threadFollows[key]
-	if previous.state == ThreadFollowStateFollowing {
-		delete(followers[threadKey], userID)
-		if len(followers[threadKey]) == 0 {
-			delete(followers, threadKey)
-		}
-	}
-	threadFollows[key] = notificationThreadFollow{userID: userID, roomID: roomID, threadRootEventID: threadRootEventID, state: state}
-	if state == ThreadFollowStateFollowing {
-		if followers[threadKey] == nil {
-			followers[threadKey] = make(map[string]struct{})
-		}
-		followers[threadKey][userID] = struct{}{}
-	}
 }
 
 func encodeNotificationDecisionState(
@@ -254,8 +215,6 @@ func encodeNotificationDecisionState(
 	rbac *RBACProjection,
 	config *ConfigProjection,
 	activeUsers map[string]struct{},
-	threadFollows map[string]notificationThreadFollow,
-	replyCounts map[string]uint64,
 	badges *notificationBadgeSources,
 ) ([]byte, error) {
 	roomData, err := rooms.Snapshot()
@@ -296,22 +255,12 @@ func encodeNotificationDecisionState(
 		snapshot.ActiveUserIds = append(snapshot.ActiveUserIds, userID)
 	}
 	sort.Strings(snapshot.ActiveUserIds)
-	for _, key := range sortedMapKeys(threadFollows) {
-		follow := threadFollows[key]
-		snapshot.ThreadFollows = append(snapshot.ThreadFollows, &projectionv1.ThreadFollowSnapshot{
-			UserId: follow.userID, RoomId: follow.roomID, ThreadRootEventId: follow.threadRootEventID, State: string(follow.state),
-		})
-	}
-	for _, threadRootEventID := range sortedMapKeys(replyCounts) {
-		snapshot.Threads = append(snapshot.Threads, &projectionv1.NotificationThreadStateSnapshot{
-			ThreadRootEventId: threadRootEventID, ReplyCount: replyCounts[threadRootEventID],
-		})
-	}
+	snapshot.ThreadFollows, snapshot.Threads = badges.threadStateSnapshot()
 	snapshot.BadgeSources = badges.snapshot()
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
-func decodeNotificationDecisionState(snapshot *projectionv1.NotificationDecisionProjectionSnapshot) (*RoomDirectoryProjection, *RoomGroupLayoutProjection, *RBACProjection, *ConfigProjection, map[string]struct{}, map[string]notificationThreadFollow, map[string]map[string]struct{}, map[string]uint64, error) {
+func decodeNotificationDecisionState(snapshot *projectionv1.NotificationDecisionProjectionSnapshot) (*RoomDirectoryProjection, *RoomGroupLayoutProjection, *RBACProjection, *ConfigProjection, map[string]struct{}, error) {
 	rooms := NewRoomDirectoryProjection()
 	groups := NewRoomGroupLayoutProjection()
 	rbac := NewRBACProjection()
@@ -324,41 +273,25 @@ func decodeNotificationDecisionState(snapshot *projectionv1.NotificationDecision
 		return restore(payload)
 	}
 	if err := marshalRestore(snapshot.GetRoomDirectory(), rooms.Restore); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("restore room visibility: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("restore room visibility: %w", err)
 	}
 	if err := marshalRestore(snapshot.GetRoomGroupLayout(), groups.Restore); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("restore room-group visibility: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("restore room-group visibility: %w", err)
 	}
 	if err := marshalRestore(snapshot.GetRbac(), rbac.Restore); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("restore RBAC visibility: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("restore RBAC visibility: %w", err)
 	}
 	if err := marshalRestore(snapshot.GetConfig(), config.Restore); err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("restore notification policy: %w", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("restore notification policy: %w", err)
 	}
 	activeUsers := make(map[string]struct{}, len(snapshot.GetActiveUserIds()))
 	for _, userID := range snapshot.GetActiveUserIds() {
 		if userID == "" {
-			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("notification decision snapshot has empty active user ID")
+			return nil, nil, nil, nil, nil, fmt.Errorf("notification decision snapshot has empty active user ID")
 		}
 		activeUsers[userID] = struct{}{}
 	}
-	threadFollows := make(map[string]notificationThreadFollow, len(snapshot.GetThreadFollows()))
-	followers := make(map[string]map[string]struct{})
-	for _, row := range snapshot.GetThreadFollows() {
-		state := ThreadFollowState(row.GetState())
-		if row.GetUserId() == "" || row.GetRoomId() == "" || row.GetThreadRootEventId() == "" || (state != ThreadFollowStateFollowing && state != ThreadFollowStateUnfollowed) {
-			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("notification decision snapshot has invalid thread follow")
-		}
-		setNotificationThreadFollow(threadFollows, followers, row.GetUserId(), row.GetRoomId(), row.GetThreadRootEventId(), state)
-	}
-	replyCounts := make(map[string]uint64, len(snapshot.GetThreads()))
-	for _, row := range snapshot.GetThreads() {
-		if row.GetThreadRootEventId() == "" {
-			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("notification decision snapshot has empty thread root event ID")
-		}
-		replyCounts[row.GetThreadRootEventId()] = row.GetReplyCount()
-	}
-	return rooms, groups, rbac, config, activeUsers, threadFollows, followers, replyCounts, nil
+	return rooms, groups, rbac, config, activeUsers, nil
 }
 
 func (p *NotificationDecisionProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
@@ -370,8 +303,13 @@ func (p *NotificationDecisionProjection) adminProjectionEstimate() (int64, int64
 	metrics := append(roomMetrics, groupMetrics...)
 	metrics = append(metrics, rbacMetrics...)
 	policyEntries := notificationPolicyEntryCount(p.config)
-	decisionEntries := int64(len(p.activeUsers)+len(p.threadFollows)+len(p.replyCounts)) + policyEntries
-	badgeMessages := int64(len(p.badges.messages))
+	decisionEntries := int64(len(p.activeUsers)) + policyEntries
+	var badgeMessages int64
+	for _, record := range p.badges.messages {
+		if record != (badgeMessage{}) {
+			badgeMessages++
+		}
+	}
 	badgeBytes := p.badges.estimatedBytes()
 	metrics = append(metrics,
 		ProjectionAdminMetric{Name: "decision_state", Value: decisionEntries, Bytes: decisionEntries * projectionMapEntryOverhead},
@@ -409,16 +347,13 @@ func notificationDeliveryModeFieldCount(modes *evtv1.NotificationDeliveryModes) 
 }
 
 type notificationDecisionSnapshot struct {
-	rooms         *RoomDirectoryProjection
-	groups        *RoomGroupLayoutProjection
-	rbac          *RBACProjection
-	config        *ConfigProjection
-	activeUsers   map[string]struct{}
-	threadFollows map[string]notificationThreadFollow
-	followers     map[string]map[string]struct{}
-	replyCounts   map[string]uint64
-	badges        *notificationBadgeSources
-	at            time.Time
+	rooms       *RoomDirectoryProjection
+	groups      *RoomGroupLayoutProjection
+	rbac        *RBACProjection
+	config      *ConfigProjection
+	activeUsers map[string]struct{}
+	badges      *notificationBadgeSources
+	at          time.Time
 }
 
 func (s *notificationDecisionSnapshot) roomKind(roomID string) (RoomKind, bool) {
@@ -451,17 +386,16 @@ func (s *notificationDecisionSnapshot) roomMemberIDs(roomID string) []string {
 }
 
 func (s *notificationDecisionSnapshot) threadFollowerIDs(roomID, threadRootEventID string) []string {
-	users := s.followers[threadFollowKeyPart(roomID, threadRootEventID)]
-	result := make([]string, 0, len(users))
-	for userID := range users {
-		result = append(result, userID)
-	}
-	sort.Strings(result)
-	return result
+	return s.badges.followerIDs(roomID, threadRootEventID)
 }
 
 func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	return s.threadFollows[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)].state
+	return s.badges.followState(userID, roomID, threadRootEventID)
+}
+
+// threadReplyCount returns the number of posted replies of a thread root.
+func (s *notificationDecisionSnapshot) threadReplyCount(threadRootEventID string) uint64 {
+	return s.badges.replyCount(threadRootEventID)
 }
 
 func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {

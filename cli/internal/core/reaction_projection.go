@@ -19,15 +19,20 @@ import (
 // known.
 type ReactionProjection struct {
 	events.MemoryProjection
-	// ids interns message, emoji, user, and room IDs as handles. Reaction
-	// source event IDs are unique per reaction, so entries keep them as
-	// strings; interning them would only grow the append-only table.
+	// ids interns emoji, user, and room IDs as handles. Reaction source event
+	// IDs are unique per reaction, so entries keep them as strings; interning
+	// them would only grow the append-only table.
 	ids projectionIDTable
+	// messages interns message event IDs. The ServerContentView shares one
+	// table with the room timeline and thread components; a standalone
+	// projection owns a private table.
+	messages       *eventIDTable
+	sharedEventIDs bool
 	// byMessage maps a canonical message handle to its active reactions,
 	// sorted by emoji handle and then user handle. Each pair appears once.
 	byMessage map[uint32][]reactionProjectionEntry
 	roomSeq   map[string]uint64
-	// messageRooms holds the room handle of each posted message handle.
+	// messageRooms holds the ids room handle of each posted message handle.
 	messageRooms handleSlice[uint32]
 	// echoOriginal maps an echo message handle to its original message handle.
 	echoOriginal map[uint32]uint32
@@ -51,14 +56,28 @@ type reactionProjectionEntry struct {
 	user         uint32
 }
 
+// NewReactionProjection returns an empty projection with a private message ID
+// table.
 func NewReactionProjection() *ReactionProjection {
+	return newReactionProjection(nil)
+}
+
+// newReactionProjection returns an empty projection that interns message IDs
+// in messages. A nil table gives the projection a private table.
+func newReactionProjection(messages *eventIDTable) *ReactionProjection {
+	shared := messages != nil
+	if !shared {
+		messages = newEventIDTable()
+	}
 	return &ReactionProjection{
-		ids:          newProjectionIDTable(),
-		byMessage:    make(map[uint32][]reactionProjectionEntry),
-		roomSeq:      make(map[string]uint64),
-		echoOriginal: make(map[uint32]uint32),
-		assetRoom:    make(map[string]string),
-		replayGuard:  newProjectionReplayGuard(),
+		ids:            newProjectionIDTable(),
+		messages:       messages,
+		sharedEventIDs: shared,
+		byMessage:      make(map[uint32][]reactionProjectionEntry),
+		roomSeq:        make(map[string]uint64),
+		echoOriginal:   make(map[uint32]uint32),
+		assetRoom:      make(map[string]string),
+		replayGuard:    newProjectionReplayGuard(),
 	}
 }
 
@@ -149,10 +168,10 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *evtv1.Event, roomID 
 	switch e := event.GetEvent().(type) {
 	case *evtv1.Event_MessagePosted:
 		if event.GetId() != "" {
-			message := p.ids.intern(event.GetId())
+			message := p.messages.intern(event.GetId())
 			p.messageRooms.set(message, p.ids.intern(roomID))
 			if originalID := e.MessagePosted.GetEchoOfEventId(); originalID != "" {
-				p.echoOriginal[message] = p.ids.intern(originalID)
+				p.echoOriginal[message] = p.messages.intern(originalID)
 			}
 		}
 	case *evtv1.Event_AssetCreated:
@@ -165,7 +184,7 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *evtv1.Event, roomID 
 }
 
 func (p *ReactionProjection) messageRoomLocked(messageEventID string) string {
-	message, ok := p.ids.lookup(messageEventID)
+	message, ok := p.messages.lookup(messageEventID)
 	if !ok {
 		return ""
 	}
@@ -177,7 +196,7 @@ func (p *ReactionProjection) applyAdded(e *evtv1.ReactionAddedEvent, userID stri
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
-	message := p.canonicalMessageLocked(p.ids.intern(e.GetMessageEventId()))
+	message := p.canonicalMessageLocked(p.messages.intern(e.GetMessageEventId()))
 	emoji := p.ids.intern(e.GetEmoji())
 	user := p.ids.intern(userID)
 	reactions := p.byMessage[message]
@@ -194,7 +213,7 @@ func (p *ReactionProjection) applyRemoved(e *evtv1.ReactionRemovedEvent, userID 
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
-	message, messageKnown := p.ids.lookup(e.GetMessageEventId())
+	message, messageKnown := p.messages.lookup(e.GetMessageEventId())
 	emoji, emojiKnown := p.ids.lookup(e.GetEmoji())
 	user, userKnown := p.ids.lookup(userID)
 	if !messageKnown || !emojiKnown || !userKnown {
@@ -242,7 +261,7 @@ func (p *ReactionProjection) canonicalMessageLocked(message uint32) uint32 {
 // reactionsForMessageLocked returns the active reactions of a message ID,
 // following an echo to its original message.
 func (p *ReactionProjection) reactionsForMessageLocked(messageEventID string) []reactionProjectionEntry {
-	message, ok := p.ids.lookup(messageEventID)
+	message, ok := p.messages.lookup(messageEventID)
 	if !ok {
 		return nil
 	}

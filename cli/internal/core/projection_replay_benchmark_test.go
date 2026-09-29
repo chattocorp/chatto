@@ -460,11 +460,12 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 		roomDirectory := NewRoomDirectoryProjection()
 		serverConfig := NewConfigProjection()
 		roomGroupLayout := NewRoomGroupLayoutProjection()
-		timeline := NewRoomTimelineProjection()
+		eventIDs := newEventIDTable()
+		timeline := newRoomTimelineProjection(eventIDs)
 		callState := NewCallStateProjection()
 		assets := NewAssetProjection()
-		threads := NewThreadProjection()
-		reactions := NewReactionProjection()
+		threads := newThreadProjection(eventIDs)
+		reactions := newReactionProjection(eventIDs)
 		contentKeys := NewContentKeyProjection()
 		rbac := NewRBACProjection()
 		view := newServerContentView(
@@ -479,18 +480,19 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 			newInfallibleServerContentComponent("content_keys", contentKeys, contentKeys.Apply),
 			newInfallibleServerContentComponent("rbac", rbac, rbac.Apply),
 		)
-		return []projectionBenchmarkTarget{newContentViewBenchmarkTarget(view,
+		return []projectionBenchmarkTarget{newContentViewBenchmarkTarget(view, eventIDs,
 			roomDirectory, serverConfig, roomGroupLayout, timeline, callState,
 			assets, threads, reactions, contentKeys, rbac,
 		)}, nil
 	case "content_view_timeline_and_threads":
-		timeline := NewRoomTimelineProjection()
-		threads := NewThreadProjection()
+		eventIDs := newEventIDTable()
+		timeline := newRoomTimelineProjection(eventIDs)
+		threads := newThreadProjection(eventIDs)
 		view := newServerContentView(
 			newInfallibleServerContentComponent("room_timeline", timeline, timeline.Apply),
 			newInfallibleServerContentComponent("threads", threads, threads.Apply),
 		)
-		return []projectionBenchmarkTarget{newContentViewBenchmarkTarget(view, timeline, threads)}, nil
+		return []projectionBenchmarkTarget{newContentViewBenchmarkTarget(view, eventIDs, timeline, threads)}, nil
 	default:
 		return nil, fmt.Errorf("unknown projection benchmark scope %q", scope)
 	}
@@ -498,7 +500,7 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 
 // newContentViewBenchmarkTarget applies events through the content view's
 // shared prepare-and-commit barrier, as the production projector does.
-func newContentViewBenchmarkTarget(view *ServerContentView, components ...events.SnapshotComponentModel) projectionBenchmarkTarget {
+func newContentViewBenchmarkTarget(view *ServerContentView, eventIDs *eventIDTable, components ...events.SnapshotComponentModel) projectionBenchmarkTarget {
 	return projectionBenchmarkTarget{
 		projection: view,
 		subjects:   view.Subjects(),
@@ -512,7 +514,7 @@ func newContentViewBenchmarkTarget(view *ServerContentView, components ...events
 		},
 		complete: view.CompleteStartupReplay,
 		estimate: func() int64 {
-			_, bytes, _ := view.adminProjectionEstimate(components...)
+			_, bytes, _ := view.adminProjectionEstimate(eventIDs, components...)
 			return bytes
 		},
 	}

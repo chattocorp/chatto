@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-28
 
 ## Overview
 
@@ -29,6 +29,11 @@ targets, unread counts, read state, or deletion semantics.
   unread dot to the applicable room. A thread-scoped Badge contributes to its
   parent room. An orange notification indicator takes priority when both types
   of attention apply.
+- A room or direct-message row shows two unread notification counts next to
+  each other: an orange count of Important notifications and a neutral count
+  of all other notifications. Each count opens the newest unread notification
+  that it counts. The bell, server, and application indicators show one
+  combined indicator.
 - The application icon shows an unnumbered badge when unread Important
   notifications need attention on any signed-in server. The window title
   shows their total count. Ambient notifications do not contribute to either
@@ -46,6 +51,12 @@ targets, unread counts, read state, or deletion semantics.
   event. The occurrence is marked Read only after the target is displayed.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
+- The bundled client reads a room or thread only up to the newest message that
+  the viewer can see. While the timeline shows the latest message, the read
+  covers the full conversation. After a jump to an older message, newer
+  messages and their notifications stay unread until the viewer scrolls to
+  them. The client sends such a read when scrolling stops, and only when the
+  viewer sees a message that no earlier read covered.
 - While a thread is visible in a focused app, its loaded unread notifications
   do not add local badges or play sound. This rule applies before the server
   confirms the read. It does not change notification history or remote push
@@ -141,11 +152,12 @@ server value.
 | Reaction to the user's message | Notification      |
 
 Attention level controls presentation separately: reactions are Ambient and all
-other current causes are Important. Bell, server, room, and app indicators use
+other current causes are Important. Bell, server, and app indicators use
 notification orange when at least one contributing unread occurrence is
 Important and a neutral treatment when every contributing occurrence is
-Ambient. Ambient notifications do not play a local sound. Attention levels are
-not user-configurable in this iteration.
+Ambient. Room rows show the Important and the Ambient counts separately.
+Ambient notifications do not play a local sound. Attention levels are not
+user-configurable in this iteration.
 
 **Why:** Whether activity is stored, whether it leaves the app, and how
 strongly it is presented are different choices. The delivery names state where
@@ -359,6 +371,23 @@ authorized activity without making the frontend notification model the bot API.
 types that it uses. An active realtime connection can still miss intermediate
 changes outside the bounded resume window. A future webhook adapter needs its
 own delivery, retry, and acknowledgement rules.
+
+### 11. The client reads up to the visible message
+
+**Decision:** The bundled client reads a room or thread through the newest
+message in the viewport, not through the latest message. Room and
+direct-message rows show separate Important and Ambient counts, and each count
+opens its own newest notification.
+
+**Why:** A room read marks every covered notification Read. If opening one
+notification reads the full room, the other count also disappears, although
+the viewer did not see its activity. With separate counts, the viewer can
+still see the remaining count until they scroll to its message.
+
+**Tradeoff:** A read is a position, not a set of seen messages. A read through
+a message also covers older notifications above it that the viewer did not
+see. A viewer who leaves a room within a second of scrolling can leave newer
+activity unread.
 
 ## Compatibility
 

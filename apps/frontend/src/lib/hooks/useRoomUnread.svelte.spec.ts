@@ -73,6 +73,30 @@ describe('useRoomUnread', () => {
     rendered.unmount();
   });
 
+  it('keeps the unread state until the server confirms a partial read', async () => {
+    const request = deferred<{ lastReadAt: string; previousLastReadAt: string }>();
+    mocks.markRoomAsRead.mockReturnValue(request.promise);
+    roomUnread.setRoomUnread('room-1', true);
+
+    const rendered = render(Harness, {
+      props: { roomId: 'room-1', lifecycleUpToEventId: 'event-3', onReady: () => {} }
+    });
+    flushSync();
+
+    await vi.waitFor(() =>
+      expect(mocks.markRoomAsRead).toHaveBeenCalledWith(
+        { roomId: 'room-1', upToEventId: 'event-3' },
+        expect.anything()
+      )
+    );
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
+
+    request.resolve({ lastReadAt: '', previousLastReadAt: '' });
+    await request.promise;
+    expect(roomUnread.roomIsUnread('room-1')).toBe(true);
+    rendered.unmount();
+  });
+
   it('aborts an in-flight room read and rolls back on unmount', async () => {
     let requestSignal: AbortSignal | undefined;
     mocks.markRoomAsRead.mockImplementation(

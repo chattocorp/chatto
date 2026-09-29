@@ -152,7 +152,7 @@ func buildMessageNotificationDecisions(
 		for _, userID := range snapshot.threadFollowerIDs(roomID, threadRootEventID) {
 			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
-		if snapshot.replyCounts[threadRootEventID] == 1 {
+		if snapshot.threadReplyCount(threadRootEventID) == 1 {
 			if threadRootActorID != "" && snapshot.threadFollowState(threadRootActorID, roomID, threadRootEventID) == ThreadFollowStateNone {
 				add(threadRootActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 			}

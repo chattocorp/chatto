@@ -99,6 +99,43 @@ describe('useUnreadMarker', () => {
     rendered.unmount();
   });
 
+  it('waits with the entry read until the owner allows it', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    const onLifecycleRead = vi.fn();
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        limitLifecycle: true,
+        lifecycleUpToEventId: null,
+        onLifecycleRead,
+        onReady: () => {}
+      }
+    });
+    flushSync();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(markAsRead).not.toHaveBeenCalled();
+
+    await rendered.rerender({ lifecycleUpToEventId: 'event-7' });
+    flushSync();
+
+    await vi.waitFor(() =>
+      expect(markAsRead).toHaveBeenCalledExactlyOnceWith(
+        'room-1',
+        'event-7',
+        expect.any(AbortSignal)
+      )
+    );
+    expect(onLifecycleRead).toHaveBeenCalledExactlyOnceWith('event-7');
+
+    // A later position change does not repeat the read.
+    await rendered.rerender({ lifecycleUpToEventId: 'event-9' });
+    flushSync();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(markAsRead).toHaveBeenCalledOnce();
+  });
+
   it('marks a hidden target when it becomes visible without a focus event', async () => {
     setVisibility('hidden');
     window.dispatchEvent(new Event('blur'));

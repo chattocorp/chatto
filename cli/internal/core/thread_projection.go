@@ -1,6 +1,7 @@
 package core
 
 import (
+	"slices"
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -8,35 +9,30 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// threadReply is the retained state of one thread reply. root is an eventIDs
-// handle and actor is a principalIDs handle.
-type threadReply struct {
+// threadEntry is one reply in a thread timeline and its retained state. event
+// is an eventIDs handle and actor is a principalIDs handle. The entry contains
+// no Go pointers.
+type threadEntry struct {
+	streamSeq uint64
 	// createdAt is the reply's Unix time in nanoseconds when hasCreatedAt is
 	// set. Server-assigned post times fall well inside the int64 range.
 	createdAt    int64
-	root         uint32
+	event        uint32
 	actor        uint32
 	hasCreatedAt bool
 	retracted    bool
 }
 
-func (r threadReply) createdAtTime() time.Time {
-	if !r.hasCreatedAt {
+func (e threadEntry) createdAtTime() time.Time {
+	if !e.hasCreatedAt {
 		return time.Time{}
 	}
-	return time.Unix(0, r.createdAt).UTC()
-}
-
-// threadEntry is one reply reference in a thread timeline; event is an
-// eventIDs handle.
-type threadEntry struct {
-	streamSeq uint64
-	event     uint32
+	return time.Unix(0, e.createdAt).UTC()
 }
 
 // threadSummary caches display metadata for one thread. It is derived from
-// the thread's entries and replies and is rebuilt when a retraction or key
-// shredding changes which replies are visible.
+// the thread's entries and is rebuilt when a retraction or key shredding
+// changes which replies are visible.
 type threadSummary struct {
 	replyCount int
 	// lastReplyAt is the latest visible reply's Unix time in nanoseconds when
@@ -45,11 +41,46 @@ type threadSummary struct {
 	hasLastReplyAt bool
 	// latestReply is an eventIDs handle.
 	latestReply uint32
-	// participants is the bounded display preview in first-reply order, as
-	// principalIDs handles.
-	participants []uint32
-	// participantCounts counts visible replies per principalIDs author handle.
-	participantCounts map[uint32]int
+	// participants counts visible replies per author in first-reply order.
+	// The first maxThreadParticipants entries form the display preview.
+	participants []threadParticipant
+	// participantIndex locates an author in participants once the thread has
+	// more than threadParticipantIndexMin authors. Smaller threads scan the
+	// slice, which costs less memory than a map.
+	participantIndex map[uint32]int
+}
+
+// threadParticipantIndexMin is the author count above which a thread summary
+// indexes its participants.
+const threadParticipantIndexMin = 32
+
+// countReply adds one visible reply by actor.
+func (s *threadSummary) countReply(actor uint32) {
+	index, ok := s.participantIndex[actor]
+	if s.participantIndex == nil {
+		index = slices.IndexFunc(s.participants, func(participant threadParticipant) bool { return participant.actor == actor })
+		ok = index >= 0
+	}
+	if !ok {
+		s.participants = append(s.participants, threadParticipant{actor: actor})
+		index = len(s.participants) - 1
+		if s.participantIndex != nil {
+			s.participantIndex[actor] = index
+		} else if len(s.participants) > threadParticipantIndexMin {
+			s.participantIndex = make(map[uint32]int, len(s.participants))
+			for i, participant := range s.participants {
+				s.participantIndex[participant.actor] = i
+			}
+		}
+	}
+	s.participants[index].replies++
+}
+
+// threadParticipant counts one author's visible replies in a thread. actor is
+// a principalIDs handle.
+type threadParticipant struct {
+	actor   uint32
+	replies uint32
 }
 
 type ThreadFollowState string
@@ -65,11 +96,18 @@ type threadFollowRef struct {
 	threadRootEventID string
 }
 
-// threadFollowStateKey avoids allocating a joined user/room/thread string for
-// every follow fact. The three IDs already live in the event-derived indexes.
-type threadFollowStateKey struct {
-	userID string
-	threadFollowRef
+// threadFollowTarget identifies a followed thread by its principalIDs room
+// handle and eventIDs root handle.
+type threadFollowTarget struct {
+	room uint32
+	root uint32
+}
+
+// threadFollowKey identifies one user's follow relationship with one thread.
+// user is a principalIDs handle.
+type threadFollowKey struct {
+	user uint32
+	threadFollowTarget
 }
 
 type compactThreadFollowState uint8
@@ -147,11 +185,11 @@ type ThreadTimelineEntry struct {
 // latest-body state instead of being retained as separate thread rows.
 type ThreadProjection struct {
 	events.MemoryProjection
-	// byThread maps a thread root handle to its reply references in stream
-	// order. An entry without replies records an explicitly created thread.
+	// byThread maps a thread root handle to its replies in stream order. An
+	// entry without replies records an explicitly created thread.
 	byThread map[uint32][]threadEntry
-	// replies maps a reply handle to its root, author, and visibility.
-	replies      map[uint32]threadReply
+	// replyRoots maps a reply handle to its thread root handle.
+	replyRoots   map[uint32]uint32
 	channelRooms map[string]struct{}
 	// dmRooms retains membership at the current replay position so a DM post
 	// establishes relationships only for accounts that received it.
@@ -159,34 +197,52 @@ type ThreadProjection struct {
 	// principalIDs interns user and room IDs. The table stays small, so the
 	// lookups on authorization read paths stay cache-resident.
 	principalIDs projectionIDTable
-	// eventIDs interns message and thread-root event IDs.
-	eventIDs projectionIDTable
+	// eventIDs interns message and thread-root event IDs. The
+	// ServerContentView shares one table with the room timeline and reaction
+	// components; a standalone projection owns a private table.
+	eventIDs       *eventIDTable
+	sharedEventIDs bool
 	// messageRefs is indexed by eventIDs handle minus one.
 	messageRefs handleSlice[threadMessageRef]
 	// interactions maps each relationship to its room handle.
 	interactions    map[threadInteractionKey]uint32
 	summaryByThread map[uint32]*threadSummary
-	followState     map[threadFollowStateKey]compactThreadFollowState
-	followers       map[threadFollowRef]map[string]struct{}
-	followedByUser  map[string]map[threadFollowRef]struct{}
-	replayGuard     projectionReplayGuard
-	shreddedUsers   map[string]struct{}
+	// followState holds the latest explicit follow state of each user and
+	// thread. followers and followedByUser index the current follows in
+	// follow order.
+	followState    map[threadFollowKey]compactThreadFollowState
+	followers      map[threadFollowTarget][]uint32
+	followedByUser map[uint32][]threadFollowTarget
+	replayGuard    projectionReplayGuard
+	shreddedUsers  map[string]struct{}
 }
 
-// NewThreadProjection returns an empty projection.
+// NewThreadProjection returns an empty projection with a private event ID
+// table.
 func NewThreadProjection() *ThreadProjection {
+	return newThreadProjection(nil)
+}
+
+// newThreadProjection returns an empty projection that interns event IDs in
+// eventIDs. A nil table gives the projection a private table.
+func newThreadProjection(eventIDs *eventIDTable) *ThreadProjection {
+	shared := eventIDs != nil
+	if !shared {
+		eventIDs = newEventIDTable()
+	}
 	return &ThreadProjection{
 		byThread:        make(map[uint32][]threadEntry),
-		replies:         make(map[uint32]threadReply),
+		replyRoots:      make(map[uint32]uint32),
 		channelRooms:    make(map[string]struct{}),
 		dmRooms:         make(map[string]map[string]struct{}),
 		principalIDs:    newProjectionIDTable(),
-		eventIDs:        newProjectionIDTable(),
+		eventIDs:        eventIDs,
+		sharedEventIDs:  shared,
 		interactions:    make(map[threadInteractionKey]uint32),
 		summaryByThread: make(map[uint32]*threadSummary),
-		followState:     make(map[threadFollowStateKey]compactThreadFollowState),
-		followers:       make(map[threadFollowRef]map[string]struct{}),
-		followedByUser:  make(map[string]map[threadFollowRef]struct{}),
+		followState:     make(map[threadFollowKey]compactThreadFollowState),
+		followers:       make(map[threadFollowTarget][]uint32),
+		followedByUser:  make(map[uint32][]threadFollowTarget),
 		replayGuard:     newProjectionReplayGuard(),
 		shreddedUsers:   make(map[string]struct{}),
 	}
@@ -311,7 +367,7 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 			p.byThread[threadRoot] = nil
 		}
 		if _, exists := p.summaryByThread[threadRoot]; !exists {
-			p.summaryByThread[threadRoot] = newThreadSummary()
+			p.summaryByThread[threadRoot] = &threadSummary{}
 		}
 		markApplied()
 
@@ -341,24 +397,27 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 			return nil
 		}
 		threadRoot := p.eventIDs.intern(threadRootID)
-		replyHandle := p.eventIDs.intern(event.GetId())
-		p.byThread[threadRoot] = append(p.byThread[threadRoot], threadEntry{event: replyHandle, streamSeq: seq})
-		reply := threadReply{root: threadRoot, actor: p.principalIDs.intern(messageAuthorID(event))}
-		if created := event.GetCreatedAt(); created != nil {
-			reply.createdAt = created.AsTime().UnixNano()
-			reply.hasCreatedAt = true
+		entry := threadEntry{
+			streamSeq: seq,
+			event:     p.eventIDs.intern(event.GetId()),
+			actor:     p.principalIDs.intern(messageAuthorID(event)),
 		}
-		p.replies[replyHandle] = reply
+		if created := event.GetCreatedAt(); created != nil {
+			entry.createdAt = created.AsTime().UnixNano()
+			entry.hasCreatedAt = true
+		}
+		p.byThread[threadRoot] = append(p.byThread[threadRoot], entry)
+		p.replyRoots[entry.event] = threadRoot
 		summary := p.summaryByThread[threadRoot]
 		if summary == nil {
-			summary = newThreadSummary()
+			summary = &threadSummary{}
 			p.summaryByThread[threadRoot] = summary
 		}
-		p.applyReplyToSummaryLocked(summary, replyHandle)
+		p.applyReplyToSummaryLocked(summary, entry)
 		markApplied()
 
 	case *evtv1.Event_MessageEdited:
-		if _, ok := p.replyLocked(e.MessageEdited.GetEventId()); !ok {
+		if _, ok := p.replyRootLocked(e.MessageEdited.GetEventId()); !ok {
 			return nil // target isn't a known thread reply
 		}
 		markApplied()
@@ -368,29 +427,33 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if !ok {
 			return nil
 		}
-		reply, ok := p.replies[handle]
+		root, ok := p.replyRoots[handle]
 		if !ok {
 			return nil
 		}
-		reply.retracted = true
-		p.replies[handle] = reply
+		entries := p.byThread[root]
+		for i := range entries {
+			if entries[i].event == handle {
+				entries[i].retracted = true
+			}
+		}
 		// Retractions are rare and can invalidate last-reply or participant
 		// ordering, so recomputing the affected thread keeps the hot reply
 		// path O(1) without making removal bookkeeping subtle.
-		p.recomputeSummaryLocked(reply.root)
+		p.recomputeSummaryLocked(root)
 		markApplied()
 	}
 	return nil
 }
 
-// replyLocked returns the retained state of a known thread reply.
-func (p *ThreadProjection) replyLocked(eventID string) (threadReply, bool) {
+// replyRootLocked returns the thread root handle of a known thread reply.
+func (p *ThreadProjection) replyRootLocked(eventID string) (uint32, bool) {
 	handle, ok := p.eventIDs.lookup(eventID)
 	if !ok {
-		return threadReply{}, false
+		return 0, false
 	}
-	reply, ok := p.replies[handle]
-	return reply, ok
+	root, ok := p.replyRoots[handle]
+	return root, ok
 }
 
 // summaryLocked returns the cached summary for a thread root ID.
@@ -468,8 +531,8 @@ func (p *ThreadProjection) addInteractionLocked(userID string, room, root uint32
 }
 
 // removeRoomInteractionStateLocked drops the message refs and relationships of
-// a deleted room. The room's message IDs stay in the append-only ID table;
-// only a snapshot restore, which interns live state only, removes them.
+// a deleted room. The room's message IDs stay in the append-only event ID
+// table.
 func (p *ThreadProjection) removeRoomInteractionStateLocked(roomID string) {
 	room, ok := p.principalIDs.lookup(roomID)
 	if !ok {
@@ -504,108 +567,76 @@ func (p *ThreadProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func threadFollowKeyPart(roomID, threadRootEventID string) string {
-	return roomID + "\x00" + threadRootEventID
-}
-
 func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRootEventID string, state ThreadFollowState) {
 	if userID == "" || roomID == "" || threadRootEventID == "" {
 		return
 	}
-	key := threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}
-	stateKey := threadFollowStateKey{userID: userID, threadFollowRef: key}
-	previous := p.followState[stateKey]
+	target := threadFollowTarget{room: p.principalIDs.intern(roomID), root: p.eventIDs.intern(threadRootEventID)}
+	user := p.principalIDs.intern(userID)
+	key := threadFollowKey{user: user, threadFollowTarget: target}
+	previous := p.followState[key]
 	compactState := compactFollowState(state)
 	if previous == compactState {
 		return
 	}
 
 	if previous == compactThreadFollowFollowing {
-		if followers := p.followers[key]; followers != nil {
-			delete(followers, userID)
-			if len(followers) == 0 {
-				delete(p.followers, key)
-			}
+		if followers := slices.DeleteFunc(p.followers[target], func(follower uint32) bool { return follower == user }); len(followers) == 0 {
+			delete(p.followers, target)
+		} else {
+			p.followers[target] = followers
 		}
-		if followed := p.followedByUser[userID]; followed != nil {
-			delete(followed, key)
-			if len(followed) == 0 {
-				delete(p.followedByUser, userID)
-			}
+		if followed := slices.DeleteFunc(p.followedByUser[user], func(thread threadFollowTarget) bool { return thread == target }); len(followed) == 0 {
+			delete(p.followedByUser, user)
+		} else {
+			p.followedByUser[user] = followed
 		}
 	}
 
-	p.followState[stateKey] = compactState
+	p.followState[key] = compactState
 
 	if state == ThreadFollowStateFollowing {
-		followers := p.followers[key]
-		if followers == nil {
-			followers = make(map[string]struct{})
-			p.followers[key] = followers
-		}
-		followers[userID] = struct{}{}
-
-		followed := p.followedByUser[userID]
-		if followed == nil {
-			followed = make(map[threadFollowRef]struct{})
-			p.followedByUser[userID] = followed
-		}
-		followed[key] = struct{}{}
+		p.followers[target] = append(p.followers[target], user)
+		p.followedByUser[user] = append(p.followedByUser[user], target)
 	}
 }
 
-func newThreadSummary() *threadSummary {
-	return &threadSummary{
-		participantCounts: make(map[uint32]int),
-	}
+// followTargetLocked returns the handles of a thread without interning its IDs.
+func (p *ThreadProjection) followTargetLocked(roomID, threadRootEventID string) (threadFollowTarget, bool) {
+	room, roomKnown := p.principalIDs.lookup(roomID)
+	root, rootKnown := p.eventIDs.lookup(threadRootEventID)
+	return threadFollowTarget{room: room, root: root}, roomKnown && rootKnown
 }
 
 func (p *ThreadProjection) recomputeSummaryLocked(threadRoot uint32) {
 	summary := p.summaryByThread[threadRoot]
 	if summary == nil {
-		summary = newThreadSummary()
+		summary = &threadSummary{}
 		p.summaryByThread[threadRoot] = summary
-	} else if summary.participantCounts == nil {
-		summary.participantCounts = make(map[uint32]int)
 	}
-
-	summary.replyCount = 0
-	summary.lastReplyAt = 0
-	summary.hasLastReplyAt = false
-	summary.latestReply = 0
-	summary.participants = nil
-	clear(summary.participantCounts)
-
+	*summary = threadSummary{participants: summary.participants[:0]}
 	for _, entry := range p.byThread[threadRoot] {
-		p.applyReplyToSummaryLocked(summary, entry.event)
+		p.applyReplyToSummaryLocked(summary, entry)
+	}
+	if len(summary.participants) == 0 {
+		summary.participants = nil
 	}
 }
 
-func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, replyHandle uint32) {
-	if summary == nil || replyHandle == 0 {
+func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, entry threadEntry) {
+	if summary == nil || entry.event == 0 || entry.retracted {
 		return
 	}
-	if summary.participantCounts == nil {
-		summary.participantCounts = make(map[uint32]int)
-	}
-
-	reply, ok := p.replies[replyHandle]
-	if !ok || reply.retracted {
-		return
-	}
-	if _, shredded := p.shreddedUsers[p.principalIDs.id(reply.actor)]; shredded {
+	if _, shredded := p.shreddedUsers[p.principalIDs.id(entry.actor)]; shredded {
 		return
 	}
 
 	summary.replyCount++
-	summary.latestReply = replyHandle
-	summary.lastReplyAt = reply.createdAt
-	summary.hasLastReplyAt = reply.hasCreatedAt
-	if reply.actor != 0 {
-		summary.participantCounts[reply.actor]++
-		if summary.participantCounts[reply.actor] == 1 && len(summary.participants) < maxThreadParticipants {
-			summary.participants = append(summary.participants, reply.actor)
-		}
+	summary.latestReply = entry.event
+	summary.lastReplyAt = entry.createdAt
+	summary.hasLastReplyAt = entry.hasCreatedAt
+	if entry.actor != 0 {
+		summary.countReply(entry.actor)
 	}
 }
 
@@ -660,12 +691,12 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 		Exists:             true,
 		ReplyCount:         summary.replyCount,
 		LatestReplyEventID: p.eventIDs.id(summary.latestReply),
-		ParticipantCount:   len(summary.participantCounts),
+		ParticipantCount:   len(summary.participants),
 	}
-	if len(summary.participants) > 0 {
-		metadata.ParticipantIDs = make([]string, len(summary.participants))
-		for i, participant := range summary.participants {
-			metadata.ParticipantIDs[i] = p.principalIDs.id(participant)
+	if preview := summary.participants[:min(len(summary.participants), maxThreadParticipants)]; len(preview) > 0 {
+		metadata.ParticipantIDs = make([]string, len(preview))
+		for i, participant := range preview {
+			metadata.ParticipantIDs[i] = p.principalIDs.id(participant.actor)
 		}
 	}
 	if summary.hasLastReplyAt {
@@ -678,33 +709,44 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 func (p *ThreadProjection) FollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
 	p.RLock()
 	defer p.RUnlock()
-	return p.followState[threadFollowStateKey{userID: userID, threadFollowRef: threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}}].public()
+	user, userKnown := p.principalIDs.lookup(userID)
+	target, targetKnown := p.followTargetLocked(roomID, threadRootEventID)
+	if !userKnown || !targetKnown {
+		return ThreadFollowStateNone
+	}
+	return p.followState[threadFollowKey{user: user, threadFollowTarget: target}].public()
 }
 
+// ThreadFollowers returns the users who currently follow a thread, in follow
+// order.
 func (p *ThreadProjection) ThreadFollowers(roomID, threadRootEventID string) []string {
 	p.RLock()
 	defer p.RUnlock()
-	followers := p.followers[threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}]
-	if len(followers) == 0 {
+	target, known := p.followTargetLocked(roomID, threadRootEventID)
+	followers := p.followers[target]
+	if !known || len(followers) == 0 {
 		return nil
 	}
-	userIDs := make([]string, 0, len(followers))
-	for userID := range followers {
-		userIDs = append(userIDs, userID)
+	userIDs := make([]string, len(followers))
+	for i, user := range followers {
+		userIDs[i] = p.principalIDs.id(user)
 	}
 	return userIDs
 }
 
+// FollowedThreadsForUser returns the threads that a user currently follows,
+// in follow order.
 func (p *ThreadProjection) FollowedThreadsForUser(userID string) []threadFollowRef {
 	p.RLock()
 	defer p.RUnlock()
-	followed := p.followedByUser[userID]
-	if len(followed) == 0 {
+	user, known := p.principalIDs.lookup(userID)
+	followed := p.followedByUser[user]
+	if !known || len(followed) == 0 {
 		return nil
 	}
-	refs := make([]threadFollowRef, 0, len(followed))
-	for ref := range followed {
-		refs = append(refs, ref)
+	refs := make([]threadFollowRef, len(followed))
+	for i, target := range followed {
+		refs[i] = threadFollowRef{roomID: p.principalIDs.id(target.room), threadRootEventID: p.eventIDs.id(target.root)}
 	}
 	return refs
 }
@@ -785,11 +827,9 @@ func (p *ThreadProjection) ParticipantIDs(rootEventID string) []string {
 	if summary == nil {
 		return nil
 	}
-	ids := make([]string, 0, len(summary.participantCounts))
-	for participant, count := range summary.participantCounts {
-		if count > 0 {
-			ids = append(ids, p.principalIDs.id(participant))
-		}
+	ids := make([]string, len(summary.participants))
+	for i, participant := range summary.participants {
+		ids[i] = p.principalIDs.id(participant.actor)
 	}
 	return ids
 }

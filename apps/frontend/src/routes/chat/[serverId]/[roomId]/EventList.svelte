@@ -33,6 +33,7 @@
   import { TimelineViewportController } from './TimelineViewportController.svelte';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { appState } from '$lib/state/globals.svelte';
+  import type { TimelineReadPosition } from './readThroughTracker';
 
   let {
     roomId,
@@ -54,6 +55,7 @@
     typingMembers = [],
     onScrollToEventComplete,
     onReachedBottom,
+    onReadPosition,
     pendingHighlightId = null,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
@@ -79,6 +81,12 @@
     /** Reports whether a jump-to-message request found and highlighted its target. */
     onScrollToEventComplete?: (landed: boolean) => void;
     onReachedBottom?: () => void;
+    /**
+     * Reports the newest position that the viewer can see when it changes.
+     * The conversation reads up to this position, so a jump to an older
+     * message leaves newer activity unread until the viewer scrolls to it.
+     */
+    onReadPosition?: (position: TimelineReadPosition) => void;
     // Suppress auto-scroll while a highlight is pending
     pendingHighlightId?: string | null;
     threadingMode?: RoomThreadingMode;
@@ -208,12 +216,75 @@
     const jumped = isJumpedMode;
     const newestId = timelineEvents.at(-1)?.id ?? null;
     untrack(() => {
-      if (viewport.enterRoom(currentTimelineKey)) expandedSystemEventIds.clear();
+      if (viewport.enterRoom(currentTimelineKey)) {
+        expandedSystemEventIds.clear();
+        lastReadPosition = null;
+      }
       viewport.observeJumpedMode(jumped);
       // Comparing the newest ID rather than the count keeps prepended
       // pagination rows from looking like newly arrived messages.
       viewport.observeNewestEvent(newestId);
     });
+  });
+
+  let lastReadPosition: TimelineReadPosition | null = null;
+
+  /**
+   * The newest position that the viewer can see. While the timeline follows
+   * the present bottom, this is the newest loaded message. Otherwise it is the
+   * newest message that reaches into the viewport. Only messages of this
+   * timeline that are not echoes qualify, because the server anchors a read
+   * only on them.
+   */
+  function currentReadPosition(): TimelineReadPosition | null {
+    if (virtualItems.length === 0) return null;
+    const latest = !isJumpedMode && viewport.shouldScrollToBottom;
+    let index = virtualItems.length - 1;
+    if (!latest) {
+      if (!virtualizerHandle) return null;
+      const bottomEdge =
+        virtualizerHandle.getScrollOffset() + virtualizerHandle.getViewportSize() - 1;
+      index = Math.min(virtualizerHandle.findItemIndex(bottomEdge), index);
+    }
+    for (let i = index; i >= 0; i--) {
+      const item = virtualItems[i];
+      if (item.type !== 'event') continue;
+      const payload = item.event.event;
+      if (!isMessagePostedEvent(payload) || payload.echoOfEventId != null) continue;
+      if (filterThreadReplies && payload.threadRootEventId !== null) continue;
+      return { eventId: item.event.id, createdAtMs: Date.parse(item.event.createdAt), latest };
+    }
+    return null;
+  }
+
+  function reportReadPosition() {
+    if (!onReadPosition) return;
+    // A loading or recovering window is not what the viewer sees yet.
+    if (isLoading || stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) {
+      return;
+    }
+    const position = currentReadPosition();
+    if (!position) return;
+    if (
+      lastReadPosition?.eventId === position.eventId &&
+      lastReadPosition.latest === position.latest
+    ) {
+      return;
+    }
+    lastReadPosition = position;
+    onReadPosition(position);
+  }
+
+  // New events and changes between the present and history move the read
+  // position without a scroll event, for example in a short timeline.
+  $effect(() => {
+    void virtualItems;
+    void isJumpedMode;
+    void viewport.shouldScrollToBottom;
+    void isLoading;
+    void stores.realtimeSync.isRecoveringSnapshot;
+    void messageStore.recoveryViewport;
+    untrack(reportReadPosition);
   });
 
   // Watch for scroll-to-bottom requests from MessageComposer (after posting a message).
@@ -271,11 +342,14 @@
         const distance = distanceFromBottom();
         if (distance === null) return;
         viewport.settleJump(distance);
+        reportReadPosition();
         onScrollToEventComplete?.(true);
         return;
       }
 
-      if (!cancelled) onScrollToEventComplete?.(false);
+      if (cancelled) return;
+      reportReadPosition();
+      onScrollToEventComplete?.(false);
     });
 
     return () => {
@@ -719,9 +793,9 @@
     }
 
     // Exit jumped mode when user has scrolled to bottom and all content is loaded
-    if (hasReachedEnd && exitJumpedModeAtPresent(distanceFromBottom)) {
-      return;
-    }
+    if (hasReachedEnd) exitJumpedModeAtPresent(distanceFromBottom);
+
+    reportReadPosition();
   }
 
   // Determine if a message can open a thread

@@ -33,5 +33,13 @@
       <span class="flex-1 truncate">Release planning</span>
       <NotificationBadge count={3} color="warning" />
     </a>
+    <a href="#mixed" class="sidebar-item">
+      <span class="sidebar-icon text-muted">#</span>
+      <span class="flex-1 truncate">Launch checklist</span>
+      <span class="flex items-center gap-1">
+        <NotificationBadge count={5} color="ambient" />
+        <NotificationBadge count={2} color="warning" />
+      </span>
+    </a>
   </nav>
 </Story>

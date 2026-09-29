@@ -8,6 +8,8 @@
     "call_participants": "{count} partecipanti alla chiamata",
     "go_to_notifications": "Vai alle notifiche {count}",
     "notifications": "{count} notifiche",
+    "go_to_other_notifications": "Vai alle altre {count} notifiche",
+    "other_notifications": "Altre {count} notifiche",
     "unread_messages": "messaggi non letti",
     "go_to_dm_notifications": "Vai alle notifiche dei messaggi diretti {count}",
     "new_direct_messages": "{count} nuovi messaggi diretti",

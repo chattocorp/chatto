@@ -13,6 +13,7 @@
     type ComposerContext
   } from '$lib/state/room';
   import EventList from './EventList.svelte';
+  import type { TimelineReadPosition } from './readThroughTracker';
 
   let {
     eventIds,
@@ -29,7 +30,8 @@
     recoveryViewport = null,
     unreadAfterEventId = null,
     onComposerReady,
-    onStoreRead
+    onStoreRead,
+    onReadPosition
   }: {
     eventIds: string[];
     roomId?: string;
@@ -46,6 +48,7 @@
     unreadAfterEventId?: string | null;
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
+    onReadPosition?: (position: TimelineReadPosition) => void;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -150,4 +153,5 @@
   {pendingHighlightId}
   {unreadAfterEventId}
   onScrollToEventComplete={onComplete}
+  {onReadPosition}
 />

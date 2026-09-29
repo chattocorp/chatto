@@ -311,14 +311,14 @@ func TestReactionProjection_ToggleDoesNotGrowIDTable(t *testing.T) {
 	p := NewReactionProjection()
 	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("ADD-0", "M1", "U1", "heart", 1))
 	applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent("REMOVE-0", "M1", "U1", "heart"))
-	interned := p.ids.len()
+	interned := p.ids.len() + p.messages.len()
 
 	for i := 1; i <= 10; i++ {
 		applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent(fmt.Sprintf("ADD-%d", i), "M1", "U1", "heart", i))
 		applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent(fmt.Sprintf("REMOVE-%d", i), "M1", "U1", "heart"))
 	}
 
-	if got := p.ids.len(); got != interned {
+	if got := p.ids.len() + p.messages.len(); got != interned {
 		t.Fatalf("interned IDs after toggles = %d, want %d", got, interned)
 	}
 }
