@@ -59,7 +59,9 @@ events for this purpose.
   Badge index uses its source lifetime of 90 days (ADR-109), because its source
   lists refer to message records for that time.
 - A projection can make its window longer, but not shorter than its own
-  semantic horizon. The window is configurable.
+  semantic horizon. The window is configurable. An unlimited window keeps all
+  per-message state in RAM, as before this decision, and operators can use it
+  to disable the cold tier without a new release.
 - Commit evicts the state of messages that leave the window. Eviction is
   incremental, so no single event pays for a complete sweep.
 
@@ -67,9 +69,16 @@ events for this purpose.
 
 For every message, hot or cold, the projections keep only:
 
-- the event ID to stream sequence index, using the event ID table of ADR-110;
-- the ordered stream sequences of each room timeline and of each thread, with
-  one flag byte for kind, reply, echo, and visibility; and
+- one global event ID to stream sequence index, using the event ID table of
+  ADR-110. A lookup by event ID does not need a room ID;
+- the ordered stream sequences of each room timeline and of each thread. Only
+  this ordering is room-shaped, because clients page one room timeline at a
+  time;
+- one flag byte for each timeline entry with the facts that timeline filters
+  use under the barrier: event kind, thread reply, echo, historical import,
+  and hidden. Readers that can read only their thread interactions also need
+  the thread root. A root message is its own thread root, so only echoes keep
+  their thread root, in a sparse map; and
 - sparse overlays for mutable state that changes after a message becomes cold:
   current body reference, retraction, hidden echo, and pin.
 
@@ -126,22 +135,25 @@ the Server Content View and the Notification Decisions projection once.
   deletes the obsolete body records.
 - The shared framework gets a new optional preload step. It needs its own
   tests and must keep replay order and snapshot semantics.
-- The upgrade needs one cold replay of the affected projections.
+- The upgrade needs one cold replay of the affected projections. A rollback to
+  an earlier binary also needs one cold replay, because it rejects the new
+  snapshot contracts. EVT does not change, so both directions are safe.
 - The benefit depends on the access pattern. A community that often refers to
   old messages pays more EVT reads. The configurable window limits this cost.
 
-## Open Questions
+## Measurement
 
-- How often do reads reach messages older than 30 days? Measure timeline, thread,
-  permalink, and search reads by message age before the implementation, for
-  example with a histogram metric.
-- Does every lookup by event ID alone have the room ID available, or does it
-  always need the global event ID index?
-- Is a per-room sequence list with one flag byte enough for all timeline
-  filters, or does a filter need other identity facts under the barrier?
-- Which order should the implementation use? A proposal: the Notification
-  Decisions Badge index first, then the Room Timeline, then Threads and
-  Reactions.
+EVT does not record reads, so the share of reads that reach cold messages is
+not known before the change. The implementation adds a histogram metric,
+`chatto_message_read_age_seconds`, labeled by read surface: room page, jump to
+message, thread, search result, and single message. Operators use it to tune
+the hot window after deployment.
+
+## Rollout
+
+One change implements the complete decision for all affected projections,
+together with the metric and the window setting. It can be reverted with the
+window setting or with a normal rollback.
 
 ## Related
 
