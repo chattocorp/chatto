@@ -1,5 +1,5 @@
 import { ServerSetupService } from '@chatto/api-types/chatto/auth/v1/setup_connect';
-import { createPublicChattoClient } from './connect.js';
+import { createPublicChattoClient } from '@chatto/client/api/connect';
 
 /** Complete first-run setup. Credentials remain transient and are never persisted here. */
 export async function completeServerSetup(

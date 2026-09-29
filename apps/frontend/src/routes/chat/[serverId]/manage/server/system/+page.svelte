@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { getAdminSystemInfo } from '@chatto/client/api/adminDiagnostics';
+  import { getAdminSystemInfo } from '$lib/api/adminDiagnostics';
   import { formatBytes, formatNumber } from '$lib/components/admin';
   import {
     DataTable,

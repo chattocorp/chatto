@@ -166,7 +166,7 @@ vi.mock('@chatto/client/auth/signOut', () => ({
   isExplicitSignOutRedirectInProgress: () => false
 }));
 
-vi.mock('@chatto/client/auth/sessionChannel', () => ({
+vi.mock('$lib/auth/sessionChannel', () => ({
   initSessionChannel: (...args: unknown[]) => {
     mocks.initSessionChannel(...args);
     return mocks.stopSessionChannel;

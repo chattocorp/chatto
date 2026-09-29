@@ -11,7 +11,7 @@ change the settings goes to the Members section instead.
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import type { AdminManagedRoom } from '@chatto/client/api/adminRoomLayout';
+  import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';

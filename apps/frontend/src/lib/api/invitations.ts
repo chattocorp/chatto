@@ -4,7 +4,7 @@ import {
   InviteLinkStatus,
   type InviteLink as APIInviteLink
 } from '@chatto/api-types/admin/v1/invitations_pb';
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 
 export type InviteLink = {
   id: string;

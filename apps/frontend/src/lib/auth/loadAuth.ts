@@ -1,7 +1,7 @@
 /** Route adapters for the per-server account owner. These helpers keep no user cache. */
-import type { ServerRegistry } from '../server/registry.js';
-import type { CurrentUser } from '../api/viewer.js';
-import { isExplicitSignOutRedirectInProgress } from './signOut.js';
+import type { ServerRegistry } from '@chatto/client/server/registry';
+import type { CurrentUser } from '@chatto/client/api/viewer';
+import { isExplicitSignOutRedirectInProgress } from '@chatto/client/auth/signOut';
 
 export type { CurrentUser };
 

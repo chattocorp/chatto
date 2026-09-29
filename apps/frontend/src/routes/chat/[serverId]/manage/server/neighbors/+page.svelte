@@ -9,7 +9,7 @@ polls the cache briefly after a change. See FDR-042.
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { onDestroy } from 'svelte';
-  import { createNeighborAPI, type Neighbor } from '@chatto/client/api/neighbors';
+  import { createNeighborAPI, type Neighbor } from '$lib/api/neighbors';
   import { listNeighborhoodServers, type NeighborhoodServer } from '@chatto/client/api/server';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';

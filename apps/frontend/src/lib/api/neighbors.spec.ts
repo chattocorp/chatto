@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNeighborAPI } from '../neighbors.js';
+import { createNeighborAPI } from './neighbors';
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
-import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
+import { fakeServer, mockService, receivedRequest } from '@chatto/client/testing/fakeServer';
 
 const mocks = mockService(AdminServerService);
 

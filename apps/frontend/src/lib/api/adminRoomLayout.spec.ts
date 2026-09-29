@@ -1,9 +1,9 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
-import { createAdminRoomLayoutAPI } from '../adminRoomLayout.js';
-import { RoomThreadingMode } from '../../util/roomThreading.js';
-import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
+import { createAdminRoomLayoutAPI } from './adminRoomLayout';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+import { fakeServer, mockService, receivedRequest } from '@chatto/client/testing/fakeServer';
 
 const mocks = mockService(AdminRoomLayoutService);
 

@@ -1,13 +1,16 @@
-import { updateMask } from './updateMask.js';
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { updateMask } from '@chatto/client/api/updateMask';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import {
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';
-import type { DirectorySidebarLink } from './roomDirectory.js';
+import type { DirectorySidebarLink } from '@chatto/client/api/roomDirectory';
 import { RoomKind, type Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { normalizeRoomThreadingMode, type RoomThreadingMode } from '../util/roomThreading.js';
+import {
+  normalizeRoomThreadingMode,
+  type RoomThreadingMode
+} from '@chatto/client/util/roomThreading';
 
 export type AdminRoomInfo = {
   id: string;

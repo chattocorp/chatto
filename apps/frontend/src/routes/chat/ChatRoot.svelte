@@ -9,7 +9,7 @@
     hardRedirectAfterSignOut,
     isExplicitSignOutRedirectInProgress
   } from '@chatto/client/auth/signOut';
-  import { initSessionChannel } from '@chatto/client/auth/sessionChannel';
+  import { initSessionChannel } from '$lib/auth/sessionChannel';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';

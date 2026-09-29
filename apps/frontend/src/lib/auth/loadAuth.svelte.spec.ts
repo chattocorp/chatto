@@ -5,8 +5,8 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   store: { currentUser: { user: undefined as { id: string } | undefined } }
 }));
-import { loadCurrentUser as loadWith } from './loadAuth.js';
-import type { ServerRegistry } from '../server/registry.js';
+import { loadCurrentUser as loadWith } from './loadAuth';
+import type { ServerRegistry } from '@chatto/client/server/registry';
 
 const registry = {
   originServer: { id: 'origin' },
@@ -15,7 +15,10 @@ const registry = {
   clearOriginAuthentication: mocks.clear
 } as unknown as ServerRegistry;
 const loadCurrentUser = () => loadWith(registry);
-import { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } from './signOut.js';
+import {
+  beginExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect
+} from '@chatto/client/auth/signOut';
 
 describe('route account loading', () => {
   beforeEach(() => {

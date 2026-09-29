@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { effect } from '@chatto/client/reactivity/index';
-import type { AdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+import type { AdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
 import type { RoomCommandAPI } from '@chatto/client/api/rooms';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import {

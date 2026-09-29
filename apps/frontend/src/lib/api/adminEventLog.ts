@@ -1,5 +1,10 @@
 import { Timestamp } from '@bufbuild/protobuf';
-import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
+import {
+  Code,
+  ConnectError,
+  createChattoClient,
+  type ConnectAPIConfig
+} from '@chatto/client/api/connect';
 import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
 import type { AdminEventLogEntry as APIAdminEventLogEntry } from '@chatto/api-types/admin/v1/event_log_pb';
 

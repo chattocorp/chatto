@@ -84,7 +84,7 @@ vi.mock('@chatto/client/auth/signOut', async (importOriginal) => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
-vi.mock('@chatto/client/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
+vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 
 const currentUser = {
   user: { id: 'user-alice', hasPassword: true }

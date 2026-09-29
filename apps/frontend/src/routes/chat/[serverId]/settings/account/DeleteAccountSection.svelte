@@ -3,7 +3,7 @@
   import type { AccountAPI } from '@chatto/client/api/account';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { csrfFetch } from '@chatto/client/auth/csrf';
-  import { notifyLogout } from '@chatto/client/auth/sessionChannel';
+  import { notifyLogout } from '$lib/auth/sessionChannel';
   import { Panel, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/client';

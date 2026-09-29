@@ -3,7 +3,7 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { goto } from '$app/navigation';
 import { q } from '$lib/test-utils';
-import type { AdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+import type { AdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
 import type { RoomCommandAPI } from '@chatto/client/api/rooms';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import {

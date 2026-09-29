@@ -46,7 +46,7 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
 
-vi.mock('@chatto/client/api/adminRoomLayout', () => ({
+vi.mock('$lib/api/adminRoomLayout', () => ({
   createAdminRoomLayoutAPI: ({ serverId }: { serverId: string }) => ({
     getRoomGroup: (groupId: string, options?: { signal?: AbortSignal }) =>
       mocks.getRoomGroup(serverId, groupId, options),

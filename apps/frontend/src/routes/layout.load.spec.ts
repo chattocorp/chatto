@@ -29,7 +29,7 @@ vi.mock('@chatto/client/api/server', () => ({
   getPublicServerInfo: mocks.getPublicServerInfo
 }));
 
-vi.mock('@chatto/client/auth/loadAuth', () => ({
+vi.mock('$lib/auth/loadAuth', () => ({
   loadCurrentUser: mocks.loadCurrentUser
 }));
 

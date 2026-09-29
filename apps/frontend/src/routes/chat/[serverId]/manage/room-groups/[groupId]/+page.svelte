@@ -7,7 +7,7 @@
   import {
     createAdminRoomLayoutAPI,
     type AdminManagedRoomGroup
-  } from '@chatto/client/api/adminRoomLayout';
+  } from '$lib/api/adminRoomLayout';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';

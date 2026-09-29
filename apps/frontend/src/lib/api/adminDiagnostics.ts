@@ -1,4 +1,4 @@
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 import {
   AdminAssetCleanupHealth,

@@ -1,6 +1,6 @@
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
 import type { Neighbor as APINeighbor } from '@chatto/api-types/admin/v1/server_pb';
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 
 export type Neighbor = {
   id: string;

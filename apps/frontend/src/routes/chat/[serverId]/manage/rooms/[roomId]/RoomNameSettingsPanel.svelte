@@ -7,7 +7,7 @@ successful name or description saves, which reseeds the drafts.
 -->
 <script lang="ts">
   import { DraftField } from '$lib/components/settings/DraftField.svelte';
-  import type { AdminManagedRoom } from '@chatto/client/api/adminRoomLayout';
+  import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { Panel } from '$lib/ui';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import { normalizeRoomName, roomNameValidationError } from '@chatto/client/util/roomName';

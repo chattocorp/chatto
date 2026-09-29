@@ -5,7 +5,7 @@ import type {
   AdminRoomLayoutItemMutationInput,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '@chatto/client/api/adminRoomLayout';
+} from '$lib/api/adminRoomLayout';
 import type { RoomCommandAPI } from '@chatto/client/api/rooms';
 import { ReactiveSet, signal } from '@chatto/client/reactivity/index';
 import { Code, isConnectCode } from '@chatto/client/api/connect';
@@ -15,7 +15,7 @@ export type {
   AdminRoomInfo,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '@chatto/client/api/adminRoomLayout';
+} from '$lib/api/adminRoomLayout';
 
 export type MoveRoomMutationInput = {
   roomId: string;

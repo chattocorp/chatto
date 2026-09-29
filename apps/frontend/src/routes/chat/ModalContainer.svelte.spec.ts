@@ -144,7 +144,7 @@ vi.mock('$lib/storage/lastRoom', () => ({
   clearLastRoom: mocks.clearLastRoom
 }));
 
-vi.mock('@chatto/client/auth/sessionChannel', () => ({
+vi.mock('$lib/auth/sessionChannel', () => ({
   notifyLogout: mocks.notifyLogout
 }));
 

@@ -42,7 +42,7 @@ vi.mock('@chatto/client/auth/signOut', () => ({
   signOutServer: mocks.signOutServer,
   signOutServers: mocks.signOutServers
 }));
-vi.mock('@chatto/client/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
+vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 vi.mock('$lib/notifications/pushNotifications', () => ({
   unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
 }));

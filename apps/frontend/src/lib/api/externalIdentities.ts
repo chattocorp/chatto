@@ -1,5 +1,5 @@
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { browserCookieAuthenticationHeaders } from '../auth/authenticationMode.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
+import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   ExternalIdentityFlowKind,

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { OAuthClient } from '@chatto/client/api/oauthClients';
+import type { OAuthClient } from '$lib/api/oauthClients';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';

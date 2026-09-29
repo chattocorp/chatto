@@ -1,4 +1,4 @@
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
 import { PushSubscriptionCleanupService } from '@chatto/api-types/chatto/auth/v1/push_subscription_cleanup_connect';
 

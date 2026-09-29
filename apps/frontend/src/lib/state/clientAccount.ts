@@ -5,7 +5,7 @@ import {
   signOutServer,
   signOutServers
 } from '@chatto/client/auth/signOut';
-import { notifyLogout } from '@chatto/client/auth/sessionChannel';
+import { notifyLogout } from '$lib/auth/sessionChannel';
 import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
 import { serverRegistry } from '$lib/client';

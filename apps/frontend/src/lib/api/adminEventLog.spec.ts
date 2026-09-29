@@ -2,8 +2,8 @@ import { protoInt64, Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
-import { createAdminEventLogAPI } from '../adminEventLog.js';
-import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
+import { createAdminEventLogAPI } from './adminEventLog';
+import { fakeServer, mockService, receivedRequest } from '@chatto/client/testing/fakeServer';
 
 const mocks = mockService(AdminEventLogService);
 

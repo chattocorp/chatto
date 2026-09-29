@@ -57,7 +57,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
-  import { createAdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+  import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
@@ -70,7 +70,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     SHADOW_PLACEHOLDER_ITEM_ID,
     type DndEvent
   } from 'svelte-dnd-action';
-  import type { AdminRoomLayoutItemMutationInput } from '@chatto/client/api/adminRoomLayout';
+  import type { AdminRoomLayoutItemMutationInput } from '$lib/api/adminRoomLayout';
 
   let { canReorderGroups = false }: { canReorderGroups?: boolean } = $props();
 

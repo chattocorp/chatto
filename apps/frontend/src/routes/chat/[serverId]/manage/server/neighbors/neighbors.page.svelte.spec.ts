@@ -2,7 +2,7 @@ import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { NeighborhoodServer } from '@chatto/client/api/server';
-import type { Neighbor } from '@chatto/client/api/neighbors';
+import type { Neighbor } from '$lib/api/neighbors';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 

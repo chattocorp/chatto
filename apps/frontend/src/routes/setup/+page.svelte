@@ -2,7 +2,7 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { completeServerSetup } from '@chatto/client/api/setup';
+  import { completeServerSetup } from '$lib/api/setup';
   import { getPublicServerInfo } from '@chatto/client/api/server';
   import { m } from '$lib/i18n/messages';
   import chattoIcon from '$lib/assets/chatto-icon.png';

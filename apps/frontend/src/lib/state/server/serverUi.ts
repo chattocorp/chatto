@@ -13,7 +13,7 @@
  * clears or releases them itself.
  */
 
-import { createAdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
 import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { createMessageSearchAPI, type MessageSearchAPI } from '@chatto/client/api/messageSearch';
 import { createRoomCommandAPI } from '@chatto/client/api/rooms';

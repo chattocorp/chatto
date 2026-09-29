@@ -5,7 +5,7 @@ Threading Mode of a room. Selecting a mode saves it immediately and shows the
 requested mode while the save is in progress.
 -->
 <script lang="ts">
-  import type { AdminManagedRoom } from '@chatto/client/api/adminRoomLayout';
+  import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { ChoiceRow, Hint, Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';

@@ -6,8 +6,8 @@ import {
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
-import { getAdminSystemInfo } from '../adminDiagnostics.js';
-import { fakeServer, mockService } from '../../testing/fakeServer.js';
+import { getAdminSystemInfo } from './adminDiagnostics';
+import { fakeServer, mockService } from '@chatto/client/testing/fakeServer';
 
 const mocks = mockService(AdminDiagnosticsService);
 

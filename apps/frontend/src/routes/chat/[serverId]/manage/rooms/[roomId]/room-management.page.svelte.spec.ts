@@ -12,7 +12,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
-import type { AdminManagedRoom } from '@chatto/client/api/adminRoomLayout';
+import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -90,7 +90,7 @@ function renderSections(...sections: Section[]) {
   return render(RoomManagementTestHarness, { props: { sections } });
 }
 
-vi.mock('@chatto/client/api/adminRoomLayout', () => ({
+vi.mock('$lib/api/adminRoomLayout', () => ({
   createAdminRoomLayoutAPI: ({ serverId }: { serverId: string }) => ({
     getRoom: (roomId: string, options?: { signal?: AbortSignal }) =>
       mocks.getRoom(serverId, roomId, options)

@@ -86,7 +86,7 @@ vi.mock('$lib/client', async () => ({
   }
 }));
 
-vi.mock('@chatto/client/api/pushNotifications', () => ({
+vi.mock('$lib/api/pushNotifications', () => ({
   createPushNotificationAPI: mocks.createPushNotificationAPI
 }));
 

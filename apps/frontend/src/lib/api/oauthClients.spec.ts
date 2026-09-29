@@ -4,7 +4,7 @@ import {
   OauthClientPolicy,
   OauthClientSource
 } from '@chatto/api-types/admin/v1/oauth_clients_pb';
-import { mapOAuthClient } from './oauthClients.js';
+import { mapOAuthClient } from './oauthClients';
 
 describe('OAuth client enum mapping', () => {
   it('preserves the public JSON enum names after type renaming', () => {

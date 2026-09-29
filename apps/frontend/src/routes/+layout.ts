@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { loadCurrentUser } from '@chatto/client/auth/loadAuth';
+import { loadCurrentUser } from '$lib/auth/loadAuth';
 import { getPublicServerInfo } from '@chatto/client/api/server';
 import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
 import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';

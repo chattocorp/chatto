@@ -4,7 +4,7 @@ import {
   OauthClientSource,
   type OAuthClient as APIOAuthClient
 } from '@chatto/api-types/admin/v1/oauth_clients_pb';
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 
 export type EditableOAuthClientPolicyName = 'default' | 'trusted' | 'blocked';
 export type OAuthClientPolicyName = EditableOAuthClientPolicyName | 'unknown';

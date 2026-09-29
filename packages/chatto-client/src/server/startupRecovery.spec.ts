@@ -126,7 +126,6 @@ describe('origin startup recovery', () => {
 
   it('shares the account request between route loading and recovery', async () => {
     const store = retainedStore();
-    const { loadCurrentUser } = await import('../auth/loadAuth.js');
     let finish!: (user: { id: string; login: string; displayName: string }) => void;
     mocks.viewer.mockImplementationOnce(
       () =>
@@ -135,7 +134,7 @@ describe('origin startup recovery', () => {
         })
     );
     vi.spyOn(ServerConnection.prototype, 'maintainBrowserSession').mockImplementation(() => {});
-    const route = loadCurrentUser(serverRegistry);
+    const route = store.currentUser.load().then(() => store.currentUser.user);
     const recovery = serverRegistry.recoverServer('origin');
     expect(mocks.viewer).toHaveBeenCalledOnce();
     expect(store.currentUser.user).toBeUndefined();
