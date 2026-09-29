@@ -105,15 +105,18 @@ concurrent replicas. The shared commit satisfies both invariants.
 factor before publishing rather than adding it through a later best-effort
 write.
 
-### 7. Existing installations do not receive a permission backfill
+### 7. Upgraded 0.4 servers grant invites to admins once
 
 **Decision:** `user.invite` belongs to the default administrator role on new
-servers. Existing custom/default roles are not rewritten automatically;
-effective owners retain their normal override and may grant it.
-**Why:** Chatto does not mutate operator-managed RBAC policy when new
-permissions are introduced. This matches FDR-001.
-**Tradeoff:** A non-owner administrator on an upgraded server may need an owner
-to grant the new permission.
+servers. An upgraded 0.4 server allows it for `admin` once, together with the
+other 0.5 upgrade grants (ADR-110). Custom roles are not changed. Effective
+owners retain their normal override and may grant it.
+**Why:** Administrators managed invitations before 0.5. The one-time grant
+keeps that capability without later startup reconciliation. This matches
+FDR-001.
+**Tradeoff:** A custom administrative role on an upgraded server needs an
+explicit grant. A server whose 0.5 permissions an operator already changed
+receives no grant.
 
 ## Permissions
 
@@ -121,5 +124,5 @@ to grant the new permission.
 
 ## Related
 
-- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070
+- **ADRs:** ADR-033, ADR-036, ADR-040, ADR-045, ADR-068, ADR-070, ADR-110
 - **FDRs:** FDR-001, FDR-018, FDR-020, FDR-023, FDR-028, FDR-031

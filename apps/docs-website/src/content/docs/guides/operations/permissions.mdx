@@ -234,19 +234,20 @@ permissions or DMs.
 
 ## Upgrading from 0.4
 
-Chatto applies default permissions only on a new server. An upgraded server
-keeps its permissions and does not get the new defaults, except the call
-permissions. Chatto allows each `call.*` permission for `everyone` if you did
-not set it before.
+Chatto applies default permissions only on a new server. When a 0.4 server
+starts with 0.5 for the first time, Chatto adds these grants one time. They
+keep the 0.4 behavior and match the defaults of a new server:
+
+- `message.read` and `bot.create` for `everyone` at Server scope.
+- `user.invite` and `bot.manage` for `admin`.
+- `room.remove-member` for each role and user that had `room.ban-member`, at
+  the same scope. `room.ban-member` has no effect in 0.5.
+- Each `call.*` permission for `everyone`.
+
+If members must not create bots, remove the `bot.create` grant.
 
 Make these changes on an upgraded server:
 
-- **Allow `message.read`** for `everyone` at Server scope. Without it, only
-  owners in privileged mode can read messages.
-- **Allow `room.remove-member`** for `moderator` and `admin`. `room.ban-member`
-  has no effect in 0.5.
-- **Allow `user.invite` and `bot.manage`** for `admin`.
-- **Allow `bot.create`** for `everyone` if members can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.
 - **Allow `message.post`** for `admin` in the `announcements` room if admins

@@ -243,8 +243,9 @@ LiveKit listing-outage counter. This is eventual enforcement, including for
 reconnects using old unexpired credentials.
 
 Startup initializes missing server/everyone call permissions with ordinary RBAC
-grants guarded by the complete RBAC subject tail. It reads historical decisions
-so a cleared or denied grant cannot return after restart. No new event variant,
+grants guarded by the complete RBAC subject tail. The same startup step also
+applies the 0.5 upgrade grants (ADR-110). It reads historical decisions so a
+cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
 
 ## Browser call preferences and device test
