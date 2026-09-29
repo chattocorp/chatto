@@ -11,7 +11,16 @@ import {
   registerServerQueryCacheRemovalListener
 } from '@chatto/client/query/cacheRegistry';
 import { queryClient } from './client';
-import { onlineManager, QueryObserver } from '@tanstack/svelte-query';
+import { onlineManager, QueryClient, QueryObserver } from '@tanstack/svelte-query';
+
+describe('query core', () => {
+  it('shares one TanStack query core with @chatto/client', () => {
+    // Svelte Query and @chatto/client must resolve the same query-core
+    // version. Align the @tanstack/query-core pin in @chatto/client when
+    // this fails after a dependency update.
+    expect(queryClient).toBeInstanceOf(QueryClient);
+  });
+});
 
 describe('server query cache', () => {
   it('refreshes a shared active dependency once before its parent uses the result', async () => {

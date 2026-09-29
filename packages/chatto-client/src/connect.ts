@@ -108,7 +108,8 @@ const usedServerIds = new Set<string>();
 /**
  * Register a server with a fixed token and keep its realtime projection live.
  * A process can have one open connection; close it before connecting again,
- * for example with new credentials.
+ * for example with new credentials. The connection runs its own client
+ * runtime, so it throws in an application that already runs one.
  */
 export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   const url = parseServerUrl(options.serverUrl);
@@ -118,13 +119,19 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     ...serverRegistry.servers.map((server) => server.id),
     ...usedServerIds
   ]);
-  usedServerIds.add(serverId);
-  serverRegistry.addServer(
-    { id: serverId, url: url.origin, name: url.host, iconUrl: null, addedAt: Date.now() },
-    { ...emptyServerSession(), token: options.apiKey },
-    { fixedToken: true }
-  );
+  // Throws when an application runtime already runs in this process.
   const runtime = startClientRuntime();
+  usedServerIds.add(serverId);
+  try {
+    serverRegistry.addServer(
+      { id: serverId, url: url.origin, name: url.host, iconUrl: null, addedAt: Date.now() },
+      { ...emptyServerSession(), token: options.apiKey },
+      { fixedToken: true }
+    );
+  } catch (error) {
+    runtime.stop();
+    throw error;
+  }
   runtime.setActiveServer(serverId);
 
   const eventListeners = new Set<(event: RealtimeEvent) => void>();
@@ -195,8 +202,10 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         };
         const abort = () => finish(() => reject(signal!.reason));
         signal?.addEventListener('abort', abort, { once: true });
-        // A failure is reported only for a viewer read that this call saw in
-        // progress. Between two recovery attempts, wait for the next one.
+        // A failure is reported only for a discovery or viewer read that this
+        // call saw in progress. Between two recovery attempts, wait for the
+        // next one.
+        let sawDiscovery = false;
         let sawViewerRead = false;
         stop = effectRoot(() => {
           effect(() => {
@@ -216,11 +225,13 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
               finish(() => resolve({ viewerId }));
               return;
             }
-            if (current.currentUser.loading) {
-              sawViewerRead = true;
-            } else if (sawViewerRead) {
-              // The viewer read finished without an account: the server is
-              // unreachable or failed. The error itself is logged by the store.
+            const { serverInfo, currentUser } = current;
+            if (serverInfo.loading) sawDiscovery = true;
+            if (currentUser.loading) sawViewerRead = true;
+            // The server is unreachable or failed. The store logs the error.
+            if (sawDiscovery && !serverInfo.loading && serverInfo.error !== null) {
+              finish(() => reject(new Error('Could not reach the Chatto server')));
+            } else if (sawViewerRead && !currentUser.loading) {
               finish(() => reject(new Error('Could not load the viewer from the Chatto server')));
             }
           });

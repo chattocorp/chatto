@@ -29,7 +29,8 @@ UI framework.
 ## Decision
 
 `@chatto/client` (`packages/chatto-client/`) contains the Chatto client. The
-package has no dependency on Svelte or on the frontend. The old integration
+package has no dependency on the frontend. Only the `@chatto/client/svelte`
+adapter uses Svelte, as an optional peer dependency. The old integration
 helpers are removed.
 
 ### Package contents
@@ -87,7 +88,9 @@ the Vitest browser setup, and in Storybook.
 
 - `connectChatto({ serverUrl, apiKey })` registers one server with a fixed
   token. It uses the same registry, stores, runtime, and realtime transport as
-  the frontend. A process has one open connection at a time. A fixed token is
+  the frontend. A process has one open connection at a time. The connection
+  starts its own client runtime, and a process runs one runtime, so an
+  application that runs a runtime cannot also use `connectChatto`. A fixed token is
   never renewed or written to device storage. The server's rejection or a
   session termination ends the session.
 - `createChattoApi({ serverUrl, apiKey })` in `@chatto/client/apiClient` makes

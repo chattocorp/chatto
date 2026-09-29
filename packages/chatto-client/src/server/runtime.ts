@@ -10,6 +10,10 @@
  *
  * An application starts one runtime for its lifetime and reports the server
  * that the user is looking at with {@link ClientRuntime.setActiveServer}.
+ * A process can run one runtime at a time: runtimes share the registry and
+ * the realtime transports, so a second one would compete for the active
+ * server. `connectChatto` starts its own runtime; do not use it in an
+ * application that runs one.
  */
 
 import { effect, effectRoot, signal, untrack } from '../reactivity/index.js';
@@ -49,8 +53,25 @@ function realtimeRegistrations(): RealtimeServerRegistration[] {
   });
 }
 
-/** Start recovery, realtime ownership, and session-termination handling. */
+/** Whether a runtime is running in this process. */
+let runtimeRunning = false;
+
+/**
+ * Start recovery, realtime ownership, and session-termination handling.
+ * Throws when another runtime is running; stop it first.
+ */
 export function startClientRuntime(): ClientRuntime {
+  if (runtimeRunning) throw new Error('A Chatto client runtime is already running');
+  runtimeRunning = true;
+  try {
+    return runClientRuntime();
+  } catch (error) {
+    runtimeRunning = false;
+    throw error;
+  }
+}
+
+function runClientRuntime(): ClientRuntime {
   const activeServerId = signal<string | null>(null);
   const stopRecovery = startServerRecovery(serverRegistry);
   let stopped = false;
@@ -106,6 +127,7 @@ export function startClientRuntime(): ClientRuntime {
     stop() {
       if (stopped) return;
       stopped = true;
+      runtimeRunning = false;
       disposeEffects();
       stopRecovery();
     }

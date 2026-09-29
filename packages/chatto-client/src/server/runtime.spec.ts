@@ -120,6 +120,13 @@ describe('startClientRuntime', () => {
     });
   });
 
+  it('runs one runtime at a time', () => {
+    runtime = startClientRuntime();
+    expect(() => startClientRuntime()).toThrow('already running');
+    runtime.stop();
+    runtime = startClientRuntime();
+  });
+
   it('uses the account owner without changing it on start or stop', async () => {
     const origin = mocks.stores.get('origin')!;
     origin.currentUser = { user: originUser, loading: false };

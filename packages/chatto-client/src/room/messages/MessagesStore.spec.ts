@@ -4471,6 +4471,19 @@ describe('MessagesStore — reactive updates', () => {
     store.dispose();
   });
 
+  it('notifies observers once per new message', async () => {
+    const store = roomWithMessage();
+    await settle();
+    const { runs, stop } = observeEvents(store);
+    store.ingestEvent(threadMessageEvent('m2') as never);
+    expect(runs.map((rows) => rows.map((row) => row.split(':')[0]))).toEqual([
+      ['m1'],
+      ['m1', 'm2']
+    ]);
+    stop();
+    store.dispose();
+  });
+
   it('notifies observers when the thread follow state changes', async () => {
     const store = roomWithMessage();
     await settle();

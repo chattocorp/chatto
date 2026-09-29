@@ -117,15 +117,14 @@ export class ServerStateStore {
   readonly roomUnread: RoomUnreadStore;
   readonly pendingHighlights: PendingHighlightStore;
   readonly activeCallRooms: ActiveCallRoomsState;
-  readonly #voiceCallContext: VoiceCallContext;
-  #voiceCall: RegisteredVoiceCall | undefined;
   /**
-   * This server's voice-call controller, created on first use by the factory
-   * installed with `setVoiceCallFactory`.
+   * This server's voice-call controller, created with the store by the
+   * factory installed with `setVoiceCallFactory`. The store creates it
+   * eagerly: a controller with UI-framework state (such as Svelte `$state`)
+   * that a reactive read created on first use would not be tracked by that
+   * read.
    */
-  get voiceCall(): RegisteredVoiceCall {
-    return (this.#voiceCall ??= createVoiceCall(this.#voiceCallContext));
-  }
+  readonly voiceCall: RegisteredVoiceCall;
   readonly navigation: NavigationStore;
   readonly roomDirectory: RoomDirectoryStore;
   readonly adminRoomLayout: AdminRoomLayoutStore;
@@ -291,7 +290,7 @@ export class ServerStateStore {
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
-    this.#voiceCallContext = {
+    const voiceCallContext: VoiceCallContext = {
       serverId: this.serverId,
       api: voiceCallAPI,
       permissions: (roomId) => {
@@ -309,6 +308,7 @@ export class ServerStateStore {
         };
       }
     };
+    this.voiceCall = createVoiceCall(voiceCallContext);
     this.activeCallRooms = new ActiveCallRoomsState(
       () => this.voiceCall,
       () => this.projection.activeCalls
@@ -1453,7 +1453,7 @@ export class ServerStateStore {
       () => this.roomUnread.clear(),
       () => this.pendingHighlights.clear()
     ]);
-    this.#voiceCall?.handleProjectionReset();
+    this.voiceCall.handleProjectionReset();
     return complete;
   }
 

@@ -158,6 +158,31 @@ describe('connectChatto in Node', () => {
     logged.mockRestore();
   });
 
+  it('reports each failed discovery attempt to a waiting ready()', async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      mocks.discovery.mockRejectedValue(new TypeError('fetch failed'));
+      mocks.viewer.mockRejectedValue(new TypeError('fetch failed'));
+      connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      await expect(connection.ready()).rejects.toThrow();
+      const retry = connection.ready();
+      retry.catch(() => {});
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(retry).rejects.toThrow('Could not reach the Chatto server');
+      mocks.discovery.mockResolvedValue(profile);
+      mocks.viewer.mockResolvedValue({ id: 'bot', login: 'bot' } as CurrentUser);
+      const recovered = connection.ready();
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(recovered).resolves.toEqual({ viewerId: 'bot' });
+    } finally {
+      logged.mockRestore();
+      warned.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('waits for the next recovery attempt when ready() is called again after a failure', async () => {
     vi.useFakeTimers();
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -175,6 +200,22 @@ describe('connectChatto in Node', () => {
       logged.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  it('refuses to connect beside another client runtime and leaves no server behind', async () => {
+    const { startClientRuntime } = await import('./server/runtime.js');
+    const appRuntime = startClientRuntime();
+    try {
+      const before = serverRegistry.servers.length;
+      expect(() => connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(
+        'already running'
+      );
+      expect(serverRegistry.servers).toHaveLength(before);
+    } finally {
+      appRuntime.stop();
+    }
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
   });
 
   it('stops waiting when the caller aborts', async () => {

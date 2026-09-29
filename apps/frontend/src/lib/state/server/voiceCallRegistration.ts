@@ -1,7 +1,7 @@
 /**
  * Install the LiveKit voice-call implementation for every server store, and
  * register its type with `@chatto/client`. Import this module before the
- * first store reads `voiceCall`: `hooks.client.ts` and Storybook do. Browser
+ * first server store is created: `hooks.client.ts` and Storybook do. Browser
  * tests that render call UI against a real store import it themselves.
  */
 

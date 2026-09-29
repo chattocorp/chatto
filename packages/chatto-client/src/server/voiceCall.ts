@@ -109,7 +109,7 @@ let voiceCallFactory: VoiceCallFactory = () => new DetachedVoiceCall();
 
 /**
  * Install the voice-call implementation for server stores. Install it before
- * any store reads `voiceCall`; a store keeps the controller that it created.
+ * a store is created; a store keeps the controller that it created.
  */
 export function setVoiceCallFactory(factory: VoiceCallFactory): void {
   voiceCallFactory = factory;
@@ -118,7 +118,7 @@ export function setVoiceCallFactory(factory: VoiceCallFactory): void {
 /**
  * Create a controller with the installed factory. The result has the
  * registered type, so an application that registers a type must install its
- * factory before any store reads `voiceCall`; otherwise a `DetachedVoiceCall`
+ * factory before a store is created; otherwise a `DetachedVoiceCall`
  * is returned under that type.
  */
 export function createVoiceCall(context: VoiceCallContext): RegisteredVoiceCall {

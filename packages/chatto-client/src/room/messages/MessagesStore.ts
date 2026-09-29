@@ -1173,22 +1173,22 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(event: TimelineEventView, options: { sort?: boolean } = {}): boolean {
-    if (this.seenIds.has(event.id)) return false;
+  private addEvent(event: TimelineEventView): void {
+    if (this.seenIds.has(event.id)) return;
     this.seenIds.add(event.id);
-    this.events = [...this.events, event];
-    if (options.sort ?? true) this.sortEvents();
-    return true;
+    this.events = this.source.sort([...this.events, event]);
   }
 
   private appendMany(events: TimelineEventView[]): void {
-    let added = false;
+    const added: TimelineEventView[] = [];
     for (const e of events) {
       this.clearOptimisticVersionForEvent(e.id);
-      added = this.addEvent(e, { sort: false }) || added;
+      if (this.seenIds.has(e.id)) continue;
+      this.seenIds.add(e.id);
+      added.push(e);
     }
     // A live event can arrive before an older page of newer events.
-    if (added) this.sortEvents();
+    if (added.length > 0) this.events = this.source.sort([...this.events, ...added]);
   }
 
   private prependEvents(olderEvents: TimelineEventView[]): number {

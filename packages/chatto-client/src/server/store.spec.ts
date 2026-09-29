@@ -689,6 +689,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('ServerStateStore voice call', () => {
+  it('creates the controller with the store, outside later reactive reads', () => {
+    const created = vi.fn();
+    setVoiceCallFactory((context) => {
+      created(context.serverId);
+      return new RecordingVoiceCall(context);
+    });
+    try {
+      makeStore(new FakeServerConnection([]));
+      expect(created).toHaveBeenCalledWith(registered.id);
+    } finally {
+      setVoiceCallFactory((context) => new RecordingVoiceCall(context));
+    }
+  });
+});
+
 describe('ServerStateStore viewer', () => {
   it('loads the viewer with the connection renewal hook', async () => {
     const connection = new FakeServerConnection([]);
