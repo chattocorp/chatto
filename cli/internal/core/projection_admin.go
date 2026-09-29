@@ -503,7 +503,7 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 			continue
 		}
 		summaryParticipants += int64(len(summary.participants))
-		threadSummaryBytes += int64(cap(summary.participants)) * int64(unsafe.Sizeof(threadParticipant{}))
+		threadSummaryBytes += int64(cap(summary.participants))*int64(unsafe.Sizeof(threadParticipant{})) + int64(len(summary.participantIndex))*(projectionCompactMapEntryOverhead+12)
 	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	appliedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)

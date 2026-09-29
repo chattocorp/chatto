@@ -44,6 +44,36 @@ type threadSummary struct {
 	// participants counts visible replies per author in first-reply order.
 	// The first maxThreadParticipants entries form the display preview.
 	participants []threadParticipant
+	// participantIndex locates an author in participants once the thread has
+	// more than threadParticipantIndexMin authors. Smaller threads scan the
+	// slice, which costs less memory than a map.
+	participantIndex map[uint32]int
+}
+
+// threadParticipantIndexMin is the author count above which a thread summary
+// indexes its participants.
+const threadParticipantIndexMin = 32
+
+// countReply adds one visible reply by actor.
+func (s *threadSummary) countReply(actor uint32) {
+	index, ok := s.participantIndex[actor]
+	if s.participantIndex == nil {
+		index = slices.IndexFunc(s.participants, func(participant threadParticipant) bool { return participant.actor == actor })
+		ok = index >= 0
+	}
+	if !ok {
+		s.participants = append(s.participants, threadParticipant{actor: actor})
+		index = len(s.participants) - 1
+		if s.participantIndex != nil {
+			s.participantIndex[actor] = index
+		} else if len(s.participants) > threadParticipantIndexMin {
+			s.participantIndex = make(map[uint32]int, len(s.participants))
+			for i, participant := range s.participants {
+				s.participantIndex[participant.actor] = i
+			}
+		}
+	}
+	s.participants[index].replies++
 }
 
 // threadParticipant counts one author's visible replies in a thread. actor is
@@ -606,12 +636,7 @@ func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, ent
 	summary.lastReplyAt = entry.createdAt
 	summary.hasLastReplyAt = entry.hasCreatedAt
 	if entry.actor != 0 {
-		index := slices.IndexFunc(summary.participants, func(participant threadParticipant) bool { return participant.actor == entry.actor })
-		if index < 0 {
-			summary.participants = append(summary.participants, threadParticipant{actor: entry.actor})
-			index = len(summary.participants) - 1
-		}
-		summary.participants[index].replies++
+		summary.countReply(entry.actor)
 	}
 }
 
