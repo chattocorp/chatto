@@ -249,7 +249,7 @@ thread IDs can change while the pane stays mounted.
   // around a target that the loaded window does not contain.
   jumpState.setJumpHandler(async (eventId: string) => {
     if (!canReadMessages) return false;
-    return messageStore.jumpToMessage(eventId, jumpState);
+    return jumpState.show(messageStore, eventId);
   });
 
   // Projection v2 folds retractions and crypto-erasure into the authoritative

@@ -16,8 +16,12 @@ import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { TimelineEventKind, type TimelineEventView } from '../../timeline/timelineEvents.js';
 import { RoomThreadingMode } from '../../util/roomThreading.js';
 import { MessagesStore } from './MessagesStore.js';
-import { JumpToMessageState } from './jumpState.js';
 import { Code, ConnectError, StaleResponseError } from '../../api/connect.js';
+
+/** A jump result that shows the target event. */
+const shown = { status: expect.stringMatching(/^(shown|loaded)$/) };
+/** A jump result that does not show the target event. */
+const notShown = { status: expect.stringMatching(/^(missing|superseded)$/) };
 
 class FakeQueryClient {
   reconnectCount = 0;
@@ -661,12 +665,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
     await settle();
     store.events = [threadMessageEvent('m1') as never];
+    const jumped = await store.jumpToMessage('m1');
 
-    const jumpState = new JumpToMessageState();
-    const jumped = await store.jumpToMessage('m1', jumpState);
-
-    expect(jumped).toBe(true);
-    expect(jumpState.scrollToEventId).toBe('m1');
+    expect(jumped).toMatchObject(shown);
     expect(timeline.getRoomEventsAround).not.toHaveBeenCalled();
     store.dispose();
   });
@@ -693,21 +694,15 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
+    const jumped = await store.jumpToMessage('m2');
 
-    const jumpState = new JumpToMessageState();
-    const jumped = await store.jumpToMessage('m2', jumpState);
-
-    expect(jumped).toBe(true);
+    expect(jumped).toEqual({ status: 'loaded', hasNewer: true, hasOlder: true });
     expect(timeline.getRoomEventsAround).toHaveBeenCalledWith({
       roomId: 'room-1',
       eventId: 'm2',
       limit: 50
     });
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3']);
-    expect(jumpState.isJumpedMode).toBe(true);
-    expect(jumpState.hasReachedEnd).toBe(false);
-    expect(jumpState.hasOlderMessages).toBe(true);
-    expect(jumpState.scrollToEventId).toBe('m2');
     expect(store.isInitialLoading).toBe(false);
     store.dispose();
   });
@@ -794,7 +789,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       fakeTimelineAPI({ getRoomEvents })
     );
 
-    const replacing = store.jumpToPresent(new JumpToMessageState());
+    const replacing = store.jumpToLatest();
     initial.resolve(pageFromEvent(threadMessageEvent('stale-latest')));
     await settle();
 
@@ -832,7 +827,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
 
     await settle();
-    await store.jumpToMessage('historical-target', new JumpToMessageState());
+    await store.jumpToMessage('historical-target');
     await expect(store.restoreLatestWindow()).resolves.toBe(true);
 
     expect(getRoomEvents).toHaveBeenCalledTimes(2);
@@ -865,7 +860,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await settle();
-    await store.jumpToMessage('historical-target', new JumpToMessageState());
+    await store.jumpToMessage('historical-target');
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
     await expect(store.restoreLatestWindow()).resolves.toBe(true);
 
@@ -894,7 +889,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
     await settle();
 
-    const jumping = store.jumpToMessage('historical-target', new JumpToMessageState());
+    const jumping = store.jumpToMessage('historical-target');
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
     around.resolve({
       events: [threadMessageEvent('historical-target') as never],
@@ -904,7 +899,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: true
     });
 
-    await expect(jumping).resolves.toBe(false);
+    await expect(jumping).resolves.toMatchObject(notShown);
     expect(getRoomEvents).toHaveBeenCalledOnce();
     expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
     expect(store.isInitialLoading).toBe(false);
@@ -925,9 +920,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       { roomId: 'room-1' },
       timeline
     );
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('historical-target', jumpState);
+    const jumping = store.jumpToMessage('historical-target');
     await hydrateRoomPage(store, timeline, new RoomTimelinePage());
     expect(store.isInitialLoading).toBe(true);
     resolveAround?.({
@@ -938,10 +931,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: true
     });
 
-    await expect(jumping).resolves.toBe(true);
+    await expect(jumping).resolves.toEqual({ status: 'loaded', hasNewer: true, hasOlder: true });
     expect(store.rootEvents.map((event) => event.id)).toEqual(['historical-target']);
-    expect(jumpState.scrollToEventId).toBe('historical-target');
-    expect(jumpState.isJumpedMode).toBe(true);
     store.dispose();
   });
 
@@ -960,9 +951,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('historical-target', jumpState);
+    const jumping = store.jumpToMessage('historical-target');
     await store.restoreLatestWindow();
     resolveAround?.({
       events: [threadMessageEvent('historical-target') as never],
@@ -972,9 +961,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: true
     });
 
-    await expect(jumping).resolves.toBe(false);
+    await expect(jumping).resolves.toMatchObject(notShown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
-    expect(jumpState.isJumpedMode).toBe(false);
     store.dispose();
   });
 
@@ -1171,10 +1159,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('old-private-row'));
-    store.setViewport({ eventId: 'anchor', offset: 17 });
+    store.setAnchor('anchor');
     store.resetProjectionState();
     expect(store.events).toEqual([]);
-    expect(store.recoveryViewport).toEqual({ eventId: 'anchor', offset: 17 });
+    expect(store.recoveryAnchor).toEqual({ eventId: 'anchor' });
     store.resetProjectionState();
     await store.hydrateRealtimeProjection('fresh-boundary', () => true);
     expect(getRoomEventsAround).toHaveBeenCalledWith(
@@ -1185,9 +1173,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       })
     );
     expect(store.events.map((event) => event.id)).toEqual(['anchor']);
-    expect(store.recoveryViewport?.hasNewer).toBe(true);
+    expect(store.recoveryAnchor?.hasNewer).toBe(true);
     store.clearForAccessRevocation();
-    expect(store.recoveryViewport).toBeNull();
+    expect(store.recoveryAnchor).toBeNull();
     expect(store.events).toEqual([]);
     store.dispose();
   });
@@ -1207,7 +1195,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('old-private-row'));
-    store.setViewport({ eventId: 'gone', offset: 17 });
+    store.setAnchor('gone');
     store.resetProjectionState();
     await store.hydrateRealtimeProjection('fresh-boundary', () => true);
     expect(store.events.map((event) => event.id)).toEqual(['fresh']);
@@ -1230,11 +1218,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('private-row'));
-    store.setViewport({ eventId: 'private-row', offset: 17 });
+    store.setAnchor('private-row');
     store.resetProjectionState();
     expect(await store.hydrateRealtimeProjection('fresh-boundary', () => true)).toBe(false);
     expect(store.events).toEqual([]);
-    expect(store.recoveryViewport).toBeNull();
+    expect(store.recoveryAnchor).toBeNull();
     store.dispose();
   });
 
@@ -1258,7 +1246,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       fakeTimelineAPI({ getThreadEvents, getThreadEventsAround })
     );
     await settle();
-    store.setViewport({ eventId: 'anchor', offset: 17 });
+    store.setAnchor('anchor');
     store.resetProjectionState();
     await store.hydrateRealtimeProjection('fresh-boundary', () => true);
     expect(getThreadEventsAround).toHaveBeenCalledWith(
@@ -1268,17 +1256,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
         minimumCursor: 'fresh-boundary'
       })
     );
-    const jump = new JumpToMessageState();
-    jump.isJumpedMode = true;
-    await store.loadNewer(jump);
+    const newer = await store.loadNewer();
     expect(getThreadEvents).toHaveBeenLastCalledWith(
       expect.objectContaining({ after: 'after-anchor', threadRootEventId: 'root' })
     );
     expect(store.threadEvents.map((event) => event.id)).toContain('new-reply');
-    expect(jump.hasReachedEnd).toBe(true);
-    await store.jumpToPresent(jump);
+    expect(newer).toEqual({ status: 'loaded', hasNewer: false });
+    await store.jumpToLatest();
     expect(store.threadEvents.map((event) => event.id)).toEqual(['latest-reply']);
-    expect(jump.isJumpedMode).toBe(false);
     store.dispose();
   });
 
@@ -1363,9 +1348,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       { roomId: 'room-1' },
       timeline
     );
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('missing-target', jumpState);
+    const jumping = store.jumpToMessage('missing-target');
     await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
     resolveAround?.({
       events: [threadMessageEvent('other-message') as never],
@@ -1375,7 +1358,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: false
     });
 
-    await expect(jumping).resolves.toBe(false);
+    await expect(jumping).resolves.toMatchObject(notShown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
     expect(store.isInitialLoading).toBe(false);
     store.dispose();
@@ -1394,13 +1377,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
       { roomId: 'room-1' },
       timeline
     );
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('failed-target', jumpState);
+    const jumping = store.jumpToMessage('failed-target');
     await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
     rejectAround?.(new Error('network failed'));
 
-    await expect(jumping).resolves.toBe(false);
+    await expect(jumping).resolves.toMatchObject(notShown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
     expect(store.isInitialLoading).toBe(false);
     store.dispose();
@@ -1420,9 +1401,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       { roomId: 'room-1' },
       timeline
     );
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('hydrated-target', jumpState);
+    const jumping = store.jumpToMessage('hydrated-target');
     await hydrateRoomPage(store, timeline, projectedMessagePage('hydrated-target'));
     resolveAround?.({
       events: [threadMessageEvent('other-message') as never],
@@ -1432,8 +1411,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: false
     });
 
-    await expect(jumping).resolves.toBe(true);
-    expect(jumpState.scrollToEventId).toBe('hydrated-target');
+    await expect(jumping).resolves.toMatchObject(shown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['hydrated-target']);
     store.dispose();
   });
@@ -1451,14 +1429,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
       { roomId: 'room-1' },
       timeline
     );
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('hydrated-target', jumpState);
+    const jumping = store.jumpToMessage('hydrated-target');
     await hydrateRoomPage(store, timeline, projectedMessagePage('hydrated-target'));
     rejectAround?.(new Error('network failed'));
 
-    await expect(jumping).resolves.toBe(true);
-    expect(jumpState.scrollToEventId).toBe('hydrated-target');
+    await expect(jumping).resolves.toMatchObject(shown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['hydrated-target']);
     store.dispose();
   });
@@ -1482,16 +1457,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
     await settle();
     store.events = [threadMessageEvent('m1') as never];
+    const jumped = await store.jumpToMessage('m2');
 
-    const jumpState = new JumpToMessageState();
-    jumpState.isJumpedMode = true;
-    jumpState.scrollToEventId = 'previous';
-    const jumped = await store.jumpToMessage('m2', jumpState);
-
-    expect(jumped).toBe(false);
+    expect(jumped).toMatchObject(notShown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m1']);
-    expect(jumpState.isJumpedMode).toBe(false);
-    expect(jumpState.scrollToEventId).toBeNull();
     expect(store.isInitialLoading).toBe(false);
     store.dispose();
   });
@@ -1510,12 +1479,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
+    const jumped = await store.jumpToMessage('m2');
 
-    const jumpState = new JumpToMessageState();
-    const jumped = await store.jumpToMessage('m2', jumpState);
-
-    expect(jumped).toBe(false);
-    expect(jumpState.scrollToEventId).toBeNull();
+    expect(jumped).toMatchObject(notShown);
     expect(store.isInitialLoading).toBe(false);
     store.dispose();
   });
@@ -1546,11 +1512,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-
-    const jumpState = new JumpToMessageState();
-    const firstJump = store.jumpToMessage('old-target', jumpState);
-    const secondJump = store.jumpToMessage('new-target', jumpState);
-    await expect(secondJump).resolves.toBe(true);
+    const firstJump = store.jumpToMessage('old-target');
+    const secondJump = store.jumpToMessage('new-target');
+    await expect(secondJump).resolves.toMatchObject(shown);
 
     resolveFirst?.({
       events: [threadMessageEvent('old-target') as never],
@@ -1560,9 +1524,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: false
     });
 
-    await expect(firstJump).resolves.toBe(false);
+    await expect(firstJump).resolves.toMatchObject(notShown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['new-target']);
-    expect(jumpState.scrollToEventId).toBe('new-target');
     expect(store.isInitialLoading).toBe(false);
     store.dispose();
   });
@@ -1582,9 +1545,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     store.events = [threadMessageEvent('linked-realtime') as never];
-
-    const jumpState = new JumpToMessageState();
-    await expect(store.jumpToMessage('linked-realtime', jumpState)).resolves.toBe(true);
+    await expect(store.jumpToMessage('linked-realtime')).resolves.toMatchObject(shown);
     expect(store.isInitialLoading).toBe(true);
 
     resolveInitial?.({
@@ -1643,11 +1604,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-
-    const jumpState = new JumpToMessageState();
-    await store.jumpToMessage('first-target', jumpState);
-    const loadingNewer = store.loadNewer(jumpState);
-    await store.jumpToMessage('second-target', jumpState);
+    await store.jumpToMessage('first-target');
+    const loadingNewer = store.loadNewer();
+    await store.jumpToMessage('second-target');
 
     resolveNewer?.({
       events: [threadMessageEvent('stale-newer') as never],
@@ -1656,11 +1615,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasOlder: false,
       hasNewer: false
     });
-    await loadingNewer;
+    await expect(loadingNewer).resolves.toEqual({ status: 'superseded' });
 
     expect(store.rootEvents.map((event) => event.id)).toEqual(['second-target']);
-    expect(jumpState.scrollToEventId).toBe('second-target');
-    expect(jumpState.isLoadingNewer).toBe(false);
     store.dispose();
   });
 
@@ -1690,10 +1647,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
-
-    const jumpState = new JumpToMessageState();
-    await store.jumpToMessage('historical-target', jumpState);
-    const loadingNewer = store.loadNewer(jumpState);
+    await store.jumpToMessage('historical-target');
+    const loadingNewer = store.loadNewer();
     vi.mocked(timeline.getRoomEvents).mockResolvedValueOnce(
       roomTimelinePageToEventConnectionPage(projectedMessagePage('latest-message'))
     );
@@ -1744,10 +1699,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-
-    const jumpState = new JumpToMessageState();
-    const jumping = store.jumpToMessage('historical', jumpState);
-    const returningToPresent = store.jumpToPresent(jumpState);
+    const jumping = store.jumpToMessage('historical');
+    const returningToPresent = store.jumpToLatest();
     await settle();
     await expect(returningToPresent).resolves.toBe(true);
 
@@ -1759,10 +1712,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: true
     });
 
-    await expect(jumping).resolves.toBe(false);
+    await expect(jumping).resolves.toMatchObject(notShown);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['present']);
-    expect(jumpState.isJumpedMode).toBe(false);
-    expect(jumpState.scrollToEventId).toBeNull();
     store.dispose();
   });
 
@@ -1795,7 +1746,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
 
     let completed = false;
-    const returningToPresent = store.jumpToPresent(new JumpToMessageState()).then((loaded) => {
+    const returningToPresent = store.jumpToLatest().then((loaded) => {
       completed = true;
       return loaded;
     });
@@ -1828,14 +1779,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
     await settle();
     store.events = [threadMessageEvent('loaded-target') as never];
-
-    const jumpState = new JumpToMessageState();
-    void store.jumpToMessage('missing-target', jumpState);
+    void store.jumpToMessage('missing-target');
     expect(store.isInitialLoading).toBe(true);
 
-    await expect(store.jumpToMessage('loaded-target', jumpState)).resolves.toBe(true);
+    await expect(store.jumpToMessage('loaded-target')).resolves.toMatchObject(shown);
     expect(store.isInitialLoading).toBe(false);
-    expect(jumpState.scrollToEventId).toBe('loaded-target');
     store.dispose();
   });
 
@@ -3005,7 +2953,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await settle();
-    await store.jumpToMessage('historical', new JumpToMessageState());
+    await store.jumpToMessage('historical');
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
 
     expect(store.rootEvents).toEqual([]);
@@ -3443,10 +3391,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await refresh;
     await settle();
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3', 'm4', 'm5', 'm8']);
-
-    const jumpState = new JumpToMessageState();
-    jumpState.isJumpedMode = true;
-    await store.loadNewer(jumpState);
+    await store.loadNewer();
     await settle();
 
     expect(store.rootEvents.map((event) => event.id)).toEqual([
@@ -3687,12 +3632,15 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-    const jumpState = new JumpToMessageState();
 
-    await expect(store.jumpToMessage('r81', jumpState)).resolves.toBe(true);
+    await expect(store.jumpToMessage('r81')).resolves.toMatchObject(shown);
     expect(timeline.getThreadEventsAround).not.toHaveBeenCalled();
 
-    await expect(store.jumpToMessage('r10', jumpState)).resolves.toBe(true);
+    await expect(store.jumpToMessage('r10')).resolves.toEqual({
+      status: 'loaded',
+      hasNewer: true,
+      hasOlder: true
+    });
 
     expect(timeline.getThreadEventsAround).toHaveBeenCalledWith({
       roomId: 'room-1',
@@ -3703,13 +3651,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     // The window holds only the target's page, so no gap separates it from the latest replies.
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10', 'r11']);
     expect(store.hasReachedStart).toBe(false);
-    expect(jumpState.scrollToEventId).toBe('r10');
-    expect(jumpState.isJumpedMode).toBe(true);
 
-    await expect(store.jumpToPresent(jumpState)).resolves.toBe(true);
+    await expect(store.jumpToLatest()).resolves.toBe(true);
 
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r80', 'r81']);
-    expect(jumpState.isJumpedMode).toBe(false);
     store.dispose();
   });
 
@@ -3749,11 +3694,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-    const jumpState = new JumpToMessageState();
-    await store.jumpToMessage('r10', jumpState);
+    await store.jumpToMessage('r10');
 
     store.ingestEvent(threadMessageEvent('r90', 't1'));
-    await store.loadNewer(jumpState);
+    await store.loadNewer();
 
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10', 'r12', 'r13', 'r90']);
     store.dispose();
@@ -3783,7 +3727,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-    await store.jumpToMessage('r10', new JumpToMessageState());
+    await store.jumpToMessage('r10');
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10']);
 
     await expect(store.restoreLatestWindow()).resolves.toBe(true);
@@ -3812,9 +3756,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-    const jumpState = new JumpToMessageState();
 
-    const jumping = store.jumpToMessage('r10', jumpState);
+    const jumping = store.jumpToMessage('r10');
     await store.restoreLatestWindow();
     around.resolve({
       events: [threadMessageEvent('t1') as never, threadMessageEvent('r10', 't1') as never],
@@ -3824,10 +3767,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: true
     });
 
-    await expect(jumping).resolves.toBe(false);
+    await expect(jumping).resolves.toMatchObject(notShown);
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r80']);
-    expect(jumpState.isJumpedMode).toBe(false);
-    expect(jumpState.scrollToEventId).toBeNull();
     store.dispose();
   });
 
@@ -3874,11 +3815,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
       fakeTimelineAPI()
     );
     await settle();
-    const jumpState = new JumpToMessageState();
 
-    await expect(store.jumpToMessage('missing', jumpState)).resolves.toBe(false);
-
-    expect(jumpState.scrollToEventId).toBeNull();
+    await expect(store.jumpToMessage('missing')).resolves.toMatchObject(notShown);
     store.dispose();
   });
 
@@ -3902,10 +3840,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       timeline
     );
     await settle();
-    const jumpState = new JumpToMessageState();
 
-    const first = store.jumpToMessage('r10', jumpState);
-    await expect(store.jumpToMessage('r80', jumpState)).resolves.toBe(true);
+    const first = store.jumpToMessage('r10');
+    await expect(store.jumpToMessage('r80')).resolves.toMatchObject(shown);
     around.resolve({
       events: [threadMessageEvent('r10', 't1') as never],
       startCursor: 'tl:cursor-10',
@@ -3914,8 +3851,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       hasNewer: true
     });
 
-    await expect(first).resolves.toBe(false);
-    expect(jumpState.scrollToEventId).toBe('r80');
+    await expect(first).resolves.toMatchObject(notShown);
     store.dispose();
   });
 

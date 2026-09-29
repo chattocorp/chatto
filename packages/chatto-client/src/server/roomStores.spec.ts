@@ -9,7 +9,7 @@ const { FakeStore } = vi.hoisted(() => ({
   FakeStore: class {
     readonly args: unknown[];
     dispose = vi.fn();
-    clearViewport = vi.fn();
+    clearAnchor = vi.fn();
     clearForAccessRevocation = vi.fn();
     restoreAfterAccessGrant = vi.fn();
     reset = vi.fn();
@@ -74,16 +74,16 @@ describe('RoomStores', () => {
     expect(rooms.roomIds()).toEqual(['A', 'B', 'C']);
   });
 
-  it('clears a thread viewport only when its last consumer releases it', () => {
+  it('clears a thread anchor only when its last consumer releases it', () => {
     const rooms = makeRooms();
     const thread = rooms.thread('A', 'T');
     rooms.retainThread('A', 'T', thread);
     rooms.retainThread('A', 'T', thread);
 
     rooms.releaseThread('A', 'T', thread);
-    expect(thread.clearViewport).not.toHaveBeenCalled();
+    expect(thread.clearAnchor).not.toHaveBeenCalled();
     rooms.releaseThread('A', 'T', thread);
-    expect(thread.clearViewport).toHaveBeenCalledOnce();
+    expect(thread.clearAnchor).toHaveBeenCalledOnce();
     expect(rooms.thread('A', 'T')).toBe(thread);
   });
 
@@ -96,9 +96,9 @@ describe('RoomStores', () => {
 
     rooms.retainThread('A', 'T', stale);
     rooms.releaseThread('A', 'T', stale);
-    expect(stale.clearViewport).not.toHaveBeenCalled();
+    expect(stale.clearAnchor).not.toHaveBeenCalled();
     rooms.releaseThread('A', 'T', current);
-    expect(current.clearViewport).toHaveBeenCalledOnce();
+    expect(current.clearAnchor).toHaveBeenCalledOnce();
   });
 
   it('clears and restores the plaintext of one room', () => {

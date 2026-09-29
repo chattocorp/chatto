@@ -17,7 +17,6 @@ import type {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '../../server/serverConnection.js';
 import { Code, isConnectCode, StaleResponseError } from '../../api/connect.js';
-import type { JumpToMessageState } from './jumpState.js';
 import { getActorId, unmask } from './helpers.js';
 import { MessageTimelineSource } from './MessageTimelineSource.js';
 import { OptimisticMutationRegistry } from '../../util/optimisticMutations.js';
@@ -33,14 +32,6 @@ import {
   type OptimisticThreadFollowHandle
 } from './optimisticThreadFollow.js';
 import { debugLog } from '../../util/debugLog.js';
-
-/** Wait for the next animation frame, or the next task outside a browser. */
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
-    else setTimeout(resolve, 0);
-  });
-}
 
 /** Messages requested per timeline page. */
 export const PAGE_SIZE = 50;
@@ -65,6 +56,35 @@ export type MessageTimelineTarget = {
   /** The thread root event ID, or null for the room timeline. */
   threadRootEventId?: string | null;
 };
+
+/** Where a host shows a timeline: the event at the top of its view. */
+export type TimelineAnchor = {
+  eventId: string;
+  /** Whether newer events exist after the window that a reset loaded around the anchor. */
+  hasNewer?: boolean;
+};
+
+/** The result of {@link MessagesStore.jumpToMessage}. */
+export type JumpResult =
+  /** The event is in the window. */
+  | { status: 'shown' }
+  /** The window was replaced with the page around the event. */
+  | { status: 'loaded'; hasNewer: boolean; hasOlder: boolean }
+  /** The event cannot be loaded. */
+  | { status: 'missing' }
+  /** A newer jump or a route boundary superseded this jump. */
+  | { status: 'superseded' };
+
+/** The result of {@link MessagesStore.loadNewer}. */
+export type LoadNewerResult =
+  /** A newer page was read. `hasNewer` is false at the latest event. */
+  | { status: 'loaded'; hasNewer: boolean }
+  /** The read failed; nothing changed. */
+  | { status: 'failed' }
+  /** Nothing was applied: no newer page exists, or the caller declined the result. */
+  | { status: 'declined' }
+  /** A jump or reset replaced the window during the read; nothing was applied. */
+  | { status: 'superseded' };
 
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
@@ -183,29 +203,37 @@ export class MessagesStore {
   set hasReachedStart(value) {
     this.#hasReachedStartSignal.set(value);
   }
-  /** Viewport coordinates only; never retain message bodies across a reset. */
-  readonly #recoveryViewportSignal = signal<{
-    eventId: string;
-    offset: number;
-    hasNewer?: boolean;
-  } | null>(null);
-  get recoveryViewport() {
-    return this.#recoveryViewportSignal.get();
+  /**
+   * The anchor that a reset kept. The replacement window loads around it; the
+   * host restores its view there and then calls {@link completeRecovery}.
+   * Only the event ID is kept, never message content. Reactive.
+   */
+  readonly #recoveryAnchorSignal = signal<TimelineAnchor | null>(null);
+  get recoveryAnchor(): TimelineAnchor | null {
+    return this.#recoveryAnchorSignal.get();
   }
-  set recoveryViewport(value) {
-    this.#recoveryViewportSignal.set(value);
-  }
-  #viewport: { eventId: string; offset: number } | null = null;
+  #anchor: string | null = null;
 
-  /** Record the mounted viewport. A null position means it follows the latest message. */
-  setViewport(position: { eventId: string; offset: number } | null): void {
-    if (!this.isInitialLoading && !this.recoveryViewport) this.#viewport = position;
+  /**
+   * Report the event at the top of the host's view, or null when the view
+   * follows the latest event. A reset reloads the window around it. Returns
+   * false, and keeps the previous anchor, while the store loads or recovers.
+   */
+  setAnchor(eventId: string | null): boolean {
+    if (this.isInitialLoading || this.recoveryAnchor) return false;
+    this.#anchor = eventId;
+    return true;
   }
 
-  /** Release coordinates when a timeline leaves the mounted UI. */
-  clearViewport(): void {
-    this.#viewport = null;
-    this.recoveryViewport = null;
+  /** Forget the anchor, for example when the host's view unmounts. */
+  clearAnchor(): void {
+    this.#anchor = null;
+    this.#recoveryAnchorSignal.set(null);
+  }
+
+  /** The host restored its view at the {@link recoveryAnchor}. */
+  completeRecovery(): void {
+    this.#recoveryAnchorSignal.set(null);
   }
 
   private readonly roomTimeline: RoomTimelineAPI;
@@ -524,7 +552,7 @@ export class MessagesStore {
    * a jump left the retained window on older events.
    */
   restoreLatestWindow(): Promise<boolean> {
-    if (this.recoveryViewport) return Promise.resolve(false);
+    if (this.recoveryAnchor) return Promise.resolve(false);
     this.cancelPendingHistoricalJump();
     if (this.#pendingAuthoritativeLoadId !== null || !this.#needsLatestWindow) {
       return Promise.resolve(false);
@@ -534,7 +562,9 @@ export class MessagesStore {
 
   /** Purge retained rows without starting a read outside a realtime boundary. */
   resetProjectionState(): void {
-    this.recoveryViewport ??= this.#viewport;
+    if (!this.recoveryAnchor && this.#anchor) {
+      this.#recoveryAnchorSignal.set({ eventId: this.#anchor });
+    }
     const thisLoad = this.startLoad();
     this.#jumpId++;
     this.#windowId++;
@@ -558,7 +588,7 @@ export class MessagesStore {
       thisLoad,
       minimumCursor,
       acceptResult,
-      this.recoveryViewport?.eventId,
+      this.recoveryAnchor?.eventId,
       replaceWindow
     );
   }
@@ -571,7 +601,7 @@ export class MessagesStore {
    * from reinstalling data after the authorization transition.
    */
   clearForAccessRevocation(): void {
-    this.clearViewport();
+    this.clearAnchor();
     this.startLoad();
     this.#jumpId++;
     this.#windowId++;
@@ -753,8 +783,6 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadMore failed:', error);
     } finally {
-      // Yield a frame so a virtualized list can settle before another loadMore.
-      await nextFrame();
       if (!this.isStale(loadId)) {
         this.isLoadingMore = false;
       }
@@ -784,51 +812,51 @@ export class MessagesStore {
     }
   }
 
-  async loadNewer(jumpState: JumpToMessageState): Promise<void> {
+  /** Whether the window has a cursor to read newer events after it. */
+  get canLoadNewer(): boolean {
+    return this.newestCursor !== undefined;
+  }
+
+  /**
+   * Read the next newer page after a historical window and append it.
+   * `accept` is checked before the page is applied, for example whether the
+   * host still shows the historical window.
+   */
+  async loadNewer(accept: () => boolean = () => true): Promise<LoadNewerResult> {
     const source = this.source;
-    if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
-    if (!this.newestCursor) return;
+    if (!this.newestCursor) return { status: 'declined' };
 
     const windowId = this.#windowId;
-    jumpState.isLoadingNewer = true;
     try {
       const page = await source.fetchPage({
         limit: PAGE_SIZE,
         after: this.newestCursor
       });
 
-      // User left jumped mode while in flight — abandon the result.
-      if (!jumpState.isJumpedMode || this.#windowId !== windowId) {
-        return;
-      }
+      if (this.#windowId !== windowId) return { status: 'superseded' };
+      if (!accept()) return { status: 'declined' };
 
       const newer = this.unmaskEvents(page.events);
-      if (newer.length === 0) {
-        jumpState.hasReachedEnd = true;
-      } else {
+      if (newer.length > 0) {
         if (page.endCursor) {
           this.newestCursor = page.endCursor;
         }
         this.appendMany(newer);
       }
 
-      if (!page.hasNewer) jumpState.hasReachedEnd = true;
       if (!page.hasNewer) this.#needsLatestWindow = false;
+      return { status: 'loaded', hasNewer: newer.length > 0 && page.hasNewer };
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
-    } finally {
-      if (this.#windowId === windowId) {
-        jumpState.isLoadingNewer = false;
-      }
+      return this.#windowId === windowId ? { status: 'failed' } : { status: 'superseded' };
     }
   }
 
   /**
-   * Scroll to a message. When the window does not contain it, replace the window
-   * with the page around the message and enter jumped mode if newer events exist.
-   * Returns false when the message cannot be loaded or a newer jump supersedes this one.
+   * Show a message: when the window does not contain it, replace the window
+   * with the page around it. See {@link JumpResult}.
    */
-  async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
+  async jumpToMessage(eventId: string): Promise<JumpResult> {
     const source = this.source;
     const jumpId = ++this.#jumpId;
     if (this.events.some((e) => e.id === eventId)) {
@@ -836,19 +864,17 @@ export class MessagesStore {
         this.#pendingJumpId = null;
         if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
       }
-      jumpState.scrollToEventId = eventId;
-      return true;
+      return { status: 'shown' };
     }
 
     this.#windowId++;
     this.#pendingJumpId = jumpId;
-    jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
       const around = await source.fetchAround(eventId, PAGE_SIZE);
 
-      if (this.#jumpId !== jumpId) return false;
+      if (this.#jumpId !== jumpId) return { status: 'superseded' };
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = this.unmaskEvents(rawEvents).map((event) => {
@@ -858,15 +884,8 @@ export class MessagesStore {
           : event;
       });
       if (!parsed.some((event) => event.id === eventId)) {
-        if (this.events.some((event) => event.id === eventId)) {
-          jumpState.scrollToEventId = eventId;
-          return true;
-        }
-        jumpState.scrollToEventId = null;
-        jumpState.isJumpedMode = false;
-        jumpState.hasReachedEnd = false;
-        jumpState.hasOlderMessages = false;
-        return false;
+        if (this.events.some((event) => event.id === eventId)) return { status: 'shown' };
+        return { status: 'missing' };
       }
 
       // This replacement becomes the authoritative room window. Cancel any
@@ -880,25 +899,12 @@ export class MessagesStore {
       this.newestCursor = endCursor ?? undefined;
       this.hasReachedStart = !hasOlder;
       this.#needsLatestWindow = hasNewer;
-
-      // Only enter jumped mode when newer messages exist beyond this window.
-      jumpState.isJumpedMode = hasNewer;
-      jumpState.hasReachedEnd = !hasNewer;
-      jumpState.hasOlderMessages = hasOlder;
-      jumpState.scrollToEventId = eventId;
-      return true;
+      return { status: 'loaded', hasNewer, hasOlder };
     } catch (error) {
-      if (this.#jumpId !== jumpId) return false;
-      if (this.events.some((event) => event.id === eventId)) {
-        jumpState.scrollToEventId = eventId;
-        return true;
-      }
+      if (this.#jumpId !== jumpId) return { status: 'superseded' };
+      if (this.events.some((event) => event.id === eventId)) return { status: 'shown' };
       console.error('MessagesStore: jumpToMessage failed:', error);
-      jumpState.scrollToEventId = null;
-      jumpState.isJumpedMode = false;
-      jumpState.hasReachedEnd = false;
-      jumpState.hasOlderMessages = false;
-      return false;
+      return { status: 'missing' };
     } finally {
       if (this.#jumpId === jumpId) {
         this.#pendingJumpId = null;
@@ -907,12 +913,12 @@ export class MessagesStore {
     }
   }
 
-  jumpToPresent(jumpState: JumpToMessageState): Promise<boolean> {
-    this.clearViewport();
+  /** Leave a historical window: forget the anchor and load the latest window. */
+  jumpToLatest(): Promise<boolean> {
+    this.clearAnchor();
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    jumpState.reset();
     return this.resetAndFetchLatest();
   }
 
@@ -1436,9 +1442,8 @@ export class MessagesStore {
       this.isInitialLoading = this.#pendingJumpId !== null;
       if (anchorEventId) {
         this.#needsLatestWindow = page.hasNewer;
-        if (this.recoveryViewport) {
-          this.recoveryViewport = { ...this.recoveryViewport, hasNewer: page.hasNewer };
-        }
+        const recovery = this.recoveryAnchor;
+        if (recovery) this.#recoveryAnchorSignal.set({ ...recovery, hasNewer: page.hasNewer });
       }
       return true;
     } catch (error: unknown) {
@@ -1454,7 +1459,7 @@ export class MessagesStore {
       this.isInitialLoading = false;
       if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
         if (minimumCursor) this.clearForAccessRevocation();
-        else this.clearViewport();
+        else this.clearAnchor();
       }
       if (
         minimumCursor &&

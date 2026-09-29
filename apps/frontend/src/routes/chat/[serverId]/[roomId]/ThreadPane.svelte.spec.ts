@@ -160,6 +160,16 @@ vi.mock('$lib/state/room', () => ({
           mocks.jumpToMessage(eventId);
           return handler ? handler(eventId) : Promise.resolve(false);
         },
+        // Scroll to a message that the store shows, as the real state does.
+        show: async (
+          store: { jumpToMessage: (eventId: string) => Promise<{ status: string } | undefined> },
+          eventId: string
+        ) => {
+          const result = await store.jumpToMessage(eventId);
+          const shown = result?.status === 'shown' || result?.status === 'loaded';
+          jumpState.scrollToEventId = shown ? eventId : null;
+          return shown;
+        },
         reset: mocks.resetJumpState
       };
       mocks.jumpState = jumpState;
@@ -218,12 +228,10 @@ describe('ThreadPane', () => {
     threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
     // Like the real store, scroll only to a message that the thread window contains.
-    mocks.storeJumpToMessage.mockImplementation(
-      async (eventId: string, jumpState: { scrollToEventId: string | null }) => {
-        if (!mocks.threadStore!.threadEvents.some((event) => event.id === eventId)) return false;
-        jumpState.scrollToEventId = eventId;
-        return true;
-      }
+    mocks.storeJumpToMessage.mockImplementation(async (eventId: string) =>
+      mocks.threadStore!.threadEvents.some((event) => event.id === eventId)
+        ? { status: 'shown' }
+        : { status: 'missing' }
     );
     server = createTestServerScope({
       viewer: { id: 'test-user', login: 'testuser' },
@@ -690,7 +698,7 @@ describe('ThreadPane', () => {
 
     await expect(mocks.jumpState!.jumpToMessage('older-reply')).resolves.toBe(false);
 
-    expect(mocks.storeJumpToMessage).toHaveBeenCalledWith('older-reply', mocks.jumpState);
+    expect(mocks.storeJumpToMessage).toHaveBeenCalledWith('older-reply');
   });
 
   it('marks a highlighted notification read after the thread jump', async () => {

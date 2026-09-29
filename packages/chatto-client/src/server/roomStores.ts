@@ -140,7 +140,7 @@ export class RoomStores {
 
   /**
    * Release one consumer of a thread timeline. After the last one, the
-   * timeline forgets its viewport but keeps its window for the next open.
+   * timeline forgets its anchor but keeps its window for the next open.
    */
   releaseThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
     const entry = this.#rooms[roomId];
@@ -150,7 +150,7 @@ export class RoomStores {
       entry.threadRefs[threadRootEventId] = remaining;
       return;
     }
-    store.clearViewport();
+    store.clearAnchor();
     delete entry.threadRefs[threadRootEventId];
   }
 

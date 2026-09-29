@@ -152,7 +152,7 @@ export class ScrollState {
 // JumpToMessageState — jump to a specific message in the event list
 // ---------------------------------------------------------------------------
 
-import { JumpToMessageState } from '@chatto/client/room/messages/jumpState';
+import { JumpToMessageState } from './jumpState';
 export { JumpToMessageState };
 
 // ---------------------------------------------------------------------------
