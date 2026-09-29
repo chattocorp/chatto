@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 
-**Status:** Proposed. Amends [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md), [ADR-089](ADR-089-server-content-view.md), and [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md).
+**Status:** Proposed. Amends [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md), [ADR-089](ADR-089-server-content-view.md), and [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md), and [ADR-110](ADR-110-share-process-local-event-id-interning.md).
 
 ## Context
 
@@ -69,8 +69,10 @@ events for this purpose.
 
 For every message, hot or cold, the projections keep only:
 
-- one global event ID to stream sequence index, using the event ID table of
-  ADR-110. A lookup by event ID does not need a room ID;
+- one global index from a 64-bit hash of each event ID to the stream sequence
+  of its event. A lookup by event ID does not need a room ID. The lookup reads
+  the EVT record at that sequence and compares its event ID, so a hash
+  collision cannot return a wrong message;
 - the ordered stream sequences of each room timeline and of each thread. Only
   this ordering is room-shaped, because clients page one room timeline at a
   time;
@@ -84,6 +86,17 @@ For every message, hot or cold, the projections keep only:
 
 Active reactions, thread summaries, follow state, and thread interactions stay
 in RAM, because they are current state and not identity facts.
+
+The event ID table of ADR-110 keeps the bytes and the hash entry of every ID,
+which costs about 50 bytes for each ID. It holds only hot IDs after this
+decision. When a message becomes cold, its ID leaves the table, and the cold
+index keeps only the hash and the sequence. The table therefore stops being
+purely append-only. A handle stays valid while its message is hot, and state
+that refers to a cold message uses the stream sequence instead of a handle.
+
+Rooms are not a unit of eviction. On the measured copy, rooms without activity
+for 30 days held 169 of 217 rooms but only 6% of the posts, so room-level
+eviction would save little and would make every lookup need a room ID.
 
 ### Cold reads
 
@@ -121,7 +134,7 @@ the Server Content View and the Notification Decisions projection once.
 
 ## Consequences
 
-- RAM for old history drops from about 600 bytes to about 20–25 bytes for each
+- RAM for old history drops from about 600 bytes to about 25–30 bytes for each
   message. Total RAM then depends mainly on the activity of the hot windows,
   not on the length of the history. On the measured copy, the average would be
   about 200 bytes for each message: 17% of the posts are inside the 30-day
