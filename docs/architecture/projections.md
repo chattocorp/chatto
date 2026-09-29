@@ -261,9 +261,10 @@ no projection state, so projections with independent replay frontiers can
 share it. The table keeps ID bytes in an append-only arena and
 indexes them with pointer-free hash keys, so the garbage collector does not
 scan them. Handles are process-local; snapshots store ID strings, and a
-restore interns them again. The table has its own lock, because the components
-apply and read under different locks. A read of an ID from a handle does not
-lock. The components and projections keep separate models, and only the
+restore interns them again. The table has its own locks, because the components
+apply and read under different locks. Its hash index has 64 shards with
+separate locks, so concurrent lookups of different IDs rarely contend. A read
+of an ID from a handle does not lock. The components and projections keep separate models, and only the
 table is shared. A component or projection that is created outside the
 production wiring, for example in a test, owns a private table.
 
