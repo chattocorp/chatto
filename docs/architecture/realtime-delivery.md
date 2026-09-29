@@ -529,8 +529,9 @@ explicit `important` attention, then asks visible windows to reconcile current
 state. Ambient, unknown, and legacy unclassified pushes do not set a badge.
 Outgoing push payloads omit numeric app badge values.
 
-Each server store owns a RAM-only
-[`ReadViewRegistry`](../../packages/chatto-client/src/server/readViews.ts).
+The frontend keeps a RAM-only
+[`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.ts)
+for each server store.
 Mounted thread panes register independently and remove their own registration
 when they unmount. Exact room and thread targets permit concurrent views;
 a room view does not cover its threads. App focus and visibility gate the shared
