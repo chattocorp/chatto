@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"hash/maphash"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -46,7 +47,12 @@ func TestEventIDTable_ResolvesHashCollisions(t *testing.T) {
 	table := newEventIDTable()
 	first := table.intern("E1")
 	// Point the hash of E2 at E1 to simulate a 64-bit hash collision.
-	table.byHash[maphash.String(table.seed, "E2")] = first
+	hash := maphash.String(table.seed, "E2")
+	shard := table.shard(hash)
+	if shard.byHash == nil {
+		shard.byHash = make(map[uint64]uint32)
+	}
+	shard.byHash[hash] = first
 
 	second := table.intern("E2")
 	if second == first {
@@ -180,5 +186,37 @@ func TestSharedEventIDTable_ComponentsShareHandlesAcrossRestore(t *testing.T) {
 	}
 	if got := reactions.Reactions("M1"); len(got) != 1 || got[0].Emoji != "wave" {
 		t.Fatalf("Reactions(M1) = %+v, want one wave reaction", got)
+	}
+}
+
+func TestEventIDTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
+	table := newEventIDTable()
+	const workers, ids = 8, 2_000
+	results := make([][]uint32, workers)
+	var wg sync.WaitGroup
+	for worker := range workers {
+		wg.Go(func() {
+			handles := make([]uint32, ids)
+			for i := range ids {
+				// Workers visit every ID, starting at different offsets.
+				n := (i + worker*ids/workers) % ids
+				handles[n] = table.intern(fmt.Sprintf("E%05d", n))
+			}
+			results[worker] = handles
+		})
+	}
+	wg.Wait()
+	if got := table.len(); got != ids {
+		t.Fatalf("len = %d, want %d", got, ids)
+	}
+	for worker := 1; worker < workers; worker++ {
+		if !slices.Equal(results[worker], results[0]) {
+			t.Fatalf("worker %d received different handles than worker 0", worker)
+		}
+	}
+	for n, handle := range results[0] {
+		if got := table.id(handle); got != fmt.Sprintf("E%05d", n) {
+			t.Fatalf("id(%d) = %q, want E%05d", handle, got, n)
+		}
 	}
 }
