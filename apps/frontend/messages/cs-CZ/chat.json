@@ -27,9 +27,7 @@
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete.",
         "new_message": "Uživatel {actor} zveřejnil novou zprávu.",
         "activity": "Uživatel {actor} vám poslal oznámení."
-      },
-      "load_failed": "Nepodařilo se načíst oznámení",
-      "room_load_failed": "Nepodařilo se načíst oznámení místnosti"
+      }
     },
     "sign_out": {
       "title": "Odhlásit se",

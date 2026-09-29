@@ -27,9 +27,7 @@
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",
         "new_message": "{actor}さんが新しいメッセージを投稿しました。",
         "activity": "{actor}さんから通知が届きました。"
-      },
-      "load_failed": "通知の読み込みに失敗しました",
-      "room_load_failed": "ルームの通知の読み込みに失敗しました"
+      }
     },
     "sign_out": {
       "title": "サインアウト",

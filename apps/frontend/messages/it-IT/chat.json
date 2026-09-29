@@ -27,9 +27,7 @@
         "followed_thread": "{actor} ha risposto in una discussione che segui.",
         "new_message": "{actor} ha pubblicato un nuovo messaggio.",
         "activity": "{actor} ti ha inviato una notifica."
-      },
-      "load_failed": "Impossibile caricare le notifiche",
-      "room_load_failed": "Impossibile caricare le notifiche della stanza"
+      }
     },
     "sign_out": {
       "title": "Esci",

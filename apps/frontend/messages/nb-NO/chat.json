@@ -27,9 +27,7 @@
         "followed_thread": "{actor} svarte i en tråd du følger.",
         "new_message": "{actor} la ut en ny melding.",
         "activity": "{actor} sendte deg et varsel."
-      },
-      "load_failed": "Kunne ikke laste inn varsler",
-      "room_load_failed": "Kunne ikke laste inn romvarsler"
+      }
     },
     "sign_out": {
       "title": "Logg av",

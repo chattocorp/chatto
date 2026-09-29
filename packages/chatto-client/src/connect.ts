@@ -230,9 +230,9 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     ready({ signal } = {}) {
       return new Promise((resolve, reject) => {
         signal?.throwIfAborted();
-        let stop: (() => void) | undefined;
+        // `stop` is read in a microtask, after effectRoot returned it.
         const finish = (settle: () => void) => {
-          queueMicrotask(() => stop?.());
+          queueMicrotask(() => stop());
           signal?.removeEventListener('abort', abort);
           settle();
         };
@@ -243,7 +243,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         // for the next one.
         let discoveryAttempted = false;
         let viewerAttempted = false;
-        stop = effectRoot(() => {
+        const stop = effectRoot(() => {
           effect(() => {
             if (closed.get()) {
               finish(() => reject(new Error('The Chatto connection is closed')));

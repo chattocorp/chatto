@@ -27,9 +27,7 @@
         "followed_thread": "{actor} respondeu num tópico que segue.",
         "new_message": "{actor} publicou uma nova mensagem.",
         "activity": "{actor} enviou-lhe uma notificação."
-      },
-      "load_failed": "Falha ao carregar notificações",
-      "room_load_failed": "Falha ao carregar notificações da sala"
+      }
     },
     "sign_out": {
       "title": "Sair",

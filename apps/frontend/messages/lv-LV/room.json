@@ -226,8 +226,6 @@
       "in_video_call": "Videozvanā",
       "remove_failed": "Neizdevās noņemt lietotāju no telpas",
       "remove_success": "{name} noņemts no telpas",
-      "members_load_failed": "Neizdevās ielādēt telpas dalībniekus",
-      "members_refresh_failed": "Neizdevās atsvaidzināt telpas dalībniekus",
       "search": "Meklēt"
     },
     "pins": {

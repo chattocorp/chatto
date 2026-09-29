@@ -1,11 +1,10 @@
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-import { ReactiveMap, ReactiveSet, signal } from '../reactivity/index.js';
+import { ReactiveMap, ReactiveSet, batch, signal } from '../reactivity/index.js';
 
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '../attachments/attachmentUrls.js';
 import {
   assetUrlNeedsRefresh,
   earliestAssetUrlRefreshAt,
-  mergeRefreshedAttachmentUrls,
   refreshAttachmentUrlsForAssets
 } from '../attachments/attachmentUrls.js';
 import type { ServerConnection } from '../server/serverConnection.js';
@@ -133,7 +132,8 @@ export class RoomFilesStore {
   set isLoadingMore(value) {
     this.#isLoadingMoreSignal.set(value);
   }
-  refreshedAttachmentUrls = new ReactiveMap<string, RefreshedAttachmentUrls>();
+  /** Fresh URLs by attachment ID. Updated in place, so readers stay subscribed. */
+  readonly refreshedAttachmentUrls = new ReactiveMap<string, RefreshedAttachmentUrls>();
 
   private readonly attachmentAPI: AttachmentAPI;
   private readonly roomId: string;
@@ -274,7 +274,7 @@ export class RoomFilesStore {
     this.totalCount = 0;
     this.hasMore = false;
     this.isInitialLoading = true;
-    this.refreshedAttachmentUrls = new ReactiveMap();
+    this.refreshedAttachmentUrls.clear();
     this.attachmentVersions.clear();
     this.hydrated = false;
     this.pendingTimelineEvents = [];
@@ -402,9 +402,11 @@ export class RoomFilesStore {
             continue;
           fresh.set(attachmentId, urls);
         }
-        this.refreshedAttachmentUrls = new ReactiveMap(
-          mergeRefreshedAttachmentUrls(this.refreshedAttachmentUrls, fresh)
-        );
+        batch(() => {
+          for (const [attachmentId, urls] of fresh) {
+            this.refreshedAttachmentUrls.set(attachmentId, urls);
+          }
+        });
       }
     })();
     this.urlRefreshPromise = refresh;

@@ -27,9 +27,7 @@
         "followed_thread": "{actor} vastas lõimes, mida jälgid.",
         "new_message": "{actor} postitas uue sõnumi.",
         "activity": "{actor} saatis sulle teavituse."
-      },
-      "load_failed": "Märguannete laadimine ebaõnnestus",
-      "room_load_failed": "Toa märguannete laadimine ebaõnnestus"
+      }
     },
     "sign_out": {
       "title": "Logi välja",

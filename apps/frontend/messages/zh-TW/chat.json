@@ -27,9 +27,7 @@
         "followed_thread": "{actor} 回覆了你追蹤的討論串。",
         "new_message": "{actor} 發布了一則新訊息。",
         "activity": "{actor} 傳送了一則通知給你。"
-      },
-      "load_failed": "無法載入通知",
-      "room_load_failed": "無法載入聊天室通知"
+      }
     },
     "sign_out": {
       "title": "登出",

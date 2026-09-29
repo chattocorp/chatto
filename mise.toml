@@ -249,14 +249,14 @@ depends = ["setup-frontend"]
 run = "pnpm turbo run build --filter=@chatto/runling-bot^..."
 
 [tasks.build-chatto-client]
-description = "Build the framework-neutral Chatto integration client"
+description = "Build the framework-neutral Chatto client"
 depends = ["setup-frontend"]
 run = "pnpm run build:chatto-client"
 
 [tasks.test-chatto-client]
-description = "Check and test the Chatto integration client"
+description = "Check, lint, and test the Chatto client"
 depends = ["setup-frontend"]
-run = "pnpm turbo run check test --filter=@chatto/client"
+run = "pnpm turbo run check lint test --filter=@chatto/client"
 
 [tasks.build-chatto-bot-client]
 description = "Build the framework-neutral Chatto bot helpers"

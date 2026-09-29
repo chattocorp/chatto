@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
 import { RoomMessagePosted, RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '../server/serverConnection.js';
+import { effect } from '../reactivity/index.js';
 import type { RefreshedAttachmentUrls } from '../attachments/attachmentUrls.js';
 import { RoomFilesStore, type RoomFileItem } from './files.js';
 
@@ -405,6 +406,30 @@ describe('RoomFilesStore', () => {
     secondRefresh.resolve(new Map());
 
     await Promise.all([refreshFirst, refreshSecond]);
+  });
+
+  it('notifies readers of an item when its URLs are refreshed', async () => {
+    attachmentMocks.listRoomAttachments.mockResolvedValue({
+      items: [roomFileItem()],
+      totalCount: 1,
+      hasMore: false
+    });
+    const refreshed: RefreshedAttachmentUrls = {
+      assetUrl: { url: '/fresh-signed-url', expiresAt: '2099-01-01T00:00:00.000Z' },
+      thumbnailAssetUrl: null,
+      videoThumbnailAssetUrl: null,
+      variantAssetUrls: new Map()
+    };
+    attachmentMocks.refreshAssetUrls.mockResolvedValueOnce(new Map([['att-1', refreshed]]));
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    await store.hydrate();
+    const seen: (RefreshedAttachmentUrls | undefined)[] = [];
+    const stop = effect(() => {
+      seen.push(store.refreshedAttachmentUrls.get('att-1'));
+    });
+    await store.refreshUrlsForItem(store.items[0]);
+    stop();
+    expect(seen).toEqual([undefined, refreshed]);
   });
 
   it('does not restore refreshed URLs after the attachment is deleted', async () => {

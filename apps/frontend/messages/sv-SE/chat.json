@@ -27,9 +27,7 @@
         "followed_thread": "{actor} svarade i en tråd som du följer.",
         "new_message": "{actor} publicerade ett nytt meddelande.",
         "activity": "{actor} skickade en avisering till dig."
-      },
-      "load_failed": "Det gick inte att läsa in aviseringar",
-      "room_load_failed": "Det gick inte att läsa in rumsaviseringar"
+      }
     },
     "sign_out": {
       "title": "Logga ut",

@@ -27,9 +27,7 @@
         "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
         "new_message": "Osoba {actor} opublikowała nową wiadomość.",
         "activity": "Masz nowe powiadomienie od {actor}."
-      },
-      "load_failed": "Nie udało się wczytać powiadomień",
-      "room_load_failed": "Nie udało się wczytać powiadomień pokoju"
+      }
     },
     "sign_out": {
       "title": "Wyloguj się",

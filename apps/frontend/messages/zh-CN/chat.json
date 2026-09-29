@@ -27,9 +27,7 @@
         "followed_thread": "{actor} 回复了你关注的主题。",
         "new_message": "{actor} 发布了一条新消息。",
         "activity": "{actor} 向你发送了一条通知。"
-      },
-      "load_failed": "加载通知失败",
-      "room_load_failed": "加载聊天室通知失败"
+      }
     },
     "sign_out": {
       "title": "退出登录",

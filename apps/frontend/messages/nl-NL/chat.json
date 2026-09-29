@@ -27,9 +27,7 @@
         "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt.",
         "new_message": "{actor} heeft een nieuw bericht geplaatst.",
         "activity": "{actor} heeft je een melding gestuurd."
-      },
-      "load_failed": "Kan meldingen niet laden",
-      "room_load_failed": "Kan kamermeldingen niet laden"
+      }
     },
     "sign_out": {
       "title": "Uitloggen",

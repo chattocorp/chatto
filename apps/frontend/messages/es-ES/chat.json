@@ -27,9 +27,7 @@
         "followed_thread": "{actor} ha respondido en un hilo que sigues.",
         "new_message": "{actor} ha publicado un mensaje nuevo.",
         "activity": "{actor} te ha enviado una notificación."
-      },
-      "load_failed": "No se pudieron cargar las notificaciones",
-      "room_load_failed": "No se pudieron cargar las notificaciones de la sala"
+      }
     },
     "sign_out": {
       "title": "Cerrar sesión",

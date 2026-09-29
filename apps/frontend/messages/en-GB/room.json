@@ -226,8 +226,6 @@
       "in_video_call": "In a video call",
       "remove_failed": "Failed to remove user from room",
       "remove_success": "Removed {name} from room",
-      "members_load_failed": "Failed to load room members",
-      "members_refresh_failed": "Failed to refresh room members",
       "search": "Search"
     },
     "pins": {

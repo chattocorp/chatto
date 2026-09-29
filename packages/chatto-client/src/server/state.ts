@@ -2,7 +2,7 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
-import { signal } from '../reactivity/index.js';
+import { batch, signal } from '../reactivity/index.js';
 import { getPublicServerInfo, type PublicServerInfo } from '../api/server.js';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.js';
@@ -198,8 +198,10 @@ export class ServerInfoState {
     if (this.#initializing) return this.#initializing;
 
     const initializing = (async () => {
-      this.loading = true;
-      this.error = null;
+      batch(() => {
+        this.loading = true;
+        this.error = null;
+      });
       try {
         await this.refreshProfile();
       } catch (err) {
@@ -222,16 +224,18 @@ export class ServerInfoState {
   async refreshProfile(): Promise<void> {
     try {
       const info = await this.#getPublicServerInfo(this.#label);
-      this.error = null;
-      this.name = info.name;
-      this.version = info.version;
-      this.lastDiscoveredAt = Date.now();
-      this.welcomeMessage = info.welcomeMessage;
-      this.description = info.description;
-      this.iconUrl = info.iconUrl;
-      this.bannerUrl = info.bannerUrl;
-      this.directRegistrationEnabled = info.directRegistrationEnabled;
-      this.directLoginEnabled = info.directLoginEnabled;
+      batch(() => {
+        this.error = null;
+        this.name = info.name;
+        this.version = info.version;
+        this.lastDiscoveredAt = Date.now();
+        this.welcomeMessage = info.welcomeMessage;
+        this.description = info.description;
+        this.iconUrl = info.iconUrl;
+        this.bannerUrl = info.bannerUrl;
+        this.directRegistrationEnabled = info.directRegistrationEnabled;
+        this.directLoginEnabled = info.directLoginEnabled;
+      });
     } catch (err) {
       this.error = err;
       console.error(`[server:${this.#label}] failed to load server info`, err);
@@ -240,13 +244,15 @@ export class ServerInfoState {
 
   /** Apply the public profile carried by the realtime projection stream. */
   applyProjectionProfile(profile: ServerPublicProfile): void {
-    this.name = profile.name;
-    this.version = profile.version;
-    this.welcomeMessage = profile.welcomeMessage ?? null;
-    this.description = profile.description ?? null;
-    this.iconUrl = profile.logoUrl ?? null;
-    this.bannerUrl = profile.bannerUrl ?? null;
-    this.error = null;
-    this.loading = false;
+    batch(() => {
+      this.name = profile.name;
+      this.version = profile.version;
+      this.welcomeMessage = profile.welcomeMessage ?? null;
+      this.description = profile.description ?? null;
+      this.iconUrl = profile.logoUrl ?? null;
+      this.bannerUrl = profile.bannerUrl ?? null;
+      this.error = null;
+      this.loading = false;
+    });
   }
 }

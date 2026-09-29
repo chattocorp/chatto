@@ -1,4 +1,4 @@
-import { ReactiveMap, batch, computed, signal } from '../reactivity/index.js';
+import { ReactiveMap, batch, signal } from '../reactivity/index.js';
 import { ServerStateStore } from './store.js';
 import { serverConnectionManager } from './serverConnection.js';
 import { eventBusManager } from './realtimeTransport.js';

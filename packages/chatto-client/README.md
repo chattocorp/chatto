@@ -135,7 +135,7 @@ Effects run synchronously when the outermost write ends.
 ## Development
 
 ```sh
-mise test-chatto-client   # type checks and tests
+mise test-chatto-client   # type checks, lint, and tests
 mise build-chatto-client  # compile dist/ for Node hosts
 ```
 

@@ -27,9 +27,7 @@
         "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat.",
         "new_message": "{actor} publicēja jaunu ziņu.",
         "activity": "{actor} nosūtīja jums paziņojumu."
-      },
-      "load_failed": "Neizdevās ielādēt paziņojumus",
-      "room_load_failed": "Neizdevās ielādēt telpas paziņojumus"
+      }
     },
     "sign_out": {
       "title": "Izrakstīties",

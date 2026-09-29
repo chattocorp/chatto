@@ -102,10 +102,12 @@ export class CurrentUserState {
   /** Publish complete account data after the registry has checked the account boundary. */
   accept(user: CurrentUser): void {
     this.#generation++;
-    this.user = user;
-    this.verifiedUserId = user.id;
-    this.#loadErrorSignal.set(null);
-    this.loading = false;
+    batch(() => {
+      this.user = user;
+      this.verifiedUserId = user.id;
+      this.#loadErrorSignal.set(null);
+      this.loading = false;
+    });
   }
 
   /**
@@ -128,16 +130,20 @@ export class CurrentUserState {
 
   /** Clear account data and fence requests from a retired session or store. */
   reset(): void {
-    this.invalidateVerification();
-    this.user = undefined;
+    batch(() => {
+      this.invalidateVerification();
+      this.user = undefined;
+    });
   }
 
   /** Retain display data after auth loss, but reject requests from the previous session. */
   invalidateVerification(): void {
     this.#generation++;
     this.#loadPromise = null;
-    this.verifiedUserId = null;
-    this.loading = false;
+    batch(() => {
+      this.verifiedUserId = null;
+      this.loading = false;
+    });
   }
 
   async #loadViewer(generation: number): Promise<void> {
@@ -154,12 +160,15 @@ export class CurrentUserState {
     } catch (err) {
       if (!isCurrent()) return;
       if (isAuthenticationRequiredError(err)) {
-        this.invalidateVerification();
-        // The bearer interceptor already tried a refresh. If that grant was
-        // rejected, the registry marked reauthentication required. A 401
-        // after a successful refresh is not proof that the session was revoked.
-        if (this.#cookieAuth || !this.#apiConfig?.renewBearerToken)
-          this.#onAuthenticationRequired?.();
+        // Observers see the ended session together with the finished read.
+        batch(() => {
+          this.invalidateVerification();
+          // The bearer interceptor already tried a refresh. If that grant was
+          // rejected, the registry marked reauthentication required. A 401
+          // after a successful refresh is not proof that the session was revoked.
+          if (this.#cookieAuth || !this.#apiConfig?.renewBearerToken)
+            this.#onAuthenticationRequired?.();
+        });
         return;
       }
       // Surface network failures (CORS, DNS, server down) as a console
@@ -187,9 +196,11 @@ export class CurrentUserState {
 
     if (!this.#cookieAuth) {
       console.warn('Remote server auth failure — marking reauthentication required');
-      this.invalidateVerification();
-      this.#onAuthenticationRequired?.();
-      this.loading = false;
+      batch(() => {
+        this.invalidateVerification();
+        this.#onAuthenticationRequired?.();
+        this.loading = false;
+      });
       return;
     }
 

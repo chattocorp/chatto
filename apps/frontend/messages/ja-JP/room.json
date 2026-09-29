@@ -226,8 +226,6 @@
       "in_video_call": "ビデオ通話中",
       "remove_failed": "ユーザーをルームから退出させられませんでした",
       "remove_success": "{name}をルームから退出させました",
-      "members_load_failed": "ルームメンバーの読み込みに失敗しました",
-      "members_refresh_failed": "ルームメンバーの更新に失敗しました",
       "search": "検索"
     },
     "pins": {

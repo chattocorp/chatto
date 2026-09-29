@@ -72,6 +72,20 @@ describe('connectChatto in Node', () => {
     await expect(connection.ready()).rejects.toThrow('rejected the API key');
   });
 
+  it('reports a rejected key although discovery failed too', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.discovery.mockRejectedValue(new TypeError('fetch failed'));
+    mocks.viewer.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      throw new ConnectError('authentication required', Code.Unauthenticated);
+    });
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'revoked' });
+    await expect(connection.ready()).rejects.toThrow('rejected the API key');
+    logged.mockRestore();
+    warned.mockRestore();
+  });
+
   it('allows one open connection and never reuses a closed server ID', async () => {
     const first = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
     expect(() => connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(

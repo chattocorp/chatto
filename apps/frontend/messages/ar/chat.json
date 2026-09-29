@@ -27,9 +27,7 @@
         "followed_thread": "ردّ {actor} في سلسلة تتابعها.",
         "new_message": "نشر {actor} رسالة جديدة.",
         "activity": "أرسل إليك {actor} إشعارًا."
-      },
-      "load_failed": "فشل في تحميل الإشعارات",
-      "room_load_failed": "فشل في تحميل إشعارات الغرفة"
+      }
     },
     "sign_out": {
       "title": "تسجيل الخروج",

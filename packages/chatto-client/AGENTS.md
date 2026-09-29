@@ -61,7 +61,7 @@ Runling examples use it. See
 
 ## Tests
 
-- Run `mise test-chatto-client` for type checks and tests.
+- Run `mise test-chatto-client` for type checks, lint, and tests.
 - Tests use happy-dom by default, with in-memory `Storage` and Web Locks from
   `src/testing/setup.ts`. Add `// @vitest-environment node` for tests of Node
   hosts.
