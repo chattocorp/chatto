@@ -34,7 +34,7 @@
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
   const notificationStore = stores.notifications;
-  const roomUnreadStore = stores.roomUnread;
+  const roomUnreadStore = serverUi(stores).roomUnread;
   const appUi = getAppUiState();
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
@@ -238,7 +238,8 @@
   // notifications when both are present.
   async function handleServerNotificationClick() {
     const notification =
-      notificationStore.getNonDMNotification() ?? notificationStore.getDMNotification();
+      serverUi(stores).attention.getNonDMNotification() ??
+      serverUi(stores).attention.getDMNotification();
     if (!notification || !notification.targetSupported) {
       await goto(resolve('/chat/notifications'));
       return;
@@ -284,9 +285,9 @@
     ? resolve('/setup')
     : resolve('/chat/[serverId]', { serverId: serverSegment })}
   selected={isActiveServer}
-  indicator={stores.serverIndicator()}
-  notificationCount={notificationStore.attention.unreadNotificationCount}
-  importantNotificationCount={notificationStore.attention.importantUnreadNotificationCount}
+  indicator={serverUi(stores).serverIndicator()}
+  notificationCount={serverUi(stores).attention.counts.unreadNotificationCount}
+  importantNotificationCount={serverUi(stores).attention.counts.importantUnreadNotificationCount}
   onclick={handleServerClick}
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}

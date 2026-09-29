@@ -6,6 +6,7 @@ keys. Only the owner and bot managers can open it.
 -->
 <script lang="ts">
   import { toastError } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { createBotAPI, type Bot } from '@chatto/client/api/bots';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
   import BotCredentialSection, {
@@ -27,8 +28,8 @@ keys. Only the owner and bot managers can open it.
   let webhookRoomId = $state('');
   const webhookRoomOptions = $derived([
     { value: '', label: m('settings.bots.webhook_room_none') },
-    ...serverScope.store.navigation.rooms
-      .filter((room) => room.type === RoomKind.CHANNEL)
+    ...serverUi(serverScope.store)
+      .navigation.rooms.filter((room) => room.type === RoomKind.CHANNEL)
       .map((room) => ({ value: room.id, label: room.name }))
       .sort((a, b) => a.label.localeCompare(b.label))
   ]);

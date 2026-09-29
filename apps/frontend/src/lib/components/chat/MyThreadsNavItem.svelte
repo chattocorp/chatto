@@ -1,5 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
@@ -11,9 +12,8 @@
 
   const serverScope = useServerScope();
   const serverId = serverScope.serverId;
-  const notificationStore = $derived(serverScope.store.notifications);
   const threadNotifications = $derived(
-    notificationStore.attentionOccurrences.filter((notification) => {
+    serverUi(serverScope.store).attention.occurrences.filter((notification) => {
       const target = notificationTarget(notification);
       if (!target.roomId || !target.threadRootId) return false;
       // A loaded room timeline can prove that a thread is not followed. When
@@ -50,7 +50,7 @@
     <span class="sr-only"
       >{m('chat.threads.notifications_count', { count: notificationCount })}</span
     >
-  {:else if serverScope.store.hasUnreadFollowedThreadInLoadedRooms()}
+  {:else if serverUi(serverScope.store).hasUnreadFollowedThreadInLoadedRooms()}
     <UnreadDot class="ms-auto" color="neutral" testid="my-threads-unread-dot" />
   {/if}
 </a>

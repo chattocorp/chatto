@@ -1,5 +1,5 @@
-import { ReactiveSet } from '../reactivity/index.js';
-import { appState } from '../util/appLifecycle.js';
+import { ReactiveSet } from '@chatto/client/reactivity';
+import { appState } from '../appLifecycle';
 
 /** One visible reading surface. Room views do not cover their threads. */
 export type ReadViewTarget = {

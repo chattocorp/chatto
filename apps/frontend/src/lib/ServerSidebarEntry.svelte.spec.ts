@@ -86,14 +86,28 @@ const { mocks } = vi.hoisted(() => {
             reason: 'version-confirmed'
           }
         },
-        serverIndicator: vi.fn().mockReturnValue(null)
+        serverIndicator: vi.fn().mockReturnValue(null),
+        /** Notification attention; it forwards to the notification mocks. */
+        get attention() {
+          const notifications = this.notifications;
+          return {
+            get counts() {
+              return notifications.attention;
+            },
+            getNonDMNotification: notifications.getNonDMNotification,
+            getDMNotification: notifications.getDMNotification
+          };
+        }
       }
     }
   };
 });
 
 // The store mock also carries the frontend UI state of its server.
-vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,

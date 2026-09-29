@@ -19,7 +19,6 @@
 
   const serverScope = useServerScope();
   const stores = serverScope.store;
-  const notificationStore = $derived(stores.notifications);
   const serverInfo = $derived(stores.serverInfo);
   const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -441,13 +440,13 @@
 
   // Check if this thread has pending reply notifications
   const hasThreadNotification = $derived(
-    hasReplies && event && notificationStore.hasThreadNotification(event.id)
+    hasReplies && event && serverUi(stores).attention.hasThreadNotification(event.id)
   );
   const hasThreadUnread = $derived(
     hasReplies &&
       event &&
       messageEvent?.viewerHasUnreadThread === true &&
-      !stores.readViews.covers(roomId, event.id)
+      !serverUi(stores).readViews.covers(roomId, event.id)
   );
   const hasMessageFooter = $derived(
     (isEcho && !!onOpenThread) ||

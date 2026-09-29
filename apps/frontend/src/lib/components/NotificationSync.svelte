@@ -13,6 +13,7 @@ Include this component once in the application root so signed-out pages also cle
 -->
 <script lang="ts">
   import { serverRegistry, eventBusManager } from '$lib/client';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
@@ -71,7 +72,7 @@ Include this component once in the application root so signed-out pages also cle
         const hasAudibleCreation = stores.notifications.occurrences.some(
           (row) =>
             pendingCreations.includes(row.id) &&
-            stores.notifications.needsAttention(row) &&
+            serverUi(stores).attention.needsAttention(row) &&
             row.attentionLevel === NotificationAttentionLevel.IMPORTANT
         );
         pendingCreations.length = 0;
@@ -126,7 +127,7 @@ Include this component once in the application root so signed-out pages also cle
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       if (!stores.notifications.hasLoaded) return null;
-      importantUnreadCount += stores.notifications.attention.importantUnreadNotificationCount;
+      importantUnreadCount += serverUi(stores).attention.counts.importantUnreadNotificationCount;
     }
 
     if (importantUnreadCount > 0) return { kind: 'flag' };

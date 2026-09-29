@@ -11,8 +11,8 @@ const { mocks } = vi.hoisted(() => ({
     activeStore: undefined as
       | {
           serverInfo: { motd: string };
-          notifications: {
-            attention: {
+          attention: {
+            counts: {
               unreadNotificationCount: number;
               importantUnreadNotificationCount: number;
             };
@@ -26,6 +26,12 @@ const { mocks } = vi.hoisted(() => ({
     openQuickSwitcher: vi.fn()
   }
 }));
+
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
@@ -118,7 +124,7 @@ describe('AppHeader', () => {
   it('shows notifications when a server is registered', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.getStore.mockReturnValue({
-      notifications: { attention: { unreadNotificationCount: 0 } }
+      attention: { counts: { unreadNotificationCount: 0 } }
     });
 
     const { container } = render(AppHeader);
@@ -141,7 +147,7 @@ describe('AppHeader', () => {
     mocks.activeServer = 'remote';
     mocks.authenticated = { remote: true };
     mocks.getStore.mockReturnValue({
-      notifications: { attention: { unreadNotificationCount: 0 } }
+      attention: { counts: { unreadNotificationCount: 0 } }
     });
 
     const { container } = render(AppHeader);
@@ -187,8 +193,8 @@ describe('AppHeader', () => {
         await empty.unmount();
         mocks.activeStore = {
           serverInfo: { motd },
-          notifications: {
-            attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
+          attention: {
+            counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
           }
         };
         const { container, getByRole } = render(AppHeader);

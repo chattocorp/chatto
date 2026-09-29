@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { effect } from '../reactivity/index.js';
-import { AppState } from './appLifecycle.js';
+import { effect } from '@chatto/client/reactivity';
+import { AppState } from './appLifecycle';
 
 type Transitions = { markBackgrounded(): void; activateFromInteraction(): void };
 

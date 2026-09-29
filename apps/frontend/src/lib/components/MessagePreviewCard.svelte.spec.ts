@@ -36,6 +36,12 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
 vi.mock('@chatto/client/api/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
     getRoomEventsAround: getRoomEventsAroundMock

@@ -24,7 +24,7 @@ import { directMessageLabels } from '$lib/render/directMessageLabels';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
 import { serverRegistry, serverConnectionManager } from '$lib/client';
-import { isNavigationVisibleRoom } from '@chatto/client/server/rooms';
+import { isNavigationVisibleRoom } from '$lib/state/server/navigation';
 import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<
@@ -276,8 +276,8 @@ export class QuickSwitcherModel {
       void store?.realtimeSync.hasUsableProjection;
       void store?.permissions.canStartDMs;
       if (store) for (const member of store.projection.users.values()) void member;
-      void store?.navigation.rooms;
-      void store?.navigation.isInitialLoading;
+      void (store && serverUi(store).navigation.rooms);
+      void (store && serverUi(store).navigation.isInitialLoading);
     }
     untrack(() => this.#loadCatalog());
   }
@@ -330,7 +330,7 @@ export class QuickSwitcherModel {
     const items: QuickSwitcherItem[] = [];
     this.#catalogLoading = instances.some((instance) => {
       const store = serverRegistry.tryGetStore(instance.id);
-      return store?.isAuthenticated && store.navigation.isInitialLoading;
+      return store?.isAuthenticated && serverUi(store).navigation.isInitialLoading;
     });
 
     for (const instance of instances) {
@@ -353,7 +353,7 @@ export class QuickSwitcherModel {
         score: 0
       });
 
-      for (const room of store?.navigation.rooms ?? []) {
+      for (const room of store ? serverUi(store).navigation.rooms : []) {
         if (room.type === RoomKind.DM) {
           if (!isNavigationVisibleRoom(room)) continue;
           const participants = room.members;

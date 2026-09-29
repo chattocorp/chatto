@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { RoomUnreadStore } from '@chatto/client/server/roomUnread';
+import { RoomUnreadStore } from '$lib/state/server/roomUnread';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import Harness from './UseRoomUnreadHarness.svelte';
 

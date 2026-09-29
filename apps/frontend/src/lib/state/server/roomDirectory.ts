@@ -1,9 +1,9 @@
-import { ReactiveMap, ReactiveSet } from '../reactivity/index.js';
-import { RoomKind } from '../api/roomDirectory.js';
-import type { MemberDirectoryAPI } from '../api/memberDirectory.js';
-import type { RoomCommandAPI } from '../api/rooms.js';
-import type { UserAvatarUserView } from '../timeline/users.js';
-import type { RoomsListGroup, RoomsListItem } from './rooms.js';
+import { ReactiveMap, ReactiveSet } from '@chatto/client/reactivity';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
+import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
+import type { RoomsListGroup, RoomsListItem } from './navigation';
 
 export type DirectoryRoom = {
   id: string;

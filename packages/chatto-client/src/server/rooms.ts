@@ -10,12 +10,8 @@ type ProjectionReadiness = {
   isRecoveringSnapshot?: boolean;
 };
 
-type NotificationCountState = {
-  roomUnreadCounts: Record<string, number>;
-  roomImportantUnreadCounts: Record<string, number>;
-};
-
-export type RoomsListItem = {
+/** A room of the projection with the viewer's membership and permissions. */
+export type RoomListItem = {
   id: string;
   name: string;
   description?: string | null;
@@ -26,24 +22,20 @@ export type RoomsListItem = {
   viewerCanReadMessages?: boolean | null;
   viewerCanJoinRoom: boolean;
   viewerCanManageRoom: boolean;
-  viewerNotificationCount: number;
-  viewerImportantNotificationCount: number;
+  /** For a direct message: whether it has messages. Null for other rooms. */
   hasMessageHistory?: boolean | null;
   /** DM participants, with a deleted placeholder for each deleted account. */
   members: UserAvatarUserView[];
 };
 
-export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
-  return room.type !== RoomKind.DM || room.hasMessageHistory !== false;
-}
-
-export type RoomsListGroup = {
+/** A room group of the projection, with the viewer's permissions in it. */
+export type RoomListGroup = {
   id: string;
   name: string;
   viewerCanCreateRoom?: boolean;
   viewerCanManageGroup: boolean;
   roomIds: string[];
-  items?: RoomsListGroupItem[];
+  items?: RoomListGroupItem[];
 };
 
 export type SidebarLinkListItem = {
@@ -52,7 +44,7 @@ export type SidebarLinkListItem = {
   url: string;
 };
 
-export type RoomsListGroupItem =
+export type RoomListGroupItem =
   | {
       id: string;
       type: 'room';
@@ -79,13 +71,12 @@ export function directMessageParticipant(
 }
 
 /**
- * Read-only navigation over the retained server projection.
+ * The rooms and room groups of the retained projection, as plain values.
  *
- * The view owns no server-derived room, membership, group, profile, ordering,
- * or notification state. Getters translate the current protobuf projection
- * and the owning notification store at the presentation boundary.
+ * The view owns no state: its getters translate the current protobuf
+ * projection. It is empty until the projection is readable.
  */
-export class NavigationStore {
+export class RoomListView {
   get #readable(): boolean {
     return (
       this.readiness.hasUsableProjection ||
@@ -94,7 +85,7 @@ export class NavigationStore {
     );
   }
 
-  readonly #roomsComputed = computed((): RoomsListItem[] => {
+  readonly #roomsComputed = computed((): RoomListItem[] => {
     if (!this.#readable) return [];
     const live = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
@@ -102,9 +93,6 @@ export class NavigationStore {
       const members = entry.memberUserIds.flatMap((userId) =>
         directMessageParticipant(this.projection, userId)
       );
-      const viewerNotificationCount = this.notificationCounts.roomUnreadCounts[room.id] ?? 0;
-      const viewerImportantNotificationCount =
-        this.notificationCounts.roomImportantUnreadCounts[room.id] ?? 0;
       return [
         {
           id: room.id,
@@ -116,8 +104,6 @@ export class NavigationStore {
           viewerCanReadMessages: room.canReadMessages,
           viewerCanJoinRoom: room.canJoinRoom,
           viewerCanManageRoom: room.canManageRoom,
-          viewerNotificationCount,
-          viewerImportantNotificationCount,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
           members
         }
@@ -129,7 +115,7 @@ export class NavigationStore {
     return this.#roomsComputed.get();
   }
 
-  readonly #roomGroupsComputed = computed((): RoomsListGroup[] => {
+  readonly #roomGroupsComputed = computed((): RoomListGroup[] => {
     if (!this.#readable) return [];
     return this.projection.roomGroups.map((group) => {
       const mapped = mapRoomGroup(group);
@@ -160,28 +146,32 @@ export class NavigationStore {
 
   constructor(
     private readonly projection: ServerProjectionStore,
-    private readonly readiness: ProjectionReadiness,
-    private readonly notificationCounts: NotificationCountState
+    private readonly readiness: ProjectionReadiness
   ) {}
 
-  get rooms(): RoomsListItem[] {
+  /** Rooms that are not archived. Reactive. */
+  get rooms(): RoomListItem[] {
     return this.#rooms;
   }
 
-  get roomGroups(): RoomsListGroup[] {
+  /** Room groups in their configured order. Reactive. */
+  get roomGroups(): RoomListGroup[] {
     return this.#roomGroups;
   }
 
-  get currentUserId(): string | null {
+  /** The viewer of the projection, or null until it is readable. Reactive. */
+  get viewerId(): string | null {
     if (!this.#readable) return null;
     return this.projection.viewer?.user?.profile?.id ?? null;
   }
 
-  get isInitialLoading(): boolean {
+  /** Whether the projection is not readable yet. Reactive. */
+  get isLoading(): boolean {
     return !this.#readable;
   }
 
-  isRoomMember(roomId: string): boolean {
+  /** Whether the viewer is a member of the room. Reactive. */
+  isMember(roomId: string): boolean {
     return this.#memberRoomIds.has(roomId);
   }
 }

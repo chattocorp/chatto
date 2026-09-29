@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { fly } from 'svelte/transition';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -62,7 +63,7 @@
 
   $effect(() => {
     if (!stores.currentUser.user) return;
-    return stores.readViews.register({ roomId, threadRootId: threadRootEventId });
+    return serverUi(stores).readViews.register({ roomId, threadRootId: threadRootEventId });
   });
 
   const store = $derived(stores.rooms.thread(roomId, threadRootEventId));

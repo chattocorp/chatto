@@ -76,7 +76,7 @@
   // Wait for the active server projection to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
   // room and trigger the not-found redirect.
-  const navigation = $derived(stores.navigation);
+  const navigation = $derived(serverUi(stores).navigation);
 
   $effect(() => {
     if (navigation.isInitialLoading) return;

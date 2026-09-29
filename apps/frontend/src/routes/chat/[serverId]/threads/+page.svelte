@@ -396,9 +396,12 @@
                       {@const primary = primaryEvent(thread)}
                       {@const hasUnreadAttention =
                         thread.hasUnreadReplies &&
-                        !serverStore.readViews.covers(thread.roomId, thread.threadRootEventId)}
+                        !serverUi(serverStore).readViews.covers(
+                          thread.roomId,
+                          thread.threadRootEventId
+                        )}
                       {@const attention = notificationAttentionForThread(
-                        serverStore.notifications.attentionOccurrences,
+                        serverUi(serverStore).attention.occurrences,
                         thread.roomId,
                         thread.threadRootEventId
                       )}

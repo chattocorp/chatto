@@ -112,14 +112,14 @@ describe('origin startup recovery', () => {
     const renew = vi
       .spyOn(ServerConnection.prototype, 'maintainBrowserSession')
       .mockImplementation(() => {});
-    const rooms = store.navigation.rooms;
+    const rooms = store.roomList.rooms;
     mocks.viewer.mockResolvedValueOnce({ id: 'U1', login: 'one', displayName: 'One' });
 
     await serverRegistry.recoverServer('origin');
 
     expect(mocks.viewer).toHaveBeenCalledOnce();
     expect(serverRegistry.getStore('origin')).toBe(store);
-    expect(store.navigation.rooms).toEqual(rooms);
+    expect(store.roomList.rooms).toEqual(rooms);
     expect(store.isAuthenticated).toBe(true);
     expect(renew).toHaveBeenCalledOnce();
   });

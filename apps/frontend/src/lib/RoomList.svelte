@@ -52,7 +52,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListItem,
     type RoomsListGroup,
     type RoomsListGroupItem
-  } from '@chatto/client/server/rooms';
+  } from '$lib/state/server/navigation';
   import type { CallRoomParticipant } from '@chatto/client/server/activeCallRooms';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
@@ -86,7 +86,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeServer = $derived(serverRegistry.getServer(activeServerId));
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = serverScope.store;
-  const notificationStore = $derived(stores.notifications);
   const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
@@ -104,8 +103,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   /** Whether the viewer can reorder whole room groups by drag and drop. */
   const groupDragEnabled = $derived(sidebarDragEnabled && canReorderGroups);
 
-  const navigation = $derived(stores.navigation);
-  const roomUnreadStore = $derived(stores.roomUnread);
+  const navigation = $derived(serverUi(stores).navigation);
+  const roomUnreadStore = $derived(serverUi(stores).roomUnread);
 
   let activeRoomId = $derived(page.params.roomId);
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
@@ -529,7 +528,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     roomContextMenu = null;
-    const result = await stores.roomDirectory.joinRoom(room.id);
+    const result = await serverUi(stores).roomDirectory.joinRoom(room.id);
     if (!serverScope.isCurrent()) return;
     if (result.ok) {
       toast.success(m('room.join.success', { room: room.name }));
@@ -789,7 +788,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await notificationStore.resolveRoomNotification(roomId, {
+    const lookup = await serverUi(stores).attention.resolveRoomNotification(roomId, {
       isDM,
       attentionLevel
     });

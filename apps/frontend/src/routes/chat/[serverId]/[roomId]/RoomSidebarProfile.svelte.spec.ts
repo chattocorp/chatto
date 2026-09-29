@@ -16,7 +16,10 @@ let server: TestServerScope;
 const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
 
 // The store mock also carries the frontend UI state of its server.
-vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('@chatto/client/api/users', () => ({ createUserAPI: vi.fn() }));
 vi.mock(

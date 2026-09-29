@@ -13,15 +13,14 @@ import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
 import { ServerProjectionStore } from './projection.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
-import { isNavigationVisibleRoom, NavigationStore } from './rooms.js';
+import { RoomListView } from './rooms.js';
 
-function navigationFor(
+function roomListFor(
   projection: ServerProjectionStore,
-  sync = new RealtimeProjectionSyncState(),
-  notificationCounts = { roomUnreadCounts: {}, roomImportantUnreadCounts: {} }
-): { navigation: NavigationStore; sync: RealtimeProjectionSyncState } {
+  sync = new RealtimeProjectionSyncState()
+): { roomList: RoomListView; sync: RealtimeProjectionSyncState } {
   sync.markCaughtUp(undefined);
-  return { navigation: new NavigationStore(projection, sync, notificationCounts), sync };
+  return { roomList: new RoomListView(projection, sync), sync };
 }
 
 function projectedRoom(
@@ -55,7 +54,7 @@ function projectedRoom(
   });
 }
 
-describe('NavigationStore', () => {
+describe('RoomListView', () => {
   it('resolves a deleted DM participant to a deleted placeholder', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse({
@@ -74,14 +73,14 @@ describe('NavigationStore', () => {
       })
     );
 
-    const { navigation } = navigationFor(projection);
-    const members = navigation.rooms.find((room) => room.id === 'dm')?.members ?? [];
+    const { roomList } = roomListFor(projection);
+    const members = roomList.rooms.find((room) => room.id === 'dm')?.members ?? [];
 
     // The viewer and the pending profile are unresolved; the deleted one is a placeholder.
     expect(members).toEqual([expect.objectContaining({ id: 'gone', deleted: true })]);
   });
 
-  it('selects rooms, members, permissions, counts, and viewer identity from the projection', () => {
+  it('selects rooms, members, permissions, and viewer identity from the projection', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse({
       user: new ViewerUser({ profile: new User({ id: 'U1' }) })
@@ -102,19 +101,15 @@ describe('NavigationStore', () => {
     );
     projection.rooms.set('managed', projectedRoom('managed'));
 
-    const { navigation } = navigationFor(projection, undefined, {
-      roomUnreadCounts: { dm: 3 },
-      roomImportantUnreadCounts: { dm: 2 }
-    });
+    const { roomList } = roomListFor(projection);
 
-    expect(navigation.currentUserId).toBe('U1');
-    expect(navigation.isInitialLoading).toBe(false);
-    expect(navigation.rooms).toMatchObject([
+    expect(roomList.viewerId).toBe('U1');
+    expect(roomList.isLoading).toBe(false);
+    expect(roomList.isMember('managed')).toBe(true);
+    expect(roomList.rooms).toMatchObject([
       {
         id: 'dm',
         type: RoomKind.DM,
-        viewerNotificationCount: 3,
-        viewerImportantNotificationCount: 2,
         hasMessageHistory: true,
         members: [{ id: 'U2', displayName: 'Ada' }]
       },
@@ -144,59 +139,29 @@ describe('NavigationStore', () => {
         ]
       })
     ];
-    const { navigation } = navigationFor(projection);
+    const { roomList } = roomListFor(projection);
 
-    expect(navigation.rooms.map((room) => room.id)).toEqual(['older', 'newer']);
-    expect(navigation.roomGroups).toMatchObject([
+    expect(roomList.rooms.map((room) => room.id)).toEqual(['older', 'newer']);
+    expect(roomList.roomGroups).toMatchObject([
       { id: 'G1', name: 'Projects', roomIds: ['newer'], viewerCanCreateRoom: true }
     ]);
 
     projection.rooms.delete('older');
-    expect(navigation.rooms.map((room) => room.id)).toEqual(['newer']);
-  });
-
-  it('uses DM history instead of message.read to control DM navigation', () => {
-    const projection = new ServerProjectionStore();
-    projection.rooms.set(
-      'unreadable-dm',
-      projectedRoom('unreadable-dm', {
-        kind: RoomKind.DM,
-        hasMessageHistory: true,
-        canReadMessages: false
-      })
-    );
-    const { navigation } = navigationFor(projection);
-
-    expect(navigation.rooms.map((room) => room.id)).toEqual(['unreadable-dm']);
-    expect(isNavigationVisibleRoom(navigation.rooms[0])).toBe(true);
-  });
-
-  it('treats a missing Important count as zero after the last Important occurrence is read', () => {
-    const projection = new ServerProjectionStore();
-    projection.rooms.set('ambient', projectedRoom('ambient'));
-    const { navigation } = navigationFor(projection, undefined, {
-      roomUnreadCounts: { ambient: 1 },
-      roomImportantUnreadCounts: {}
-    });
-
-    expect(navigation.rooms[0]).toMatchObject({
-      viewerNotificationCount: 1,
-      viewerImportantNotificationCount: 0
-    });
+    expect(roomList.rooms.map((room) => room.id)).toEqual(['newer']);
   });
 
   it('becomes empty immediately when the canonical projection resets', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse();
     projection.rooms.set('R1', projectedRoom('R1'));
-    const { navigation, sync } = navigationFor(projection);
+    const { roomList, sync } = roomListFor(projection);
 
     projection.reset();
     sync.acceptProjectionEvent(undefined, true);
 
-    expect(navigation.rooms).toEqual([]);
-    expect(navigation.roomGroups).toEqual([]);
-    expect(navigation.isInitialLoading).toBe(true);
+    expect(roomList.rooms).toEqual([]);
+    expect(roomList.roomGroups).toEqual([]);
+    expect(roomList.isLoading).toBe(true);
   });
 
   it('hides a snapshot prefix until caught up while retaining stale state', () => {
@@ -207,24 +172,21 @@ describe('NavigationStore', () => {
       user: new ViewerUser({ profile: new User({ id: 'U1' }) })
     });
     projection.rooms.set('R1', projectedRoom('R1'));
-    const navigation = new NavigationStore(projection, sync, {
-      roomUnreadCounts: {},
-      roomImportantUnreadCounts: {}
-    });
+    const roomList = new RoomListView(projection, sync);
 
-    expect(navigation.isInitialLoading).toBe(true);
-    expect(navigation.currentUserId).toBeNull();
-    expect(navigation.rooms).toEqual([]);
+    expect(roomList.isLoading).toBe(true);
+    expect(roomList.viewerId).toBeNull();
+    expect(roomList.rooms).toEqual([]);
 
     sync.markCaughtUp('cursor');
 
-    expect(navigation.isInitialLoading).toBe(false);
-    expect(navigation.currentUserId).toBe('U1');
-    expect(navigation.rooms.map((room) => room.id)).toEqual(['R1']);
+    expect(roomList.isLoading).toBe(false);
+    expect(roomList.viewerId).toBe('U1');
+    expect(roomList.rooms.map((room) => room.id)).toEqual(['R1']);
 
     sync.markStale();
 
-    expect(navigation.isInitialLoading).toBe(false);
-    expect(navigation.rooms.map((room) => room.id)).toEqual(['R1']);
+    expect(roomList.isLoading).toBe(false);
+    expect(roomList.rooms.map((room) => room.id)).toEqual(['R1']);
   });
 });

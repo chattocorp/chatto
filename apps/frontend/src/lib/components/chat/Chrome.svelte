@@ -135,13 +135,15 @@
   );
   const managedRoom = $derived(
     page.params.roomId
-      ? (activeStore.navigation.rooms.find((room) => room.id === page.params.roomId) ?? null)
+      ? (serverUi(activeStore).navigation.rooms.find((room) => room.id === page.params.roomId) ??
+          null)
       : null
   );
   const managedGroup = $derived(
     page.params.groupId
-      ? (activeStore.navigation.roomGroups.find((group) => group.id === page.params.groupId) ??
-          null)
+      ? (serverUi(activeStore).navigation.roomGroups.find(
+          (group) => group.id === page.params.groupId
+        ) ?? null)
       : null
   );
   const managementNavItems = $derived(

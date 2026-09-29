@@ -76,7 +76,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     presenceScope ? presencePreferences.get(presenceScope) : null
   );
   const voiceCallState = $derived(serverUi(activeStore).voiceCall);
-  const navigation = $derived(activeStore.navigation);
+  const navigation = $derived(serverUi(activeStore).navigation);
 
   const displayName = $derived(
     activeServerUser

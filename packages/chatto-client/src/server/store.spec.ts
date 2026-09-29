@@ -1015,7 +1015,7 @@ describe('ServerStateStore privileged mode', () => {
       await store.setPrivilegedMode(active);
       expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
       expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('roomGroups', 'cursor-after');
-      expect(store.navigation.roomGroups).toMatchObject([
+      expect(store.roomList.roomGroups).toMatchObject([
         {
           id: 'G1',
           viewerCanCreateRoom: active,
@@ -1063,10 +1063,10 @@ describe('ServerStateStore privileged mode', () => {
 
     await store.setPrivilegedMode(true);
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'cursor-after');
-    expect(store.navigation.rooms.map((entry) => entry.id).sort()).toEqual(['R1', 'R2']);
+    expect(store.roomList.rooms.map((entry) => entry.id).sort()).toEqual(['R1', 'R2']);
 
     await store.setPrivilegedMode(false);
-    expect(store.navigation.rooms.map((entry) => entry.id)).toEqual(['R1']);
+    expect(store.roomList.rooms.map((entry) => entry.id)).toEqual(['R1']);
   });
 
   it('clears expired activation and refreshes effective permissions', async () => {
@@ -1396,7 +1396,7 @@ describe('ServerStateStore unified realtime resources', () => {
           new RealtimeProjectionUpdate({ reset: true, retainView: true })
         );
         expect(messages.rootEvents).toEqual([]);
-        if (access === 'removed') expect(store.navigation.rooms).toEqual([]);
+        if (access === 'removed') expect(store.roomList.rooms).toEqual([]);
       }
     }
   );

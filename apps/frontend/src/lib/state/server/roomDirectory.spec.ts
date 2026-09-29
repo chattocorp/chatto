@@ -1,10 +1,10 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RoomKind } from '../api/roomDirectory.js';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
 import { describe, expect, it, vi } from 'vitest';
-import type { MemberDirectoryAPI } from '../api/memberDirectory.js';
-import type { RoomCommandAPI } from '../api/rooms.js';
-import type { RoomsListItem } from './rooms.js';
-import { RoomDirectoryStore, type RoomDirectoryNavigation } from './roomDirectory.js';
+import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import type { RoomsListItem } from './navigation';
+import { RoomDirectoryStore, type RoomDirectoryNavigation } from './roomDirectory';
 
 function room(id: string, member = false): RoomsListItem {
   return {

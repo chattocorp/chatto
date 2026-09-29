@@ -1,6 +1,12 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 
 // Title composition has separate coverage; these fixtures model route access only.
+// The store mock also carries the frontend UI state of its server.
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
+
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
@@ -46,7 +52,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 
-import type { RoomsListItem } from '@chatto/client/server/rooms';
+import type { RoomsListItem } from '$lib/state/server/navigation';
 import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 
 const { mocks } = vi.hoisted(() => ({

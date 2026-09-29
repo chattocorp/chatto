@@ -14,6 +14,7 @@ preview on screen.
 -->
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
+  import { serverUi } from '$lib/state/server/serverUi';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { skipToken } from '@tanstack/svelte-query';
@@ -104,7 +105,8 @@ preview on screen.
     link.serverId ? (serverRegistry.getServer(link.serverId)?.name ?? null) : null
   );
   const roomName = $derived(
-    store?.navigation.rooms.find((room) => room.id === link.roomId)?.name ?? null
+    (store ? serverUi(store).navigation.rooms : []).find((room) => room.id === link.roomId)?.name ??
+      null
   );
 
   function previewThumbnailUrl(attachment: MessagePreviewAttachment): string | null {

@@ -4,7 +4,7 @@ import {
   type NotificationPolicyField,
   type NotificationPolicyScope
 } from '@chatto/client/api/notifications';
-import type { RoomsListGroup, RoomsListItem } from '@chatto/client/server/rooms';
+import type { RoomsListGroup, RoomsListItem } from '$lib/state/server/navigation';
 
 export type NotificationPolicyColumn = {
   key: string;

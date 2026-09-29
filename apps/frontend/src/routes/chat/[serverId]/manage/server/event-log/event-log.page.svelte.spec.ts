@@ -76,7 +76,10 @@ class MockIntersectionObserver implements IntersectionObserver {
 
 // Page titles are tested separately from this page's partial route/server fixtures.
 // The store mock also carries the frontend UI state of its server.
-vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 

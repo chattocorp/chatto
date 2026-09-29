@@ -43,9 +43,9 @@ export type TestServerScopeOptions = {
   /** Extra store members, such as `navigation` or `projection`. Getters are kept. */
   store?: object;
   /**
-   * The store's frontend UI state that `serverUi(store)` returns, such as a
-   * fake `voiceCall`. Without it, `serverUi` creates real state for the fake
-   * store.
+   * Members of the store's frontend UI state, such as a fake `voiceCall`.
+   * `serverUi(store)` returns the fake store with these members added, so a
+   * spec can also set UI members, such as `navigation`, with `store`.
    */
   ui?: object;
   /** Extra connection members. Getters are kept. */
@@ -129,7 +129,7 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
     options.connection
   ) as unknown as ServerConnection;
   const store = buildStore(t, connection, options.serverInfo, options.store);
-  if (options.ui) setServerUiForTests(store, options.ui);
+  setServerUiForTests(store, withMembers(Object.create(store), options.ui));
   return {
     get serverId() {
       return t.serverId;

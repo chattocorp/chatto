@@ -10,7 +10,10 @@ import { resolveAndRedirect } from './+page.svelte';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
 // The store mock also carries the frontend UI state of its server.
-vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('$app/navigation', () => ({ goto }));
 vi.mock('$app/state', () => ({ page: {} }));

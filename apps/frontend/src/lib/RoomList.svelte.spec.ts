@@ -1,5 +1,6 @@
 import { ServerProjectionStore } from '@chatto/client/server/projection';
-import { NavigationStore } from '@chatto/client/server/rooms';
+import { NavigationStore } from '$lib/state/server/navigation';
+import { RoomListView } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
@@ -15,7 +16,7 @@ import { sidebarNav } from '$lib/state/globals.svelte';
 import '../app.css';
 
 import { NotificationSignalKind } from '@chatto/client/api/notifications';
-import type { RoomsListGroup } from '@chatto/client/server/rooms';
+import type { RoomsListGroup } from '$lib/state/server/navigation';
 import { getToasts, toast } from '$lib/ui/toast';
 import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
 
@@ -68,6 +69,10 @@ const { mocks } = vi.hoisted(() => ({
         }),
         markRead: vi.fn()
       },
+      /** Notification attention; the notification mock also serves it. */
+      get attention() {
+        return this.notifications;
+      },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
         setRoomUnread: vi.fn((roomId: string, unread: boolean) => {
@@ -112,7 +117,10 @@ const { mocks } = vi.hoisted(() => ({
 const activeRoomRoute = new SvelteMap<string, string>();
 
 // The store mock also carries the frontend UI state of its server.
-vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
@@ -1407,12 +1415,13 @@ describe('RoomList', () => {
       ];
     };
     mocks.store.navigation = new NavigationStore(
-      projection,
-      { hasUsableProjection: true },
-      {
+      new RoomListView(projection, { hasUsableProjection: true }),
+      () => ({
+        unreadNotificationCount: 0,
+        importantUnreadNotificationCount: 0,
         roomUnreadCounts: {},
         roomImportantUnreadCounts: {}
-      }
+      })
     ) as unknown as typeof originalNavigation;
     try {
       setPermissions(false, false);

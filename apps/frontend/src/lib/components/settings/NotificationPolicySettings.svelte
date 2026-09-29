@@ -6,6 +6,7 @@ Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { Panel, HelpTooltip, Hint } from '$lib/ui';
@@ -110,8 +111,8 @@ Rows are notification causes. Columns follow the current navigation layout.
   const columns = $derived(
     notificationPolicyColumns(
       serverScope.store.serverInfo.name,
-      serverScope.store.navigation.roomGroups,
-      serverScope.store.navigation.rooms,
+      serverUi(serverScope.store).navigation.roomGroups,
+      serverUi(serverScope.store).navigation.rooms,
       scopeFilter
     )
   );

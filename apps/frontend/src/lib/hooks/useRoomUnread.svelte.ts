@@ -1,4 +1,5 @@
 import { createReadStateAPI, type MarkRoomAsReadResult } from '@chatto/client/api/readState';
+import { serverUi } from '$lib/state/server/serverUi';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelte';
 
@@ -21,7 +22,7 @@ export function useRoomUnread(
   }
 ) {
   const serverScope = useServerScope();
-  const roomUnreadStore = serverScope.store.roomUnread;
+  const roomUnreadStore = serverUi(serverScope.store).roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (

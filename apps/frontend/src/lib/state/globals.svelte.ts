@@ -7,7 +7,7 @@
 
 import { innerWidth } from 'svelte/reactivity/window';
 
-export { appState } from '@chatto/client/util/appLifecycle';
+export { appState } from './appLifecycle';
 
 // ---------------------------------------------------------------------------
 // SidebarNav — sidebar visibility state

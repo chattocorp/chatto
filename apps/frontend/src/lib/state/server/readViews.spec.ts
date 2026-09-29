@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { appState } from '../util/appLifecycle.js';
-import { ReadViewRegistry } from './readViews.js';
+import { appState } from '../appLifecycle';
+import { ReadViewRegistry } from './readViews';
 
 describe('ReadViewRegistry', () => {
   let wasFocused: boolean;

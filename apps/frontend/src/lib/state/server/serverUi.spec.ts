@@ -4,6 +4,10 @@ import type { ServerStateStore } from '@chatto/client/server/store';
 import type { ProjectionReset, RoomAccessLoss } from '@chatto/client/server/storeEvents';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import type { NotificationAPI } from '@chatto/client/api/notifications';
+import { NotificationStore } from '@chatto/client/server/notifications';
+import { ServerProjectionStore } from '@chatto/client/server/projection';
+import { RoomListView } from '@chatto/client/server/rooms';
 import { serverUi } from './serverUi';
 
 type Listener<T extends unknown[] = []> = (...args: T) => unknown;
@@ -24,12 +28,17 @@ function fakeStore() {
       list.push(listener);
       return () => {};
     };
+  const projection = new ServerProjectionStore();
+  const followed: { roomId: string; threadRootId: string }[] = [];
   const store = {
     serverId: 'server',
     isAuthenticated: true,
     projectionViewerId: 'U1',
     viewerId: 'U1',
-    projection: { rooms: new Map(), activeCalls: [] as ActiveCall[] },
+    projection,
+    notifications: new NotificationStore({} as NotificationAPI),
+    roomList: new RoomListView(projection, { hasUsableProjection: true }),
+    unreadFollowedThreadsInLoadedRooms: () => followed,
     connection: { getAPI: () => ({}) },
     onReset: on(listeners.reset),
     onRoomAccessLost: on(listeners.roomAccessLost),
@@ -47,7 +56,7 @@ function fakeStore() {
     update: (update: unknown) => listeners.update.forEach((listener) => listener(update)),
     dispose: () => listeners.dispose.forEach((listener) => listener())
   };
-  return { store, emit };
+  return { store, emit, followed };
 }
 
 describe('serverUi', () => {
@@ -275,13 +284,13 @@ describe('serverUi', () => {
   it('overlays the projected calls with its own call', () => {
     const { store } = fakeStore();
     const ui = serverUi(store);
-    store.projection.activeCalls.push(
+    store.projection.activeCalls = [
       new ActiveCall({
         room: { id: 'R1' },
         callId: 'CALL-1',
         participants: [new CallParticipant({ user: { id: 'U2', login: 'bob' } })]
       })
-    );
+    ];
     expect(ui.activeCallRooms.has('R1')).toBe(true);
     expect(ui.activeCallRooms.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U2']);
     ui.voiceCall.connected = true;
@@ -294,5 +303,63 @@ describe('serverUi', () => {
     const dispose = vi.spyOn(serverUi(store).voiceCall, 'dispose');
     emit.dispose();
     expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it('confirms optimistic unread and membership state from projected rooms', () => {
+    const { store, emit } = fakeStore();
+    const ui = serverUi(store);
+    ui.roomUnread.setRoomUnread('R1', true);
+    const acknowledge = vi.spyOn(ui.roomDirectory, 'acknowledgeMembership');
+    const viewer = vi.spyOn(ui.roomUnread, 'acknowledgeViewerProjection');
+    store.projection.rooms.set(
+      'R1',
+      new RoomWithViewerState({
+        room: { id: 'R1' },
+        viewerState: { isMember: true, hasUnread: false }
+      })
+    );
+
+    emit.update({ resource: { case: 'rooms' } });
+    expect(ui.roomUnread.roomIsUnread('R1')).toBe(false);
+    expect(acknowledge).toHaveBeenCalledWith('R1', true);
+    emit.update({ resource: { case: 'viewer' } });
+    expect(viewer).toHaveBeenCalledOnce();
+  });
+
+  it('forgets optimistic state of a removed room and at a reset', () => {
+    const { store, emit } = fakeStore();
+    const ui = serverUi(store);
+    ui.roomUnread.setRoomUnread('R1', true);
+    const removeMembership = vi.spyOn(ui.roomDirectory, 'removeMembershipProjection');
+
+    emit.roomAccessLost({ roomId: 'R1', messagesOnly: false, removed: false });
+    expect(ui.roomUnread.roomIsUnread('R1')).toBe(true);
+    emit.roomAccessLost({ roomId: 'R1', messagesOnly: false, removed: true });
+    expect(ui.roomUnread.roomIsUnread('R1')).toBe(false);
+    expect(removeMembership).toHaveBeenCalledWith('R1');
+
+    ui.roomUnread.setRoomUnread('R2', true);
+    emit.reset({ privacy: false, retainView: false });
+    expect(ui.roomUnread.roomIsUnread('R2')).toBe(false);
+  });
+
+  it('shows notifications before unread rooms on the server icon', () => {
+    const { store } = fakeStore();
+    const ui = serverUi(store);
+    expect(ui.serverIndicator()).toBeNull();
+    ui.roomUnread.setRoomUnread('R1', true);
+    expect(ui.serverIndicator()).toBe('unread');
+    store.notifications.setUnreadNotificationCount(1);
+    expect(ui.serverIndicator()).toBe('notification');
+  });
+
+  it('ignores an unread followed thread that the user reads now', () => {
+    const { store, followed } = fakeStore();
+    const ui = serverUi(store);
+    followed.push({ roomId: 'R1', threadRootId: 'T1' });
+    expect(ui.hasUnreadFollowedThreadInLoadedRooms()).toBe(true);
+    const close = ui.readViews.register({ roomId: 'R1', threadRootId: 'T1' });
+    expect(ui.hasUnreadFollowedThreadInLoadedRooms()).toBe(false);
+    close();
   });
 });

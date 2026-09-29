@@ -8,7 +8,7 @@ import type {
   RoomMembersStore
 } from '$lib/state/room';
 import type { MentionRolesStore } from '@chatto/client/server/mentionRoles';
-import type { RoomUnreadStore } from '@chatto/client/server/roomUnread';
+import type { RoomUnreadStore } from '$lib/state/server/roomUnread';
 import type { ServerInfoState } from '@chatto/client/server/state';
 import type { createMessageAPI, UpdateMessageInput } from '@chatto/client/api/messages';
 import type { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';

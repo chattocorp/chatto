@@ -1,6 +1,6 @@
-import { ReactiveMap, ReactiveSet, signal } from '../reactivity/index.js';
-import { OptimisticMutationRegistry } from '../util/optimisticMutations.js';
-import type { ServerProjectionStore } from './projection.js';
+import { ReactiveMap, ReactiveSet, signal } from '@chatto/client/reactivity';
+import { OptimisticMutationRegistry } from '@chatto/client/util/optimisticMutations';
+import type { ServerProjectionStore } from '@chatto/client/server/projection';
 
 export type OptimisticRoomReadHandle = {
   commit(): void;

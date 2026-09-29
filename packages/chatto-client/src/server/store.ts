@@ -22,14 +22,9 @@ import {
   type ServerPermissions
 } from './permissions.js';
 import { NotificationStore } from './notifications.js';
-import { RoomUnreadStore } from './roomUnread.js';
-import { ReadViewRegistry } from './readViews.js';
 import { ServerPresence } from './presence.js';
-import { NavigationStore } from './rooms.js';
-import { RoomDirectoryStore } from './roomDirectory.js';
-import { createRoomCommandAPI } from '../api/rooms.js';
+import { RoomListView } from './rooms.js';
 import { createNotificationAPI } from '../api/notifications.js';
-import { createMemberDirectoryAPI } from '../api/memberDirectory.js';
 import { createRoleAPI } from '../api/roles.js';
 import {
   createRealtimeResourceAPI,
@@ -72,14 +67,6 @@ import {
   removeRegisteredServerQueries
 } from '../query/cacheRegistry.js';
 
-/**
- * What kind of indicator a server (or the DM area) should display.
- * - 'notification' = warning badge, has a pending mention/reply/room-message
- * - 'unread' = grey dot, has unread rooms but no unread notification occurrence
- * - null = no indicator
- */
-export type ServerIndicator = 'notification' | 'unread' | null;
-
 function viewerAuthorizationLost(
   previous: GetViewerResponse | null,
   current: GetViewerResponse
@@ -115,11 +102,10 @@ export class ServerStateStore {
   readonly serverId: string;
   readonly currentUser: CurrentUserState;
   readonly serverInfo: ServerInfoState;
+  /** The viewer's notification occurrences and the server's counts. */
   readonly notifications: NotificationStore;
-  readonly readViews = new ReadViewRegistry();
-  readonly roomUnread: RoomUnreadStore;
-  readonly navigation: NavigationStore;
-  readonly roomDirectory: RoomDirectoryStore;
+  /** The rooms and room groups of the projection. */
+  readonly roomList: RoomListView;
   readonly mentionRoles: MentionRolesStore;
   readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
@@ -149,7 +135,7 @@ export class ServerStateStore {
    * readable. Compare it with projection rows, such as room members.
    */
   get projectionViewerId(): string | null {
-    return this.navigation.currentUserId;
+    return this.roomList.viewerId;
   }
 
   /** Viewer display data; authentication must use currentUser.verifiedUserId instead. */
@@ -328,7 +314,6 @@ export class ServerStateStore {
 
     const notificationAPI = serverConnection.getAPI(createNotificationAPI);
     this.#realtimeResources = serverConnection.getAPI(createRealtimeResourceAPI);
-    const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
     this.#privilegedModeAPI = serverConnection.getAPI(createPrivilegedModeAPI);
     this.currentUser = new CurrentUserState(
@@ -343,25 +328,8 @@ export class ServerStateStore {
       publicServerInfoLoader,
       () => this.projection.serverState
     );
-    this.notifications = new NotificationStore(notificationAPI, (roomId, threadRootId) =>
-      this.readViews.covers(roomId, threadRootId)
-    );
-    this.roomUnread = new RoomUnreadStore(() => this.projection);
-    const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
-    const notifications = this.notifications;
-    this.navigation = new NavigationStore(this.projection, this.realtimeSync, {
-      get roomUnreadCounts() {
-        return notifications.attention.roomUnreadCounts;
-      },
-      get roomImportantUnreadCounts() {
-        return notifications.attention.roomImportantUnreadCounts;
-      }
-    });
-    this.roomDirectory = new RoomDirectoryStore(
-      this.navigation,
-      memberDirectoryAPI,
-      roomCommandAPI
-    );
+    this.notifications = new NotificationStore(notificationAPI);
+    this.roomList = new RoomListView(this.projection, this.realtimeSync);
     this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
     this.#rooms = new RoomStores({
       serverId: this.serverId,
@@ -625,20 +593,17 @@ export class ServerStateStore {
     return event.event.viewerIsFollowingThread ?? null;
   }
 
-  /** Check loaded canonical room timelines for one unread followed thread. */
-  hasUnreadFollowedThreadInLoadedRooms(): boolean {
-    return this.#rooms
-      .entries()
-      .some(
-        ([roomId, { messages }]) =>
-          messages?.rootEvents.some(
-            (event) =>
-              event.event.kind === TimelineEventKind.MessagePosted &&
-              event.event.viewerIsFollowingThread === true &&
-              event.event.viewerHasUnreadThread === true &&
-              !this.readViews.covers(roomId, event.id)
-          ) ?? false
-      );
+  /** Unread followed threads whose roots are in loaded room timelines. */
+  unreadFollowedThreadsInLoadedRooms(): { roomId: string; threadRootId: string }[] {
+    return this.#rooms.entries().flatMap(([roomId, { messages }]) =>
+      (messages?.rootEvents ?? []).flatMap((event) =>
+        event.event.kind === TimelineEventKind.MessagePosted &&
+        event.event.viewerIsFollowingThread === true &&
+        event.event.viewerHasUnreadThread === true
+          ? [{ roomId, threadRootId: event.id }]
+          : []
+      )
+    );
   }
 
   /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
@@ -808,7 +773,6 @@ export class ServerStateStore {
             this.#emitAuthorityChanged({ lost: true });
           }
           if (!this.currentUser.apply(viewerResponseToState(response).user)) return false;
-          this.roomUnread.acknowledgeViewerProjection();
           break;
         }
         case 'users': {
@@ -828,8 +792,6 @@ export class ServerStateStore {
         }
         case 'rooms':
           for (const [roomId, room] of this.projection.rooms) {
-            this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
-            this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);
             if (room.viewerState?.isMember === false) this.clearRoomAccess(roomId);
             else if (room.viewerState?.isMember === true) this.restoreRoomAccess(roomId);
           }
@@ -1046,8 +1008,6 @@ export class ServerStateStore {
   }
 
   private scrubRemovedRoom(roomId: string): void {
-    this.roomDirectory.removeMembershipProjection(roomId);
-    this.roomUnread.removeRoomProjection(roomId);
     queryCaches.roomMembers?.purgeRoom(this.serverId, roomId);
     this.clearRoomAccess(roomId, true);
   }
@@ -1444,10 +1404,8 @@ export class ServerStateStore {
       () => this.projection.users.clear(),
       () => this.presence.clear(),
       ...this.#rooms.resetHandlers(),
-      () => this.roomDirectory.resetOptimisticState(),
       () => this.mentionRoles.invalidate(),
-      () => this.notifications.resetProjectionState(),
-      () => this.roomUnread.clear()
+      () => this.notifications.resetProjectionState()
     ]);
     return complete;
   }
@@ -1487,23 +1445,6 @@ export class ServerStateStore {
   }
 
   /**
-   * Single source of truth for the server-level indicator dot.
-   * Notifications take precedence over plain unread.
-   *
-   * DMs are surfaced as rooms on the Server in the merged sidebar, so the
-   * user expects the server icon to light up the same way it would for a
-   * channel mention or unread.
-   */
-  serverIndicator(): ServerIndicator {
-    // Channel + DM activity both roll up to the single server indicator.
-    if (this.notifications.attention.unreadNotificationCount > 0) return 'notification';
-    if (this.notifications.hasNonDMNotifications()) return 'notification';
-    if (this.notifications.hasDMNotifications()) return 'notification';
-    if (this.roomUnread.hasAnyUnread) return 'unread';
-    return null;
-  }
-
-  /**
    * The viewer to use when this store interprets realtime events: the
    * projection viewer, then the accepted account, then the saved session ID.
    */
@@ -1529,7 +1470,6 @@ export class ServerStateStore {
     this.currentUser.reset();
     this.#timelines.reset();
     this.projection.users.clear();
-    this.readViews.clear();
     // In-flight destination and realtime reads must not revive a retired store.
     this.#realtimeProjectionGeneration++;
     this.#permissionCheckGeneration++;
@@ -1539,7 +1479,6 @@ export class ServerStateStore {
     this.#rooms.dispose();
     this.presence.clear();
     this.realtimeSync.reset();
-    this.roomUnread.clear();
     this.#events.clear();
   }
 }

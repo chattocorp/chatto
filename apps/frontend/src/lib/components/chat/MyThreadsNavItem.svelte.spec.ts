@@ -35,13 +35,15 @@ describe('MyThreadsNavItem', () => {
     mocks.hasUnreadFollowedThread = false;
     createTestServerScope({
       store: {
-        notifications: {
-          get attentionOccurrences() {
+        loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
+          mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null
+      },
+      ui: {
+        attention: {
+          get occurrences() {
             return mocks.unreadOccurrences;
           }
         },
-        loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
-          mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null,
         hasUnreadFollowedThreadInLoadedRooms: () => mocks.hasUnreadFollowedThread
       }
     });

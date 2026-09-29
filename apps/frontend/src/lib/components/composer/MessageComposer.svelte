@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import { createMessageAPI } from '@chatto/client/api/messages';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { createLinkPreviewAPI } from '@chatto/client/api/linkPreviews';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -43,7 +44,7 @@
   const serverScope = useServerScope();
   const stores = serverScope.store;
   const serverInfo = stores.serverInfo;
-  const roomUnreadStore = stores.roomUnread;
+  const roomUnreadStore = serverUi(stores).roomUnread;
   const mentionRolesStore = stores.mentionRoles;
 
   let {

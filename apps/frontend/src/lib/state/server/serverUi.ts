@@ -1,7 +1,8 @@
 /**
  * Frontend state of one server that the Chatto client does not own: the
- * voice call, pending highlights, message search sessions, and the admin
- * room-layout editor.
+ * voice call, read views and notification attention, sidebar navigation,
+ * optimistic unread and membership state, pending highlights, message search
+ * sessions, and the admin room-layout editor.
  *
  * `serverUi(store)` returns the state of one server store. It lives as long as
  * the store: a new store, for example after an account change, gets new
@@ -13,6 +14,7 @@
  */
 
 import { createAdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { createMessageSearchAPI, type MessageSearchAPI } from '@chatto/client/api/messageSearch';
 import { createRoomCommandAPI } from '@chatto/client/api/rooms';
 import { createVoiceCallAPI } from '@chatto/client/api/voiceCalls';
@@ -22,9 +24,20 @@ import { ActiveCallRoomsState } from './activeCallRooms';
 import { AdminRoomLayoutStore } from './adminRoomLayout';
 import { CallPreferencesState } from './callPreferences.svelte';
 import type { CallPermissions } from './callTypes';
+import { NavigationStore } from './navigation';
+import { NotificationAttention } from './notificationAttention';
+import { ReadViewRegistry } from './readViews';
+import { RoomDirectoryStore } from './roomDirectory';
+import { RoomUnreadStore } from './roomUnread';
 import { MessageSearchStore } from './messageSearch';
 import { PendingHighlightStore } from './pendingHighlight';
 import { VoiceCallState } from './voiceCall.svelte';
+
+/**
+ * What the server icon shows: `notification` for an occurrence that needs
+ * attention, `unread` for unread rooms without one, or nothing.
+ */
+export type ServerIndicator = 'notification' | 'unread' | null;
 
 /** Per-room searches kept at the same time. The least recently used one goes first. */
 const MAX_RETAINED_ROOM_SEARCHES = 10;
@@ -62,6 +75,16 @@ export class ServerUi {
   readonly voiceCall: VoiceCallState;
   /** Active calls from the projection, with this client's own call overlaid. */
   readonly activeCallRooms: ActiveCallRoomsState;
+  /** Panes that the user reads now; they need no notification attention. */
+  readonly readViews = new ReadViewRegistry();
+  /** Notifications that need attention, without viewed ones. */
+  readonly attention: NotificationAttention;
+  /** Rooms and groups of the sidebar, with notification counts. */
+  readonly navigation: NavigationStore;
+  /** Optimistic unread state of rooms over the projection. */
+  readonly roomUnread: RoomUnreadStore;
+  /** Optimistic room membership commands and join previews. */
+  readonly roomDirectory: RoomDirectoryStore;
   /** One-shot highlight targets for in-app navigation. */
   readonly pendingHighlights = new PendingHighlightStore();
   /** Server-wide message search. */
@@ -86,6 +109,14 @@ export class ServerUi {
       () => this.voiceCall,
       () => store.projection.activeCalls
     );
+    this.attention = new NotificationAttention(store.notifications, this.readViews);
+    this.navigation = new NavigationStore(store.roomList, () => this.attention.counts);
+    this.roomUnread = new RoomUnreadStore(() => store.projection);
+    this.roomDirectory = new RoomDirectoryStore(
+      this.navigation,
+      connection.getAPI(createMemberDirectoryAPI),
+      connection.getAPI(createRoomCommandAPI)
+    );
     this.#searchAPI = connection.getAPI(createMessageSearchAPI);
     this.messageSearch = new MessageSearchStore(this.#searchAPI, () => store.isAuthenticated);
     this.adminRoomLayout = new AdminRoomLayoutStore(
@@ -96,12 +127,18 @@ export class ServerUi {
     store.onReset(({ retainView }) => {
       if (retainView) return;
       this.voiceCall.handleProjectionReset();
+      this.roomDirectory.resetOptimisticState();
+      this.roomUnread.clear();
       this.pendingHighlights.clear();
       this.adminRoomLayout.resetProjectionState();
       this.#forEachSearch((search) => search.clearResults());
     });
-    store.onRoomAccessLost(({ roomId, messagesOnly }) => {
+    store.onRoomAccessLost(({ roomId, messagesOnly, removed }) => {
       if (!messagesOnly) this.voiceCall.handleRoomAccessRevoked(roomId);
+      if (removed) {
+        this.roomDirectory.removeMembershipProjection(roomId);
+        this.roomUnread.removeRoomProjection(roomId);
+      }
       this.#forRoomSearch(roomId, (search) => search.revokeRoom(roomId));
     });
     store.onUserDeleted((userId) =>
@@ -118,7 +155,15 @@ export class ServerUi {
       // A reset temporarily removes room data, not call access. Keep the media
       // session until fresh permissions arrive; the server also enforces
       // LiveKit access.
-      if (resource === 'rooms') void this.voiceCall.reconcilePermissions();
+      if (resource === 'rooms') {
+        void this.voiceCall.reconcilePermissions();
+        // The projected rooms confirm or replace optimistic state.
+        for (const [roomId, room] of store.projection.rooms) {
+          this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
+          this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);
+        }
+      }
+      if (resource === 'viewer') this.roomUnread.acknowledgeViewerProjection();
       if (update.reset || resource === 'rooms' || resource === 'roomGroups') {
         if (this.#adminRoomLayoutActive) this.adminRoomLayout.requestProjectionRefresh();
       }
@@ -132,6 +177,8 @@ export class ServerUi {
     store.onDispose(() => {
       // Release call media first; nothing waits for the server.
       this.voiceCall.dispose();
+      this.readViews.clear();
+      this.roomUnread.clear();
       this.adminRoomLayout.deactivateProjectionRefresh();
       this.#adminRoomLayoutSubscriptions = 0;
       this.pendingHighlights.clear();
@@ -172,6 +219,25 @@ export class ServerUi {
       this.#adminRoomLayoutSubscriptions = Math.max(0, this.#adminRoomLayoutSubscriptions - 1);
       if (!this.#adminRoomLayoutActive) this.adminRoomLayout.deactivateProjectionRefresh();
     };
+  }
+
+  /**
+   * The server icon's indicator. Notifications take precedence over unread
+   * rooms; direct messages count like rooms.
+   */
+  serverIndicator(): ServerIndicator {
+    if (this.attention.counts.unreadNotificationCount > 0) return 'notification';
+    if (this.attention.hasNonDMNotifications()) return 'notification';
+    if (this.attention.hasDMNotifications()) return 'notification';
+    if (this.roomUnread.hasAnyUnread) return 'unread';
+    return null;
+  }
+
+  /** Whether a loaded room timeline has an unread followed thread that nobody reads now. */
+  hasUnreadFollowedThreadInLoadedRooms(): boolean {
+    return this.#store
+      .unreadFollowedThreadsInLoadedRooms()
+      .some(({ roomId, threadRootId }) => !this.readViews.covers(roomId, threadRootId));
   }
 
   /** Forward call participant and end events to the voice call. */

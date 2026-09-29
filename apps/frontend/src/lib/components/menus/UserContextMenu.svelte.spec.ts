@@ -28,7 +28,10 @@ const serverScopeMock = vi.hoisted(() => ({
 }));
 
 // The store mock also carries the frontend UI state of its server.
-vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+vi.mock(
+  '$lib/state/server/serverUi',
+  async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
+);
 
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: vi.fn(),

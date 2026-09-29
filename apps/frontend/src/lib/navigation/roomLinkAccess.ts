@@ -1,4 +1,4 @@
-import type { RoomsListItem } from '@chatto/client/server/rooms';
+import type { RoomsListItem } from '$lib/state/server/navigation';
 
 export type RoomRouteAccess =
   | {

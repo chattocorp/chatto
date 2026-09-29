@@ -1,5 +1,6 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -16,22 +17,24 @@
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
   const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
 
+  /** A server's notification counts without viewed ones; zero without a store. */
+  function attentionCounts(serverId: string) {
+    const store = serverRegistry.tryGetStore(serverId);
+    return store
+      ? serverUi(store).attention.counts
+      : { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 };
+  }
+
   // Aggregate exact notification counts across all servers.
   const totalNotificationCount = $derived(
     serverRegistry.servers.reduce(
-      (sum, instance) =>
-        sum +
-        (serverRegistry.tryGetStore(instance.id)?.notifications.attention.unreadNotificationCount ??
-          0),
+      (sum, instance) => sum + attentionCounts(instance.id).unreadNotificationCount,
       0
     )
   );
   const totalImportantNotificationCount = $derived(
     serverRegistry.servers.reduce(
-      (sum, instance) =>
-        sum +
-        (serverRegistry.tryGetStore(instance.id)?.notifications.attention
-          .importantUnreadNotificationCount ?? 0),
+      (sum, instance) => sum + attentionCounts(instance.id).importantUnreadNotificationCount,
       0
     )
   );

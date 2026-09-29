@@ -5,7 +5,7 @@
  * changes.
  */
 
-import { batch, signal } from '../reactivity/index.js';
+import { batch, signal } from '@chatto/client/reactivity';
 
 /** Page lifecycle state: focus, visibility, foreground returns, and network recovery. */
 export class AppState {

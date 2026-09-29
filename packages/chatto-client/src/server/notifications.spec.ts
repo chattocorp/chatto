@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { ReadViewRegistry } from './readViews.js';
 import {
   NotificationStore,
   notificationAttentionForThread,
@@ -147,50 +146,6 @@ describe('notificationAttentionForThread', () => {
 });
 
 describe('NotificationStore', () => {
-  it.each(['before', 'after'])(
-    'suppresses viewed thread attention when notifications arrive %s registration',
-    (order) => {
-      const views = new ReadViewRegistry();
-      const store = new NotificationStore(makeAPI(), (roomId, threadRootId) =>
-        views.covers(roomId, threadRootId)
-      );
-      const rows = [
-        { ...mention('thread-a'), threadRootId: 'a' },
-        { ...mention('thread-b'), threadRootId: 'b' },
-        mention('room')
-      ];
-      const snapshot = notificationPage(page(rows));
-      // Include unread activity beyond the retained page. It must not be subtracted.
-      snapshot.unreadCount += 4;
-      snapshot.importantUnreadCount += 4;
-      snapshot.roomUnreadCounts.r1 += 4;
-      snapshot.roomImportantUnreadCounts.r1 += 4;
-      if (order === 'before') store.replaceOccurrenceProjection(snapshot);
-      const closeA = views.register({ roomId: 'r1', threadRootId: 'a' });
-      if (order === 'after') store.replaceOccurrenceProjection(snapshot);
-
-      expect(store.attention.unreadNotificationCount).toBe(6);
-      expect(store.attention.importantUnreadNotificationCount).toBe(6);
-      expect(store.attention.roomUnreadCounts.r1).toBe(6);
-      expect(store.attention.roomImportantUnreadCounts.r1).toBe(6);
-      expect(store.attentionOccurrences.map((row) => row.id)).toEqual(['thread-b', 'room']);
-      expect(store.hasThreadNotification('a')).toBe(false);
-      expect(store.needsAttention(rows[0])).toBe(false);
-      expect(store.unreadNotificationCount).toBe(7);
-      expect(store.occurrences.every((row) => row.unread)).toBe(true);
-
-      const closeB = views.register({ roomId: 'r1', threadRootId: 'b' });
-      expect(store.attention.unreadNotificationCount).toBe(5);
-      // A stale authoritative snapshot must still pass through the same local rule.
-      store.replaceOccurrenceProjection(snapshot);
-      expect(store.attention.unreadNotificationCount).toBe(5);
-      closeA();
-      closeB();
-      expect(store.attention.unreadNotificationCount).toBe(7);
-      expect(store.hasThreadNotification('a')).toBe(true);
-    }
-  );
-
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -528,41 +483,6 @@ describe('NotificationStore', () => {
       notification: null
     });
     expect(store.occurrences).toHaveLength(0);
-  });
-
-  it('resolveRoomNotification uses the cached room notification before querying', async () => {
-    const cached = mention('cached');
-    const api = makeAPI({ notifications: page([mention('remote')], 1) });
-    const store = new NotificationStore(api);
-    store.occurrences = [cached];
-
-    const result = await store.resolveRoomNotification('r1');
-
-    expect(result).toEqual({
-      ok: true,
-      totalCount: null,
-      notification: cached
-    });
-    expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
-  });
-
-  it('resolveRoomNotification filters cached occurrences by attention level', async () => {
-    const reaction = { ...mention('reaction'), attentionLevel: NotificationAttentionLevel.AMBIENT };
-    const roomMention = mention('mention');
-    const api = makeAPI();
-    const store = new NotificationStore(api);
-    store.occurrences = [reaction, roomMention];
-
-    const important = await store.resolveRoomNotification('r1', {
-      attentionLevel: NotificationAttentionLevel.IMPORTANT
-    });
-    const ambient = await store.resolveRoomNotification('r1', {
-      attentionLevel: NotificationAttentionLevel.AMBIENT
-    });
-
-    expect(important.notification?.id).toBe('mention');
-    expect(ambient.notification?.id).toBe('reaction');
-    expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
   });
 
   it('fetchRoomNotification filters and counts by attention level', async () => {
@@ -1283,34 +1203,13 @@ describe('NotificationStore', () => {
       room: { id: 'dm-room', name: '' }
     };
 
-    const store = new NotificationStore(makeAPI());
-    store.occurrences = [threadReply, dm];
-
+    expect(notificationTarget(dm).isDM).toBe(true);
     expect(notificationTarget(threadReply)).toMatchObject({
       isDM: false,
       roomId: 'room-kind',
       eventId: 'reply-event',
       threadRootId: 'thread-root'
     });
-    expect(store.hasThreadNotification('thread-root')).toBe(true);
-    expect(store.hasDMRoomNotification('dm-room')).toBe(true);
-  });
-
-  it('does not choose an unsupported future target as a server-badge destination', () => {
-    const unsupported = {
-      ...mention('future-target'),
-      createdAt: new Date('2026-04-29T13:00:00Z').toISOString(),
-      actor: null,
-      targetSupported: false
-    };
-    const supported = mention('supported-mention');
-    const store = new NotificationStore(makeAPI());
-
-    store.occurrences = [unsupported, supported];
-    expect(store.getNonDMNotification()).toBe(supported);
-
-    store.occurrences = [unsupported];
-    expect(store.getNonDMNotification()).toBeUndefined();
   });
 
   it('retains existing notifications when the server returns an API error', async () => {
@@ -1346,50 +1245,6 @@ describe('NotificationStore', () => {
     // Existing notifications survive a network blip too.
     expect(store.occurrences).toHaveLength(1);
     expect(store.error).toMatchObject({ message: 'network down' });
-  });
-
-  // The DM list dot uses hasDMRoomNotification per conversation. It must
-  // match DM notifications by room, and ignore non-DM notifications even if
-  // they happen to share a room id.
-  it('hasDMRoomNotification / getDMRoomNotification scope to DM notifications by room', () => {
-    const dmA = {
-      ...mention('dm-a'),
-      signalKind: NotificationSignalKind.DIRECT_MESSAGE,
-      createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
-      room: { id: 'roomA', name: '' }
-    };
-    const dmB = {
-      ...mention('dm-b'),
-      signalKind: NotificationSignalKind.DIRECT_MESSAGE,
-      createdAt: new Date('2026-04-29T13:00:00Z').toISOString(),
-      room: { id: 'roomA', name: '' }
-    };
-    const roomMention = {
-      ...mention('mention-same-id'),
-      createdAt: new Date().toISOString(),
-      room: { id: 'roomA', name: 'r' },
-      eventId: 'e'
-    };
-
-    const store = new NotificationStore(makeAPI());
-    // Most-recent-first ordering, as fetch() would produce.
-    store.occurrences = [dmB, dmA, roomMention];
-
-    expect(store.hasDMRoomNotification('roomA')).toBe(true);
-    expect(store.hasDMRoomNotification('roomB')).toBe(false);
-
-    // getDMRoomNotification returns the freshest DM, not the mention,
-    // even when the mention's roomId matches.
-    expect(store.getDMRoomNotification('roomA')?.id).toBe('dm-b');
-
-    // hasRoomNotification (the non-DM variant) must NOT see DM notifications
-    // — that's how the regular sidebar dot stays orthogonal to the DM dot.
-    expect(store.hasRoomNotification('roomA')).toBe(true); // matched by mention
-    // If we drop the mention, hasRoomNotification goes false even though
-    // DMs still target that room id.
-    store.occurrences = [dmB, dmA];
-    expect(store.hasRoomNotification('roomA')).toBe(false);
-    expect(store.hasDMRoomNotification('roomA')).toBe(true);
   });
 
   // Per-instance isolation: each instance has its own NotificationStore, and

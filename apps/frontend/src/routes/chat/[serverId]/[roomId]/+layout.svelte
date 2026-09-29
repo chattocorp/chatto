@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { roomRouteAccess } from '$lib/navigation/roomLinkAccess';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import Room from './Room.svelte';
@@ -14,7 +15,7 @@
   const activeServerId = serverScope.serverId;
 
   const serverStore = serverScope.store;
-  const navigation = $derived(serverStore.navigation);
+  const navigation = $derived(serverUi(serverStore).navigation);
   // Displayed membership belongs to this store's viewer. The connection owns
   // session verification and command readiness.
   const ready = $derived(
