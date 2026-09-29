@@ -6,11 +6,11 @@ import type {
   AdminMember,
   AdminMemberDetails,
   AdminRoleMutationResult
-} from '@chatto/client/api/adminUsers';
+} from '$lib/api/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { adminQueryKeys } from '@chatto/client/query/admin';
-import { removeRegisteredAdminUserQueries } from '@chatto/client/query/cacheRegistry';
+import { adminQueryKeys } from '$lib/query/admin';
+import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 

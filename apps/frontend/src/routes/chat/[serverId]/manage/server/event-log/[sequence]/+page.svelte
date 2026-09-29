@@ -12,7 +12,7 @@
     timeFormatSettingsFor
   } from '$lib/utils/formatTime';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery } from '$lib/query/client';
 
   const serverScope = useServerScope();

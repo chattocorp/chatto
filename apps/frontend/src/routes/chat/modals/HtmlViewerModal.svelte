@@ -6,7 +6,7 @@ URL refresh results cannot start a preview or download after this opening ends.
   import { onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/state';
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { HtmlViewerModalState } from '$lib/modal';
   import { createAttachmentAPI } from '@chatto/client/api/attachments';
   import {

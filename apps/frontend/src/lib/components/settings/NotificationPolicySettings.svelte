@@ -23,9 +23,9 @@ Rows are notification causes. Columns follow the current navigation layout.
     type ScopedNotificationPolicy
   } from '@chatto/client/api/notifications';
   import { createNotificationAPI } from '@chatto/client/api/notifications';
-  import { registerQueryCacheRemovalListener } from '@chatto/client/query/cacheRegistry';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { createQuery, queryClient } from '$lib/query/client';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import NotificationPolicyCell from './NotificationPolicyCell.svelte';
   import {
     notificationPolicyCellApplicable,

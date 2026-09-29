@@ -7,9 +7,9 @@ import type { CurrentUserState } from '@chatto/client/auth/currentUser';
 import {
   removeRegisteredAdminQueries,
   removeRegisteredServerQueries
-} from '@chatto/client/query/cacheRegistry';
+} from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
-import { settingsQueryKeys } from '@chatto/client/query/settings';
+import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
 
 const { mocks } = vi.hoisted(() => ({

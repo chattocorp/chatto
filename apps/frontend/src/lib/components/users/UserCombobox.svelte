@@ -9,7 +9,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { createQuery } from '$lib/query/client';
-  import { directoryQueryKeys } from '@chatto/client/query/directory';
+  import { directoryQueryKeys } from '$lib/query/directory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Combobox } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';

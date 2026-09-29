@@ -48,7 +48,6 @@
     "@chatto/api-types": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",
-    "@tanstack/query-core": "5.103.2",
     "js-sha256": "^1.0.0",
     "semver": "^7.8.5"
   },

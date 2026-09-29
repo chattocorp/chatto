@@ -13,7 +13,7 @@
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';

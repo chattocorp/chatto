@@ -376,9 +376,6 @@ importers:
       '@connectrpc/connect-web':
         specifier: ^1.7.0
         version: 1.7.0(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.7.0(@bufbuild/protobuf@1.10.1))
-      '@tanstack/query-core':
-        specifier: 5.103.2
-        version: 5.103.2
       js-sha256:
         specifier: ^1.0.0
         version: 1.0.0

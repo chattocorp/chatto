@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
-import { removeRegisteredAdminUserQueries } from '@chatto/client/query/cacheRegistry';
+import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import type { DirectoryMember } from '@chatto/client/api/memberDirectory';
 import type { RoomSuspensionSummary } from '@chatto/client/api/rooms';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';

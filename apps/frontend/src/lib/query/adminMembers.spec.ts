@@ -1,17 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AdminMember } from '../api/adminUsers.js';
-import {
-  adminMemberRowKey,
-  createAdminMemberLoader,
-  type AdminMemberBatch
-} from './adminMembers.js';
+import type { AdminMember } from '$lib/api/adminUsers';
+import { adminMemberRowKey, createAdminMemberLoader, type AdminMemberBatch } from './adminMembers';
 import {
   queryClient,
   removeAdminQueries,
   removeAdminUserQueries,
   removeServerQueries,
   refreshRoleQueries
-} from './client.js';
+} from './queryClient';
 
 function member(id: string): AdminMember {
   return {

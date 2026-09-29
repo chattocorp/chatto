@@ -93,6 +93,7 @@ export class StoreEvents {
   readonly authorityChanged = new StoreEvent<[AuthorityChange]>();
   readonly permissionsChanged = new StoreEvent<[], void | Promise<unknown>>();
   readonly update = new StoreEvent<[RealtimeProjectionUpdate]>();
+  readonly sessionEnded = new StoreEvent<[]>();
   readonly dispose = new StoreEvent<[]>();
 
   /** Remove every listener of every event. */
@@ -105,6 +106,7 @@ export class StoreEvents {
       this.authorityChanged,
       this.permissionsChanged,
       this.update,
+      this.sessionEnded,
       this.dispose
     ]) {
       event.clear();

@@ -30,10 +30,6 @@ examples use it. See
 - Guard every use of `window`, `document`, `navigator`, and `localStorage`.
   Node hosts, such as bots, do not have them or have only part of them.
 - Do not add a dependency on Runling, Authling, or an application package.
-- Pin `@tanstack/query-core` to the version that the frontend's
-  `@tanstack/svelte-query` uses. The frontend binds Svelte Query to the
-  package's `QueryClient`; `apps/frontend/src/lib/query/client.spec.ts`
-  fails when the versions differ.
 - Request helpers take an options object with `signal` as their last
   argument. `MessagingRequests` holds them for connections and `Api`.
 

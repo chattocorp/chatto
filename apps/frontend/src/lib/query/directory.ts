@@ -1,5 +1,5 @@
-import type { ServerConnection } from '../server/serverConnection.js';
-import { serverSessionQueryRoot } from './keys.js';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import { serverSessionQueryRoot } from './keys';
 
 type DirectoryQueryConnection = Pick<ServerConnection, 'queryScope'>;
 

@@ -4,10 +4,10 @@ import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
-} from '../api/memberDirectory.js';
-import { queryClient } from './client.js';
-import { queryCaches } from './cacheRegistry.js';
-import { directoryQueryKeys } from './directory.js';
+} from '@chatto/client/api/memberDirectory';
+import { queryClient } from './queryClient';
+import { queryCaches } from './cacheRegistry';
+import { directoryQueryKeys } from './directory';
 import {
   flattenRoomMembers,
   listEligibleRoomMembers,
@@ -15,7 +15,7 @@ import {
   purgeRoomMemberQueries,
   roomMembersQueryPage,
   type RoomMembersData
-} from './roomMembers.js';
+} from './roomMembers';
 
 function member(id: string, overrides: Partial<DirectoryMember> = {}): DirectoryMember {
   return {

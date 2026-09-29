@@ -5,7 +5,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { createQuery } from '$lib/query/client';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';

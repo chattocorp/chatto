@@ -8,11 +8,11 @@
  */
 
 import { Code, ConnectError } from '@connectrpc/connect';
-import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/query-core';
-import type { RoomSuspensionList } from '../api/rooms.js';
-import { queryCaches } from './cacheRegistry.js';
-import { serverQueryRoot } from './keys.js';
-import { clearUserStores } from '../server/users.js';
+import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
+import type { RoomSuspensionList } from '@chatto/client/api/rooms';
+import { queryCaches } from './cacheRegistry';
+import { serverQueryRoot } from './keys';
+import { clearUserStores } from '@chatto/client/server/users';
 
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
 const SERVER_QUERY_GC_TIME_MS = 5 * 60_000;

@@ -17,7 +17,7 @@
   import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';

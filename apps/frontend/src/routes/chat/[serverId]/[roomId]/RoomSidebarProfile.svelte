@@ -21,7 +21,7 @@ fields as realtime changes arrive.
   import { m } from '$lib/i18n/messages';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary, mapUserPresenceView } from '@chatto/client/api/userSummary';
   import {

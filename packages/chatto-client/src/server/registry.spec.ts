@@ -5,7 +5,6 @@ import {
   splitPersistedServers,
   type RegisteredServer
 } from './registry.js';
-import { queryClient } from '../query/client.js';
 import { serverStorageKey } from '../storage/serverStorage.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -420,7 +419,8 @@ describe('ServerRegistry', () => {
           userDisplayName: 'Alice'
         })
       );
-      queryClient.setQueryData(['server', 'remote', 'private'], 'cached admin data');
+      const sessionEnded = vi.fn();
+      registry.getStore('remote').onSessionEnded(sessionEnded);
 
       registry.handleAuthenticationRequired('remote');
 
@@ -429,7 +429,8 @@ describe('ServerRegistry', () => {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
       expect(stored).toHaveLength(1);
       expect(stored[0].reauthRequiredAt).toEqual(expect.any(Number));
-      expect(queryClient.getQueryData(['server', 'remote', 'private'])).toBeUndefined();
+      // Hosts remove their cached private reads when the session ends.
+      expect(sessionEnded).toHaveBeenCalledOnce();
     });
 
     it('clears reauth-required state explicitly', async () => {

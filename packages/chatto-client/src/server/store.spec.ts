@@ -56,7 +56,6 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   MessageEditedEvent,
-  MessageRetractedEvent,
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
@@ -68,21 +67,11 @@ import {
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomAccessLoss } from './storeEvents.js';
 import { effect, effectRoot } from '../reactivity/index.js';
-const { apiMocks, cacheMocks } = vi.hoisted(() => ({
-  cacheMocks: {
-    reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
-    refreshRoleQueries: vi.fn(),
-    refreshRegisteredAdminQueries: vi.fn(),
-    refreshRegisteredServerQueries: vi.fn(async () => {}),
-    removeRegisteredAdminQueries: vi.fn(),
-    removeRegisteredAdminUserQueries: vi.fn(),
-    removeRegisteredServerQueries: vi.fn(),
-    resetFollowedThreads: vi.fn(),
-    refreshFollowedThreads: vi.fn(),
-    scrubFollowedThreadRoom: vi.fn(),
-    retractFollowedThreadMessage: vi.fn(),
-    purgeRoomMemberQueries: vi.fn(),
-    scrubRoomMemberUser: vi.fn()
+const { apiMocks, eventMocks } = vi.hoisted(() => ({
+  eventMocks: {
+    authorityChanged: vi.fn(),
+    permissionsChanged: vi.fn(),
+    userDeleted: vi.fn()
   },
   apiMocks: {
     listPins: vi.fn(),
@@ -346,7 +335,6 @@ import { EventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTra
 
 /** The realtime transports of the stores that {@link makeStore} creates. */
 const eventBusManager = new EventBusManager({ liveServers: 'selected' });
-import { queryCaches } from '../query/cacheRegistry.js';
 import type { ServerConnection } from './serverConnection.js';
 import type { RegisteredServer } from './registry.js';
 
@@ -462,6 +450,9 @@ function makeStore(
     onAuthenticationRequired
   );
   stores.push(store);
+  store.onAuthorityChanged(eventMocks.authorityChanged);
+  store.onPermissionsChanged(eventMocks.permissionsChanged);
+  store.onUserDeleted(eventMocks.userDeleted);
   return store;
 }
 
@@ -511,38 +502,7 @@ beforeEach(() => {
     .mockResolvedValue({ items: [], totalCount: 0, hasMore: false, latestPinMarker: '' });
   apiMocks.readMessages.mockReset().mockResolvedValue([]);
   resetUserStoresForTests();
-  queryCaches.server = {
-    remove: cacheMocks.removeRegisteredServerQueries,
-    refresh: cacheMocks.refreshRegisteredServerQueries,
-    removeAdmin: cacheMocks.removeRegisteredAdminQueries,
-    refreshAdmin: cacheMocks.refreshRegisteredAdminQueries,
-    refreshRoles: cacheMocks.refreshRoleQueries,
-    removeAdminUser: cacheMocks.removeRegisteredAdminUserQueries,
-    reconcileAdminRoomGroups: cacheMocks.reconcileRegisteredAdminRoomGroupQueries
-  };
-  queryCaches.followedThreads = {
-    reset: cacheMocks.resetFollowedThreads,
-    refresh: cacheMocks.refreshFollowedThreads,
-    retractMessage: cacheMocks.retractFollowedThreadMessage,
-    scrubRoom: cacheMocks.scrubFollowedThreadRoom
-  };
-  queryCaches.roomMembers = {
-    purgeRoom: cacheMocks.purgeRoomMemberQueries,
-    scrubUser: cacheMocks.scrubRoomMemberUser
-  };
-  cacheMocks.refreshRoleQueries.mockClear();
-  cacheMocks.retractFollowedThreadMessage.mockClear();
-  cacheMocks.resetFollowedThreads.mockClear();
-  cacheMocks.refreshFollowedThreads.mockClear();
-  cacheMocks.scrubFollowedThreadRoom.mockClear();
-  cacheMocks.purgeRoomMemberQueries.mockClear();
-  cacheMocks.scrubRoomMemberUser.mockClear();
-  cacheMocks.reconcileRegisteredAdminRoomGroupQueries.mockClear();
-  cacheMocks.removeRegisteredServerQueries.mockClear();
-  cacheMocks.refreshRegisteredAdminQueries.mockClear();
-  cacheMocks.refreshRegisteredServerQueries.mockClear();
-  cacheMocks.removeRegisteredAdminQueries.mockClear();
-  cacheMocks.removeRegisteredAdminUserQueries.mockClear();
+  for (const mock of Object.values(eventMocks)) mock.mockReset();
   apiMocks.listRooms.mockResolvedValue([]);
   apiMocks.listRoomGroups.mockResolvedValue([]);
   apiMocks.listRoomMembers.mockResolvedValue({
@@ -850,7 +810,7 @@ describe('ServerStateStore privileged mode', () => {
       privilegedMode: new PrivilegedModeState({ available: true, active: false })
     });
     const readPermissions = vi.fn();
-    cacheMocks.refreshRegisteredAdminQueries.mockImplementationOnce(() => {
+    eventMocks.authorityChanged.mockImplementationOnce(() => {
       readPermissions(store.projection.viewer?.privilegedMode?.active);
     });
     const changing = store.setPrivilegedMode(true);
@@ -898,7 +858,7 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
-    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: false });
   });
 
   it('removes admin queries when deactivation drops only an effective permission', async () => {
@@ -929,8 +889,8 @@ describe('ServerStateStore privileged mode', () => {
 
     // Losing a permission fails closed, like losing an admin capability.
     expect(store.permissions.canManageRooms).toBe(false);
-    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
-    expect(cacheMocks.refreshRegisteredAdminQueries).not.toHaveBeenCalled();
+    expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: true });
+    expect(eventMocks.authorityChanged).not.toHaveBeenCalledWith({ lost: false });
   });
 
   it('applies deactivation permissions before completing the projection refresh', async () => {
@@ -966,7 +926,7 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
-    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: true });
   });
 
   it('refreshes navigation group permissions on activation and deactivation without a layout event', async () => {
@@ -1011,9 +971,9 @@ describe('ServerStateStore privileged mode', () => {
     });
 
     for (const active of [true, false]) {
-      cacheMocks.refreshRegisteredAdminQueries.mockClear();
+      eventMocks.authorityChanged.mockClear();
       await store.setPrivilegedMode(active);
-      expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+      expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: false });
       expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('roomGroups', 'cursor-after');
       expect(store.roomList.roomGroups).toMatchObject([
         {
@@ -1095,7 +1055,7 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.permissions.canAdminViewSystem).toBe(false);
     expect(apiMocks.refreshPrivilegedMode).toHaveBeenCalledOnce();
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode expired');
-    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: true });
   });
 
   it('refreshes expired room-scoped grants without a server capability change', async () => {
@@ -1114,7 +1074,7 @@ describe('ServerStateStore privileged mode', () => {
 
     await store.expirePrivilegedMode();
 
-    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: false });
   });
 
   it('rechecks admin reads and reconnects when the expiry viewer refresh fails', async () => {
@@ -1130,7 +1090,7 @@ describe('ServerStateStore privileged mode', () => {
     await store.expirePrivilegedMode();
 
     expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
-    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(eventMocks.authorityChanged).toHaveBeenCalledWith({ lost: false });
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode expired');
     expect(warning).toHaveBeenCalled();
   });
@@ -1639,7 +1599,7 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(fake.forceReconnect).not.toHaveBeenCalled();
     expect(store.realtimeSync.resumeCursor).toBe('retained');
     expect(store.realtimeSync.hasUsableProjection).toBe(true);
-    expect(cacheMocks.refreshRegisteredServerQueries).toHaveBeenCalled();
+    expect(eventMocks.permissionsChanged).toHaveBeenCalled();
     if (change !== 'reset while pending') {
       expect(fake.invalidatePrivateData).not.toHaveBeenCalled();
       expect(resetMessages).not.toHaveBeenCalled();
@@ -1951,7 +1911,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(userDeleted('U2'));
 
     expect(store.projection.users.has('U2')).toBe(false);
-    expect(cacheMocks.scrubRoomMemberUser).toHaveBeenCalledWith(store.serverId, 'U2');
+    expect(eventMocks.userDeleted).toHaveBeenCalledWith('U2');
   });
 
   it('coalesces the resource hints from a post before starting reads', async () => {
@@ -2237,7 +2197,6 @@ describe('ServerStateStore unified realtime resources', () => {
     }
 
     expect(apiMocks.readRealtimeUsers).toHaveBeenCalledTimes(1);
-    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(store.serverId);
     first.resolve([]);
     await flushPromises();
 
@@ -3270,30 +3229,6 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     expect(refresh).not.toHaveBeenCalled();
     expect(refreshThread).not.toHaveBeenCalled();
-    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
-  });
-
-  it('passes a retracted message to the followed-thread feed', () => {
-    const store = makeStore(new FakeServerConnection([]));
-
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
-          event: {
-            case: 'messageRetracted',
-            value: new MessageRetractedEvent({ roomId: 'R1', messageEventId: 'E-REPLY' })
-          }
-        })
-      })
-    );
-
-    expect(cacheMocks.retractFollowedThreadMessage).toHaveBeenCalledExactlyOnceWith(
-      store.serverId,
-      'R1',
-      'E-REPLY'
-    );
-    expect(cacheMocks.resetFollowedThreads).not.toHaveBeenCalled();
-    expect(cacheMocks.refreshFollowedThreads).not.toHaveBeenCalled();
   });
 
   it('keeps a long thread window when reconciling a successful read', async () => {
@@ -3345,7 +3280,6 @@ describe('ServerStateStore unified realtime resources', () => {
     await flushPromises();
     refreshRoom.mockClear();
     refreshThread.mockClear();
-    cacheMocks.refreshFollowedThreads.mockClear();
 
     store.reconcileThreadRead('R1', 'E-ROOT');
     await store.waitForRealtimeReconciliation();
@@ -3356,7 +3290,6 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readMessages).toHaveBeenLastCalledWith('R1', ['E-ROOT'], undefined);
     expect(refreshRoom).not.toHaveBeenCalled();
     expect(refreshThread).not.toHaveBeenCalled();
-    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
   it.each([false, true])('uses cached realtime authors (bot: %s)', async (isBot) => {
@@ -3509,7 +3442,6 @@ describe('ServerStateStore unified realtime resources', () => {
       const edited = message.clone();
       edited.body = 'edited';
       edited.attachments = [];
-      cacheMocks.refreshFollowedThreads.mockClear();
       apiMocks.readMessages.mockResolvedValue([resource(edited)]);
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
@@ -3525,7 +3457,6 @@ describe('ServerStateStore unified realtime resources', () => {
       await store.waitForRealtimeReconciliation();
       expect(files.items).toEqual([]);
       expect(pins.items[0].message?.body).toBe('edited');
-      expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledOnce();
       expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
       expect(apiMocks.listPins).toHaveBeenCalledOnce();
     }

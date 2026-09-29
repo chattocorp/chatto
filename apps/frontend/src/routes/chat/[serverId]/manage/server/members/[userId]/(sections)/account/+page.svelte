@@ -5,7 +5,7 @@ Account section of a member: identity and password settings for account
 managers, and the danger zone for viewers who may delete the account.
 -->
 <script lang="ts">
-  import type { AdminMember } from '@chatto/client/api/adminUsers';
+  import type { AdminMember } from '$lib/api/adminUsers';
   import {
     createUserAPI,
     type UpdateUserProfileInput,

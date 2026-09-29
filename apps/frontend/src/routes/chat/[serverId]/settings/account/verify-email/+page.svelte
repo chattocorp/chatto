@@ -8,8 +8,8 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { Panel, PageTitle, PaneContent, PaneHeader } from '$lib/ui';

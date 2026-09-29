@@ -5,13 +5,13 @@ import { render } from 'vitest-browser-svelte';
 import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
-import { adminQueryKeys } from '@chatto/client/query/admin';
+import { adminQueryKeys } from '$lib/query/admin';
 import {
   refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   refreshRegisteredServerQueries
-} from '@chatto/client/query/cacheRegistry';
+} from '$lib/query/cacheRegistry';
 
 const viewerPermissions = vi.hoisted(() => ({ canAdminManageAccounts: true }));
 

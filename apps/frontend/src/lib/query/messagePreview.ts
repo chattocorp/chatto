@@ -1,12 +1,15 @@
-import { createRoomTimelineAPI } from '../api/roomTimeline.js';
-import { assetUrlForServer } from '../util/assetUrls.js';
-import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '../attachments/attachmentUrls.js';
-import type { MessageAttachmentView } from '../timeline/messageAttachments.js';
-import { isMessagePostedEvent } from '../timeline/timelineEvents.js';
-import type { UserAvatarUserView } from '../timeline/users.js';
-import { unmask } from '../room/messages/helpers.js';
-import type { ServerConnection } from '../server/serverConnection.js';
-import { serverSessionQueryRoot } from './keys.js';
+import { createRoomTimelineAPI } from '@chatto/client/api/roomTimeline';
+import { assetUrlForServer } from '@chatto/client/util/assetUrls';
+import type {
+  ExpiringAssetUrl,
+  RefreshedAttachmentUrls
+} from '@chatto/client/attachments/attachmentUrls';
+import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
+import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
+import { unmask } from '@chatto/client/room/messages/helpers';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import { serverSessionQueryRoot } from './keys';
 
 type MessagePreviewConnection = Pick<ServerConnection, 'queryScope' | 'getAPI'>;
 

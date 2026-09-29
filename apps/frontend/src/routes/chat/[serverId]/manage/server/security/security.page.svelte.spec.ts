@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { OAuthClient } from '@chatto/client/api/oauthClients';
-import { adminQueryKeys } from '@chatto/client/query/admin';
+import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
-import { removeRegisteredAdminQueries } from '@chatto/client/query/cacheRegistry';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({

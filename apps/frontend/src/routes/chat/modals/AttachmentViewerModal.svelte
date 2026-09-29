@@ -6,7 +6,7 @@ media. HTML consent is never stored in history or carried to another selection.
   import { onMount, onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/state';
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { AttachmentViewerModalState } from '$lib/modal';
   import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
   import { isHtmlAttachment } from '@chatto/client/timeline/messageAttachments';

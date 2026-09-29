@@ -5,11 +5,11 @@
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { createAdminUserManagementAPI } from '@chatto/client/api/adminUsers';
+  import { createAdminUserManagementAPI } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
-  import { registerAdminUserRemovalListener } from '@chatto/client/query/cacheRegistry';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { createQuery, queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';

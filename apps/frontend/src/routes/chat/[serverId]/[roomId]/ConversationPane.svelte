@@ -15,6 +15,7 @@ thread IDs can change while the pane stays mounted.
 -->
 <script lang="ts" module>
   import type { MessageComposerProps } from '$lib/components/composer/messageComposerState.svelte';
+  import { queryCaches } from '$lib/query/cacheRegistry';
   import { serverUi } from '$lib/state/server/serverUi';
 
   /** Composer options that the owner decides. The pane supplies the rest. */
@@ -204,6 +205,7 @@ thread IDs can change while the pane stays mounted.
       );
     if (!signal.aborted && dataGeneration === connection.dataGeneration) {
       readStores.reconcileThreadRead(readRoomId, targetThreadRootEventId);
+      queryCaches.followedThreads?.refresh(readStores.serverId);
     }
     return result;
   }

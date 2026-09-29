@@ -5,7 +5,7 @@
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '@chatto/client/api/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';

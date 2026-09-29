@@ -16,12 +16,12 @@
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import {
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomGroupQuery
-  } from '@chatto/client/query/adminInvalidation';
+  } from '$lib/query/adminInvalidation';
   import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
   import type { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import { m } from '$lib/i18n/messages';

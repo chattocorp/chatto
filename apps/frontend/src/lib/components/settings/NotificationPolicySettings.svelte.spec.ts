@@ -4,11 +4,11 @@ import { page } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { queryClient } from '$lib/query/client';
-import { settingsQueryKeys } from '@chatto/client/query/settings';
+import { settingsQueryKeys } from '$lib/query/settings';
 import {
   refreshRegisteredServerQueries,
   removeRegisteredServerQueries
-} from '@chatto/client/query/cacheRegistry';
+} from '$lib/query/cacheRegistry';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { adminQueryKeys } from './admin.js';
+import { adminQueryKeys } from './admin';
 import {
   invalidateAdminRoomLayoutQueries,
   invalidatePermissionTiers,
@@ -7,8 +7,8 @@ import {
   purgeAdminRoomGroupQuery,
   purgeAdminRoomQuery,
   removeDeletedRoleQueries
-} from './adminInvalidation.js';
-import { queryClient } from './client.js';
+} from './adminInvalidation';
+import { queryClient } from './queryClient';
 
 const connection = { queryScope: 'admin-invalidation-test' };
 const serverId = 'server-1';

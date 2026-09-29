@@ -1,4 +1,5 @@
 import { ReactiveMap, batch, signal, untrack } from '../reactivity/index.js';
+import { clearUserStores } from './users.js';
 import { ServerStateStore } from './store.js';
 import type { ServerConnectionManager } from './serverConnection.js';
 import type { EventBusManager } from './realtimeTransport.js';
@@ -6,7 +7,6 @@ import { claimServerId, isServerIdClaimed, releaseServerId } from './serverIds.j
 import { Codecs, globalSlot, serverSlot } from '../storage/slot.js';
 import { getPublicServerInfo } from '../api/server.js';
 import type { PublicServerInfo } from '../api/server.js';
-import { removeRegisteredServerQueries } from '../query/cacheRegistry.js';
 import { isBackendCapableOrigin } from '../util/runtimeOrigin.js';
 import { getViewerStateViaConnect, type CurrentUser } from '../api/viewer.js';
 import { connectEndpoint } from '../api/connect.js';
@@ -742,7 +742,8 @@ export class ServerRegistry {
       if (!session || session.reauthRequiredAt !== null) return;
 
       this.#context.realtime.stopBus(id);
-      removeRegisteredServerQueries(id);
+      if (this.tryGetStore(id)) this.getStore(id).endSession();
+      else clearUserStores(id);
       this.sessions.update(id, { reauthRequiredAt: Date.now() });
       this.#persistAuthenticationPatch(id, {
         reauthRequiredAt: this.sessions.get(id)?.reauthRequiredAt ?? null

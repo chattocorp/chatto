@@ -5,7 +5,7 @@ while mounted and discards cached data when the profile closes. -->
   import { createEffectivePermissionAPI } from '@chatto/client/api/effectivePermissions';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';

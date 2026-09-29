@@ -3,7 +3,7 @@ import { flushSync } from 'svelte';
 import {
   removeRegisteredAdminQueries,
   removeRegisteredServerQueries
-} from '@chatto/client/query/cacheRegistry';
+} from '$lib/query/cacheRegistry';
 import type { ServerScope } from './scope.svelte';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { createSessionGuard, type SessionGuard } from './sessionGuard.svelte';

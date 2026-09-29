@@ -1,13 +1,13 @@
-import type { InfiniteData, QueryKey } from '@tanstack/query-core';
+import type { InfiniteData, QueryKey } from '@tanstack/svelte-query';
 import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
-} from '../api/memberDirectory.js';
-import type { ServerConnection } from '../server/serverConnection.js';
-import { queryCaches } from './cacheRegistry.js';
-import { queryClient } from './client.js';
-import { directoryQueryKeys } from './directory.js';
+} from '@chatto/client/api/memberDirectory';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import { queryCaches } from './cacheRegistry';
+import { queryClient } from './queryClient';
+import { directoryQueryKeys } from './directory';
 
 type RoomMemberQueryConnection = Pick<ServerConnection, 'queryScope'>;
 

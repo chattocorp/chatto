@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { adminQueryKeys } from '@chatto/client/query/admin';
-import { removeRegisteredAdminQueries } from '@chatto/client/query/cacheRegistry';
+import { adminQueryKeys } from '$lib/query/admin';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import ServerSettings from './ServerSettings.svelte';

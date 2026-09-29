@@ -14,7 +14,7 @@
     PageTitle
   } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';

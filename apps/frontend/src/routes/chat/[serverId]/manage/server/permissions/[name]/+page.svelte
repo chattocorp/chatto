@@ -16,8 +16,8 @@
   import {
     invalidatePermissionTiers,
     removeDeletedRoleQueries
-  } from '@chatto/client/query/adminInvalidation';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  } from '$lib/query/adminInvalidation';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import { m } from '$lib/i18n/messages';

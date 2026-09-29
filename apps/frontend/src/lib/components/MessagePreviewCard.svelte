@@ -31,7 +31,7 @@ preview on screen.
     withRefreshedPreviewUrls,
     type MessagePreview,
     type MessagePreviewAttachment
-  } from '@chatto/client/query/messagePreview';
+  } from '$lib/query/messagePreview';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { createAttachmentAPI } from '@chatto/client/api/attachments';

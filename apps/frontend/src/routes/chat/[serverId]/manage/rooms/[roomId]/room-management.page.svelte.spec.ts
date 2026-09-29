@@ -10,8 +10,8 @@ import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
-import { adminQueryKeys } from '@chatto/client/query/admin';
-import { removeRegisteredAdminQueries } from '@chatto/client/query/cacheRegistry';
+import { adminQueryKeys } from '$lib/query/admin';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import type { AdminManagedRoom } from '@chatto/client/api/adminRoomLayout';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 

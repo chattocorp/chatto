@@ -26,9 +26,9 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     type MatrixScope,
     type CellState
   } from './SubjectPermissionsMatrix.svelte';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, queryClient } from '$lib/query/client';
-  import { invalidateRolePermissionDependents } from '@chatto/client/query/adminInvalidation';
+  import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   import { mergePermissionPages } from './permissionPages';
   import type { PermissionScopePage } from '@chatto/client/api/permissions';

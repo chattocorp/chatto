@@ -8,7 +8,7 @@
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { untrack } from 'svelte';
-  import type { AdminMember } from '@chatto/client/api/adminUsers';
+  import type { AdminMember } from '$lib/api/adminUsers';
   import type { UpdateUserProfileInput, UserSummary } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { UserStore, getUserStore, resetUserStoresForTests } from './users.js';
-import { removeServerQueries } from '../query/client.js';
+import { UserStore, clearUserStores, getUserStore, resetUserStoresForTests } from './users.js';
 
 const member = (id: string, displayName = id) =>
   new DirectoryMember({
@@ -119,7 +118,7 @@ describe('shared user requests', () => {
     );
     const rejected = expect(pending).rejects.toThrow('Response discarded');
     await Promise.resolve();
-    removeServerQueries('server');
+    clearUserStores('server');
     finish([member('missing')]);
     await rejected;
     expect(first.size).toBe(0);

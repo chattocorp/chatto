@@ -22,7 +22,7 @@
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createQuery } from '$lib/query/client';
 
   const serverScope = useServerScope();

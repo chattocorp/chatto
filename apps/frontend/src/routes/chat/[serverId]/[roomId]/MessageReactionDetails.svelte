@@ -16,7 +16,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { m } from '$lib/i18n/messages';
   import { createInfiniteQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';

@@ -28,12 +28,12 @@ rendering to `SubjectPermissionsMatrix`.
     type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
   import { type InfiniteData } from '@tanstack/svelte-query';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, queryClient } from '$lib/query/client';
   import {
     registerQueryCacheRemovalListener,
     registerServerQueryCacheRemovalListener
-  } from '@chatto/client/query/cacheRegistry';
+  } from '$lib/query/cacheRegistry';
 
   import { mergePermissionPages } from './permissionPages';
   import type { PermissionScopePage } from '@chatto/client/api/permissions';

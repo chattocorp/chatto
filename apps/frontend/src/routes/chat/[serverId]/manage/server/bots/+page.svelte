@@ -21,7 +21,7 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { createInfiniteQuery, createQuery, queryClient } from '$lib/query/client';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

@@ -39,7 +39,7 @@ import type { ServerRegistration } from './catalog.js';
 import type { ServerSession } from './sessions.js';
 import { ReactiveMap, ReactiveSet, batch, computed, signal } from '../reactivity/index.js';
 import { ServerProjectionStore } from './projection.js';
-import { getUserStore } from './users.js';
+import { clearUserStores, getUserStore } from './users.js';
 import type { RoomMember } from '../room/members.js';
 import { RoomStores, type RoomStoreAccess } from './roomStores.js';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -58,14 +58,6 @@ import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MentionRolesStore } from './mentionRoles.js';
 import { TimelineEventKind } from '../timeline/timelineEvents.js';
-import {
-  queryCaches,
-  refreshRegisteredAdminQueries,
-  refreshRegisteredServerQueries,
-  removeRegisteredAdminQueries,
-  removeRegisteredAdminUserQueries,
-  removeRegisteredServerQueries
-} from '../query/cacheRegistry.js';
 
 function viewerAuthorizationLost(
   previous: GetViewerResponse | null,
@@ -214,6 +206,24 @@ export class ServerStateStore {
    */
   onPermissionsChanged(listener: () => void | Promise<unknown>): () => void {
     return this.#events.permissionsChanged.subscribe(listener);
+  }
+
+  /**
+   * Receive the end of the viewer's session, for example because the server
+   * rejected or revoked it. Remove all private data of the server. The store
+   * stays until the session is renewed or the server is removed.
+   */
+  onSessionEnded(listener: () => void): () => void {
+    return this.#events.sessionEnded.subscribe(listener);
+  }
+
+  /**
+   * Report that the viewer's session ended; the registry calls it. Clears the
+   * server's user profiles and notifies {@link onSessionEnded} listeners.
+   */
+  endSession(): void {
+    clearUserStores(this.serverId);
+    if (!this.#events.sessionEnded.emit().complete) this.#privacyCleanupFailed = true;
   }
 
   /** Receive the disposal of this store, before it clears its own state. */
@@ -390,7 +400,6 @@ export class ServerStateStore {
     } catch (error) {
       console.warn('[privileged-mode] failed to refresh effective permissions after expiry', error);
       // Reads must still recheck server authority when the viewer refresh fails.
-      refreshRegisteredAdminQueries(this.serverId);
       this.#emitAuthorityChanged({ lost: false });
     } finally {
       this.realtimeSync.invalidateAuthorization();
@@ -416,13 +425,7 @@ export class ServerStateStore {
     if (!this.currentUser.apply(viewerResponseToState(response).user)) return;
     // Mutation and expiry responses are authoritative. Refresh snapshots now,
     // including room-only grants, without waiting for the realtime reconnect.
-    const lost = viewerAuthorizationLost(previousViewer, response);
-    if (lost) {
-      removeRegisteredAdminQueries(this.serverId);
-    } else {
-      refreshRegisteredAdminQueries(this.serverId);
-    }
-    this.#emitAuthorityChanged({ lost });
+    this.#emitAuthorityChanged({ lost: viewerAuthorizationLost(previousViewer, response) });
   }
 
   /** Reject work whose resource boundary was superseded by a newer reset. */
@@ -595,15 +598,17 @@ export class ServerStateStore {
 
   /** Unread followed threads whose roots are in loaded room timelines. */
   unreadFollowedThreadsInLoadedRooms(): { roomId: string; threadRootId: string }[] {
-    return this.#rooms.entries().flatMap(([roomId, { messages }]) =>
-      (messages?.rootEvents ?? []).flatMap((event) =>
-        event.event.kind === TimelineEventKind.MessagePosted &&
-        event.event.viewerIsFollowingThread === true &&
-        event.event.viewerHasUnreadThread === true
-          ? [{ roomId, threadRootId: event.id }]
-          : []
-      )
-    );
+    return this.#rooms
+      .entries()
+      .flatMap(([roomId, { messages }]) =>
+        (messages?.rootEvents ?? []).flatMap((event) =>
+          event.event.kind === TimelineEventKind.MessagePosted &&
+          event.event.viewerIsFollowingThread === true &&
+          event.event.viewerHasUnreadThread === true
+            ? [{ roomId, threadRootId: event.id }]
+            : []
+        )
+      );
   }
 
   /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
@@ -611,7 +616,6 @@ export class ServerStateStore {
     if (this.#rooms.loaded(roomId)?.messages) {
       this.#timelines.reconcile(roomId, threadRootEventId);
     }
-    queryCaches.followedThreads?.refresh(this.serverId);
     if (
       !this.notifications.hasLoaded ||
       this.notifications.loading ||
@@ -686,7 +690,6 @@ export class ServerStateStore {
   /** Message-read loss does not imply loss of voice or room membership. */
   private clearRoomMessageAccess(roomId: string, forgetStores = false): void {
     this.#timelines.invalidateRoom(roomId);
-    queryCaches.followedThreads?.scrubRoom(this.serverId, roomId);
     this.#rooms.clearMessageAccess(roomId, forgetStores);
   }
 
@@ -739,11 +742,7 @@ export class ServerStateStore {
       this.#pendingUserRefreshGeneration = generation;
       this.#privacyCleanupFailed = !runResetHandlers([
         () => {
-          if (update.privacyReset && !removeRegisteredServerQueries(this.serverId))
-            throw new Error('Query cleanup incomplete');
-        },
-        () => {
-          if (!update.retainView) queryCaches.followedThreads?.reset(this.serverId);
+          if (update.privacyReset) clearUserStores(this.serverId);
         },
         () => {
           if (!update.retainView && !this.resetProjectionMirrors())
@@ -769,7 +768,6 @@ export class ServerStateStore {
         case 'viewer': {
           const response = resource.value;
           if (!this.checkingPermissions && viewerAuthorizationLost(previousViewer, response)) {
-            removeRegisteredAdminQueries(this.serverId);
             this.#emitAuthorityChanged({ lost: true });
           }
           if (!this.currentUser.apply(viewerResponseToState(response).user)) return false;
@@ -800,10 +798,6 @@ export class ServerStateStore {
           }
           break;
         case 'roomGroups':
-          queryCaches.server?.reconcileAdminRoomGroups(
-            this.serverId,
-            resource.value.groups.map((group) => group.id)
-          );
           break;
         case 'notifications':
           this.notifications.replaceOccurrenceProjection(
@@ -844,17 +838,13 @@ export class ServerStateStore {
     const current = () =>
       check === this.#permissionCheckGeneration &&
       generation === this.#realtimeProjectionGeneration;
-    const queries = refreshRegisteredServerQueries(this.serverId).catch((error) => {
-      if (current()) this.#reconciliationError ??= error;
-    });
-    const listeners = Promise.all(this.#events.permissionsChanged.emit().results);
-    // The refresh below awaits it later; a rejection must not count as unhandled.
-    listeners.catch(() => {});
+    // Hosts check their copies, such as cached reads, against the new
+    // permissions. Each check completes on its own; see the failure below.
+    const listeners = Promise.allSettled(this.#events.permissionsChanged.emit().results);
     // Apply every semantic change before a later check can supersede this one.
-    // The server-wide query refresh above already covers role queries.
     this.#currentEventMinimumCursor = update.cursor ?? undefined;
     try {
-      if (update.event) this.invalidateRealtimeEvent(update.event, false);
+      if (update.event) this.invalidateRealtimeEvent(update.event);
     } finally {
       this.#currentEventMinimumCursor = undefined;
     }
@@ -898,7 +888,7 @@ export class ServerStateStore {
         })
       );
       if (!current()) return;
-      await Promise.all([queries, listeners]);
+      const listenerResults = await listeners;
       if (!current()) return;
       this.invalidateUniversalMembership();
       await Promise.all(
@@ -906,7 +896,7 @@ export class ServerStateStore {
       );
       // Each cache must complete its own check before a partial failure is
       // reported to the cursor owner for retry.
-      const failure = reads.find((result) => result.status === 'rejected');
+      const failure = [...reads, ...listenerResults].find((result) => result.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
     })()
       .catch((error) => {
@@ -999,16 +989,12 @@ export class ServerStateStore {
     this.projection.users.delete(userId);
     for (const [roomId, { members }] of this.#rooms.entries())
       if (members) this.updateRoomMembership(roomId, userId, false);
-    queryCaches.followedThreads?.reset(this.serverId);
-    queryCaches.roomMembers?.scrubUser(this.serverId, userId);
-    removeRegisteredAdminUserQueries(this.serverId, userId);
     this.notifications.scrubUser(userId);
     for (const store of this.#rooms.timelines()) store.scrubUserReferences(userId);
     if (!this.#events.userDeleted.emit(userId).complete) this.#privacyCleanupFailed = true;
   }
 
   private scrubRemovedRoom(roomId: string): void {
-    queryCaches.roomMembers?.purgeRoom(this.serverId, roomId);
     this.clearRoomAccess(roomId, true);
   }
 
@@ -1159,7 +1145,7 @@ export class ServerStateStore {
     });
   }
 
-  private invalidateRealtimeEvent(event: RealtimeEvent, refreshQueries = true): void {
+  private invalidateRealtimeEvent(event: RealtimeEvent): void {
     const payload = event.event;
     const rawValue = payload.value as
       { eventId?: string; messageEventId?: string; roomId?: string; userId?: string } | undefined;
@@ -1175,7 +1161,6 @@ export class ServerStateStore {
           payload.case === 'roleAssigned'
         );
         this.refreshRealtimeUsers([payload.value.userId]);
-        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       }
       case 'roleDeleted':
@@ -1187,18 +1172,15 @@ export class ServerStateStore {
         }
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       case 'roleCreated':
       case 'roleUpdated':
       case 'rolesReordered':
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       case 'rolePermissionsChanged':
         this.invalidateUniversalMembership();
-        if (refreshQueries) queryCaches.server?.refreshRoles(this.serverId);
         return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
@@ -1251,15 +1233,6 @@ export class ServerStateStore {
           // after the server applies Badge decisions and the poster's read state.
           // Known DM activity is already applied by the room projection.
           if (!this.projection.rooms.has(roomId)) this.refreshRealtimeResource('rooms');
-          if (payload.value.threadRootEventId) queryCaches.followedThreads?.refresh(this.serverId);
-        }
-        if (payload.case === 'messageEdited') queryCaches.followedThreads?.refresh(this.serverId);
-        if (payload.case === 'messageRetracted') {
-          queryCaches.followedThreads?.retractMessage(
-            this.serverId,
-            payload.value.roomId,
-            payload.value.messageEventId
-          );
         }
         return;
       }
@@ -1335,9 +1308,6 @@ export class ServerStateStore {
           this.invalidateUniversalMembership();
         }
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
-        // Admin rows have a separate private cache; public profile hydration
-        // cannot update its email, permission, or search snapshots.
-        queryCaches.server?.refreshAdmin(this.serverId);
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');
@@ -1357,7 +1327,6 @@ export class ServerStateStore {
           payload.value.threadRootEventId,
           payload.value.isFollowing
         );
-        queryCaches.followedThreads?.refresh(this.serverId);
         return;
       }
       default:
@@ -1400,7 +1369,6 @@ export class ServerStateStore {
   /** Clear every mirror whose authority was invalidated by a reset frame. */
   private resetProjectionMirrors(): boolean {
     const complete = runResetHandlers([
-      () => refreshRegisteredAdminQueries(this.serverId),
       () => this.projection.users.clear(),
       () => this.presence.clear(),
       ...this.#rooms.resetHandlers(),
@@ -1475,7 +1443,7 @@ export class ServerStateStore {
     this.#permissionCheckGeneration++;
     this.checkingPermissions = false;
     this.#serverConnection.invalidatePrivateData();
-    removeRegisteredServerQueries(this.serverId);
+    clearUserStores(this.serverId);
     this.#rooms.dispose();
     this.presence.clear();
     this.realtimeSync.reset();

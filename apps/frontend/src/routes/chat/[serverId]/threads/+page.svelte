@@ -38,7 +38,7 @@
     threadQueryKeys,
     updateFollowedThreadSummary,
     type FollowedThreadsData
-  } from '@chatto/client/query/threads';
+  } from '$lib/query/threads';
   import { toast } from '$lib/ui/toast';
   import {
     formatRelativeTime,

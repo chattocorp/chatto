@@ -16,11 +16,11 @@ deletion page is outside this route group and has its own frame.
     createAdminUserManagementAPI,
     type AdminMember,
     type AdminMemberDetails
-  } from '@chatto/client/api/adminUsers';
+  } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
-  import { registerAdminUserRemovalListener } from '@chatto/client/query/cacheRegistry';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { createQuery, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';

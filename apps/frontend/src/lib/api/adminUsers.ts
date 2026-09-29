@@ -1,5 +1,5 @@
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
-import { createAdminMemberLoader, type AdminMemberBatch } from '../query/adminMembers.js';
+import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
+import { createAdminMemberLoader, type AdminMemberBatch } from '$lib/query/adminMembers';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';

@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { AdminMember, AdminMemberDetails } from '@chatto/client/api/adminUsers';
+import type { AdminMember, AdminMemberDetails } from '$lib/api/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { adminQueryKeys } from '@chatto/client/query/admin';
+import { adminQueryKeys } from '$lib/query/admin';
 import {
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries
-} from '@chatto/client/query/cacheRegistry';
+} from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 

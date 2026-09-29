@@ -27,13 +27,13 @@ through `roomManagementContext`.
     type TabNavItem
   } from '$lib/ui';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery } from '$lib/query/client';
   import {
     invalidateAdminRoomLayoutQueries,
     purgeAdminRoomQuery
-  } from '@chatto/client/query/adminInvalidation';
-  import { invalidateRoomMemberQueries } from '@chatto/client/query/roomMembers';
+  } from '$lib/query/adminInvalidation';
+  import { invalidateRoomMemberQueries } from '$lib/query/roomMembers';
   import { m } from '$lib/i18n/messages';
   import { provideRoomManagement, type RoomMutationScope } from './roomManagementContext';
 

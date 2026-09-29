@@ -19,7 +19,7 @@
   import { toast } from '$lib/ui/toast';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
-  import { directoryQueryKeys } from '@chatto/client/query/directory';
+  import { directoryQueryKeys } from '$lib/query/directory';
   import {
     ELIGIBLE_ROOM_MEMBER_LIMIT,
     flattenRoomMembers,
@@ -30,7 +30,7 @@
     purgeRoomMemberQueries,
     ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
     roomMembersQueryPage
-  } from '@chatto/client/query/roomMembers';
+  } from '$lib/query/roomMembers';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';

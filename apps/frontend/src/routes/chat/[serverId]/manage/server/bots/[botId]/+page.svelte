@@ -26,8 +26,8 @@ owner reassignment and deletion actions.
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { createQuery, queryClient } from '$lib/query/client';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

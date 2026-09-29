@@ -1,10 +1,10 @@
-import type { InfiniteData } from '@tanstack/query-core';
-import type { QueryKey } from '@tanstack/query-core';
-import type { FollowedThread, FollowedThreadsPage } from '../api/threads.js';
-import type { ServerConnection } from '../server/serverConnection.js';
-import { serverSessionQueryRoot } from './keys.js';
-import { queryClient } from './client.js';
-import { queryCaches } from './cacheRegistry.js';
+import type { InfiniteData } from '@tanstack/svelte-query';
+import type { QueryKey } from '@tanstack/svelte-query';
+import type { FollowedThread, FollowedThreadsPage } from '@chatto/client/api/threads';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import { serverSessionQueryRoot } from './keys';
+import { queryClient } from './queryClient';
+import { queryCaches } from './cacheRegistry';
 
 type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
 

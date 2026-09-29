@@ -3,7 +3,7 @@
   import { createBotAPI } from '@chatto/client/api/bots';
   import { m } from '$lib/i18n/messages';
   import { createInfiniteQuery } from '$lib/query/client';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
   import { Button } from '$lib/ui/form';

@@ -9,6 +9,7 @@
 </script>
 
 <script lang="ts">
+  import { setServerUiForTests } from '$lib/state/server/serverUi';
   import { SvelteMap } from 'svelte/reactivity';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
   import {
@@ -129,30 +130,35 @@
     }
   } as unknown as NotificationAPI;
 
+  const store = {
+    serverInfo: { name: 'Example server' }
+  } as unknown as ServerStateStore;
+  // The story's UI state: the sidebar navigation that the settings read.
+  setServerUiForTests(store, {
+    navigation: {
+      roomGroups: [
+        {
+          id: 'community',
+          name: 'Community',
+          roomIds: ['general', 'support']
+        }
+      ],
+      rooms: [
+        { id: 'general', name: 'general', viewerIsMember: true, type: RoomKind.CHANNEL },
+        { id: 'support', name: 'support', viewerIsMember: true, type: RoomKind.CHANNEL },
+        { id: 'staff', name: 'staff', viewerIsMember: false, type: RoomKind.CHANNEL },
+        { id: 'dm-alex', name: 'Alex', viewerIsMember: true, type: RoomKind.DM }
+      ]
+    }
+  });
+
   provideServerScope({
     serverId: 'storybook',
     connection: {
       queryScope: nextStoryQueryScope(),
       getAPI: () => api
     } as unknown as ServerConnection,
-    store: {
-      serverInfo: { name: 'Example server' },
-      navigation: {
-        roomGroups: [
-          {
-            id: 'community',
-            name: 'Community',
-            roomIds: ['general', 'support']
-          }
-        ],
-        rooms: [
-          { id: 'general', name: 'general', viewerIsMember: true, type: RoomKind.CHANNEL },
-          { id: 'support', name: 'support', viewerIsMember: true, type: RoomKind.CHANNEL },
-          { id: 'staff', name: 'staff', viewerIsMember: false, type: RoomKind.CHANNEL },
-          { id: 'dm-alex', name: 'Alex', viewerIsMember: true, type: RoomKind.DM }
-        ]
-      }
-    } as unknown as ServerStateStore,
+    store,
     isCurrent: () => true
   });
 </script>

@@ -105,9 +105,9 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: () => null
 }));
 
-vi.mock('@chatto/client/api/adminUsers', async () => {
-  const actual = await vi.importActual<typeof import('@chatto/client/api/adminUsers')>(
-    '@chatto/client/api/adminUsers'
+vi.mock('$lib/api/adminUsers', async () => {
+  const actual = await vi.importActual<typeof import('$lib/api/adminUsers')>(
+    '$lib/api/adminUsers'
   );
   return {
     ...actual,

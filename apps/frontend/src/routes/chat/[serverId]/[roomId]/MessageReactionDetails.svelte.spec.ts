@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
 import { queryClient } from '$lib/query/client';
-import { serverSessionQueryRoot } from '@chatto/client/query/keys';
+import { serverSessionQueryRoot } from '$lib/query/keys';
 import { q } from '$lib/test-utils';
 import MessageReactionDetails from './MessageReactionDetails.svelte';
 

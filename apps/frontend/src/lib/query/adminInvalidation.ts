@@ -1,6 +1,6 @@
-import type { ServerConnection } from '../server/serverConnection.js';
-import { adminQueryKeys } from './admin.js';
-import { queryClient } from './client.js';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
+import { adminQueryKeys } from './admin';
+import { queryClient } from './queryClient';
 
 type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
 

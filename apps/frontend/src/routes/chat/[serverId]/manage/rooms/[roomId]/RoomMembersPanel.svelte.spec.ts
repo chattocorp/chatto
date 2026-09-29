@@ -21,7 +21,7 @@ import type {
 
 import type { RoomCommandAPI } from '@chatto/client/api/rooms';
 import { queryClient } from '$lib/query/client';
-import { removeRegisteredAdminQueries } from '@chatto/client/query/cacheRegistry';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { accountNameToken } from '@chatto/client/timeline/accountName';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
 

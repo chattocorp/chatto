@@ -1,15 +1,15 @@
-import { InfiniteQueryObserver } from '@tanstack/query-core';
+import { InfiniteQueryObserver } from '@tanstack/svelte-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FollowedThread, FollowedThreadsPage } from '../api/threads.js';
-import { queryCaches } from './cacheRegistry.js';
-import { queryClient } from './client.js';
+import type { FollowedThread, FollowedThreadsPage } from '@chatto/client/api/threads';
+import { queryCaches } from './cacheRegistry';
+import { queryClient } from './queryClient';
 import {
   flattenFollowedThreads,
   nextUnreadFollowedThreadOffset,
   threadQueryKeys,
   updateFollowedThreadSummary,
   type FollowedThreadsData
-} from './threads.js';
+} from './threads';
 
 function thread(
   threadRootEventId: string,

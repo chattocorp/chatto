@@ -5,9 +5,9 @@ Roles section of a human member: the server role assignments.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import type { AdminRoleMutationResult } from '@chatto/client/api/adminUsers';
+  import type { AdminRoleMutationResult } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint } from '$lib/ui';

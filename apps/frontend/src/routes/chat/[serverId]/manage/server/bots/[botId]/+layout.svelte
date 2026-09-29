@@ -14,7 +14,7 @@ Permissions pages through `botDetailContext`.
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { createQuery, queryClient } from '$lib/query/client';
-  import { settingsQueryKeys } from '@chatto/client/query/settings';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PageTitle, PaneContent, PaneHeader, TabNav, type TabNavItem } from '$lib/ui';

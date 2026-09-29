@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
-import { adminQueryKeys } from '@chatto/client/query/admin';
-import { settingsQueryKeys } from '@chatto/client/query/settings';
+import { adminQueryKeys } from '$lib/query/admin';
+import { settingsQueryKeys } from '$lib/query/settings';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import AccountPage from './+page.svelte';
 

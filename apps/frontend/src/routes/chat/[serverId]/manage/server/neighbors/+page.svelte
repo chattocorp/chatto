@@ -12,7 +12,7 @@ polls the cache briefly after a change. See FDR-042.
   import { createNeighborAPI, type Neighbor } from '@chatto/client/api/neighbors';
   import { listNeighborhoodServers, type NeighborhoodServer } from '@chatto/client/api/server';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { canonicalServerOrigin, serverOriginFromInput } from '$lib/serverDirectory';
   import { useServerScope } from '$lib/state/server/scope.svelte';

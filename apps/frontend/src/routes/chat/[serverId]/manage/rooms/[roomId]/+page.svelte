@@ -15,8 +15,8 @@ change the settings goes to the Members section instead.
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
-  import { invalidateAdminRoomLayoutQueries } from '@chatto/client/query/adminInvalidation';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { invalidateAdminRoomLayoutQueries } from '$lib/query/adminInvalidation';
   import { createMutation, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { toast } from '$lib/ui/toast';

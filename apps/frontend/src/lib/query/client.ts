@@ -13,9 +13,9 @@ import {
   type Accessor,
   type QueryClient
 } from '@tanstack/svelte-query';
-import { queryClient } from '@chatto/client/query/client';
+import { queryClient } from './queryClient';
 
-export * from '@chatto/client/query/client';
+export * from './queryClient';
 
 type CreateFunction = (options: never, client?: Accessor<QueryClient>) => unknown;
 

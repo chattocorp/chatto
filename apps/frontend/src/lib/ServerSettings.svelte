@@ -17,7 +17,7 @@
     type EditableServerConfig,
     type EditableServerProfile
   } from '@chatto/client/api/serverState';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 

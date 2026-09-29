@@ -45,10 +45,10 @@ focusing a cell highlights its permission row and role column.
   import PermissionRowLabel from './PermissionRowLabel.svelte';
   import { decisionTitle, decisionWord } from './decisionLabels';
   import { m } from '$lib/i18n/messages';
-  import { adminQueryKeys } from '@chatto/client/query/admin';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery, queryClient } from '$lib/query/client';
-  import { registerQueryCacheRemovalListener } from '@chatto/client/query/cacheRegistry';
-  import { invalidateRolePermissionDependents } from '@chatto/client/query/adminInvalidation';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   type State = 'allow' | 'deny' | 'neutral';
 
