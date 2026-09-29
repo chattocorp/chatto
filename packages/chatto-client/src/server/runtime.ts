@@ -73,7 +73,6 @@ export function startClientRuntime(): ClientRuntime {
 
 function runClientRuntime(): ClientRuntime {
   const activeServerId = signal<string | null>(null);
-  const stopRecovery = startServerRecovery(serverRegistry);
   let stopped = false;
 
   const disposeEffects = effectRoot(() => {
@@ -119,6 +118,9 @@ function runClientRuntime(): ClientRuntime {
       });
     });
   });
+  // Start recovery only after the effects started, so a failed start leaves
+  // no recovery timer behind.
+  const stopRecovery = startServerRecovery(serverRegistry);
 
   return {
     setActiveServer(serverId) {

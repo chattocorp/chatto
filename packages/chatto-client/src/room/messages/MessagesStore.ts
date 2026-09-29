@@ -1521,8 +1521,4 @@ export class MessagesStore {
     });
     if (changed) this.events = next;
   }
-
-  private sortEvents(): void {
-    this.events = this.source.sort(this.events);
-  }
 }

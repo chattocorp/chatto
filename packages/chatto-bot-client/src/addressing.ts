@@ -21,7 +21,7 @@ export interface AddressedMessage extends ChattoMessage {
  * viewerId must be this connection's viewer. Mentions use the
  * server's includesViewer flag. Only unmentioned non-DM replies require a lookup.
  * Self messages, non-message events, and unavailable text are ignored. Lookup
- * errors and cancellation propagate without logging or changing a checkpoint.
+ * errors and cancellation propagate without logging.
  */
 export async function addressedMessage(
   client: {
