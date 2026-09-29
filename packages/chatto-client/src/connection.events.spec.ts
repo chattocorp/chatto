@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { CreateMessageRequest } from '@chatto/api-types/api/v1/messages_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -241,6 +242,44 @@ describe('consumeEvents', () => {
       await consuming;
     }
     expect(handled).toEqual(['before-ready']);
+  });
+});
+
+describe('run startup', () => {
+  it('waits through an unreachable server until the viewer loads', async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mocks.viewer.mockRejectedValueOnce(new TypeError('fetch failed'));
+      const chatto = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      let settled = false;
+      const running = chatto.run(() => {}).finally(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(settled).toBe(false);
+      expect(chatto.viewerId).toBe('bot');
+      chatto.close();
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(running).resolves.toBeUndefined();
+    } finally {
+      logged.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('resolves when the connection closes before the viewer loads', async () => {
+    mocks.viewer.mockReturnValueOnce(new Promise(() => {}));
+    const chatto = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    const running = chatto.run(() => {});
+    chatto.close();
+    await expect(running).resolves.toBeUndefined();
+  });
+
+  it('rejects when the server rejects the key', async () => {
+    mocks.viewer.mockImplementation(async () => {
+      throw new ConnectError('authentication required', Code.Unauthenticated);
+    });
+    const chatto = client.connect({ serverUrl: 'https://chat.example', apiKey: 'revoked' });
+    await expect(chatto.run(() => {})).rejects.toThrow('rejected the API key');
   });
 });
 

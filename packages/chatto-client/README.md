@@ -20,16 +20,18 @@ connect several servers:
 import { createClient } from '@chatto/client';
 
 const client = createClient();
-const eu = client.connect({ serverUrl: 'https://eu.example', apiKey: euKey });
-const us = client.connect({ serverUrl: 'https://us.example', apiKey: usKey });
-
-await Promise.all([
-  eu.run((ctx) => ctx.reply(`Hello from EU, you said: ${ctx.message.body}`)),
-  us.run((ctx) => ctx.reply('Hello from US'))
-]);
-
-// Stop every connection and all background work.
-client.close();
+process.on('SIGTERM', () => client.close());
+try {
+  const eu = client.connect({ serverUrl: 'https://eu.example', apiKey: euKey });
+  const us = client.connect({ serverUrl: 'https://us.example', apiKey: usKey });
+  await Promise.all([
+    eu.run((ctx) => ctx.reply(`Hello from EU, you said: ${ctx.message.body}`)),
+    us.run((ctx) => ctx.reply('Hello from US'))
+  ]);
+} finally {
+  // Stop every connection and all background work.
+  client.close();
+}
 ```
 
 `connect()` registers a server with a fixed bearer token, such as a bot API
@@ -38,8 +40,9 @@ device storage.
 
 ### Answering messages
 
-`connection.run(handler)` waits until the server accepted the key, then calls
-`handler` for each message addressed to the viewer (the account of the key):
+`connection.run(handler)` waits until the server accepted the key, also while
+the server is unreachable, then calls `handler` for each message addressed to
+the viewer (the account of the key):
 direct messages, mentions, and replies to the viewer's messages. Messages are
 handled in order. The handler receives a context:
 
@@ -51,7 +54,7 @@ await connection.run(
     await ctx.withTyping(async () => {
       await ctx.reply(await answer(thread.messages));
     });
-    await ctx.react('eyes');
+    await ctx.addReaction('eyes');
   },
   {
     signal, // stops the loop; without it, the loop stops when the connection closes
@@ -64,7 +67,12 @@ await connection.run(
 
 `ctx.signal` aborts when the loop stops or the connection closes; pass it to
 your own cancellable work. `ctx.conversationKey` scopes a conversation to the
-viewer, room, thread, and sender.
+viewer, room, thread, and sender. `ctx.refreshTyping()` refreshes the typing
+indicator once.
+
+`run` resolves when `signal` aborts or the connection closes. It rejects when
+the server rejects the key or does not support this client, and, without
+`onError`, with the first failure of the handler.
 
 ### Events, status, and state
 
@@ -87,11 +95,13 @@ viewer, room, thread, and sender.
 - `ready()` rejects when the server rejects the key, when the server is
   unreachable or fails, or when the server release does not support this
   client. The connection retries in the background; call `ready()` again to
-  wait for the next attempt. `run()` calls `ready()` first.
+  wait for the next attempt. `run()` waits through these retries.
 - `sessionEnded` becomes true when the server rejects or revokes the key.
   `realtimeUnsupported` becomes true when the server does not support this
   client's realtime protocol. In both cases no events arrive, and the event
   loops reject; close the connection.
+- A connection's server keeps a persistent WebSocket, also in a client with
+  one selected live server.
 - `connection.close()` stops the connection's realtime delivery. Requests in
   flight through the connection fail, even when the server applied them, and
   no new requests are sent. When the last connection of a client closes, the
@@ -142,7 +152,7 @@ connection closes:
 import { createApi } from '@chatto/client';
 
 const api = createApi({ serverUrl, apiKey });
-const viewerId = await api.viewerId({ signal }); // read once, then reused
+const { viewerId } = await api.ready({ signal }); // read once, then reused
 await api.reply(message, 'Done', { signal });
 ```
 
@@ -182,7 +192,8 @@ const store = client.registry.getStore(serverId);
 ```
 
 A process can have one client with device storage and one for the origin
-server.
+server. An application that registers a voice-call type must pass its
+`voiceCall` factory; `createClient` requires it then.
 
 ### Svelte
 

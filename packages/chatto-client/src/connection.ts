@@ -105,11 +105,11 @@ export interface MessageContext {
   /** Read the message's thread; see `readThread`. */
   readThread(options?: Omit<ThreadReadOptions, 'signal'>): Promise<ThreadRead>;
   /** Refresh the typing indicator in the message's thread once. */
-  typing(): Promise<void>;
+  refreshTyping(): Promise<void>;
   /** Show the typing indicator in the message's thread while `work` runs. */
   withTyping<Result>(work: () => Promise<Result>): Promise<Result>;
   /** React to the message. */
-  react(emoji: string): Promise<void>;
+  addReaction(emoji: string): Promise<void>;
 }
 
 /** The parts of a client that a connection uses. */
@@ -161,6 +161,8 @@ export class Connection {
       if (current) return current;
       return (await this.ready(options)).viewerId;
     });
+    // A connection handles events, so its server stays live in every client.
+    context.realtime.keepLive(serverId);
     this.#disposeBusSubscription = effectRoot(() => this.#subscribeToBus());
     // Realtime can start before ready() resolves; keep events for the first consumer.
     this.#firstInbox = this.#openInbox();
@@ -438,8 +440,13 @@ export class Connection {
   /**
    * Handle the messages addressed to the viewer, in order: direct messages,
    * mentions, and verified replies (see `addressedMessage`). Each message
-   * gets a {@link MessageContext} with the operations to answer it. Waits for
-   * {@link ready} first and then behaves like {@link consumeEvents}.
+   * gets a {@link MessageContext} with the operations to answer it.
+   *
+   * Waits for {@link ready} first, also through failed attempts while the
+   * server is unreachable, and then behaves like {@link consumeEvents}.
+   * Resolves when `signal` aborts or the connection closes. Rejects when the
+   * server rejects the key or does not support this client, and, without
+   * `onError`, with the first failure of the handler.
    *
    * ```ts
    * await connection.run(async (ctx) => {
@@ -451,7 +458,8 @@ export class Connection {
     handler: (context: MessageContext) => void | Promise<void>,
     { signal: stopSignal, reasons, onStatus, onError }: RunOptions = {}
   ): Promise<void> {
-    const { viewerId } = await this.ready({ signal: stopSignal });
+    const viewerId = await this.#readyForLoop(stopSignal);
+    if (viewerId === undefined) return;
     const loopSignal = AbortSignal.any([
       this.#closeController.signal,
       ...(stopSignal ? [stopSignal] : [])
@@ -552,8 +560,26 @@ export class Connection {
     this.#firstInbox?.close();
     this.#firstInbox = undefined;
     this.#disposeBusSubscription?.();
+    this.#context.realtime.keepLive(this.serverId, false);
     this.#context.registry.removeServer(this.serverId);
     this.#context.onClose(this);
+  }
+
+  /**
+   * Wait for {@link ready} through transient failures: each call waits for the
+   * next recovery attempt. Returns undefined when the loop stops first, and
+   * rejects on a failure that recovery cannot fix.
+   */
+  async #readyForLoop(stopSignal: AbortSignal | undefined): Promise<string | undefined> {
+    while (!stopSignal?.aborted && !this.#closed.peek()) {
+      try {
+        return (await this.ready({ signal: stopSignal })).viewerId;
+      } catch (error) {
+        if (stopSignal?.aborted || this.#closed.peek()) return undefined;
+        if (this.sessionEnded || this.realtimeUnsupported) throw error;
+      }
+    }
+    return undefined;
   }
 
   #messageContext(
@@ -571,9 +597,9 @@ export class Connection {
       connection: this,
       reply: (body) => this.#requests.reply(message, body, { signal }),
       readThread: (options) => this.#requests.readThread(thread, { ...options, signal }),
-      typing: () => this.#requests.refreshTyping(destination, { signal }),
+      refreshTyping: () => this.#requests.refreshTyping(destination, { signal }),
       withTyping: (work) => this.#requests.withTyping(destination, work, { signal }),
-      react: (emoji) =>
+      addReaction: (emoji) =>
         this.#requests.addReaction({ roomId: message.roomId, messageId: message.id }, emoji, {
           signal
         })

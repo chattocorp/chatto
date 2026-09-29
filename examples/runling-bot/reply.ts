@@ -72,7 +72,7 @@ export function createReplyWorkflow(
       // results keep the JSON shape of earlier versions, so resumed runs can
       // replay journaled results.
       const viewer = await step('Check bot identity', async () => {
-        const id = await api.viewerId({ signal: r.signal });
+        const { viewerId: id } = await api.ready({ signal: r.signal });
         return { user: { profile: { id } } };
       });
       if (viewer.user?.profile?.id !== input.bot_id) {

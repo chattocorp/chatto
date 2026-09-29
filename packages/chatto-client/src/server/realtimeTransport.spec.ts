@@ -22,7 +22,7 @@ import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import type { EventBus, ProjectionHandler } from '../realtime/eventBus.js';
 
 /** The tested bus manager: one live server, like the bundled frontend. */
-let eventBusManager = new EventBusManager();
+let eventBusManager = new EventBusManager({ liveServers: 'selected' });
 import { effect, signal } from '../reactivity/index.js';
 
 class FakeRealtimeSocket {
@@ -254,7 +254,7 @@ describe('eventBusManager realtime transport', () => {
 
   afterEach(() => {
     eventBusManager.stopAll();
-    eventBusManager = new EventBusManager();
+    eventBusManager = new EventBusManager({ liveServers: 'selected' });
     setRealtimeSocketFactoryForTests(null);
     setRealtimePollRandomForTests(null);
     consoleError.mockRestore();

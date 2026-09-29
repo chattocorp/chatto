@@ -15,5 +15,8 @@ declare module '@chatto/client/register' {
 }
 
 /** Create the LiveKit controller of one server store. */
-export const voiceCallFactory: VoiceCallFactory = ({ serverId, api, permissions }) =>
-  new VoiceCallState(api, permissions, new CallPreferencesState(serverId));
+export const voiceCallFactory: VoiceCallFactory<VoiceCallState> = ({
+  serverId,
+  api,
+  permissions
+}) => new VoiceCallState(api, permissions, new CallPreferencesState(serverId));

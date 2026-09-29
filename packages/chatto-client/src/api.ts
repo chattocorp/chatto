@@ -55,22 +55,29 @@ export class Api extends MessagingRequests {
   }
 
   /**
-   * The account of the API key. The first call reads it from the server; later
-   * calls reuse it. A failed read is not kept, so a later call tries again.
+   * Wait until the server accepted the key, and return its account, as
+   * `Connection.ready` does. The first call reads the viewer from the
+   * server; later calls reuse it. A failed read is not kept, so a later call
+   * tries again.
    */
-  viewerId(options: RequestOptions = {}): Promise<string> {
-    return this.#viewerId(options);
+  async ready(options: RequestOptions = {}): Promise<{ viewerId: string }> {
+    return { viewerId: await this.#viewerId(options) };
   }
 }
 
-/** Read the viewer once and keep a successful result. */
+/**
+ * Read the viewer once and keep a successful result. Callers share one
+ * request, so it has no caller's signal; each caller stops waiting when its
+ * own signal aborts.
+ */
 function cachedViewerId(
   service: <T extends ServiceType>(service: T) => Client<T>
 ): (options: RequestOptions) => Promise<string> {
   let viewer: Promise<string> | undefined;
   return ({ signal }) => {
+    signal?.throwIfAborted();
     viewer ??= service(ViewerService)
-      .getViewer({}, { signal, timeoutMs: 10_000 })
+      .getViewer({}, { timeoutMs: 10_000 })
       .then((response) => {
         const id = response.user?.profile?.id;
         if (!id) throw new Error('Chatto did not return the viewer');
@@ -80,8 +87,18 @@ function cachedViewerId(
         viewer = undefined;
         throw error;
       });
-    return viewer;
+    return untilAborted(viewer, signal);
   };
+}
+
+/** Settle like `promise`, or reject with the abort reason when `signal` aborts first. */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise;
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
 }
 
 /** Create a stateless API client with a fixed bearer token. */

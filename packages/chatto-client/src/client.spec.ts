@@ -106,6 +106,16 @@ describe('isolated clients', () => {
       expect(new Set(sockets)).toEqual(new Set(['one.example', 'two.example']))
     );
   });
+
+  it('keep connections live in a client with one selected live server', async () => {
+    const app = client({ liveServers: 'selected' });
+    const connection = app.connect({ serverUrl: 'https://bot.example', apiKey: 'bot' });
+    await connection.ready();
+    await vi.waitFor(() => expect(app.realtime.getBus(connection.serverId)).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // A polled server's transport is dormant between catch-ups; a live one connects.
+    expect(connection.serverConnection.status).toBe('connecting');
+  });
 });
 
 describe('client lifecycle', () => {
@@ -123,6 +133,8 @@ describe('client lifecycle', () => {
       expect(() => bots.connect({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(
         'closed'
       );
+      expect(() => bots.start()).toThrow('closed');
+      expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();
     }

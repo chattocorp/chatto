@@ -15,10 +15,19 @@ import { ServerRegistry } from './server/registry.js';
 import { ServerConnectionManager } from './server/serverConnection.js';
 import { startClientRuntime, type ClientRuntime } from './server/runtime.js';
 import { emptyServerSession } from './server/sessions.js';
-import { detachedVoiceCallFactory, type VoiceCallFactory } from './server/voiceCall.js';
+import {
+  detachedVoiceCallFactory,
+  type RegisteredVoiceCall,
+  type VoiceCallController,
+  type VoiceCallFactory
+} from './server/voiceCall.js';
+import type { Register } from './register.js';
 
 /** Settings for {@link createClient}. */
-export interface ClientOptions {
+export type ClientOptions = BaseClientOptions & VoiceCallOptions;
+
+/** The settings of every client; see {@link ClientOptions}. */
+export interface BaseClientOptions {
   /**
    * Where the client keeps its server catalogue and renewable sessions.
    * `memory` (the default) keeps nothing between runs. `device` uses the
@@ -38,9 +47,28 @@ export interface ClientOptions {
    * catch up by polling.
    */
   liveServers?: LiveServers;
-  /** Creates the voice-call controller of each server store. Default: no call media. */
-  voiceCall?: VoiceCallFactory;
 }
+
+/**
+ * The voice-call setting. An application that registers a voice-call type
+ * (see `Register`) must pass the factory that creates it, so that stores
+ * have the registered type.
+ */
+export type VoiceCallOptions = Register extends { voiceCall: VoiceCallController }
+  ? {
+      /** Creates the voice-call controller of each server store. */
+      voiceCall: VoiceCallFactory<RegisteredVoiceCall>;
+    }
+  : {
+      /** Creates the voice-call controller of each server store. Default: no call media. */
+      voiceCall?: VoiceCallFactory;
+    };
+
+/** `createClient` needs options only when they have a required setting. */
+type CreateClientArguments =
+  Record<string, never> extends VoiceCallOptions
+    ? [options?: ClientOptions]
+    : [options: ClientOptions];
 
 /** Clients that use device storage or the origin server; a process can have one of each. */
 const exclusiveClients = new Map<'deviceStorage' | 'originServer', ChattoClient>();
@@ -55,7 +83,6 @@ export class ChattoClient {
   readonly connections: ServerConnectionManager;
   /** The client's event buses and realtime transports. */
   readonly realtime: EventBusManager;
-  readonly #options: ClientOptions;
   readonly #openConnections = new Set<Connection>();
   #runtime: ClientRuntime | null = null;
   /** Whether the application started the runtime; see {@link start}. */
@@ -64,14 +91,13 @@ export class ChattoClient {
   #closed = false;
 
   /** Use {@link createClient}. */
-  constructor(options: ClientOptions = {}) {
+  constructor(options: ClientOptions) {
     if (options.storage === 'device' && exclusiveClients.has('deviceStorage')) {
       throw new Error('A process can have one Chatto client with device storage');
     }
     if (options.originServer && exclusiveClients.has('originServer')) {
       throw new Error('A process can have one Chatto client for the origin server');
     }
-    this.#options = options;
     this.realtime = new EventBusManager({ liveServers: options.liveServers ?? 'all' });
     this.connections = new ServerConnectionManager(() => this.registry);
     this.registry = new ServerRegistry(
@@ -92,6 +118,7 @@ export class ChattoClient {
    * by itself and stops it when its last connection closes.
    */
   start(): void {
+    if (this.#closed) throw new Error('The Chatto client is closed');
     this.#startedExplicitly = true;
     this.#ensureRuntime();
   }
@@ -123,13 +150,10 @@ export class ChattoClient {
     if (this.#closed) throw new Error('The Chatto client is closed');
     const url = parseServerUrl(options.serverUrl);
     if (!options.apiKey) throw new Error('A Chatto API key is required');
-    // The origin server uses the page's cookie session, never a fixed token.
-    if (
-      this.#options.originServer &&
-      typeof window !== 'undefined' &&
-      window.location?.origin === url.origin
-    ) {
-      throw new Error("A client for the origin server cannot connect the page's own origin");
+    // Requests to the page's own origin also carry its cookie session, so a
+    // request would have two credentials. That server uses the cookie session.
+    if (typeof window !== 'undefined' && window.location?.origin === url.origin) {
+      throw new Error('A browser page cannot connect its own origin with an API key');
     }
     // Never reuse an ID: a late request of a closed connection cannot affect a newer one.
     const serverId = `${url.hostname.replace(/[^a-z0-9-]/gi, '-')}~${++connectionCount}`;
@@ -200,6 +224,6 @@ export class ChattoClient {
  * await connection.run((ctx) => ctx.reply(`Hello, ${ctx.message.authorId}`));
  * ```
  */
-export function createClient(options: ClientOptions = {}): ChattoClient {
-  return new ChattoClient(options);
+export function createClient(...[options]: CreateClientArguments): ChattoClient {
+  return new ChattoClient(options ?? ({} as ClientOptions));
 }

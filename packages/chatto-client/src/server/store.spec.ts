@@ -368,7 +368,7 @@ import { ServerStateStore } from './store.js';
 import { EventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
 
 /** The realtime transports of the stores that {@link makeStore} creates. */
-const eventBusManager = new EventBusManager();
+const eventBusManager = new EventBusManager({ liveServers: 'selected' });
 import { queryCaches } from '../query/cacheRegistry.js';
 import type { ServerConnection } from './serverConnection.js';
 import type { RegisteredServer } from './registry.js';

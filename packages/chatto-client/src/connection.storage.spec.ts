@@ -56,9 +56,13 @@ it('leaves no per-server records behind after close', async () => {
   expect(added).toEqual([]);
 });
 
-it("refuses the page's own origin, which uses its cookie session", () => {
-  expect(() => connectChatto({ serverUrl: location.origin, apiKey: 'key' })).toThrow(
-    "page's own origin"
+it("refuses the page's own origin, which uses its cookie session, in every client", async () => {
+  expect(() => connectChatto({ serverUrl: location.origin, apiKey: 'key' })).toThrow('own origin');
+  const { createClient } = await import('./client.js');
+  const memoryClient = createClient();
+  expect(() => memoryClient.connect({ serverUrl: location.origin, apiKey: 'key' })).toThrow(
+    'own origin'
   );
+  memoryClient.close();
   expect(storedKeys()).toEqual([]);
 });

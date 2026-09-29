@@ -84,7 +84,9 @@ export interface VoiceCallContext {
 }
 
 /** Create the voice-call controller of one server store. */
-export type VoiceCallFactory = (context: VoiceCallContext) => VoiceCallController;
+export type VoiceCallFactory<Controller extends VoiceCallController = VoiceCallController> = (
+  context: VoiceCallContext
+) => Controller;
 
 /** The application's voice-call type; see {@link Register}. */
 export type RegisteredVoiceCall = Register extends {
@@ -106,4 +108,5 @@ export class DetachedVoiceCall implements VoiceCallController {
 }
 
 /** The default factory: a client without call media. */
-export const detachedVoiceCallFactory: VoiceCallFactory = () => new DetachedVoiceCall();
+export const detachedVoiceCallFactory: VoiceCallFactory<DetachedVoiceCall> = () =>
+  new DetachedVoiceCall();

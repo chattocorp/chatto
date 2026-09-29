@@ -3,7 +3,7 @@ import { ServerStateStore } from './store.js';
 import type { ServerConnectionManager } from './serverConnection.js';
 import type { EventBusManager } from './realtimeTransport.js';
 import type { VoiceCallFactory } from './voiceCall.js';
-import { claimServerId, releaseServerId } from './serverIds.js';
+import { claimServerId, isServerIdClaimed, releaseServerId } from './serverIds.js';
 import { Codecs, globalSlot, serverSlot } from '../storage/slot.js';
 import { getPublicServerInfo } from '../api/server.js';
 import type { PublicServerInfo } from '../api/server.js';
@@ -54,8 +54,9 @@ export interface AuthenticatedUserSummary {
 
 /**
  * Generate a URL-safe server ID from a base URL.
- * Extracts the hostname and replaces dots/colons with hyphens.
- * If the ID already exists in `existingIds`, appends a numeric suffix.
+ * Extracts the hostname and replaces dots/colons with hyphens. When the ID is
+ * in `existingIds` or another client in the process holds it, appends a
+ * numeric suffix.
  */
 export function generateServerId(url: string, existingIds: string[] = []): string {
   let hostname: string;
@@ -66,13 +67,14 @@ export function generateServerId(url: string, existingIds: string[] = []): strin
   }
 
   const base = hostname.replace(/\./g, '-').replace(/^-+|-+$/g, '');
+  const taken = (id: string) => existingIds.includes(id) || isServerIdClaimed(id);
 
-  if (!existingIds.includes(base)) {
+  if (!taken(base)) {
     return base;
   }
 
   let suffix = 2;
-  while (existingIds.includes(`${base}-${suffix}`)) {
+  while (taken(`${base}-${suffix}`)) {
     suffix++;
   }
   return `${base}-${suffix}`;
@@ -344,13 +346,23 @@ const deviceStorage: RegistryStorage = {
   }
 };
 
-/** Keeps nothing: the in-memory catalogue and sessions are the only copy. */
-const memoryStorage: RegistryStorage = {
-  readAuthentication: () => undefined,
-  writeAuthentication: () => true,
-  writeServers: () => {},
-  shared: false
-};
+/**
+ * Keeps authentication records in memory only, for one registry. Renewal
+ * reads its own writes back, as it does with device storage; no other tab
+ * shares the records.
+ */
+function memoryStorage(): RegistryStorage {
+  const records = new Map<string, ServerAuthentication>();
+  return {
+    readAuthentication: (serverId) => records.get(serverId),
+    writeAuthentication: (serverId, authentication) => {
+      records.set(serverId, { ...authentication });
+      return true;
+    },
+    writeServers: () => {},
+    shared: false
+  };
+}
 
 /** Settings of a {@link ServerRegistry}; a client passes its own. */
 export interface ServerRegistryOptions {
@@ -412,7 +424,7 @@ export class ServerRegistry {
   constructor(context: ServerRegistryContext, options: ServerRegistryOptions) {
     this.#context = context;
     this.#options = options;
-    this.#storage = options.deviceStorage ? deviceStorage : memoryStorage;
+    this.#storage = options.deviceStorage ? deviceStorage : memoryStorage();
     const persisted = options.deviceStorage
       ? restorePersistedServerState()
       : { registrations: [], sessions: new Map<string, ServerSession>() };

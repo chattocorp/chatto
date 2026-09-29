@@ -16,6 +16,10 @@ export const client = createClient({
   voiceCall: voiceCallFactory
 });
 
+// A module replacement creates a new client; release the old one first, so
+// that it gives up the device storage and the origin server.
+if (import.meta.hot) import.meta.hot.dispose(() => client.close());
+
 /** The client's servers, sessions, and stores. */
 export const serverRegistry = client.registry;
 /** The client's server connections. */

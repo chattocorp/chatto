@@ -106,13 +106,19 @@ the Vitest browser setup, and in Storybook.
   origin server with its cookie session, the live servers (`all`, the
   default, or one `selected` server), and the voice-call factory. A process
   can have one client with device storage and one for the origin server.
+  When an application registers a voice-call type, `createClient` requires
+  its factory, so stores always have the registered type.
 - `client.connect({ serverUrl, apiKey })` registers a server with a fixed
   token. A fixed token is never renewed or written to device storage. The
-  server's rejection or a session termination ends the session. A client can
-  hold several connections. The client runs its runtime while it has
-  connections, or after the application calls `start()`.
-- `connection.run(handler)` handles the messages addressed to the viewer in
-  order and gives each one a context with the operations to answer it.
+  server's rejection or a session termination ends the session. A browser
+  page cannot connect its own origin this way, because those requests also
+  carry the page's cookie session. A client can hold several connections, and
+  a connection's server is always live. The client runs its runtime while it
+  has connections, or after the application calls `start()`.
+- `connection.run(handler)` waits until the server accepted the key, also
+  through retries while the server is unreachable, then handles the messages
+  addressed to the viewer in order and gives each one a context with the
+  operations to answer it.
   `connection.consumeEvents` is the ordered loop for all events.
 - `createApi({ serverUrl, apiKey })` makes stateless typed requests with
   Connect JSON and has the same request helpers. It rejects redirects and does

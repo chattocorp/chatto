@@ -11,6 +11,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { ViewerState } from '../api/viewer.js';
 import { createAppClient } from '../testing/appClient.js';
+import { createClient } from '../client.js';
 
 const serverRegistry = createAppClient().registry;
 
@@ -92,6 +93,17 @@ describe('generateServerId', () => {
     expect(
       generateServerId('https://chat.example.com', ['chat-example-com', 'chat-example-com-2'])
     ).toBe('chat-example-com-3');
+  });
+
+  it('skips IDs that another client holds', () => {
+    const other = createClient();
+    try {
+      other.registry.addServer(makeServer({ id: 'held-example', url: 'https://held.example' }));
+      expect(generateServerId('https://held.example')).toBe('held-example-2');
+    } finally {
+      other.close();
+    }
+    expect(generateServerId('https://held.example')).toBe('held-example');
   });
 
   it('handles invalid URLs gracefully', () => {
@@ -672,6 +684,31 @@ describe('ServerRegistry', () => {
         { headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    it('renews a bearer session in a client with memory storage', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string | URL | Request) =>
+          String(input).endsWith('/oauth/token')
+            ? refreshedResponse()
+            : new Response('', { status: 503 })
+        )
+      );
+      const memoryClient = createClient();
+      try {
+        memoryClient.registry.addServer({ ...renewableServer(), id: 'renewable-memory' });
+        await expect(
+          memoryClient.registry.renewServerAuthentication('renewable-memory', true)
+        ).resolves.toBe('access-2');
+        expect(memoryClient.registry.getServer('renewable-memory')).toMatchObject({
+          token: 'access-2',
+          refreshToken: 'refresh-2'
+        });
+        expect(localStorage.length).toBe(0);
+      } finally {
+        memoryClient.close();
+      }
+    });
 
     it('coalesces concurrent rotations and installs the pair in place', async () => {
       const fetchMock = vi.fn(async (input: string | URL | Request) => {

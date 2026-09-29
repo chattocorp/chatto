@@ -1,7 +1,9 @@
 /**
- * Owns the session-long event bus for every authenticated server and assigns
- * its transport one of three modes: live, polling, or dormant. Only the
- * URL-active server keeps a persistent WebSocket. Inactive projections catch
+ * Owns the session-long event bus for every authenticated server of one
+ * client and assigns its transport one of three modes: live, polling, or
+ * dormant. Live servers keep a persistent WebSocket: every server of a bot
+ * client, or the selected server of an application, and the servers of its
+ * connections (see {@link EventBusManager.keepLive}). Other projections catch
  * up through serialized, short-lived connections to the same event stream.
  */
 
@@ -116,9 +118,23 @@ export type LiveServers = 'selected' | 'all';
 /** Owns the event buses and realtime transports of one client's servers. */
 export class EventBusManager {
   readonly #liveServers: LiveServers;
+  /** Servers that stay live in every mode; see {@link keepLive}. */
+  readonly #keptLive = new Set<string>();
 
-  constructor(options: { liveServers?: LiveServers } = {}) {
-    this.#liveServers = options.liveServers ?? 'selected';
+  constructor(options: { liveServers: LiveServers }) {
+    this.#liveServers = options.liveServers;
+  }
+
+  /**
+   * Keep a server's transport live in every mode, for example for a
+   * connection that handles events. Pass `false` to end this.
+   */
+  keepLive(serverId: string, live = true): void {
+    if (live) this.#keptLive.add(serverId);
+    else this.#keptLive.delete(serverId);
+    if (!this.#managedServerIds.has(serverId)) return;
+    this.#controllers.get(serverId)?.setMode(this.#isLive(serverId) ? 'live' : 'dormant');
+    this.#scheduleNextPoll();
   }
 
   // Reactive so context consumers can attach after a server becomes authenticated.
@@ -800,7 +816,11 @@ export class EventBusManager {
 
   /** Whether the server keeps a persistent WebSocket; see {@link LiveServers}. */
   #isLive(serverId: string): boolean {
-    return this.#liveServers === 'all' || serverId === this.#activeServerId;
+    return (
+      this.#liveServers === 'all' ||
+      this.#keptLive.has(serverId) ||
+      serverId === this.#activeServerId
+    );
   }
 
   #clearPollTimer(): void {

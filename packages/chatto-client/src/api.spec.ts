@@ -36,9 +36,23 @@ it('reads the viewer once and reads it again after a failure', async () => {
       : Response.json({ user: { profile: { id: 'bot' } } })
   );
   const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request });
-  await expect(api.viewerId()).rejects.toThrow();
+  await expect(api.ready()).rejects.toThrow();
   fail = false;
-  await expect(api.viewerId()).resolves.toBe('bot');
-  await expect(api.viewerId()).resolves.toBe('bot');
+  await expect(api.ready()).resolves.toEqual({ viewerId: 'bot' });
+  await expect(api.ready()).resolves.toEqual({ viewerId: 'bot' });
   expect(request).toHaveBeenCalledTimes(2);
+});
+
+it('keeps a shared viewer read going when one waiting caller cancels', async () => {
+  let respond!: (response: Response) => void;
+  const request = vi.fn<typeof fetch>(() => new Promise((resolve) => (respond = resolve)));
+  const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request });
+  const cancelled = new AbortController();
+  const first = api.ready({ signal: cancelled.signal });
+  const second = api.ready();
+  cancelled.abort(new Error('first caller cancelled'));
+  await expect(first).rejects.toThrow('first caller cancelled');
+  respond(Response.json({ user: { profile: { id: 'bot' } } }));
+  await expect(second).resolves.toEqual({ viewerId: 'bot' });
+  expect(request).toHaveBeenCalledOnce();
 });
