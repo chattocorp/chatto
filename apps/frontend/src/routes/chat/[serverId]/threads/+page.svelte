@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
@@ -63,7 +64,7 @@
   const debounce = useDebounce();
   let searchInput = $state({ raw: '', submitted: '' });
   const rawQuery = $derived(searchInput.raw);
-  const searchStatus = $derived(serverStore.messageSearch);
+  const searchStatus = $derived(serverUi(serverStore).messageSearch);
   const searchEnabled = $derived(
     searchStatus.statusError ||
       (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED)

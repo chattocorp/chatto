@@ -15,6 +15,7 @@ thread IDs can change while the pane stays mounted.
 -->
 <script lang="ts" module>
   import type { MessageComposerProps } from '$lib/components/composer/messageComposerState.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
 
   /** Composer options that the owner decides. The pane supplies the rest. */
   export type ConversationComposerOptions = Omit<
@@ -146,7 +147,7 @@ thread IDs can change while the pane stays mounted.
   // A jump to a message is about to start or is running. The entry read waits
   // for it, so that it does not read past the target.
   const highlightPending = $derived(
-    highlight !== null || stores.pendingHighlights.has(roomId, threadRootEventId)
+    highlight !== null || serverUi(stores).pendingHighlights.has(roomId, threadRootEventId)
   );
   const atLatest = $derived(!highlightPending && (currentReadPosition?.latest ?? true));
 

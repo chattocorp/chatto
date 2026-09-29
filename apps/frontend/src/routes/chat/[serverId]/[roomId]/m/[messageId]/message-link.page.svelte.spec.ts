@@ -5,7 +5,7 @@ import {
   type MessagePostedPayload,
   type TimelineEventView
 } from '@chatto/client/timeline/timelineEvents';
-import { PendingHighlightStore } from '@chatto/client/server/pendingHighlight';
+import { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
 import { resolveAndRedirect } from './+page.svelte';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));

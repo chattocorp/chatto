@@ -14,7 +14,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
     MessageSearchOrder,
     MessageSearchState,
     type MessageSearchStore
-  } from '@chatto/client/server/messageSearch';
+  } from '$lib/state/server/messageSearch';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import SearchResults from '$lib/components/search/SearchResults.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';

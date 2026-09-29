@@ -15,7 +15,10 @@
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import { eventBusManager, serverRegistry, serverConnectionManager } from '$lib/client';
-  import { initPresenceTracking } from '@chatto/client/server/presenceTracking';
+  import {
+    initPresenceTracking,
+    refreshPresencePreference
+  } from '$lib/state/server/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import { idleState } from '$lib/state/idle.svelte';
@@ -112,6 +115,17 @@
 
   const presenceTracking = initPresenceTracking(presenceReporters);
   onDestroy(() => presenceTracking.stop());
+  // Another device changed the viewer's presence choice on a server: read it again.
+  onDestroy(
+    serverRegistry.watchStores((store) =>
+      store.onUpdate((update) => {
+        if (update.event?.event.case !== 'viewerPresencePreferenceChanged') return;
+        if (store.accountId) {
+          refreshPresencePreference({ serverId: store.serverId, userId: store.accountId });
+        }
+      })
+    )
+  );
 
   $effect(() => presenceTracking.sync());
 

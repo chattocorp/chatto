@@ -89,6 +89,9 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+// The store mock also carries the frontend UI state of its server.
+vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {

@@ -25,7 +25,7 @@ Include this component once in the application root so signed-out pages also cle
   import Interval from '$lib/lifecycle/Interval.svelte';
   import PushNotificationSync from './PushNotificationSync.svelte';
   import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
-  import { presencePreferences } from '@chatto/client/server/presencePreference';
+  import { presencePreferences } from '$lib/state/server/presencePreference';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   const reconciliationIntervalMs = 60_000;

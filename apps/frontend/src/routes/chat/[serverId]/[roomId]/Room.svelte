@@ -1,5 +1,6 @@
 <script lang="ts">
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
@@ -20,7 +21,7 @@
     type RoomSidebarPresentation
   } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { MessageSearchState } from '@chatto/client/server/messageSearch';
+  import { MessageSearchState } from '$lib/state/server/messageSearch';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { userPreferences, type ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -69,7 +70,7 @@
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const stores = serverScope.store;
   const roomFilesStore = $derived(stores.rooms.files(roomId));
-  const roomMessageSearchStore = $derived(stores.rooms.search(roomId));
+  const roomMessageSearchStore = $derived(serverUi(stores).roomSearch(roomId));
   const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
@@ -258,7 +259,7 @@
       return;
     }
 
-    const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
+    const pending = serverUi(stores).pendingHighlights.consume(roomId, threadId ?? null);
     if (pending) {
       applyHighlight(pending.eventId, pending.notificationId);
       return;
@@ -317,12 +318,12 @@
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   const messageSearchAvailable = $derived(
-    stores.messageSearch.statusError ||
-      (stores.messageSearch.statusLoaded &&
-        stores.messageSearch.status.state !== MessageSearchState.DISABLED)
+    serverUi(stores).messageSearch.statusError ||
+      (serverUi(stores).messageSearch.statusLoaded &&
+        serverUi(stores).messageSearch.status.state !== MessageSearchState.DISABLED)
   );
   $effect(() => {
-    if (stores.isAuthenticated) void stores.messageSearch.ensureStatus();
+    if (stores.isAuthenticated) void serverUi(stores).messageSearch.ensureStatus();
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);

@@ -1,6 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { signal } from '../reactivity/index.js';
-import { Codecs, type StorageSlot, serverSlot } from '../storage/slot.js';
+import { signal } from '@chatto/client/reactivity/index';
+import { Codecs, type StorageSlot, serverSlot } from '@chatto/client/storage/slot';
 
 /** One viewer on one server. */
 export type PresenceScope = {

@@ -1,8 +1,8 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { effect } from '../reactivity/index.js';
-import type { AdminRoomLayoutAPI } from '../api/adminRoomLayout.js';
-import type { RoomCommandAPI } from '../api/rooms.js';
-import { RoomThreadingMode } from '../util/roomThreading.js';
+import { effect } from '@chatto/client/reactivity/index';
+import type { AdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import {
   AdminRoomLayoutStore,
   buildGroupRoomOrder,
@@ -10,7 +10,7 @@ import {
   planRoomMoveMutations,
   type AdminRoomGroup,
   type AdminRoomInfo
-} from './adminRoomLayout.js';
+} from './adminRoomLayout';
 
 afterEach(() => {
   vi.useRealTimers();

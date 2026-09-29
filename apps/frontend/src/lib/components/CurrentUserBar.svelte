@@ -27,8 +27,8 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveCustomStatus, getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import type { CustomUserStatus } from '@chatto/client/api/userSummary';
-  import { setPresenceStatus } from '@chatto/client/server/presenceTracking';
-  import { presencePreferences } from '@chatto/client/server/presencePreference';
+  import { setPresenceStatus } from '$lib/state/server/presenceTracking';
+  import { presencePreferences } from '$lib/state/server/presencePreference';
   import { buildDirectMessagePresentation } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
 

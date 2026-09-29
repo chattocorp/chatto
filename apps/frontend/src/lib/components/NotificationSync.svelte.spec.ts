@@ -123,7 +123,7 @@ vi.mock('$lib/audio/notificationSounds', () => ({
 // Push cleanup has separate coverage; these tests exercise in-app sound and badges.
 vi.mock('./PushNotificationSync.svelte', () => ({ default: () => {} }));
 
-vi.mock('@chatto/client/server/presencePreference', () => ({
+vi.mock('$lib/state/server/presencePreference', () => ({
   presencePreferences: {
     get: ({ serverId }: { serverId: string }) =>
       serverId === 'remote' ? mocks.remotePresencePreference : mocks.presencePreference

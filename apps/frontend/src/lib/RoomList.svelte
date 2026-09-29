@@ -6,6 +6,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -805,7 +806,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const target = notificationTarget(notification);
     prepareUiForNotificationTarget(appUi, activeServerId, target);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(
+      serverUi(stores).pendingHighlights.set(
         target.roomId,
         target.threadRootId,
         target.eventId,

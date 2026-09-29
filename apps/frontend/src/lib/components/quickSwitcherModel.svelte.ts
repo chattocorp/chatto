@@ -1,4 +1,5 @@
 import { toastError } from '$lib/utils/errorMessage';
+import { serverUi } from '$lib/state/server/serverUi';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { accountNameToken } from '@chatto/client/timeline/accountName';
 import { goto } from '$app/navigation';
@@ -297,7 +298,7 @@ export class QuickSwitcherModel {
       }
       this.#messageSearchServerKey = serverKey;
       const unsubscribes = stores.map(({ serverId, store }) =>
-        store.messageSearch.subscribePrivacyInvalidation((matches, force) => {
+        serverUi(store).messageSearch.subscribePrivacyInvalidation((matches, force) => {
           if (!quickSwitcher.visible) return;
           const affected = this.#messageSearch.items.some(
             (item) => item.serverId === serverId && item.message && matches(item.message)
@@ -479,8 +480,8 @@ export class QuickSwitcherModel {
     const searches = instances.map(async (instance): Promise<QuickSwitcherItem[]> => {
       const store = serverRegistry.tryGetStore(instance.id);
       if (!store?.serverInfo.isSupportedVersion) return [];
-      await store.messageSearch.ensureStatus();
-      if (!store.messageSearch.available) return [];
+      await serverUi(store).messageSearch.ensureStatus();
+      if (!serverUi(store).messageSearch.available) return [];
 
       const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
       try {

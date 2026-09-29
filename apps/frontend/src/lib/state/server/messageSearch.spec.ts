@@ -4,9 +4,9 @@ import type {
   MessageSearchPage,
   MessageSearchResult,
   MessageSearchStatus
-} from '../api/messageSearch.js';
-import { RoomKind } from '../api/roomDirectory.js';
-import { MessageSearchOrder, MessageSearchState, MessageSearchStore } from './messageSearch.js';
+} from '@chatto/client/api/messageSearch';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
+import { MessageSearchOrder, MessageSearchState, MessageSearchStore } from './messageSearch';
 
 function result(id: string): MessageSearchResult {
   return {

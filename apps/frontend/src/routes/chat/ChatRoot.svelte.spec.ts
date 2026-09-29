@@ -50,6 +50,9 @@ const mocks = vi.hoisted(() => {
     resumeReturnNavigation: vi.fn(async () => false),
     initPresenceTracking: vi.fn(),
     stopPresenceTracking: vi.fn(),
+    refreshPresencePreference: vi.fn(),
+    watchStores: vi.fn(),
+    stopWatchingStores: vi.fn(),
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
     onSessionTerminated: vi.fn(),
@@ -83,6 +86,10 @@ vi.mock('$lib/client', async () => ({
     },
     firstAuthenticatedServerId: mocks.firstAuthenticatedServerId,
     clearServerAuthentication: mocks.clearServerAuthentication,
+    watchStores: (setup: (store: unknown) => void) => {
+      mocks.watchStores(setup);
+      return mocks.stopWatchingStores;
+    },
     get originSignInRequired() {
       return mocks.originSignInRequired;
     }
@@ -129,11 +136,12 @@ vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
 }));
 
-vi.mock('@chatto/client/server/presenceTracking', () => ({
+vi.mock('$lib/state/server/presenceTracking', () => ({
   initPresenceTracking: (...args: unknown[]) => {
     mocks.initPresenceTracking(...args);
     return { sync: () => (args[0] as () => unknown[])(), stop: mocks.stopPresenceTracking };
-  }
+  },
+  refreshPresencePreference: mocks.refreshPresencePreference
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -344,6 +352,29 @@ describe('ChatRoot', () => {
 
     expect(mocks.stopPresenceTracking).toHaveBeenCalledOnce();
     expect(mocks.stopSessionChannel).not.toHaveBeenCalled();
+  });
+
+  it("reads the viewer's presence choice again when another device changed it", () => {
+    const { unmount } = render(ChatRoot, { props: { children } });
+    const [[setup]] = mocks.watchStores.mock.calls as [[(store: unknown) => void]];
+    let listener!: (update: unknown) => void;
+    setup({
+      serverId: 'remote',
+      accountId: 'remote-user',
+      onUpdate: (next: (update: unknown) => void) => {
+        listener = next;
+        return () => {};
+      }
+    });
+    listener({ event: { event: { case: 'messagePosted' } } });
+    expect(mocks.refreshPresencePreference).not.toHaveBeenCalled();
+    listener({ event: { event: { case: 'viewerPresencePreferenceChanged' } } });
+    expect(mocks.refreshPresencePreference).toHaveBeenCalledWith({
+      serverId: 'remote',
+      userId: 'remote-user'
+    });
+    unmount();
+    expect(mocks.stopWatchingStores).toHaveBeenCalledOnce();
   });
 
   it('reports the device time zone once for a viewer without an explicit zone', async () => {

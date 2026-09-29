@@ -1,4 +1,4 @@
-import { ReactiveMap, batch, signal } from '../reactivity/index.js';
+import { ReactiveMap, batch, signal, untrack } from '../reactivity/index.js';
 import { ServerStateStore } from './store.js';
 import type { ServerConnectionManager } from './serverConnection.js';
 import type { EventBusManager } from './realtimeTransport.js';
@@ -424,6 +424,8 @@ export class ServerRegistry {
    * ends the session. See {@link addServer}.
    */
   readonly #fixedTokenServers = new Set<string>();
+  /** Callbacks of {@link watchStores} for stores that the registry creates later. */
+  readonly #storeWatchers = new Set<(store: ServerStateStore) => void>();
 
   constructor(context: ServerRegistryContext, options: ServerRegistryOptions) {
     this.#context = context;
@@ -1359,9 +1361,44 @@ export class ServerRegistry {
       (user) => this.#acceptViewer(serverId, store, user)
     );
     this.#stores.set(serverId, store);
+    for (const watcher of [...this.#storeWatchers]) watcher(store);
     if (startNetwork) this.#startServerNetwork(serverId);
 
     return store;
+  }
+
+  /**
+   * Call `setup` for every server store of this registry: for the current
+   * stores now, and for each new store when the registry creates it, before
+   * the store receives realtime data. Use it to subscribe to store events,
+   * such as `onReset`. `setup` can return a cleanup function. It runs when the
+   * store is disposed or when the returned function stops the watch. A
+   * failing `setup` is logged and does not stop the others.
+   */
+  watchStores(setup: (store: ServerStateStore) => (() => void) | void): () => void {
+    const detachers = new Map<ServerStateStore, () => void>();
+    const attach = (store: ServerStateStore) => {
+      let cleanup: (() => void) | void = undefined;
+      try {
+        cleanup = untrack(() => setup(store));
+      } catch (error) {
+        console.error('[chatto-client] a store watcher failed', error);
+      }
+      let stopDisposeListener = () => {};
+      const detach = () => {
+        stopDisposeListener();
+        detachers.delete(store);
+        cleanup?.();
+      };
+      stopDisposeListener = store.onDispose(detach);
+      detachers.set(store, detach);
+    };
+    for (const store of untrack(() => [...this.#stores.values()])) attach(store);
+    this.#storeWatchers.add(attach);
+    return () => {
+      this.#storeWatchers.delete(attach);
+      for (const detach of [...detachers.values()]) detach();
+    };
   }
 
   /** Whether the server has an authenticated user. False if not registered. */

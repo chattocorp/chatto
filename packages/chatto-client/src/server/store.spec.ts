@@ -66,7 +66,7 @@ import {
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { computed, effect, effectRoot } from '../reactivity/index.js';
+import { effect, effectRoot } from '../reactivity/index.js';
 import { DetachedVoiceCall, type VoiceCallContext, type VoiceCallFactory } from './voiceCall.js';
 
 /** Records what the store forwards to its voice call. */
@@ -1372,60 +1372,6 @@ describe('ServerStateStore room search state', () => {
     expect(a.totalCount).toBe(0);
     expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(requests);
   });
-  it('retains separate transient search state for each room', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    const firstRoomSearch = store.rooms.search('R1');
-    const secondRoomSearch = store.rooms.search('R2');
-
-    firstRoomSearch.query = 'first room only';
-
-    expect(store.rooms.search('R1')).toBe(firstRoomSearch);
-    expect(secondRoomSearch).not.toBe(firstRoomSearch);
-    expect(secondRoomSearch.query).toBe('');
-    expect(store.messageSearch.query).toBe('');
-  });
-
-  it('bounds retained room search plaintext', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    const oldestSearch = store.rooms.search('R1');
-    oldestSearch.query = 'sensitive result scope';
-    for (let index = 2; index <= 11; index++) store.rooms.search(`R${index}`);
-
-    await Promise.resolve();
-    expect(oldestSearch.query).toBe('');
-    expect(store.rooms.search('R1')).not.toBe(oldestSearch);
-  });
-
-  it('can select the eleventh room search from a render derivation', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    const oldestSearch = store.rooms.search('R1');
-    oldestSearch.query = 'old room query';
-    for (let index = 2; index <= 10; index++) store.rooms.search(`R${index}`);
-
-    const closeRoute = effectRoot(() => {
-      const selectedSearch = computed(() => store.rooms.search('R11'));
-      effect(() => {
-        expect(selectedSearch.get().query).toBe('');
-      });
-    });
-    await Promise.resolve();
-    expect(oldestSearch.query).toBe('');
-    closeRoute();
-  });
-
-  it('does not clear a replacement search while cleaning up its evicted owner', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    const oldestSearch = store.rooms.search('R1');
-    oldestSearch.query = 'old query';
-    for (let index = 2; index <= 11; index++) store.rooms.search(`R${index}`);
-    const replacement = store.rooms.search('R1');
-    replacement.query = 'new query';
-
-    await Promise.resolve();
-
-    expect(oldestSearch.query).toBe('');
-    expect(replacement.query).toBe('new query');
-  });
 });
 
 describe('ServerStateStore unified realtime resources', () => {
@@ -1969,7 +1915,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('reauthorizes independent caches even when one authority read fails', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const search = vi.spyOn(store.messageSearch, 'refreshPermissions');
+    const search = vi.fn();
+    store.onPermissionsChanged(search);
     const members = vi.spyOn(store.rooms.members('R1'), 'refresh').mockResolvedValue();
     apiMocks.readRealtimeResource.mockImplementation(async (family) => {
       if (family === 'viewer') throw new Error('viewer offline');

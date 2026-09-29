@@ -7,7 +7,7 @@ keeps the sidebar's spacing and shorter prompt.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
-  import type { MessageSearchStore } from '@chatto/client/server/messageSearch';
+  import type { MessageSearchStore } from '$lib/state/server/messageSearch';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { EmptyState, LoadingFog } from '$lib/ui';
   import { m } from '$lib/i18n/messages';

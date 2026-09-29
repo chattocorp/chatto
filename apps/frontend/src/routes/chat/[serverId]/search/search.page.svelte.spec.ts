@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
 import { RoomKind } from '@chatto/client/api/roomDirectory';
-import { MessageSearchOrder, MessageSearchState } from '@chatto/client/server/messageSearch';
+import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch';
 import SearchPageTestHarness from './SearchPageTestHarness.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -21,6 +21,9 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+// The store mock also carries the frontend UI state of its server.
+vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {

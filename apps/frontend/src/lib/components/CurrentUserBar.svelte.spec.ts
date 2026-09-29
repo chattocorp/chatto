@@ -8,9 +8,9 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 
-import { presencePreferences } from '@chatto/client/server/presencePreference';
+import { presencePreferences } from '$lib/state/server/presencePreference';
 import { ServerPresence } from '@chatto/client/server/presence';
-import { setPresenceStatus } from '@chatto/client/server/presenceTracking';
+import { setPresenceStatus } from '$lib/state/server/presenceTracking';
 import { deleteCustomStatus, setCustomStatus } from '@chatto/client/api/userStatus';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
@@ -26,7 +26,7 @@ vi.mock('@chatto/client/api/userStatus', async (importOriginal) => ({
   setCustomStatus: vi.fn(async (_config, status) => ({ ...status }))
 }));
 
-vi.mock('@chatto/client/server/presenceTracking', () => ({
+vi.mock('$lib/state/server/presenceTracking', () => ({
   refreshPresencePreference: vi.fn(),
   setPresenceStatus: vi.fn(async (scope, mode) => {
     presencePreferences.get(scope).accept(mode, 'saved');

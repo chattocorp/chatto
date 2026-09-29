@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -246,7 +247,7 @@
     const target = notificationTarget(notification);
     prepareUiForNotificationTarget(appUi, serverId, target);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(
+      serverUi(stores).pendingHighlights.set(
         target.roomId,
         target.threadRootId,
         target.eventId,

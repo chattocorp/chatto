@@ -5,17 +5,17 @@ import type {
   AdminRoomLayoutItemMutationInput,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '../api/adminRoomLayout.js';
-import type { RoomCommandAPI } from '../api/rooms.js';
-import { ReactiveSet, signal } from '../reactivity/index.js';
-import { Code, isConnectCode } from '../api/connect.js';
+} from '@chatto/client/api/adminRoomLayout';
+import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import { ReactiveSet, signal } from '@chatto/client/reactivity/index';
+import { Code, isConnectCode } from '@chatto/client/api/connect';
 
 export type {
   AdminRoomGroup,
   AdminRoomInfo,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '../api/adminRoomLayout.js';
+} from '@chatto/client/api/adminRoomLayout';
 
 export type MoveRoomMutationInput = {
   roomId: string;

@@ -6,10 +6,11 @@
 -->
 <script lang="ts" module>
   import { goto } from '$app/navigation';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
   import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
   import { createRoomTimelineAPI, type RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
-  import type { PendingHighlightStore } from '@chatto/client/server/pendingHighlight';
+  import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
 
   /**
    * Fetch a message by ID and redirect to the appropriate room or thread URL.
@@ -84,7 +85,7 @@
     const messageId = page.params.messageId!;
     resolveAndRedirect(
       serverScope.connection.getAPI(createRoomTimelineAPI),
-      stores.pendingHighlights,
+      serverUi(stores).pendingHighlights,
       serverSegment,
       roomId,
       messageId,

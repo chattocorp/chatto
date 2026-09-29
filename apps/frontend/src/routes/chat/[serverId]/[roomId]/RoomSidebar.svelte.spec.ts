@@ -20,7 +20,7 @@ import {
   MessageSearchOrder,
   MessageSearchState,
   MessageSearchStore
-} from '@chatto/client/server/messageSearch';
+} from '$lib/state/server/messageSearch';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { PRESENCE_GROUPING_DEBOUNCE_MS } from './RoomSidebar.svelte';

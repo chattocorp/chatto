@@ -11,7 +11,7 @@ import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime
 import type { RoomTimelineAPI } from '@chatto/client/api/roomTimeline';
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
-import { MessageSearchState } from '@chatto/client/server/messageSearch';
+import { MessageSearchState } from '$lib/state/server/messageSearch';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -65,6 +65,9 @@ const mocks = vi.hoisted(() => ({
     refresh: vi.fn().mockResolvedValue(true)
   }
 }));
+
+// The store mock also carries the frontend UI state of its server.
+vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
 
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
@@ -435,9 +438,9 @@ beforeEach(() => {
         messages: mocks.roomMessages,
         members: mocks.roomMembers,
         files: () => ({ retain: mocks.roomFilesRetain }),
-        pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false }),
-        search: () => ({})
+        pins: () => ({ retain: () => () => {}, markSeen: () => {}, hasUnseen: false })
       },
+      roomSearch: () => ({}),
       restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow
     }
   });

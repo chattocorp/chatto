@@ -1,5 +1,6 @@
 <script lang="ts">
   import { serverIdToSegment } from '$lib/navigation';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PageTitle } from '$lib/ui';
   import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
@@ -9,10 +10,10 @@
   const activeServerId = serverScope.serverId;
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const stores = serverScope.store;
-  const layout = $derived(stores.adminRoomLayout);
+  const layout = $derived(serverUi(stores).adminRoomLayout);
 
   // The effect owns an external realtime subscription for this mounted route.
-  $effect(() => stores.activateAdminRoomLayout());
+  $effect(() => serverUi(stores).activateAdminRoomLayout());
 </script>
 
 <PageTitle

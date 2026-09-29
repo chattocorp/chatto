@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -99,7 +100,7 @@
         undefined,
         variables.groupId
       );
-      void serverScope.store.adminRoomLayout.refresh();
+      void serverUi(serverScope.store).adminRoomLayout.refresh();
       toast.success(m('admin.rooms_admin.group_renamed'));
     },
     onError: (error, variables) => {

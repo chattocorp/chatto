@@ -40,7 +40,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     RoomMembersStore,
     RoomPinsStore
   } from '$lib/state/room';
-  import type { MessageSearchStore } from '@chatto/client/server/messageSearch';
+  import type { MessageSearchStore } from '$lib/state/server/messageSearch';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
   import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MessageSearchAPI } from '../api/messageSearch.js';
 import type { ServerPresence } from './presence.js';
 import type { ServerConnection } from './serverConnection.js';
 import { RoomStores } from './roomStores.js';
@@ -31,22 +30,14 @@ vi.mock('../room/pins.js', () => ({
   clearRoomPinsSeenMarker: mocks.clearRoomPinsSeenMarker
 }));
 
-vi.mock('./messageSearch.js', () => ({
-  MessageSearchStore: class {
-    reset = vi.fn();
-  }
-}));
-
 function makeRooms(viewerId: string | null = 'viewer'): RoomStores {
   return new RoomStores({
     serverId: 'server',
     connection: {} as ServerConnection,
     presence: {} as ServerPresence,
-    messageSearchAPI: {} as MessageSearchAPI,
     realtimeViewerId: () => viewerId,
     viewerId: () => viewerId,
-    projectedMemberIds: () => null,
-    isAuthenticated: () => true
+    projectedMemberIds: () => null
   });
 }
 
@@ -66,7 +57,6 @@ describe('RoomStores', () => {
     expect(rooms.files('A')).toBe(rooms.files('A'));
     expect(rooms.pins('A')).toBe(rooms.pins('A'));
     expect(rooms.members('A')).toBe(rooms.members('A'));
-    expect(rooms.search('A')).toBe(rooms.search('A'));
   });
 
   it('selects existing timelines for one room or for all rooms', () => {
@@ -74,15 +64,14 @@ describe('RoomStores', () => {
     const roomA = rooms.messages('A');
     const threadA = rooms.thread('A', 'T');
     const threadB = rooms.thread('B', 'T');
-    rooms.search('C');
+    rooms.members('C');
 
     expect(rooms.loaded('missing')).toBeUndefined();
     expect(rooms.timelines('A')).toEqual([roomA, threadA]);
     expect(rooms.timelines('missing')).toEqual([]);
     expect(rooms.timelines()).toEqual([roomA, threadA, threadB]);
     expect(rooms.all('messages')).toEqual([roomA]);
-    // A search alone does not hold plaintext that a permission change can revoke.
-    expect(rooms.roomIds()).toEqual(['A', 'B']);
+    expect(rooms.roomIds()).toEqual(['A', 'B', 'C']);
   });
 
   it('clears a thread viewport only when its last consumer releases it', () => {
@@ -139,33 +128,18 @@ describe('RoomStores', () => {
     expect(mocks.clearRoomPinsSeenMarker).toHaveBeenCalledWith('server', 'viewer', 'unknown');
   });
 
-  it('removes the least recently used room search', async () => {
-    const rooms = makeRooms();
-    const searches = Array.from({ length: 10 }, (_, index) => rooms.search(`R${index + 1}`));
-
-    expect(rooms.search('R1')).toBe(searches[0]);
-    rooms.search('R11');
-    await Promise.resolve();
-
-    expect(rooms.loaded('R2')?.search).toBeUndefined();
-    expect(searches[1].reset).toHaveBeenCalledOnce();
-    expect(rooms.search('R1')).toBe(searches[0]);
-    expect(searches[0].reset).not.toHaveBeenCalled();
-  });
-
-  it('forgets the plaintext stores of a room but keeps its members and search', () => {
+  it('forgets the plaintext stores of a room but keeps its members', () => {
     const rooms = makeRooms();
     const messages = rooms.messages('A');
     const thread = rooms.thread('A', 'T');
     const files = rooms.files('A');
     const pins = rooms.pins('A');
     const members = rooms.members('A');
-    const search = rooms.search('A');
 
     rooms.clearMessageAccess('A', true);
 
     for (const store of [messages, thread, files, pins]) expect(store.dispose).toHaveBeenCalled();
-    expect(rooms.loaded('A')).toMatchObject({ members, search, threads: {} });
+    expect(rooms.loaded('A')).toMatchObject({ members, threads: {} });
     expect(rooms.timelines('A')).toEqual([]);
     expect(rooms.messages('A')).not.toBe(messages);
     expect(rooms.files('A')).not.toBe(files);
@@ -178,7 +152,6 @@ describe('RoomStores', () => {
     const timelines = [rooms.messages('A'), rooms.thread('A', 'T')];
     const files = rooms.files('A');
     const pins = rooms.pins('A');
-    rooms.search('A');
 
     const handlers = rooms.resetHandlers();
     expect(handlers).toHaveLength(5);
@@ -199,13 +172,11 @@ describe('RoomStores', () => {
       rooms.pins('A')
     ];
     const members = rooms.members('A');
-    const search = rooms.search('A');
 
     rooms.dispose();
 
     for (const store of disposed) expect(store.dispose).toHaveBeenCalled();
     expect(members.resetProjectionState).toHaveBeenCalledOnce();
-    expect(search.reset).toHaveBeenCalledOnce();
     expect(rooms.entries()).toEqual([]);
     expect(rooms.messages('A')).not.toBe(disposed[0]);
   });

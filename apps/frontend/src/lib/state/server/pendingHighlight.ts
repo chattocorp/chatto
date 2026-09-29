@@ -1,4 +1,4 @@
-import { ReactiveMap } from '../reactivity/index.js';
+import { ReactiveMap } from '@chatto/client/reactivity/index';
 
 /**
  * Transient store for "next time we land in room X (or thread X/T), highlight

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { PresencePreference, PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { presencePreferences } from './presencePreference.js';
+import { presencePreferences } from './presencePreference';
 import {
   initPresenceTracking,
   refreshPresencePreference,
   setPresenceStatus,
   type PresenceReporter
-} from './presenceTracking.js';
+} from './presenceTracking';
 
 const origin = { serverId: 'origin', userId: 'user' };
 const remote = { serverId: 'remote', userId: 'user' };

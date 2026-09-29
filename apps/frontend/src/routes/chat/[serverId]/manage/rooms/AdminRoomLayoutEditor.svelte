@@ -10,7 +10,7 @@
     AdminSidebarLinkInfo,
     GroupReorderResult,
     RoomMoveFlushResult
-  } from '@chatto/client/server/adminRoomLayout';
+  } from '$lib/state/server/adminRoomLayout';
   import {
     ConfirmDialog,
     EmptyState,

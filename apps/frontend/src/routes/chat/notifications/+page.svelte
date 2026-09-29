@@ -1,5 +1,6 @@
 <script lang="ts">
   import { accountNameToken } from '@chatto/client/timeline/accountName';
+  import { serverUi } from '$lib/state/server/serverUi';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -394,7 +395,7 @@
       const roomId = occurrence.room?.id ?? null;
       prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
       if (roomId && occurrence.eventId) {
-        stores.pendingHighlights.set(
+        serverUi(stores).pendingHighlights.set(
           roomId,
           occurrence.threadRootId,
           occurrence.eventId,

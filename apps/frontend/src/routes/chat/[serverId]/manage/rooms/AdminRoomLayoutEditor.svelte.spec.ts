@@ -10,7 +10,7 @@ import {
   AdminRoomLayoutStore,
   type AdminRoomGroup,
   type AdminRoomInfo
-} from '@chatto/client/server/adminRoomLayout';
+} from '$lib/state/server/adminRoomLayout';
 import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
 
 const { roomCreationMocks } = vi.hoisted(() => ({

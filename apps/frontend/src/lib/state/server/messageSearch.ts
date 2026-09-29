@@ -1,4 +1,4 @@
-import { signal } from '../reactivity/index.js';
+import { signal } from '@chatto/client/reactivity/index';
 import {
   MessageSearchOrder,
   MessageSearchState,
@@ -6,7 +6,7 @@ import {
   type MessageSearchInput,
   type MessageSearchResult,
   type MessageSearchStatus
-} from '../api/messageSearch.js';
+} from '@chatto/client/api/messageSearch';
 
 const EMPTY_STATUS: MessageSearchStatus = {
   state: MessageSearchState.UNSPECIFIED,

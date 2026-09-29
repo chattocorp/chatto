@@ -1,15 +1,10 @@
-import type { MessageSearchAPI } from '../api/messageSearch.js';
 import { MessagesStore } from '../room/messages/MessagesStore.js';
 import { RoomFilesStore } from '../room/files.js';
 import { RoomMembersStore } from '../room/members.js';
 import { RoomPinsStore } from '../room/pins.js';
 import { clearRoomPinsSeenMarker } from '../room/pins.js';
-import { MessageSearchStore } from './messageSearch.js';
 import type { ServerPresence } from './presence.js';
 import type { ServerConnection } from './serverConnection.js';
-
-/** Per-room searches kept at the same time. The least recently used one goes first. */
-const MAX_RETAINED_ROOM_SEARCHES = 10;
 
 /** The stores of one room that exist. A missing field has no store yet, or no longer. */
 export type LoadedRoomStores = {
@@ -17,12 +12,11 @@ export type LoadedRoomStores = {
   readonly files?: RoomFilesStore;
   readonly pins?: RoomPinsStore;
   readonly members?: RoomMembersStore;
-  readonly search?: MessageSearchStore;
   /** Thread timelines by thread root event ID. */
   readonly threads: Readonly<Record<string, MessagesStore>>;
 };
 
-type StoreKind = 'messages' | 'files' | 'pins' | 'members' | 'search';
+type StoreKind = 'messages' | 'files' | 'pins' | 'members';
 
 type RoomEntry = {
   -readonly [K in keyof LoadedRoomStores]: LoadedRoomStores[K];
@@ -35,7 +29,7 @@ type RoomEntry = {
 /** The part of {@link RoomStores} that components use: the store accessors. */
 export type RoomStoreAccess = Pick<
   RoomStores,
-  'messages' | 'thread' | 'retainThread' | 'releaseThread' | 'files' | 'pins' | 'search' | 'members'
+  'messages' | 'thread' | 'retainThread' | 'releaseThread' | 'files' | 'pins' | 'members'
 >;
 
 /** What {@link RoomStores} needs from its server. */
@@ -43,25 +37,21 @@ export type RoomStoresOptions = {
   serverId: string;
   connection: ServerConnection;
   presence: ServerPresence;
-  messageSearchAPI: MessageSearchAPI;
   /** The viewer that timelines interpret realtime events for. */
   realtimeViewerId: () => string | null;
   /** The viewer ID for device-local pin markers. */
   viewerId: () => string | null;
   /** The complete member IDs of a room from the realtime projection, or null. */
   projectedMemberIds: (roomId: string) => readonly string[] | null;
-  isAuthenticated: () => boolean;
 };
 
 /**
  * The room-scoped stores of one server: room and thread timelines, file lists,
- * pins, members, and per-room message search.
+ * pins, and members.
  *
  * Each accessor creates its store on first use and then returns the same
- * store until the registry is disposed, with two exceptions. Clearing a
- * room's message access with `forget` removes its timelines, file list, and
- * pin list. Only {@link MAX_RETAINED_ROOM_SEARCHES} per-room searches stay;
- * a new search removes the least recently used one.
+ * store until the registry is disposed. Clearing a room's message access with
+ * `forget` removes its timelines, file list, and pin list.
  *
  * The registry is not reactive on purpose. The stores are reactive, and a
  * selector can create a store while a UI framework evaluates a derived value.
@@ -69,8 +59,6 @@ export type RoomStoresOptions = {
 export class RoomStores {
   readonly #options: RoomStoresOptions;
   #rooms: Record<string, RoomEntry> = Object.create(null);
-  /** Rooms with a search store, least recently used first. */
-  #searchRecency: string[] = [];
 
   constructor(options: RoomStoresOptions) {
     this.#options = options;
@@ -181,28 +169,6 @@ export class RoomStores {
     ));
   }
 
-  /** The message search of one room. */
-  search(roomId: string): MessageSearchStore {
-    const entry = this.#entry(roomId);
-    const recency = this.#searchRecency.indexOf(roomId);
-    if (recency >= 0) this.#searchRecency.splice(recency, 1);
-    this.#searchRecency.push(roomId);
-    if (entry.search) return entry.search;
-    if (this.#searchRecency.length > MAX_RETAINED_ROOM_SEARCHES) {
-      const oldest = this.#rooms[this.#searchRecency.shift()!];
-      const evicted = oldest?.search;
-      if (oldest) oldest.search = undefined;
-      // A selector can create this store while a UI renders. Release the old
-      // store now and clear its reactive state after the render. The captured
-      // store cannot be a replacement that a later call creates for that room.
-      if (evicted) queueMicrotask(() => evicted.reset());
-    }
-    return (entry.search = new MessageSearchStore(
-      this.#options.messageSearchAPI,
-      this.#options.isAuthenticated
-    ));
-  }
-
   /** The member list of one room. It survives route changes. */
   members(roomId: string): RoomMembersStore {
     const entry = this.#entry(roomId);
@@ -270,9 +236,7 @@ export class RoomStores {
       entry.members?.resetProjectionState();
       this.#disposeTimelines(entry);
       entry.files?.dispose();
-      entry.search?.reset();
     }
     this.#rooms = Object.create(null);
-    this.#searchRecency = [];
   }
 }

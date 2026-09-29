@@ -1,9 +1,9 @@
-import { untrack } from '../reactivity/index.js';
+import { untrack } from '@chatto/client/reactivity/index';
 import { Code, ConnectError } from '@connectrpc/connect';
-import type { PresenceAPI } from '../api/presence.js';
+import type { PresenceAPI } from '@chatto/client/api/presence';
 import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';
-import { presencePreferences } from './presencePreference.js';
-import type { PresenceScope } from './presencePreference.js';
+import { presencePreferences } from './presencePreference';
+import type { PresenceScope } from './presencePreference';
 
 const PRESENCE_REFRESH_MS = 30_000;
 export type PresenceReporter = PresenceScope &
