@@ -8,6 +8,12 @@ import { createMessageResourcesAPI } from '../api/messageResources.js';
 import { refreshPresencePreference } from './presenceTracking.js';
 import { affectsViewerPermissions } from './permissionEvents.js';
 import { runResetHandlers } from './resetHandlers.js';
+import {
+  StoreEvents,
+  type AuthorityChange,
+  type ProjectionReset,
+  type RoomAccessLoss
+} from './storeEvents.js';
 import { CurrentUserState, type CurrentUser } from '../auth/currentUser.js';
 import { ServerInfoState } from './state.js';
 import type { PublicServerInfo } from '../api/server.js';
@@ -180,12 +186,77 @@ export class ServerStateStore {
   readonly #realtime: EventBusManager;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
-    this.ingestProjectionEvent(update);
+    const applied = this.ingestProjectionEvent(update);
     const event = update.event;
     if (event?.event.case === 'presenceChanged' && event.actorId) {
       this.presence.set(event.actorId, event.event.value.status);
     }
+    if (applied) this.#events.update.emit(update);
   };
+
+  readonly #events = new StoreEvents();
+
+  /**
+   * Receive each realtime event and resource response after the store
+   * applied it, in order. The store does not report a viewer response for an
+   * account that it did not accept. Returns a function that removes the
+   * listener.
+   */
+  onUpdate(listener: (update: RealtimeProjectionUpdate) => void): () => void {
+    return this.#events.update.subscribe(listener);
+  }
+
+  /**
+   * Receive each projection reset, after the store cleared its own state.
+   * Clear copies of server data here; see {@link ProjectionReset}. A listener
+   * that throws fails the private-data cleanup: the store then does not
+   * report the projection as current until the next reset succeeds.
+   */
+  onReset(listener: (reset: ProjectionReset) => void): () => void {
+    return this.#events.reset.subscribe(listener);
+  }
+
+  /**
+   * Receive each loss of access to a room, after the store removed its own
+   * copies. The store reports a loss again for each room update that still
+   * denies access, so a listener must accept repeated calls.
+   */
+  onRoomAccessLost(listener: (loss: RoomAccessLoss) => void): () => void {
+    return this.#events.roomAccessLost.subscribe(listener);
+  }
+
+  /**
+   * Receive the room ID when the projection grants access to a room again,
+   * also repeatedly while access continues.
+   */
+  onRoomAccessRestored(listener: (roomId: string) => void): () => void {
+    return this.#events.roomAccessRestored.subscribe(listener);
+  }
+
+  /** Receive the ID of a deleted account; remove copies of its profile and messages. */
+  onUserDeleted(listener: (userId: string) => void): () => void {
+    return this.#events.userDeleted.subscribe(listener);
+  }
+
+  /** Receive changes of the viewer's server authority; see {@link AuthorityChange}. */
+  onAuthorityChanged(listener: (change: AuthorityChange) => void): () => void {
+    return this.#events.authorityChanged.subscribe(listener);
+  }
+
+  /**
+   * Receive a change of the viewer's permissions, before the store reads its
+   * resources again. Check copied data against the new permissions. The
+   * store waits for a returned promise before it reports the projection as
+   * current; a rejection makes the store read again later.
+   */
+  onPermissionsChanged(listener: () => void | Promise<unknown>): () => void {
+    return this.#events.permissionsChanged.subscribe(listener);
+  }
+
+  /** Receive the disposal of this store, before it clears its own state. */
+  onDispose(listener: () => void): () => void {
+    return this.#events.dispose.subscribe(listener);
+  }
 
   /**
    * What the viewer may do on this server, derived from the viewer projection.
@@ -404,6 +475,7 @@ export class ServerStateStore {
       console.warn('[privileged-mode] failed to refresh effective permissions after expiry', error);
       // Reads must still recheck server authority when the viewer refresh fails.
       refreshRegisteredAdminQueries(this.serverId);
+      this.#emitAuthorityChanged({ lost: false });
     } finally {
       this.realtimeSync.invalidateAuthorization();
       this.#serverConnection.forceReconnect('privileged mode expired');
@@ -428,11 +500,13 @@ export class ServerStateStore {
     if (!this.currentUser.apply(viewerResponseToState(response).user)) return;
     // Mutation and expiry responses are authoritative. Refresh snapshots now,
     // including room-only grants, without waiting for the realtime reconnect.
-    if (viewerAuthorizationLost(previousViewer, response)) {
+    const lost = viewerAuthorizationLost(previousViewer, response);
+    if (lost) {
       removeRegisteredAdminQueries(this.serverId);
     } else {
       refreshRegisteredAdminQueries(this.serverId);
     }
+    this.#emitAuthorityChanged({ lost });
   }
 
   /** Reject work whose resource boundary was superseded by a newer reset. */
@@ -684,6 +758,17 @@ export class ServerStateStore {
     this.projection.removeRoomCalls(roomId);
     this.notifications.clearRoom(roomId);
     this.clearRoomMessageAccess(roomId, forgetStores);
+    this.#emitRoomAccessLost({ roomId, messagesOnly: false, removed: forgetStores });
+  }
+
+  #emitRoomAccessLost(loss: RoomAccessLoss): void {
+    if (!this.#events.roomAccessLost.emit(loss).complete) this.#privacyCleanupFailed = true;
+  }
+
+  #emitAuthorityChanged(change: AuthorityChange): void {
+    if (!this.#events.authorityChanged.emit(change).complete && change.lost) {
+      this.#privacyCleanupFailed = true;
+    }
   }
 
   /** Message-read loss does not imply loss of voice or room membership. */
@@ -698,6 +783,7 @@ export class ServerStateStore {
   private restoreRoomAccess(roomId: string): void {
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);
+    this.#events.roomAccessRestored.emit(roomId);
   }
 
   /**
@@ -707,7 +793,7 @@ export class ServerStateStore {
   private ingestProjectionEvent(
     update: RealtimeProjectionUpdate,
     presenceReadVersion?: number
-  ): void {
+  ): boolean {
     if (
       update.event &&
       affectsViewerPermissions(
@@ -717,7 +803,7 @@ export class ServerStateStore {
       )
     ) {
       this.refreshViewerPermissions(update);
-      return;
+      return true;
     }
     const previousViewer = this.projection.viewer;
     const previousRoomIds = new Set(this.projection.rooms.keys());
@@ -755,7 +841,11 @@ export class ServerStateStore {
         },
         ...[this.messageSearch, ...this.#rooms.all('search')].map((store) => () => {
           if (!update.retainView) store.clearResults();
-        })
+        }),
+        () => {
+          const reset = { privacy: update.privacyReset, retainView: update.retainView };
+          if (!this.#events.reset.emit(reset).complete) throw new Error('Listener cleanup failed');
+        }
       ]);
     }
 
@@ -773,8 +863,9 @@ export class ServerStateStore {
           const response = resource.value;
           if (!this.checkingPermissions && viewerAuthorizationLost(previousViewer, response)) {
             removeRegisteredAdminQueries(this.serverId);
+            this.#emitAuthorityChanged({ lost: true });
           }
-          if (!this.currentUser.apply(viewerResponseToState(response).user)) return;
+          if (!this.currentUser.apply(viewerResponseToState(response).user)) return false;
           this.roomUnread.acknowledgeViewerProjection();
           break;
         }
@@ -842,6 +933,7 @@ export class ServerStateStore {
       }
     }
     if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
+    return true;
   }
 
   /** Reauthorize retained resources in place. Permission events do not discard
@@ -861,6 +953,9 @@ export class ServerStateStore {
     const layout = this.#adminRoomLayoutActive
       ? this.adminRoomLayout.refreshPermissions()
       : Promise.resolve(this.adminRoomLayout.resetProjectionState());
+    const listeners = Promise.all(this.#events.permissionsChanged.emit().results);
+    // The refresh below awaits it later; a rejection must not count as unhandled.
+    listeners.catch(() => {});
     // Search owns plaintext outside the room projection. Fence it immediately,
     // including when an unrelated authority read fails.
     this.forEachMessageSearch((store) => store.refreshPermissions());
@@ -912,7 +1007,7 @@ export class ServerStateStore {
         })
       );
       if (!current()) return;
-      await Promise.all([queries, layout]);
+      await Promise.all([queries, layout, listeners]);
       if (!current()) return;
       this.invalidateUniversalMembership();
       await Promise.all(
@@ -970,6 +1065,7 @@ export class ServerStateStore {
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.
       this.clearRoomMessageAccess(roomId);
+      this.#emitRoomAccessLost({ roomId, messagesOnly: true, removed: false });
       this.restoreRoomAccess(roomId);
       const generation = this.#realtimeProjectionGeneration;
       for (const store of this.#rooms.timelines(roomId)) {
@@ -1018,6 +1114,7 @@ export class ServerStateStore {
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
     this.notifications.scrubUser(userId);
     for (const store of this.#rooms.timelines()) store.scrubUserReferences(userId);
+    if (!this.#events.userDeleted.emit(userId).complete) this.#privacyCleanupFailed = true;
   }
 
   private scrubRemovedRoom(roomId: string): void {
@@ -1170,7 +1267,7 @@ export class ServerStateStore {
     }
     // Effects run once, after the update applied, as for transport publishes.
     batch(() => {
-      this.ingestProjectionEvent(update, presenceReadVersion);
+      if (this.ingestProjectionEvent(update, presenceReadVersion)) this.#events.update.emit(update);
       this.#realtime.getBus(this.serverId)?.notify(update);
     });
   }
@@ -1557,7 +1654,8 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
-    // A failing voice call must not stop the privacy cleanup below.
+    // A failing listener or voice call must not stop the privacy cleanup below.
+    this.#events.dispose.emit();
     try {
       this.voiceCall.dispose();
     } catch (error) {
@@ -1582,5 +1680,6 @@ export class ServerStateStore {
     this.roomUnread.clear();
     this.pendingHighlights.clear();
     this.messageSearch.reset();
+    this.#events.clear();
   }
 }

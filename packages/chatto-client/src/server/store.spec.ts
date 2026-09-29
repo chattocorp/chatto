@@ -3831,3 +3831,136 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
   });
 });
+
+describe('ServerStateStore boundary events', () => {
+  /** A room that the viewer is a member of, with or without message reading. */
+  function memberRoom(roomId: string, read: boolean): RoomWithViewerState {
+    return new RoomWithViewerState({
+      room: { id: roomId, name: roomId },
+      viewerState: {
+        isMember: true,
+        permissions: [{ permission: 'message.read', granted: read }]
+      }
+    });
+  }
+
+  it('reports each reset with its privacy and view flags', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const resets: unknown[] = [];
+    store.onReset((reset) => resets.push(reset));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+    );
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, retainView: true })
+    );
+    expect(resets).toEqual([
+      { privacy: true, retainView: false },
+      { privacy: false, retainView: true }
+    ]);
+  });
+
+  it('fails the private-data cleanup when a reset listener throws', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const other = vi.fn();
+    store.onReset(() => {
+      throw new Error('copy not cleared');
+    });
+    store.onReset(other);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(other).toHaveBeenCalledOnce();
+    await expect(store.completeRealtimeCatchUp('cursor')).rejects.toThrow(
+      'Private data cleanup did not complete'
+    );
+  });
+
+  it('reports room access losses: membership, removal, and message reading only', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    const losses: unknown[] = [];
+    const restored: string[] = [];
+    store.onRoomAccessLost((loss) => losses.push(loss));
+    store.onRoomAccessRestored((roomId) => restored.push(roomId));
+
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
+    expect(losses).toEqual([{ roomId: 'R1', messagesOnly: false, removed: false }]);
+
+    losses.length = 0;
+    store.projection.rooms.set('R2', memberRoom('R2', true));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ event: { case: 'roomDeleted', value: { roomId: 'R2' } } })
+      })
+    );
+    expect(losses).toContainEqual({ roomId: 'R2', messagesOnly: false, removed: true });
+
+    losses.length = 0;
+    store.projection.rooms.set('R3', memberRoom('R3', true));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ resource: roomResource([memberRoom('R3', false)]) })
+    );
+    expect(losses).toContainEqual({ roomId: 'R3', messagesOnly: true, removed: false });
+    expect(restored).toContain('R3');
+  });
+
+  it('reports a deleted account after the store removed its profile', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.users.set('U2', new DirectoryMember({ user: { id: 'U2' } }));
+    const deleted: [string, boolean][] = [];
+    store.onUserDeleted((userId) => deleted.push([userId, store.projection.users.has(userId)]));
+    store.realtimeProjectionHandler(userDeleted('U2'));
+    expect(deleted).toEqual([['U2', false]]);
+  });
+
+  it('waits for permission listeners and reads again when one rejects', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const listener = vi.fn(() => Promise.reject(new Error('copy check failed')));
+    store.onPermissionsChanged(listener);
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'permission-event',
+        event: new RealtimeEvent({
+          event: { case: 'rolePermissionsChanged', value: { roleName: 'everyone' } }
+        })
+      })
+    );
+    expect(listener).toHaveBeenCalledOnce();
+    await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('copy check failed');
+  });
+
+  it('reports updates after the store applied them', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const seen: number[] = [];
+    store.onUpdate((update) => {
+      if (update.resource?.case === 'rooms') seen.push(store.projection.rooms.size);
+    });
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ resource: roomResource([memberRoom('R1', true)]) })
+    );
+    expect(seen).toEqual([1]);
+  });
+
+  it('reports an authority recheck when the viewer refresh after expiry fails', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    apiMocks.refreshPrivilegedMode.mockRejectedValue(new Error('offline'));
+    const changes: unknown[] = [];
+    store.onAuthorityChanged((change) => changes.push(change));
+    await store.expirePrivilegedMode();
+    expect(changes).toEqual([{ lost: false }]);
+  });
+
+  it('reports disposal first and then forgets its listeners', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const order: string[] = [];
+    store.onDispose(() => order.push(`dispose:${store.currentUser.user?.id ?? 'none'}`));
+    const reset = vi.fn();
+    store.onReset(reset);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    store.dispose();
+    expect(order).toEqual(['dispose:U1']);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(reset).not.toHaveBeenCalled();
+  });
+});
