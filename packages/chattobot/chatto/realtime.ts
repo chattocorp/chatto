@@ -133,7 +133,9 @@ async function consume(
   const bot = createChattoBot({
     ...settings,
     state: session.conversations,
-    post: (destination, body, signal) => api.postMessage(destination, body, { signal }),
+    post: async (destination, body, signal) => {
+      await api.postMessage(destination, body, { signal });
+    },
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     readThread: createThreadReader(api),
     acknowledge: createEyesReaction(api)
