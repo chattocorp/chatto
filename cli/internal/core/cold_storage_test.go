@@ -15,6 +15,7 @@ func init() {
 	if os.Getenv("CHATTO_TEST_COLD_STORAGE") == "1" {
 		coldBlockShift = 1
 		coldStorageTestWindow = time.Nanosecond
+		idLocationPageSize = 4
 	}
 }
 

@@ -220,3 +220,141 @@ func TestEventIDTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
 		}
 	}
 }
+
+func TestEventIDTable_FreezeKeepsHandlesAndLookups(t *testing.T) {
+	previous := idLocationPageSize
+	idLocationPageSize = 8
+	t.Cleanup(func() { idLocationPageSize = previous })
+
+	table := newEventIDTable()
+	long := strings.Repeat("L", idArenaMaxChunkBytes/4+1)
+	var ids []string
+	for i := range 100 {
+		id := fmt.Sprintf("E%014d", i)
+		if i%17 == 5 {
+			id = long + fmt.Sprint(i) // dedicated arena chunks
+		}
+		ids = append(ids, id)
+	}
+	handles := make([]uint32, len(ids))
+	for i, id := range ids[:60] {
+		handles[i] = table.intern(id)
+	}
+	check := func(stage string, upto int) {
+		t.Helper()
+		for i := range upto {
+			if got := table.id(handles[i]); got != ids[i] {
+				t.Fatalf("%s: id(%d) = %.20q, want %.20q", stage, handles[i], got, ids[i])
+			}
+			if handle, ok := table.lookup(ids[i]); !ok || handle != handles[i] {
+				t.Fatalf("%s: lookup(%.20q) = %d, %v; want %d", stage, ids[i], handle, ok, handles[i])
+			}
+			if again := table.intern(ids[i]); again != handles[i] {
+				t.Fatalf("%s: intern(%.20q) = %d, want %d", stage, ids[i], again, handles[i])
+			}
+		}
+		if _, ok := table.lookup("unknown"); ok {
+			t.Fatalf("%s: lookup of unknown ID succeeded", stage)
+		}
+	}
+	check("hot", 60)
+
+	table.freezeBelow(35) // pages 0..3 hold handles 1..32
+	if cold := table.cold.Load(); cold == nil || len(cold.pages) != 4 {
+		t.Fatalf("frozen pages = %v, want 4", cold)
+	}
+	check("partly frozen", 60)
+
+	for i, id := range ids[60:] {
+		handles[60+i] = table.intern(id)
+	}
+	if table.len() != len(ids) {
+		t.Fatalf("len = %d, want %d", table.len(), len(ids))
+	}
+	check("interned after freeze", len(ids))
+
+	table.freezeBelow(uint32(len(ids) + 1))
+	table.freezeBelow(10) // never moves back
+	check("fully frozen", len(ids))
+	if table.estimatedBytes() <= 0 {
+		t.Fatal("estimate is not positive")
+	}
+	for chunk, bytes := range table.arena.loadChunks() {
+		if bytes != nil && chunk != table.arena.target-1 && table.chunkLastHandle[chunk] <= uint32(len(ids)/idLocationPageSize*idLocationPageSize) {
+			t.Fatalf("chunk %d holds only frozen IDs but was not released", chunk)
+		}
+	}
+}
+
+func TestEventIDTable_FreezeResolvesCollisionsAcrossHotAndCold(t *testing.T) {
+	previous := idLocationPageSize
+	idLocationPageSize = 2
+	t.Cleanup(func() { idLocationPageSize = previous })
+
+	table := newEventIDTable()
+	first := table.intern("E1")
+	table.intern("E2")
+	// Point the hash of E3 at E1, so E3 becomes a collision entry.
+	hash := maphash.String(table.seed, "E3")
+	shard := table.shard(hash)
+	if shard.byHash == nil {
+		shard.byHash = make(map[uint64]uint32)
+	}
+	shard.byHash[hash] = first
+	third := table.intern("E3")
+	table.intern("E4")
+
+	table.freezeBelow(3) // freezes E1 and E2; E3 stays hot as a collision
+	for id, want := range map[string]uint32{"E1": first, "E3": third} {
+		if got, ok := table.lookup(id); !ok || got != want {
+			t.Fatalf("lookup(%s) = %d, %v; want %d", id, got, ok, want)
+		}
+	}
+	table.freezeBelow(5)
+	for id, want := range map[string]uint32{"E1": first, "E3": third} {
+		if got, ok := table.lookup(id); !ok || got != want {
+			t.Fatalf("after full freeze: lookup(%s) = %d, %v; want %d", id, got, ok, want)
+		}
+	}
+}
+
+func TestEventIDTable_ConcurrentFreezeInternAndRead(t *testing.T) {
+	previous := idLocationPageSize
+	idLocationPageSize = 16
+	t.Cleanup(func() { idLocationPageSize = previous })
+
+	table := newEventIDTable()
+	const writers, perWriter = 4, 2_000
+	var wg sync.WaitGroup
+	for writer := range writers {
+		wg.Go(func() {
+			for i := range perWriter {
+				id := fmt.Sprintf("E%d-%d", writer, i)
+				handle := table.intern(id)
+				if got := table.id(handle); got != id {
+					t.Errorf("id(%d) = %q, want %q", handle, got, id)
+					return
+				}
+				if got, ok := table.lookup(id); !ok || got != handle {
+					t.Errorf("lookup(%q) = %d, %v; want %d", id, got, ok, handle)
+					return
+				}
+			}
+		})
+	}
+	wg.Go(func() {
+		for boundary := uint32(1); boundary < writers*perWriter; boundary += 97 {
+			table.freezeBelow(boundary)
+		}
+	})
+	wg.Wait()
+	for writer := range writers {
+		for i := range perWriter {
+			id := fmt.Sprintf("E%d-%d", writer, i)
+			handle, ok := table.lookup(id)
+			if !ok || table.id(handle) != id {
+				t.Fatalf("lookup(%q) after run = %d, %v", id, handle, ok)
+			}
+		}
+	}
+}

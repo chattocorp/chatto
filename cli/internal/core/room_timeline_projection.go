@@ -779,6 +779,7 @@ func (p *RoomTimelineProjection) freezeColdLocked() {
 		if handle := p.entries.get(firstHot).event; handle != 0 {
 			p.rowByEvent.freezeBefore(int(handle) - 1)
 			p.coldWatermark.advance(handle)
+			p.eventIDs.freezeBelow(handle)
 		}
 	}
 }
