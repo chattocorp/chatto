@@ -171,8 +171,9 @@ Trademark Notice:
 Chatto's source code uses mixed licensing. The default repository license is
 the GNU Affero General Public License version 3 or any later version, with
 Apache License 2.0 exceptions for the independently versioned shared framework
-modules and selected frontend, integration, and documentation surfaces as
-annotated in REUSE.toml. These licenses do not grant permission to use the
+modules and selected frontend, integration, and documentation surfaces, and
+MIT License exceptions for Runling and the client packages under `packages/`,
+as annotated in REUSE.toml. These licenses do not grant permission to use the
 "Chatto" name, Chatto logos, or other Chatto marks except as otherwise
 permitted by law. "Chatto" and the Chatto logos are marks and trade names of
 ChattoCorp GmbH, and are not registered trademarks at this time.

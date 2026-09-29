@@ -7,12 +7,14 @@ COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/api-types/package.json packages/api-types/package.json
 COPY packages/lingua/package.json packages/lingua/package.json
+COPY packages/chatto-client/package.json packages/chatto-client/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter chatto-frontend...
 
 COPY apps/frontend apps/frontend
 COPY packages/api-types packages/api-types
 COPY packages/lingua packages/lingua
+COPY packages/chatto-client packages/chatto-client
 # This filtered image does not install root tooling; pnpm orders its dependencies.
 RUN pnpm --filter 'chatto-frontend^...' build && pnpm --filter chatto-frontend build-storybook
 
@@ -20,6 +22,8 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine
 
 COPY --from=build /src/apps/frontend/storybook-static /usr/share/nginx/html
 COPY LICENSES/Apache-2.0.txt /usr/share/doc/chatto-storybook/LICENSE
+# The bundled @chatto/client code is MIT.
+COPY LICENSES/MIT.txt /usr/share/doc/chatto-storybook/LICENSE.MIT
 COPY NOTICE /usr/share/doc/chatto-storybook/NOTICE
 
 EXPOSE 8080

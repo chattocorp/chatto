@@ -21,11 +21,12 @@ import { connectChatto, type ChattoConnection } from './connect.js';
 import { serverRegistry } from './server/registry.js';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
 import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { inertRealtimeSocket } from './testing/inertSocket.js';
 
 const profile = {
   name: 'Bot server',
-  // A version the client does not support keeps the realtime transport closed.
-  version: '0.1.0',
+  version: '0.5.0',
   welcomeMessage: null,
   description: null,
   iconUrl: null,
@@ -40,9 +41,7 @@ describe('connectChatto in Node', () => {
   beforeEach(() => {
     mocks.discovery.mockReset().mockResolvedValue(profile);
     mocks.viewer.mockReset().mockResolvedValue({ id: 'bot', login: 'bot' } as CurrentUser);
-    setRealtimeSocketFactoryForTests(() => {
-      throw new Error('no realtime in this test');
-    });
+    setRealtimeSocketFactoryForTests(inertRealtimeSocket);
   });
 
   afterEach(() => {
@@ -134,6 +133,39 @@ describe('connectChatto in Node', () => {
     reset(); // a snapshot that replaced a stream that could not resume
 
     expect(gaps).toEqual([false, true, false, true]);
+  });
+
+  it('delivers events that arrive before the first listener', async () => {
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await vi.waitFor(() => expect(eventBusManager.getBus(connection!.serverId)).toBeDefined());
+    const bus = eventBusManager.getBus(connection.serverId)!;
+    const publish = (id: string) =>
+      bus.publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id }) }));
+    publish('early');
+    await connection.ready();
+    const received: string[] = [];
+    connection.onEvent((event) => received.push(event.id));
+    publish('during-registration');
+    expect(received).toEqual([]);
+    await Promise.resolve();
+    publish('late');
+    expect(received).toEqual(['early', 'during-registration', 'late']);
+  });
+
+  it('reports a gap when too many events arrive before the first listener', async () => {
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await vi.waitFor(() => expect(eventBusManager.getBus(connection!.serverId)).toBeDefined());
+    const bus = eventBusManager.getBus(connection.serverId)!;
+    for (let index = 0; index <= 1000; index++) {
+      bus.publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id: `e${index}` }) }));
+    }
+    const gaps: boolean[] = [];
+    const received: string[] = [];
+    connection.onReset(({ gap }) => gaps.push(gap));
+    connection.onEvent((event) => received.push(event.id));
+    await Promise.resolve();
+    expect(gaps).toEqual([true]);
+    expect(received).toEqual(['e1000']);
   });
 
   it('leaves no timers behind after close', async () => {
@@ -247,7 +279,7 @@ describe('connectChatto in Node', () => {
     await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
   });
 
-  it('fails service requests in flight at close, but not at a privacy reset', async () => {
+  it('fails service requests at close, but not at a privacy reset', async () => {
     const { ViewerService } = await import('@chatto/api-types/api/v1/viewer_connect');
     const responses: (() => void)[] = [];
     vi.stubGlobal(
@@ -281,9 +313,18 @@ describe('connectChatto in Node', () => {
       connection.close();
       responses[1]!();
       await expect(beforeClose).rejects.toThrow();
+
+      await expect(viewer.getViewer({})).rejects.toThrow('connection is closed');
+      expect(responses).toHaveLength(2);
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('rejects ready() for a server release without a supported realtime projection', async () => {
+    mocks.discovery.mockResolvedValue({ ...profile, version: '0.1.0' });
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await expect(connection.ready()).rejects.toThrow('version is not supported');
   });
 
   it('stops waiting when the caller aborts', async () => {

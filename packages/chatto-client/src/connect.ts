@@ -12,7 +12,8 @@
  */
 
 import type { ServiceType } from '@bufbuild/protobuf';
-import type { Client } from '@connectrpc/connect';
+import { Code, ConnectError, type Client, type Interceptor } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { createChattoClient as createServiceClient, type ConnectAPIConfig } from './api/connect.js';
 import { effect, effectRoot, signal, untrack } from './reactivity/index.js';
@@ -58,7 +59,8 @@ export interface ChattoConnection {
   /**
    * Wait until the server accepted the token and the viewer loaded. Rejects
    * when the server rejects the token, when a viewer read fails (for example
-   * because the server is unreachable or returned an error), when the
+   * because the server is unreachable or returned an error), when discovery
+   * reports a server release that this client does not support, when the
    * connection closes, or when `signal` aborts.
    *
    * The connection retries a failed viewer read in the background, with a
@@ -77,14 +79,17 @@ export interface ChattoConnection {
   /**
    * Create a typed Connect client for a public service, with this
    * connection's authentication. The fixed token always belongs to the same
-   * account, so projection resets do not fail these requests; closing the
-   * connection does.
+   * account, so projection resets do not fail these requests. After
+   * `close()`, clients send nothing, and responses in flight fail.
    */
   service<T extends ServiceType>(service: T): Client<T>;
   /**
    * Receive semantic realtime events after the store applied them. Listeners
    * run in order and must not throw; handle asynchronous work yourself.
-   * Returns a function that removes the listener.
+   * Realtime can start before `ready()` resolves: events that arrive before
+   * the first listener are delivered to it in a microtask after it is added.
+   * When more than 1000 such events arrive, they are dropped and `onReset`
+   * reports a gap. Returns a function that removes the listener.
    */
   onEvent(listener: (event: RealtimeEvent) => void): () => void;
   /**
@@ -101,6 +106,9 @@ export interface ChattoConnection {
    */
   close(): void;
 }
+
+/** Events kept for the first `onEvent` listener; more are dropped as a gap. */
+const MAX_EARLY_EVENTS = 1000;
 
 /** The open connection. The client runtime keeps one server live at a time. */
 let openConnection: ChattoConnection | null = null;
@@ -121,6 +129,11 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   const url = parseServerUrl(options.serverUrl);
   if (!options.apiKey) throw new Error('A Chatto API key is required');
   if (openConnection) throw new Error('Close the open Chatto connection before connecting again');
+  // A browser page on the server's own origin uses its cookie session for
+  // that server, never a fixed token.
+  if (typeof window !== 'undefined' && window.location?.origin === url.origin) {
+    throw new Error("connectChatto cannot connect the page's own origin");
+  }
   const serverId = generateServerId(url.origin, [
     ...serverRegistry.servers.map((server) => server.id),
     ...usedServerIds
@@ -147,6 +160,39 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   // publishes a reset and then a snapshot before the next connection.
   let connectedSinceReset = false;
   const closed = signal(false);
+  // Realtime can start before ready() resolves. Keep the events that arrive
+  // before the first onEvent listener, and deliver them to it. Null after
+  // they were delivered.
+  let earlyEvents: RealtimeEvent[] | null = [];
+  let earlyEventsDropped = false;
+  let earlyFlushScheduled = false;
+
+  const deliver = (event: RealtimeEvent) => {
+    if (earlyEvents) {
+      if (earlyEvents.length >= MAX_EARLY_EVENTS) {
+        earlyEvents = [];
+        earlyEventsDropped = true;
+      }
+      earlyEvents.push(event);
+      return;
+    }
+    for (const listener of [...eventListeners]) listener(event);
+  };
+
+  /** Deliver early events to the first listener, after its registration returns. */
+  const flushEarlyEvents = () => {
+    if (earlyFlushScheduled || !earlyEvents) return;
+    earlyFlushScheduled = true;
+    queueMicrotask(() => {
+      const events = earlyEvents ?? [];
+      earlyEvents = null;
+      if (closed.peek()) return;
+      if (earlyEventsDropped) {
+        for (const listener of [...resetListeners]) listener({ gap: true });
+      }
+      for (const event of events) deliver(event);
+    });
+  };
 
   /** Realtime status; never creates a connection for a server that close() removed. */
   const currentStatus = (): ChattoConnectionStatus => {
@@ -154,7 +200,8 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     return serverConnectionManager.getClient(serverId).status;
   };
 
-  // The event bus starts once the viewer loaded. Subscribe whenever the
+  // The event bus starts when the server is authenticated and discovery
+  // finished, which can be before the viewer loads. Subscribe whenever the
   // runtime creates (or replaces) this server's bus.
   const disposeBusSubscription = effectRoot(() => {
     effect(() => {
@@ -172,7 +219,7 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
             for (const listener of [...resetListeners]) listener(reset);
           }
           const event = update.event;
-          if (event) for (const listener of [...eventListeners]) listener(event);
+          if (event) deliver(event);
         })
       );
     });
@@ -226,13 +273,20 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
               finish(() => reject(new Error('Chatto rejected the API key')));
               return;
             }
+            const { serverInfo, currentUser } = current;
             const viewerId = current.accountId;
             if (viewerId) {
-              finish(() => resolve({ viewerId }));
+              // Discovery that fails does not block requests, but a server
+              // release without a supported realtime projection sends no events.
+              if (serverInfo.loading) return;
+              if (serverInfo.error === null && !serverInfo.isSupportedVersion) {
+                finish(() => reject(new Error('The Chatto server version is not supported')));
+              } else {
+                finish(() => resolve({ viewerId }));
+              }
               return;
             }
             // The server is unreachable or failed. The store logs the error.
-            const { serverInfo, currentUser } = current;
             const discoveryFailed = serverInfo.error !== null;
             const viewerFailed = currentUser.loadError !== null;
             discoveryAttempted ||= !discoveryFailed;
@@ -248,16 +302,28 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
       });
     },
     service<T extends ServiceType>(service: T): Client<T> {
+      const base = serverConnectionManager.getClient(serverId).apiConfig;
+      // After close(), send nothing: the token must not outlive the connection.
+      const refuseAfterClose: Interceptor = (next) => (request) => {
+        if (closed.peek()) throw new ConnectError('The Chatto connection is closed', Code.Canceled);
+        return next(request);
+      };
+      const send =
+        base.transport ??
+        ((interceptors: Interceptor[]) =>
+          createConnectTransport({ baseUrl: base.baseUrl, useBinaryFormat: true, interceptors }));
       const config: ConnectAPIConfig = {
-        ...serverConnectionManager.getClient(serverId).apiConfig,
+        ...base,
         // Fail responses that arrive after close(), not after a privacy
         // reset: the host, not a shared cache, receives these responses.
-        dataGeneration: () => (closed.peek() ? 1 : 0)
+        dataGeneration: () => (closed.peek() ? 1 : 0),
+        transport: (interceptors) => send([refuseAfterClose, ...interceptors])
       };
       return createServiceClient(service, config);
     },
     onEvent(listener) {
       eventListeners.add(listener);
+      flushEarlyEvents();
       return () => eventListeners.delete(listener);
     },
     onReset(listener) {

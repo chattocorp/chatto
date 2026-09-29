@@ -31,18 +31,22 @@ chatto.close();
 - `chatto.service(Service)` creates a typed Connect client with the
   connection's authentication.
 - `onEvent` listeners run in order after the store applied an event. They must
-  not throw. `onReset` reports projection resets. `gap: true` means that a
-  new snapshot replaced a stream that the server could not resume, so events
-  can be missing.
+  not throw. Realtime can start before `ready()` resolves; the first listener
+  receives the events that arrived before it. `onReset` reports projection
+  resets. `gap: true` means that events can be missing, for example because a
+  new snapshot replaced a stream that the server could not resume.
 - `close()` stops realtime delivery and all timers, and rejects a pending
   `ready()`. Requests in flight through the connection fail, even when the
-  server applied them. Use `createChattoApi` for work that can continue
-  after the connection closes.
+  server applied them, and no new requests are sent. Use `createChattoApi`
+  for work that can continue after the connection closes.
 - The token is kept only in memory: it is never renewed or written to device
   storage. When the server rejects it, `ready()` rejects and `sessionEnded`
   becomes true. Close the connection then.
 - Debug output is off outside browsers. Call `setDebugLogging(true)` to
   write it to the console.
+- `ready()` rejects when the server release does not support this client.
+- A browser page cannot use `connectChatto` for its own origin; that server
+  uses the page's cookie session.
 - When the server is unreachable or fails, `ready()` rejects and the
   connection retries in the background with a backoff. Call `ready()` again
   to wait for the next attempt.

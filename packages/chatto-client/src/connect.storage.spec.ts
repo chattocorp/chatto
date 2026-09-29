@@ -1,9 +1,9 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { CurrentUser } from './api/viewer.js';
 
 vi.mock('./api/server.js', async (original) => ({
   ...(await original<typeof import('./api/server.js')>()),
-  getPublicServerInfo: vi.fn(async () => ({ name: 'Bot server', version: '0.1.0' }))
+  getPublicServerInfo: vi.fn(async () => ({ name: 'Bot server', version: '0.5.0' }))
 }));
 vi.mock('./api/viewer.js', async (original) => ({
   ...(await original<typeof import('./api/viewer.js')>()),
@@ -12,6 +12,11 @@ vi.mock('./api/viewer.js', async (original) => ({
 
 import { connectChatto } from './connect.js';
 import { serverRegistry } from './server/registry.js';
+import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
+import { inertRealtimeSocket } from './testing/inertSocket.js';
+
+beforeAll(() => setRealtimeSocketFactoryForTests(inertRealtimeSocket));
+afterAll(() => setRealtimeSocketFactoryForTests(null));
 
 afterEach(() => localStorage.clear());
 
@@ -44,4 +49,11 @@ it('leaves no per-server records behind after close', async () => {
   }
   const added = storedKeys().filter((key) => !before.has(key) && key.includes('authentication'));
   expect(added).toEqual([]);
+});
+
+it("refuses the page's own origin, which uses its cookie session", () => {
+  expect(() => connectChatto({ serverUrl: location.origin, apiKey: 'key' })).toThrow(
+    "page's own origin"
+  );
+  expect(storedKeys()).toEqual([]);
 });
