@@ -13,8 +13,10 @@ vi.mock('../api/viewer.js', async (original) => ({
   getCurrentUserViaConnect: mocks.viewer
 }));
 
-import { serverRegistry as registry } from './registry.js';
 import { emptyServerSession } from './sessions.js';
+import { createAppClient } from '../testing/appClient.js';
+
+const registry = createAppClient().registry;
 
 const profile = {
   name: 'Recovered server',

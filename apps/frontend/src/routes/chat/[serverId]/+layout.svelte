@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { serverRegistry } from '@chatto/client/server/registry';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
   import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';

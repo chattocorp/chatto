@@ -9,7 +9,6 @@
     "@chatto/api-types#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "@chatto/lingua#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "@chatto/client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
-    "@chatto/bot-client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "chatto-frontend#build": {
       "dependsOn": ["^build"],
       "cache": true,

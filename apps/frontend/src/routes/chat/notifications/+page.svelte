@@ -27,7 +27,7 @@
   } from '@chatto/client/api/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
   import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';

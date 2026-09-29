@@ -3,7 +3,7 @@ import { signal } from '../reactivity/index.js';
 import { csrfFetch } from '../auth/csrf.js';
 import { browserCookieAuthenticationHeaders } from '../auth/authenticationMode.js';
 import type { ConnectAPIConfig } from '../api/connect.js';
-import { serverRegistry } from './registry.js';
+import type { ServerRegistry } from './registry.js';
 import { disposeUserStore, getUserStore } from './users.js';
 import { debugLog } from '../util/debugLog.js';
 
@@ -29,6 +29,11 @@ export interface ServerConnectionConfig {
   renewable?: boolean;
   /** Registered server ID, used to clear stale credentials after auth failures */
   serverId?: string;
+  /**
+   * The registry that owns the server's session. It renews and ends the
+   * session. Without it, the connection never renews its token.
+   */
+  registry?: ServerConnectionRegistry;
 }
 
 /** Construct a WebSocket URL from an HTTP URL (http→ws, https→wss). */
@@ -60,16 +65,22 @@ function realtimeUrlFromServerUrl(url: string): string {
 
 const ORIGIN_SERVER_URL = '/';
 
-/**
- * Ask the registry to confirm a rejected session. An explicit origin sign-out
- * already ends that session, so its rejected requests are expected.
- */
-function reportAuthenticationRequired(serverId: string, source: string): void {
-  if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(serverId)) return;
-  serverRegistry.confirmAuthenticationRequired(serverId, source).catch((error) => {
-    console.warn('[auth] could not confirm the rejected session', { serverId, source }, error);
-  });
-}
+/** The session operations that a connection asks its registry for. */
+export type ServerConnectionRegistry = Pick<
+  ServerRegistry,
+  | 'isOriginServer'
+  | 'confirmAuthenticationRequired'
+  | 'renewServerAuthentication'
+  | 'handleAuthenticationRequired'
+>;
+
+/** Stands in for a registry when a connection has none, for example in stories. */
+const detachedRegistry: ServerConnectionRegistry = {
+  isOriginServer: () => false,
+  confirmAuthenticationRequired: async () => true,
+  renewServerAuthentication: async () => null,
+  handleAuthenticationRequired: () => {}
+};
 
 export class ServerConnection {
   readonly #statusSignal = signal<ConnectionStatus>('connecting');
@@ -128,6 +139,7 @@ export class ServerConnection {
   #realtimeReconnect: ((reason: string) => void) | null = null;
   #pendingForcedReconnectReason: string | null = null;
   #apis = new WeakMap<object, unknown>();
+  readonly #registry: ServerConnectionRegistry;
   readonly #queryScope = `connection-${++nextQueryScope}`;
   #dataGeneration = 0;
 
@@ -187,12 +199,23 @@ export class ServerConnection {
       dataGeneration: () => this.#dataGeneration,
       renewBearerToken:
         this.#serverId && this.#token && this.#renewable
-          ? (force) => serverRegistry.renewServerAuthentication(this.#serverId!, force)
+          ? (force) => this.#registry.renewServerAuthentication(this.#serverId!, force)
           : undefined,
       onAuthenticationRequired: this.#serverId
-        ? (source) => reportAuthenticationRequired(this.#serverId!, source)
+        ? (source) => this.#reportAuthenticationRequired(this.#serverId!, source)
         : undefined
     };
+  }
+
+  /**
+   * Ask the registry to confirm a rejected session. An explicit origin sign-out
+   * already ends that session, so its rejected requests are expected.
+   */
+  #reportAuthenticationRequired(serverId: string, source: string): void {
+    if (isExplicitSignOutRedirectInProgress() && this.#registry.isOriginServer(serverId)) return;
+    this.#registry.confirmAuthenticationRequired(serverId, source).catch((error) => {
+      console.warn('[auth] could not confirm the rejected session', { serverId, source }, error);
+    });
   }
 
   /** Return one API facade per factory for this connection's lifetime. */
@@ -290,13 +313,13 @@ export class ServerConnection {
    */
   async handleAuthenticationRequired(): Promise<boolean> {
     if (this.#serverId) {
-      if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(this.#serverId)) {
+      if (isExplicitSignOutRedirectInProgress() && this.#registry.isOriginServer(this.#serverId)) {
         return false;
       }
       if (this.#token && this.#renewable) {
-        return (await serverRegistry.renewServerAuthentication(this.#serverId, true)) !== null;
+        return (await this.#registry.renewServerAuthentication(this.#serverId, true)) !== null;
       }
-      const required = await serverRegistry.confirmAuthenticationRequired(
+      const required = await this.#registry.confirmAuthenticationRequired(
         this.#serverId,
         'realtime close frame'
       );
@@ -307,7 +330,7 @@ export class ServerConnection {
 
   /** Renew the origin's stable HttpOnly cookie before its current window ends. */
   renewBrowserSession(): Promise<boolean> {
-    if (this.#token !== null || !this.#serverId || !serverRegistry.isOriginServer(this.#serverId)) {
+    if (this.#token !== null || !this.#serverId || !this.#registry.isOriginServer(this.#serverId)) {
       return Promise.resolve(false);
     }
     if (this.#browserRenewal) return this.#browserRenewal;
@@ -322,7 +345,7 @@ export class ServerConnection {
         body: '{}'
       });
       if (response.status === 401) {
-        serverRegistry.handleAuthenticationRequired(this.#serverId!);
+        this.#registry.handleAuthenticationRequired(this.#serverId!);
         return false;
       }
       if (!response.ok) {
@@ -351,7 +374,7 @@ export class ServerConnection {
       clearTimeout(this.#browserRenewalTimer);
       this.#browserRenewalTimer = null;
     }
-    if (this.#token !== null || !this.#serverId || !serverRegistry.isOriginServer(this.#serverId)) {
+    if (this.#token !== null || !this.#serverId || !this.#registry.isOriginServer(this.#serverId)) {
       return;
     }
     const remaining =
@@ -408,7 +431,7 @@ export class ServerConnection {
     const delay = retryDelayMs ?? Math.max(0, remaining - refreshLead);
     this.#renewalTimer = setTimeout(() => {
       this.#renewalTimer = null;
-      void serverRegistry.renewServerAuthentication(this.#serverId!, true).catch((error) => {
+      void this.#registry.renewServerAuthentication(this.#serverId!, true).catch((error) => {
         console.warn('[auth:%s] background bearer renewal failed', this.#host, error);
         const retryRemaining = this.#accessTokenExpiresAt
           ? this.#accessTokenExpiresAt - Date.now()
@@ -422,6 +445,7 @@ export class ServerConnection {
 
   constructor(config: ServerConnectionConfig) {
     const { serverUrl, token, accessTokenExpiresAt, serverId, renewable = true } = config;
+    this.#registry = config.registry ?? detachedRegistry;
     this.#host = hostFromServerUrl(serverUrl);
     this.#connectBaseUrl = connectBaseUrlFromServerUrl(serverUrl);
     this.#realtimeUrl = realtimeUrlFromServerUrl(serverUrl);
@@ -529,8 +553,14 @@ export class ServerConnection {
  * The origin connection is created eagerly; remote connections are created
  * lazily on first access.
  */
-class ServerConnectionManager {
+export class ServerConnectionManager {
   #clients = new Map<string, ServerConnection>();
+  readonly #registry: () => ServerRegistry;
+
+  /** `registry` returns the owning client's registry; it is created after the manager. */
+  constructor(registry: () => ServerRegistry) {
+    this.#registry = registry;
+  }
   #originClient: ServerConnection | null = null;
   #originClientServerId: string | undefined;
 
@@ -541,7 +571,7 @@ class ServerConnectionManager {
 
   /** The origin connection always uses the browser's same-origin cookie. */
   get originClient(): ServerConnection {
-    const origin = serverRegistry.originServer;
+    const origin = this.#registry().originServer;
     const serverId = origin?.id;
     if (this.#originClient && this.#originClientServerId === serverId) {
       return this.#originClient;
@@ -552,7 +582,8 @@ class ServerConnectionManager {
       serverUrl: ORIGIN_SERVER_URL,
       token: null,
       accessTokenExpiresAt: null,
-      serverId
+      serverId,
+      registry: this.#registry()
     });
     this.#originClientServerId = serverId;
     return this.#originClient;
@@ -560,14 +591,14 @@ class ServerConnectionManager {
 
   /** Get or create a connection for a registered instance. */
   getClient(serverId: string): ServerConnection {
-    if (serverRegistry.isOriginServer(serverId)) {
+    if (this.#registry().isOriginServer(serverId)) {
       return this.originClient;
     }
 
     const existing = this.#clients.get(serverId);
     if (existing) return existing;
 
-    const server = serverRegistry.getServer(serverId);
+    const server = this.#registry().getServer(serverId);
     if (!server) {
       throw new Error(`Server "${serverId}" not found in registry`);
     }
@@ -576,8 +607,9 @@ class ServerConnectionManager {
       serverUrl: server.url,
       token: server.token,
       accessTokenExpiresAt: server.accessTokenExpiresAt,
-      renewable: !serverRegistry.hasFixedToken(serverId),
-      serverId
+      renewable: !this.#registry().hasFixedToken(serverId),
+      serverId,
+      registry: this.#registry()
     });
 
     this.#clients.set(serverId, client);
@@ -586,7 +618,7 @@ class ServerConnectionManager {
 
   /** Destroy and remove a client. */
   destroyClient(serverId: string): boolean {
-    if (serverRegistry.isOriginServer(serverId)) {
+    if (this.#registry().isOriginServer(serverId)) {
       if (!this.#originClient) return false;
       this.#originClient.dispose();
       this.#originClient = null;
@@ -604,9 +636,9 @@ class ServerConnectionManager {
 
   /** Push persisted bearer rotation into an existing connection in place. */
   updateBearerSession(serverId: string): void {
-    const server = serverRegistry.getServer(serverId);
+    const server = this.#registry().getServer(serverId);
     if (!server) return;
-    if (serverRegistry.isOriginServer(serverId)) {
+    if (this.#registry().isOriginServer(serverId)) {
       this.#originClient?.updateBearerSession(null, null);
       return;
     }
@@ -615,5 +647,3 @@ class ServerConnectionManager {
       ?.updateBearerSession(server.token, server.accessTokenExpiresAt ?? null);
   }
 }
-
-export const serverConnectionManager = new ServerConnectionManager();

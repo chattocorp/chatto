@@ -12,15 +12,16 @@ const {
   resumeReturnNavigationMock: vi.fn()
 }));
 
-vi.mock('$app/navigation', () => ({
-  invalidateAll: invalidateAllMock
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     originServer: { id: 'origin' },
     getStore: () => ({ currentUser: { reset: resetAccountMock } })
   }
+}));
+
+vi.mock('$app/navigation', () => ({
+  invalidateAll: invalidateAllMock
 }));
 
 vi.mock('./returnNavigation', () => ({

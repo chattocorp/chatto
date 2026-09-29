@@ -21,6 +21,14 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getStore: (serverId: string) => mocks.serverStores[serverId],
+    tryGetStore: (serverId: string) => mocks.serverStores[serverId]
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/navigation', () => ({
@@ -40,12 +48,6 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (serverId: string) => serverId
 }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: mocks.activeServer }));
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    getStore: (serverId: string) => mocks.serverStores[serverId],
-    tryGetStore: (serverId: string) => mocks.serverStores[serverId]
-  }
-}));
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     get serverId() {

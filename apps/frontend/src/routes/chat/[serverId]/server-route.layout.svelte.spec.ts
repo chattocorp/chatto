@@ -1,6 +1,26 @@
 import { SvelteMap } from 'svelte/reactivity';
 
 // Title composition has separate coverage; these fixtures model route access only.
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    originProbed: true,
+    originServer: { id: 'origin' },
+    tryGetStore: () => mocks.store,
+    getStore: () => mocks.store,
+    isOriginServer: (serverId: string) => serverId === 'origin',
+    getServer: (serverId: string) => mocks.servers?.get(serverId)
+  },
+  serverConnectionManager: {
+    getClient: () => ({
+      queryScope: 'layout-test',
+      get status() {
+        return mocks.servers?.get('origin')?.connectionStatus ?? 'connected';
+      }
+    })
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,28 +84,6 @@ vi.mock('$lib/auth/returnNavigation', () => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    originProbed: true,
-    originServer: { id: 'origin' },
-    tryGetStore: () => mocks.store,
-    getStore: () => mocks.store,
-    isOriginServer: (serverId: string) => serverId === 'origin',
-    getServer: (serverId: string) => mocks.servers?.get(serverId)
-  }
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
-  serverConnectionManager: {
-    getClient: () => ({
-      queryScope: 'layout-test',
-      get status() {
-        return mocks.servers?.get('origin')?.connectionStatus ?? 'connected';
-      }
-    })
-  }
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({

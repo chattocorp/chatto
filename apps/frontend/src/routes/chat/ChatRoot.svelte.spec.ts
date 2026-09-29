@@ -68,7 +68,8 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     originServer: { id: 'origin' },
     get servers() {
@@ -85,14 +86,7 @@ vi.mock('@chatto/client/server/registry', () => ({
     get originSignInRequired() {
       return mocks.originSignInRequired;
     }
-  }
-}));
-
-vi.mock('$lib/auth/reauth', () => ({
-  beginOriginReauthentication: mocks.beginOriginReauthentication
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
+  },
   serverConnectionManager: {
     getClient: (serverId: string) => ({
       serverId,
@@ -102,10 +96,7 @@ vi.mock('@chatto/client/server/serverConnection', () => ({
           updateSettings: mocks.updateSettings
         }) as unknown
     })
-  }
-}));
-
-vi.mock('@chatto/client/server/realtimeTransport', () => ({
+  },
   eventBusManager: {
     synchronizeAuthenticatedServers: (registrations: unknown[], activeServerId: string | null) => {
       mocks.lifecycle.push('synchronize');
@@ -119,6 +110,10 @@ vi.mock('@chatto/client/server/realtimeTransport', () => ({
       }
     })
   }
+}));
+
+vi.mock('$lib/auth/reauth', () => ({
+  beginOriginReauthentication: mocks.beginOriginReauthentication
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({

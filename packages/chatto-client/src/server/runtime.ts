@@ -1,26 +1,29 @@
 /**
- * The client runtime: background work that keeps every registered server's
- * state current.
+ * The client runtime: background work that keeps every server of one client
+ * current.
  *
  * It retries discovery and saved-session recovery, and it assigns each
- * authenticated server's realtime transport a mode. Only the active server
- * keeps a persistent WebSocket; other servers catch up by polling (see
- * `realtimeTransport`). A remote server that terminates its session is signed
- * out locally.
+ * authenticated server's realtime transport a mode: live (a persistent
+ * WebSocket) or polling (see `realtimeTransport`). A remote server that
+ * terminates its session is signed out locally.
  *
- * An application starts one runtime for its lifetime and reports the server
- * that the user is looking at with {@link ClientRuntime.setActiveServer}.
- * A process can run one runtime at a time: runtimes share the registry and
- * the realtime transports, so a second one would compete for the active
- * server. `connectChatto` starts its own runtime; do not use it in an
- * application that runs one.
+ * A client starts one runtime; see `ChattoClient.start`. An application that
+ * shows one server at a time reports it with
+ * {@link ClientRuntime.setActiveServer}.
  */
 
 import { effect, effectRoot, signal, untrack } from '../reactivity/index.js';
-import { eventBusManager, type RealtimeServerRegistration } from './realtimeTransport.js';
-import { serverRegistry } from './registry.js';
-import { serverConnectionManager } from './serverConnection.js';
+import type { EventBusManager, RealtimeServerRegistration } from './realtimeTransport.js';
+import type { ServerRegistry } from './registry.js';
+import type { ServerConnectionManager } from './serverConnection.js';
 import { startServerRecovery } from './serverRecovery.js';
+
+/** The parts of a client that its runtime drives. */
+export interface ClientRuntimeParts {
+  readonly registry: ServerRegistry;
+  readonly connections: ServerConnectionManager;
+  readonly realtime: EventBusManager;
+}
 
 /** A running client runtime. */
 export interface ClientRuntime {
@@ -34,14 +37,17 @@ export interface ClientRuntime {
 }
 
 /** Realtime registrations for every authenticated server, read reactively. */
-function realtimeRegistrations(): RealtimeServerRegistration[] {
-  return serverRegistry.servers.flatMap((server) => {
-    const store = serverRegistry.tryGetStore(server.id);
+function realtimeRegistrations({
+  registry,
+  connections
+}: ClientRuntimeParts): RealtimeServerRegistration[] {
+  return registry.servers.flatMap((server) => {
+    const store = registry.tryGetStore(server.id);
     return store?.isAuthenticated
       ? [
           {
             serverId: server.id,
-            connection: serverConnectionManager.getClient(server.id),
+            connection: connections.getClient(server.id),
             projectionSupported: store.serverInfo.isSupportedVersion,
             sync: store.realtimeSync,
             projectionHandler: store.realtimeProjectionHandler,
@@ -53,25 +59,9 @@ function realtimeRegistrations(): RealtimeServerRegistration[] {
   });
 }
 
-/** Whether a runtime is running in this process. */
-let runtimeRunning = false;
-
-/**
- * Start recovery, realtime ownership, and session-termination handling.
- * Throws when another runtime is running; stop it first.
- */
-export function startClientRuntime(): ClientRuntime {
-  if (runtimeRunning) throw new Error('A Chatto client runtime is already running');
-  runtimeRunning = true;
-  try {
-    return runClientRuntime();
-  } catch (error) {
-    runtimeRunning = false;
-    throw error;
-  }
-}
-
-function runClientRuntime(): ClientRuntime {
+/** Start recovery, realtime ownership, and session-termination handling. */
+export function startClientRuntime(parts: ClientRuntimeParts): ClientRuntime {
+  const { registry, realtime } = parts;
   const activeServerId = signal<string | null>(null);
   let stopped = false;
 
@@ -82,7 +72,7 @@ function runClientRuntime(): ClientRuntime {
     let pending: { registrations: RealtimeServerRegistration[]; active: string | null } | null =
       null;
     effect(() => {
-      const next = { registrations: realtimeRegistrations(), active: activeServerId.get() };
+      const next = { registrations: realtimeRegistrations(parts), active: activeServerId.get() };
       const scheduled = pending !== null;
       pending = next;
       if (scheduled) return;
@@ -92,7 +82,7 @@ function runClientRuntime(): ClientRuntime {
         if (stopped || !inputs) return;
         // Synchronization changes connection state; it must not track reads.
         untrack(() =>
-          eventBusManager.synchronizeAuthenticatedServers(inputs.registrations, inputs.active)
+          realtime.synchronizeAuthenticatedServers(inputs.registrations, inputs.active)
         );
       });
     });
@@ -102,15 +92,15 @@ function runClientRuntime(): ClientRuntime {
     // cannot sign in again, so its session ends and its host is told. Reading
     // each bus subscribes again when a server's bus starts later.
     effect(() => {
-      const remoteBuses = serverRegistry.servers
-        .filter((server) => !serverRegistry.isOriginServer(server.id))
-        .map((server) => ({ id: server.id, bus: eventBusManager.getBus(server.id) }));
+      const remoteBuses = registry.servers
+        .filter((server) => !registry.isOriginServer(server.id))
+        .map((server) => ({ id: server.id, bus: realtime.getBus(server.id) }));
       return untrack(() => {
         const disposers = remoteBuses.map(({ id, bus }) =>
           bus?.onSessionTerminated(() => {
             queueMicrotask(() => {
-              if (serverRegistry.hasFixedToken(id)) serverRegistry.handleAuthenticationRequired(id);
-              else serverRegistry.clearServerAuthentication(id);
+              if (registry.hasFixedToken(id)) registry.handleAuthenticationRequired(id);
+              else registry.clearServerAuthentication(id);
             });
           })
         );
@@ -121,7 +111,7 @@ function runClientRuntime(): ClientRuntime {
   // A failed start leaves neither effects nor a recovery timer behind.
   let stopRecovery: () => void;
   try {
-    stopRecovery = startServerRecovery(serverRegistry);
+    stopRecovery = startServerRecovery(registry);
   } catch (error) {
     stopped = true;
     disposeEffects();
@@ -135,7 +125,6 @@ function runClientRuntime(): ClientRuntime {
     stop() {
       if (stopped) return;
       stopped = true;
-      runtimeRunning = false;
       disposeEffects();
       stopRecovery();
     }

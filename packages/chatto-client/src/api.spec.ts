@@ -1,13 +1,13 @@
 // @vitest-environment node
 import { expect, it, vi } from 'vitest';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { createChattoApi } from './apiClient.js';
+import { createApi } from './api.js';
 
 it('sends Connect JSON with the bearer token and rejects redirects', async () => {
   const request = vi.fn<typeof fetch>(async () =>
     Response.json({ user: { profile: { id: 'bot' } } })
   );
-  const api = createChattoApi({
+  const api = createApi({
     serverUrl: 'https://chat.example/x',
     apiKey: 'key',
     fetch: request
@@ -24,6 +24,21 @@ it('sends Connect JSON with the bearer token and rejects redirects', async () =>
 });
 
 it('rejects server URLs with credentials and empty keys', () => {
-  expect(() => createChattoApi({ serverUrl: 'https://a:b@chat.example', apiKey: 'k' })).toThrow();
-  expect(() => createChattoApi({ serverUrl: 'https://chat.example', apiKey: '' })).toThrow();
+  expect(() => createApi({ serverUrl: 'https://a:b@chat.example', apiKey: 'k' })).toThrow();
+  expect(() => createApi({ serverUrl: 'https://chat.example', apiKey: '' })).toThrow();
+});
+
+it('reads the viewer once and reads it again after a failure', async () => {
+  let fail = true;
+  const request = vi.fn<typeof fetch>(async () =>
+    fail
+      ? Response.json({ code: 'unavailable', message: 'down' }, { status: 503 })
+      : Response.json({ user: { profile: { id: 'bot' } } })
+  );
+  const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key', fetch: request });
+  await expect(api.viewerId()).rejects.toThrow();
+  fail = false;
+  await expect(api.viewerId()).resolves.toBe('bot');
+  await expect(api.viewerId()).resolves.toBe('bot');
+  expect(request).toHaveBeenCalledTimes(2);
 });

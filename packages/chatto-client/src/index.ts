@@ -1,21 +1,51 @@
 /**
- * Framework-neutral Chatto client.
+ * The Chatto client.
  *
- * The root entry serves headless hosts such as bots: {@link connectChatto}
- * connects one server with an API key and keeps its state live, and
- * {@link createChattoApi} makes stateless typed requests. Applications with a UI use the same
- * stores through the module entries, for example
- * `@chatto/client/server/registry`, and the adapter in `@chatto/client/svelte`.
+ * - {@link createClient} creates an isolated client. `client.connect()`
+ *   connects a server with an API key; the connection's `run()` handles the
+ *   messages addressed to it.
+ * - {@link createApi} makes stateless requests, for example in a webhook
+ *   handler.
+ * - `@chatto/client/types` re-exports the protocol messages and services.
+ *
+ * Applications with a UI use the stores of a client, and the adapter in
+ * `@chatto/client/svelte`.
  */
 
-export { createChattoApi, type ChattoApi, type ChattoApiOptions } from './apiClient.js';
+export { createClient, ChattoClient, type ClientOptions } from './client.js';
 export {
-  connectChatto,
-  type ChattoConnection,
-  type ChattoConnectionStatus,
-  type ChattoReset,
-  type ConnectChattoOptions
-} from './connect.js';
+  Connection,
+  type ConnectOptions,
+  type ConnectionStatus,
+  type ConsumeEventsOptions,
+  type MessageContext,
+  type ResetInfo,
+  type RunOptions
+} from './connection.js';
+export { Api, createApi, type ApiOptions } from './api.js';
+export {
+  conversationKey,
+  MessagingRequests,
+  replyDestination,
+  type AddressedMessage,
+  type AddressingOptions,
+  type AddressingReason,
+  type ServiceSource
+} from './messaging/requests.js';
+export type {
+  ChattoMessage,
+  Destination,
+  RealtimeStatus,
+  RequestOptions,
+  ThreadLocation,
+  ThreadMessage,
+  ThreadRead,
+  ThreadReadOptions
+} from './messaging/types.js';
+export { withTyping, startTyping, type TypingUpdate } from './messaging/typing.js';
+export { createDeliveryTracker, type DeliveryTracker } from './messaging/deliveries.js';
+export type { VoiceCallFactory, VoiceCallController } from './server/voiceCall.js';
+export type { LiveServers } from './server/realtimeTransport.js';
 export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';

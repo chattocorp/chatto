@@ -2,7 +2,6 @@ import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   generateServerId,
   restorePersistedServerState,
-  serverRegistry,
   splitPersistedServers,
   type RegisteredServer
 } from './registry.js';
@@ -11,6 +10,9 @@ import { serverStorageKey } from '../storage/serverStorage.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { ViewerState } from '../api/viewer.js';
+import { createAppClient } from '../testing/appClient.js';
+
+const serverRegistry = createAppClient().registry;
 
 const viewerMocks = vi.hoisted(() => ({
   getViewerStateViaConnect: vi.fn()

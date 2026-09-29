@@ -277,15 +277,18 @@ explicit reads, commands, pagination, and history. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 **Chatto client** — The framework-neutral client package `@chatto/client`
-(`packages/chatto-client/`). It owns server connections, sessions, the Client
-Projection, and the reactive server and room stores. The bundled frontend and
-bots use it; `@chatto/client/svelte` adapts it to Svelte. See
+(`packages/chatto-client/`), and an instance that `createClient()` creates.
+An instance is isolated: it owns its servers, sessions, connections, Client
+Projections, reactive server and room stores, and Client runtime. The bundled
+frontend has one instance; a bot creates its own. `@chatto/client/svelte`
+adapts the package to Svelte. See
 [ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
 
-**Client runtime** — Background work of the Chatto client that one
-application starts once: recovery of discovery and saved sessions, realtime
-ownership, and remote session termination. It keeps the realtime transport of
-the active server live. See
+**Client runtime** — Background work of one Chatto client instance: recovery
+of discovery and saved sessions, realtime ownership, and remote session
+termination. It keeps the realtime transports of the client's live servers
+open: every server of a bot client, or the active server of an application.
+See
 [ADR-110](adr/ADR-110-move-client-state-into-chatto-client.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized

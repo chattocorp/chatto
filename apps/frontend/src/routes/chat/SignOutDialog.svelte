@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverRegistry } from '$lib/client';
   import { clientAccount, type ClientAccountNavigation } from '$lib/state/clientAccount';
   import { hardRedirectAfterSignOut } from '@chatto/client/auth/signOut';
   import { m } from '$lib/i18n/messages';

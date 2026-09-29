@@ -49,7 +49,8 @@ vi.mock('@chatto/client/api/attachments', async (importActual) => ({
   }))
 }));
 
-vi.mock('@chatto/client/server/registry', async () => {
+vi.mock('$lib/client', async () => {
+  const original = (await import('$lib/test-utils/clientMock')).clientMockDefaults;
   const { SvelteMap } = await import('svelte/reactivity');
   registryState.servers = new SvelteMap([
     ['server_1', { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
@@ -57,6 +58,7 @@ vi.mock('@chatto/client/server/registry', async () => {
   registryState.stores = new SvelteMap();
   registryState.connections = new Map();
   return {
+    ...original,
     serverRegistry: {
       tryGetStore: (id: string) => registryState.stores.get(id),
       getServer: (id: string) => registryState.servers.get(id),
@@ -65,18 +67,15 @@ vi.mock('@chatto/client/server/registry', async () => {
         return { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null };
       },
       servers: [{ id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
+    },
+    serverConnectionManager: {
+      getClient: (id: string) => registryState.connections.get(id)
     }
   };
 });
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
-  serverConnectionManager: {
-    getClient: (id: string) => registryState.connections.get(id)
-  }
 }));
 
 function link(): MessageLink {

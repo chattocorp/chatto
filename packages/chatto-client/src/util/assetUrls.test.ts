@@ -5,10 +5,9 @@ const { servers } = vi.hoisted(() => ({
   servers: new Map<string, RegisteredServer>()
 }));
 
-vi.mock('../server/registry.js', () => ({
-  serverRegistry: {
-    getServer: (id: string) => servers.get(id)
-  }
+vi.mock('../server/serverIds.js', () => ({
+  ownerOfServerId: (id: string) =>
+    servers.has(id) ? { getServer: (serverId: string) => servers.get(serverId) } : undefined
 }));
 
 import { assetUrlForServer } from './assetUrls.js';

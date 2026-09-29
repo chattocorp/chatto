@@ -1,5 +1,5 @@
 import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
-import { eventBusManager } from '@chatto/client/server/realtimeTransport';
+import { eventBusManager } from '$lib/client';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 
 type ServerIdSelector = () => string;

@@ -19,7 +19,7 @@ media. HTML consent is never stored in history or carried to another selection.
   } from '@chatto/client/attachments/attachmentUrls';
   import { assetUrlForServer } from '@chatto/client/util/assetUrls';
   import { attachmentDownloadUrl } from '$lib/attachments/attachmentDownloadUrl';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { serverConnectionManager } from '$lib/client';
   import { m } from '$lib/i18n/messages';
   import { AttachmentModal, AttachmentPreview } from '$lib/ui/attachments';
 

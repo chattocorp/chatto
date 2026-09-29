@@ -17,7 +17,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('@chatto/client/server/realtimeTransport', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   eventBusManager: { getBus: mocks.getBus }
 }));
 

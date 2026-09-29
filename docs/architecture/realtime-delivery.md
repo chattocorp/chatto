@@ -22,9 +22,9 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 
 The client in [`@chatto/client`](../../packages/chatto-client/README.md)
 consumes this protocol for the bundled frontend and for headless hosts. Bots
-connect with `connectChatto` and a bearer API key. They use the same realtime
-transport, projection, and recovery as the frontend. The
-[bot client](../../packages/chatto-bot-client/README.md) handles events in
+connect with `createClient().connect()` and a bearer API key. They use the
+same realtime transport, projection, and recovery as the frontend. A bot
+client keeps every connected server live. A connection handles events in
 order, reports a gap when a later snapshot replaces the stream, and supplies
 addressing recognition and process-local accepted-delivery tracking. The
 [ChattoBot package](../../packages/chattobot/README.md) routes message events

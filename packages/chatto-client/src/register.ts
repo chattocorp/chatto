@@ -14,7 +14,7 @@
  * ```
  *
  * The registered types must match what the application installs at runtime,
- * for example with `setVoiceCallFactory`.
+ * for example the `voiceCall` factory that it passes to `createClient`.
  */
 
 export interface Register {

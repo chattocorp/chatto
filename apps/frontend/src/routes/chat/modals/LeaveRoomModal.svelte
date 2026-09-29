@@ -4,7 +4,7 @@
   import type { LeaveRoomModalState } from '$lib/modal';
   import { serverIdToSegment } from '$lib/navigation';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { serverConnectionManager } from '$lib/client';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';

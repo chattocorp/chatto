@@ -16,6 +16,16 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    tryGetStore: () => (mocks.serverId ? mocks.store : undefined),
+    getServer: () =>
+      mocks.serverId ? { id: mocks.serverId, reauthRequiredAt: mocks.reauthRequiredAt } : undefined,
+    isOriginServer: () => mocks.origin
+  }
+}));
+
 vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
@@ -26,15 +36,6 @@ vi.mock('$lib/auth/returnNavigation', () => ({
 
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: () => mocks.serverId
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    tryGetStore: () => (mocks.serverId ? mocks.store : undefined),
-    getServer: () =>
-      mocks.serverId ? { id: mocks.serverId, reauthRequiredAt: mocks.reauthRequiredAt } : undefined,
-    isOriginServer: () => mocks.origin
-  }
 }));
 
 import { load } from './+layout';

@@ -12,11 +12,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => mocks.activeServerId
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get originServer() {
       return mocks.servers.find((server) => server.id === 'origin');
@@ -25,6 +22,10 @@ vi.mock('@chatto/client/server/registry', () => ({
       return mocks.servers.find((server) => server.id === id);
     }
   }
+}));
+
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => mocks.activeServerId
 }));
 
 vi.mock('$lib/auth/reauth', () => ({

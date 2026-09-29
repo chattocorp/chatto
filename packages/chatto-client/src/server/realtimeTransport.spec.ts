@@ -13,13 +13,16 @@ import {
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import {
-  eventBusManager,
+  EventBusManager,
   setRealtimePollRandomForTests,
   setRealtimeSocketFactoryForTests
 } from './realtimeTransport.js';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
 import type { EventBus, ProjectionHandler } from '../realtime/eventBus.js';
+
+/** The tested bus manager: one live server, like the bundled frontend. */
+let eventBusManager = new EventBusManager();
 import { effect, signal } from '../reactivity/index.js';
 
 class FakeRealtimeSocket {
@@ -251,6 +254,7 @@ describe('eventBusManager realtime transport', () => {
 
   afterEach(() => {
     eventBusManager.stopAll();
+    eventBusManager = new EventBusManager();
     setRealtimeSocketFactoryForTests(null);
     setRealtimePollRandomForTests(null);
     consoleError.mockRestore();

@@ -12,8 +12,7 @@ and installed-app badge updates.
 Include this component once in the application root so signed-out pages also clear stale badges.
 -->
 <script lang="ts">
-  import { serverRegistry } from '@chatto/client/server/registry';
-  import { eventBusManager } from '@chatto/client/server/realtimeTransport';
+  import { serverRegistry, eventBusManager } from '$lib/client';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';

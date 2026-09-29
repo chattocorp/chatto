@@ -329,9 +329,6 @@ importers:
       '@chatto/api-types':
         specifier: workspace:*
         version: link:../../packages/api-types
-      '@chatto/bot-client':
-        specifier: workspace:*
-        version: link:../../packages/chatto-bot-client
       '@chatto/client':
         specifier: workspace:*
         version: link:../../packages/chatto-client
@@ -364,31 +361,6 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-
-  packages/chatto-bot-client:
-    dependencies:
-      '@bufbuild/protobuf':
-        specifier: ^1.10.1
-        version: 1.10.1
-      '@chatto/api-types':
-        specifier: workspace:*
-        version: link:../api-types
-      '@chatto/client':
-        specifier: workspace:*
-        version: link:../chatto-client
-      '@connectrpc/connect':
-        specifier: ^1.7.0
-        version: 1.7.0(@bufbuild/protobuf@1.10.1)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.20.1
-        version: 22.20.1
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.11(@types/node@22.20.1)(@vitest/browser-playwright@4.1.11)(happy-dom@20.14.5)(vite@8.3.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/chatto-client:
     dependencies:
@@ -453,9 +425,6 @@ importers:
 
   packages/chattobot:
     dependencies:
-      '@chatto/bot-client':
-        specifier: workspace:*
-        version: link:../chatto-bot-client
       '@chatto/client':
         specifier: workspace:*
         version: link:../chatto-client

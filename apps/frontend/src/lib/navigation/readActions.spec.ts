@@ -14,16 +14,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('@chatto/client/api/readState', () => ({
-  createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
-}));
-
-vi.mock('@chatto/client/api/roomDirectory', () => ({
-  RoomDirectoryScope: { ALL: 1 },
-  createRoomDirectoryAPI: () => ({ listRooms: mocks.listRooms })
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     getStore: () => ({
       roomUnread: {
@@ -34,10 +26,7 @@ vi.mock('@chatto/client/server/registry', () => ({
         roomIsUnread: mocks.roomIsUnread
       }
     })
-  }
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
+  },
   serverConnectionManager: {
     getClient: () => ({
       serverId: 'remote',
@@ -46,6 +35,15 @@ vi.mock('@chatto/client/server/serverConnection', () => ({
       getAPI: (factory: (config: unknown) => unknown) => factory({})
     })
   }
+}));
+
+vi.mock('@chatto/client/api/readState', () => ({
+  createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
+}));
+
+vi.mock('@chatto/client/api/roomDirectory', () => ({
+  RoomDirectoryScope: { ALL: 1 },
+  createRoomDirectoryAPI: () => ({ listRooms: mocks.listRooms })
 }));
 
 import { markNavigationRoomAsRead, markNavigationServerAsRead } from './readActions';

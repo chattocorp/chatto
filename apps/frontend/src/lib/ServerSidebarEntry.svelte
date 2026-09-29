@@ -3,8 +3,7 @@
   import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { serverRegistry } from '@chatto/client/server/registry';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';

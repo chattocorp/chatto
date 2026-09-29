@@ -20,7 +20,7 @@ import { NotificationStore } from './notifications.js';
 import { RoomUnreadStore } from './roomUnread.js';
 import { ReadViewRegistry } from './readViews.js';
 import { PendingHighlightStore } from './pendingHighlight.js';
-import { createVoiceCall, type RegisteredVoiceCall, type VoiceCallContext } from './voiceCall.js';
+import type { RegisteredVoiceCall, VoiceCallContext, VoiceCallFactory } from './voiceCall.js';
 import { ServerPresence } from './presence.js';
 import { ActiveCallRoomsState } from './activeCallRooms.js';
 import { NavigationStore } from './rooms.js';
@@ -39,7 +39,7 @@ import {
   type RealtimeResourceAPI,
   type RealtimeResourceFamily
 } from '../api/realtimeResources.js';
-import { eventBusManager } from './realtimeTransport.js';
+import type { EventBusManager } from './realtimeTransport.js';
 import { RealtimeProjectionUpdate, type ProjectionHandler } from '../realtime/eventBus.js';
 import type { ServerConnection } from './serverConnection.js';
 import type { ServerRegistration } from './catalog.js';
@@ -108,6 +108,14 @@ function viewerAuthorizationLost(
   ].some((grant) => !currentGrants.has(grant));
 }
 
+/** The parts of a client that a server store uses. */
+export interface ServerStoreContext {
+  /** The client's realtime transports. */
+  readonly realtime: EventBusManager;
+  /** Creates the store's voice-call controller; see `ClientOptions.voiceCall`. */
+  readonly voiceCall: VoiceCallFactory;
+}
+
 export class ServerStateStore {
   readonly serverId: string;
   readonly currentUser: CurrentUserState;
@@ -119,7 +127,7 @@ export class ServerStateStore {
   readonly activeCallRooms: ActiveCallRoomsState;
   /**
    * This server's voice-call controller, created with the store by the
-   * factory installed with `setVoiceCallFactory`. The store creates it
+   * client's `voiceCall` factory. The store creates it
    * eagerly: a controller with UI-framework state (such as Svelte `$state`)
    * that a reactive read created on first use would not be tracked by that
    * read.
@@ -169,6 +177,7 @@ export class ServerStateStore {
     );
   }
   #privacyCleanupFailed = false;
+  readonly #realtime: EventBusManager;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
     this.ingestProjectionEvent(update);
@@ -252,6 +261,7 @@ export class ServerStateStore {
     getSession: () => ServerSession,
     originServer: boolean,
     serverConnection: ServerConnection,
+    context: ServerStoreContext,
     publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>,
     onAuthenticationRequired?: () => void,
     onViewerLoaded?: (user: CurrentUser) => void
@@ -260,6 +270,7 @@ export class ServerStateStore {
     this.#getSession = getSession;
     this.#originServer = originServer;
     this.#serverConnection = serverConnection;
+    this.#realtime = context.realtime;
     this.projection = new ServerProjectionStore(
       getUserStore(this.serverId, serverConnection.queryScope)
     );
@@ -308,7 +319,8 @@ export class ServerStateStore {
         };
       }
     };
-    this.voiceCall = createVoiceCall(voiceCallContext);
+    // The registered type describes the client's factory; see Register.
+    this.voiceCall = context.voiceCall(voiceCallContext) as RegisteredVoiceCall;
     this.activeCallRooms = new ActiveCallRoomsState(
       () => this.voiceCall,
       () => this.projection.activeCalls
@@ -1159,7 +1171,7 @@ export class ServerStateStore {
     // Effects run once, after the update applied, as for transport publishes.
     batch(() => {
       this.ingestProjectionEvent(update, presenceReadVersion);
-      eventBusManager.getBus(this.serverId)?.notify(update);
+      this.#realtime.getBus(this.serverId)?.notify(update);
     });
   }
 
@@ -1545,7 +1557,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
-    eventBusManager.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
+    this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();
     this.projection.users.clear();

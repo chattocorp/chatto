@@ -18,12 +18,8 @@ const mocks = vi.hoisted(() => ({
 let chatto = fakeChatto({ viewerId: 'bot', routes: () => {} });
 vi.mock('@chatto/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client')>()),
-  connectChatto: (options: Parameters<typeof chatto.connectChatto>[0]) =>
-    chatto.connectChatto(options)
-}));
-vi.mock('@chatto/client/apiClient', () => ({
-  createChattoApi: (options: Parameters<typeof chatto.createChattoApi>[0]) =>
-    chatto.createChattoApi(options)
+  createClient: () => chatto.createClient(),
+  createApi: (options: Parameters<typeof chatto.createApi>[0]) => chatto.createApi(options)
 }));
 vi.mock('../workflows/chat.ts', () => ({ createChattoBot: mocks.bot }));
 
@@ -285,6 +281,8 @@ test('existing conversation callbacks keep their server and credentials after re
   expect(first!.calls).toEqual([
     'MessageService/CreateMessage',
     'RoomService/RefreshTypingIndicator',
+    // The thread read learns the viewer once, to mark the bot's own messages.
+    'ViewerService/GetViewer',
     'ThreadService/GetThreadEvents',
     'MessageService/AddReaction'
   ]);
@@ -349,6 +347,6 @@ test.each([
   await expect(chattoSource(ctx)).rejects.toThrow(message);
   expect(error).toHaveBeenCalledWith(`ChattoBot configuration error: ${message}`);
   expect(JSON.stringify(error.mock.calls)).not.toContain('secret');
-  expect(chatto.connectChatto).not.toHaveBeenCalled();
+  expect(chatto.createClient).not.toHaveBeenCalled();
   expect(mocks.bot).not.toHaveBeenCalled();
 });

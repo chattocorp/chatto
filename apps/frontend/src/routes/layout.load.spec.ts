@@ -12,6 +12,15 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    init: mocks.init,
+    probeOrigin: mocks.probeOrigin,
+    settleOriginUnauthenticated: mocks.settleOriginUnauthenticated
+  }
+}));
+
 vi.mock('$lib/i18n/messages', () => ({
   preloadPublicLocaleMessages: mocks.preloadPublicLocaleMessages
 }));
@@ -26,14 +35,6 @@ vi.mock('@chatto/client/auth/loadAuth', () => ({
 
 vi.mock('@chatto/client/util/runtimeOrigin', () => ({
   isBackendCapableOrigin: mocks.isBackendCapableOrigin
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    init: mocks.init,
-    probeOrigin: mocks.probeOrigin,
-    settleOriginUnauthenticated: mocks.settleOriginUnauthenticated
-  }
 }));
 
 import { load } from './+layout';

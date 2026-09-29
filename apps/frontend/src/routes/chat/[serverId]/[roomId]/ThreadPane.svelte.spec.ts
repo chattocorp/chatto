@@ -62,6 +62,11 @@ const { mocks } = vi.hoisted(() => {
 
 let server: TestServerScope;
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: { getStore: () => server.scope.store }
+}));
+
 vi.mock('@chatto/client/api/readState', () => ({
   createReadStateAPI: () => ({
     markThreadAsRead: mocks.markThreadAsRead
@@ -113,10 +118,6 @@ vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: { getStore: () => server.scope.store }
-}));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'

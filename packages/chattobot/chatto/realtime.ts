@@ -1,7 +1,11 @@
-import { connectChatto, type ChattoConnection } from '@chatto/client';
-import { createChattoApi, type ChattoApi } from '@chatto/client/apiClient';
+import {
+  createApi,
+  createClient,
+  type AddressedMessage,
+  type Api,
+  type Connection
+} from '@chatto/client';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
-import { createBotApi, createBotClient, type AddressedMessage } from '@chatto/bot-client';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
@@ -103,31 +107,31 @@ export const chattoSource: EventSource = async (ctx) => {
   // A new generation starts from a fresh realtime snapshot. Closing fails the
   // connection's requests in flight, so runs, which can outlive their
   // generation, send requests through a stateless API client instead.
-  const chatto = connectChatto({ serverUrl, apiKey });
+  const client = createClient();
   try {
+    const chatto = client.connect({ serverUrl, apiKey });
     await consume(
       ctx,
       chatto,
-      createChattoApi({ serverUrl, apiKey }),
+      createApi({ serverUrl, apiKey }),
       allowedUserId,
       settings,
       serverUrl
     );
   } finally {
-    chatto.close();
+    client.close();
   }
 };
 
 async function consume(
   ctx: Parameters<EventSource>[0],
-  chatto: ChattoConnection,
-  api: ChattoApi,
+  chatto: Connection,
+  api: Api,
   allowedUserId: string | undefined,
   settings: Omit<ReturnType<typeof sourceSettings>, 'serverUrl' | 'apiKey' | 'allowedUserId'>,
   serverUrl: string
 ): Promise<void> {
-  const client = await createBotClient(chatto, { signal: ctx.signal });
-  const botId = client.viewerId;
+  const { viewerId: botId } = await chatto.ready({ signal: ctx.signal });
   const identity = JSON.stringify([new URL(serverUrl).origin, botId]);
   let session = ctx.state.get('chatto') as Session | undefined;
   if (!session || session.identity !== identity) {
@@ -138,16 +142,15 @@ async function consume(
     console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
   }
   // Active runs keep this generation's credentials even if a reload changes them.
-  const runs = createBotApi(api, botId);
   const bot = createChattoBot({
     ...settings,
     state: session.conversations,
-    post: runs.postMessage,
-    typing: runs.refreshTyping,
-    readThread: createThreadReader(runs, botId),
-    acknowledge: createEyesReaction(runs)
+    post: (destination, body, signal) => api.postMessage(destination, body, { signal }),
+    typing: (destination, signal) => api.refreshTyping(destination, { signal }),
+    readThread: createThreadReader(api),
+    acknowledge: createEyesReaction(api)
   });
-  await client.consumeEvents({
+  await chatto.consumeEvents({
     signal: ctx.signal,
     onStatus(status) {
       // Only fixed local status fields are logged, never connection details or payloads.
@@ -160,7 +163,7 @@ async function consume(
       // Ignore before routing: disallowed senders cannot start, steer, cancel,
       // or trigger acknowledgements for an existing conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await client.addressedMessage(event, { signal: ctx.signal }).catch(() => {
+      const message = await chatto.addressedMessage(event, { signal: ctx.signal }).catch(() => {
         ctx.signal.throwIfAborted();
         // Missing reply targets do not stop this bot's realtime source.
         console.warn(

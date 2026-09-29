@@ -67,21 +67,22 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
-vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
-
-vi.mock('$app/navigation', () => ({
-  goto: mocks.goto,
-  pushState: vi.fn(),
-  replaceState: vi.fn()
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     servers: mocks.servers,
     getStore: vi.fn((serverId: string) => mocks.stores.get(serverId)),
     isOriginServer: vi.fn((serverId: string) => serverId === 'origin'),
     getServer: vi.fn((serverId: string) => mocks.servers.find((server) => server.id === serverId))
   }
+}));
+
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+
+vi.mock('$app/navigation', () => ({
+  goto: mocks.goto,
+  pushState: vi.fn(),
+  replaceState: vi.fn()
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({

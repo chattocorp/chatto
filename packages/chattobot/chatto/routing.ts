@@ -1,6 +1,15 @@
-import type { ChattoPost, Destination } from '@chatto/bot-client';
-import { createDeliveryTracker } from '@chatto/bot-client';
-export type { ChattoPost, Destination } from '@chatto/bot-client';
+import { createDeliveryTracker, type Destination } from '@chatto/client';
+export type { Destination } from '@chatto/client';
+
+/** Send ordered thread messages; workflow adapters supply their cancellation signal. */
+export type ChattoPost = (
+  destination: Destination,
+  body: string,
+  signal: AbortSignal
+) => Promise<void>;
+
+/** Refresh a thread's typing indicator once. */
+export type ChattoTyping = (destination: Destination, signal: AbortSignal) => Promise<void>;
 import type { WebhookRouter } from 'runling/web';
 import { task, Type, type WorkflowContext, type TSchema, type Static } from 'runling';
 

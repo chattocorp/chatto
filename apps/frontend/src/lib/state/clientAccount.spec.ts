@@ -18,19 +18,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('@chatto/client/auth/signOut', () => ({
-  beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
-  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
-  ServerLogoutRejectedError: class ServerLogoutRejectedError extends Error {},
-  signOutServer: mocks.signOutServer,
-  signOutServers: mocks.signOutServers
-}));
-vi.mock('@chatto/client/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
-vi.mock('$lib/notifications/pushNotifications', () => ({
-  unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
-}));
-vi.mock('$lib/storage/lastRoom', () => ({ clearLastRoom: mocks.clearLastRoom }));
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get servers() {
       return mocks.servers;
@@ -45,6 +34,19 @@ vi.mock('@chatto/client/server/registry', () => ({
     resetToOrigin: mocks.resetToOrigin
   }
 }));
+
+vi.mock('@chatto/client/auth/signOut', () => ({
+  beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
+  ServerLogoutRejectedError: class ServerLogoutRejectedError extends Error {},
+  signOutServer: mocks.signOutServer,
+  signOutServers: mocks.signOutServers
+}));
+vi.mock('@chatto/client/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
+vi.mock('$lib/notifications/pushNotifications', () => ({
+  unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
+}));
+vi.mock('$lib/storage/lastRoom', () => ({ clearLastRoom: mocks.clearLastRoom }));
 
 import { clientAccount } from './clientAccount';
 

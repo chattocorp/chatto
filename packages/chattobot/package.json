@@ -16,7 +16,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@chatto/bot-client": "workspace:*",
     "@chatto/client": "workspace:*",
     "linkedom": "^0.18.13",
     "runling": "workspace:*"

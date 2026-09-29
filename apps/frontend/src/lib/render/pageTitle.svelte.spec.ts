@@ -23,18 +23,8 @@ const mocks = vi.hoisted(() => ({
   >()
 }));
 
-vi.mock('$app/state', () => ({
-  page: {
-    get params() {
-      return mocks.page.params;
-    },
-    get route() {
-      return mocks.page.route;
-    }
-  }
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get originServer() {
       return mocks.originServer;
@@ -43,6 +33,17 @@ vi.mock('@chatto/client/server/registry', () => ({
       return mocks.servers;
     },
     tryGetStore: (id: string) => mocks.stores.get(id)
+  }
+}));
+
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return mocks.page.params;
+    },
+    get route() {
+      return mocks.page.route;
+    }
   }
 }));
 

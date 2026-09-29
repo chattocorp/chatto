@@ -98,16 +98,14 @@ const { mocks } = vi.hoisted(() => {
   };
 });
 
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get servers() {
       return mocks.servers;
     },
     getStore: vi.fn((serverId: 'origin' | 'remote') => mocks.stores[serverId])
-  }
-}));
-
-vi.mock('@chatto/client/server/realtimeTransport', () => ({
+  },
   eventBusManager: {
     getBus: vi.fn((serverId: 'origin' | 'remote') => mocks.buses[serverId])
   }

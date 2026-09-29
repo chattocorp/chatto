@@ -1,7 +1,5 @@
-import { createChattoApi } from '@chatto/client/apiClient';
-import { createBotApi } from '@chatto/bot-client';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { createApi } from '@chatto/client';
+import { UserService } from '@chatto/client/types';
 import { readFile } from 'node:fs/promises';
 import { Type, task, step } from 'runling';
 import { generateReply } from './agent.ts';
@@ -68,21 +66,18 @@ export function createReplyWorkflow(
     },
     async (r, input) => {
       const { serverUrl, apiKey } = await loadConfig();
-      const api = createChattoApi({ serverUrl, apiKey, fetch: request });
+      const api = createApi({ serverUrl, apiKey, fetch: request });
 
       // Confirm the configured credentials belong to the intended bot. Step
       // results keep the JSON shape of earlier versions, so resumed runs can
       // replay journaled results.
       const viewer = await step('Check bot identity', async () => {
-        const response = await api
-          .service(ViewerService)
-          .getViewer({}, { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS });
-        return { user: { profile: { id: response.user?.profile?.id } } };
+        const id = await api.viewerId({ signal: r.signal });
+        return { user: { profile: { id } } };
       });
       if (viewer.user?.profile?.id !== input.bot_id) {
         throw new Error('The webhook bot does not match the API key');
       }
-      const client = createBotApi(api, input.bot_id);
 
       // Ignore bot authors to prevent automatic reply loops.
       if (input.message.author_id === input.bot_id) {
@@ -111,27 +106,27 @@ export function createReplyWorkflow(
       // The agent needs conversation text, not server event or author IDs.
       const readThread = async () =>
         (
-          await client.readThread(
+          await api.readThread(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
             },
-            r.signal
+            { signal: r.signal }
           )
-        ).messages.map(({ authorId, body }) => ({
-          role: authorId === input.bot_id ? ('bot' as const) : ('human' as const),
+        ).messages.map(({ fromViewer, body }) => ({
+          role: fromViewer ? ('bot' as const) : ('human' as const),
           body
         }));
 
       // Start typing before loading context, and keep it active during composition.
       const stopTyping = await step('Start typing', () =>
         startTyping(() =>
-          client.refreshTyping(
+          api.refreshTyping(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
             },
-            r.signal
+            { signal: r.signal }
           )
         )
       );
@@ -139,14 +134,13 @@ export function createReplyWorkflow(
       // Each run owns one final-answer or error-notification attempt.
       const sender = createReplySender((text, stepName) =>
         step(stepName, async () => {
-          const result = await client.createMessage(
+          const result = await api.createMessage(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
             },
             text,
-            r.signal,
-            input.message.id
+            { signal: r.signal, inReplyTo: input.message.id }
           );
 
           const id = result.id;

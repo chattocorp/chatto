@@ -5,16 +5,16 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   store: { currentUser: { user: undefined as { id: string } | undefined } }
 }));
-vi.mock('../server/registry.js', () => ({
-  serverRegistry: {
-    originServer: { id: 'origin' },
-    getStore: () => ({ currentUser: { load: mocks.load } }),
-    tryGetStore: () => mocks.store,
-    clearOriginAuthentication: mocks.clear
-  }
-}));
+import { loadCurrentUser as loadWith } from './loadAuth.js';
+import type { ServerRegistry } from '../server/registry.js';
 
-import { loadCurrentUser } from './loadAuth.js';
+const registry = {
+  originServer: { id: 'origin' },
+  getStore: () => ({ currentUser: { load: mocks.load } }),
+  tryGetStore: () => mocks.store,
+  clearOriginAuthentication: mocks.clear
+} as unknown as ServerRegistry;
+const loadCurrentUser = () => loadWith(registry);
 import { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } from './signOut.js';
 
 describe('route account loading', () => {

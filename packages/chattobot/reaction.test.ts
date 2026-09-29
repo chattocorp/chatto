@@ -1,5 +1,4 @@
 import { expect, test, vi } from 'vitest';
-import { createBotClient } from '@chatto/bot-client';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { AddReactionRequest } from '@chatto/api-types/api/v1/reactions_pb';
 import { fakeChatto } from './chatto/fake-chatto.ts';
@@ -23,7 +22,7 @@ const delivery: Delivery = {
 
 test('reacts to the pinging message, not the thread root', async () => {
   const requests: AddReactionRequest[] = [];
-  const { connectChatto } = fakeChatto({
+  const { createApi } = fakeChatto({
     viewerId: 'bot',
     routes: (router) =>
       router.service(MessageService, {
@@ -33,10 +32,8 @@ test('reacts to the pinging message, not the thread root', async () => {
         }
       })
   });
-  const bot = await createBotClient(
-    connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })
-  );
-  await createEyesReaction(bot)(delivery);
+  const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key' });
+  await createEyesReaction(api)(delivery);
 
   expect(requests).toHaveLength(1);
   expect(requests[0]).toMatchObject({ roomId: 'room', messageEventId: 'ping', emoji: 'eyes' });

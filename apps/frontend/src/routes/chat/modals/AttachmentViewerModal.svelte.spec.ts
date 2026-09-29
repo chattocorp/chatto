@@ -11,11 +11,13 @@ const mocks = vi.hoisted(() => ({
   getMetadata: vi.fn(),
   page: { state: {} as { modal?: AttachmentViewerModalState } }
 }));
-vi.mock('$app/state', () => ({ page: mocks.page }));
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: { getServer: () => ({ url: 'https://remote.example' }) }
+// Asset URLs resolve against the server that owns the attachment's server ID.
+vi.mock('@chatto/client/server/serverIds', () => ({
+  ownerOfServerId: () => ({ getServer: () => ({ url: 'https://remote.example' }) })
 }));
-vi.mock('@chatto/client/server/serverConnection', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: { getServer: () => ({ url: 'https://remote.example' }) },
   serverConnectionManager: {
     getClient: () => ({
       queryScope: 'test-session',
@@ -23,6 +25,8 @@ vi.mock('@chatto/client/server/serverConnection', () => ({
     })
   }
 }));
+
+vi.mock('$app/state', () => ({ page: mocks.page }));
 vi.mock('@chatto/client/attachments/attachmentUrls', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client/attachments/attachmentUrls')>()),
   refreshAttachmentUrlsForAssets: mocks.refreshUrls

@@ -13,8 +13,7 @@ import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
-import { serverConnectionManager } from '@chatto/client/server/serverConnection';
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverConnectionManager, serverRegistry } from '$lib/client';
 import {
   completePushRegistrationRefresh,
   enqueuePushRegistration,

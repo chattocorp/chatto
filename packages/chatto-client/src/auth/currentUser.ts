@@ -16,7 +16,7 @@ interface AuthFailureOptions {
 /**
  * Per-server current-user state. One instance per registered server,
  * owned by `ServerStateStore`. Consumers read the active server's
- * instance via `serverRegistry.getStore(getServerId()).currentUser`, the
+ * instance via `registry.getStore(serverId).currentUser`, the
  * same way they reach every other per-server store.
  *
  * Authentication-required failures are reported to the owning registry/store.

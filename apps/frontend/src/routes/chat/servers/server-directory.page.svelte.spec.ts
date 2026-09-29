@@ -24,6 +24,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return mocks.servers;
+    },
+    isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId)
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
@@ -57,14 +67,6 @@ vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlow: mocks.startServerOAuthFlow,
   startServerOAuthFlowWhenReady: mocks.startServerOAuthFlowWhenReady,
   startRemoteReauthentication: mocks.startRemoteReauthentication
-}));
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    get servers() {
-      return mocks.servers;
-    },
-    isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId)
-  }
 }));
 
 import ServerDirectory from '$lib/components/ServerDirectory.svelte';

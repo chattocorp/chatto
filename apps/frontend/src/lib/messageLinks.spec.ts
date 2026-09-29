@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
-import { serverRegistry, type RegisteredServer } from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
+import { type RegisteredServer } from '@chatto/client/server/registry';
 import {
   buildMessageLinkURL,
   classifyMessageBodyChatLink,

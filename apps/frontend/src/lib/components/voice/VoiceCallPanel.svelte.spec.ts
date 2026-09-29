@@ -2,7 +2,7 @@ import '../../../app.css';
 import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
 import { serverIdToSegment } from '$lib/navigation';

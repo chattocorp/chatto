@@ -7,12 +7,8 @@ import { fakeChatto, settle } from './fake-chatto.ts';
 const chatto = fakeChatto({ viewerId: 'bot', routes: () => {} });
 vi.mock('@chatto/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client')>()),
-  connectChatto: (options: Parameters<typeof chatto.connectChatto>[0]) =>
-    chatto.connectChatto(options)
-}));
-vi.mock('@chatto/client/apiClient', () => ({
-  createChattoApi: (options: Parameters<typeof chatto.createChattoApi>[0]) =>
-    chatto.createChattoApi(options)
+  createClient: () => chatto.createClient(),
+  createApi: (options: Parameters<typeof chatto.createApi>[0]) => chatto.createApi(options)
 }));
 afterEach(() => vi.unstubAllEnvs());
 

@@ -37,7 +37,8 @@ dialog shows it directly on its work plane. See FDR-042.
     type ServerDirectoryEntry
   } from '$lib/serverDirectory';
   import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
-  import { serverRegistry, type RegisteredServer } from '@chatto/client/server/registry';
+  import { serverRegistry } from '$lib/client';
+  import { type RegisteredServer } from '@chatto/client/server/registry';
   import { EmptyState, Hint, LoadingFog, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

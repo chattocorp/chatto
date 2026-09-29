@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import type { PublicServerInfo } from '@chatto/client/api/server';
 import { sidebarNav } from '$lib/state/globals.svelte';
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -24,6 +24,23 @@ const { mocks } = vi.hoisted(() => ({
       forceReconnect: vi.fn()
     },
     updateAppBadge: vi.fn(async () => {})
+  }
+}));
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [],
+    originServer: { id: 'origin' },
+    getStore: vi.fn(),
+    getServer: vi.fn(() => ({ userId: 'U1' })),
+    tryGetStore: vi.fn(() => null),
+    isAuthenticated: vi.fn(() => false),
+    firstAuthenticatedServerId: vi.fn(() => undefined)
+  },
+  serverConnectionManager: {
+    originClient: mocks.originClient,
+    getClient: vi.fn(() => mocks.originClient)
   }
 }));
 
@@ -113,23 +130,7 @@ vi.mock('$lib/state/server/ServerRuntimeCoordinator.svelte', async () => ({
 }));
 
 vi.mock('@chatto/client/server/registry', () => ({
-  generateServerId: vi.fn(() => 'server-id'),
-  serverRegistry: {
-    servers: [],
-    originServer: { id: 'origin' },
-    getStore: vi.fn(),
-    getServer: vi.fn(() => ({ userId: 'U1' })),
-    tryGetStore: vi.fn(() => null),
-    isAuthenticated: vi.fn(() => false),
-    firstAuthenticatedServerId: vi.fn(() => undefined)
-  }
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
-  serverConnectionManager: {
-    originClient: mocks.originClient,
-    getClient: vi.fn(() => mocks.originClient)
-  }
+  generateServerId: vi.fn(() => 'server-id')
 }));
 
 import Layout from './+layout.svelte';

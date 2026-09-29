@@ -1,11 +1,10 @@
 /**
- * Install the LiveKit voice-call implementation for every server store, and
- * register its type with `@chatto/client`. Import this module before the
- * first server store is created: `hooks.client.ts` and Storybook do. Browser
- * tests that render call UI against a real store import it themselves.
+ * The LiveKit voice-call implementation of the frontend's server stores, and
+ * its type registration with `@chatto/client`. `$lib/client` passes the
+ * factory to its client.
  */
 
-import { setVoiceCallFactory } from '@chatto/client/server/voiceCall';
+import type { VoiceCallFactory } from '@chatto/client/server/voiceCall';
 import { CallPreferencesState } from './callPreferences.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 
@@ -15,7 +14,6 @@ declare module '@chatto/client/register' {
   }
 }
 
-setVoiceCallFactory(
-  ({ serverId, api, permissions }) =>
-    new VoiceCallState(api, permissions, new CallPreferencesState(serverId))
-);
+/** Create the LiveKit controller of one server store. */
+export const voiceCallFactory: VoiceCallFactory = ({ serverId, api, permissions }) =>
+  new VoiceCallState(api, permissions, new CallPreferencesState(serverId));

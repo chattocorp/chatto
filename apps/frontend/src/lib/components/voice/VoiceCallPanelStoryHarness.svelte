@@ -1,14 +1,13 @@
 <script lang="ts">
-  import '$lib/state/server/voiceCallRegistration';
   import { onMount } from 'svelte';
   import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
   import type { Component } from 'svelte';
   import type { Track } from 'livekit-client';
   import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
-  import { serverRegistry, type RegisteredServer } from '@chatto/client/server/registry';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
+  import { type RegisteredServer } from '@chatto/client/server/registry';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
 
   type VoiceCallPanelProps = {
     roomId: string;

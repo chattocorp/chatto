@@ -1,1 +1,1 @@
-export { startTyping } from '@chatto/bot-client';
+export { startTyping } from '@chatto/client';

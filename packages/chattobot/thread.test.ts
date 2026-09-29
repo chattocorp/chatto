@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { createBotClient } from '@chatto/bot-client';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import type {
   GetThreadEventsRequest,
@@ -28,7 +27,7 @@ async function reader(
   pages: (request: GetThreadEventsRequest) => PartialMessage<RoomTimelinePage>
 ) {
   const requests: GetThreadEventsRequest[] = [];
-  const { connectChatto } = fakeChatto({
+  const { createApi } = fakeChatto({
     viewerId: 'bot',
     routes: (router) =>
       router.service(ThreadService, {
@@ -38,10 +37,8 @@ async function reader(
         }
       })
   });
-  const bot = await createBotClient(
-    connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' })
-  );
-  return { read: createThreadReader(bot, 'bot'), requests };
+  const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key' });
+  return { read: createThreadReader(api), requests };
 }
 
 const event = (id: string, body: string, actorId = 'alice') => ({

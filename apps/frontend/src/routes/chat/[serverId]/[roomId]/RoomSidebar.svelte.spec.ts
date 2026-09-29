@@ -34,6 +34,15 @@ const attachmentMocks = vi.hoisted(() => ({
   listRoomAttachments: vi.fn(),
   refreshAssetUrls: vi.fn()
 }));
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getStore: () => server.scope.store,
+    tryGetStore: () => server.scope.store,
+    getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
+  }
+}));
+
 vi.mock('$app/navigation', () => ({
   goto: vi.fn(),
   pushState: attachmentMocks.pushState,
@@ -179,14 +188,6 @@ vi.mock('@chatto/client/api/memberDirectory', async (importActual) => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'test-server'
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    getStore: () => server.scope.store,
-    tryGetStore: () => server.scope.store,
-    getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
-  }
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({

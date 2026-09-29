@@ -1,7 +1,5 @@
-// Make @chatto/client state reactive in Svelte, and install LiveKit calls,
-// before any component reads a store.
+// Make @chatto/client state reactive in Svelte before any component reads a store.
 import '@chatto/client/svelte';
-import '$lib/state/server/voiceCallRegistration';
 import type { ClientInit } from '@sveltejs/kit';
 import { startLoadingGradients } from '$lib/ui/loadingGradients';
 

@@ -8,7 +8,7 @@ import {
 import { notifyLogout } from '@chatto/client/auth/sessionChannel';
 import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
 
 export interface ClientAccountNavigation {
   kind: 'hard' | 'soft';

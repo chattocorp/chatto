@@ -164,6 +164,7 @@ run = [
     "buf generate",
     "node ../tools/split-connectrpc-docs.mjs",
     "node ../tools/trim-proto-codegen-output.mjs",
+    "node ../packages/chatto-client/scripts/generate-types.mjs",
     "pnpm --dir .. run build:api-types",
 ]
 
@@ -257,16 +258,6 @@ run = "pnpm run build:chatto-client"
 description = "Check, lint, and test the Chatto client"
 depends = ["setup-frontend"]
 run = "pnpm turbo run check lint test --filter=@chatto/client"
-
-[tasks.build-chatto-bot-client]
-description = "Build the framework-neutral Chatto bot helpers"
-depends = ["setup-frontend"]
-run = "pnpm turbo run build --filter=@chatto/bot-client"
-
-[tasks.test-chatto-bot-client]
-description = "Check and test the Chatto bot helpers"
-depends = ["setup-frontend"]
-run = "pnpm turbo run check test --filter=@chatto/bot-client"
 
 [tasks.check-runling]
 description = "Check Runling types and Svelte components"

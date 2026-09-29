@@ -5,12 +5,12 @@ Chatto direct messages, mentions, and direct replies to its own messages.
 It owns its realtime source configuration and Chatto transport adapter.
 It is the private workspace package `@chattocorp/chattobot` under
 `packages/chattobot/`. It depends on the public Runling package API and
-`@chatto/client` and `@chatto/bot-client`. The client owns API requests, the
-realtime transport, and the server's projection; it is the same client that
-the Chatto frontend uses. The bot client supplies identity, addressing, thread roles,
-conversation keys, and acceptance tracking. ChattoBot owns Runling routing,
-inboxes, cancellation, and conversation lifetime. See the
-[bot client guide](../chatto-bot-client/README.md).
+`@chatto/client`. The client owns API requests, the realtime transport, and
+the server's projection; it is the same client that the Chatto frontend uses.
+It also supplies identity, addressing, thread history, conversation keys, and
+acceptance tracking. ChattoBot owns Runling routing, inboxes, cancellation,
+and conversation lifetime. See the
+[client guide](../chatto-client/README.md).
 
 ## Run locally
 

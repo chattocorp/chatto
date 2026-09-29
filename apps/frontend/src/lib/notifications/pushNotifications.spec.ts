@@ -62,11 +62,17 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('@chatto/client/api/pushNotifications', () => ({
-  createPushNotificationAPI: mocks.createPushNotificationAPI
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [{ id: 'origin' }, { id: 'remote' }],
+    isOriginServer: (serverId: string) => serverId === 'origin',
+    tryGetStore: (serverId: 'origin' | 'remote') => mocks.serverStores[serverId],
+    getServer: (serverId: string) => ({
+      id: serverId,
+      url: serverId === 'origin' ? 'https://app.test' : 'https://remote.example.com'
+    })
+  },
   serverConnectionManager: {
     getClient: (serverId: string) => ({
       connectBaseUrl: `https://${serverId}.test/api/connect`,
@@ -80,16 +86,8 @@ vi.mock('@chatto/client/server/serverConnection', () => ({
   }
 }));
 
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    servers: [{ id: 'origin' }, { id: 'remote' }],
-    isOriginServer: (serverId: string) => serverId === 'origin',
-    tryGetStore: (serverId: 'origin' | 'remote') => mocks.serverStores[serverId],
-    getServer: (serverId: string) => ({
-      id: serverId,
-      url: serverId === 'origin' ? 'https://app.test' : 'https://remote.example.com'
-    })
-  }
+vi.mock('@chatto/client/api/pushNotifications', () => ({
+  createPushNotificationAPI: mocks.createPushNotificationAPI
 }));
 
 vi.mock('$lib/navigation', () => ({

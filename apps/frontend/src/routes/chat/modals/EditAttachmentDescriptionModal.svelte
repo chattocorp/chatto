@@ -8,8 +8,7 @@ Edits the description of one message attachment.
   import { untrack } from 'svelte';
   import type { EditAttachmentDescriptionModalState } from '$lib/modal';
   import { createMessageAPI } from '@chatto/client/api/messages';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverConnectionManager, serverRegistry } from '$lib/client';
   import { m } from '$lib/i18n/messages';
   import { FormDialog } from '$lib/ui';
   import { TextArea } from '$lib/ui/form';

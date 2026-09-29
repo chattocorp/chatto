@@ -15,7 +15,7 @@ URL refresh results cannot start a preview or download after this opening ends.
   } from '@chatto/client/attachments/attachmentUrls';
   import { assetUrlForServer } from '@chatto/client/util/assetUrls';
   import { attachmentDownloadUrl } from '$lib/attachments/attachmentDownloadUrl';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { serverConnectionManager } from '$lib/client';
   import { m } from '$lib/i18n/messages';
   import { HtmlAttachmentModal } from '$lib/ui/attachments';
 

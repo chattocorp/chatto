@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { DeleteMessageContentModalState } from '$lib/modal';
   import { createMessageAPI } from '@chatto/client/api/messages';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverConnectionManager, serverRegistry } from '$lib/client';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import { ConfirmDialog } from '$lib/ui';

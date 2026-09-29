@@ -92,6 +92,29 @@ const { mocks } = vi.hoisted(() => {
   };
 });
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    needsRecovery: () =>
+      Boolean(
+        mocks.server.token && mocks.server.reauthRequiredAt === null && !mocks.store.isAuthenticated
+      ),
+    recoverServer: mocks.recoverServer,
+    isOriginServer: mocks.isOriginServer,
+    getServer: vi.fn((id: string) => (id === mocks.server.id ? mocks.server : undefined)),
+    getStore: vi.fn(() => mocks.store)
+  },
+  serverConnectionManager: {
+    getClient: vi.fn(() => ({
+      get showConnectionLostIcon() {
+        return connectionLostServers.has('remote') || mocks.showConnectionLostIcon;
+      },
+      connectBaseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    }))
+  }
+}));
+
 vi.mock('$lib/notificationPath', () => ({ notificationPath: mocks.notificationPath }));
 
 vi.mock('$app/state', () => ({
@@ -123,31 +146,6 @@ vi.mock('$lib/hooks', () => ({
 
 vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => mocks.appUi
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
-  serverConnectionManager: {
-    getClient: vi.fn(() => ({
-      get showConnectionLostIcon() {
-        return connectionLostServers.has('remote') || mocks.showConnectionLostIcon;
-      },
-      connectBaseUrl: 'https://remote.example.com/api/connect',
-      bearerToken: 'token'
-    }))
-  }
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    needsRecovery: () =>
-      Boolean(
-        mocks.server.token && mocks.server.reauthRequiredAt === null && !mocks.store.isAuthenticated
-      ),
-    recoverServer: mocks.recoverServer,
-    isOriginServer: mocks.isOriginServer,
-    getServer: vi.fn((id: string) => (id === mocks.server.id ? mocks.server : undefined)),
-    getStore: vi.fn(() => mocks.store)
-  }
 }));
 
 vi.mock('@chatto/client/api/serverState', () => ({

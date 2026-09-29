@@ -1,5 +1,6 @@
 import type { WorkflowContext } from 'runling';
-import { withTyping, type ChattoTyping } from '@chatto/bot-client';
+import { withTyping } from '@chatto/client';
+import type { ChattoTyping } from './routing.ts';
 import {
   messageSignal,
   type ChattoInbox,

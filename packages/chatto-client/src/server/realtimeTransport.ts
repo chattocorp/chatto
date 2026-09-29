@@ -105,7 +105,22 @@ function subscribeFrame(token: string | null, resumeCursor: string | null): Uint
   }).toBinary();
 }
 
-class EventBusManager {
+/**
+ * Which authenticated servers keep a persistent WebSocket: only the server
+ * that the application selects (`'selected'`), or all of them (`'all'`, for
+ * hosts such as bots that need every server's events). The other servers
+ * catch up by polling.
+ */
+export type LiveServers = 'selected' | 'all';
+
+/** Owns the event buses and realtime transports of one client's servers. */
+export class EventBusManager {
+  readonly #liveServers: LiveServers;
+
+  constructor(options: { liveServers?: LiveServers } = {}) {
+    this.#liveServers = options.liveServers ?? 'selected';
+  }
+
   // Reactive so context consumers can attach after a server becomes authenticated.
   #buses = new ReactiveMap<string, EventBus>();
   #controllers = new Map<string, TransportController>();
@@ -698,12 +713,12 @@ class EventBusManager {
     // Close the previous live transport before opening the next one so a
     // route change never leaves two persistent sockets, even momentarily.
     for (const registration of registrations) {
-      if (registration.serverId !== this.#activeServerId) {
+      if (!this.#isLive(registration.serverId)) {
         this.#controllers.get(registration.serverId)?.setMode('dormant');
       }
     }
-    if (this.#activeServerId) {
-      this.#controllers.get(this.#activeServerId)?.setMode('live');
+    for (const serverId of nextIds) {
+      if (this.#isLive(serverId)) this.#controllers.get(serverId)?.setMode('live');
     }
 
     void this.#runPollCycle(true);
@@ -746,7 +761,7 @@ class EventBusManager {
     this.#pollCycleRunning = true;
     try {
       for (const serverId of this.#managedServerIds) {
-        if (serverId === this.#activeServerId) continue;
+        if (this.#isLive(serverId)) continue;
         const controller = this.#controllers.get(serverId);
         if (!controller?.projectionSupported) continue;
         if (onlyUnready && controller.sync.hasUsableProjection) continue;
@@ -774,12 +789,18 @@ class EventBusManager {
 
   #scheduleNextPoll(): void {
     this.#clearPollTimer();
-    if (this.#managedServerIds.size === 0) return;
+    // Without a server that polls, no poll is due; a timer would keep a Node host alive.
+    if (![...this.#managedServerIds].some((serverId) => !this.#isLive(serverId))) return;
     const jitter = (pollRandom() * 2 - 1) * INACTIVE_POLL_JITTER_MS;
     this.#pollTimer = setTimeout(() => {
       this.#pollTimer = null;
       void this.#runPollCycle(false).finally(() => this.#scheduleNextPoll());
     }, INACTIVE_POLL_INTERVAL_MS + jitter);
+  }
+
+  /** Whether the server keeps a persistent WebSocket; see {@link LiveServers}. */
+  #isLive(serverId: string): boolean {
+    return this.#liveServers === 'all' || serverId === this.#activeServerId;
   }
 
   #clearPollTimer(): void {
@@ -788,5 +809,3 @@ class EventBusManager {
     this.#pollTimer = null;
   }
 }
-
-export const eventBusManager = new EventBusManager();

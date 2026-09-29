@@ -1,7 +1,9 @@
 import { ReactiveMap, batch, signal } from '../reactivity/index.js';
 import { ServerStateStore } from './store.js';
-import { serverConnectionManager } from './serverConnection.js';
-import { eventBusManager } from './realtimeTransport.js';
+import type { ServerConnectionManager } from './serverConnection.js';
+import type { EventBusManager } from './realtimeTransport.js';
+import type { VoiceCallFactory } from './voiceCall.js';
+import { claimServerId, releaseServerId } from './serverIds.js';
 import { Codecs, globalSlot, serverSlot } from '../storage/slot.js';
 import { getPublicServerInfo } from '../api/server.js';
 import type { PublicServerInfo } from '../api/server.js';
@@ -324,6 +326,53 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
   return persisted;
 }
 
+/** Where a registry keeps the server catalogue and authentication records. */
+interface RegistryStorage {
+  readAuthentication(serverId: string): ServerAuthentication | null | undefined;
+  writeAuthentication(serverId: string, authentication: ServerAuthentication): boolean;
+  writeServers(servers: PersistedRegisteredServer[]): void;
+  /** Whether another tab can have changed the stored records. */
+  readonly shared: boolean;
+}
+
+const deviceStorage: RegistryStorage = {
+  readAuthentication: readPersistedAuthentication,
+  writeAuthentication: persistAuthentication,
+  writeServers: (servers) => serversSlot.set(servers),
+  get shared() {
+    return typeof localStorage !== 'undefined';
+  }
+};
+
+/** Keeps nothing: the in-memory catalogue and sessions are the only copy. */
+const memoryStorage: RegistryStorage = {
+  readAuthentication: () => undefined,
+  writeAuthentication: () => true,
+  writeServers: () => {},
+  shared: false
+};
+
+/** Settings of a {@link ServerRegistry}; a client passes its own. */
+export interface ServerRegistryOptions {
+  /**
+   * Keep the server catalogue and renewable sessions in device storage, and
+   * restore them at construction. Only one client in a page should use it.
+   */
+  deviceStorage: boolean;
+  /**
+   * Treat a server on the page's own origin as the origin server, which uses
+   * the browser's cookie session instead of a bearer token.
+   */
+  originServer: boolean;
+}
+
+/** The parts of a client that the registry uses. */
+export interface ServerRegistryContext {
+  readonly connections: ServerConnectionManager;
+  readonly realtime: EventBusManager;
+  readonly voiceCall: VoiceCallFactory;
+}
+
 /**
  * Client-side registry of connected Chatto servers.
  * Owns both registration data and per-server state stores.
@@ -340,8 +389,11 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
  * An application selects the server that the user looks at, for example from
  * its URL, and reports it to the client runtime (see `startClientRuntime`).
  */
-class ServerRegistry {
+export class ServerRegistry {
   readonly catalog: ServerCatalog;
+  readonly #context: ServerRegistryContext;
+  readonly #options: ServerRegistryOptions;
+  readonly #storage: RegistryStorage;
   readonly sessions: ServerSessions;
   #stores = new ReactiveMap<string, ServerStateStore>();
   #renewalPromises = new Map<string, Promise<string | null>>();
@@ -357,8 +409,14 @@ class ServerRegistry {
    */
   readonly #fixedTokenServers = new Set<string>();
 
-  constructor() {
-    const persisted = restorePersistedServerState();
+  constructor(context: ServerRegistryContext, options: ServerRegistryOptions) {
+    this.#context = context;
+    this.#options = options;
+    this.#storage = options.deviceStorage ? deviceStorage : memoryStorage;
+    const persisted = options.deviceStorage
+      ? restorePersistedServerState()
+      : { registrations: [], sessions: new Map<string, ServerSession>() };
+    for (const registration of persisted.registrations) claimServerId(registration.id, this);
     this.catalog = new ServerCatalog(persisted.registrations);
     this.sessions = new ServerSessions(persisted.sessions);
   }
@@ -395,7 +453,7 @@ class ServerRegistry {
    * Returns undefined if the origin server isn't registered.
    */
   get originServer(): RegisteredServer | undefined {
-    if (typeof window === 'undefined') return undefined;
+    if (!this.#options.originServer || typeof window === 'undefined') return undefined;
     const origin = window.location.origin;
     return this.servers.find((s) => {
       try {
@@ -423,7 +481,7 @@ class ServerRegistry {
    */
   isOriginServer(serverId: string): boolean {
     const server = this.getServer(serverId);
-    if (!server || typeof window === 'undefined') return false;
+    if (!server || !this.#options.originServer || typeof window === 'undefined') return false;
     try {
       return new URL(server.url).origin === window.location.origin;
     } catch {
@@ -449,7 +507,10 @@ class ServerRegistry {
     location?: Pick<Location, 'origin' | 'protocol'> | URL,
     discoveredServerInfo?: PublicServerInfo
   ): Promise<void> {
-    if (typeof window === 'undefined') return;
+    if (!this.#options.originServer || typeof window === 'undefined') {
+      this.originProbed = true;
+      return;
+    }
     const currentLocation = location ?? window.location;
     if (!isBackendCapableOrigin(currentLocation)) {
       this.originProbed = true;
@@ -559,7 +620,7 @@ class ServerRegistry {
       if (origin) {
         this.getStore(origin.id).currentUser.accept(user);
         this.clearAuthenticationRequired(origin.id);
-        serverConnectionManager.originClient.maintainBrowserSession();
+        this.#context.connections.originClient.maintainBrowserSession();
       }
     });
   }
@@ -659,7 +720,7 @@ class ServerRegistry {
       const session = this.sessions.get(id);
       if (!session || session.reauthRequiredAt !== null) return;
 
-      eventBusManager.stopBus(id);
+      this.#context.realtime.stopBus(id);
       removeRegisteredServerQueries(id);
       this.sessions.update(id, { reauthRequiredAt: Date.now() });
       this.#persistAuthenticationPatch(id, {
@@ -797,7 +858,7 @@ class ServerRegistry {
       // sensitive write before sending the refresh credential.
       this.#persistAuthentication(id);
       this.#persist();
-      const persistedRequestId = readPersistedAuthentication(id)?.refreshRequestId;
+      const persistedRequestId = this.#storage.readAuthentication(id)?.refreshRequestId;
       if (persistedRequestId !== requestId) {
         throw new Error('Unable to persist bearer renewal state.');
       }
@@ -817,7 +878,7 @@ class ServerRegistry {
       // Sign-out or another tab's rotation can finish while this request is
       // in flight. A stale response must not change the new local session.
       const current = this.sessions.get(id);
-      const persisted = readPersistedAuthentication(id);
+      const persisted = this.#storage.readAuthentication(id);
       if (
         current?.refreshToken !== session.refreshToken ||
         current?.refreshRequestId !== requestId ||
@@ -855,12 +916,12 @@ class ServerRegistry {
   }
 
   #adoptPersistedBearerSession(id: string): void {
-    const persisted = readPersistedAuthentication(id);
+    const persisted = this.#storage.readAuthentication(id);
     // Without device storage (for example in Node), and for fixed tokens that
     // are never stored, the in-memory session is the only copy, and another
     // tab cannot have rotated it.
     if (this.#fixedTokenServers.has(id)) return;
-    if (persisted === undefined && typeof localStorage === 'undefined') return;
+    if (persisted === undefined && !this.#storage.shared) return;
     const current = this.sessions.get(id);
     if (!current) return;
     if (!persisted?.token) {
@@ -898,7 +959,7 @@ class ServerRegistry {
       if (!this.sessions.update(id, data)) return;
       if (persist) this.#persistAuthentication(id);
       this.#persist();
-      serverConnectionManager.updateBearerSession(id);
+      this.#context.connections.updateBearerSession(id);
     });
   }
 
@@ -950,6 +1011,7 @@ class ServerRegistry {
       const localSession =
         session ??
         ('token' in registration ? sessionFromServer(registration) : emptyServerSession());
+      claimServerId(registration.id, this);
       if (!this.catalog.add(publicRegistration)) return;
       if (options.fixedToken) this.#fixedTokenServers.add(registration.id);
       this.sessions.replace(registration.id, localSession);
@@ -967,7 +1029,7 @@ class ServerRegistry {
         return false;
       }
       // Stop event bus subscription
-      eventBusManager.stopBus(id);
+      this.#context.realtime.stopBus(id);
 
       // Dispose state store
       this.#stores.get(id)?.dispose();
@@ -977,11 +1039,12 @@ class ServerRegistry {
       const fixedToken = this.#fixedTokenServers.delete(id);
 
       // Dispose connection state
-      serverConnectionManager.destroyClient(id);
+      this.#context.connections.destroyClient(id);
 
       this.sessions.remove(id);
       this.catalog.remove(id);
-      if (!fixedToken) persistAuthentication(id, emptyServerAuthentication());
+      releaseServerId(id, this);
+      if (!fixedToken) this.#storage.writeAuthentication(id, emptyServerAuthentication());
       this.#persist();
       return true;
     });
@@ -993,7 +1056,8 @@ class ServerRegistry {
       const ids = this.servers.map((server) => server.id);
       const persistedIds = ids.filter((id) => !this.#fixedTokenServers.has(id));
       this.#disposeServers(ids);
-      for (const id of persistedIds) persistAuthentication(id, emptyServerAuthentication());
+      for (const id of persistedIds)
+        this.#storage.writeAuthentication(id, emptyServerAuthentication());
       this.sessions.clear();
       this.catalog.reset();
       this.#persist();
@@ -1007,10 +1071,12 @@ class ServerRegistry {
       const ids = this.servers.map((server) => server.id);
       const persistedIds = ids.filter((id) => !this.#fixedTokenServers.has(id));
       this.#disposeServers(ids);
-      for (const id of persistedIds) persistAuthentication(id, emptyServerAuthentication());
+      for (const id of persistedIds)
+        this.#storage.writeAuthentication(id, emptyServerAuthentication());
       this.sessions.clear();
       this.catalog.reset(origin ? [registrationFromServer(origin)] : []);
       if (origin) {
+        claimServerId(origin.id, this);
         this.sessions.ensure(origin.id);
         this.#persistAuthentication(origin.id);
         this.#createStore(origin.id);
@@ -1020,14 +1086,27 @@ class ServerRegistry {
     });
   }
 
+  /**
+   * Dispose every store, connection, and event bus and release the server
+   * IDs. Device storage is left as it is, so a later client restores it.
+   */
+  dispose(): void {
+    batch(() => {
+      this.#disposeServers(this.servers.map((server) => server.id));
+      this.sessions.clear();
+      this.catalog.reset();
+    });
+  }
+
   #disposeServers(ids: string[]): void {
     for (const id of ids) {
-      eventBusManager.stopBus(id);
+      this.#context.realtime.stopBus(id);
       this.#stores.get(id)?.dispose();
       this.#stores.delete(id);
       this.#startedServerNetwork.delete(id);
       this.#fixedTokenServers.delete(id);
-      serverConnectionManager.destroyClient(id);
+      this.#context.connections.destroyClient(id);
+      releaseServerId(id, this);
     }
   }
 
@@ -1078,11 +1157,11 @@ class ServerRegistry {
   ): boolean {
     return batch(() => {
       if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
-      eventBusManager.stopBus(id);
+      this.#context.realtime.stopBus(id);
       this.#stores.get(id)?.dispose();
       this.#stores.delete(id);
       this.#startedServerNetwork.delete(id);
-      serverConnectionManager.destroyClient(id);
+      this.#context.connections.destroyClient(id);
 
       this.sessions.replace(id, data);
       this.#persistAuthentication(id);
@@ -1096,12 +1175,12 @@ class ServerRegistry {
     // The combined record remains a migration/compatibility adapter. Merge
     // independently persisted authentication at write time so a stale tab's
     // metadata snapshot can never put old rotated credentials back into it.
-    serversSlot.set(
+    this.#storage.writeServers(
       // Fixed tokens, such as bot API keys, stay in memory only.
       this.servers
         .filter((server) => !this.#fixedTokenServers.has(server.id))
         .map((server) => {
-          const persisted = readPersistedAuthentication(server.id);
+          const persisted = this.#storage.readAuthentication(server.id);
           return {
             ...server,
             ...(persisted === undefined
@@ -1116,16 +1195,16 @@ class ServerRegistry {
     const session = this.sessions.get(id);
     if (!session) return false;
     if (this.#fixedTokenServers.has(id)) return true;
-    return persistAuthentication(id, authenticationFromSession(session));
+    return this.#storage.writeAuthentication(id, authenticationFromSession(session));
   }
 
   #persistAuthenticationPatch(id: string, patch: Partial<ServerAuthentication>): boolean {
     const session = this.sessions.get(id);
     if (!session) return false;
     if (this.#fixedTokenServers.has(id)) return true;
-    const stored = readPersistedAuthentication(id);
+    const stored = this.#storage.readAuthentication(id);
     const current = stored ?? authenticationFromSession(session);
-    return persistAuthentication(id, { ...current, ...patch });
+    return this.#storage.writeAuthentication(id, { ...current, ...patch });
   }
 
   /** Whether the server's bearer token is fixed; see {@link addServer}. */
@@ -1148,7 +1227,7 @@ class ServerRegistry {
     if (!store) {
       throw new Error(
         `No store for server "${serverId}". Is it registered? ` +
-          `Call serverRegistry.init() before accessing stores.`
+          `Call registry.init() before accessing stores.`
       );
     }
     return store;
@@ -1238,12 +1317,13 @@ class ServerRegistry {
     const registration = this.catalog.get(serverId);
     if (!registration) throw new Error(`Server "${serverId}" not found in catalogue`);
     this.sessions.ensure(serverId);
-    const serverConnection = serverConnectionManager.getClient(serverId);
+    const serverConnection = this.#context.connections.getClient(serverId);
     const store = new ServerStateStore(
       registration,
       () => this.sessions.ensure(serverId),
       this.isOriginServer(serverId),
       serverConnection,
+      { realtime: this.#context.realtime, voiceCall: this.#context.voiceCall },
       undefined,
       () => {
         if (this.isOriginServer(serverId) && !store.currentUser.user) {
@@ -1275,5 +1355,3 @@ class ServerRegistry {
     )?.id;
   }
 }
-
-export const serverRegistry = new ServerRegistry();

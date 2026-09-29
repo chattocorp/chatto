@@ -6,24 +6,18 @@
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { startClientRuntime, type ClientRuntime } from '@chatto/client/server/runtime';
+  import { client } from '$lib/client';
 
   const activeServerId = $derived(page.route.id?.startsWith('/chat') ? getActiveServer() : '');
 
-  let runtime: ClientRuntime | null = null;
-
   $effect(() => {
     // Starting reads client state; it must not make this effect restart.
-    const started = untrack(startClientRuntime);
-    runtime = started;
-    return () => {
-      started.stop();
-      if (runtime === started) runtime = null;
-    };
+    untrack(() => client.start());
+    return () => client.stop();
   });
 
   $effect(() => {
     const serverId = activeServerId || null;
-    untrack(() => runtime?.setActiveServer(serverId));
+    untrack(() => client.setActiveServer(serverId));
   });
 </script>

@@ -1,9 +1,10 @@
 # Instructions for Agents Working in `packages/chatto-client/`
 
-`@chatto/client` is the Chatto client: ConnectRPC facades, sessions, the
-realtime transport and projection, the server and room stores, the snapshot
-query cache, and the client runtime. The bundled frontend, ChattoBot, and the
-Runling examples use it. See
+`@chatto/client` is the Chatto client: isolated client instances with their
+servers, connections, realtime transports, stores, and runtime; ConnectRPC
+facades and sessions; the snapshot query cache; and the request helpers and
+message loop for bots. The bundled frontend, ChattoBot, and the Runling
+examples use it. See
 [ADR-110](../../docs/adr/ADR-110-move-client-state-into-chatto-client.md).
 
 ## Boundary
@@ -14,9 +15,14 @@ Runling examples use it. See
 - Keep UI concerns in the application: translated text, toasts, sounds,
   navigation, routes, and media. Stores keep error objects and report
   outcomes; applications turn them into messages.
-- Use an interface and an installable implementation for application
-  capabilities, such as `VoiceCallController` and `setVoiceCallFactory`.
-  Register application types through `Register` in `src/register.ts`.
+- Keep client state in the client instance (`src/client.ts`): its registry,
+  connection manager, realtime manager, and runtime. Do not add module-level
+  state that one client could change for another. Process-wide state, such
+  as the query cache and user stores, must be keyed by server ID; server IDs
+  are unique in a process (`src/server/serverIds.ts`).
+- Take application capabilities as client options with an interface, such as
+  the `voiceCall` factory and `VoiceCallController`. Register application
+  types through `Register` in `src/register.ts`.
 - Guard every use of `window`, `document`, `navigator`, and `localStorage`.
   Node hosts, such as bots, do not have them or have only part of them.
 - Do not add a dependency on Runling, Authling, or an application package.
@@ -24,8 +30,8 @@ Runling examples use it. See
   `@tanstack/svelte-query` uses. The frontend binds Svelte Query to the
   package's `QueryClient`; `apps/frontend/src/lib/query/client.spec.ts`
   fails when the versions differ.
-- `connectChatto` and applications each start a client runtime. A process
-  runs one runtime at a time.
+- Request helpers take an options object with `signal` as their last
+  argument. `MessagingRequests` holds them for connections and `Api`.
 
 ## Reactivity
 
@@ -57,7 +63,10 @@ Runling examples use it. See
 - Every module is importable as `@chatto/client/<path>`. The `@chatto/source`
   export condition resolves to TypeScript source for workspace consumers; Node
   hosts use `dist/`. Run `mise build-chatto-client` before Node consumers.
-- The root entry is for headless hosts: `connectChatto` and `createChattoApi`.
+- The root entry has the public API: `createClient`, `Connection`,
+  `createApi`, the request helpers, and their types. `src/types.ts` and
+  `src/types/admin.ts` re-export `@chatto/api-types`; regenerate them with
+  `node scripts/generate-types.mjs`.
 
 ## Tests
 
@@ -67,5 +76,8 @@ Runling examples use it. See
   hosts.
 - Use `fakeServer` from `src/testing/fakeServer.ts` for API tests. It runs the
   real generated clients and interceptors against an in-memory Connect router.
+- Create the clients that a test needs. `createAppClient` from
+  `src/testing/appClient.ts` creates a client configured like the frontend.
+  Close clients after the test.
 - After a change that frontend code depends on, also run the frontend checks
   and tests; see [apps/frontend/AGENTS.md](../../apps/frontend/AGENTS.md).

@@ -25,26 +25,32 @@ const {
 
 vi.mock('../auth/csrf.js', () => ({ csrfFetch: mockCsrfFetch }));
 
-vi.mock('./registry.js', () => ({
-  serverRegistry: {
-    getServer: (id: string) => mockServers.get(id),
-    isOriginServer: (id: string) => mockServers.get(id)?.url === window.location.origin,
-    get originServer() {
-      return [...mockServers.values()].find((s) => s.url === window.location.origin);
-    },
-    handleAuthenticationRequired: mockHandleAuthenticationRequired,
-    confirmAuthenticationRequired: mockConfirmAuthenticationRequired,
-    renewServerAuthentication: mockRenewServerAuthentication,
-    hasFixedToken: () => false
-  }
-}));
+import {
+  httpToWsUrl,
+  ServerConnection,
+  ServerConnectionManager,
+  type ServerConnectionConfig
+} from './serverConnection.js';
+import type { ServerRegistry } from './registry.js';
 
-import { httpToWsUrl, ServerConnection, type ServerConnectionConfig } from './serverConnection.js';
+/** The registry that the tested connections report to. */
+const mockRegistry = {
+  getServer: (id: string) => mockServers.get(id),
+  isOriginServer: (id: string) => mockServers.get(id)?.url === window.location.origin,
+  get originServer() {
+    return [...mockServers.values()].find((s) => s.url === window.location.origin);
+  },
+  handleAuthenticationRequired: mockHandleAuthenticationRequired,
+  confirmAuthenticationRequired: mockConfirmAuthenticationRequired,
+  renewServerAuthentication: mockRenewServerAuthentication,
+  hasFixedToken: () => false
+} as unknown as ServerRegistry;
 
 function makeConfig(overrides: Partial<ServerConnectionConfig> = {}): ServerConnectionConfig {
   return {
     serverUrl: '/',
     token: null,
+    registry: mockRegistry,
     ...overrides
   };
 }
@@ -537,85 +543,78 @@ describe('ServerConnectionManager', () => {
     mockServers.clear();
   });
 
-  it('exports serverConnectionManager', async () => {
-    const mod = await import('./serverConnection.js');
-    expect(mod.serverConnectionManager).toBeDefined();
-  });
-
   it('originClient uses relative URL', async () => {
-    const mod = await import('./serverConnection.js');
-    expect(mod.serverConnectionManager.originConnectBaseUrl).toBe(
-      `${window.location.origin}/api/connect`
-    );
-    expect(mod.serverConnectionManager.originClient).toBeDefined();
-    expect(mod.serverConnectionManager.originClient.status).toBe('connecting');
+    const manager = new ServerConnectionManager(() => mockRegistry);
+    expect(manager.originConnectBaseUrl).toBe(`${window.location.origin}/api/connect`);
+    expect(manager.originClient).toBeDefined();
+    expect(manager.originClient.status).toBe('connecting');
   });
 
   it('getClient returns originClient for home instances', async () => {
-    const mod = await import('./serverConnection.js');
+    const manager = new ServerConnectionManager(() => mockRegistry);
     mockServers.set('my-home', {
       id: 'my-home',
       url: window.location.origin,
       token: 'origin-token'
     });
 
-    const client = mod.serverConnectionManager.getClient('my-home');
-    expect(client).toBe(mod.serverConnectionManager.originClient);
+    const client = manager.getClient('my-home');
+    expect(client).toBe(manager.originClient);
   });
 
   it('originClient ignores stored bearer credentials', async () => {
-    const mod = await import('./serverConnection.js');
+    const manager = new ServerConnectionManager(() => mockRegistry);
     mockServers.set('my-home', {
       id: 'my-home',
       url: window.location.origin,
       token: 'origin-token'
     });
 
-    mod.serverConnectionManager.destroyClient('my-home');
-    expect(mod.serverConnectionManager.originClient.bearerToken).toBeNull();
+    manager.destroyClient('my-home');
+    expect(manager.originClient.bearerToken).toBeNull();
   });
 
   it('getClient throws for unknown instance IDs', async () => {
-    const mod = await import('./serverConnection.js');
-    expect(() => mod.serverConnectionManager.getClient('nonexistent')).toThrow(
+    const manager = new ServerConnectionManager(() => mockRegistry);
+    expect(() => manager.getClient('nonexistent')).toThrow(
       'Server "nonexistent" not found in registry'
     );
   });
 
   it('getClient creates and caches remote clients', async () => {
-    const mod = await import('./serverConnection.js');
+    const manager = new ServerConnectionManager(() => mockRegistry);
     mockServers.set('remote-1', {
       id: 'remote-1',
       url: 'https://remote.example.com',
       token: 'remote-token'
     });
 
-    const client1 = mod.serverConnectionManager.getClient('remote-1');
-    const client2 = mod.serverConnectionManager.getClient('remote-1');
+    const client1 = manager.getClient('remote-1');
+    const client2 = manager.getClient('remote-1');
     expect(client1).toBe(client2);
-    expect(client1).not.toBe(mod.serverConnectionManager.originClient);
+    expect(client1).not.toBe(manager.originClient);
     expect(client1.connectBaseUrl).toBe('https://remote.example.com/api/connect');
   });
 
   it('destroyClient disposes and removes remote clients', async () => {
-    const mod = await import('./serverConnection.js');
+    const manager = new ServerConnectionManager(() => mockRegistry);
     mockServers.set('remote-2', {
       id: 'remote-2',
       url: 'https://other.example.com',
       token: 'token-2'
     });
 
-    const oldClient = mod.serverConnectionManager.getClient('remote-2');
+    const oldClient = manager.getClient('remote-2');
 
-    expect(mod.serverConnectionManager.destroyClient('remote-2')).toBe(true);
+    expect(manager.destroyClient('remote-2')).toBe(true);
 
-    const newClient = mod.serverConnectionManager.getClient('remote-2');
+    const newClient = manager.getClient('remote-2');
     expect(newClient).toBeDefined();
     expect(newClient).not.toBe(oldClient);
   });
 
   it('destroyClient returns false for nonexistent clients', async () => {
-    const mod = await import('./serverConnection.js');
-    expect(mod.serverConnectionManager.destroyClient('nope')).toBe(false);
+    const manager = new ServerConnectionManager(() => mockRegistry);
+    expect(manager.destroyClient('nope')).toBe(false);
   });
 });

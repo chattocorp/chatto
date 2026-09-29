@@ -89,6 +89,28 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return mocks.servers;
+    },
+    tryGetStore: vi.fn((id: string) => stores.get(id) ?? mocks.store)
+  },
+  serverConnectionManager: {
+    getClient: () => ({
+      connectBaseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: 'token-1',
+      queryScope: 'test-session',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never),
+      client: {
+        query: mocks.query,
+        mutation: mocks.mutation
+      }
+    })
+  }
+}));
+
 vi.mock('$app/navigation', () => ({
   pushState: vi.fn(),
   goto: mocks.goto
@@ -107,30 +129,6 @@ vi.mock('$app/paths', () => ({
 vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : serverId),
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    get servers() {
-      return mocks.servers;
-    },
-    tryGetStore: vi.fn((id: string) => stores.get(id) ?? mocks.store)
-  }
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
-  serverConnectionManager: {
-    getClient: () => ({
-      connectBaseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token-1',
-      queryScope: 'test-session',
-      getAPI: (factory: (config: never) => unknown) => factory({} as never),
-      client: {
-        query: mocks.query,
-        mutation: mocks.mutation
-      }
-    })
-  }
 }));
 
 vi.mock('$lib/state/recentQuickSwitcher.svelte', () => ({

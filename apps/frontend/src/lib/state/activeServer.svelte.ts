@@ -1,6 +1,6 @@
 import { page } from '$app/state';
 import { segmentToServerId } from '$lib/navigation';
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
 
 /**
  * Returns the active server ID, derived from the URL `[serverId]` segment.

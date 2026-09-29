@@ -22,9 +22,8 @@ import {
 import { directMessageLabels } from '$lib/render/directMessageLabels';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverRegistry, serverConnectionManager } from '$lib/client';
 import { isNavigationVisibleRoom } from '@chatto/client/server/rooms';
-import { serverConnectionManager } from '@chatto/client/server/serverConnection';
 import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<

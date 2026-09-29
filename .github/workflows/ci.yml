@@ -60,13 +60,11 @@ jobs:
               - 'pkg/**'
             runling:
               - 'packages/runling/**'
-              # The Runling bot example uses the Chatto client packages.
+              # The Runling bot example uses the Chatto client.
               - 'packages/chatto-client/**'
-              - 'packages/chatto-bot-client/**'
               - 'packages/api-types/**'
               - 'examples/runling-bot/**'
             chattobot:
-              - 'packages/chatto-bot-client/**'
               - 'packages/chattobot/**'
               - 'packages/runling/**'
               - 'packages/chatto-client/**'
@@ -117,7 +115,6 @@ jobs:
           install-cli-deps: 'false'
       - run: mise check-chattobot
       - run: mise test-chatto-client
-      - run: mise test-chatto-bot-client
       - run: mise test-chattobot
 
   build-main-image-contexts:

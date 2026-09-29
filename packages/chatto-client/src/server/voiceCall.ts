@@ -105,23 +105,5 @@ export class DetachedVoiceCall implements VoiceCallController {
   handleProjectionReset(): void {}
 }
 
-let voiceCallFactory: VoiceCallFactory = () => new DetachedVoiceCall();
-
-/**
- * Install the voice-call implementation for server stores. Install it before
- * a store is created; a store keeps the controller that it created.
- */
-export function setVoiceCallFactory(factory: VoiceCallFactory): void {
-  voiceCallFactory = factory;
-}
-
-/**
- * Create a controller with the installed factory. The result has the
- * registered type, so an application that registers a type must install its
- * factory before a store is created; otherwise a `DetachedVoiceCall`
- * is returned under that type.
- */
-export function createVoiceCall(context: VoiceCallContext): RegisteredVoiceCall {
-  // The registered type describes the installed factory; see Register.
-  return voiceCallFactory(context) as RegisteredVoiceCall;
-}
+/** The default factory: a client without call media. */
+export const detachedVoiceCallFactory: VoiceCallFactory = () => new DetachedVoiceCall();

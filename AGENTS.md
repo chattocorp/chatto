@@ -168,7 +168,7 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
 - Runling under `packages/runling/` keeps its MIT license. `@chatto/client`
-  and `@chatto/bot-client` under `packages/` also use MIT.
+  under `packages/` also uses MIT.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`, the framework-neutral `packages/lingua` runtime, plus

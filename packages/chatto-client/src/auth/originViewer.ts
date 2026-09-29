@@ -13,7 +13,7 @@ export async function getOriginViewer(config: ConnectAPIConfig): Promise<Current
     try {
       const user = await getCurrentUserViaConnect({ baseUrl: config.baseUrl, bearerToken: null });
       if (isExplicitSignOutRedirectInProgress()) return user;
-      await revokeLegacyOriginBearerSession();
+      await revokeLegacyOriginBearerSession(config.serverId);
       return user;
     } catch (error) {
       if (isAuthenticationRequiredError(error)) {
@@ -30,7 +30,7 @@ export async function getOriginViewer(config: ConnectAPIConfig): Promise<Current
           }
         }
         // Do not abandon portable authority when server-side revocation fails.
-        await revokeLegacyOriginBearerSession();
+        await revokeLegacyOriginBearerSession(config.serverId);
         throw error;
       }
       if (retried) throw error;

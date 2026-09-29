@@ -27,18 +27,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
-vi.mock('$app/paths', () => ({
-  base: '',
-  assets: '',
-  resolve: (path: string, params?: Record<string, string>) =>
-    params?.serverId ? path.replace('[serverId]', params.serverId) : path
-}));
-vi.mock('$app/environment', () => ({ version: '0.5.0-dev+f7b4e515c998' }));
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => mocks.activeServer
-}));
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     get servers() {
       return mocks.servers;
@@ -56,15 +46,25 @@ vi.mock('@chatto/client/server/registry', () => ({
         : undefined,
     getStore: mocks.getStore,
     tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
-  }
-}));
-vi.mock('@chatto/client/server/serverConnection', () => ({
+  },
   serverConnectionManager: {
     originClient: {
       showConnectionLostIcon: false,
       showConnectionLostBanner: false
     }
   }
+}));
+
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/paths', () => ({
+  base: '',
+  assets: '',
+  resolve: (path: string, params?: Record<string, string>) =>
+    params?.serverId ? path.replace('[serverId]', params.serverId) : path
+}));
+vi.mock('$app/environment', () => ({ version: '0.5.0-dev+f7b4e515c998' }));
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => mocks.activeServer
 }));
 vi.mock('$lib/state/globals.svelte', () => ({
   sidebarNav: {

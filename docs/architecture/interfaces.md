@@ -8,12 +8,12 @@ endpoints or depend on Runling or a UI framework. Hosts retain credential
 loading, webhook handling, and conversation state; see
 [ADR-110](../adr/ADR-110-move-client-state-into-chatto-client.md).
 
-The internal [`@chatto/bot-client`](../../packages/chatto-bot-client/README.md)
-package builds on that client. It owns message splitting, thread history,
-reactions, typing refresh, bot addressing conventions, reply context,
-bot-relative thread roles, conversation keys, accepted-delivery tracking, and
-an ordered realtime event loop. It has no Runling dependency. ChattoBot retains routing,
-inboxes, cancellation, and configuration reload state.
+The client also owns what bots need: connections with fixed API keys, an
+ordered message loop with a context per addressed message, message splitting,
+thread history, reactions, typing refresh, addressing recognition, reply
+context, conversation keys, and accepted-delivery tracking. It has no Runling
+dependency. ChattoBot retains routing, inboxes, cancellation, and
+configuration reload state.
 
 The official mobile client uses the built-in OAuth identity `eu.chattocorp.chatto.mobile`
 and exact callback `eu.chattocorp.chatto.mobile:/oauth/callback`. System authentication

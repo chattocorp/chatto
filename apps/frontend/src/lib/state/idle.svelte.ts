@@ -1,4 +1,4 @@
-import { serverRegistry } from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
 
 /** Provides cross-server activity state for browser integrations. */
 class IdleState {

@@ -6,7 +6,7 @@
   import { notifyLogout } from '@chatto/client/auth/sessionChannel';
   import { Panel, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverRegistry } from '$lib/client';
   import { Button, TextInput } from '$lib/ui/form';
 
   let {

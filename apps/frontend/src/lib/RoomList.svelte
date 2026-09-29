@@ -19,7 +19,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
   } from '$lib/navigation/sidebarLinkTarget';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverRegistry } from '$lib/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import CreateRoomGroupControl from '$lib/components/chat/CreateRoomGroupControl.svelte';

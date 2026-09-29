@@ -67,7 +67,7 @@ import {
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { computed, effect, effectRoot } from '../reactivity/index.js';
-import { DetachedVoiceCall, setVoiceCallFactory, type VoiceCallContext } from './voiceCall.js';
+import { DetachedVoiceCall, type VoiceCallContext, type VoiceCallFactory } from './voiceCall.js';
 
 /** Records what the store forwards to its voice call. */
 class RecordingVoiceCall extends DetachedVoiceCall {
@@ -77,7 +77,8 @@ class RecordingVoiceCall extends DetachedVoiceCall {
     super();
   }
 }
-setVoiceCallFactory((context) => new RecordingVoiceCall(context));
+/** The voice-call factory of the stores that {@link makeStore} creates. */
+let voiceCallFactory: VoiceCallFactory = (context) => new RecordingVoiceCall(context);
 
 const { apiMocks, cacheMocks } = vi.hoisted(() => ({
   cacheMocks: {
@@ -364,7 +365,10 @@ vi.mock('../api/attachments.js', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.js';
-import { eventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
+import { EventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
+
+/** The realtime transports of the stores that {@link makeStore} creates. */
+const eventBusManager = new EventBusManager();
 import { queryCaches } from '../query/cacheRegistry.js';
 import type { ServerConnection } from './serverConnection.js';
 import type { RegisteredServer } from './registry.js';
@@ -476,6 +480,7 @@ function makeStore(
     }),
     false,
     fake as unknown as ServerConnection,
+    { realtime: eventBusManager, voiceCall: (context) => voiceCallFactory(context) },
     publicServerInfoLoader,
     onAuthenticationRequired
   );
@@ -692,15 +697,16 @@ afterEach(() => {
 describe('ServerStateStore voice call', () => {
   it('creates the controller with the store, outside later reactive reads', () => {
     const created = vi.fn();
-    setVoiceCallFactory((context) => {
+    const previous = voiceCallFactory;
+    voiceCallFactory = (context) => {
       created(context.serverId);
       return new RecordingVoiceCall(context);
-    });
+    };
     try {
       makeStore(new FakeServerConnection([]));
       expect(created).toHaveBeenCalledWith(registered.id);
     } finally {
-      setVoiceCallFactory((context) => new RecordingVoiceCall(context));
+      voiceCallFactory = previous;
     }
   });
 });

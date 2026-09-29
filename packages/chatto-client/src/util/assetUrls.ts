@@ -1,4 +1,4 @@
-import { serverRegistry } from '../server/registry.js';
+import { ownerOfServerId } from '../server/serverIds.js';
 
 const STABLE_ASSET_PATH_PREFIX = '/assets/files/';
 
@@ -12,7 +12,7 @@ export function assetUrlForServer(
 ): string | null {
   if (!rawUrl) return null;
 
-  const server = serverRegistry.getServer(serverId);
+  const server = ownerOfServerId(serverId)?.getServer(serverId);
   if (!server) return rawUrl;
 
   try {

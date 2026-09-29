@@ -8,6 +8,16 @@ const mocks = vi.hoisted(() => ({
   goto: vi.fn()
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isAuthenticated: () => false,
+    firstAuthenticatedServerId: () => mocks.authenticatedServerId,
+    isOriginServer: () => false,
+    getServer: (id: string) => ({ id, url: `https://${id}.example.com` })
+  }
+}));
+
 vi.mock('$app/state', () => ({
   page: {
     get url() {
@@ -18,14 +28,6 @@ vi.mock('$app/state', () => ({
 vi.mock('$app/environment', () => ({ browser: true, version: '' }));
 vi.mock('$app/navigation', () => ({ goto: mocks.goto, pushState: vi.fn() }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => '' }));
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    isAuthenticated: () => false,
-    firstAuthenticatedServerId: () => mocks.authenticatedServerId,
-    isOriginServer: () => false,
-    getServer: (id: string) => ({ id, url: `https://${id}.example.com` })
-  }
-}));
 
 describe('App Preferences layout', () => {
   beforeEach(() => {

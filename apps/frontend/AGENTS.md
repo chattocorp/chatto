@@ -22,6 +22,9 @@ Do not generate playground links for code written into this repository.
   [its instructions](../../packages/chatto-client/AGENTS.md) when you change it.
   Import its modules as `@chatto/client/<path>`. Server-scoped state belongs in
   `ServerStateStore` or a related per-server store there (ADR-110).
+  `$lib/client` creates the frontend's one client and exports it with its
+  parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
+  Import them from there.
   Each client read in a `$derived`, `$effect`, or template creates a small
   Svelte render effect; read a store value once before a loop.
 - The frontend keeps UI state, Svelte context, routing, translated text,
@@ -425,6 +428,10 @@ Do not generate playground links for code written into this repository.
   Assert on `receivedRequest(handler)` and `receivedContext(handler)` (headers,
   timeout). Test cancellation with `AbortSignal.abort()` and expect
   `Code.Canceled`. Throw a `ConnectError` from a handler to test an error.
+- To replace parts of the frontend client in a spec, mock `$lib/client` and
+  spread `clientMockDefaults` from `$lib/test-utils/clientMock` first, so the
+  mocked module keeps every export. Do not import the original module in the
+  mock factory: in browser specs, that import can hang.
 - Mock the `/chat/[serverId]` scope with `createTestServerScope` from
   `$lib/test-utils/serverScope.svelte`. Replace the scope module with the
   `serverScopeModule` of that file, call `createTestServerScope` in

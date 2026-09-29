@@ -41,6 +41,14 @@ const connection = {
   })
 };
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: (serverId: string) => serverId === 'origin',
+    clearServerAuthentication: mocks.clearServerAuthentication
+  }
+}));
+
 vi.mock('$app/state', () => ({
   page: {
     get url() {
@@ -77,12 +85,6 @@ vi.mock('@chatto/client/auth/signOut', async (importOriginal) => ({
 }));
 
 vi.mock('@chatto/client/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    isOriginServer: (serverId: string) => serverId === 'origin',
-    clearServerAuthentication: mocks.clearServerAuthentication
-  }
-}));
 
 const currentUser = {
   user: { id: 'user-alice', hasPassword: true }

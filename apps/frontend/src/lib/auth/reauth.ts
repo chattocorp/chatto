@@ -18,11 +18,8 @@ import {
   authorizationWindowFeatures,
   type AuthorizationWindow
 } from '$lib/oauth/authorizationWindow';
-import {
-  generateServerId,
-  serverRegistry,
-  type RegisteredServer
-} from '@chatto/client/server/registry';
+import { serverRegistry } from '$lib/client';
+import { generateServerId, type RegisteredServer } from '@chatto/client/server/registry';
 import { serverIdToSegment } from '$lib/navigation';
 import { isLoopbackHostname } from '@chatto/client/util/runtimeOrigin';
 import { LOOPBACK_OAUTH_CLIENT_ID } from '@chatto/client/auth/loopbackClient';

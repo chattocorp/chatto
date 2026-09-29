@@ -45,6 +45,47 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
+    isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
+    isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
+    firstAuthenticatedServerId: vi.fn((excludedId: string) => {
+      const originId = mocks.originServer?.id;
+      if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
+      return mocks.servers.find(
+        (server) => server.id !== excludedId && mocks.authenticated[server.id]
+      )?.id;
+    }),
+    clearServerAuthentication: mocks.clearServerAuthentication,
+    tryGetStore: mocks.tryGetStore,
+    removeServer: mocks.removeServer,
+    removeAll: mocks.removeAll,
+    resetToOrigin: mocks.resetToOrigin,
+    get servers() {
+      return mocks.servers;
+    },
+    get originServer() {
+      return mocks.originServer;
+    }
+  },
+  serverConnectionManager: {
+    getClient: (serverId: string) => {
+      mocks.getClient(serverId);
+      return {
+        serverId,
+        connectBaseUrl: `https://${serverId}.example.test/api/connect`,
+        bearerToken: null,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never),
+        client: {
+          mutation: mocks.mutation
+        }
+      };
+    }
+  }
+}));
+
 vi.mock('$app/state', async () => {
   const { createSubscriber } = await import('svelte/reactivity');
   let notify: () => void = () => {};
@@ -90,49 +131,6 @@ vi.mock('$lib/navigation', () => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
-    isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
-    isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
-    firstAuthenticatedServerId: vi.fn((excludedId: string) => {
-      const originId = mocks.originServer?.id;
-      if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
-      return mocks.servers.find(
-        (server) => server.id !== excludedId && mocks.authenticated[server.id]
-      )?.id;
-    }),
-    clearServerAuthentication: mocks.clearServerAuthentication,
-    tryGetStore: mocks.tryGetStore,
-    removeServer: mocks.removeServer,
-    removeAll: mocks.removeAll,
-    resetToOrigin: mocks.resetToOrigin,
-    get servers() {
-      return mocks.servers;
-    },
-    get originServer() {
-      return mocks.originServer;
-    }
-  }
-}));
-
-vi.mock('@chatto/client/server/serverConnection', () => ({
-  serverConnectionManager: {
-    getClient: (serverId: string) => {
-      mocks.getClient(serverId);
-      return {
-        serverId,
-        connectBaseUrl: `https://${serverId}.example.test/api/connect`,
-        bearerToken: null,
-        getAPI: (factory: (config: never) => unknown) => factory({} as never),
-        client: {
-          mutation: mocks.mutation
-        }
-      };
-    }
-  }
 }));
 
 vi.mock('$lib/ui/toast', () => ({

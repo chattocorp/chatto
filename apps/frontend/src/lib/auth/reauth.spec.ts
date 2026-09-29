@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const native = vi.hoisted(() => ({ available: false, authorize: vi.fn() }));
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [],
+    addServer: addServerMock,
+    getStore: vi.fn(() => ({ serverInfo: { init: initServerInfoMock } })),
+    updateServer: updateServerMock,
+    replaceServerAuthentication: replaceServerAuthenticationMock,
+    clearOriginAuthentication: clearOriginAuthenticationMock
+  }
+}));
+
 vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/desktop/nativeAuthorization')>()),
   hasNativeAuthorization: () => native.available,
@@ -35,15 +47,7 @@ vi.mock('$app/paths', () => ({
 vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
 vi.mock('@chatto/client/server/registry', () => ({
-  generateServerId: generateServerIdMock,
-  serverRegistry: {
-    servers: [],
-    addServer: addServerMock,
-    getStore: vi.fn(() => ({ serverInfo: { init: initServerInfoMock } })),
-    updateServer: updateServerMock,
-    replaceServerAuthentication: replaceServerAuthenticationMock,
-    clearOriginAuthentication: clearOriginAuthenticationMock
-  }
+  generateServerId: generateServerIdMock
 }));
 
 class FakeBroadcastChannel {

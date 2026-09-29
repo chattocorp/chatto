@@ -38,8 +38,15 @@ vi.mock('./serverRecovery.js', async (original) => {
   };
 });
 
-vi.mock('./registry.js', () => ({
-  serverRegistry: {
+import {
+  startClientRuntime as startRuntime,
+  type ClientRuntime,
+  type ClientRuntimeParts
+} from './runtime.js';
+
+/** The client parts that the tested runtime drives, backed by the mocks. */
+const parts = {
+  registry: {
     needsRecovery: mocks.needsRecovery,
     recoverServer: async () => {},
     get originServer() {
@@ -54,15 +61,9 @@ vi.mock('./registry.js', () => ({
     hasFixedToken: (serverId: string) => mocks.fixedTokens.has(serverId),
     getStore: (serverId: string) => mocks.stores.get(serverId),
     tryGetStore: (serverId: string) => mocks.stores.get(serverId)
-  }
-}));
-
-vi.mock('./serverConnection.js', () => ({
-  serverConnectionManager: { getClient: mocks.getClient }
-}));
-
-vi.mock('./realtimeTransport.js', () => ({
-  eventBusManager: {
+  },
+  connections: { getClient: mocks.getClient },
+  realtime: {
     synchronizeAuthenticatedServers: mocks.synchronizeAuthenticatedServers,
     getBus: (serverId: string) =>
       mocks.startedBuses.has(serverId)
@@ -72,9 +73,8 @@ vi.mock('./realtimeTransport.js', () => ({
           }
         : undefined
   }
-}));
-
-import { startClientRuntime, type ClientRuntime } from './runtime.js';
+} as unknown as ClientRuntimeParts;
+const startClientRuntime = () => startRuntime(parts);
 
 const originUser: CurrentUser = {
   id: 'origin-user',
@@ -140,13 +140,6 @@ describe('startClientRuntime', () => {
     }
     await Promise.resolve();
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
-    runtime = startClientRuntime();
-  });
-
-  it('runs one runtime at a time', () => {
-    runtime = startClientRuntime();
-    expect(() => startClientRuntime()).toThrow('already running');
-    runtime.stop();
     runtime = startClientRuntime();
   });
 

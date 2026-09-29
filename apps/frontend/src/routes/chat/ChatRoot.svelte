@@ -14,13 +14,11 @@
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import { eventBusManager } from '@chatto/client/server/realtimeTransport';
+  import { eventBusManager, serverRegistry, serverConnectionManager } from '$lib/client';
   import { initPresenceTracking } from '@chatto/client/server/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import { idleState } from '$lib/state/idle.svelte';
-  import { serverRegistry } from '@chatto/client/server/registry';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
   import { scheduleCustomStatusExpiry } from '@chatto/client/util/customStatusExpiry';
 
   let {

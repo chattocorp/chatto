@@ -27,6 +27,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: () => false,
+    getServer: (serverId: string) => ({ id: serverId, url: `https://${serverId}.example.test` }),
+    tryGetStore: () => server.scope.store,
+    getStore: () => ({})
+  }
+}));
+
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
@@ -52,15 +62,6 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/hooks', () => ({
   useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionHandlers.push(handler);
-  }
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    isOriginServer: () => false,
-    getServer: (serverId: string) => ({ id: serverId, url: `https://${serverId}.example.test` }),
-    tryGetStore: () => server.scope.store,
-    getStore: () => ({})
   }
 }));
 

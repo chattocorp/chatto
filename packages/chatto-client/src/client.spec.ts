@@ -1,0 +1,161 @@
+// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { ConnectAPIConfig } from './api/connect.js';
+import type { CurrentUser } from './api/viewer.js';
+
+const mocks = vi.hoisted(() => ({
+  viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>()
+}));
+vi.mock('./api/server.js', async (original) => ({
+  ...(await original<typeof import('./api/server.js')>()),
+  getPublicServerInfo: vi.fn(async () => ({ name: 'Chat', version: '0.5.0' }))
+}));
+vi.mock('./api/viewer.js', async (original) => ({
+  ...(await original<typeof import('./api/viewer.js')>()),
+  getCurrentUserViaConnect: mocks.viewer
+}));
+
+import { createClient, type ChattoClient } from './client.js';
+import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
+import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
+import { inertRealtimeSocket } from './testing/inertSocket.js';
+
+const clients: ChattoClient[] = [];
+/** Create a client that the test closes afterwards. */
+function client(...args: Parameters<typeof createClient>) {
+  const created = createClient(...args);
+  clients.push(created);
+  return created;
+}
+
+beforeEach(() => {
+  // Each server answers with the viewer of the key that the request carries.
+  mocks.viewer.mockReset().mockImplementation(async (config) => {
+    const id = `${config.bearerToken}-viewer`;
+    return { id, login: id } as CurrentUser;
+  });
+  setRealtimeSocketFactoryForTests(inertRealtimeSocket);
+});
+
+afterEach(() => {
+  for (const created of clients.splice(0)) created.close();
+  setRealtimeSocketFactoryForTests(null);
+});
+
+describe('isolated clients', () => {
+  it('keep servers, viewers, and events apart', async () => {
+    const eu = client().connect({ serverUrl: 'https://eu.example', apiKey: 'eu' });
+    const us = client().connect({ serverUrl: 'https://us.example', apiKey: 'us' });
+    await expect(eu.ready()).resolves.toEqual({ viewerId: 'eu-viewer' });
+    await expect(us.ready()).resolves.toEqual({ viewerId: 'us-viewer' });
+    expect(clients[0]!.registry.servers.map((server) => server.url)).toEqual([
+      'https://eu.example'
+    ]);
+    expect(clients[1]!.registry.servers.map((server) => server.url)).toEqual([
+      'https://us.example'
+    ]);
+
+    const received = { eu: [] as string[], us: [] as string[] };
+    eu.onEvent((event) => received.eu.push(event.id));
+    us.onEvent((event) => received.us.push(event.id));
+    await vi.waitFor(() => expect(clients[0]!.realtime.getBus(eu.serverId)).toBeDefined());
+    expect(clients[1]!.realtime.getBus(eu.serverId)).toBeUndefined();
+    clients[0]!.realtime.getBus(eu.serverId)!.publish(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'eu-event',
+          actorId: 'human',
+          event: {
+            case: 'messagePosted',
+            value: { roomId: 'room', roomKind: RoomKind.DM, bodyPlaintext: 'hi' }
+          }
+        })
+      })
+    );
+    expect(received).toEqual({ eu: ['eu-event'], us: [] });
+
+    eu.close();
+    expect(us.closed).toBe(false);
+    expect(us.viewerId).toBe('us-viewer');
+  });
+
+  it('keep several connections of one client apart, also to the same server', async () => {
+    const shared = client();
+    const first = shared.connect({ serverUrl: 'https://chat.example', apiKey: 'first' });
+    const second = shared.connect({ serverUrl: 'https://chat.example', apiKey: 'second' });
+    await expect(first.ready()).resolves.toEqual({ viewerId: 'first-viewer' });
+    await expect(second.ready()).resolves.toEqual({ viewerId: 'second-viewer' });
+    expect(first.serverId).not.toBe(second.serverId);
+    first.close();
+    expect(second.viewerId).toBe('second-viewer');
+  });
+
+  it('keep every connection of a bot client live', async () => {
+    const sockets: string[] = [];
+    setRealtimeSocketFactoryForTests((url) => {
+      sockets.push(new URL(url).host);
+      return inertRealtimeSocket();
+    });
+    const bots = client();
+    const first = bots.connect({ serverUrl: 'https://one.example', apiKey: 'one' });
+    const second = bots.connect({ serverUrl: 'https://two.example', apiKey: 'two' });
+    await Promise.all([first.ready(), second.ready()]);
+    await vi.waitFor(() =>
+      expect(new Set(sockets)).toEqual(new Set(['one.example', 'two.example']))
+    );
+  });
+});
+
+describe('client lifecycle', () => {
+  it('stops its timers when the last connection closes, and cannot be used after close', async () => {
+    vi.useFakeTimers();
+    try {
+      const bots = client();
+      const connection = bots.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      await connection.ready();
+      await vi.waitFor(() => expect(bots.realtime.getBus(connection.serverId)).toBeDefined());
+      await Promise.resolve();
+      connection.close();
+      expect(vi.getTimerCount()).toBe(0);
+      bots.close();
+      expect(() => bots.connect({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(
+        'closed'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('closes every connection with the client', async () => {
+    const bots = client();
+    const connection = bots.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await connection.ready();
+    bots.close();
+    expect(connection.closed).toBe(true);
+    expect(bots.registry.servers).toEqual([]);
+  });
+
+  it('allows one device-storage client and one origin-server client at a time', () => {
+    const device = client({ storage: 'device' });
+    expect(() => createClient({ storage: 'device' })).toThrow('device storage');
+    const origin = client({ originServer: true });
+    expect(() => createClient({ originServer: true })).toThrow('origin server');
+    device.close();
+    origin.close();
+    client({ storage: 'device', originServer: true });
+  });
+
+  it('rejects server URLs with credentials and empty keys before registering', () => {
+    const bots = client();
+    expect(() => bots.connect({ serverUrl: 'https://user:pw@chat.example', apiKey: 'k' })).toThrow(
+      'without credentials'
+    );
+    expect(() => bots.connect({ serverUrl: 'ftp://chat.example', apiKey: 'k' })).toThrow();
+    expect(() => bots.connect({ serverUrl: 'https://chat.example', apiKey: '' })).toThrow(
+      'API key is required'
+    );
+    expect(bots.registry.servers).toEqual([]);
+  });
+});

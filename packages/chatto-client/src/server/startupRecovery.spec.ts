@@ -35,9 +35,11 @@ vi.mock('../api/server.js', () => ({
   }))
 }));
 
-import { serverRegistry } from './registry.js';
 import { ServerConnection } from './serverConnection.js';
 import { emptyServerSession } from './sessions.js';
+import { createAppClient } from '../testing/appClient.js';
+
+const serverRegistry = createAppClient().registry;
 
 describe('origin startup recovery', () => {
   beforeEach(() => {
@@ -133,7 +135,7 @@ describe('origin startup recovery', () => {
         })
     );
     vi.spyOn(ServerConnection.prototype, 'maintainBrowserSession').mockImplementation(() => {});
-    const route = loadCurrentUser();
+    const route = loadCurrentUser(serverRegistry);
     const recovery = serverRegistry.recoverServer('origin');
     expect(mocks.viewer).toHaveBeenCalledOnce();
     expect(store.currentUser.user).toBeUndefined();

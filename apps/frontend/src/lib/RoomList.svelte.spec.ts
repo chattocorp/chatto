@@ -110,6 +110,16 @@ const { mocks } = vi.hoisted(() => ({
 
 const activeRoomRoute = new SvelteMap<string, string>();
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: vi.fn(() => true),
+    getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
+    originServer: { id: 'origin' },
+    servers: [{ id: 'origin', url: 'https://chat.example.test' }]
+  }
+}));
+
 vi.mock('$lib/notificationPath', () => ({ notificationPath: mocks.notificationPath }));
 
 vi.mock('$app/state', () => ({
@@ -152,15 +162,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     isCurrent: () => true
   })
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    isOriginServer: vi.fn(() => true),
-    getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
-    originServer: { id: 'origin' },
-    servers: [{ id: 'origin', url: 'https://chat.example.test' }]
-  }
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({

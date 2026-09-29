@@ -1,4 +1,4 @@
-/** Accepted delivery IDs, retained in memory for one server and bot identity.
+/** Accepted delivery IDs, retained in memory for one server and one viewer.
  * This does not reserve concurrent deliveries or provide durable acceptance. */
 export interface DeliveryTracker {
   has(id: string): boolean;

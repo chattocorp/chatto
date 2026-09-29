@@ -39,7 +39,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "check": "tsc -p tsconfig.json --noEmit",
+    "check": "tsc -p tsconfig.json --noEmit && node scripts/generate-types.mjs --check",
     "test": "vitest run",
     "lint": "eslint ."
   },

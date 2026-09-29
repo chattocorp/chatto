@@ -1,0 +1,84 @@
+/**
+ * Plain message types for request helpers and message handlers. They hold the
+ * fields that hosts such as bots use; they are not complete renderable
+ * messages. Use the stores for rendering.
+ */
+
+/** A message that the client read or received. */
+export interface ChattoMessage {
+  id: string;
+  roomId: string;
+  authorId: string;
+  /** The thread root, or absent for a message at the room level. */
+  threadRootId?: string;
+  /** The message that this message replies to. */
+  inReplyTo?: string;
+  /** The message text. Absent for a message without text. */
+  body?: string;
+}
+
+/** Where to send a message: a room and a thread in it. */
+export interface Destination {
+  roomId: string;
+  /** The thread root. Use the message's own ID to start a thread on it. */
+  threadRootId: string;
+  /** The message that prompted this one, within the destination thread. */
+  inReplyTo?: string;
+}
+
+/** A thread in a room. */
+export interface ThreadLocation {
+  roomId: string;
+  threadRootId: string;
+}
+
+/** A textual thread message; attachments and non-message events are left out. */
+export interface ThreadMessage {
+  id: string;
+  authorId?: string;
+  /** The author's display name, or login when no display name is set. */
+  authorName?: string;
+  authorLogin?: string;
+  body: string;
+  /** Whether the viewer, the account of the API key, wrote the message. */
+  fromViewer: boolean;
+}
+
+/** Messages from one thread read, with a cursor for reading newer messages later. */
+export interface ThreadRead {
+  messages: ThreadMessage[];
+  /** Pass as `after` to read only newer messages. Absent when the thread has no messages. */
+  cursor?: string;
+  /** True when older replies exist that this read left out. */
+  olderOmitted: boolean;
+}
+
+/** Options for one request. */
+export interface RequestOptions {
+  /**
+   * Cancels the request. A request is not sent when the signal already
+   * aborted. Each request also has a ten-second timeout.
+   */
+  signal?: AbortSignal;
+}
+
+/** Options for a thread read; see `readThread`. */
+export interface ThreadReadOptions extends RequestOptions {
+  /** A `cursor` from an earlier read: return only newer messages. */
+  after?: string;
+  /** Most replies to return without `after`. Default: 100. */
+  limit?: number;
+}
+
+/** Realtime status for hosts, without remote messages or connection details. */
+export type RealtimeStatus =
+  | { state: 'connecting' | 'reconnecting' }
+  | {
+      state: 'ready';
+      /**
+       * True when events since the previous connection can be missing, for
+       * example because the server could not resume the stream and sent a
+       * new snapshot instead.
+       */
+      gap: boolean;
+    };

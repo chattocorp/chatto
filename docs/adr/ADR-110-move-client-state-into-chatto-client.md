@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted. Partially supersedes [ADR-100](ADR-100-shared-chatto-integration-client.md).
+Accepted. Supersedes [ADR-100](ADR-100-shared-chatto-integration-client.md).
 Amends [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md),
 [ADR-025](ADR-025-multi-instance-client-architecture.md), and
 [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md).
@@ -24,19 +24,29 @@ different behavior, and bots could not use the tested frontend client.
 
 We want one client. The frontend, ChattoBot, and third-party bots and
 frontends must use the same code, and tests must cover this code without a
-UI framework.
+UI framework. A host must be able to run several independent clients, for
+example several bots that connect to different servers.
 
 ## Decision
 
 `@chatto/client` (`packages/chatto-client/`) contains the Chatto client. The
 package has no dependency on the frontend. Only the `@chatto/client/svelte`
 adapter uses Svelte, as an optional peer dependency. The old integration
-helpers are removed.
+helpers and the separate `@chatto/bot-client` package are removed: a bot uses
+the same client as every other host.
 
 ### Package contents
 
 The package owns this client behavior:
 
+- Client instances (`client`): `createClient()` creates an isolated client
+  with its own registry, connection manager, realtime transports, and
+  runtime.
+- Connections with fixed tokens and the message loop for bots
+  (`connection`), and stateless requests (`api`), with the shared request
+  helpers (`messaging/`).
+- Re-exports of the protocol messages and services (`types`,
+  `types/admin`), generated from `@chatto/api-types`.
 - The ConnectRPC facades, the transport interceptors, and the privacy fences
   (`api/`).
 - Sessions, bearer renewal, and origin cookie sessions (`auth/`, `server/registry`).
@@ -53,10 +63,12 @@ The frontend keeps these parts:
 - Components, routes, URL selection of the active server, and Svelte context.
 - Translated text, toasts, and sounds. Stores keep the original error object.
   The frontend makes the message with `errorMessage()`.
+- Its one client (`$lib/client`), with device storage, the origin server,
+  and one live server.
 - The LiveKit and audio implementation of voice calls. The package defines
-  `VoiceCallController`. The frontend installs its implementation with
-  `setVoiceCallFactory` and registers its type through the `Register`
-  interface in `@chatto/client/register`.
+  `VoiceCallController`. The frontend passes its implementation to
+  `createClient` as the `voiceCall` factory and registers its type through
+  the `Register` interface in `@chatto/client/register`.
 - Svelte bindings for TanStack Query and device UI preferences.
 
 ### Reactivity
@@ -84,21 +96,28 @@ hook uses one `createSubscriber`. Svelte subscribes to the node only while a
 reaction tracks it. The frontend imports the adapter in `hooks.client.ts`, in
 the Vitest browser setup, and in Storybook.
 
-### Headless hosts
+### Clients and connections
 
-- `connectChatto({ serverUrl, apiKey })` registers one server with a fixed
-  token. It uses the same registry, stores, runtime, and realtime transport as
-  the frontend. A process has one open connection at a time. The connection
-  starts its own client runtime, and a process runs one runtime, so an
-  application that runs a runtime cannot also use `connectChatto`. A fixed token is
-  never renewed or written to device storage. The server's rejection or a
-  session termination ends the session.
-- `createChattoApi({ serverUrl, apiKey })` in `@chatto/client/apiClient` makes
-  stateless typed requests with Connect JSON. It rejects redirects and does not
-  load the stores. Use it for short work, such as a webhook handler.
-- `@chatto/bot-client` builds bot conventions on these entry points:
-  `createBotApi` for requests and `createBotClient` for an ordered realtime
-  event loop. ChattoBot and the Runling webhook example use them.
+- A client is isolated. Its registry, stores, connections, realtime
+  transports, and runtime belong to it alone. State that stays process-wide,
+  such as the snapshot query cache and user stores, is keyed by server ID,
+  and a server ID belongs to one client in a process.
+- Client options select the storage (`memory`, the default, or `device`), the
+  origin server with its cookie session, the live servers (`all`, the
+  default, or one `selected` server), and the voice-call factory. A process
+  can have one client with device storage and one for the origin server.
+- `client.connect({ serverUrl, apiKey })` registers a server with a fixed
+  token. A fixed token is never renewed or written to device storage. The
+  server's rejection or a session termination ends the session. A client can
+  hold several connections. The client runs its runtime while it has
+  connections, or after the application calls `start()`.
+- `connection.run(handler)` handles the messages addressed to the viewer in
+  order and gives each one a context with the operations to answer it.
+  `connection.consumeEvents` is the ordered loop for all events.
+- `createApi({ serverUrl, apiKey })` makes stateless typed requests with
+  Connect JSON and has the same request helpers. It rejects redirects and does
+  not load the stores. Use it for short work, such as a webhook handler, and
+  for work that can outlive a connection.
 
 ### Workspace consumption
 
@@ -119,9 +138,9 @@ MIT. `REUSE.toml` records the package boundary.
   because they cover browser behavior, such as the origin server and storage.
   A test makes sure that core modules do not import Svelte or frontend code.
 - Bots receive the frontend's recovery, projection, and privacy fences.
-- The registry, connection manager, and event bus manager stay module
-  singletons. A process has one client. A later change can move them into a
-  client instance.
+- A module can no longer reach a global registry. Code that needs one
+  receives it from its client, and the frontend imports its client from
+  `$lib/client`. Its tests mock that module.
 - ChattoBot closes its connection at the end of each Runling source
   generation. A new generation starts from a new realtime snapshot. Messages
   that arrive between generations are not replayed. The ADR-100 client

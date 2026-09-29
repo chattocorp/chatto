@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@chatto/api-types": "workspace:*",
-    "@chatto/bot-client": "workspace:*",
     "@chatto/client": "workspace:*",
     "runling": "workspace:*",
     "undici": "7.29.0"

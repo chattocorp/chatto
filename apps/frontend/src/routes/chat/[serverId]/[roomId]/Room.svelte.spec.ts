@@ -66,6 +66,15 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    getStore: () => server.scope.store,
+    originServer: { id: 'server-1', url: 'https://chat.example.test' },
+    getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
+  }
+}));
+
 vi.mock('$app/state', () => ({
   page: {
     params: { serverId: '-', roomId: 'room-1' },
@@ -180,14 +189,6 @@ vi.mock('@chatto/client/api/roomTimeline', async (importActual) => {
     createRoomTimelineAPI: () => mocks.timeline
   };
 });
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    getStore: () => server.scope.store,
-    originServer: { id: 'server-1', url: 'https://chat.example.test' },
-    getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
-  }
-}));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'wrong-server'

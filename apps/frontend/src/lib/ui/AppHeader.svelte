@@ -1,8 +1,7 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { serverRegistry } from '@chatto/client/server/registry';
-  import { serverConnectionManager } from '@chatto/client/server/serverConnection';
+  import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { version } from '$app/environment';

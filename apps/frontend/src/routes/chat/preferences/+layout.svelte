@@ -8,7 +8,7 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { serverRegistry } from '@chatto/client/server/registry';
+  import { serverRegistry } from '$lib/client';
   import { m } from '$lib/i18n/messages';
 
   let { children }: { children?: Snippet } = $props();

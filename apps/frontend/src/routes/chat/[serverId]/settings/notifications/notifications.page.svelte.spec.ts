@@ -33,6 +33,13 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: (serverId: string) => serverId === 'origin'
+  }
+}));
+
 vi.mock('$lib/audio/notificationSounds', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/audio/notificationSounds')>();
   return {
@@ -48,12 +55,6 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   getPermission: mocks.pushNotifications.getPermission,
   isSubscribed: mocks.pushNotifications.isSubscribed,
   sendTestNotification: mocks.pushNotifications.sendTestNotification
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
-  serverRegistry: {
-    isOriginServer: (serverId: string) => serverId === 'origin'
-  }
 }));
 
 vi.mock(

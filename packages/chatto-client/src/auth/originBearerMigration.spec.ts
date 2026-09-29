@@ -9,12 +9,8 @@ const { csrfFetchMock, originServer } = vi.hoisted(() => ({
 }));
 
 vi.mock('./csrf', () => ({ csrfFetch: csrfFetchMock }));
-vi.mock('../server/registry.js', () => ({
-  serverRegistry: {
-    get originServer() {
-      return originServer;
-    }
-  }
+vi.mock('../server/serverIds.js', () => ({
+  ownerOfServerId: (id: string) => (id === 'origin' ? { getServer: () => originServer } : undefined)
 }));
 
 import { revokeLegacyOriginBearerSession } from './originBearerMigration.js';
@@ -29,7 +25,7 @@ describe('revokeLegacyOriginBearerSession', () => {
   it('revokes the portable authority before local cookie adoption', async () => {
     csrfFetchMock.mockResolvedValue(new Response(null, { status: 200 }));
 
-    await revokeLegacyOriginBearerSession();
+    await revokeLegacyOriginBearerSession('origin');
 
     expect(csrfFetchMock).toHaveBeenCalledWith('/auth/browser/revoke-bearer-session', {
       method: 'POST',
@@ -48,7 +44,7 @@ describe('revokeLegacyOriginBearerSession', () => {
     originServer.token = null;
     originServer.refreshToken = null;
 
-    await revokeLegacyOriginBearerSession();
+    await revokeLegacyOriginBearerSession('origin');
 
     expect(csrfFetchMock).not.toHaveBeenCalled();
   });
@@ -56,7 +52,7 @@ describe('revokeLegacyOriginBearerSession', () => {
   it('reports revocation failure so local authority is not abandoned', async () => {
     csrfFetchMock.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await expect(revokeLegacyOriginBearerSession()).rejects.toThrow(
+    await expect(revokeLegacyOriginBearerSession('origin')).rejects.toThrow(
       'Origin bearer-session revocation failed (503)'
     );
   });

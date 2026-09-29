@@ -13,18 +13,8 @@ const mocks = vi.hoisted(() => ({
   segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null))
 }));
 
-vi.mock('$app/navigation', () => ({
-  pushState: vi.fn(),
-  goto: mocks.goto
-}));
-
-vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: (serverId: string) =>
-    serverId === 'origin' ? '-' : serverId === 'chatto-run' ? 'chat.chatto.run' : serverId,
-  segmentToServerId: mocks.segmentToServerId
-}));
-
-vi.mock('@chatto/client/server/registry', () => ({
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     getServer: (serverId: string) =>
       serverId === 'origin'
@@ -39,6 +29,17 @@ vi.mock('@chatto/client/server/registry', () => ({
       ];
     }
   }
+}));
+
+vi.mock('$app/navigation', () => ({
+  pushState: vi.fn(),
+  goto: mocks.goto
+}));
+
+vi.mock('$lib/navigation', () => ({
+  serverIdToSegment: (serverId: string) =>
+    serverId === 'origin' ? '-' : serverId === 'chatto-run' ? 'chat.chatto.run' : serverId,
+  segmentToServerId: mocks.segmentToServerId
 }));
 
 import MessageContent, { renderMarkdown } from './MessageContent.svelte';

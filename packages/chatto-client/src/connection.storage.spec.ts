@@ -10,9 +10,14 @@ vi.mock('./api/viewer.js', async (original) => ({
   getCurrentUserViaConnect: vi.fn(async () => ({ id: 'bot', login: 'bot' }) as CurrentUser)
 }));
 
-import { connectChatto } from './connect.js';
-import { serverRegistry } from './server/registry.js';
 import { setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
+import { createAppClient } from './testing/appClient.js';
+
+// A client with device storage, like the bundled frontend, is the strongest
+// case: it writes its own servers, but never a fixed token.
+const client = createAppClient();
+const serverRegistry = client.registry;
+const connectChatto = (options: { serverUrl: string; apiKey: string }) => client.connect(options);
 import { inertRealtimeSocket } from './testing/inertSocket.js';
 
 beforeAll(() => setRealtimeSocketFactoryForTests(inertRealtimeSocket));
