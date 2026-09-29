@@ -20,7 +20,7 @@
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
-  import { hardRedirectAfterSignOut } from '@chatto/client/auth/signOut';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
   import { notificationPath } from '$lib/notificationPath';

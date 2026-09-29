@@ -5,10 +5,8 @@
   import { createAccountAPI } from '@chatto/client/api/account';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
-  import {
-    hardRedirectAfterSignOut,
-    isExplicitSignOutRedirectInProgress
-  } from '@chatto/client/auth/signOut';
+  import { isExplicitSignOutRedirectInProgress } from '@chatto/client/auth/signOut';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';

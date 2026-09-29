@@ -125,9 +125,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 }));
 
 vi.mock('$lib/api/adminEventLog', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api/adminEventLog')>(
-    '$lib/api/adminEventLog'
-  );
+  const actual =
+    await vi.importActual<typeof import('$lib/api/adminEventLog')>('$lib/api/adminEventLog');
   return {
     ...actual,
     createAdminEventLogAPI: () => ({

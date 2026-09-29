@@ -87,21 +87,3 @@ export function beginExplicitSignOutRedirect(): void {
 export function cancelExplicitSignOutRedirect(): void {
   explicitSignOutRedirectInProgress = false;
 }
-
-export function hardRedirectAfterSignOut(href = '/'): void {
-  beginExplicitSignOutRedirect();
-  try {
-    const target = new URL(href, window.location.href);
-    if (target.origin === window.location.origin) {
-      window.setTimeout(() => {
-        window.location.replace(target.pathname + target.search + target.hash);
-      }, 0);
-      return;
-    }
-  } catch {
-    // Fall back to a regular document navigation below.
-  }
-  window.setTimeout(() => {
-    window.location.replace(href);
-  }, 0);
-}

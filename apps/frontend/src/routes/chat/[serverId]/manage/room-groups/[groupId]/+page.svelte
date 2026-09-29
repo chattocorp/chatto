@@ -4,10 +4,7 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import {
-    createAdminRoomLayoutAPI,
-    type AdminManagedRoomGroup
-  } from '$lib/api/adminRoomLayout';
+  import { createAdminRoomLayoutAPI, type AdminManagedRoomGroup } from '$lib/api/adminRoomLayout';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';

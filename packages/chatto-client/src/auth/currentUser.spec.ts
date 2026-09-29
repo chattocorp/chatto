@@ -1,15 +1,14 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CurrentUserState, type CurrentUser } from '@chatto/client/auth/currentUser';
-vi.mock('@chatto/client/auth/originViewer', () => ({ getOriginViewer: vi.fn() }));
+import { CurrentUserState, type CurrentUser } from './currentUser.js';
+vi.mock('./originViewer.js', () => ({ getOriginViewer: vi.fn() }));
 
 /**
  * CurrentUserState class structure tests.
  *
  * Most behavior is exercised end-to-end through `ServerStateStore`, which
  * constructs one instance per registered server. These tests cover the
- * isolated auth-failure contract because it protects against destructive
- * logout regressions.
+ * isolated loading and verification contract.
  */
 describe('CurrentUserState', () => {
   beforeEach(() => {
@@ -188,44 +187,61 @@ describe('CurrentUserState', () => {
     }
   });
 
-  it('marks auth required without revoking the server session by default', async () => {
-    const onAuthenticationRequired = vi.fn();
-    const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
-    state.verifiedUserId = 'U1';
-
-    await state.handleAuthFailure();
-
-    expect(state.verifiedUserId).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
-    expect(onAuthenticationRequired).toHaveBeenCalledOnce();
+  it('reports a missing API config as a load error', async () => {
+    const state = new CurrentUserState();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await state.load();
+      expect(state.loadError).toMatchObject({ message: expect.stringContaining('not configured') });
+      expect(state.loading).toBe(false);
+    } finally {
+      error.mockRestore();
+    }
   });
 
-  it('revokes the server session without marking reauth when explicitly requested', async () => {
-    const onAuthenticationRequired = vi.fn();
-    const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
-    state.user = {
-      id: 'U1',
-      login: 'alice',
-      displayName: 'Alice',
-      avatarUrl: null,
-      presenceStatus: PresenceStatus.ONLINE,
-      hasVerifiedEmail: true,
-      viewerCanDeleteAccount: false,
-      hasPassword: true,
-      settings: null
-    };
+  it('leaves a rejected renewable session to the bearer interceptor', async () => {
+    const { Code, ConnectError } = await import('@connectrpc/connect');
+    const rejected = vi.fn();
+    const state = new CurrentUserState(
+      false,
+      { baseUrl: '/api/connect', bearerToken: 'token', renewBearerToken: async () => 'token' },
+      vi.fn().mockRejectedValue(new ConnectError('rejected', Code.Unauthenticated)),
+      rejected
+    );
+    state.verifiedUserId = 'U1';
+    await state.load();
+    // A 401 after a successful refresh is not proof of revocation.
+    expect(state.verifiedUserId).toBeNull();
+    expect(rejected).not.toHaveBeenCalled();
+  });
 
-    await state.handleAuthFailure({ revokeServerSession: true });
+  it('ignores an origin viewer that arrives during an explicit sign-out redirect', async () => {
+    const { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } =
+      await import('./signOut.js');
+    let finish!: (user: CurrentUser) => void;
+    const state = new CurrentUserState(
+      true,
+      { baseUrl: '/api/connect', bearerToken: null },
+      () => new Promise<CurrentUser>((resolve) => (finish = resolve))
+    );
+    const pending = state.load();
+    beginExplicitSignOutRedirect();
+    try {
+      finish({ id: 'U1', login: 'alice' } as CurrentUser);
+      await pending;
+      expect(state.user).toBeUndefined();
+    } finally {
+      cancelExplicitSignOutRedirect();
+    }
+  });
 
-    expect(fetch).toHaveBeenCalledWith('/auth/browser/logout', {
-      method: 'POST',
-      headers: expect.any(Headers),
-      body: '{}'
-    });
-    const headers = vi.mocked(fetch).mock.calls[0]?.[1]?.headers as Headers;
-    expect(headers.get('Content-Type')).toBe('application/json');
-    expect(headers.get('X-Chatto-Authentication-Mode')).toBe('cookie');
-    expect(state.user).toBeUndefined();
-    expect(onAuthenticationRequired).not.toHaveBeenCalled();
+  it('keeps display data but rejects old requests after verification is invalidated', () => {
+    const state = new CurrentUserState();
+    const user = { id: 'U1', login: 'alice' } as CurrentUser;
+    state.accept(user);
+    state.invalidateVerification();
+    expect(state.user).toBe(user);
+    expect(state.verifiedUserId).toBeNull();
+    expect(state.loading).toBe(false);
   });
 });

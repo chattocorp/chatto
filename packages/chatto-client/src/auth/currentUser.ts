@@ -1,17 +1,11 @@
 import type { ConnectAPIConfig } from '../api/connect.js';
 import { batch, signal } from '../reactivity/index.js';
 import { getCurrentUserViaConnect, type CurrentUser } from '../api/viewer.js';
-import { browserCookieAuthenticationHeaders } from './authenticationMode.js';
-import { csrfFetch } from './csrf.js';
 import { isAuthenticationRequiredError } from './errors.js';
 import { getOriginViewer } from './originViewer.js';
 import { isExplicitSignOutRedirectInProgress } from './signOut.js';
 
 export type { CurrentUser };
-
-interface AuthFailureOptions {
-  revokeServerSession?: boolean;
-}
 
 /**
  * Per-server current-user state. One instance per registered server,
@@ -61,7 +55,6 @@ export class CurrentUserState {
   #loadPromise: Promise<void> | null = null;
   #generation = 0;
   #onLoaded?: (user: CurrentUser) => void;
-  #isLoggingOut = false;
 
   constructor(
     cookieAuth: boolean = false,
@@ -183,47 +176,5 @@ export class CurrentUserState {
     } finally {
       if (generation === this.#generation) this.loading = false;
     }
-  }
-
-  /**
-   * Handle auth failure.
-   * Explicit sign-out paths can request server-side session revocation.
-   * Auth-expiry paths should use the registry's reauth-required state instead
-   * so the app can keep the current shell visible.
-   */
-  async handleAuthFailure(options: AuthFailureOptions = {}) {
-    if (this.#isLoggingOut) return;
-
-    if (!this.#cookieAuth) {
-      console.warn('Remote server auth failure — marking reauthentication required');
-      batch(() => {
-        this.invalidateVerification();
-        this.#onAuthenticationRequired?.();
-        this.loading = false;
-      });
-      return;
-    }
-
-    this.#isLoggingOut = true;
-
-    if (options.revokeServerSession) {
-      this.reset();
-      await csrfFetch('/auth/browser/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...browserCookieAuthenticationHeaders
-        },
-        body: '{}'
-      }).catch(() => {});
-      this.#isLoggingOut = false;
-      return;
-    }
-
-    console.warn('[auth] handleAuthFailure: marking reauthentication required');
-    this.invalidateVerification();
-    this.#onAuthenticationRequired?.();
-
-    this.#isLoggingOut = false;
   }
 }

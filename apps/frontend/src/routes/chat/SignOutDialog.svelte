@@ -6,7 +6,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/client';
   import { clientAccount, type ClientAccountNavigation } from '$lib/state/clientAccount';
-  import { hardRedirectAfterSignOut } from '@chatto/client/auth/signOut';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { m } from '$lib/i18n/messages';
   import { Dialog } from '$lib/ui';
   import { Button } from '$lib/ui/form';

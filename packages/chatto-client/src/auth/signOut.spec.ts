@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RegisteredServer } from '../server/registry.js';
-import { ServerLogoutRejectedError, SIGN_OUT_TIMEOUT_MS, signOutServer } from './signOut.js';
+import {
+  beginExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect,
+  isExplicitSignOutRedirectInProgress,
+  ServerLogoutRejectedError,
+  SIGN_OUT_TIMEOUT_MS,
+  signOutServer,
+  signOutServers
+} from './signOut.js';
 
 const remoteServer: RegisteredServer = {
   id: 'remote',
@@ -89,5 +97,49 @@ describe('signOutServer', () => {
     await expect(signOutServer(remoteServer, false)).rejects.toEqual(
       new ServerLogoutRejectedError(503)
     );
+  });
+});
+
+describe('signOutServer at the origin', () => {
+  it('rejects when the origin cannot confirm the logout', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 500 })));
+    await expect(signOutServer({ ...remoteServer, token: null }, true)).rejects.toBeInstanceOf(
+      ServerLogoutRejectedError
+    );
+  });
+
+  it('sends the refresh token of an origin bearer session in the body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await signOutServer({ ...remoteServer, refreshToken: 'refresh' }, true);
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ refreshToken: 'refresh' }));
+  });
+});
+
+describe('signOutServers', () => {
+  it('signs out every server and ignores single failures', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      signOutServers(
+        [remoteServer, { ...remoteServer, id: 'origin', token: null }],
+        (id) => id === 'origin'
+      )
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toContain('/auth/browser/logout');
+  });
+});
+
+describe('explicit sign-out redirect', () => {
+  it('reports a redirect between its start and its cancellation', () => {
+    expect(isExplicitSignOutRedirectInProgress()).toBe(false);
+    beginExplicitSignOutRedirect();
+    expect(isExplicitSignOutRedirectInProgress()).toBe(true);
+    cancelExplicitSignOutRedirect();
+    expect(isExplicitSignOutRedirectInProgress()).toBe(false);
   });
 });

@@ -106,9 +106,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 }));
 
 vi.mock('$lib/api/adminUsers', async () => {
-  const actual = await vi.importActual<typeof import('$lib/api/adminUsers')>(
-    '$lib/api/adminUsers'
-  );
+  const actual = await vi.importActual<typeof import('$lib/api/adminUsers')>('$lib/api/adminUsers');
   return {
     ...actual,
     createAdminUserManagementAPI: () => ({

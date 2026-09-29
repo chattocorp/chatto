@@ -151,7 +151,10 @@ vi.mock('$lib/auth/sessionChannel', () => ({
 vi.mock('@chatto/client/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   signOutServer: mocks.signOutServer,
-  signOutServers: mocks.signOutServers,
+  signOutServers: mocks.signOutServers
+}));
+
+vi.mock('$lib/auth/signOutRedirect', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 

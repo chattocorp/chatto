@@ -199,7 +199,7 @@ vi.mock('$lib/state/clientAccount', () => ({
   clientAccount: { signOutCurrentServer: mocks.signOutCurrentServer }
 }));
 
-vi.mock('@chatto/client/auth/signOut', () => ({
+vi.mock('$lib/auth/signOutRedirect', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 

@@ -162,8 +162,11 @@ vi.mock('$lib/auth/returnNavigation', () => ({
 }));
 
 vi.mock('@chatto/client/auth/signOut', () => ({
-  hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut,
   isExplicitSignOutRedirectInProgress: () => false
+}));
+
+vi.mock('$lib/auth/signOutRedirect', () => ({
+  hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
 vi.mock('$lib/auth/sessionChannel', () => ({

@@ -80,7 +80,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 vi.mock('@chatto/client/auth/signOut', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client/auth/signOut')>()),
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
-  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect
+}));
+
+vi.mock('$lib/auth/signOutRedirect', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
