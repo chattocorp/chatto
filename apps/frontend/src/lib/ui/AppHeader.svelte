@@ -59,7 +59,7 @@
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex items-center gap-3">
-    <!-- Hamburger - 44px tap target for mobile accessibility -->
+    <!-- Sidebar toggle - 44px tap target for mobile accessibility -->
     <button
       type="button"
       class="app-header-icon"
@@ -68,7 +68,13 @@
       aria-expanded={sidebarNav.isOpen}
       title={m('ui.toggle_sidebar')}
     >
-      <span aria-hidden="true" class="iconify icon-[uil--bars] text-xl"></span>
+      <span
+        aria-hidden="true"
+        class={[
+          'iconify text-xl rtl:-scale-x-100',
+          sidebarNav.isOpen ? 'icon-[lucide--panel-left-close]' : 'icon-[lucide--panel-left-open]'
+        ]}
+      ></span>
     </button>
 
     {#if hasInstances}
