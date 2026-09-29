@@ -65,7 +65,7 @@ await connection.run(
 );
 ```
 
-`ctx.signal` aborts when the loop stops or the connection closes; pass it to
+`ctx.signal` aborts when the loop stops for any reason; pass it to
 your own cancellable work. `ctx.conversationKey` scopes a conversation to the
 viewer, room, thread, and sender. `ctx.refreshTyping()` refreshes the typing
 indicator once.
@@ -77,11 +77,15 @@ the server rejects the key or does not support this client, and, without
 ### Events, status, and state
 
 - `connection.consumeEvents({ signal, onEvent, onStatus })` handles every
-  realtime event in order. `run` uses it. Up to 1000 received events wait for
-  a slow handler; beyond that, they are dropped and a gap is reported.
+  realtime event in order. `run` uses it. `onEvent(event, { signal })`
+  receives a signal that aborts when the loop stops for any reason, for
+  example when the server ends the session. Up to 1000 received events wait
+  for a slow handler; beyond that, they are dropped and a gap is reported.
 - `onStatus` receives `connecting`, `ready`, and `reconnecting`. A `ready`
   status with `gap: true` means that events can be missing, for example
-  because the server could not resume the stream after a reconnect.
+  because the server could not resume the stream after a reconnect. While
+  `run` waits for the server, a `connecting` status with an `error` reports
+  each failed attempt, for example an unreachable server.
 - The connection receives events from its creation, also before `ready()`
   resolves, and keeps them for the first `consumeEvents` or `run` call. A
   later call reports a gap first.
@@ -156,7 +160,9 @@ const { viewerId } = await api.ready({ signal }); // read once, then reused
 await api.reply(message, 'Done', { signal });
 ```
 
-It uses Connect JSON, rejects redirects, and loads no stores.
+It uses Connect JSON, rejects redirects, and loads no stores. Pass
+`viewerId` when the host already knows the account of the key, for example
+from `connection.ready()`; `ready()` then sends no request.
 
 ### Debug output
 
@@ -186,7 +192,7 @@ export const client = createClient({
   voiceCall: (context) => new MyVoiceCall(context)
 });
 
-client.start();
+client.start(); // pair each start() with a stop(), for example on unmount
 client.setActiveServer(serverId);
 const store = client.registry.getStore(serverId);
 ```

@@ -63,8 +63,10 @@ export interface ConsumeEventsOptions {
    * Handle one event. Events are handled in order; the next event waits until
    * the returned promise resolves. A rejection stops consumption. When more
    * than 1000 received events wait, they are dropped and a gap is reported.
+   * `signal` aborts when consumption stops for any reason, for example when
+   * the server ends the session.
    */
-  onEvent: (event: RealtimeEvent) => void | Promise<void>;
+  onEvent: (event: RealtimeEvent, loop: { signal: AbortSignal }) => void | Promise<void>;
   /**
    * Receive realtime status changes. Repeated statuses are not reported
    * again, but each gap is. A throw stops consumption.
@@ -78,7 +80,11 @@ export interface RunOptions {
   signal?: AbortSignal;
   /** The addressing reasons to handle. Default: direct messages, mentions, and replies. */
   reasons?: readonly AddressingReason[];
-  /** Receive realtime status changes; see {@link ConsumeEventsOptions.onStatus}. */
+  /**
+   * Receive realtime status changes; see {@link ConsumeEventsOptions.onStatus}.
+   * Before the server accepted the key, `connecting` reports each failed
+   * attempt with its `error`, for example an unreachable server.
+   */
   onStatus?: (status: RealtimeStatus) => void;
   /**
    * Receive a failure of the handler or of addressing, and keep handling
@@ -358,8 +364,14 @@ export class Connection {
     const inbox = this.#firstInbox ?? this.#openInbox(true);
     this.#firstInbox = undefined;
     let failure: { error: unknown } | undefined;
+    // Aborts when the loop stops, so that a running handler can stop too.
+    const loop = new AbortController();
+    const stop = (reason: unknown) => {
+      if (!loop.signal.aborted) loop.abort(reason);
+    };
     const fail = (error: unknown) => {
       failure ??= { error };
+      stop(error);
       inbox.wake?.();
     };
     let lastStatus: string | undefined;
@@ -387,8 +399,10 @@ export class Connection {
     let connectedBefore = false;
     const stopEffects = effectRoot(() => {
       effect(() => {
-        if (this.#closed.get()) inbox.wake?.();
-        else if (this.sessionEnded)
+        if (this.#closed.get()) {
+          stop(new Error('The Chatto connection is closed'));
+          inbox.wake?.();
+        } else if (this.sessionEnded)
           fail(new Error('Chatto ended the session; the API key can be revoked'));
         else if (this.realtimeUnsupported)
           fail(new Error("The Chatto server does not support this client's realtime protocol"));
@@ -417,7 +431,10 @@ export class Connection {
       });
     });
     // Abort wakes the loop directly; no promise outlives one wait.
-    const onAbort = () => inbox.wake?.();
+    const onAbort = () => {
+      stop(stopSignal?.reason);
+      inbox.wake?.();
+    };
     stopSignal?.addEventListener('abort', onAbort, { once: true });
     try {
       while (!stopSignal?.aborted && !this.#closed.peek()) {
@@ -428,9 +445,10 @@ export class Connection {
           inbox.wake = undefined;
           continue;
         }
-        await onEvent(event);
+        await onEvent(event, { signal: loop.signal });
       }
     } finally {
+      stop(new Error('The event loop stopped'));
       inbox.close();
       stopEffects();
       stopSignal?.removeEventListener('abort', onAbort);
@@ -456,18 +474,25 @@ export class Connection {
    */
   async run(
     handler: (context: MessageContext) => void | Promise<void>,
-    { signal: stopSignal, reasons, onStatus, onError }: RunOptions = {}
+    { signal: stopSignal, reasons, onStatus: reportStatus, onError }: RunOptions = {}
   ): Promise<void> {
-    const viewerId = await this.#readyForLoop(stopSignal);
+    // Startup and the event loop report status; report a repeated plain
+    // status once.
+    let lastPlain: string | undefined;
+    const onStatus =
+      reportStatus &&
+      ((status: RealtimeStatus) => {
+        const plain = status.state !== 'ready' && !status.error ? status.state : undefined;
+        if (plain && plain === lastPlain) return;
+        lastPlain = plain;
+        reportStatus(status);
+      });
+    const viewerId = await this.#readyForLoop(stopSignal, onStatus);
     if (viewerId === undefined) return;
-    const loopSignal = AbortSignal.any([
-      this.#closeController.signal,
-      ...(stopSignal ? [stopSignal] : [])
-    ]);
     await this.consumeEvents({
       signal: stopSignal,
       onStatus,
-      onEvent: async (event) => {
+      onEvent: async (event, { signal: loopSignal }) => {
         try {
           const message = await this.#requests.addressedMessage(event, {
             signal: loopSignal,
@@ -567,16 +592,22 @@ export class Connection {
 
   /**
    * Wait for {@link ready} through transient failures: each call waits for the
-   * next recovery attempt. Returns undefined when the loop stops first, and
-   * rejects on a failure that recovery cannot fix.
+   * next recovery attempt, and `onStatus` receives each failure. Returns
+   * undefined when the loop stops first, and rejects on a failure that
+   * recovery cannot fix.
    */
-  async #readyForLoop(stopSignal: AbortSignal | undefined): Promise<string | undefined> {
+  async #readyForLoop(
+    stopSignal: AbortSignal | undefined,
+    onStatus: ((status: RealtimeStatus) => void) | undefined
+  ): Promise<string | undefined> {
+    onStatus?.({ state: 'connecting' });
     while (!stopSignal?.aborted && !this.#closed.peek()) {
       try {
         return (await this.ready({ signal: stopSignal })).viewerId;
       } catch (error) {
         if (stopSignal?.aborted || this.#closed.peek()) return undefined;
         if (this.sessionEnded || this.realtimeUnsupported) throw error;
+        onStatus?.({ state: 'connecting', error: error as Error });
       }
     }
     return undefined;

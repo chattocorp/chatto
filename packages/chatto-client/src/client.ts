@@ -85,8 +85,8 @@ export class ChattoClient {
   readonly realtime: EventBusManager;
   readonly #openConnections = new Set<Connection>();
   #runtime: ClientRuntime | null = null;
-  /** Whether the application started the runtime; see {@link start}. */
-  #startedExplicitly = false;
+  /** Calls of {@link start} without a matching {@link stop}. */
+  #starts = 0;
   #activeServerId: string | null = null;
   #closed = false;
 
@@ -114,22 +114,22 @@ export class ChattoClient {
 
   /**
    * Start the runtime: recovery, realtime transports, and session-termination
-   * handling. Applications with a UI call it once. {@link connect} starts it
-   * by itself and stops it when its last connection closes.
+   * handling. Applications with a UI call it when they mount. {@link connect}
+   * starts it by itself. Each call needs a matching {@link stop}.
    */
   start(): void {
     if (this.#closed) throw new Error('The Chatto client is closed');
-    this.#startedExplicitly = true;
+    this.#starts++;
     this.#ensureRuntime();
   }
 
   /**
-   * Stop the runtime that {@link start} started. The runtime keeps running
-   * while connections are open; it stops when the last one closes.
+   * End one {@link start}. The runtime stops when every start has ended and
+   * no connection is open.
    */
   stop(): void {
-    this.#startedExplicitly = false;
-    if (this.#openConnections.size === 0) this.#stopRuntime();
+    this.#starts = Math.max(0, this.#starts - 1);
+    this.#stopRuntimeWhenIdle();
   }
 
   /**
@@ -162,7 +162,7 @@ export class ChattoClient {
       { ...emptyServerSession(), token: options.apiKey },
       { fixedToken: true }
     );
-    let connection: Connection;
+    let connection: Connection | undefined;
     try {
       connection = new Connection(serverId, url.origin, {
         registry: this.registry,
@@ -170,10 +170,12 @@ export class ChattoClient {
         realtime: this.realtime,
         onClose: (closed) => this.#connectionClosed(closed)
       });
-      this.#openConnections.add(connection);
       this.#ensureRuntime();
+      this.#openConnections.add(connection);
     } catch (error) {
-      this.registry.removeServer(serverId);
+      // Leave nothing behind: no server, live transport, or subscription.
+      if (connection) connection.close();
+      else this.registry.removeServer(serverId);
       throw error;
     }
     return connection;
@@ -211,7 +213,12 @@ export class ChattoClient {
   #connectionClosed(connection: Connection): void {
     this.#openConnections.delete(connection);
     // Without work left, no timer must keep a Node host alive.
-    if (!this.#startedExplicitly && this.#openConnections.size === 0) this.#stopRuntime();
+    this.#stopRuntimeWhenIdle();
+  }
+
+  /** Stop the runtime when no start and no connection needs it; no timer then keeps Node alive. */
+  #stopRuntimeWhenIdle(): void {
+    if (this.#starts === 0 && this.#openConnections.size === 0) this.#stopRuntime();
   }
 }
 

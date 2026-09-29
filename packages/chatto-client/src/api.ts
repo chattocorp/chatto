@@ -28,6 +28,11 @@ export interface ApiOptions {
   apiKey: string;
   /** Fetch implementation for tests or host-specific networking. */
   fetch?: typeof globalThis.fetch;
+  /**
+   * The account of the key, when the host already knows it, for example
+   * from `Connection.ready`. `ready()` then returns it without a request.
+   */
+  viewerId?: string;
 }
 
 /**
@@ -41,8 +46,17 @@ export class Api extends MessagingRequests {
   readonly #viewerId: (options: RequestOptions) => Promise<string>;
 
   /** Use {@link createApi}. */
-  constructor(serverUrl: string, service: <T extends ServiceType>(service: T) => Client<T>) {
-    const viewerId = cachedViewerId(service);
+  constructor(
+    serverUrl: string,
+    service: <T extends ServiceType>(service: T) => Client<T>,
+    knownViewerId?: string
+  ) {
+    const viewerId = knownViewerId
+      ? async ({ signal }: RequestOptions) => {
+          signal?.throwIfAborted();
+          return knownViewerId;
+        }
+      : cachedViewerId(service);
     super({ service }, viewerId);
     this.serverUrl = serverUrl;
     this.#service = service;
@@ -113,5 +127,5 @@ export function createApi(options: ApiOptions): Api {
       fetch: (input, init) => request(input, { ...init, redirect: 'error' })
     }
   );
-  return new Api(url.origin, (service) => createClient(service, transport));
+  return new Api(url.origin, (service) => createClient(service, transport), options.viewerId);
 }

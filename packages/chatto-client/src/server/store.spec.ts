@@ -695,6 +695,13 @@ afterEach(() => {
 });
 
 describe('ServerStateStore voice call', () => {
+  it('ends the call when the store is disposed', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const dispose = vi.spyOn(store.voiceCall, 'dispose');
+    store.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it('creates the controller with the store, outside later reactive reads', () => {
     const created = vi.fn();
     const previous = voiceCallFactory;

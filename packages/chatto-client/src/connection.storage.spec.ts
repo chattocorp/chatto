@@ -17,7 +17,7 @@ import { createAppClient } from './testing/appClient.js';
 // case: it writes its own servers, but never a fixed token.
 const client = createAppClient();
 const serverRegistry = client.registry;
-const connectChatto = (options: { serverUrl: string; apiKey: string }) => client.connect(options);
+const connect = (options: { serverUrl: string; apiKey: string }) => client.connect(options);
 import { inertRealtimeSocket } from './testing/inertSocket.js';
 
 beforeAll(() => setRealtimeSocketFactoryForTests(inertRealtimeSocket));
@@ -33,7 +33,7 @@ function storedValues(): string {
 }
 
 it('never writes a fixed token to device storage', async () => {
-  const connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'secret-key' });
+  const connection = connect({ serverUrl: 'https://chat.example', apiKey: 'secret-key' });
   await connection.ready();
   serverRegistry.handleAuthenticationRequired(connection.serverId);
   expect(storedValues()).not.toContain('secret-key');
@@ -48,7 +48,7 @@ function storedKeys(): string[] {
 it('leaves no per-server records behind after close', async () => {
   const before = new Set(storedKeys());
   for (let index = 0; index < 3; index++) {
-    const connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    const connection = connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
     await connection.ready();
     connection.close();
   }
@@ -57,7 +57,7 @@ it('leaves no per-server records behind after close', async () => {
 });
 
 it("refuses the page's own origin, which uses its cookie session, in every client", async () => {
-  expect(() => connectChatto({ serverUrl: location.origin, apiKey: 'key' })).toThrow('own origin');
+  expect(() => connect({ serverUrl: location.origin, apiKey: 'key' })).toThrow('own origin');
   const { createClient } = await import('./client.js');
   const memoryClient = createClient();
   expect(() => memoryClient.connect({ serverUrl: location.origin, apiKey: 'key' })).toThrow(

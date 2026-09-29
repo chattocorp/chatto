@@ -735,6 +735,11 @@ export class VoiceCallState implements VoiceCallController {
     }
   }
 
+  /** The store was disposed: leave the call and release its media. */
+  dispose(): void {
+    void this.leave();
+  }
+
   /**
    * Leave the current voice call.
    */

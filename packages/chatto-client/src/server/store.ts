@@ -1557,6 +1557,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.voiceCall.dispose();
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

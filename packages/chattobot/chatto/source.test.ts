@@ -276,13 +276,12 @@ test('existing conversation callbacks keep their server and credentials after re
   const [first, replacement] = chatto.apis;
   expect(first!.options).toEqual({
     serverUrl: 'https://original.example',
-    apiKey: 'original-key'
+    apiKey: 'original-key',
+    viewerId: 'bot'
   });
   expect(first!.calls).toEqual([
     'MessageService/CreateMessage',
     'RoomService/RefreshTypingIndicator',
-    // The thread read learns the viewer once, to mark the bot's own messages.
-    'ViewerService/GetViewer',
     'ThreadService/GetThreadEvents',
     'MessageService/AddReaction'
   ]);

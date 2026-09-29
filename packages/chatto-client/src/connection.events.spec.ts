@@ -253,9 +253,22 @@ describe('run startup', () => {
       mocks.viewer.mockRejectedValueOnce(new TypeError('fetch failed'));
       const chatto = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
       let settled = false;
-      const running = chatto.run(() => {}).finally(() => (settled = true));
+      const statuses: RealtimeStatus[] = [];
+      const running = chatto
+        .run(() => {}, { onStatus: (status) => statuses.push(status) })
+        .finally(() => (settled = true));
       await vi.advanceTimersByTimeAsync(30_000);
       expect(settled).toBe(false);
+      // Startup reports each failed attempt, and never the same plain status twice in a row.
+      expect(statuses[0]).toEqual({ state: 'connecting' });
+      expect(statuses[1]).toMatchObject({
+        state: 'connecting',
+        error: expect.objectContaining({ message: expect.stringContaining('viewer') })
+      });
+      const plain = statuses.map((status) =>
+        status.state !== 'ready' && !status.error ? status.state : JSON.stringify(status)
+      );
+      expect(plain.some((status, index) => index > 0 && status === plain[index - 1])).toBe(false);
       expect(chatto.viewerId).toBe('bot');
       chatto.close();
       await vi.advanceTimersByTimeAsync(0);
@@ -284,6 +297,22 @@ describe('run startup', () => {
 });
 
 describe('run', () => {
+  it('aborts a running handler when the server ends the session', async () => {
+    const { connection: chatto, emit } = await connection();
+    let aborted: Promise<unknown> | undefined;
+    const running = chatto.run((ctx) => {
+      aborted = new Promise((resolve) =>
+        ctx.signal.addEventListener('abort', () => resolve(ctx.signal.reason), { once: true })
+      );
+      return aborted.then(() => undefined);
+    });
+    emit(dmEvent());
+    await vi.waitFor(() => expect(aborted).toBeDefined());
+    client.registry.handleAuthenticationRequired(chatto.serverId);
+    await expect(aborted).resolves.toMatchObject({ message: expect.stringContaining('ended') });
+    await expect(running).rejects.toThrow('ended the session');
+  });
+
   it('answers addressed messages through the context and skips the rest', async () => {
     const { connection: chatto, emit } = await connection();
     const contexts: { key: string; body: string }[] = [];

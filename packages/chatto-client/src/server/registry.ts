@@ -356,7 +356,9 @@ function memoryStorage(): RegistryStorage {
   return {
     readAuthentication: (serverId) => records.get(serverId),
     writeAuthentication: (serverId, authentication) => {
-      records.set(serverId, { ...authentication });
+      // An empty record means that the server has no session; keep nothing.
+      if (Object.values(authentication).every((value) => value === null)) records.delete(serverId);
+      else records.set(serverId, { ...authentication });
       return true;
     },
     writeServers: () => {},
@@ -405,7 +407,9 @@ export class ServerRegistry {
   readonly catalog: ServerCatalog;
   readonly #context: ServerRegistryContext;
   readonly #options: ServerRegistryOptions;
-  readonly #storage: RegistryStorage;
+  #storage: RegistryStorage;
+  /** Set by {@link dispose}; late async work then changes nothing. */
+  #disposed = false;
   readonly sessions: ServerSessions;
   #stores = new ReactiveMap<string, ServerStateStore>();
   #renewalPromises = new Map<string, Promise<string | null>>();
@@ -1012,6 +1016,7 @@ export class ServerRegistry {
       fixedToken?: boolean;
     } = {}
   ): void {
+    if (this.#disposed) return;
     batch(() => {
       const publicRegistration: ServerRegistration = {
         id: registration.id,
@@ -1108,6 +1113,10 @@ export class ServerRegistry {
       this.sessions.clear();
       this.catalog.reset();
     });
+    // Work that is still running, such as an origin probe or a renewal, must
+    // not register servers or write the device storage of a later client.
+    this.#disposed = true;
+    this.#storage = memoryStorage();
   }
 
   #disposeServers(ids: string[]): void {

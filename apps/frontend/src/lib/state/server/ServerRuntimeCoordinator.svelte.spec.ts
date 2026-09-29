@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 const mocks = vi.hoisted(() => ({
   activeServerId: 'remote',
   routeId: '/chat/[serverId]',
+  start: vi.fn(),
   setActiveServer: vi.fn(),
   stop: vi.fn()
 }));
@@ -20,8 +21,9 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('@chatto/client/server/runtime', () => ({
-  startClientRuntime: () => ({ setActiveServer: mocks.setActiveServer, stop: mocks.stop })
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  client: { start: mocks.start, stop: mocks.stop, setActiveServer: mocks.setActiveServer }
 }));
 
 import ServerRuntimeCoordinator from './ServerRuntimeCoordinator.svelte';
@@ -34,6 +36,7 @@ describe('ServerRuntimeCoordinator', () => {
 
   it('keeps the URL-active chat server live and stops the runtime on unmount', () => {
     const { unmount } = render(ServerRuntimeCoordinator);
+    expect(mocks.start).toHaveBeenCalledOnce();
     expect(mocks.setActiveServer).toHaveBeenCalledWith('remote');
     unmount();
     expect(mocks.stop).toHaveBeenCalledOnce();

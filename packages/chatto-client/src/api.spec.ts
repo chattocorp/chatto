@@ -56,3 +56,15 @@ it('keeps a shared viewer read going when one waiting caller cancels', async () 
   await expect(second).resolves.toEqual({ viewerId: 'bot' });
   expect(request).toHaveBeenCalledOnce();
 });
+
+it('uses a known viewer without a request', async () => {
+  const request = vi.fn<typeof fetch>();
+  const api = createApi({
+    serverUrl: 'https://chat.example',
+    apiKey: 'key',
+    viewerId: 'bot',
+    fetch: request
+  });
+  await expect(api.ready()).resolves.toEqual({ viewerId: 'bot' });
+  expect(request).not.toHaveBeenCalled();
+});

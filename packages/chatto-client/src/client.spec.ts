@@ -6,8 +6,18 @@ import type { ConnectAPIConfig } from './api/connect.js';
 import type { CurrentUser } from './api/viewer.js';
 
 const mocks = vi.hoisted(() => ({
-  viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>()
+  viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>(),
+  recoveryFails: false
 }));
+vi.mock('./server/serverRecovery.js', async (original) => {
+  const actual = await original<typeof import('./server/serverRecovery.js')>();
+  return {
+    startServerRecovery: (...args: Parameters<typeof actual.startServerRecovery>) => {
+      if (mocks.recoveryFails) throw new Error('recovery could not start');
+      return actual.startServerRecovery(...args);
+    }
+  };
+});
 vi.mock('./api/server.js', async (original) => ({
   ...(await original<typeof import('./api/server.js')>()),
   getPublicServerInfo: vi.fn(async () => ({ name: 'Chat', version: '0.5.0' }))
@@ -134,6 +144,45 @@ describe('client lifecycle', () => {
         'closed'
       );
       expect(() => bots.start()).toThrow('closed');
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('runs the runtime until every start has ended', () => {
+    vi.useFakeTimers();
+    try {
+      const app = client({ liveServers: 'selected' });
+      app.start();
+      app.start();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      app.stop();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      app.stop();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves nothing behind when a connection cannot start the runtime', async () => {
+    vi.useFakeTimers();
+    try {
+      const bots = client();
+      mocks.recoveryFails = true;
+      try {
+        expect(() => bots.connect({ serverUrl: 'https://chat.example', apiKey: 'key' })).toThrow(
+          'recovery could not start'
+        );
+      } finally {
+        mocks.recoveryFails = false;
+      }
+      expect(bots.registry.servers).toEqual([]);
+      const connection = bots.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      await connection.ready();
+      connection.close();
+      // No connection of the failed attempt keeps the runtime and its timers.
       expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();

@@ -98,6 +98,7 @@ export function fakeChatto(setup: FakeChattoSetup) {
       addressedMessage: requests.addressedMessage.bind(requests),
       async consumeEvents({ signal, onEvent, onStatus }: ConsumeEventsOptions) {
         consumers++;
+        const loop = new AbortController();
         const stop = () => wake?.();
         signal?.addEventListener('abort', stop, { once: true });
         try {
@@ -109,9 +110,10 @@ export function fakeChatto(setup: FakeChattoSetup) {
               wake = undefined;
               continue;
             }
-            await onEvent(event);
+            await onEvent(event, { signal: loop.signal });
           }
         } finally {
+          loop.abort();
           consumers--;
           signal?.removeEventListener('abort', stop);
         }
@@ -153,7 +155,11 @@ export function fakeChatto(setup: FakeChattoSetup) {
         ]
       }
     });
-    return new Api(options.serverUrl, (type) => createServiceClient(type, transport));
+    return new Api(
+      options.serverUrl,
+      (type) => createServiceClient(type, transport),
+      options.viewerId
+    );
   });
   return { createClient, connections, createApi, apis };
 }

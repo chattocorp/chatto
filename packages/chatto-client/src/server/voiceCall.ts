@@ -73,6 +73,11 @@ export interface VoiceCallController {
   handleParticipantTransition(transition: CallParticipantTransition): void;
   /** The realtime projection was reset; forget per-event call state. */
   handleProjectionReset(): void;
+  /**
+   * The store was disposed, for example because its server was removed or its
+   * client closed. Leave the call and release its media.
+   */
+  dispose(): void;
 }
 
 /** What a store gives a voice-call implementation. */
@@ -105,6 +110,7 @@ export class DetachedVoiceCall implements VoiceCallController {
   handleCallEndedEvent(): void {}
   handleParticipantTransition(): void {}
   handleProjectionReset(): void {}
+  dispose(): void {}
 }
 
 /** The default factory: a client without call media. */

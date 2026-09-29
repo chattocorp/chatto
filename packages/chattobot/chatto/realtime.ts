@@ -1,10 +1,4 @@
-import {
-  createApi,
-  createClient,
-  type AddressedMessage,
-  type Api,
-  type Connection
-} from '@chatto/client';
+import { createApi, createClient, type AddressedMessage, type Connection } from '@chatto/client';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
@@ -110,14 +104,7 @@ export const chattoSource: EventSource = async (ctx) => {
   const client = createClient();
   try {
     const chatto = client.connect({ serverUrl, apiKey });
-    await consume(
-      ctx,
-      chatto,
-      createApi({ serverUrl, apiKey }),
-      allowedUserId,
-      settings,
-      serverUrl
-    );
+    await consume(ctx, chatto, apiKey, allowedUserId, settings, serverUrl);
   } finally {
     client.close();
   }
@@ -126,12 +113,13 @@ export const chattoSource: EventSource = async (ctx) => {
 async function consume(
   ctx: Parameters<EventSource>[0],
   chatto: Connection,
-  api: Api,
+  apiKey: string,
   allowedUserId: string | undefined,
   settings: Omit<ReturnType<typeof sourceSettings>, 'serverUrl' | 'apiKey' | 'allowedUserId'>,
   serverUrl: string
 ): Promise<void> {
   const { viewerId: botId } = await chatto.ready({ signal: ctx.signal });
+  const api = createApi({ serverUrl, apiKey, viewerId: botId });
   const identity = JSON.stringify([new URL(serverUrl).origin, botId]);
   let session = ctx.state.get('chatto') as Session | undefined;
   if (!session || session.identity !== identity) {

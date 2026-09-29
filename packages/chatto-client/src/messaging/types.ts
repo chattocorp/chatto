@@ -72,7 +72,14 @@ export interface ThreadReadOptions extends RequestOptions {
 
 /** Realtime status for hosts, without remote messages or connection details. */
 export type RealtimeStatus =
-  | { state: 'connecting' | 'reconnecting' }
+  | {
+      state: 'connecting' | 'reconnecting';
+      /**
+       * Why the last attempt to reach the server failed, for example an
+       * unreachable server. The message contains no remote data.
+       */
+      error?: Error;
+    }
   | {
       state: 'ready';
       /**
