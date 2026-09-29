@@ -632,6 +632,12 @@ export class VoiceCallState implements VoiceCallController {
       }
       if (!this.outputSelectionAvailable) outputDevice = '';
 
+      // A store disposed during the join must not connect or capture media.
+      if (this.#disposed) {
+        this.cleanup();
+        return;
+      }
+
       // Create and connect LiveKit room
       this.room = new Room({
         webAudioMix: playbackContext ? { audioContext: playbackContext } : false,
@@ -735,20 +741,17 @@ export class VoiceCallState implements VoiceCallController {
     }
   }
 
+  /** Set by {@link dispose}: a join in flight then stops before it connects. */
+  #disposed = false;
+
   /**
-   * The store was disposed: release the call's media at once, then record
-   * the leave as best effort. The store and its call UI are gone, so the
-   * media must not wait for the server.
+   * The store was disposed: release the call's media at once, and stop a join
+   * in flight. The store and its call UI are gone, so nothing waits for the
+   * server; it records the leave from LiveKit.
    */
   dispose(): void {
-    const roomId = this.roomId;
-    const room = this.room;
-    if (!room) return;
-    this.suppressDisconnectToast = true;
-    room.disconnect();
-    this.cleanup();
-    this.suppressDisconnectToast = false;
-    if (roomId) void this.recordLeaveIntent(roomId);
+    this.#disposed = true;
+    this.disconnectNow();
   }
 
   /**
@@ -803,6 +806,11 @@ export class VoiceCallState implements VoiceCallController {
   /** Disconnect local media immediately when this viewer loses room access. */
   handleRoomAccessRevoked(roomId: string): void {
     if (this.roomId !== roomId) return;
+    this.disconnectNow();
+  }
+
+  /** Disconnect the room without a toast and release all call state. */
+  private disconnectNow(): void {
     const room = this.room;
     if (room) {
       this.suppressDisconnectToast = true;
@@ -815,14 +823,7 @@ export class VoiceCallState implements VoiceCallController {
   private disconnectFromServerEvent(roomId: string, callId: string | null): void {
     if (this.roomId !== roomId) return;
     if (!callId || this.activeCallId !== callId) return;
-
-    const room = this.room;
-    if (room) {
-      this.suppressDisconnectToast = true;
-      room.disconnect();
-    }
-    this.cleanup();
-    this.suppressDisconnectToast = false;
+    this.disconnectNow();
   }
 
   private async recordLeaveIntent(roomId: string): Promise<void> {

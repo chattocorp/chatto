@@ -121,6 +121,15 @@ describe('consumeEvents', () => {
     await consuming;
   });
 
+  it('resolves at once, without a status, for a signal that already aborted', async () => {
+    const { connection: chatto } = await connection();
+    const onStatus = vi.fn();
+    await expect(
+      chatto.consumeEvents({ signal: AbortSignal.abort(), onStatus, onEvent: () => {} })
+    ).resolves.toBeUndefined();
+    expect(onStatus).not.toHaveBeenCalled();
+  });
+
   it('resolves when the connection closes and reports no reconnect', async () => {
     const { connection: chatto } = await connection();
     const statuses: string[] = [];

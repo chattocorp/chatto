@@ -1557,7 +1557,12 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
-    this.voiceCall.dispose();
+    // A failing voice call must not stop the privacy cleanup below.
+    try {
+      this.voiceCall.dispose();
+    } catch (error) {
+      console.error('Voice call disposal failed', error);
+    }
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

@@ -702,6 +702,18 @@ describe('ServerStateStore voice call', () => {
     expect(dispose).toHaveBeenCalledOnce();
   });
 
+  it('continues its cleanup when the voice call fails to dispose', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    vi.spyOn(store.voiceCall, 'dispose').mockImplementation(() => {
+      throw new Error('media failure');
+    });
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const reset = vi.spyOn(store.currentUser, 'reset');
+    expect(() => store.dispose()).not.toThrow();
+    expect(reset).toHaveBeenCalled();
+    expect(logged).toHaveBeenCalledWith('Voice call disposal failed', expect.any(Error));
+  });
+
   it('creates the controller with the store, outside later reactive reads', () => {
     const created = vi.fn();
     const previous = voiceCallFactory;

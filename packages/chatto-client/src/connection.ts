@@ -361,7 +361,7 @@ export class Connection {
    * the server does not support the realtime protocol.
    */
   async consumeEvents({ signal: stopSignal, onEvent, onStatus }: ConsumeEventsOptions) {
-    stopSignal?.throwIfAborted();
+    if (stopSignal?.aborted) return;
     // Events between two calls were not received: a later call reports a gap.
     const inbox = this.#firstInbox ?? this.#openInbox(true);
     this.#firstInbox = undefined;

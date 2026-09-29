@@ -66,18 +66,20 @@ export function createReplyWorkflow(
     },
     async (r, input) => {
       const { serverUrl, apiKey } = await loadConfig();
-      const api = createApi({ serverUrl, apiKey, fetch: request });
-
       // Confirm the configured credentials belong to the intended bot. Step
       // results keep the JSON shape of earlier versions, so resumed runs can
       // replay journaled results.
       const viewer = await step('Check bot identity', async () => {
-        const { viewerId: id } = await api.ready({ signal: r.signal });
+        const identity = createApi({ serverUrl, apiKey, fetch: request });
+        const { viewerId: id } = await identity.ready({ signal: r.signal });
         return { user: { profile: { id } } };
       });
       if (viewer.user?.profile?.id !== input.bot_id) {
         throw new Error('The webhook bot does not match the API key');
       }
+      // The viewer is known now: requests need no further viewer reads, also
+      // when a resumed run replays the identity check from the journal.
+      const api = createApi({ serverUrl, apiKey, fetch: request, viewerId: input.bot_id });
 
       // Ignore bot authors to prevent automatic reply loops.
       if (input.message.author_id === input.bot_id) {

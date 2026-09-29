@@ -75,7 +75,9 @@ export interface VoiceCallController {
   handleProjectionReset(): void;
   /**
    * The store was disposed, for example because its server was removed or its
-   * client closed. Leave the call and release its media.
+   * client closed. Release the call's media at once and stop a join in
+   * flight. The store logs an error that this method throws and continues its
+   * cleanup.
    */
   dispose(): void;
 }

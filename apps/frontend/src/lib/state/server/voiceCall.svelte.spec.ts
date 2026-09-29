@@ -367,18 +367,43 @@ describe('VoiceCallState', () => {
     vi.unstubAllGlobals();
   });
 
-  it('releases media at once when its store is disposed, before the leave is recorded', async () => {
-    const leave = deferredVoid();
-    const state = new VoiceCallState(
-      createVoiceCallClient({ leaveCall: vi.fn(() => leave.promise.then(() => true)) }),
-      () => ({ start: true, join: true, voice: false, camera: false, screenshare: false })
-    );
+  it('releases media at once when its store is disposed', async () => {
+    const api = createVoiceCallClient();
+    const state = new VoiceCallState(api, () => ({
+      start: true,
+      join: true,
+      voice: false,
+      camera: false,
+      screenshare: false
+    }));
     await state.join('wss://livekit.example.test', 'R1');
     const room = lastRoom!;
     state.dispose();
     expect(room.disconnect).toHaveBeenCalled();
     expect(state.connected).toBe(false);
-    leave.resolve();
+    // The server records the leave from LiveKit; the store is gone.
+    expect(api.leaveCall).not.toHaveBeenCalled();
+  });
+
+  it('stops a join in flight when its store is disposed', async () => {
+    const token = deferredVoid();
+    const state = new VoiceCallState(
+      createVoiceCallClient({
+        createCallToken: vi.fn(async () => {
+          await token.promise;
+          return { token: 'livekit-token', e2eeKey: 'shared-e2ee-key', callId: 'call-1' };
+        })
+      }),
+      () => ({ start: true, join: true, voice: true, camera: false, screenshare: false })
+    );
+    lastRoom = null;
+    const joining = state.join('wss://livekit.example.test', 'R1');
+    await vi.waitFor(() => expect(state.roomId).toBe('R1'));
+    state.dispose();
+    token.resolve();
+    await joining.catch(() => {});
+    expect(lastRoom).toBeNull();
+    expect(state.connected).toBe(false);
   });
 
   it('denies a join when permission data is absent', async () => {
