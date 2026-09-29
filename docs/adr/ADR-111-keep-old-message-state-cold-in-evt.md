@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 
-**Status:** Proposed. Amends [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md), [ADR-089](ADR-089-server-content-view.md), and [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md), and [ADR-110](ADR-110-share-process-local-event-id-interning.md).
+**Status:** Proposed. Amends [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md), [ADR-089](ADR-089-server-content-view.md), [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md), and [ADR-110](ADR-110-share-process-local-event-id-interning.md).
 
 ## Context
 
