@@ -17,6 +17,26 @@ export default defineConfig({
     environment: 'happy-dom',
     environmentOptions: { happyDOM: { url: 'http://localhost:3000/' } },
     setupFiles: ['./src/testing/setup.ts'],
-    testTimeout: 10000
+    testTimeout: 10000,
+    // A floor just under the measured coverage. Raise it when coverage grows;
+    // do not lower it to make a change pass.
+    coverage: {
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.spec.ts',
+        'src/**/*.test.ts',
+        'src/testing/**',
+        'src/types/**',
+        'src/types.ts'
+      ],
+      provider: 'v8',
+      reporter: ['text-summary'],
+      thresholds: {
+        branches: 84,
+        functions: 95,
+        lines: 95,
+        statements: 92
+      }
+    }
   }
 });

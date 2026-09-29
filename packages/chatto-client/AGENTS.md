@@ -71,6 +71,10 @@ examples use it. See
 ## Tests
 
 - Run `mise test-chatto-client` for type checks, lint, and tests.
+- The tests measure coverage. `vitest.config.ts` sets a floor just under the
+  measured values, and the test run fails below it. Add tests for new code.
+  Raise the floor when coverage increases. Do not lower it to make a change
+  pass.
 - Tests use happy-dom by default, with in-memory `Storage` and Web Locks from
   `src/testing/setup.ts`. Add `// @vitest-environment node` for tests of Node
   hosts.

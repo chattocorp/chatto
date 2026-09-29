@@ -40,7 +40,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json --noEmit && node scripts/generate-types.mjs --check",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -64,6 +64,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^22.20.1",
     "@types/semver": "^7.8.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.12.0",
