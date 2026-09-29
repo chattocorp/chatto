@@ -181,7 +181,8 @@ type badgeFollowKey struct {
 // notificationBadgeSources indexes every fact that can give a user Badge
 // attention or decide thread notification recipients, so Badge attention is
 // computed from current state when it is read instead of being stored per
-// recipient. The NotificationDecisionProjection lock guards it.
+// recipient. The NotificationDecisionProjection lock guards it, except for
+// the event ID table, which synchronizes itself because it can be shared.
 type notificationBadgeSources struct {
 	// ids interns user, room, and emoji IDs.
 	ids projectionIDTable
