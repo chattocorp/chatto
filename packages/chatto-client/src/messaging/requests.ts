@@ -138,13 +138,14 @@ export class MessagingRequests {
 
   /**
    * Send one message. An explicit `inReplyTo` takes precedence over the
-   * destination's. Returns the ID of the new message.
+   * destination's. Returns the ID of the new message. Rejects when the
+   * response has no message ID, although the server can have created it.
    */
   async createMessage(
     destination: Destination,
     body: string,
     { signal, inReplyTo }: RequestOptions & { inReplyTo?: string } = {}
-  ): Promise<{ id: string | undefined }> {
+  ): Promise<{ id: string }> {
     const response = await this.#messages.createMessage(
       {
         roomId: destination.roomId,
@@ -154,27 +155,40 @@ export class MessagingRequests {
       },
       callOptions(signal)
     );
-    return { id: response.message?.id };
+    const id = response.message?.id;
+    if (!id) throw new Error('Chatto did not return the ID of the new message');
+    return { id };
   }
 
   /**
    * Send text of any length: it is split at 8000 Unicode code points and the
    * parts are sent in order. A failed part stops delivery; earlier parts can
-   * already have been delivered.
+   * already have been delivered. Returns the IDs of the new messages, in order.
    */
-  async postMessage(destination: Destination, body: string, options: RequestOptions = {}) {
+  async postMessage(
+    destination: Destination,
+    body: string,
+    options: RequestOptions = {}
+  ): Promise<{ ids: string[] }> {
     const characters = Array.from(body);
+    const ids: string[] = [];
     for (let offset = 0; offset < Math.max(1, characters.length); offset += MESSAGE_CHUNK_LENGTH) {
-      await this.createMessage(
+      const { id } = await this.createMessage(
         destination,
         characters.slice(offset, offset + MESSAGE_CHUNK_LENGTH).join(''),
         options
       );
+      ids.push(id);
     }
+    return { ids };
   }
 
   /** Post in the message's thread with a reference to the message; see {@link postMessage}. */
-  reply(message: ChattoMessage, body: string, options: RequestOptions = {}): Promise<void> {
+  reply(
+    message: ChattoMessage,
+    body: string,
+    options: RequestOptions = {}
+  ): Promise<{ ids: string[] }> {
     return this.postMessage(replyDestination(message), body, options);
   }
 

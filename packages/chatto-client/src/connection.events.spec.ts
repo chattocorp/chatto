@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { CreateMessageRequest } from '@chatto/api-types/api/v1/messages_pb';
+import { CreateMessageRequest, CreateMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { ConnectAPIConfig } from './api/connect.js';
 import type { CurrentUser } from './api/viewer.js';
@@ -52,11 +52,13 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init: RequestInit) => {
-      received.push({
-        method: new URL(url).pathname.split('.').pop()!,
-        body: new Uint8Array(init.body as ArrayBuffer)
-      });
-      return new Response(new Uint8Array(), { headers: { 'Content-Type': 'application/proto' } });
+      const method = new URL(url).pathname.split('.').pop()!;
+      received.push({ method, body: new Uint8Array(init.body as ArrayBuffer) });
+      const body =
+        method === 'MessageService/CreateMessage'
+          ? new Uint8Array(new CreateMessageResponse({ message: { id: 'reply' } }).toBinary())
+          : new Uint8Array();
+      return new Response(body, { headers: { 'Content-Type': 'application/proto' } });
     })
   );
   client = createClient();
@@ -329,7 +331,9 @@ describe('run', () => {
       contexts.push({ key: ctx.conversationKey, body: ctx.message.body });
       expect(ctx.viewerId).toBe('bot');
       expect(ctx.connection).toBe(chatto);
-      await ctx.reply(`You said: ${ctx.message.body}`);
+      await expect(ctx.reply(`You said: ${ctx.message.body}`)).resolves.toEqual({
+        ids: ['reply']
+      });
     });
     emit(new RealtimeEvent({ id: 'own', actorId: 'bot', event: dmEvent().event }));
     emit(dmEvent('incoming', 'hello'));

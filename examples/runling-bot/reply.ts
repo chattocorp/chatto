@@ -136,7 +136,7 @@ export function createReplyWorkflow(
       // Each run owns one final-answer or error-notification attempt.
       const sender = createReplySender((text, stepName) =>
         step(stepName, async () => {
-          const result = await api.createMessage(
+          const { id } = await api.createMessage(
             {
               roomId: input.room_id,
               threadRootId: input.thread_root_id ?? input.message.id
@@ -144,10 +144,6 @@ export function createReplyWorkflow(
             text,
             { signal: r.signal, inReplyTo: input.message.id }
           );
-
-          const id = result.id;
-          if (!id) throw new Error('Chatto did not return a reply ID');
-
           return id;
         })
       );

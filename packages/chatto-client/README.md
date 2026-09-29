@@ -120,7 +120,7 @@ still have reached the server.
 | Helper                                            | Does                                                   |
 | ------------------------------------------------- | ------------------------------------------------------ |
 | `getMessage({ roomId, messageId })`               | Reads one message                                      |
-| `createMessage(destination, body, { inReplyTo })` | Sends one message                                      |
+| `createMessage(destination, body, { inReplyTo })` | Sends one message; returns its `id`                    |
 | `postMessage(destination, body)`                  | Sends text of any length, in parts of 8000 code points |
 | `reply(message, body)`                            | Posts in the message's thread with a reference to it   |
 | `readThread(location, { after, limit })`          | Reads a thread; `after` reads only newer messages      |
@@ -129,7 +129,8 @@ still have reached the server.
 | `addReaction({ roomId, messageId }, emoji)`       | Reacts to a message                                    |
 | `addressedMessage(event, { reasons })`            | Recognizes an event as a message to the viewer         |
 
-Every helper takes `{ signal }` as its last argument. Other helpers are
+Every helper takes `{ signal }` as its last argument. `postMessage`, `reply`,
+and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.
 
@@ -183,7 +184,7 @@ starts its runtime, and reports the server that the user looks at. Only that
 server keeps a persistent WebSocket; the others catch up by polling:
 
 ```ts
-import { createClient } from '@chatto/client/client';
+import { createClient } from '@chatto/client';
 
 export const client = createClient({
   storage: 'device', // restore and keep the server catalogue and sessions

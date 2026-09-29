@@ -26,6 +26,7 @@ import {
   MessagingRequests,
   replyDestination,
   type AddressedMessage,
+  type AddressingOptions,
   type AddressingReason
 } from './messaging/requests.js';
 import type {
@@ -106,8 +107,11 @@ export interface MessageContext {
   readonly conversationKey: string;
   /** The connection that received the message. */
   readonly connection: Connection;
-  /** Reply in the message's thread, with a reference to the message. */
-  reply(body: string): Promise<void>;
+  /**
+   * Reply in the message's thread, with a reference to the message. Returns
+   * the IDs of the new messages; see `postMessage`.
+   */
+  reply(body: string): Promise<{ ids: string[] }>;
   /** Read the message's thread; see `readThread`. */
   readThread(options?: Omit<ThreadReadOptions, 'signal'>): Promise<ThreadRead>;
   /** Refresh the typing indicator in the message's thread once. */
@@ -174,7 +178,10 @@ export class Connection {
     this.#firstInbox = this.#openInbox();
   }
 
-  /** The server's reactive state store, as applications with a UI use it. */
+  /**
+   * The server's reactive state store, as applications with a UI use it.
+   * Available only while the connection is open.
+   */
   get store(): ServerStateStore {
     return this.#context.registry.getStore(this.serverId);
   }
@@ -568,10 +575,7 @@ export class Connection {
   }
 
   /** Recognize an event as a message addressed to the viewer; see `run`. */
-  addressedMessage(
-    event: RealtimeEvent,
-    options?: Parameters<MessagingRequests['addressedMessage']>[1]
-  ) {
+  addressedMessage(event: RealtimeEvent, options?: AddressingOptions) {
     return this.#requests.addressedMessage(event, options);
   }
 

@@ -58,7 +58,7 @@ describe('messages', () => {
     );
     const message = (await api.addressedMessage(dmEvent()))!;
     expect(message.reasons).toEqual(['direct_message']);
-    await api.reply(message, 'hi');
+    await expect(api.reply(message, 'hi')).resolves.toEqual({ ids: ['reply'] });
     expect(created[0]).toMatchObject({
       roomId: 'room',
       threadRootEventId: 'root',
@@ -77,11 +77,13 @@ describe('messages', () => {
       router.service(MessageService, {
         createMessage(request) {
           bodies.push(request.body);
-          return {};
+          return { message: { id: `part-${bodies.length}` } };
         }
       })
     );
-    await api.postMessage({ roomId: 'room', threadRootId: 'root' }, '😀'.repeat(8001));
+    await expect(
+      api.postMessage({ roomId: 'room', threadRootId: 'root' }, '😀'.repeat(8001))
+    ).resolves.toEqual({ ids: ['part-1', 'part-2'] });
     expect(bodies.map((body) => Array.from(body).length)).toEqual([8000, 1]);
     await api.postMessage({ roomId: 'room', threadRootId: 'root' }, '');
     expect(bodies).toHaveLength(3);

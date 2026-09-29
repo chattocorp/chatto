@@ -29,7 +29,7 @@ function useServer(viewerId: FakeChattoSetup['viewerId'] = 'bot') {
     routes(router) {
       router.service(MessageService, {
         getMessage: mocks.getMessage,
-        createMessage: () => ({}),
+        createMessage: () => ({ message: { id: 'reply' } }),
         addReaction: () => ({})
       });
       router.service(RoomService, { refreshTypingIndicator: () => ({}) });

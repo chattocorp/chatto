@@ -6,7 +6,7 @@
  * The frontend has exactly one client. Import it, or its parts, from here.
  */
 
-import { createClient } from '@chatto/client/client';
+import { createClient } from '@chatto/client';
 import { voiceCallFactory } from '$lib/state/server/voiceCallRegistration';
 
 export const client = createClient({
