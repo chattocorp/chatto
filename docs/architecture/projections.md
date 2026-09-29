@@ -134,11 +134,12 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
 [ADR-054](../adr/ADR-054-optional-projection-persistence.md),
-[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md), and
-[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md),
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md),
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md),
 [ADR-088](../adr/ADR-088-componentized-projections-behind-one-apply-barrier.md),
-and [ADR-089](../adr/ADR-089-server-content-view.md).
+[ADR-089](../adr/ADR-089-server-content-view.md), and
+[ADR-110](../adr/ADR-110-share-process-local-event-id-interning.md).
 
 The asset-processing runtime unit owns a private, non-snapshotted
 `AssetProjection`. It uses the same canonical and legacy replay subjects as the
@@ -255,7 +256,7 @@ Its schema fingerprint rejects the earlier `v7` payload-bearing schema.
 
 The Room Timeline, Threads, and Reactions components of the Server Content
 View and the Notification Decisions projection intern event IDs in one
-process-wide event ID table. The table holds each event ID once for all of
+process-wide event ID table (ADR-110). The table holds each event ID once for all of
 them. They store `uint32` handles instead of ID strings. The table contains
 no projection state, so projections with independent replay frontiers can
 share it. The table keeps ID bytes in an append-only arena and

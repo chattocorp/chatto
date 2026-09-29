@@ -124,3 +124,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)               | Keep Chat Data Out of Device Storage                             | Accepted             | 2026-09-26 |
 | [ADR-108](ADR-108-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |
 | [ADR-109](ADR-109-compute-badge-attention-from-projections.md)           | Compute Badge Attention from Projections                         | Accepted             | 2026-09-27 |
+| [ADR-110](ADR-110-share-process-local-event-id-interning.md)             | Share Process-Local Event ID Interning Across Projections        | Accepted             | 2026-09-29 |
