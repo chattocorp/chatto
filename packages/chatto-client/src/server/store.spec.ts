@@ -3781,3 +3781,153 @@ describe('ServerStateStore boundary events', () => {
     expect(reset).not.toHaveBeenCalled();
   });
 });
+
+describe('ServerStateStore realtime resource hints', () => {
+  it.each([
+    ['voiceCallParticipantJoined', { roomId: 'R1' }, ['activeCalls']],
+    ['voiceCallParticipantLeft', { roomId: 'R1' }, ['activeCalls']],
+    ['voiceCallStarted', { roomId: 'R1' }, ['activeCalls']],
+    ['voiceCallEnded', { roomId: 'R1' }, ['activeCalls']],
+    ['roomCreated', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomLayoutChanged', {}, ['roomGroups']],
+    ['serverProfileChanged', {}, ['server']],
+    ['serverMotdChanged', {}, ['serverState']],
+    ['viewerPreferencesChanged', {}, ['viewer', 'rooms']]
+  ] as const)('reads the resources that a %s event changes', async (kind, value, families) => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.rooms.members('R1');
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'E1',
+          event: { case: kind, value } as RealtimeEvent['event']
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family).sort()).toEqual(
+      [...families].sort()
+    );
+  });
+
+  it('reloads mention roles when roles change', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    for (const kind of ['roleCreated', 'roleUpdated', 'rolesReordered', 'roleDeleted'] as const) {
+      apiMocks.listRoles.mockClear();
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            event: { case: kind, value: { roleName: 'helpers' } } as RealtimeEvent['event']
+          })
+        })
+      );
+      await flushPromises();
+      expect(apiMocks.listRoles).toHaveBeenCalled();
+    }
+  });
+
+  it('removes a deleted role from every projected user', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(
+      usersResource(
+        [new User({ id: 'U2', login: 'bob' }), new User({ id: 'U3', login: 'carol' })],
+        true
+      )
+    );
+    for (const [userId, roleName] of [
+      ['U2', 'helpers'],
+      ['U3', 'helpers'],
+      ['U3', 'staff']
+    ]) {
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            event: { case: 'roleAssigned', value: { userId, roleName } }
+          })
+        })
+      );
+    }
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          event: { case: 'roleDeleted', value: { roleName: 'helpers' } }
+        })
+      })
+    );
+    expect(store.projection.users.get('U2')?.roles).toEqual([]);
+    expect(store.projection.users.get('U3')?.roles).toEqual(['staff']);
+  });
+
+  it('refreshes a created or changed user profile', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    for (const kind of ['userProfileChanged', 'userAccountCreated'] as const) {
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({ event: { case: kind, value: { userId: 'U9' } } })
+        })
+      );
+    }
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeUsers.mock.calls.flatMap(([ids]) => [...ids])).toContain('U9');
+  });
+
+  it('replaces notification occurrences from a notifications resource', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: {
+            case: 'notifications',
+            value: new ListNotificationOccurrencesResponse({
+              occurrences: [{ id: 'N1', unread: true }],
+              unreadCount: 1
+            })
+          },
+          replace: true
+        })
+      })
+    );
+    expect(store.notifications.occurrences.map((occurrence) => occurrence.id)).toEqual(['N1']);
+  });
+});
+
+describe('ServerStateStore loaded thread state', () => {
+  it('reads follow and unread state from loaded room timelines', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.rooms.messages('R1');
+    await flushPromises();
+    const root = (id: string, following: boolean | null, unread: boolean) =>
+      messages.ingestEvent({
+        id,
+        createdAt: '2026-09-23T00:00:00Z',
+        actorId: 'U2',
+        event: {
+          kind: TimelineEventKind.MessagePosted,
+          roomId: 'R1',
+          body: id,
+          attachments: [],
+          replyCount: 1,
+          threadParticipants: [],
+          reactions: [],
+          viewerIsFollowingThread: following,
+          viewerHasUnreadThread: unread
+        }
+      });
+    root('followed-unread', true, true);
+    root('followed-read', true, false);
+    root('unfollowed', false, true);
+    root('unknown', null, false);
+
+    expect(store.unreadFollowedThreadsInLoadedRooms()).toEqual([
+      { roomId: 'R1', threadRootId: 'followed-unread' }
+    ]);
+    expect(store.loadedThreadFollowState('R1', 'followed-read')).toBe(true);
+    expect(store.loadedThreadFollowState('R1', 'unfollowed')).toBe(false);
+    expect(store.loadedThreadFollowState('R1', 'unknown')).toBeNull();
+    expect(store.loadedThreadFollowState('R1', 'missing')).toBeNull();
+    expect(store.loadedThreadFollowState('R2', 'followed-read')).toBeNull();
+  });
+});

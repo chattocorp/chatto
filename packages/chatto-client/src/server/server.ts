@@ -521,7 +521,7 @@ export class Server extends ServerStateStore {
     return this.#requests.getMessage(message, options);
   }
 
-  /** Send one message; returns the ID of the new message. */
+  /** Send one message; resolves to `{ id }` of the new message. */
   createMessage(
     destination: Destination,
     body: string,

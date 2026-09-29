@@ -402,3 +402,54 @@ describe('run', () => {
     await expect(strict).rejects.toThrow('strict failure');
   });
 });
+
+describe('request helpers', () => {
+  it('send the server and context requests to their services', async () => {
+    const { connection: chatto, emit } = await connection();
+    const destination = { roomId: 'room', threadRootId: 'root' };
+    const methods = () => received.map(({ method }) => method);
+
+    await expect(chatto.createMessage(destination, 'hi')).resolves.toEqual({ id: 'reply' });
+    await expect(chatto.postMessage(destination, 'hi')).resolves.toEqual({ ids: ['reply'] });
+    await chatto.addReaction({ roomId: 'room', messageId: 'm1' }, '👍');
+    await chatto.refreshTyping(destination);
+    await expect(chatto.withTyping(destination, async () => 'done')).resolves.toBe('done');
+    await expect(chatto.getMessage({ roomId: 'room', messageId: 'm1' })).resolves.toBeUndefined();
+    await expect(chatto.readThread(destination)).rejects.toThrow('did not return the thread page');
+    await expect(chatto.addressedMessage(dmEvent('direct'))).resolves.toMatchObject({
+      id: 'direct',
+      body: 'hello'
+    });
+    expect(methods()).toEqual([
+      'MessageService/CreateMessage',
+      'MessageService/CreateMessage',
+      'MessageService/AddReaction',
+      'RoomService/RefreshTypingIndicator',
+      'RoomService/RefreshTypingIndicator',
+      'MessageService/GetMessage',
+      'ThreadService/GetThreadEvents'
+    ]);
+
+    received = [];
+    const handled = new Promise<void>((resolve, reject) => {
+      void chatto
+        .run(async (ctx) => {
+          await ctx.addReaction('👀');
+          await ctx.refreshTyping();
+          await ctx.withTyping(async () => undefined);
+          await expect(ctx.readThread()).rejects.toThrow('did not return the thread page');
+          resolve();
+        })
+        .catch(reject);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    emit(dmEvent('incoming'));
+    await handled;
+    expect(methods()).toEqual([
+      'MessageService/AddReaction',
+      'RoomService/RefreshTypingIndicator',
+      'RoomService/RefreshTypingIndicator',
+      'ThreadService/GetThreadEvents'
+    ]);
+  });
+});
