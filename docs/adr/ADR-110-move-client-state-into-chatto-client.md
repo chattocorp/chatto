@@ -131,9 +131,10 @@ MIT. `REUSE.toml` records the package boundary.
 - In a Svelte app, a read of a reactive collection key outside a client
   computed or effect creates a per-key signal, because the adapter cannot see
   whether Svelte tracks the read. The signal is removed with its key.
-- Each Svelte reaction that reads a client node creates a small Svelte render
-  effect. The rules of ADR-010 still apply: put only renderable data into
-  reactive collections.
+- Each read of a client node in a tracking Svelte reaction creates a small
+  Svelte render effect, also when the reaction reads the same node again. In a
+  loop, read a store value once before the loop. The rules of ADR-010 still
+  apply: put only renderable data into reactive collections.
 - Client code must not use `window`, `document`, or `localStorage` without a
   guard. Node hosts do not have them.
 - The package is not published to npm yet. Its module paths are not a stable

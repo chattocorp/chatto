@@ -22,6 +22,8 @@ Do not generate playground links for code written into this repository.
   [its instructions](../../packages/chatto-client/AGENTS.md) when you change it.
   Import its modules as `@chatto/client/<path>`. Server-scoped state belongs in
   `ServerStateStore` or a related per-server store there (ADR-110).
+  Each client read in a `$derived`, `$effect`, or template creates a small
+  Svelte render effect; read a store value once before a loop.
 - The frontend keeps UI state, Svelte context, routing, translated text,
   toasts, sounds, and the LiveKit voice-call implementation. Client stores keep
   error objects; format them with `errorMessage()` where you show them.

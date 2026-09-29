@@ -26,6 +26,7 @@ import {
 import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
+import { debugLog } from '../util/debugLog.js';
 
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
@@ -284,7 +285,7 @@ class EventBusManager {
 
     const dispatchRealtimeEvent = (event: RealtimeEvent) => {
       dispatchedEventCount++;
-      console.debug(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
+      debugLog(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
         eventId: event.id,
         total: dispatchedEventCount,
         ...debugState()
@@ -307,7 +308,7 @@ class EventBusManager {
       if (mode === 'live') {
         serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
       }
-      console.debug(`[eventBus:${serverId}] opening realtime socket`, {
+      debugLog(`[eventBus:${serverId}] opening realtime socket`, {
         reason,
         url: serverConnection.realtimeUrl,
         ...debugState()
@@ -375,7 +376,7 @@ class EventBusManager {
             if (!socketSubscribed) {
               socketSubscribed = true;
               reconnectAttempts = 0;
-              console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
+              debugLog(`[eventBus:${serverId}] realtime stream subscribed`, {
                 generation: socketGeneration,
                 mode
               });

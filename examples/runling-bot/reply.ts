@@ -70,14 +70,16 @@ export function createReplyWorkflow(
       const { serverUrl, apiKey } = await loadConfig();
       const api = createChattoApi({ serverUrl, apiKey, fetch: request });
 
-      // Confirm the configured credentials belong to the intended bot.
+      // Confirm the configured credentials belong to the intended bot. Step
+      // results keep the JSON shape of earlier versions, so resumed runs can
+      // replay journaled results.
       const viewer = await step('Check bot identity', async () => {
         const response = await api
           .service(ViewerService)
           .getViewer({}, { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS });
-        return { id: response.user?.profile?.id ?? '' };
+        return { user: { profile: { id: response.user?.profile?.id } } };
       });
-      if (viewer.id !== input.bot_id) {
+      if (viewer.user?.profile?.id !== input.bot_id) {
         throw new Error('The webhook bot does not match the API key');
       }
       const client = createBotApi(api, input.bot_id);
@@ -95,13 +97,14 @@ export function createReplyWorkflow(
             { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS }
           );
         const user = response.user?.user;
-        return user ? { bot: Boolean(user.bot) } : null;
+        const bot = user?.bot ? { ownerUserId: user.bot.ownerUserId } : undefined;
+        return { user: user ? { user: { bot } } : undefined };
       });
-      if (!author) {
+      if (!author.user?.user) {
         throw new Error('The message author is unavailable');
       }
 
-      if (author.bot) {
+      if (author.user.user.bot) {
         return { deliveryId: input.id, status: 'skipped' as const };
       }
 

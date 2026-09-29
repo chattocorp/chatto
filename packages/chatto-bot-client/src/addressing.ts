@@ -1,4 +1,5 @@
-import { RoomKind, type RealtimeEvent } from '@chatto/client';
+import type { RealtimeEvent } from '@chatto/client';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import type { ChattoMessage } from './types.js';
 
 export type AddressingReason = 'direct_message' | 'mention' | 'reply';

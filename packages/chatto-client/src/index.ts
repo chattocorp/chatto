@@ -16,5 +16,6 @@ export {
   type ChattoReset,
   type ConnectChattoOptions
 } from './connect.js';
+export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';

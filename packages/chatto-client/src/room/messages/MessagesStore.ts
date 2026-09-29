@@ -32,6 +32,7 @@ import {
   clearOptimisticThreadFollowForEvent,
   type OptimisticThreadFollowHandle
 } from './optimisticThreadFollow.js';
+import { debugLog } from '../../util/debugLog.js';
 
 /** Wait for the next animation frame, or the next task outside a browser. */
 function nextFrame(): Promise<void> {
@@ -943,7 +944,7 @@ export class MessagesStore {
         : source.scope === 'thread'
           ? 'thread-latest'
           : 'latest';
-    console.debug('[room-refresh] store refresh started', {
+    debugLog('[room-refresh] store refresh started', {
       roomId: source.roomId,
       scope: source.scope,
       anchorEventId: anchor,
@@ -972,7 +973,7 @@ export class MessagesStore {
         refreshed: true,
         changed
       };
-      console.debug('[room-refresh] store refresh finished', {
+      debugLog('[room-refresh] store refresh finished', {
         roomId: source.roomId,
         scope: source.scope,
         mode,
@@ -1364,7 +1365,7 @@ export class MessagesStore {
       this.newestCursor = connection.endCursor ?? undefined;
       this.hasReachedStart = !(connection.hasOlder ?? false);
     }
-    console.debug('[room-refresh] snapshot applied', {
+    debugLog('[room-refresh] snapshot applied', {
       fetchedCount: fetched.length,
       preservedExistingCount: nextEvents.length - fetched.length,
       changed,

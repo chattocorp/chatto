@@ -41,6 +41,8 @@ chatto.close();
 - The token is kept only in memory: it is never renewed or written to device
   storage. When the server rejects it, `ready()` rejects and `sessionEnded`
   becomes true. Close the connection then.
+- Debug output is off outside browsers. Call `setDebugLogging(true)` to
+  write it to the console.
 - When the server is unreachable or fails, `ready()` rejects and the
   connection retries in the background with a backoff. Call `ready()` again
   to wait for the next attempt.

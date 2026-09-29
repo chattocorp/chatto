@@ -76,7 +76,9 @@ export interface ChattoConnection {
   readonly closed: boolean;
   /**
    * Create a typed Connect client for a public service, with this
-   * connection's authentication and privacy fences.
+   * connection's authentication. The fixed token always belongs to the same
+   * account, so projection resets do not fail these requests; closing the
+   * connection does.
    */
   service<T extends ServiceType>(service: T): Client<T>;
   /**
@@ -246,7 +248,12 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
       });
     },
     service<T extends ServiceType>(service: T): Client<T> {
-      const config: ConnectAPIConfig = serverConnectionManager.getClient(serverId).apiConfig;
+      const config: ConnectAPIConfig = {
+        ...serverConnectionManager.getClient(serverId).apiConfig,
+        // Fail responses that arrive after close(), not after a privacy
+        // reset: the host, not a shared cache, receives these responses.
+        dataGeneration: () => (closed.peek() ? 1 : 0)
+      };
       return createServiceClient(service, config);
     },
     onEvent(listener) {

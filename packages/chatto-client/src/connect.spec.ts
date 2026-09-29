@@ -247,6 +247,45 @@ describe('connectChatto in Node', () => {
     await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
   });
 
+  it('fails service requests in flight at close, but not at a privacy reset', async () => {
+    const { ViewerService } = await import('@chatto/api-types/api/v1/viewer_connect');
+    const responses: (() => void)[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) =>
+            responses.push(() =>
+              resolve(
+                new Response(new Uint8Array(), {
+                  headers: { 'Content-Type': 'application/proto' }
+                })
+              )
+            )
+          )
+      )
+    );
+    try {
+      connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      await connection.ready();
+      const viewer = connection.service(ViewerService);
+
+      const beforeReset = viewer.getViewer({});
+      await vi.waitFor(() => expect(responses).toHaveLength(1));
+      connection.connection.invalidatePrivateData();
+      responses[0]!();
+      await expect(beforeReset).resolves.toBeDefined();
+
+      const beforeClose = viewer.getViewer({});
+      await vi.waitFor(() => expect(responses).toHaveLength(2));
+      connection.close();
+      responses[1]!();
+      await expect(beforeClose).rejects.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('stops waiting when the caller aborts', async () => {
     mocks.viewer.mockReturnValue(new Promise(() => {}));
     connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });

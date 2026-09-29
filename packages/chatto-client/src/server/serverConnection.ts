@@ -5,6 +5,7 @@ import { browserCookieAuthenticationHeaders } from '../auth/authenticationMode.j
 import type { ConnectAPIConfig } from '../api/connect.js';
 import { serverRegistry } from './registry.js';
 import { disposeUserStore, getUserStore } from './users.js';
+import { debugLog } from '../util/debugLog.js';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
 
@@ -428,7 +429,7 @@ export class ServerConnection {
         if (document.visibilityState === 'visible') {
           const hiddenDuration = Date.now() - this.#lastVisibleAt;
 
-          console.debug(
+          debugLog(
             '[ws:%s] visibility=visible after %ds hidden, status=%s',
             this.#host,
             Math.round(hiddenDuration / 1000),
@@ -463,7 +464,7 @@ export class ServerConnection {
         lastTick = now;
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
         if (gap > 30_000 && this.status !== 'connected') {
-          console.debug(
+          debugLog(
             '[ws:%s] Suspend detector fired (timer gap %ds)',
             this.#host,
             Math.round(gap / 1000)
@@ -475,7 +476,7 @@ export class ServerConnection {
       // Reconnect when network comes back online (e.g., after airplane mode
       // or Wi-Fi re-association following sleep).
       this.#onlineHandler = () => {
-        console.debug('[ws:%s] online event fired', this.#host);
+        debugLog('[ws:%s] online event fired', this.#host);
         this.#maintainBrowserSessionIfDue();
         this.forceReconnect('network came back online');
       };
