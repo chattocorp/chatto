@@ -817,7 +817,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 <!--
   One room notification badge. Important attention uses notification orange.
-  All other unread notifications use the neutral badge next to it.
+  All other unread notifications use the neutral badge before it.
 -->
 {#snippet notificationBadge(
   roomId: string,
@@ -1009,21 +1009,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
           {@const importantCount = room.viewerImportantNotificationCount}
           {@const otherCount = Math.max(0, room.viewerNotificationCount - importantCount)}
+          <!-- The Important count stays at the row edge, where a single badge sits. -->
           <div class="flex items-center gap-1">
-            {#if importantCount > 0}
-              {@render notificationBadge(
-                room.id,
-                isDM,
-                NotificationAttentionLevel.IMPORTANT,
-                importantCount
-              )}
-            {/if}
             {#if otherCount > 0}
               {@render notificationBadge(
                 room.id,
                 isDM,
                 NotificationAttentionLevel.AMBIENT,
                 otherCount
+              )}
+            {/if}
+            {#if importantCount > 0}
+              {@render notificationBadge(
+                room.id,
+                isDM,
+                NotificationAttentionLevel.IMPORTANT,
+                importantCount
               )}
             {/if}
           </div>

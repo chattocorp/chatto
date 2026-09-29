@@ -2270,7 +2270,7 @@ describe('RoomList', () => {
     await expect.element(ambient).toHaveClass('bg-text');
     await expect.element(ambient).toHaveTextContent('3');
     expect(
-      important!.compareDocumentPosition(ambient!) & Node.DOCUMENT_POSITION_FOLLOWING
+      ambient!.compareDocumentPosition(important!) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
