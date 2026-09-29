@@ -379,8 +379,7 @@ export class MessagesStore {
       if (index >= 0) {
         if (eventFingerprint(this.events[index]) !== before.get(id)) return;
         this.clearOptimisticVersionForEvent(id);
-        this.events = this.events.with(index, hydrated);
-        this.sortEvents();
+        this.events = this.source.sort(this.events.with(index, hydrated));
       } else if (insert) this.ingestEvent(hydrated);
       const preview = this.previewEvents.get(id);
       if (preview && eventFingerprint(preview) === previews.get(id))
@@ -641,8 +640,7 @@ export class MessagesStore {
       return;
     }
     this.clearOptimisticVersionForEvent(projected.id);
-    this.events = this.events.with(existingIndex, projected);
-    this.sortEvents();
+    this.events = this.source.sort(this.events.with(existingIndex, projected));
   }
 
   private applyRetainedDeletion(messageEventId: string, deletedAt: string): void {
@@ -1023,8 +1021,7 @@ export class MessagesStore {
           // Replace the temporary row. Ordinary ingestion deduplicates event IDs.
           // A newer local change or resource response takes precedence over this read.
           this.clearOptimisticVersionForEvent(eventId);
-          this.events = this.events.with(currentIndex, hydrated);
-          this.sortEvents();
+          this.events = this.source.sort(this.events.with(currentIndex, hydrated));
         }
       } else this.markAuthorUnavailable(eventId);
       return true;

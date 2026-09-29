@@ -100,8 +100,9 @@ export interface ChattoConnection {
   /**
    * Receive projection resets. The first reset delivers the initial snapshot.
    * `gap` is true when a later reset replaced a stream that the server could
-   * not resume, so events can have been missed. A resync that publishes
-   * several resets before the next connection reports one gap.
+   * not resume after it connected or delivered events, so events can have
+   * been missed. A resync that publishes several resets before the next
+   * connection or event reports one gap.
    */
   onReset(listener: (reset: ChattoReset) => void): () => void;
   /**
@@ -161,6 +162,10 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   // Whether the stream was connected after the previous reset. A resync
   // publishes a reset and then a snapshot before the next connection.
   let connectedSinceReset = false;
+  // Whether events were delivered after the previous reset, for example
+  // catch-up events before the stream failed. A later snapshot can then
+  // skip the events that followed them.
+  let eventsSinceReset = false;
   const closed = signal(false);
   /** Call each listener; one failing listener does not stop the others. */
   const notify = <T>(listeners: Set<(value: T) => void>, value: T) => {
@@ -193,12 +198,18 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         bus.subscribe((update) => {
           if (update.reset) {
             resets++;
-            const reset: ChattoReset = { gap: resets > 1 && connectedSinceReset };
+            const reset: ChattoReset = {
+              gap: resets > 1 && (connectedSinceReset || eventsSinceReset)
+            };
             connectedSinceReset = false;
+            eventsSinceReset = false;
             notify(resetListeners, reset);
           }
           const event = update.event;
-          if (event) notify(eventListeners, event);
+          if (event) {
+            eventsSinceReset = true;
+            notify(eventListeners, event);
+          }
         })
       );
     });

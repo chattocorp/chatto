@@ -147,6 +147,12 @@ describe('connectChatto in Node', () => {
     reset(); // a snapshot that replaced a stream that could not resume
 
     expect(gaps).toEqual([false, true, false, true]);
+
+    // A snapshot whose catch-up events were delivered before the stream
+    // failed, replaced before the stream connected.
+    bus.publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id: 'catch-up' }) }));
+    reset();
+    expect(gaps.at(-1)).toBe(true);
   });
 
   it('keeps delivering an event to later listeners when one listener throws', async () => {
