@@ -6,8 +6,6 @@ import (
 	"sort"
 
 	"google.golang.org/protobuf/proto"
-
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 var contentKeySnapshotContractID = snapshotContractID("v1", &projectionv1.ContentKeyProjectionSnapshot{})
@@ -21,23 +19,23 @@ func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 	defer p.RUnlock()
 	snapshot := &projectionv1.ContentKeyProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
-	for _, userID := range sortedMapKeys(p.byUserPurposeEpoch) {
-		purposes := make([]int, 0, len(p.byUserPurposeEpoch[userID]))
-		for purpose := range p.byUserPurposeEpoch[userID] {
-			purposes = append(purposes, int(purpose))
+	ids := make([]contentKeyID, 0, len(p.keys))
+	for id := range p.keys {
+		ids = append(ids, id)
+	}
+	// Keys are ordered by user ID, purpose, and epoch.
+	sort.Slice(ids, func(i, j int) bool {
+		a, b := ids[i], ids[j]
+		if a.user != b.user {
+			return p.users.id(a.user) < p.users.id(b.user)
 		}
-		sort.Ints(purposes)
-		for _, rawPurpose := range purposes {
-			purpose := evtv1.UserDEKPurpose(rawPurpose)
-			epochs := make([]int, 0, len(p.byUserPurposeEpoch[userID][purpose]))
-			for epoch := range p.byUserPurposeEpoch[userID][purpose] {
-				epochs = append(epochs, int(epoch))
-			}
-			sort.Ints(epochs)
-			for _, epoch := range epochs {
-				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.byUserPurposeEpoch[userID][purpose][int32(epoch)]).(*evtv1.UserDEKGeneratedEvent))
-			}
+		if a.purpose != b.purpose {
+			return a.purpose < b.purpose
 		}
+		return a.epoch < b.epoch
+	})
+	for _, id := range ids {
+		snapshot.Keys = append(snapshot.Keys, p.keys[id].event(p.users.id(id.user), id))
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -77,7 +75,7 @@ func (p *ContentKeyProjection) Restore(data []byte) error {
 		restored.applyDEKGeneratedLocked(key)
 	}
 	p.Lock()
-	p.byUserPurposeEpoch, p.activeEpoch, p.shreddedUsers, p.replayGuard = restored.byUserPurposeEpoch, restored.activeEpoch, restored.shreddedUsers, restored.replayGuard
+	p.users, p.keys, p.activeEpoch, p.algorithms, p.shreddedUsers, p.replayGuard = restored.users, restored.keys, restored.activeEpoch, restored.algorithms, restored.shreddedUsers, restored.replayGuard
 	p.Unlock()
 	return nil
 }

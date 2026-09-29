@@ -278,7 +278,8 @@ private table of the index.
 The Room Timeline component shares room and user IDs between compact event
 rows. Each row keeps a small event-kind value and its creation time in Unix
 nanoseconds. Rows contain no Go pointers. Each row stores event ID handles for
-its event, thread root, containing thread, and echo source. A handle can name
+its event, thread root, and echo source, and a flag marks thread replies. A
+reply's containing thread is its thread root. A handle can name
 an event that has not arrived or that is outside the timeline. A dense slice
 indexed by event ID handle locates the row of an event, and the row locates
 the message's current body state in a dense array. Body authors use the
@@ -296,6 +297,11 @@ display preview. Follow state, thread followers, and followed threads use
 handle keys and keep follows in follow order. Room deletion removes the room's
 message references and relationships. The message IDs of that room stay in
 the shared event ID table.
+
+Content Keys keeps each DEK epoch in one flat map keyed by user handle,
+purpose, and epoch, with only the key references, the interned wrapping
+algorithm, and the wrapping metadata. Reads return a new
+`UserDEKGeneratedEvent`.
 
 Reactions interns emoji, user, and room IDs in one table and message IDs in
 the shared event ID table. It keeps the source event ID of each active
@@ -322,7 +328,8 @@ revision OCC for publication.
 
 Room Timeline retains one body-state entry per message. It stores the current
 body-event ID and EVT sequence, the author ID, the current attachment count,
-and an active flag. The body-event ID is in an append-only arena of the
+and an active flag. The active flag and the attachment count share one
+32-bit field. The body-event ID is in an append-only arena of the
 component, so the entry contains no Go pointers. A sequence slice is allocated only after an edit. Its
 component codec preserves the complete body-event sequence history. Complete
 encrypted body payloads remain in EVT and are not part of the snapshot cohort.

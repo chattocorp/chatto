@@ -116,17 +116,18 @@ type timelineRow struct {
 	// createdAt is the event's Unix time in nanoseconds; zero means that the
 	// event has no creation time.
 	createdAt int64
-	// event, threadRoot, inThread, and echoOf are eventIDs handles; zero
-	// means no reference. A reference can name an event that has no row.
+	// event, threadRoot, and echoOf are eventIDs handles; zero means no
+	// reference. A reference can name an event that has no row.
 	event      uint32
 	threadRoot uint32
-	inThread   uint32
 	echoOf     uint32
 	room       uint32
 	actor      uint32
 	author     uint32
 	bodyIndex  uint32 // one-based index into bodyStates; zero for non-posts
 	kind       timelineEventKind
+	// reply marks a thread reply. Its in-thread reference is threadRoot.
+	reply bool
 
 	historicalImport bool
 }
@@ -273,10 +274,24 @@ type TimelineBodyReference struct {
 type timelineBodyState struct {
 	currentSequence uint64
 	currentEventID  idLocation
-	attachmentCount uint32
 	author          uint32 // index into the shared user table
-	active          bool
+	// flags holds the active flag in its top bit and the current attachment
+	// count in the other bits.
+	flags uint32
 }
+
+const (
+	timelineBodyActive = 1 << 31
+	// timelineBodyMaxAttachments is the largest attachment count that flags
+	// can hold.
+	timelineBodyMaxAttachments = timelineBodyActive - 1
+)
+
+// active reports whether the body is the message's current visible content.
+func (s timelineBodyState) active() bool { return s.flags&timelineBodyActive != 0 }
+
+// attachmentCount returns the current attachment count.
+func (s timelineBodyState) attachmentCount() uint32 { return s.flags & timelineBodyMaxAttachments }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
 	idx := len(p.entries)
@@ -302,7 +317,7 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 			rootID = eventID
 		}
 		entry.threadRoot = p.eventIDs.intern(rootID)
-		entry.inThread = p.eventIDs.intern(inThreadID)
+		entry.reply = inThreadID != ""
 		entry.echoOf = p.eventIDs.intern(posted.GetEchoOfEventId())
 	}
 	p.entries = append(p.entries, entry)
@@ -377,7 +392,7 @@ func (p *RoomTimelineProjection) appendRestoredEntryLocked(entry TimelineEntry) 
 	row := timelineRow{
 		streamSeq: entry.StreamSeq, event: p.eventIDs.intern(entry.EventID), createdAt: timelineUnixNanos(entry.CreatedAt),
 		threadRoot: p.eventIDs.intern(entry.ThreadRootEventID),
-		inThread:   p.eventIDs.intern(entry.InThreadEventID),
+		reply:      entry.InThreadEventID != "",
 		echoOf:     p.eventIDs.intern(entry.EchoOfEventID),
 		room:       p.internRoomLocked(entry.RoomID),
 		actor:      p.internUserLocked(entry.ActorID), author: p.internUserLocked(entry.MessageAuthorID),
@@ -449,12 +464,16 @@ func (p *RoomTimelineProjection) entryAtLocked(idx int) *TimelineEntry {
 		return nil
 	}
 	row := &p.entries[idx]
+	var inThread uint32
+	if row.reply {
+		inThread = row.threadRoot
+	}
 	return &TimelineEntry{
 		StreamSeq: row.streamSeq, EventID: p.eventIDs.id(row.event), RoomID: p.rooms[row.room],
 		ActorID: p.users[row.actor], MessageAuthorID: p.users[row.author],
 		CreatedAt: timelineTime(row.createdAt), EventType: row.kind.eventType(),
 		ThreadRootEventID: p.eventIDs.id(row.threadRoot),
-		InThreadEventID:   p.eventIDs.id(row.inThread),
+		InThreadEventID:   p.eventIDs.id(inThread),
 		EchoOfEventID:     p.eventIDs.id(row.echoOf),
 		HistoricalImport:  row.historicalImport,
 	}
@@ -636,7 +655,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
-		if state, ok := p.bodyStateLocked(targetID); ok && state.active {
+		if state, ok := p.bodyStateLocked(targetID); ok && state.active() {
 			p.refreshAttachmentMessageLocked(roomID, targetID)
 		}
 		// Track timeline placements so content and attachment reads can
@@ -801,8 +820,7 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID, bodyEventID, auth
 	state.currentSequence = sequence
 	state.currentEventID = p.bodyEventIDs.add(bodyEventID)
 	state.author = p.internUserLocked(authorID)
-	state.attachmentCount = uint32(attachmentCount)
-	state.active = true
+	state.flags = timelineBodyActive | uint32(min(max(attachmentCount, 0), timelineBodyMaxAttachments))
 	p.putBodyStateLocked(eventID, state)
 }
 
@@ -811,8 +829,7 @@ func (p *RoomTimelineProjection) clearCurrentBodyLocked(eventID string) {
 	if !exists {
 		return
 	}
-	state.active = false
-	state.attachmentCount = 0
+	state.flags = 0
 	p.putBodyStateLocked(eventID, state)
 }
 
@@ -1016,10 +1033,10 @@ func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (Time
 	if _, retracted := p.retractedFlags[entry.EventID]; retracted {
 		return TimelineBodyReference{}, true, true
 	}
-	if state, has := p.bodyStateLocked(entry.EventID); has && state.active {
+	if state, has := p.bodyStateLocked(entry.EventID); has && state.active() {
 		return TimelineBodyReference{
 			MessageEventID: entry.EventID, BodyEventID: p.bodyEventIDs.string(state.currentEventID), RoomID: entry.RoomID,
-			AuthorID: p.users[state.author], StreamSeq: state.currentSequence, AttachmentCount: int(state.attachmentCount),
+			AuthorID: p.users[state.author], StreamSeq: state.currentSequence, AttachmentCount: int(state.attachmentCount()),
 		}, false, true
 	}
 	return TimelineBodyReference{}, false, true
