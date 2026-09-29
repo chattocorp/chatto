@@ -2,6 +2,7 @@
   import { onDestroy, tick, untrack } from 'svelte';
   import {
     clearTimelineViewport,
+    isLoadingOlder,
     loadOlder,
     recoveryViewport,
     setTimelineViewport
@@ -127,7 +128,8 @@
   const scrollState = composerContext.scrollState;
   const jumpState = composerContext.jumpState;
   const isLoading = $derived(messageStore.isInitialLoading);
-  const isLoadingMore = $derived(messageStore.isLoadingMore);
+  // Stays true one frame after a page, so virtua's `shift` keeps the position.
+  const isLoadingMore = $derived(isLoadingOlder(messageStore));
   const hasReachedStart = $derived(messageStore.hasReachedStart);
   const isJumpedMode = $derived(jumpState.isJumpedMode);
   const isLoadingNewer = $derived(jumpState.isLoadingNewer);

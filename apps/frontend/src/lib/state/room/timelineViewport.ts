@@ -6,6 +6,7 @@
  * stays here, next to the store, and returns with the store's recovery anchor.
  */
 
+import { ReactiveSet } from '@chatto/client/reactivity';
 import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
 
 /** The anchor event and its offset from the top of the viewport. */
@@ -46,14 +47,27 @@ function nextFrame(): Promise<void> {
   });
 }
 
-const settling = new WeakSet<MessagesStore>();
+/** Stores whose older page loaded and whose list settles for one frame. Reactive. */
+const settling = new ReactiveSet<MessagesStore>();
+
+/**
+ * Whether the view loads an older page of `store`: while the store reads it,
+ * and one frame after, while the virtualized list settles. A virtualized list
+ * keeps its scroll position across prepended rows while this is true.
+ * Reactive.
+ */
+export function isLoadingOlder(store: MessagesStore): boolean {
+  return store.isLoadingMore || settling.has(store);
+}
 
 /**
  * Load the next older page, then wait one frame so a virtualized list can
- * settle before the next page.
+ * settle before the next page. {@link isLoadingOlder} stays true until then.
  */
 export async function loadOlder(store: MessagesStore): Promise<void> {
-  if (settling.has(store)) return;
+  if (settling.has(store) || store.isLoadingMore) return;
+  // Mark before the read, so the flag stays true from the first prepended
+  // row until the list settled.
   settling.add(store);
   try {
     await store.loadMore();

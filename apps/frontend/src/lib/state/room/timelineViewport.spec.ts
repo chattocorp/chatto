@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MessagesStore, TimelineAnchor } from '@chatto/client/room/messages/MessagesStore';
 import {
   clearTimelineViewport,
+  isLoadingOlder,
   loadOlder,
   recoveryViewport,
   setTimelineViewport
@@ -26,6 +27,7 @@ function fakeStore() {
     get recoveryAnchor() {
       return state.recovery;
     },
+    isLoadingMore: false,
     loadMore: vi.fn(async () => {})
   };
   return { store: store as unknown as MessagesStore, state, loadMore: store.loadMore };
@@ -51,5 +53,20 @@ describe('timeline viewport', () => {
     expect(loadMore).toHaveBeenCalledOnce();
     await loadOlder(store);
     expect(loadMore).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports loading until the list settled one frame after the page', async () => {
+    const { store, loadMore } = fakeStore();
+    let finish!: () => void;
+    loadMore.mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+    const loading = loadOlder(store);
+    expect(isLoadingOlder(store)).toBe(true);
+    finish();
+    // The page arrived; the list still settles, so the flag stays true.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isLoadingOlder(store)).toBe(true);
+    await loading;
+    expect(isLoadingOlder(store)).toBe(false);
   });
 });
