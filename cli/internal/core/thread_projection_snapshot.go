@@ -44,42 +44,41 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		snapshot.Threads = append(snapshot.Threads, thread)
 	}
 
-	for _, handle := range sortedHandleKeys(p.eventIDs, p.replies) {
-		reply := p.replies[handle]
-		row := &projectionv1.ThreadReplySnapshot{
-			EventId:           p.eventIDs.id(handle),
-			ThreadRootEventId: p.eventIDs.id(reply.root),
-			ActorId:           p.principalIDs.id(reply.actor),
-			Retracted:         reply.retracted,
+	// Replies are ordered by reply ID, independent of their threads.
+	for root, entries := range p.byThread {
+		for _, entry := range entries {
+			row := &projectionv1.ThreadReplySnapshot{
+				EventId:           p.eventIDs.id(entry.event),
+				ThreadRootEventId: p.eventIDs.id(root),
+				ActorId:           p.principalIDs.id(entry.actor),
+				Retracted:         entry.retracted,
+			}
+			if entry.hasCreatedAt {
+				row.CreatedAt = timestamppb.New(entry.createdAtTime())
+			}
+			snapshot.Replies = append(snapshot.Replies, row)
 		}
-		if reply.hasCreatedAt {
-			row.CreatedAt = timestamppb.New(reply.createdAtTime())
-		}
-		snapshot.Replies = append(snapshot.Replies, row)
 	}
+	sort.Slice(snapshot.Replies, func(i, j int) bool { return snapshot.Replies[i].GetEventId() < snapshot.Replies[j].GetEventId() })
 
-	followKeys := make([]threadFollowStateKey, 0, len(p.followState))
-	for key := range p.followState {
-		followKeys = append(followKeys, key)
-	}
-	sort.Slice(followKeys, func(i, j int) bool {
-		a, b := followKeys[i], followKeys[j]
-		if a.userID != b.userID {
-			return a.userID < b.userID
-		}
-		if a.roomID != b.roomID {
-			return a.roomID < b.roomID
-		}
-		return a.threadRootEventID < b.threadRootEventID
-	})
-	for _, key := range followKeys {
+	for key, state := range p.followState {
 		snapshot.Follows = append(snapshot.Follows, &projectionv1.ThreadFollowSnapshot{
-			UserId:            key.userID,
-			RoomId:            key.roomID,
-			ThreadRootEventId: key.threadRootEventID,
-			State:             string(p.followState[key].public()),
+			UserId:            p.principalIDs.id(key.user),
+			RoomId:            p.principalIDs.id(key.room),
+			ThreadRootEventId: p.eventIDs.id(key.root),
+			State:             string(state.public()),
 		})
 	}
+	sort.Slice(snapshot.Follows, func(i, j int) bool {
+		a, b := snapshot.Follows[i], snapshot.Follows[j]
+		if a.GetUserId() != b.GetUserId() {
+			return a.GetUserId() < b.GetUserId()
+		}
+		if a.GetRoomId() != b.GetRoomId() {
+			return a.GetRoomId() < b.GetRoomId()
+		}
+		return a.GetThreadRootEventId() < b.GetThreadRootEventId()
+	})
 
 	type messageRow struct {
 		eventID string
@@ -132,25 +131,25 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 
 	previous := struct {
 		byThread        map[uint32][]threadEntry
-		replies         map[uint32]threadReply
+		replyRoots      map[uint32]uint32
 		channelRooms    map[string]struct{}
 		dmRooms         map[string]map[string]struct{}
 		principalIDs    projectionIDTable
 		messageRefs     handleSlice[threadMessageRef]
 		interactions    map[threadInteractionKey]uint32
 		summaryByThread map[uint32]*threadSummary
-		followState     map[threadFollowStateKey]compactThreadFollowState
-		followers       map[threadFollowRef]map[string]struct{}
-		followedByUser  map[string]map[threadFollowRef]struct{}
+		followState     map[threadFollowKey]compactThreadFollowState
+		followers       map[threadFollowTarget][]uint32
+		followedByUser  map[uint32][]threadFollowTarget
 		replayGuard     projectionReplayGuard
 		shreddedUsers   map[string]struct{}
-	}{p.byThread, p.replies, p.channelRooms, p.dmRooms, p.principalIDs, p.messageRefs, p.interactions, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
+	}{p.byThread, p.replyRoots, p.channelRooms, p.dmRooms, p.principalIDs, p.messageRefs, p.interactions, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
 	defer func() {
 		if err == nil {
 			return
 		}
 		p.byThread = previous.byThread
-		p.replies = previous.replies
+		p.replyRoots = previous.replyRoots
 		p.channelRooms = previous.channelRooms
 		p.dmRooms = previous.dmRooms
 		p.principalIDs = previous.principalIDs
@@ -240,6 +239,22 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		p.byThread[root] = entries
 	}
 
+	// Each timeline entry needs exactly one reply row with the same root. The
+	// row supplies the entry's author, time, and visibility.
+	type entryLocation struct {
+		root  uint32
+		index int
+	}
+	locations := make(map[uint32]entryLocation)
+	for root, entries := range p.byThread {
+		for i, entry := range entries {
+			if _, duplicate := locations[entry.event]; duplicate {
+				return fmt.Errorf("Thread projection snapshot repeats timeline entry %q", p.eventIDs.id(entry.event))
+			}
+			locations[entry.event] = entryLocation{root: root, index: i}
+		}
+		p.summaryByThread[root] = &threadSummary{}
+	}
 	for _, row := range snapshot.GetReplies() {
 		replyID := row.GetEventId()
 		rootID := row.GetThreadRootEventId()
@@ -247,35 +262,34 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 			return fmt.Errorf("Thread projection snapshot has invalid reply mapping")
 		}
 		handle := p.eventIDs.intern(replyID)
-		if _, exists := p.replies[handle]; exists {
+		if _, exists := p.replyRoots[handle]; exists {
 			return fmt.Errorf("Thread projection snapshot repeats reply %q", replyID)
 		}
-		reply := threadReply{root: p.eventIDs.intern(rootID), actor: p.principalIDs.intern(row.GetActorId()), retracted: row.GetRetracted()}
+		location, ok := locations[handle]
+		if !ok {
+			return fmt.Errorf("Thread projection snapshot contains replies outside thread timelines")
+		}
+		if location.root != p.eventIDs.intern(rootID) {
+			return fmt.Errorf("Thread projection snapshot entry %q has no matching reply", replyID)
+		}
+		entry := &p.byThread[location.root][location.index]
+		entry.actor = p.principalIDs.intern(row.GetActorId())
+		entry.retracted = row.GetRetracted()
 		if row.GetCreatedAt() != nil {
 			if err := row.GetCreatedAt().CheckValid(); err != nil {
 				return fmt.Errorf("Thread projection snapshot reply %q timestamp: %w", replyID, err)
 			}
-			reply.createdAt = row.GetCreatedAt().AsTime().UnixNano()
-			reply.hasCreatedAt = true
+			entry.createdAt = row.GetCreatedAt().AsTime().UnixNano()
+			entry.hasCreatedAt = true
 		}
-		p.replies[handle] = reply
+		p.replyRoots[handle] = location.root
 	}
-
-	seenEntries := make(map[uint32]struct{}, len(p.replies))
-	for root, entries := range p.byThread {
-		for _, entry := range entries {
-			if _, duplicate := seenEntries[entry.event]; duplicate {
-				return fmt.Errorf("Thread projection snapshot repeats timeline entry %q", p.eventIDs.id(entry.event))
-			}
-			seenEntries[entry.event] = struct{}{}
-			if reply, ok := p.replies[entry.event]; !ok || reply.root != root {
-				return fmt.Errorf("Thread projection snapshot entry %q has no matching reply", p.eventIDs.id(entry.event))
+	if len(p.replyRoots) != len(locations) {
+		for handle := range locations {
+			if _, ok := p.replyRoots[handle]; !ok {
+				return fmt.Errorf("Thread projection snapshot entry %q has no matching reply", p.eventIDs.id(handle))
 			}
 		}
-		p.summaryByThread[root] = newThreadSummary()
-	}
-	if len(seenEntries) != len(p.replies) {
-		return fmt.Errorf("Thread projection snapshot contains replies outside thread timelines")
 	}
 
 	for _, userID := range snapshot.GetShreddedUserIds() {
@@ -296,14 +310,17 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if state != ThreadFollowStateFollowing && state != ThreadFollowStateUnfollowed {
 			return fmt.Errorf("Thread projection snapshot has invalid follow state %q", state)
 		}
-		key := threadFollowStateKey{userID: follow.GetUserId(), threadFollowRef: threadFollowRef{roomID: follow.GetRoomId(), threadRootEventID: follow.GetThreadRootEventId()}}
+		if follow.GetUserId() == "" || follow.GetRoomId() == "" || follow.GetThreadRootEventId() == "" {
+			return fmt.Errorf("Thread projection snapshot has incomplete follow identity")
+		}
+		key := threadFollowKey{
+			user:               p.principalIDs.intern(follow.GetUserId()),
+			threadFollowTarget: threadFollowTarget{room: p.principalIDs.intern(follow.GetRoomId()), root: p.eventIDs.intern(follow.GetThreadRootEventId())},
+		}
 		if _, duplicate := p.followState[key]; duplicate {
 			return fmt.Errorf("Thread projection snapshot repeats follow state")
 		}
 		p.setThreadFollowStateLocked(follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), state)
-		if _, stored := p.followState[key]; !stored {
-			return fmt.Errorf("Thread projection snapshot has incomplete follow identity")
-		}
 	}
 
 	for _, row := range snapshot.GetInteractions() {
@@ -361,7 +378,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 
 func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.byThread = make(map[uint32][]threadEntry)
-	p.replies = make(map[uint32]threadReply)
+	p.replyRoots = make(map[uint32]uint32)
 	p.channelRooms = make(map[string]struct{})
 	p.dmRooms = make(map[string]map[string]struct{})
 	p.principalIDs = newProjectionIDTable()
@@ -370,9 +387,9 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.messageRefs = nil
 	p.interactions = make(map[threadInteractionKey]uint32)
 	p.summaryByThread = make(map[uint32]*threadSummary)
-	p.followState = make(map[threadFollowStateKey]compactThreadFollowState)
-	p.followers = make(map[threadFollowRef]map[string]struct{})
-	p.followedByUser = make(map[string]map[threadFollowRef]struct{})
+	p.followState = make(map[threadFollowKey]compactThreadFollowState)
+	p.followers = make(map[threadFollowTarget][]uint32)
+	p.followedByUser = make(map[uint32][]threadFollowTarget)
 	p.replayGuard = newProjectionReplayGuard()
 	p.shreddedUsers = make(map[string]struct{})
 }

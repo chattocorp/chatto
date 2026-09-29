@@ -487,47 +487,37 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 	defer p.RUnlock()
 	var entries, rawBytes, replies int64
 	for _, threadEntries := range p.byThread {
-		rawBytes += projectionCompactMapEntryOverhead + 4 + projectionSliceEntryOverhead
+		rawBytes += projectionCompactMapEntryOverhead + 4 + projectionSliceEntryOverhead + int64(cap(threadEntries))*int64(unsafe.Sizeof(threadEntry{}))
 		for _, entry := range threadEntries {
 			entries++
-			rawBytes += int64(unsafe.Sizeof(entry))
 			if entry.event != 0 {
 				replies++
 			}
 		}
 	}
-	replyBytes := int64(len(p.replies)) * (projectionCompactMapEntryOverhead + 4 + int64(unsafe.Sizeof(threadReply{})))
+	replyBytes := int64(len(p.replyRoots)) * (projectionCompactMapEntryOverhead + 8)
 	var threadSummaryBytes, summaryParticipants int64
 	for _, summary := range p.summaryByThread {
-		threadSummaryBytes += projectionCompactMapEntryOverhead + 4 + int64(unsafe.Sizeof(threadSummary{}))
+		threadSummaryBytes += projectionCompactMapEntryOverhead + 12 + int64(unsafe.Sizeof(threadSummary{}))
 		if summary == nil {
 			continue
 		}
 		summaryParticipants += int64(len(summary.participants))
-		threadSummaryBytes += int64(len(summary.participants))*4 + int64(len(summary.participantCounts))*(projectionCompactMapEntryOverhead+12)
+		threadSummaryBytes += int64(cap(summary.participants)) * int64(unsafe.Sizeof(threadParticipant{}))
 	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	appliedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
-	var followStateBytes int64
-	for key, state := range p.followState {
-		followStateBytes += projectionMapEntryOverhead + int64(unsafe.Sizeof(key)+unsafe.Sizeof(state))
-	}
+	followStateBytes := int64(len(p.followState)) * (projectionCompactMapEntryOverhead + int64(unsafe.Sizeof(threadFollowKey{})) + 1)
 	var followerBytes, followerRefs int64
-	for key, followers := range p.followers {
-		followerBytes += projectionMapEntryOverhead + int64(unsafe.Sizeof(key))
-		for userID := range followers {
-			followerRefs++
-			followerBytes += projectionMapEntryOverhead + int64(len(userID))
-		}
+	for _, followers := range p.followers {
+		followerRefs += int64(len(followers))
+		followerBytes += projectionCompactMapEntryOverhead + int64(unsafe.Sizeof(threadFollowTarget{})) + projectionSliceEntryOverhead + int64(cap(followers))*4
 	}
 	var followedByUserBytes, followedRefs int64
-	for userID, followed := range p.followedByUser {
-		followedByUserBytes += projectionMapEntryOverhead + int64(len(userID))
-		for key := range followed {
-			followedRefs++
-			followedByUserBytes += projectionMapEntryOverhead + int64(unsafe.Sizeof(key))
-		}
+	for _, followed := range p.followedByUser {
+		followedRefs += int64(len(followed))
+		followedByUserBytes += projectionCompactMapEntryOverhead + 4 + projectionSliceEntryOverhead + int64(cap(followed))*int64(unsafe.Sizeof(threadFollowTarget{}))
 	}
 	channelRoomBytes := estimateStringSetBytes(p.channelRooms)
 	idTableBytes := p.principalIDs.estimatedBytes()
@@ -549,7 +539,7 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 		{Name: "threads", Value: int64(len(p.byThread)), Bytes: 0},
 		{Name: "thread_entries", Value: entries, Bytes: rawBytes},
 		{Name: "replies", Value: replies, Bytes: 0},
-		{Name: "reply_summaries", Value: int64(len(p.replies)), Bytes: replyBytes},
+		{Name: "reply_summaries", Value: int64(len(p.replyRoots)), Bytes: replyBytes},
 		{Name: "thread_summary_participants", Value: summaryParticipants, Bytes: threadSummaryBytes},
 		{Name: "follow_states", Value: int64(len(p.followState)), Bytes: followStateBytes},
 		{Name: "follower_refs", Value: followerRefs, Bytes: followerBytes},

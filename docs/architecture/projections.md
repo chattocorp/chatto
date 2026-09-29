@@ -284,11 +284,15 @@ the message's current body state in a dense array. Body authors use the
 shared user table. Only messages with multiple body events retain a separate
 index of superseded body sequences. A small map holds body facts and body
 history that arrive before their message post. The projection moves these
-values into the dense and sparse indexes when the post arrives. The Threads
-component uses structured keys for follow state and followed-thread indexes.
+values into the dense and sparse indexes when the post arrives.
 
 Threads interns user and room IDs in one small table. Its indexes store
-`uint32` handles instead of ID strings. Room deletion removes the room's
+`uint32` handles instead of ID strings. Each thread keeps its replies in one
+pointer-free slice with the reply's author, time, and retraction state, and a
+small map locates the thread of a reply. The cached thread summary counts
+visible replies per author in first-reply order; the first authors form the
+display preview. Follow state, thread followers, and followed threads use
+handle keys and keep follows in follow order. Room deletion removes the room's
 message references and relationships. The message IDs of that room stay in
 the shared event ID table.
 
