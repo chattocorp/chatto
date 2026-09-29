@@ -189,8 +189,7 @@ import { createClient } from '@chatto/client';
 export const client = createClient({
   storage: 'device', // restore and keep the server catalogue and sessions
   originServer: true, // the page's own server uses its cookie session
-  liveServers: 'selected',
-  voiceCall: (context) => new MyVoiceCall(context)
+  liveServers: 'selected'
 });
 
 client.start(); // pair each start() with a stop(), for example on unmount
@@ -199,8 +198,21 @@ const store = client.registry.getStore(serverId);
 ```
 
 A process can have one client with device storage and one for the origin
-server. An application that registers a voice-call type must pass its
-`voiceCall` factory; `createClient` requires it then.
+server.
+
+### State of the host
+
+The client keeps server data. A host keeps its own state, such as search
+results, call media, or a query cache, next to each store:
+
+- Derive state from the store where possible. Derived state follows the
+  store and needs no cleanup.
+- A host that copies server data must clear the copy at the store's boundary
+  events: `onReset`, `onRoomAccessLost`, `onUserDeleted`,
+  `onPermissionsChanged`, and `onDispose`. `onUpdate` reports every applied
+  event and resource.
+- `registry.watchStores(setup)` calls `setup` for each store when the
+  registry creates it, before the store receives realtime data.
 
 ### Svelte
 
@@ -226,16 +238,10 @@ Other frameworks can use `setReadHook` and `subscribe` from
 
 ### Voice calls
 
-The client tracks active calls but contains no media implementation. Pass a
-`voiceCall` factory to `createClient` and register its type:
-
-```ts
-declare module '@chatto/client/register' {
-  interface Register {
-    voiceCall: MyVoiceCall;
-  }
-}
-```
+The store tracks each server's active calls in `projection.activeCalls`. It
+contains no media implementation. A host that joins calls implements the
+media, reads call permissions from the projected rooms, and leaves a call at
+`onRoomAccessLost` and `onDispose`.
 
 ## Reactivity
 

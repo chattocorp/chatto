@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { computed, effect, effectRoot } from '@chatto/client/reactivity';
 import type { ServerStateStore } from '@chatto/client/server/store';
 import type { ProjectionReset, RoomAccessLoss } from '@chatto/client/server/storeEvents';
+import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { serverUi } from './serverUi';
 
 type Listener<T extends unknown[] = []> = (...args: T) => unknown;
@@ -23,7 +25,11 @@ function fakeStore() {
       return () => {};
     };
   const store = {
+    serverId: 'server',
     isAuthenticated: true,
+    projectionViewerId: 'U1',
+    viewerId: 'U1',
+    projection: { rooms: new Map(), activeCalls: [] as ActiveCall[] },
     connection: { getAPI: () => ({}) },
     onReset: on(listeners.reset),
     onRoomAccessLost: on(listeners.roomAccessLost),
@@ -197,5 +203,96 @@ describe('serverUi', () => {
     expect(room.query).toBe('');
     expect(ui.messageSearch.query).toBe('');
     expect(ui.pendingHighlights.has('R1', null)).toBe(false);
+  });
+
+  it('keeps a call across a reset, rechecks it after room updates, and reads room permissions', () => {
+    const { store, emit } = fakeStore();
+    const call = serverUi(store).voiceCall;
+    const forget = vi.spyOn(call, 'handleProjectionReset');
+    const revoke = vi.spyOn(call, 'handleRoomAccessRevoked');
+    const reconcile = vi.spyOn(call, 'reconcilePermissions').mockResolvedValue();
+
+    emit.reset({ privacy: true, retainView: false });
+    expect(forget).toHaveBeenCalledOnce();
+    expect(revoke).not.toHaveBeenCalled();
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(call.permissionsFor('R1').join).toBe(false);
+
+    for (const join of [true, false]) {
+      store.projection.rooms.set(
+        'R1',
+        new RoomWithViewerState({
+          room: { id: 'R1' },
+          viewerState: {
+            isMember: true,
+            permissions: [{ permission: 'call.join', granted: join }]
+          }
+        })
+      );
+      emit.update({ resource: { case: 'rooms' } });
+      expect(call.permissionsFor('R1').join).toBe(join);
+    }
+    expect(reconcile).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves the call only when room access, not only message reading, is lost', () => {
+    const { store, emit } = fakeStore();
+    const revoke = vi.spyOn(serverUi(store).voiceCall, 'handleRoomAccessRevoked');
+    emit.roomAccessLost({ roomId: 'R1', messagesOnly: true, removed: false });
+    expect(revoke).not.toHaveBeenCalled();
+    emit.roomAccessLost({ roomId: 'R1', messagesOnly: false, removed: false });
+    expect(revoke).toHaveBeenCalledExactlyOnceWith('R1');
+  });
+
+  it('forwards participant and end events to the call', () => {
+    const { store, emit } = fakeStore();
+    const call = serverUi(store).voiceCall;
+    const transition = vi.spyOn(call, 'handleParticipantTransition');
+    const ended = vi.spyOn(call, 'handleCallEndedEvent');
+
+    emit.update({
+      event: {
+        id: 'E-CALL-JOIN',
+        actorId: 'U2',
+        event: { case: 'voiceCallParticipantJoined', value: { roomId: 'R1', callId: 'CALL-1' } }
+      }
+    });
+    expect(transition).toHaveBeenCalledExactlyOnceWith({
+      eventId: 'E-CALL-JOIN',
+      kind: 'join',
+      roomId: 'R1',
+      callId: 'CALL-1',
+      actorId: 'U2',
+      viewerId: 'U1'
+    });
+
+    emit.update({
+      event: { id: 'E-END', event: { case: 'voiceCallEnded', value: { roomId: 'R1', callId: '' } } }
+    });
+    expect(ended).toHaveBeenCalledExactlyOnceWith('R1', null);
+  });
+
+  it('overlays the projected calls with its own call', () => {
+    const { store } = fakeStore();
+    const ui = serverUi(store);
+    store.projection.activeCalls.push(
+      new ActiveCall({
+        room: { id: 'R1' },
+        callId: 'CALL-1',
+        participants: [new CallParticipant({ user: { id: 'U2', login: 'bob' } })]
+      })
+    );
+    expect(ui.activeCallRooms.has('R1')).toBe(true);
+    expect(ui.activeCallRooms.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U2']);
+    ui.voiceCall.connected = true;
+    ui.voiceCall.roomId = 'R2';
+    expect(ui.activeCallRooms.has('R2')).toBe(true);
+  });
+
+  it('releases call media when its store is disposed', () => {
+    const { store, emit } = fakeStore();
+    const dispose = vi.spyOn(serverUi(store).voiceCall, 'dispose');
+    emit.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
   });
 });

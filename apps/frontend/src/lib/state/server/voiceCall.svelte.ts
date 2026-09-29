@@ -34,10 +34,10 @@ import type { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScree
 
 import {
   NO_CALL_PERMISSIONS,
+  type CallConnection,
   type CallParticipantTransition,
-  type CallPermissions,
-  type VoiceCallController
-} from '@chatto/client/server/voiceCall';
+  type CallPermissions
+} from './callTypes';
 
 export { NO_CALL_PERMISSIONS, type CallPermissions };
 
@@ -196,7 +196,7 @@ export function getVoiceCallMediaDeviceErrorMessage(
   return m('voice.media_device_failed');
 }
 
-export class VoiceCallState implements VoiceCallController {
+export class VoiceCallState implements CallConnection {
   #api: VoiceCallAPI;
 
   // Current call context

@@ -87,7 +87,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = serverScope.store;
   const notificationStore = $derived(stores.notifications);
-  const activeCallRooms = $derived(stores.activeCallRooms);
+  const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
   const roomCommandAPI = serverScope.connection.getAPI(createRoomCommandAPI);

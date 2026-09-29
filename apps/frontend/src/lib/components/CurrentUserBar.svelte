@@ -16,6 +16,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     MenuItem,
     MenuSection
   } from '$lib/ui';
+  import { serverUi } from '$lib/state/server/serverUi';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -74,7 +75,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   const presencePreference = $derived(
     presenceScope ? presencePreferences.get(presenceScope) : null
   );
-  const voiceCallState = $derived(activeStore.voiceCall);
+  const voiceCallState = $derived(serverUi(activeStore).voiceCall);
   const navigation = $derived(activeStore.navigation);
 
   const displayName = $derived(

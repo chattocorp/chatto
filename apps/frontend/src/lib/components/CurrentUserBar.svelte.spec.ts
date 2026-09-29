@@ -178,8 +178,8 @@ describe('CurrentUserBar', () => {
         hasVerifiedEmail: true
       },
       permissions: { loaded: false },
+      ui: { voiceCall: voiceCallState },
       store: {
-        voiceCall: voiceCallState,
         navigation: roomsState,
         projection: projectionState,
         presence,

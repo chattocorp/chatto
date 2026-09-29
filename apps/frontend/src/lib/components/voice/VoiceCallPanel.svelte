@@ -15,6 +15,7 @@ Room sidebar panel for voice/video calls.
 -->
 <script lang="ts">
   import { Button } from '$lib/ui/form';
+  import { serverUi } from '$lib/state/server/serverUi';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { UserCard, WipeReveal, CompactActionButton, PillButtonGroup } from '$lib/ui';
@@ -25,8 +26,8 @@ Room sidebar panel for voice/video calls.
   const serverScope = useServerScope();
   const activeServerId = serverScope.serverId;
   const stores = serverScope.store;
-  const voiceCallState = $derived(stores.voiceCall);
-  const activeCallRooms = $derived(stores.activeCallRooms);
+  const voiceCallState = $derived(serverUi(stores).voiceCall);
+  const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';

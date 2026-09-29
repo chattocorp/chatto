@@ -8,6 +8,7 @@
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { type RegisteredServer } from '@chatto/client/server/registry';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
 
   type VoiceCallPanelProps = {
     roomId: string;
@@ -218,14 +219,15 @@
         }
       })
     );
-    store.voiceCall.roomId = scenario === 'idle' ? null : roomId;
-    store.voiceCall.connected = scenario !== 'idle';
-    store.voiceCall.audioBoostAvailable = true;
-    store.voiceCall.connecting = false;
-    store.voiceCall.isMuted = initiallyMuted;
-    store.voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
-    store.voiceCall.isScreenShareEnabled = scenario === 'screen';
-    store.voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
+    const voiceCall = serverUi(store).voiceCall;
+    voiceCall.roomId = scenario === 'idle' ? null : roomId;
+    voiceCall.connected = scenario !== 'idle';
+    voiceCall.audioBoostAvailable = true;
+    voiceCall.connecting = false;
+    voiceCall.isMuted = initiallyMuted;
+    voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
+    voiceCall.isScreenShareEnabled = scenario === 'screen';
+    voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
   }
 
   onMount(async () => {
@@ -235,7 +237,7 @@
 
   onMount(() => {
     if (!animateVoice) return;
-    const call = serverRegistry.getStore(getScopedServerId()).voiceCall;
+    const call = serverUi(serverRegistry.getStore(getScopedServerId())).voiceCall;
     const original = call.getAudioLevel;
     const originalScreen = call.getScreenShareAudioLevel;
     call.getAudioLevel = (identity) => {

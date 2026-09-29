@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { setServerUiForTests } from '$lib/state/server/serverUi';
   import { untrack } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { ServerConnection } from '@chatto/client/server/serverConnection';
@@ -61,7 +62,6 @@
     notifications: { hasThreadNotification: () => false },
     readViews: { covers: () => false },
     serverInfo: { messageEditWindowSeconds: 31_536_000 },
-    activeCallRooms: { getParticipantCallPresence: () => null },
     viewerUser: { id: 'viewer', login: 'viewer', settings: undefined },
     viewerId: 'viewer',
     permissions: { canStartDMs: false },
@@ -73,6 +73,7 @@
       })
     }
   } as unknown as ServerStateStore;
+  setServerUiForTests(store, { activeCallRooms: { getParticipantCallPresence: () => null } });
 
   provideServerScope({
     get serverId() {

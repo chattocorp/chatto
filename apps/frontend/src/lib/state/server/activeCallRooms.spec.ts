@@ -1,9 +1,9 @@
-import { signal } from '../reactivity/index.js';
+import { signal } from '@chatto/client/reactivity';
 import { describe, expect, it } from 'vitest';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
-import { ActiveCallRoomsState } from './activeCallRooms.js';
+import { ActiveCallRoomsState } from './activeCallRooms';
 
 function call(roomId: string, callId: string, userIds: string[], isBot = false): ActiveCall {
   return new ActiveCall({

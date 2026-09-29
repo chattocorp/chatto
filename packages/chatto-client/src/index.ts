@@ -44,7 +44,6 @@ export type {
 } from './messaging/types.js';
 export { withTyping, startTyping, type TypingUpdate } from './messaging/typing.js';
 export { createDeliveryTracker, type DeliveryTracker } from './messaging/deliveries.js';
-export type { VoiceCallFactory, VoiceCallController } from './server/voiceCall.js';
 export type { LiveServers } from './server/realtimeTransport.js';
 export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';

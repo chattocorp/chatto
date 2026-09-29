@@ -5,9 +5,9 @@
  * voice-call controller is overlaid for instant feedback about the viewer's own call.
  */
 
-import { computed } from '../reactivity/index.js';
+import { computed } from '@chatto/client/reactivity';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
-import type { VoiceCallController } from './voiceCall.js';
+import type { CallConnection } from './callTypes';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {
@@ -26,7 +26,7 @@ type ActiveCallRoomSnapshot = {
 };
 
 export class ActiveCallRoomsState {
-  #getVoiceCall: () => VoiceCallController;
+  #getVoiceCall: () => CallConnection;
   #getCalls: () => readonly ActiveCall[];
 
   /** Room ID → server-observed active call, derived from the projection. */
@@ -42,7 +42,7 @@ export class ActiveCallRoomsState {
     return this.#serverRoomsComputed.get();
   }
 
-  constructor(getVoiceCall: () => VoiceCallController, getCalls: () => readonly ActiveCall[]) {
+  constructor(getVoiceCall: () => CallConnection, getCalls: () => readonly ActiveCall[]) {
     this.#getVoiceCall = getVoiceCall;
     this.#getCalls = getCalls;
   }

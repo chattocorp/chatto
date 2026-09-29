@@ -1,26 +1,29 @@
 <script lang="ts">
   import CallDeviceSettings from '$lib/components/settings/CallDeviceSettings.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { PageTitle } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   const scope = useServerScope();
+  // The scope, and so its store and call, stays the same while this page is mounted.
+  const voiceCall = serverUi(scope.store).voiceCall;
 </script>
 
 <PageTitle title={m('voice.preferences.title')} />
 
-{#key `${scope.serverId}:${scope.store.voiceCall.isInAnyCall}`}
-  {#if scope.store.voiceCall.preferences}
+{#key `${scope.serverId}:${voiceCall.isInAnyCall}`}
+  {#if voiceCall.preferences}
     <CallDeviceSettings
-      preferences={scope.store.voiceCall.preferences}
-      inCall={scope.store.voiceCall.isInAnyCall}
-      callLevel={scope.store.voiceCall.microphoneLevel}
-      gateUnavailable={scope.store.voiceCall.microphoneGateUnavailable}
+      preferences={voiceCall.preferences}
+      inCall={voiceCall.isInAnyCall}
+      callLevel={voiceCall.microphoneLevel}
+      gateUnavailable={voiceCall.microphoneGateUnavailable}
       onDeviceChange={(kind, id) =>
         kind === 'audioinput'
-          ? scope.store.voiceCall.setAudioDevice(id)
+          ? voiceCall.setAudioDevice(id)
           : kind === 'audiooutput'
-            ? scope.store.voiceCall.setAudioOutputDevice(id)
-            : scope.store.voiceCall.setVideoDevice(id)}
+            ? voiceCall.setAudioOutputDevice(id)
+            : voiceCall.setVideoDevice(id)}
     />
   {/if}
 {/key}

@@ -9,6 +9,9 @@ import UserIdentity from './UserIdentity.svelte';
 import UserMenu from './UserMenu.svelte';
 import { UserMenuState } from './UserMenuState.svelte';
 
+// The store mock also carries the frontend UI state of its server.
+vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: vi.fn(),
   serverIdToSegment: (serverId: string) => serverId

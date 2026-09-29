@@ -20,9 +20,13 @@ examples use it. See
   state that one client could change for another. Process-wide state, such
   as the query cache and user stores, must be keyed by server ID; server IDs
   are unique in a process (`src/server/serverIds.ts`).
-- Take application capabilities as client options with an interface, such as
-  the `voiceCall` factory and `VoiceCallController`. Register application
-  types through `Register` in `src/register.ts`.
+- Keep the package integration-shaped: server data, requests, and the
+  operations that integrations need. State that exists only for one host's
+  UI, such as search sessions, highlights, editors, or call media, belongs to
+  that host. Do not call into host state from a store. Hosts derive from store
+  state, and hosts that copy server data subscribe to the store's boundary
+  events (`src/server/storeEvents.ts`). When a store crosses a new privacy or
+  authorization boundary, emit the matching event.
 - Guard every use of `window`, `document`, `navigator`, and `localStorage`.
   Node hosts, such as bots, do not have them or have only part of them.
 - Do not add a dependency on Runling, Authling, or an application package.

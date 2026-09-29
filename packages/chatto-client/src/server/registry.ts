@@ -2,7 +2,6 @@ import { ReactiveMap, batch, signal, untrack } from '../reactivity/index.js';
 import { ServerStateStore } from './store.js';
 import type { ServerConnectionManager } from './serverConnection.js';
 import type { EventBusManager } from './realtimeTransport.js';
-import type { VoiceCallFactory } from './voiceCall.js';
 import { claimServerId, isServerIdClaimed, releaseServerId } from './serverIds.js';
 import { Codecs, globalSlot, serverSlot } from '../storage/slot.js';
 import { getPublicServerInfo } from '../api/server.js';
@@ -384,7 +383,6 @@ export interface ServerRegistryOptions {
 export interface ServerRegistryContext {
   readonly connections: ServerConnectionManager;
   readonly realtime: EventBusManager;
-  readonly voiceCall: VoiceCallFactory;
 }
 
 /**
@@ -1351,7 +1349,7 @@ export class ServerRegistry {
       () => this.sessions.ensure(serverId),
       this.isOriginServer(serverId),
       serverConnection,
-      { realtime: this.#context.realtime, voiceCall: this.#context.voiceCall },
+      { realtime: this.#context.realtime },
       undefined,
       () => {
         if (this.isOriginServer(serverId) && !store.currentUser.user) {

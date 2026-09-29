@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
@@ -20,7 +21,7 @@
   const stores = serverScope.store;
   const notificationStore = $derived(stores.notifications);
   const serverInfo = $derived(stores.serverInfo);
-  const activeCallRooms = $derived(stores.activeCallRooms);
+  const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import MessageHoverBar from './MessageHoverBar.svelte';
   import MessageAttachments from './MessageAttachments.svelte';

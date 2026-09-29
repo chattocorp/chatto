@@ -416,7 +416,8 @@ describe('RoomSidebar', () => {
     server = createTestServerScope({
       serverId: 'test-server',
       viewer: { id: 'viewer', login: 'viewer' },
-      store: { ...callStore, presence }
+      ui: callStore,
+      store: { presence }
     });
     document.documentElement.dir = 'ltr';
     await loadLocaleMessages('en-GB');

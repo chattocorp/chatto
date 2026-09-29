@@ -1,21 +1,30 @@
 /**
- * Frontend state of one server that the Chatto client does not own: pending
- * highlights, message search sessions, and the admin room-layout editor.
+ * Frontend state of one server that the Chatto client does not own: the
+ * voice call, pending highlights, message search sessions, and the admin
+ * room-layout editor.
  *
- * `serverUi(store)` returns the state of one server store. It is created on
- * first use and lives as long as the store: a new store, for example after an
- * account change, gets new state. Search results and the layout editor copy
- * server data, so the state subscribes to the store's boundary events and
- * clears those copies itself.
+ * `serverUi(store)` returns the state of one server store. It lives as long as
+ * the store: a new store, for example after an account change, gets new
+ * state. `$lib/client` creates it for each store when the registry creates
+ * the store, outside reactive reads, so that Svelte tracks its `$state`.
+ * Search results and the layout editor copy server data, and the voice call
+ * holds media, so the state subscribes to the store's boundary events and
+ * clears or releases them itself.
  */
 
 import { createAdminRoomLayoutAPI } from '@chatto/client/api/adminRoomLayout';
 import { createMessageSearchAPI, type MessageSearchAPI } from '@chatto/client/api/messageSearch';
 import { createRoomCommandAPI } from '@chatto/client/api/rooms';
+import { createVoiceCallAPI } from '@chatto/client/api/voiceCalls';
+import type { RealtimeEvent } from '@chatto/client';
 import type { ServerStateStore } from '@chatto/client/server/store';
+import { ActiveCallRoomsState } from './activeCallRooms';
 import { AdminRoomLayoutStore } from './adminRoomLayout';
+import { CallPreferencesState } from './callPreferences.svelte';
+import type { CallPermissions } from './callTypes';
 import { MessageSearchStore } from './messageSearch';
 import { PendingHighlightStore } from './pendingHighlight';
+import { VoiceCallState } from './voiceCall.svelte';
 
 /** Per-room searches kept at the same time. The least recently used one goes first. */
 const MAX_RETAINED_ROOM_SEARCHES = 10;
@@ -32,8 +41,27 @@ const SEARCHABLE_MESSAGE_EVENTS = new Set<string | undefined>([
   'assetDeleted'
 ]);
 
+/** The viewer's call permissions in a room. Missing permission data denies access. */
+function callPermissions(store: ServerStateStore, roomId: string): CallPermissions {
+  const state = store.projection.rooms.get(roomId)?.viewerState;
+  const granted = (permission: string) =>
+    state?.isMember === true &&
+    state.permissions.some((grant) => grant.permission === permission && grant.granted);
+  return {
+    start: granted('call.start'),
+    join: granted('call.join'),
+    voice: granted('call.voice'),
+    camera: granted('call.camera'),
+    screenshare: granted('call.screenshare')
+  };
+}
+
 /** The frontend state of one server store; see the module documentation. */
 export class ServerUi {
+  /** The LiveKit call of this server. */
+  readonly voiceCall: VoiceCallState;
+  /** Active calls from the projection, with this client's own call overlaid. */
+  readonly activeCallRooms: ActiveCallRoomsState;
   /** One-shot highlight targets for in-app navigation. */
   readonly pendingHighlights = new PendingHighlightStore();
   /** Server-wide message search. */
@@ -49,6 +77,15 @@ export class ServerUi {
   constructor(store: ServerStateStore) {
     this.#store = store;
     const connection = store.connection;
+    this.voiceCall = new VoiceCallState(
+      connection.getAPI(createVoiceCallAPI),
+      (roomId) => callPermissions(store, roomId),
+      new CallPreferencesState(store.serverId)
+    );
+    this.activeCallRooms = new ActiveCallRoomsState(
+      () => this.voiceCall,
+      () => store.projection.activeCalls
+    );
     this.#searchAPI = connection.getAPI(createMessageSearchAPI);
     this.messageSearch = new MessageSearchStore(this.#searchAPI, () => store.isAuthenticated);
     this.adminRoomLayout = new AdminRoomLayoutStore(
@@ -58,13 +95,15 @@ export class ServerUi {
 
     store.onReset(({ retainView }) => {
       if (retainView) return;
+      this.voiceCall.handleProjectionReset();
       this.pendingHighlights.clear();
       this.adminRoomLayout.resetProjectionState();
       this.#forEachSearch((search) => search.clearResults());
     });
-    store.onRoomAccessLost(({ roomId }) =>
-      this.#forRoomSearch(roomId, (search) => search.revokeRoom(roomId))
-    );
+    store.onRoomAccessLost(({ roomId, messagesOnly }) => {
+      if (!messagesOnly) this.voiceCall.handleRoomAccessRevoked(roomId);
+      this.#forRoomSearch(roomId, (search) => search.revokeRoom(roomId));
+    });
     store.onUserDeleted((userId) =>
       this.#forEachSearch((search) => search.invalidateAuthor(userId))
     );
@@ -76,9 +115,14 @@ export class ServerUi {
     });
     store.onUpdate((update) => {
       const resource = update.resource?.case;
+      // A reset temporarily removes room data, not call access. Keep the media
+      // session until fresh permissions arrive; the server also enforces
+      // LiveKit access.
+      if (resource === 'rooms') void this.voiceCall.reconcilePermissions();
       if (update.reset || resource === 'rooms' || resource === 'roomGroups') {
         if (this.#adminRoomLayoutActive) this.adminRoomLayout.requestProjectionRefresh();
       }
+      this.#handleCallEvent(update.event);
       const event = update.event?.event;
       if (!SEARCHABLE_MESSAGE_EVENTS.has(event?.case)) return;
       const roomId = (event?.value as { roomId?: string } | undefined)?.roomId;
@@ -86,6 +130,8 @@ export class ServerUi {
       else this.#forEachSearch((search) => search.clearResults());
     });
     store.onDispose(() => {
+      // Release call media first; nothing waits for the server.
+      this.voiceCall.dispose();
       this.adminRoomLayout.deactivateProjectionRefresh();
       this.#adminRoomLayoutSubscriptions = 0;
       this.pendingHighlights.clear();
@@ -128,6 +174,28 @@ export class ServerUi {
     };
   }
 
+  /** Forward call participant and end events to the voice call. */
+  #handleCallEvent(event: RealtimeEvent | null): void {
+    const payload = event?.event;
+    if (!event || !payload) return;
+    switch (payload.case) {
+      case 'voiceCallParticipantJoined':
+      case 'voiceCallParticipantLeft':
+        this.voiceCall.handleParticipantTransition({
+          eventId: event.id,
+          kind: payload.case === 'voiceCallParticipantJoined' ? 'join' : 'leave',
+          roomId: payload.value.roomId,
+          callId: payload.value.callId || null,
+          actorId: event.actorId || null,
+          viewerId: this.#store.projectionViewerId ?? this.#store.viewerId
+        });
+        return;
+      case 'voiceCallEnded':
+        this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
+        return;
+    }
+  }
+
   get #adminRoomLayoutActive(): boolean {
     return this.#adminRoomLayoutSubscriptions > 0;
   }
@@ -154,4 +222,12 @@ export function serverUi(store: ServerStateStore): ServerUi {
     uiByStore.set(store, ui);
   }
   return ui;
+}
+
+/**
+ * Use `ui` as the state of `store`. Component specs use it to give a fake
+ * store fake UI state; see `createTestServerScope`.
+ */
+export function setServerUiForTests(store: ServerStateStore, ui: object): void {
+  uiByStore.set(store, ui as ServerUi);
 }

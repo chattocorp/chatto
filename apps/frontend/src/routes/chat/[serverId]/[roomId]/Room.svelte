@@ -394,7 +394,7 @@
     roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
   );
   const hasActiveRoomCall = $derived(
-    stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
+    serverUi(stores).activeCallRooms.has(roomId) || serverUi(stores).voiceCall.isInCall(roomId)
   );
   const isDesktopCallMaximized = $derived(
     activeRoomSidebarPanel === 'call' &&

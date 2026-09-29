@@ -24,14 +24,11 @@ import {
 import { NotificationStore } from './notifications.js';
 import { RoomUnreadStore } from './roomUnread.js';
 import { ReadViewRegistry } from './readViews.js';
-import type { RegisteredVoiceCall, VoiceCallContext, VoiceCallFactory } from './voiceCall.js';
 import { ServerPresence } from './presence.js';
-import { ActiveCallRoomsState } from './activeCallRooms.js';
 import { NavigationStore } from './rooms.js';
 import { RoomDirectoryStore } from './roomDirectory.js';
 import { createRoomCommandAPI } from '../api/rooms.js';
 import { createNotificationAPI } from '../api/notifications.js';
-import { createVoiceCallAPI } from '../api/voiceCalls.js';
 import { createMemberDirectoryAPI } from '../api/memberDirectory.js';
 import { createRoleAPI } from '../api/roles.js';
 import {
@@ -112,8 +109,6 @@ function viewerAuthorizationLost(
 export interface ServerStoreContext {
   /** The client's realtime transports. */
   readonly realtime: EventBusManager;
-  /** Creates the store's voice-call controller; see `ClientOptions.voiceCall`. */
-  readonly voiceCall: VoiceCallFactory;
 }
 
 export class ServerStateStore {
@@ -123,15 +118,6 @@ export class ServerStateStore {
   readonly notifications: NotificationStore;
   readonly readViews = new ReadViewRegistry();
   readonly roomUnread: RoomUnreadStore;
-  readonly activeCallRooms: ActiveCallRoomsState;
-  /**
-   * This server's voice-call controller, created with the store by the
-   * client's `voiceCall` factory. The store creates it
-   * eagerly: a controller with UI-framework state (such as Svelte `$state`)
-   * that a reactive read created on first use would not be tracked by that
-   * read.
-   */
-  readonly voiceCall: RegisteredVoiceCall;
   readonly navigation: NavigationStore;
   readonly roomDirectory: RoomDirectoryStore;
   readonly mentionRoles: MentionRolesStore;
@@ -341,7 +327,6 @@ export class ServerStateStore {
     );
 
     const notificationAPI = serverConnection.getAPI(createNotificationAPI);
-    const voiceCallAPI = serverConnection.getAPI(createVoiceCallAPI);
     this.#realtimeResources = serverConnection.getAPI(createRealtimeResourceAPI);
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
@@ -363,30 +348,6 @@ export class ServerStateStore {
     );
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
-    const voiceCallContext: VoiceCallContext = {
-      serverId: this.serverId,
-      api: voiceCallAPI,
-      permissions: (roomId) => {
-        const state = this.projection.rooms.get(roomId)?.viewerState;
-        const granted = (permission: string) =>
-          state?.isMember === true &&
-          (state.permissions.some((grant) => grant.permission === permission && grant.granted) ??
-            false);
-        return {
-          start: granted('call.start'),
-          join: granted('call.join'),
-          voice: granted('call.voice'),
-          camera: granted('call.camera'),
-          screenshare: granted('call.screenshare')
-        };
-      }
-    };
-    // The registered type describes the client's factory; see Register.
-    this.voiceCall = context.voiceCall(voiceCallContext) as RegisteredVoiceCall;
-    this.activeCallRooms = new ActiveCallRoomsState(
-      () => this.voiceCall,
-      () => this.projection.activeCalls
-    );
     const notifications = this.notifications;
     this.navigation = new NavigationStore(this.projection, this.realtimeSync, {
       get roomUnreadCounts() {
@@ -741,7 +702,6 @@ export class ServerStateStore {
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
     this.#rooms.loaded(roomId)?.members?.resetProjectionState();
-    this.voiceCall.handleRoomAccessRevoked(roomId);
     this.projection.removeRoomCalls(roomId);
     this.notifications.clearRoom(roomId);
     this.clearRoomMessageAccess(roomId, forgetStores);
@@ -867,10 +827,6 @@ export class ServerStateStore {
           break;
         }
         case 'rooms':
-          // A reset temporarily removes room data, not call access. Keep the
-          // media session until fresh permissions arrive; LiveKit access is
-          // also enforced independently by the server.
-          void this.voiceCall.reconcilePermissions();
           for (const [roomId, room] of this.projection.rooms) {
             this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
             this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);
@@ -1353,29 +1309,10 @@ export class ServerStateStore {
         if (rawValue?.messageEventId) this.#timelines.reconcile(roomId, rawValue.messageEventId);
         return;
       case 'voiceCallParticipantJoined':
-        this.voiceCall.handleParticipantTransition({
-          eventId: event.id,
-          kind: 'join',
-          roomId: payload.value.roomId,
-          callId: payload.value.callId || null,
-          actorId: event.actorId || null,
-          viewerId: this.realtimeViewerId()
-        });
-        this.refreshRealtimeResource('activeCalls');
-        return;
       case 'voiceCallParticipantLeft':
-        this.voiceCall.handleParticipantTransition({
-          eventId: event.id,
-          kind: 'leave',
-          roomId: payload.value.roomId,
-          callId: payload.value.callId || null,
-          actorId: event.actorId || null,
-          viewerId: this.realtimeViewerId()
-        });
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallEnded':
-        this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
         this.#timelines.refreshWindows(payload.value.roomId, event.id || null, true);
         this.refreshRealtimeResource('activeCalls');
         return;
@@ -1512,7 +1449,6 @@ export class ServerStateStore {
       () => this.notifications.resetProjectionState(),
       () => this.roomUnread.clear()
     ]);
-    this.voiceCall.handleProjectionReset();
     return complete;
   }
 
@@ -1575,7 +1511,10 @@ export class ServerStateStore {
     return this.projectionViewerId ?? this.viewerId;
   }
 
-  /** Remove optimistic call UI state after a local join attempt fails. */
+  /**
+   * Remove the viewer from a room's projected call after this client's join
+   * attempt failed, before the server reports it.
+   */
   handleVoiceCallJoinFailed(roomId: string): void {
     const currentUserId = this.projectionViewerId;
     if (currentUserId) this.projection.removeCallParticipant(roomId, currentUserId);
@@ -1583,13 +1522,9 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
-    // A failing listener or voice call must not stop the privacy cleanup below.
+    // Listeners release their copies and media first; a failing listener
+    // does not stop the privacy cleanup below.
     this.#events.dispose.emit();
-    try {
-      this.voiceCall.dispose();
-    } catch (error) {
-      console.error('Voice call disposal failed', error);
-    }
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

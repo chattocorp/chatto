@@ -15,19 +15,9 @@ import { ServerRegistry } from './server/registry.js';
 import { ServerConnectionManager } from './server/serverConnection.js';
 import { startClientRuntime, type ClientRuntime } from './server/runtime.js';
 import { emptyServerSession } from './server/sessions.js';
-import {
-  detachedVoiceCallFactory,
-  type RegisteredVoiceCall,
-  type VoiceCallController,
-  type VoiceCallFactory
-} from './server/voiceCall.js';
-import type { Register } from './register.js';
 
 /** Settings for {@link createClient}. */
-export type ClientOptions = BaseClientOptions & VoiceCallOptions;
-
-/** The settings of every client; see {@link ClientOptions}. */
-export interface BaseClientOptions {
+export interface ClientOptions {
   /**
    * Where the client keeps its server catalogue and renewable sessions.
    * `memory` (the default) keeps nothing between runs. `device` uses the
@@ -48,27 +38,6 @@ export interface BaseClientOptions {
    */
   liveServers?: LiveServers;
 }
-
-/**
- * The voice-call setting. An application that registers a voice-call type
- * (see `Register`) must pass the factory that creates it, so that stores
- * have the registered type.
- */
-export type VoiceCallOptions = Register extends { voiceCall: VoiceCallController }
-  ? {
-      /** Creates the voice-call controller of each server store. */
-      voiceCall: VoiceCallFactory<RegisteredVoiceCall>;
-    }
-  : {
-      /** Creates the voice-call controller of each server store. Default: no call media. */
-      voiceCall?: VoiceCallFactory;
-    };
-
-/** `createClient` needs options only when they have a required setting. */
-type CreateClientArguments =
-  Record<string, never> extends VoiceCallOptions
-    ? [options?: ClientOptions]
-    : [options: ClientOptions];
 
 /** Clients that use device storage or the origin server; a process can have one of each. */
 const exclusiveClients = new Map<'deviceStorage' | 'originServer', ChattoClient>();
@@ -101,11 +70,7 @@ export class ChattoClient {
     this.realtime = new EventBusManager({ liveServers: options.liveServers ?? 'all' });
     this.connections = new ServerConnectionManager(() => this.registry);
     this.registry = new ServerRegistry(
-      {
-        connections: this.connections,
-        realtime: this.realtime,
-        voiceCall: options.voiceCall ?? detachedVoiceCallFactory
-      },
+      { connections: this.connections, realtime: this.realtime },
       { deviceStorage: options.storage === 'device', originServer: options.originServer ?? false }
     );
     if (options.storage === 'device') exclusiveClients.set('deviceStorage', this);
@@ -231,6 +196,6 @@ export class ChattoClient {
  * await connection.run((ctx) => ctx.reply(`Hello, ${ctx.message.authorId}`));
  * ```
  */
-export function createClient(...[options]: CreateClientArguments): ChattoClient {
-  return new ChattoClient(options ?? ({} as ClientOptions));
+export function createClient(options: ClientOptions = {}): ChattoClient {
+  return new ChattoClient(options);
 }

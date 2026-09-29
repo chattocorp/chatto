@@ -66,20 +66,8 @@ import {
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RoomAccessLoss } from './storeEvents.js';
 import { effect, effectRoot } from '../reactivity/index.js';
-import { DetachedVoiceCall, type VoiceCallContext, type VoiceCallFactory } from './voiceCall.js';
-
-/** Records what the store forwards to its voice call. */
-class RecordingVoiceCall extends DetachedVoiceCall {
-  override connected = false;
-  override roomId: string | null = null;
-  constructor(readonly context: VoiceCallContext) {
-    super();
-  }
-}
-/** The voice-call factory of the stores that {@link makeStore} creates. */
-let voiceCallFactory: VoiceCallFactory = (context) => new RecordingVoiceCall(context);
-
 const { apiMocks, cacheMocks } = vi.hoisted(() => ({
   cacheMocks: {
     reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
@@ -116,9 +104,6 @@ const { apiMocks, cacheMocks } = vi.hoisted(() => ({
         hasMore: false
       })
     ),
-    joinCall: vi.fn(() => Promise.resolve(true)),
-    createCallToken: vi.fn(() => Promise.resolve(null)),
-    leaveCall: vi.fn(() => Promise.resolve(true)),
     activatePrivilegedMode: vi.fn(() =>
       Promise.resolve({
         privilegedMode: new PrivilegedModeState({ available: true, active: true }),
@@ -252,14 +237,6 @@ vi.mock('../api/memberDirectory.js', async (importOriginal) => ({
     .mapDirectoryMember,
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: apiMocks.listRoomMembers
-  }))
-}));
-
-vi.mock('../api/voiceCalls.js', () => ({
-  createVoiceCallAPI: vi.fn(() => ({
-    joinCall: apiMocks.joinCall,
-    createCallToken: apiMocks.createCallToken,
-    leaveCall: apiMocks.leaveCall
   }))
 }));
 
@@ -480,7 +457,7 @@ function makeStore(
     }),
     false,
     fake as unknown as ServerConnection,
-    { realtime: eventBusManager, voiceCall: (context) => voiceCallFactory(context) },
+    { realtime: eventBusManager },
     publicServerInfoLoader,
     onAuthenticationRequired
   );
@@ -581,9 +558,6 @@ beforeEach(() => {
   apiMocks.listRoomAttachments.mockResolvedValue({ items: [], totalCount: 0, hasMore: false });
   apiMocks.refreshAssetUrls.mockReset();
   apiMocks.refreshAssetUrls.mockResolvedValue(new Map());
-  apiMocks.joinCall.mockResolvedValue(true);
-  apiMocks.createCallToken.mockResolvedValue(null);
-  apiMocks.leaveCall.mockResolvedValue(true);
   apiMocks.activatePrivilegedMode.mockReset();
   apiMocks.activatePrivilegedMode.mockResolvedValue({
     privilegedMode: new PrivilegedModeState({ available: true, active: true }),
@@ -694,39 +668,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('ServerStateStore voice call', () => {
-  it('ends the call when the store is disposed', () => {
+describe('ServerStateStore disposal', () => {
+  it('continues its cleanup when a dispose listener throws', () => {
     const store = makeStore(new FakeServerConnection([]));
-    const dispose = vi.spyOn(store.voiceCall, 'dispose');
-    store.dispose();
-    expect(dispose).toHaveBeenCalledOnce();
-  });
-
-  it('continues its cleanup when the voice call fails to dispose', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    vi.spyOn(store.voiceCall, 'dispose').mockImplementation(() => {
+    store.onDispose(() => {
       throw new Error('media failure');
     });
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     const reset = vi.spyOn(store.currentUser, 'reset');
     expect(() => store.dispose()).not.toThrow();
     expect(reset).toHaveBeenCalled();
-    expect(logged).toHaveBeenCalledWith('Voice call disposal failed', expect.any(Error));
-  });
-
-  it('creates the controller with the store, outside later reactive reads', () => {
-    const created = vi.fn();
-    const previous = voiceCallFactory;
-    voiceCallFactory = (context) => {
-      created(context.serverId);
-      return new RecordingVoiceCall(context);
-    };
-    try {
-      makeStore(new FakeServerConnection([]));
-      expect(created).toHaveBeenCalledWith(registered.id);
-    } finally {
-      voiceCallFactory = previous;
-    }
+    expect(logged).toHaveBeenCalled();
   });
 });
 
@@ -825,12 +777,14 @@ describe('ServerStateStore projected server state', () => {
     });
 
     expect(store.serverInfo.livekitUrl).toBe('wss://livekit.example.test');
-    expect(store.activeCallRooms.has('R1')).toBe(true);
-    expect(store.activeCallRooms.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U1']);
+    expect(store.projection.activeCalls.map((call) => call.room?.id)).toEqual(['R1']);
+    expect(
+      store.projection.activeCalls[0]?.participants.map((participant) => participant.user?.id)
+    ).toEqual(['U1']);
 
     publish({ case: 'activeCalls', value: new ListActiveCallsResponse({ calls: [] }) });
 
-    expect(store.activeCallRooms.has('R1')).toBe(false);
+    expect(store.projection.activeCalls).toEqual([]);
   });
 });
 
@@ -1536,38 +1490,27 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(fake.invalidatePrivateData).not.toHaveBeenCalled();
   });
 
-  it.each([true, false])('retains a call during reset and checks fresh join access: %s', (join) => {
+  it('keeps room access across a reset until a room update denies it', () => {
     const store = makeStore(new FakeServerConnection([]));
-    const call = store.voiceCall as RecordingVoiceCall;
-    call.roomId = 'R1';
-    call.connected = true;
-    const revoked = vi.spyOn(call, 'handleRoomAccessRevoked');
-    const reconcile = vi.spyOn(call, 'reconcilePermissions').mockResolvedValue();
+    const losses: RoomAccessLoss[] = [];
+    store.onRoomAccessLost((loss) => losses.push(loss));
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
     );
-    expect(call.connected).toBe(true);
-    expect(call.roomId).toBe('R1');
-    expect(call.context.permissions('R1').voice).toBe(false);
-    expect(revoked).not.toHaveBeenCalled();
-    expect(reconcile).not.toHaveBeenCalled();
+    expect(losses).toEqual([]);
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         resource: roomResource([
           new RoomWithViewerState({
             room: new Room({ id: 'R1' }),
-            viewerState: new RoomViewerState({
-              isMember: true,
-              permissions: [new PermissionGrant({ permission: 'call.join', granted: join })]
-            })
+            viewerState: new RoomViewerState({ isMember: false })
           })
         ])
       })
     );
-    expect(reconcile).toHaveBeenCalledOnce();
-    expect(call.context.permissions('R1').join).toBe(join);
+    expect(losses).toContainEqual({ roomId: 'R1', messagesOnly: false, removed: false });
   });
 
   it.each([
@@ -1609,7 +1552,10 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeSync.markCaughtUp('retained');
     const resetMessages = vi.spyOn(store.rooms.messages('R1'), 'resetProjectionState');
     const revokeMessages = vi.spyOn(store.rooms.messages('R1'), 'clearForAccessRevocation');
-    const revokeCall = vi.spyOn(store.voiceCall, 'handleRoomAccessRevoked');
+    const revokeCall = vi.fn((loss: RoomAccessLoss) => loss.messagesOnly);
+    store.onRoomAccessLost((loss) => {
+      if (!loss.messagesOnly) revokeCall(loss);
+    });
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -3667,10 +3613,10 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('forwards the canonical participant event to the voice call', async () => {
+  it('reads active calls again after a participant event and reports the event', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
-    const transition = vi.spyOn(store.voiceCall, 'handleParticipantTransition');
+    const events: string[] = [];
+    store.onUpdate((update) => events.push(update.event?.event.case ?? 'none'));
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
@@ -3685,14 +3631,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
 
-    expect(transition).toHaveBeenCalledExactlyOnceWith({
-      eventId: 'E-CALL-JOIN',
-      kind: 'join',
-      roomId: 'R1',
-      callId: 'CALL-1',
-      actorId: 'U2',
-      viewerId: 'U1'
-    });
+    expect(events).toEqual(['voiceCallParticipantJoined']);
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls', undefined);
   });

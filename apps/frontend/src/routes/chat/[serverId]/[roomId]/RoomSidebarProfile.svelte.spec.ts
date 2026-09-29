@@ -15,6 +15,9 @@ let server: TestServerScope;
 /** The shared profile store of the fixture's server session. */
 const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
 
+// The store mock also carries the frontend UI state of its server.
+vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+
 vi.mock('@chatto/client/api/users', () => ({ createUserAPI: vi.fn() }));
 vi.mock(
   '$lib/state/server/scope.svelte',

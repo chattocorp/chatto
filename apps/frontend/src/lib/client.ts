@@ -7,14 +7,17 @@
  */
 
 import { createClient } from '@chatto/client';
-import { voiceCallFactory } from '$lib/state/server/voiceCallRegistration';
+import { serverUi } from '$lib/state/server/serverUi';
 
 export const client = createClient({
   storage: 'device',
   originServer: true,
-  liveServers: 'selected',
-  voiceCall: voiceCallFactory
+  liveServers: 'selected'
 });
+
+// Create each store's UI state when the registry creates the store, outside
+// reactive reads, so that Svelte tracks the voice call's `$state`.
+client.registry.watchStores((store) => void serverUi(store));
 
 // A module replacement creates a new client; release the old one first, so
 // that it gives up the device storage and the origin server.

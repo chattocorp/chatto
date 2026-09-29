@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { SvelteSet } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
@@ -899,7 +900,7 @@
                   {permalinkThreadRootEventId}
                   {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
-                  activeCallId={stores.activeCallRooms.getCallId(roomId)}
+                  activeCallId={serverUi(stores).activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
                   onOpenUser={openUserMenu}
                   {threadingMode}

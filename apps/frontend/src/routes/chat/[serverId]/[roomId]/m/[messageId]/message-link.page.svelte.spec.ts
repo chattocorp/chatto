@@ -9,6 +9,9 @@ import { PendingHighlightStore } from '$lib/state/server/pendingHighlight';
 import { resolveAndRedirect } from './+page.svelte';
 
 const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
+// The store mock also carries the frontend UI state of its server.
+vi.mock('$lib/state/server/serverUi', () => ({ serverUi: (store: unknown) => store }));
+
 vi.mock('$app/navigation', () => ({ goto }));
 vi.mock('$app/state', () => ({ page: {} }));
 vi.mock('$lib/state/server/scope.svelte', () => ({ useServerScope: vi.fn() }));

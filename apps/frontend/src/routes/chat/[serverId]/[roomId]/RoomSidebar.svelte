@@ -8,6 +8,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 -->
 <script module lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { serverUi } from '$lib/state/server/serverUi';
 
   export const PRESENCE_GROUPING_DEBOUNCE_MS = 1_000;
   export type RoomSidebarPanel = 'members' | 'search' | 'files' | 'pins' | 'call';
@@ -119,8 +120,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const serverScope = useServerScope();
   const connection = () => serverScope.connection;
   const activeServerId = serverScope.serverId;
-  const activeCallRooms = $derived(serverScope.store.activeCallRooms);
-  const isInThisCall = $derived(serverScope.store.voiceCall.isInCall(roomId));
+  const activeCallRooms = $derived(serverUi(serverScope.store).activeCallRooms);
+  const isInThisCall = $derived(serverUi(serverScope.store).voiceCall.isInCall(roomId));
 
   const members = $derived(membersStore.filteredMembers);
   const allMembers = $derived(membersStore.members);
