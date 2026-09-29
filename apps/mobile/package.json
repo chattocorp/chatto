@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check": "node --check scripts/prepare.mjs",
     "sync:ios": "node scripts/prepare.mjs && cap sync ios",
     "open:ios": "cap open ios",
     "build:ios": "xcodebuild -quiet -project ios/App/App.xcodeproj -scheme Chatto -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../.context/mobile-ios-build CODE_SIGNING_ALLOWED=NO build"

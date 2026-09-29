@@ -24,7 +24,7 @@
     "@connectrpc/connect": "^1.7.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

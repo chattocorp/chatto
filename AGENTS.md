@@ -102,6 +102,13 @@ the Authling toolchain and workflow.
 For an ad-hoc tool command, use `mise x -- ...`. Do not assume that `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
 
+Turborepo runs the pnpm workspace tasks. Every workspace package must define a
+`check` script that type-checks all of its source, tests, and examples, so
+`mise check-workspace` (`pnpm run check`) checks the complete workspace. Turbo
+caches `check` results and checks again only the packages that a change
+affects. Use `pnpm turbo run check --filter=<package>...` for one package and
+its dependents.
+
 `mise codegen-proto` removes and rebuilds generated TypeScript API files. Do
 not run it at the same time as `mise test-cli`, a frontend build, or another
 task that reads `packages/api-types/dist`.

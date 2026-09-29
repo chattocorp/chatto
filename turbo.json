@@ -34,9 +34,8 @@
       "inputs": ["$TURBO_DEFAULT$", "!test/**", "!**/*.test.*", "!docs/**", "!examples/**"],
       "outputs": ["dist/**"]
     },
-    "check": { "dependsOn": ["^build"], "cache": false },
+    "check": { "dependsOn": ["^build"], "cache": true, "outputs": [] },
     "lint": { "dependsOn": ["^build"], "cache": false },
-    "@chatto/runling-bot#lint": { "dependsOn": [], "cache": false },
     "test": { "dependsOn": ["^build"], "cache": false },
     "test:focused": { "dependsOn": ["^build"], "cache": false },
     "prepare": { "dependsOn": ["^build"], "cache": false },

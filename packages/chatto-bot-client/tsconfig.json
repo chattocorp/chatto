@@ -8,8 +8,8 @@
     "strict": true,
     "skipLibCheck": true,
     "target": "ES2022",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/testing/**"]
+  "include": ["src/**/*.ts"]
 }

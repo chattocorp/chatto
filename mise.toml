@@ -804,6 +804,11 @@ description = "Test the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
 run = "pnpm run test:lingua"
 
+[tasks.check-workspace]
+description = "Type-check every pnpm workspace package"
+depends = ["setup-frontend"]
+run = "pnpm run check"
+
 [tasks.test-workspace]
 description = "Run all pnpm workspace package tests"
 depends = ["setup-frontend"]
