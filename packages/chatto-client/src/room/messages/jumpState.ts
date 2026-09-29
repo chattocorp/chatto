@@ -4,7 +4,7 @@
  * `MessagesStore` jump and load operations.
  */
 
-import { signal } from '../../reactivity/index.js';
+import { batch, signal } from '../../reactivity/index.js';
 
 export class JumpToMessageState {
   readonly #isJumpedModeSignal = signal(false);
@@ -57,10 +57,12 @@ export class JumpToMessageState {
   }
 
   reset(): void {
-    this.isJumpedMode = false;
-    this.scrollToEventId = null;
-    this.hasReachedEnd = false;
-    this.hasOlderMessages = false;
-    this.isLoadingNewer = false;
+    batch(() => {
+      this.isJumpedMode = false;
+      this.scrollToEventId = null;
+      this.hasReachedEnd = false;
+      this.hasOlderMessages = false;
+      this.isLoadingNewer = false;
+    });
   }
 }

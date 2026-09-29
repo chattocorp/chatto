@@ -474,7 +474,9 @@ export async function createBotClient(
         const status = chatto.status;
         // A closed connection or ended session does not reconnect; the loop
         // rejects instead of reporting a reconnect.
-        if (failure || untrack(() => chatto.closed || chatto.sessionEnded)) return;
+        const ended = () =>
+          untrack(() => chatto.closed || chatto.sessionEnded || chatto.realtimeUnsupported);
+        if (failure || ended()) return;
         if (status === 'connected') {
           connectedBefore = true;
           report({ state: 'ready', gap: inbox.pendingGap });
@@ -482,7 +484,12 @@ export async function createBotClient(
         } else if (status === 'connecting') {
           report({ state: connectedBefore ? 'reconnecting' : 'connecting' });
         } else if (status === 'disconnected') {
-          report({ state: 'reconnecting' });
+          // The runtime ends a terminated session one microtask later. Report
+          // a reconnect only for a connection that can still reconnect.
+          queueMicrotask(() => {
+            if (failure || ended() || untrack(() => chatto.status) !== 'disconnected') return;
+            report({ state: 'reconnecting' });
+          });
         }
       });
     });

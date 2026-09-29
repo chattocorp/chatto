@@ -21,6 +21,9 @@ import { connectChatto, type ChattoConnection } from './connect.js';
 import { serverRegistry } from './server/registry.js';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './server/realtimeTransport.js';
 import { RealtimeProjectionUpdate } from './realtime/eventBus.js';
+import { RealtimeResourceUpdate } from './api/realtimeResources.js';
+import { batch } from './reactivity/index.js';
+import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { inertRealtimeSocket } from './testing/inertSocket.js';
 
@@ -169,6 +172,32 @@ describe('connectChatto in Node', () => {
       .publish(new RealtimeProjectionUpdate({ event: new RealtimeEvent({ id: 'e1' }) }));
     expect(received).toEqual(['e1']);
     logged.mockRestore();
+  });
+
+  it('reports a reset after its snapshot applied', async () => {
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await connection.ready();
+    await vi.waitFor(() => expect(eventBusManager.getBus(connection!.serverId)).toBeDefined());
+    const bus = eventBusManager.getBus(connection.serverId)!;
+    const roomsAtReset: number[] = [];
+    connection.onReset(() => roomsAtReset.push(connection!.store.projection.rooms.size));
+    batch(() => {
+      bus.publish(new RealtimeProjectionUpdate({ reset: true }));
+      bus.publish(
+        new RealtimeProjectionUpdate({
+          resource: new RealtimeResourceUpdate({
+            resource: {
+              case: 'rooms',
+              value: new ListRoomsResponse({
+                rooms: [new RoomWithViewerState({ room: { id: 'R1', name: 'general' } })]
+              })
+            },
+            replace: true
+          })
+        })
+      );
+    });
+    expect(roomsAtReset).toEqual([1]);
   });
 
   it('leaves no timers behind after close', async () => {

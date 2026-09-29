@@ -428,3 +428,21 @@ test('reports a gap when consumption restarts', async () => {
     await consuming;
   }
 });
+
+test('reports no reconnect for a session that ends after the stream closed', async () => {
+  const fake = fakeConnection();
+  fake.setStatus('connected');
+  const bot = await createBotClient(fake.chatto);
+  const statuses: string[] = [];
+  const consuming = bot.consumeEvents({
+    signal: new AbortController().signal,
+    onStatus: ({ state }) => statuses.push(state),
+    onEvent: () => {}
+  });
+  // As the transport does: session handlers queue the end, then the stream
+  // reports that it is disconnected.
+  queueMicrotask(() => fake.endSession());
+  fake.setStatus('disconnected');
+  await expect(consuming).rejects.toThrow('ended the session');
+  expect(statuses).toEqual(['ready']);
+});

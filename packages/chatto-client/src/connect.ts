@@ -99,7 +99,8 @@ export interface ChattoConnection {
    */
   onEvent(listener: (event: RealtimeEvent) => void): () => void;
   /**
-   * Receive projection resets. The first reset delivers the initial snapshot.
+   * Receive projection resets, after the store applied the reset's
+   * snapshot. The first reset delivers the initial snapshot.
    * `gap` is true when a later reset replaced a stream that the server could
    * not resume after it connected or delivered events, so events can have
    * been missed. A resync that publishes several resets before the next
@@ -166,6 +167,9 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
   // skip the events that followed them.
   let eventsSinceReset = false;
   const closed = signal(false);
+  /** The reset that listeners have not received yet; see `subscribeToBus`. */
+  let pendingReset: ChattoReset | null = null;
+  const resetPublished = signal(0);
   /** Call each listener; one failing listener does not stop the others. */
   const notify = <T>(listeners: Set<(value: T) => void>, value: T) => {
     for (const listener of [...listeners]) {
@@ -190,6 +194,14 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
     effect(() => {
       if (currentStatus() === 'connected') connectedSinceReset = true;
     });
+    // A snapshot publishes its reset and then its resources in one batch.
+    // Report the reset when the batch ends, so listeners read the new state.
+    effect(() => {
+      resetPublished.get();
+      const reset = pendingReset;
+      pendingReset = null;
+      if (reset) untrack(() => notify(resetListeners, reset));
+    });
     effect(() => {
       const bus = eventBusManager.getBus(serverId);
       if (!bus) return;
@@ -202,7 +214,8 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
             };
             connectedSinceReset = false;
             eventsSinceReset = false;
-            notify(resetListeners, reset);
+            pendingReset = { gap: (pendingReset?.gap ?? false) || reset.gap };
+            resetPublished.update((count) => count + 1);
           }
           const event = update.event;
           if (event) {

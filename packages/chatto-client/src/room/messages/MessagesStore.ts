@@ -1,4 +1,4 @@
-import { ReactiveMap, ReactiveSet, signal } from '../../reactivity/index.js';
+import { ReactiveMap, ReactiveSet, batch, signal } from '../../reactivity/index.js';
 import {
   TimelineEventKind,
   timelineEventKind,
@@ -1198,17 +1198,19 @@ export class MessagesStore {
   }
 
   private resetState(): void {
-    this.events = [];
-    this.seenIds = new Set();
-    this.#needsLatestWindow = false;
-    this.previewEvents.clear();
-    this.invalidatePendingPreviewFetches();
-    this.optimisticReactions.clearAll();
-    this.optimisticThreadFollows.clearAll();
-    this.oldestCursor = undefined;
-    this.newestCursor = undefined;
-    this.hasReachedStart = false;
-    this.isLoadingMore = false;
+    batch(() => {
+      this.events = [];
+      this.seenIds = new Set();
+      this.#needsLatestWindow = false;
+      this.previewEvents.clear();
+      this.invalidatePendingPreviewFetches();
+      this.optimisticReactions.clearAll();
+      this.optimisticThreadFollows.clearAll();
+      this.oldestCursor = undefined;
+      this.newestCursor = undefined;
+      this.hasReachedStart = false;
+      this.isLoadingMore = false;
+    });
   }
 
   /** Discard preview responses captured before a plaintext-clearing boundary. */

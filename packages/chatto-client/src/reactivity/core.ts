@@ -422,7 +422,11 @@ class EffectNode {
     activeOwner = this.#owner;
     try {
       const cleanup = collectSources(this, sources, this.#fn);
-      this.#cleanup = typeof cleanup === 'function' ? cleanup : null;
+      if (typeof cleanup === 'function') {
+        // A run that disposed its own effect already missed the teardown.
+        if (this.#disposed) untrack(cleanup);
+        else this.#cleanup = cleanup;
+      }
     } finally {
       activeOwner = previousOwner;
       // The run can dispose its own effect, for example a subscriber that

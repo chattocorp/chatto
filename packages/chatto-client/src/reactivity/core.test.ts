@@ -419,3 +419,19 @@ describe('disposal', () => {
     logged.mockRestore();
   });
 });
+
+describe('self-disposal', () => {
+  it('runs the cleanup of a run that disposed its own effect', () => {
+    const cleanup = vi.fn();
+    const source = signal(0);
+    // The first run does not read `dispose`; later runs do.
+    const dispose: () => void = effect(() => {
+      if (source.get() === 1) dispose();
+      return cleanup;
+    });
+    source.set(1);
+    expect(cleanup).toHaveBeenCalledTimes(2);
+    source.set(2);
+    expect(cleanup).toHaveBeenCalledTimes(2);
+  });
+});
