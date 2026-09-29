@@ -10,6 +10,10 @@ vi.mock('@chatto/client', async (importOriginal) => ({
   connectChatto: (options: Parameters<typeof chatto.connectChatto>[0]) =>
     chatto.connectChatto(options)
 }));
+vi.mock('@chatto/client/apiClient', () => ({
+  createChattoApi: (options: Parameters<typeof chatto.createChattoApi>[0]) =>
+    chatto.createChattoApi(options)
+}));
 afterEach(() => vi.unstubAllEnvs());
 
 test('source retries failed registration through Runling dispatch and ignores accepted replay', async () => {

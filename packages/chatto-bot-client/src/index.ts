@@ -430,6 +430,9 @@ export async function createBotClient(
       });
       effect(() => {
         const status = chatto.status;
+        // A closed connection or ended session does not reconnect; the loop
+        // rejects instead of reporting a reconnect.
+        if (failure || untrack(() => chatto.closed || chatto.sessionEnded)) return;
         if (status === 'connected') {
           connectedBefore = true;
           report({ state: 'ready', gap: pendingGap });

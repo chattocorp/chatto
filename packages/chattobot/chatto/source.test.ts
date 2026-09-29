@@ -21,6 +21,10 @@ vi.mock('@chatto/client', async (importOriginal) => ({
   connectChatto: (options: Parameters<typeof chatto.connectChatto>[0]) =>
     chatto.connectChatto(options)
 }));
+vi.mock('@chatto/client/apiClient', () => ({
+  createChattoApi: (options: Parameters<typeof chatto.createChattoApi>[0]) =>
+    chatto.createChattoApi(options)
+}));
 vi.mock('../workflows/chat.ts', () => ({ createChattoBot: mocks.bot }));
 
 function useServer(viewerId: FakeChattoSetup['viewerId'] = 'bot') {
@@ -271,7 +275,9 @@ test('existing conversation callbacks keep their server and credentials after re
   await original.typing!(destination, signal);
   await original.readThread!(delivery, signal);
   await original.acknowledge!(delivery, signal);
-  const [first, replacement] = chatto.connections;
+  // The generation's connection is closed; its runs still reach the server.
+  expect(chatto.connections.every((connection) => connection.closed)).toBe(true);
+  const [first, replacement] = chatto.apis;
   expect(first!.options).toEqual({
     serverUrl: 'https://original.example',
     apiKey: 'original-key'

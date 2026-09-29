@@ -35,7 +35,9 @@ chatto.close();
   new snapshot replaced a stream that the server could not resume, so events
   can be missing.
 - `close()` stops realtime delivery and all timers, and rejects a pending
-  `ready()`.
+  `ready()`. Requests in flight through the connection fail, even when the
+  server applied them. Use `createChattoApi` for work that can continue
+  after the connection closes.
 - The token is kept only in memory: it is never renewed or written to device
   storage. When the server rejects it, `ready()` rejects and `sessionEnded`
   becomes true. Close the connection then.

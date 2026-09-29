@@ -42,6 +42,8 @@ function fixture(
     async (url, init) => {
       assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-secret');
       assert.equal(init?.redirect, 'error');
+      // Every request has a deadline, so a silent server cannot stall a run.
+      assert.ok(new Headers(init?.headers).get('Connect-Timeout-Ms'));
       const path = new URL(String(url)).pathname;
       if (path.endsWith('GetViewer'))
         return Response.json({

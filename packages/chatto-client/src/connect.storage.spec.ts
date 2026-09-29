@@ -30,3 +30,18 @@ it('never writes a fixed token to device storage', async () => {
   connection.close();
   expect(storedValues()).not.toContain('secret-key');
 });
+
+function storedKeys(): string[] {
+  return Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)!);
+}
+
+it('leaves no per-server records behind after close', async () => {
+  const before = new Set(storedKeys());
+  for (let index = 0; index < 3; index++) {
+    const connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await connection.ready();
+    connection.close();
+  }
+  const added = storedKeys().filter((key) => !before.has(key) && key.includes('authentication'));
+  expect(added).toEqual([]);
+});

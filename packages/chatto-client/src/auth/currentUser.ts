@@ -1,5 +1,5 @@
 import type { ConnectAPIConfig } from '../api/connect.js';
-import { signal } from '../reactivity/index.js';
+import { batch, signal } from '../reactivity/index.js';
 import { getCurrentUserViaConnect, type CurrentUser } from '../api/viewer.js';
 import { browserCookieAuthenticationHeaders } from './authenticationMode.js';
 import { csrfFetch } from './csrf.js';
@@ -38,6 +38,14 @@ export class CurrentUserState {
   set loading(value) {
     this.#loadingSignal.set(value);
   }
+  /**
+   * The error of the latest viewer read that failed for a reason other than
+   * authentication, such as an unreachable server. A new read clears it.
+   */
+  readonly #loadErrorSignal = signal<unknown>(null);
+  get loadError(): unknown {
+    return this.#loadErrorSignal.get();
+  }
   /** Identity confirmed by the latest successful viewer request. */
   readonly #verifiedUserIdSignal = signal<string | null>(null);
   get verifiedUserId(): string | null {
@@ -73,7 +81,10 @@ export class CurrentUserState {
   load(): Promise<void> {
     if (this.#loadPromise) return this.#loadPromise;
 
-    this.loading = true;
+    batch(() => {
+      this.loading = true;
+      this.#loadErrorSignal.set(null);
+    });
     const promise = this.#loadViewer(this.#generation).finally(() => {
       if (this.#loadPromise === promise) this.#loadPromise = null;
     });
@@ -93,6 +104,7 @@ export class CurrentUserState {
     this.#generation++;
     this.user = user;
     this.verifiedUserId = user.id;
+    this.#loadErrorSignal.set(null);
     this.loading = false;
   }
 
@@ -155,6 +167,10 @@ export class CurrentUserState {
       // Don't throw — the caller treats this as a per-instance soft
       // failure, not a global crash.
       console.error('[auth] failed to load current user', err);
+      batch(() => {
+        this.#loadErrorSignal.set(err);
+        this.loading = false;
+      });
     } finally {
       if (generation === this.#generation) this.loading = false;
     }

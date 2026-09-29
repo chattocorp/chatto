@@ -226,14 +226,18 @@ test('stops when the server ends the session or the connection closes', async ()
   for (const end of ['session', 'close'] as const) {
     const fake = fakeConnection();
     const bot = await createBotClient(fake.chatto);
+    const statuses: string[] = [];
     const consuming = bot.consumeEvents({
       signal: new AbortController().signal,
+      onStatus: ({ state }) => statuses.push(state),
       onEvent: () => {}
     });
     if (end === 'session') fake.endSession();
     else fake.chatto.close();
     await expect(consuming).rejects.toThrow(end === 'session' ? 'ended the session' : 'closed');
     expect(fake.listenerCount).toBe(0);
+    // An ended connection does not reconnect, so none is reported.
+    expect(statuses).toEqual(['connecting']);
   }
 });
 

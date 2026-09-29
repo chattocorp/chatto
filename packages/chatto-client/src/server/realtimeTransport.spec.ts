@@ -517,7 +517,9 @@ describe('eventBusManager realtime transport', () => {
     const stop = effect(() => {
       observed.push(applied.get());
     });
-    const { socket } = await startAndSubscribe(undefined, () => applied.update((count) => count + 1));
+    const { socket } = await startAndSubscribe(undefined, () =>
+      applied.update((count) => count + 1)
+    );
 
     await socket.receive(snapshotFrame());
     stop();

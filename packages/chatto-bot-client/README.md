@@ -102,6 +102,10 @@ application concerns.
 A new connection starts from a new realtime snapshot. Events that arrive while
 no connection is open are not replayed.
 
+Closing a connection fails its requests in flight. For work that can continue
+after the connection closes, such as a run that outlives a reload, use
+`createBotApi(createChattoApi({ serverUrl, apiKey }), viewerId)`.
+
 This is process-local deduplication, not a durable inbox or an exactly-once
 guarantee. A failed write can have reached the server. A process restart loses
 acceptance state, and recovery gaps do not trigger automatic history reads.
@@ -118,3 +122,5 @@ The helpers moved from the old `@chatto/client` integration client (ADR-110):
   `addReaction`, `getMessage`, `withTyping`, and `startTyping` are now bot
   client functions and exports of this package. `createMessage` returns
   `{ id }`.
+- `bot.readThread` no longer adds bot/human roles to messages. Use
+  `bot.readBotThread` when you need them.

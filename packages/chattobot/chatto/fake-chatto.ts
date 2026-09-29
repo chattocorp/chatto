@@ -1,11 +1,20 @@
 /**
- * Test double for `connectChatto`. Each connection records its credentials and
- * answers service calls from an in-memory Connect router, like a real server.
+ * Test double for `connectChatto` and `createChattoApi`. Each connection
+ * records its credentials and answers service calls from an in-memory Connect
+ * router, like a real server. Like a real connection, a closed connection
+ * fails its requests.
  */
 
 import { vi } from 'vitest';
 import type { ServiceType } from '@bufbuild/protobuf';
-import { createClient, createRouterTransport, type ConnectRouter } from '@connectrpc/connect';
+import {
+  Code,
+  ConnectError,
+  createClient,
+  createRouterTransport,
+  type ConnectRouter
+} from '@connectrpc/connect';
+import type { ChattoApi, ChattoApiOptions } from '@chatto/client/apiClient';
 import type {
   ChattoConnection,
   ChattoConnectionStatus,
@@ -50,6 +59,7 @@ export function fakeChatto(setup: FakeChattoSetup) {
       router: {
         interceptors: [
           (next) => async (request) => {
+            if (fake.closed) throw new ConnectError('connection closed', Code.Canceled);
             fake.calls.push(`${request.service.typeName.split('.').pop()}/${request.method.name}`);
             return next(request);
           }
@@ -92,7 +102,26 @@ export function fakeChatto(setup: FakeChattoSetup) {
     };
     return connection as unknown as ChattoConnection;
   });
-  return { connectChatto, connections };
+  /** Stateless API clients, with their credentials and the methods they called. */
+  const apis: { options: ChattoApiOptions; calls: string[] }[] = [];
+  const createChattoApi = vi.fn((options: ChattoApiOptions): ChattoApi => {
+    const api = { options, calls: [] as string[] };
+    apis.push(api);
+    const transport = createRouterTransport(setup.routes, {
+      router: {
+        interceptors: [
+          (next) => async (request) => {
+            api.calls.push(`${request.service.typeName.split('.').pop()}/${request.method.name}`);
+            return next(request);
+          }
+        ]
+      }
+    });
+    return {
+      service: <T extends ServiceType>(service: T) => createClient(service, transport)
+    } as unknown as ChattoApi;
+  });
+  return { connectChatto, connections, createChattoApi, apis };
 }
 
 /** Let queued event handlers and in-memory requests finish. */

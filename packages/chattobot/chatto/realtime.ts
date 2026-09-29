@@ -1,5 +1,6 @@
 import { connectChatto, type ChattoConnection } from '@chatto/client';
-import { createBotClient, type AddressedMessage } from '@chatto/bot-client';
+import { createChattoApi, type ChattoApi } from '@chatto/client/apiClient';
+import { createBotApi, createBotClient, type AddressedMessage } from '@chatto/bot-client';
 import { createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
@@ -95,10 +96,19 @@ function sourceSettings() {
 export const chattoSource: EventSource = async (ctx) => {
   const { serverUrl, apiKey, allowedUserId, ...settings } = sourceSettings();
   // Each source generation owns its connection and closes it when it ends.
-  // A new generation starts from a fresh realtime snapshot.
+  // A new generation starts from a fresh realtime snapshot. Closing fails the
+  // connection's requests in flight, so runs, which can outlive their
+  // generation, send requests through a stateless API client instead.
   const chatto = connectChatto({ serverUrl, apiKey });
   try {
-    await consume(ctx, chatto, allowedUserId, settings, serverUrl);
+    await consume(
+      ctx,
+      chatto,
+      createChattoApi({ serverUrl, apiKey }),
+      allowedUserId,
+      settings,
+      serverUrl
+    );
   } finally {
     chatto.close();
   }
@@ -107,6 +117,7 @@ export const chattoSource: EventSource = async (ctx) => {
 async function consume(
   ctx: Parameters<EventSource>[0],
   chatto: ChattoConnection,
+  api: ChattoApi,
   allowedUserId: string | undefined,
   settings: Omit<ReturnType<typeof sourceSettings>, 'serverUrl' | 'apiKey' | 'allowedUserId'>,
   serverUrl: string
@@ -122,14 +133,15 @@ async function consume(
     // Each generation starts from a new snapshot; the previous one is closed.
     console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
   }
-  // Active runs keep this generation's client even if a reload changes credentials.
+  // Active runs keep this generation's credentials even if a reload changes them.
+  const runs = createBotApi(api, botId);
   const bot = createChattoBot({
     ...settings,
     state: session.conversations,
-    post: client.postMessage,
-    typing: client.refreshTyping,
-    readThread: createThreadReader(client, botId),
-    acknowledge: createEyesReaction(client)
+    post: runs.postMessage,
+    typing: runs.refreshTyping,
+    readThread: createThreadReader(runs, botId),
+    acknowledge: createEyesReaction(runs)
   });
   await client.consumeEvents({
     signal: ctx.signal,

@@ -47,6 +47,9 @@ async function readEnvironment(): Promise<BotConfig> {
   return { serverUrl, apiKey };
 }
 
+/** Timeout of one Chatto request, like the bot client's own requests. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 /** Build the reply workflow. Injectable I/O allows tests without a live server. */
 export function createReplyWorkflow(
   loadConfig: () => Promise<BotConfig> = readEnvironment,
@@ -69,7 +72,9 @@ export function createReplyWorkflow(
 
       // Confirm the configured credentials belong to the intended bot.
       const viewer = await step('Check bot identity', async () => {
-        const response = await api.service(ViewerService).getViewer({}, { signal: r.signal });
+        const response = await api
+          .service(ViewerService)
+          .getViewer({}, { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS });
         return { id: response.user?.profile?.id ?? '' };
       });
       if (viewer.id !== input.bot_id) {
@@ -85,7 +90,10 @@ export function createReplyWorkflow(
       const author = await step('Check message author', async () => {
         const response = await api
           .service(UserService)
-          .getUser({ userId: input.message.author_id }, { signal: r.signal });
+          .getUser(
+            { userId: input.message.author_id },
+            { signal: r.signal, timeoutMs: REQUEST_TIMEOUT_MS }
+          );
         const user = response.user?.user;
         return user ? { bot: Boolean(user.bot) } : null;
       });

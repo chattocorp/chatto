@@ -92,7 +92,11 @@ export interface ChattoConnection {
    * several resets before the next connection reports one gap.
    */
   onReset(listener: (reset: ChattoReset) => void): () => void;
-  /** Stop realtime delivery and remove the server and its state. */
+  /**
+   * Stop realtime delivery and remove the server and its state. Requests in
+   * flight through this connection then fail, even when the server applied
+   * them. Use `createChattoApi` for work that can outlive the connection.
+   */
   close(): void;
 }
 
@@ -202,11 +206,11 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
         };
         const abort = () => finish(() => reject(signal!.reason));
         signal?.addEventListener('abort', abort, { once: true });
-        // A failure is reported only for a discovery or viewer read that this
-        // call saw in progress. Between two recovery attempts, wait for the
-        // next one.
-        let sawDiscovery = false;
-        let sawViewerRead = false;
+        // Report only failures of attempts that start after this call: each
+        // attempt clears its error first. Between two recovery attempts, wait
+        // for the next one.
+        let discoveryAttempted = false;
+        let viewerAttempted = false;
         stop = effectRoot(() => {
           effect(() => {
             if (closed.get()) {
@@ -225,14 +229,17 @@ export function connectChatto(options: ConnectChattoOptions): ChattoConnection {
               finish(() => resolve({ viewerId }));
               return;
             }
-            const { serverInfo, currentUser } = current;
-            if (serverInfo.loading) sawDiscovery = true;
-            if (currentUser.loading) sawViewerRead = true;
             // The server is unreachable or failed. The store logs the error.
-            if (sawDiscovery && !serverInfo.loading && serverInfo.error !== null) {
-              finish(() => reject(new Error('Could not reach the Chatto server')));
-            } else if (sawViewerRead && !currentUser.loading) {
+            const { serverInfo, currentUser } = current;
+            const discoveryFailed = serverInfo.error !== null;
+            const viewerFailed = currentUser.loadError !== null;
+            discoveryAttempted ||= !discoveryFailed;
+            viewerAttempted ||= !viewerFailed;
+            if (viewerFailed && viewerAttempted) {
               finish(() => reject(new Error('Could not load the viewer from the Chatto server')));
+            } else if (discoveryFailed && discoveryAttempted && !currentUser.loading) {
+              // A viewer read in progress can still succeed without discovery.
+              finish(() => reject(new Error('Could not reach the Chatto server')));
             }
           });
         });

@@ -158,6 +158,35 @@ describe('connectChatto in Node', () => {
     logged.mockRestore();
   });
 
+  it('keeps waiting when a viewer read is superseded instead of failing', async () => {
+    let resolveViewer!: (user: CurrentUser) => void;
+    mocks.viewer.mockReturnValueOnce(new Promise((resolve) => (resolveViewer = resolve)));
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    let settled = false;
+    const ready = connection.ready().finally(() => (settled = true));
+    await vi.waitFor(() => expect(mocks.viewer).toHaveBeenCalled());
+    connection.store.currentUser.invalidateVerification();
+    resolveViewer({ id: 'bot', login: 'bot' } as CurrentUser);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+    await connection.store.currentUser.load();
+    await expect(ready).resolves.toEqual({ viewerId: 'bot' });
+  });
+
+  it('resolves when the viewer loads although discovery failed', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.discovery.mockRejectedValue(new TypeError('discovery blocked'));
+    mocks.viewer.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ id: 'bot', login: 'bot' } as CurrentUser), 10)
+        )
+    );
+    connection = connectChatto({ serverUrl: 'https://chat.example', apiKey: 'key' });
+    await expect(connection.ready()).resolves.toEqual({ viewerId: 'bot' });
+    logged.mockRestore();
+  });
+
   it('reports each failed discovery attempt to a waiting ready()', async () => {
     vi.useFakeTimers();
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});

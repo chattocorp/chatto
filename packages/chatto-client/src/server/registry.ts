@@ -973,14 +973,15 @@ class ServerRegistry {
       this.#stores.get(id)?.dispose();
       this.#stores.delete(id);
       this.#startedServerNetwork.delete(id);
-      this.#fixedTokenServers.delete(id);
+      // A fixed token was never written to device storage; nothing to clear.
+      const fixedToken = this.#fixedTokenServers.delete(id);
 
       // Dispose connection state
       serverConnectionManager.destroyClient(id);
 
       this.sessions.remove(id);
       this.catalog.remove(id);
-      persistAuthentication(id, emptyServerAuthentication());
+      if (!fixedToken) persistAuthentication(id, emptyServerAuthentication());
       this.#persist();
       return true;
     });
@@ -990,8 +991,9 @@ class ServerRegistry {
   removeAll(): void {
     batch(() => {
       const ids = this.servers.map((server) => server.id);
+      const persistedIds = ids.filter((id) => !this.#fixedTokenServers.has(id));
       this.#disposeServers(ids);
-      for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
+      for (const id of persistedIds) persistAuthentication(id, emptyServerAuthentication());
       this.sessions.clear();
       this.catalog.reset();
       this.#persist();
@@ -1003,8 +1005,9 @@ class ServerRegistry {
     batch(() => {
       const origin = this.originServer;
       const ids = this.servers.map((server) => server.id);
+      const persistedIds = ids.filter((id) => !this.#fixedTokenServers.has(id));
       this.#disposeServers(ids);
-      for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
+      for (const id of persistedIds) persistAuthentication(id, emptyServerAuthentication());
       this.sessions.clear();
       this.catalog.reset(origin ? [registrationFromServer(origin)] : []);
       if (origin) {
