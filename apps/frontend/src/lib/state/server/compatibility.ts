@@ -13,6 +13,9 @@ export type ServerCompatibilityStatus = 'supported' | 'unsupported' | 'unknown' 
 export type ServerCompatibilityReason =
   'version-confirmed' | 'server-too-old' | 'server-version-unknown' | 'unreachable';
 
+/** A reason that prevents this client from using a server. */
+export type ServerCompatibilityProblem = Exclude<ServerCompatibilityReason, 'version-confirmed'>;
+
 export type ServerCompatibilityResult = {
   status: ServerCompatibilityStatus;
   reason: ServerCompatibilityReason;

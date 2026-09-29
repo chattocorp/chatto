@@ -74,6 +74,17 @@
         "other": "{count} varsler"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Serveren må oppgraderes",
+      "too_old_body": "Denne serveren kjører en Chatto-versjon som appen ikke lenger støtter. Be serveradministratoren om å oppgradere Chatto.",
+      "unknown_title": "Ukjent serverversjon",
+      "unknown_body": "Appen kan ikke identifisere Chatto-versjonen til denne serveren og kan derfor ikke koble til.",
+      "unreachable_body": "Appen kan ikke koble til denne serveren. Sjekk nettverkstilkoblingen din eller prøv igjen senere.",
+      "server_version": "Serverversjon",
+      "required_version": "Påkrevd versjon",
+      "required_version_value": "{version} eller nyere",
+      "check_again": "Sjekk igjen"
+    },
     "threads": {
       "title": "Mine tråder",
       "subtitle": "Tråder du følger",

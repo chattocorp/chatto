@@ -1116,12 +1116,15 @@ class ServerRegistry {
     );
   }
 
-  /** Retry failed discovery and restore the viewer without starting an OAuth flow. */
+  /**
+   * Retry discovery that failed or found a server this client cannot use, then
+   * restore the viewer without starting an OAuth flow.
+   */
   async recoverServer(id: string): Promise<void> {
     const store = this.#stores.get(id);
     if (!store) return;
     this.#startServerNetwork(id);
-    if (store.serverInfo.error !== null) await store.serverInfo.init();
+    if (store.serverInfo.compatibilityProblem !== null) await store.serverInfo.init();
     if (this.#stores.get(id) !== store || store.serverInfo.error !== null) return;
     const session = this.sessions.get(id);
     if (

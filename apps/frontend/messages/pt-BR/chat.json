@@ -74,6 +74,17 @@
         "other": "{count} notificações"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Atualização do servidor necessária",
+      "too_old_body": "Este servidor usa uma versão do Chatto que este app não suporta mais. Peça ao administrador do servidor para atualizar o Chatto.",
+      "unknown_title": "Versão do servidor desconhecida",
+      "unknown_body": "Este app não consegue identificar a versão do Chatto deste servidor e, por isso, não pode se conectar.",
+      "unreachable_body": "Este app não consegue se conectar a este servidor. Verifique sua conexão de rede ou tente novamente mais tarde.",
+      "server_version": "Versão do servidor",
+      "required_version": "Versão necessária",
+      "required_version_value": "{version} ou mais recente",
+      "check_again": "Verificar novamente"
+    },
     "threads": {
       "title": "Meus tópicos",
       "subtitle": "Tópicos que você está seguindo",

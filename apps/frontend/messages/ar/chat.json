@@ -82,6 +82,17 @@
         "other": "{count} إشعار"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "يلزم ترقية الخادم",
+      "too_old_body": "يشغّل هذا الخادم إصدارًا من Chatto لم يعد هذا التطبيق يدعمه. اطلب من مسؤول الخادم ترقية Chatto.",
+      "unknown_title": "إصدار الخادم غير معروف",
+      "unknown_body": "لا يستطيع هذا التطبيق تحديد إصدار Chatto على هذا الخادم، لذا لا يمكنه الاتصال.",
+      "unreachable_body": "لا يستطيع هذا التطبيق الاتصال بهذا الخادم. تحقق من اتصالك بالشبكة أو حاول مرة أخرى لاحقًا.",
+      "server_version": "إصدار الخادم",
+      "required_version": "الإصدار المطلوب",
+      "required_version_value": "{version} أو أحدث",
+      "check_again": "تحقق مرة أخرى"
+    },
     "threads": {
       "title": "مواضيعي",
       "subtitle": "المواضيع التي تتابعها",

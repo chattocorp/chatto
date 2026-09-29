@@ -74,6 +74,17 @@
         "other": "{count} notifications"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Server upgrade required",
+      "too_old_body": "This server runs a Chatto version that this app no longer supports. Ask the server administrator to upgrade Chatto.",
+      "unknown_title": "Unknown server version",
+      "unknown_body": "This app cannot identify the Chatto version of this server, so it cannot connect.",
+      "unreachable_body": "This app cannot connect to this server. Check your network connection or try again later.",
+      "server_version": "Server version",
+      "required_version": "Required version",
+      "required_version_value": "{version} or newer",
+      "check_again": "Check Again"
+    },
     "threads": {
       "title": "My Threads",
       "subtitle": "Threads you're following",

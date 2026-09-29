@@ -74,6 +74,17 @@
         "other": "{count} aviseringar"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Servern behöver uppgraderas",
+      "too_old_body": "Den här servern kör en Chatto-version som appen inte längre stöder. Be serverns administratör att uppgradera Chatto.",
+      "unknown_title": "Okänd serverversion",
+      "unknown_body": "Appen kan inte identifiera serverns Chatto-version och kan därför inte ansluta.",
+      "unreachable_body": "Appen kan inte ansluta till den här servern. Kontrollera din nätverksanslutning eller försök igen senare.",
+      "server_version": "Serverversion",
+      "required_version": "Version som krävs",
+      "required_version_value": "{version} eller senare",
+      "check_again": "Kontrollera igen"
+    },
     "threads": {
       "title": "Mina trådar",
       "subtitle": "Trådar du följer",

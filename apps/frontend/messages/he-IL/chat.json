@@ -76,6 +76,17 @@
         "other": "{count} התראות"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "נדרש שדרוג של השרת",
+      "too_old_body": "בשרת הזה פועלת גרסת Chatto שהאפליקציה כבר לא תומכת בה. בקש ממנהל השרת לשדרג את Chatto.",
+      "unknown_title": "גרסת שרת לא ידועה",
+      "unknown_body": "האפליקציה לא יכולה לזהות את גרסת Chatto של השרת הזה ולכן לא יכולה להתחבר.",
+      "unreachable_body": "האפליקציה לא יכולה להתחבר לשרת הזה. בדוק את חיבור הרשת או נסה שוב מאוחר יותר.",
+      "server_version": "גרסת השרת",
+      "required_version": "גרסה נדרשת",
+      "required_version_value": "{version} ומעלה",
+      "check_again": "בדוק שוב"
+    },
     "threads": {
       "title": "השרשורים שלי",
       "subtitle": "שרשורים שאתה עוקב אחריהם",

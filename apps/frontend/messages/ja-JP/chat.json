@@ -74,6 +74,17 @@
         "other": "{count} 件の通知"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "サーバーのアップグレードが必要です",
+      "too_old_body": "このサーバーでは、このアプリがサポートしなくなった Chatto のバージョンが動作しています。サーバー管理者に Chatto のアップグレードを依頼してください。",
+      "unknown_title": "不明なサーバーバージョン",
+      "unknown_body": "このアプリはこのサーバーの Chatto のバージョンを特定できないため、接続できません。",
+      "unreachable_body": "このアプリはこのサーバーに接続できません。ネットワーク接続を確認するか、しばらくしてからもう一度お試しください。",
+      "server_version": "サーバーのバージョン",
+      "required_version": "必要なバージョン",
+      "required_version_value": "{version} 以降",
+      "check_again": "もう一度確認"
+    },
     "threads": {
       "title": "私のスレッド",
       "subtitle": "あなたがフォローしているスレッド",

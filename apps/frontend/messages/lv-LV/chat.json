@@ -76,6 +76,17 @@
         "other": "{count} paziņojumi"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Nepieciešams servera jauninājums",
+      "too_old_body": "Šajā serverī darbojas Chatto versija, ko šī lietotne vairs neatbalsta. Lūdziet servera administratoram jaunināt Chatto.",
+      "unknown_title": "Nezināma servera versija",
+      "unknown_body": "Lietotne nevar noteikt šī servera Chatto versiju, tāpēc nevar izveidot savienojumu.",
+      "unreachable_body": "Lietotne nevar izveidot savienojumu ar šo serveri. Pārbaudiet tīkla savienojumu vai mēģiniet vēlreiz vēlāk.",
+      "server_version": "Servera versija",
+      "required_version": "Nepieciešamā versija",
+      "required_version_value": "{version} vai jaunāka",
+      "check_again": "Pārbaudīt vēlreiz"
+    },
     "threads": {
       "title": "Mani pavedieni",
       "subtitle": "Pavedieni, kuriem sekojat",

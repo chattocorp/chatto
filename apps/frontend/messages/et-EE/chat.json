@@ -74,6 +74,17 @@
         "other": "{count} teatist"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Serverit tuleb uuendada",
+      "too_old_body": "Selles serveris töötab Chatto versioon, mida see rakendus enam ei toeta. Paluge serveri administraatoril Chatto uuendada.",
+      "unknown_title": "Tundmatu serveri versioon",
+      "unknown_body": "Rakendus ei suuda tuvastada selle serveri Chatto versiooni ega saa seetõttu ühendust luua.",
+      "unreachable_body": "Rakendus ei saa selle serveriga ühendust. Kontrollige võrguühendust või proovige hiljem uuesti.",
+      "server_version": "Serveri versioon",
+      "required_version": "Nõutav versioon",
+      "required_version_value": "{version} või uuem",
+      "check_again": "Kontrollige uuesti"
+    },
     "threads": {
       "title": "Minu lõimed",
       "subtitle": "Lõimed, mida jälgite",

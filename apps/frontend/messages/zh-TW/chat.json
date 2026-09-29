@@ -74,6 +74,17 @@
         "other": "{count} 則通知"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "需要升級伺服器",
+      "too_old_body": "此伺服器執行的 Chatto 版本已不再受此應用程式支援。請讓伺服器管理員升級 Chatto。",
+      "unknown_title": "未知的伺服器版本",
+      "unknown_body": "此應用程式無法辨識此伺服器的 Chatto 版本，因此無法連線。",
+      "unreachable_body": "此應用程式無法連線到此伺服器。請檢查你的網路連線，或稍後再試。",
+      "server_version": "伺服器版本",
+      "required_version": "所需版本",
+      "required_version_value": "{version} 或更新版本",
+      "check_again": "重新檢查"
+    },
     "threads": {
       "title": "我的討論串",
       "subtitle": "你追蹤的討論串",

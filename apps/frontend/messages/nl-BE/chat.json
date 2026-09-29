@@ -74,6 +74,17 @@
         "other": "{count} meldingen"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Serverupgrade vereist",
+      "too_old_body": "Deze server gebruikt een Chatto-versie die deze app niet meer ondersteunt. Vraag de serverbeheerder om Chatto te upgraden.",
+      "unknown_title": "Onbekende serverversie",
+      "unknown_body": "Deze app kan de Chatto-versie van deze server niet herkennen en kan daarom geen verbinding maken.",
+      "unreachable_body": "Deze app kan geen verbinding maken met deze server. Controleer je netwerkverbinding of probeer het later opnieuw.",
+      "server_version": "Serverversie",
+      "required_version": "Vereiste versie",
+      "required_version_value": "{version} of nieuwer",
+      "check_again": "Opnieuw controleren"
+    },
     "threads": {
       "title": "Mijn discussies",
       "subtitle": "Discussies die je volgt",

@@ -109,6 +109,19 @@ describe('registered server recovery', () => {
     expect(registry.getStore('retry-test').currentUser.verifiedUserId).toBe(user.id);
   });
 
+  it('checks the version again for a server that was too old', async () => {
+    mocks.discovery.mockResolvedValue({ ...profile, version: '0.5.0-beta.7' });
+    mocks.viewer.mockResolvedValue(user);
+    const store = await register();
+    expect(store.serverInfo.compatibilityProblem).toBe('server-too-old');
+
+    mocks.discovery.mockResolvedValue(profile);
+    await registry.recoverServer('retry-test');
+    expect(mocks.discovery).toHaveBeenCalledTimes(2);
+    expect(store.serverInfo.compatibilityProblem).toBeNull();
+    expect(mocks.viewer).toHaveBeenCalledTimes(1);
+  });
+
   it('deduplicates concurrent recovery and cannot restore a removed server', async () => {
     await register();
     mocks.discovery.mockResolvedValue(profile);

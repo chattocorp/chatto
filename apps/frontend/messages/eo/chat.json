@@ -74,6 +74,17 @@
         "other": "{count} sciigoj"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Necesas ĝisdatigi la servilon",
+      "too_old_body": "Ĉi tiu servilo uzas version de Chatto, kiun ĉi tiu aplikaĵo ne plu subtenas. Petu la administranton de la servilo ĝisdatigi Chatto.",
+      "unknown_title": "Nekonata versio de servilo",
+      "unknown_body": "Ĉi tiu aplikaĵo ne povas identigi la version de Chatto de ĉi tiu servilo, do ĝi ne povas konektiĝi.",
+      "unreachable_body": "Ĉi tiu aplikaĵo ne povas konektiĝi al ĉi tiu servilo. Kontrolu vian retkonekton aŭ reprovu poste.",
+      "server_version": "Versio de servilo",
+      "required_version": "Postulata versio",
+      "required_version_value": "{version} aŭ pli nova",
+      "check_again": "Kontroli denove"
+    },
     "threads": {
       "title": "Miaj Fadenoj",
       "subtitle": "Fadenoj, kiujn vi sekvas",

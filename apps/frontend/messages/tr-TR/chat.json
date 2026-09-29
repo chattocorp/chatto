@@ -74,6 +74,17 @@
         "other": "{count} bildirim"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Sunucu yükseltmesi gerekli",
+      "too_old_body": "Bu sunucu, bu uygulamanın artık desteklemediği bir Chatto sürümünü çalıştırıyor. Sunucu yöneticisinden Chatto’yu yükseltmesini isteyin.",
+      "unknown_title": "Bilinmeyen sunucu sürümü",
+      "unknown_body": "Bu uygulama bu sunucunun Chatto sürümünü belirleyemediği için bağlanamıyor.",
+      "unreachable_body": "Bu uygulama bu sunucuya bağlanamıyor. Ağ bağlantınızı kontrol edin veya daha sonra tekrar deneyin.",
+      "server_version": "Sunucu sürümü",
+      "required_version": "Gerekli sürüm",
+      "required_version_value": "{version} veya daha yeni",
+      "check_again": "Tekrar Kontrol Edin"
+    },
     "threads": {
       "title": "Konularım",
       "subtitle": "Takip ettiğiniz konular",

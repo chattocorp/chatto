@@ -74,6 +74,17 @@
         "other": "{count} oznámení"
       }
     },
+    "server_unavailable": {
+      "too_old_title": "Je nutná aktualizace serveru",
+      "too_old_body": "Tento server používá verzi Chatto, kterou tato aplikace již nepodporuje. Požádejte správce serveru o aktualizaci Chatto.",
+      "unknown_title": "Neznámá verze serveru",
+      "unknown_body": "Tato aplikace nedokáže zjistit verzi Chatto na tomto serveru, a proto se nemůže připojit.",
+      "unreachable_body": "Tato aplikace se nemůže připojit k tomuto serveru. Zkontrolujte síťové připojení nebo to zkuste později.",
+      "server_version": "Verze serveru",
+      "required_version": "Požadovaná verze",
+      "required_version_value": "{version} nebo novější",
+      "check_again": "Zkontrolovat znovu"
+    },
     "threads": {
       "title": "Moje vlákna",
       "subtitle": "Vlákna, která sledujete",
