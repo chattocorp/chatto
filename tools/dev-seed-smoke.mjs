@@ -113,7 +113,7 @@ try {
   const env = {
     CONDUCTOR_PORT: String(base),
     CHATTO_DEV_DATA_ROOT: data,
-    CONDUCTOR_WORKSPACE_NAME: `seed-smoke-${process.pid}`
+    CHATTO_DEV_WORKSPACE: `seed-smoke-${process.pid}`
   };
   const backend = start(['run', 'dev-stack-backend'], env);
   const deadline = Date.now() + 180_000;

@@ -23,7 +23,11 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # Browser-facing development services use `<service>.<workspace>.localhost`.
 # These names resolve to loopback without DNS or /etc/hosts changes. They also
 # give concurrent workspaces separate cookie scopes, because cookies ignore ports.
-CHATTO_DEV_WORKSPACE = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}"
+# The label comes from the workspace directory, not CONDUCTOR_WORKSPACE_NAME:
+# the name is a display title that can contain spaces and can change when the
+# user renames the workspace. The label must be a valid DNS label, and it keys
+# the Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
+CHATTO_DEV_WORKSPACE = "{{env.CHATTO_DEV_WORKSPACE | default(value=env.CONDUCTOR_WORKSPACE_PATH | default(value='local') | basename) | slugify}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
 CHATTO_DEV_AUTHLING_CLIENT_ID = "chatto-dev"
 CHATTO_DEV_AUTHLING_CLIENT_SECRET = "development-only-chatto-authling-client-secret"

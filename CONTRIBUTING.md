@@ -64,9 +64,10 @@ does not build anything. Run it alone to prepare a checkout without starting
 the stack. Both tasks trust the repository's `mise.toml` files automatically.
 They need mise 2026.8.9 or later.
 
-All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
-and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is
-`local` and the base port is `4000`:
+All services use plain HTTP. In Conductor, `<workspace>` is the name of the
+workspace directory and the base port is `$CONDUCTOR_PORT`. Outside Conductor,
+`<workspace>` is `local` and the base port is `4000`. Set `CHATTO_DEV_WORKSPACE`
+to use a different `<workspace>`:
 
 | Service  | URL                                                |
 | -------- | -------------------------------------------------- |
@@ -112,8 +113,8 @@ or run `mise stop` from another terminal, to stop the services. `mise reset`
 stops the stack of the workspace and removes the Chatto data and the Authling
 data of all ports. To reset only one of them, run `mise stop`, then remove
 `cli/data/` or the Authling identity directory. The
-Authling issuer URL includes the workspace name and port, and Authling cannot
-change its issuer. Thus, a new Conductor workspace name or port starts an empty
+Authling issuer URL includes `<workspace>` and the port, and Authling cannot
+change its issuer. Thus, a new `<workspace>` or port starts an empty
 Authling in a new state directory. Chatto users that you linked to the previous
 Authling accounts cannot sign in through the new Authling. If the previous port
 returns, Authling uses its previous state again.
@@ -178,7 +179,7 @@ show their URLs in the terminal.
 This configuration does not allocate ports or hostnames for each worktree.
 The development stack uses base port `4000` and workspace name `local` outside
 Conductor. Run one such stack at a time, or set distinct `CONDUCTOR_PORT` and
-`CONDUCTOR_WORKSPACE_NAME` values for each workspace before starting its
+`CHATTO_DEV_WORKSPACE` values for each workspace before starting its
 actions. These variables are the existing `mise` inputs for port and hostname
 isolation. Conductor's preview URL list, `.worktreeinclude` handling, Git
 settings, and PR prompt are not part of the Codex environment configuration.

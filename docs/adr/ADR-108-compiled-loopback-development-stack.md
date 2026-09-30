@@ -40,8 +40,10 @@ developer restarts `mise dev`.
 All services use plain HTTP on the Conductor port block, with base `4000`
 outside Conductor. Chatto uses the base port, and Authling uses `+2`. The
 browser-facing hostnames are `chatto.<workspace>.localhost` and
-`authling.<workspace>.localhost`, where `<workspace>` is the Conductor
-workspace name or `local`. Each workspace therefore has its own cookie scope.
+`authling.<workspace>.localhost`, where `<workspace>` is the slugified name
+of the Conductor workspace directory or `local`. The display name of a
+Conductor workspace can contain spaces and can change, so the stack does not
+use it. Each workspace therefore has its own cookie scope.
 Mailpit, LiveKit, and the Runling console use `localhost`, because they do not
 keep browser sessions for this stack. The comment above the `dev` task in
 `mise.toml` records the complete port layout.
