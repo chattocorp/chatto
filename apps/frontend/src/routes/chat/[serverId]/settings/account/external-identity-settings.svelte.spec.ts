@@ -9,6 +9,7 @@ import {
   removeRegisteredServerQueries
 } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
+import { authorizationLaunchTarget } from '$lib/test-utils';
 import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
 
@@ -340,7 +341,7 @@ describe('identity link popup and continuation', () => {
   function remote() {
     mocks.serverId = 'remote';
     connection.serverId = 'remote';
-    const popup = { closed: false, opener: {}, location: { href: '' }, close: vi.fn() };
+    const popup = { closed: false, opener: {}, close: vi.fn() };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     return { popup, open };
   }
@@ -356,7 +357,7 @@ describe('identity link popup and continuation', () => {
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     expect(open).toHaveBeenCalledOnce();
     expect(popup.opener).toBeNull();
-    const url = new URL(popup.location.href);
+    const url = new URL(authorizationLaunchTarget(open)!);
     expect(url.origin).toBe('https://remote.example.test');
     expect(url.pathname).toBe('/chat/-/settings/account');
     expect([...url.searchParams]).toEqual([
@@ -374,7 +375,9 @@ describe('identity link popup and continuation', () => {
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     expect(open).toHaveBeenCalledOnce();
     expect(popup.opener).toBeNull();
-    expect(new URL(popup.location.href).searchParams.get('link_provider')).toBe('github-main');
+    expect(new URL(authorizationLaunchTarget(open)!).searchParams.get('link_provider')).toBe(
+      'github-main'
+    );
     expect(mocks.startLink).not.toHaveBeenCalled();
   });
 

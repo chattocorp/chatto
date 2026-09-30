@@ -10,6 +10,16 @@ export function hasAppOrigin(value) {
   }
 }
 
+/**
+ * Whether a URL is the frontend page on which an authorization window opens.
+ * Keep the path in sync with `AUTHORIZATION_LAUNCH_PATH` in the frontend.
+ */
+export function isAuthorizationLaunchUrl(value) {
+  if (!hasAppOrigin(value)) return false;
+  const url = new URL(value);
+  return url.pathname === '/servers/authorize' && url.search === '';
+}
+
 /** Whether the desktop renderer may use a browser permission. */
 export function isDesktopPermissionAllowed(permission, origin) {
   return hasAppOrigin(origin) && desktopPermissions.has(permission);

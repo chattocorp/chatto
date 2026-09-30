@@ -14,8 +14,8 @@ import {
   type OAuthPopupResponse
 } from '$lib/oauth/popup';
 import {
-  browserAuthorizationWindow,
   authorizationWindowFeatures,
+  openAuthorizationWindow,
   type AuthorizationWindow
 } from '$lib/oauth/authorizationWindow';
 import {
@@ -155,18 +155,16 @@ async function runServerOAuthFlow(
 
   // Open synchronously from the user's click before hashing the PKCE verifier;
   // otherwise browsers may treat the secondary window as an unsolicited popup.
-  const popup = window.open(
-    'about:blank',
+  const authorizationWindow: AuthorizationWindow | null = openAuthorizationWindow(
     `chatto-oauth-${state.slice(0, 12)}`,
     authorizationWindowFeatures(window)
   );
-  if (!popup) {
+  if (!authorizationWindow) {
     loadAndClearFlowState();
     // The blocked window replaces any later server-data error.
     details.catch(() => {});
     throw new OAuthPopupError('The sign-in window could not be opened.');
   }
-  const authorizationWindow: AuthorizationWindow = browserAuthorizationWindow(popup);
 
   const responseChannel = createResponseChannel(state);
   if (responseChannel) {

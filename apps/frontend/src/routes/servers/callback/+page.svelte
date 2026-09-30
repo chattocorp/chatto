@@ -15,7 +15,7 @@
   import { EmptyState, LoadingPage, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
-  let status = $state<'loading' | 'error'>('loading');
+  let status = $state<'loading' | 'complete' | 'error'>('loading');
   let errorMessage = $state('');
 
   function returnToOpeningClient(response: OAuthPopupResponse) {
@@ -35,9 +35,12 @@
 
     if (delivered) {
       // Give BroadcastChannel/postMessage a task boundary before closing the
-      // script-opened popup. Browsers that refuse window.close keep showing
-      // the harmless completion state instead.
-      window.setTimeout(() => window.close(), 100);
+      // popup. A browser can refuse window.close, for example in a Firefox for
+      // Android Custom Tab; the window then tells the user to close it.
+      window.setTimeout(() => {
+        window.close();
+        status = 'complete';
+      }, 100);
     }
     return delivered;
   }
@@ -114,6 +117,10 @@
 <div class="flex min-h-0 flex-1 flex-col p-8">
   {#if status === 'loading'}
     <LoadingPage message={m('auth.callback.completing')} />
+  {:else if status === 'complete'}
+    <EmptyState icon="icon-[uil--check-circle]" title={m('auth.callback.complete_title')}>
+      <p class="max-w-md">{m('auth.callback.complete_close')}</p>
+    </EmptyState>
   {:else}
     <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('auth.callback.failed_title')}>
       <div class="flex max-w-md flex-col items-center gap-4">

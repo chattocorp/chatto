@@ -55,7 +55,7 @@
 
   // OAuth windows keep their page content and branding without app navigation.
   const standaloneOAuth = $derived.by(() => {
-    if (page.route.id === '/oauth/consent') return true;
+    if (page.route.id === '/oauth/consent' || page.route.id === '/servers/authorize') return true;
     if (page.route.id === '/servers/callback') {
       return ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '');
     }

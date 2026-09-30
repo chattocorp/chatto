@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { authorizationLaunchTarget } from '$lib/test-utils/authorizationWindow';
 
 const native = vi.hoisted(() => ({ available: false, authorize: vi.fn() }));
 vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({
@@ -29,8 +30,8 @@ const {
 
 vi.mock('$app/navigation', () => ({ goto: gotoMock }));
 vi.mock('$app/paths', () => ({
-  resolve: (_route: string, params?: { serverId?: string }) =>
-    params?.serverId ? `/chat/${params.serverId}` : '/login'
+  resolve: (route: string, params?: { serverId?: string }) =>
+    params?.serverId ? `/chat/${params.serverId}` : route
 }));
 vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
@@ -113,6 +114,7 @@ describe('remote server OAuth popup', () => {
     FakeBroadcastChannel.instances = [];
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
     vi.stubGlobal('sessionStorage', memoryStorage());
+    vi.stubGlobal('localStorage', memoryStorage());
     getPublicServerInfoMock.mockReset();
     native.available = false;
     native.authorize.mockReset();
@@ -273,7 +275,6 @@ describe('remote server OAuth popup', () => {
     const popup = {
       closed: false,
       opener: {} as Window,
-      location: { href: '' },
       close: vi.fn(function (this: { closed: boolean }) {
         this.closed = true;
       })
@@ -313,14 +314,14 @@ describe('remote server OAuth popup', () => {
     // remains associated with the user's click and avoids popup blocking.
     expect(open).toHaveBeenCalledOnce();
     expect(open).toHaveBeenCalledWith(
-      'about:blank',
+      expect.stringMatching(/^https:\/\/app\.example\/servers\/authorize#.+/),
       expect.stringMatching(/^chatto-oauth-/),
       expect.stringContaining('width=560,height=760')
     );
-    await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
+    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
     expect(popup.opener).toBeNull();
 
-    const authorizeURL = new URL(popup.location.href);
+    const authorizeURL = new URL(authorizationLaunchTarget(open)!);
     const state = authorizeURL.searchParams.get('state');
     expect(state).toBeTruthy();
     expect(authorizeURL.searchParams.get('redirect_uri')).toBe(
@@ -369,13 +370,13 @@ describe('remote server OAuth popup', () => {
     );
     expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: false });
     expect(popup.close).toHaveBeenCalledOnce();
+    expect(localStorage.length).toBe(0);
   });
 
   it('opens before server discovery completes without selecting a login provider', async () => {
     const popup = {
       closed: false,
       opener: {} as Window,
-      location: { href: '' },
       close: vi.fn(function (this: { closed: boolean }) {
         this.closed = true;
       })
@@ -423,7 +424,7 @@ describe('remote server OAuth popup', () => {
     });
 
     expect(open).toHaveBeenCalledOnce();
-    expect(popup.location.href).toBe('');
+    expect(authorizationLaunchTarget(open)).toBeNull();
 
     finishDiscovery?.({
       name: 'Discovered Remote',
@@ -432,8 +433,8 @@ describe('remote server OAuth popup', () => {
       authProviders: [{ id: 'authling' }]
     });
 
-    await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
-    const authorizeURL = new URL(popup.location.href);
+    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
+    const authorizeURL = new URL(authorizationLaunchTarget(open)!);
     expect(authorizeURL.searchParams.has('provider_id')).toBe(false);
 
     const state = authorizeURL.searchParams.get('state');
@@ -448,11 +449,10 @@ describe('remote server OAuth popup', () => {
     );
   });
 
-  it('closes the blank popup when server discovery fails', async () => {
+  it('closes the popup when server discovery fails', async () => {
     const popup = {
       closed: false,
       opener: {} as Window,
-      location: { href: '' },
       close: vi.fn(function (this: { closed: boolean }) {
         this.closed = true;
       })
@@ -486,7 +486,6 @@ describe('remote server OAuth popup', () => {
     const popup = {
       closed: false,
       opener: {} as Window,
-      location: { href: '' },
       close: vi.fn(function (this: { closed: boolean }) {
         this.closed = true;
       })
@@ -502,7 +501,7 @@ describe('remote server OAuth popup', () => {
     const completion = startServerOAuthFlowWhenReady('https://remote.example', serverInfo);
 
     expect(open).toHaveBeenCalledOnce();
-    expect(popup.location.href).toBe('');
+    expect(authorizationLaunchTarget(open)).toBeNull();
 
     rejectServerInfo?.(new Error('join unavailable'));
     await expect(completion).rejects.toThrow('join unavailable');
@@ -531,7 +530,6 @@ describe('remote server OAuth popup', () => {
     const popup = {
       closed: false,
       opener: {} as Window,
-      location: { href: '' },
       close: vi.fn(function (this: { closed: boolean }) {
         this.closed = true;
       })

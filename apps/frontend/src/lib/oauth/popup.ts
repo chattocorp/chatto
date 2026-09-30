@@ -1,3 +1,5 @@
+import { openAuthorizationWindow, type AuthorizationWindow } from './authorizationWindow';
+
 export const OAUTH_POPUP_RESPONSE_TYPE = 'chatto:oauth-popup-response';
 
 const OAUTH_POPUP_CHANNEL_PREFIX = 'chatto:oauth-popup:';
@@ -58,28 +60,27 @@ export type OAuthPopup = {
   close(): void;
 };
 
-/** Open a same-origin OAuth callback popup while a user gesture is active. */
+/** Open an OAuth popup while a user gesture is active. */
 export function openOAuthPopup(state: string): OAuthPopup {
-  const popup = window.open(
-    'about:blank',
+  const authorizationWindow = openAuthorizationWindow(
     `chatto-oauth-${state.slice(0, 12)}`,
     popupFeatures(window)
   );
-  if (!popup) throw new OAuthPopupError('The sign-in window could not be opened.');
+  if (!authorizationWindow) throw new OAuthPopupError('The sign-in window could not be opened.');
 
   const channel =
     typeof BroadcastChannel === 'undefined'
       ? null
       : new BroadcastChannel(oauthPopupChannelName(state));
-  if (channel) popup.opener = null;
+  if (channel) authorizationWindow.detachOpener();
 
   return {
-    response: waitForPopupResponse(popup, state, channel),
+    response: waitForPopupResponse(authorizationWindow, state, channel),
     navigate: (url) => {
-      popup.location.href = url;
+      void authorizationWindow.navigate(url);
     },
     close: () => {
-      if (!popup.closed) popup.close();
+      void authorizationWindow.close();
     }
   };
 }
@@ -91,7 +92,7 @@ function popupFeatures(owner: Window): string {
 }
 
 function waitForPopupResponse(
-  popup: Window,
+  authorizationWindow: AuthorizationWindow,
   state: string,
   channel: BroadcastChannel | null
 ): Promise<OAuthPopupResponse> {
@@ -109,7 +110,7 @@ function waitForPopupResponse(
       if (settled || response.state !== state) return;
       settled = true;
       cleanup();
-      if (!popup.closed) popup.close();
+      void authorizationWindow.close();
       resolve(response);
     };
 
@@ -117,11 +118,16 @@ function waitForPopupResponse(
       if (settled) return;
       settled = true;
       cleanup();
+      void authorizationWindow.close();
       reject(new OAuthPopupError(message));
     };
 
     const handleWindowMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.source !== popup) return;
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== authorizationWindow.messageSource
+      )
+        return;
       if (isOAuthPopupResponse(event.data)) settle(event.data);
     };
 
@@ -132,8 +138,10 @@ function waitForPopupResponse(
       };
     }
 
-    const closePoll = window.setInterval(() => {
-      if (popup.closed) fail('The sign-in window was closed before authorization completed.');
+    const closePoll = window.setInterval(async () => {
+      if (await authorizationWindow.isClosed()) {
+        fail('The sign-in window was closed before authorization completed.');
+      }
     }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
       () => fail('The sign-in attempt timed out.'),
