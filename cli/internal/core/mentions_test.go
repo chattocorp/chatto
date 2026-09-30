@@ -61,12 +61,17 @@ func TestLinkifiedURLRanges(t *testing.T) {
 		{"bare domain after at sign", "@alice.dev/@bob", nil},
 		{"bare domain after slash", "either/example.com", nil},
 		{"email address", "user@example.com", []string{"user@example.com"}},
+		{"bare domain with port", "example.com:8443/@alice", []string{"example.com:8443/@alice"}},
+		{"uppercase scheme", "HTTPS://example.com/@alice", []string{"HTTPS://example.com/@alice"}},
+		{"mailto", "mailto:alice@example.com", []string{"mailto:alice@example.com"}},
+		{"protocol-relative URL", "(//localhost/@alice)", []string{"//localhost/@alice)"}},
+		{"protocol-relative URL after letter", "a//example.com/@alice", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			source := []byte(tt.source)
 			var got []string
-			for _, r := range linkifiedURLRanges(source) {
+			for _, r := range linkifiedURLRanges(source, 0, len(source)) {
 				got = append(got, string(source[r.start:r.end]))
 			}
 			if !slices.Equal(got, tt.want) {

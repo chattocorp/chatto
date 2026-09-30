@@ -192,7 +192,7 @@ func ExtractMentionUsernames(body string) []string {
 	}
 
 	source := []byte(mentionMarkdownSource(body))
-	urlRanges := linkifiedURLRanges(source)
+	urls := newMentionURLIndex(source)
 	root := mentionMarkdown.Parser().Parse(text.NewReader(source))
 	_ = ast.Walk(root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -204,7 +204,7 @@ func ExtractMentionUsernames(body string) []string {
 			return ast.WalkSkipChildren, nil
 		case mentionNodeKind:
 			mention := node.(*mentionNode)
-			if !insideLinkifiedURL(urlRanges, mention.Offset) {
+			if !urls.contains(mention.Offset) {
 				add(mention.Username)
 			}
 		}

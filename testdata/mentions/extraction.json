@@ -202,6 +202,77 @@
       ]
     },
     {
+      "name": "handle in bare-domain URL with port",
+      "body": "example.com:8443/@alice @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "handle in URL with port",
+      "body": "https://example.com:8443/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle in URL with uppercase scheme",
+      "body": "HTTPS://example.com/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle in ftp URL",
+      "body": "ftp://example.com/@alice",
+      "mentions": []
+    },
+    {
+      "name": "handle after an unsupported scheme",
+      "body": "ssh://example.com/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handle in protocol-relative URL",
+      "body": "//example.com/@alice and (//localhost/@carol) @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "protocol-relative URL needs a boundary",
+      "body": "a//example.com/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handle in emphasized bare-domain URL",
+      "body": "*example.com/@alice*",
+      "mentions": []
+    },
+    {
+      "name": "handle after a local host name",
+      "body": "foo.local/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handle after an IP address",
+      "body": "127.0.0.1/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "handles on several lines with URLs",
+      "body": "@alice https://example.com/@bob\nsocial.5f9.de/@carol @dora\n\n@erin",
+      "mentions": [
+        "alice",
+        "dora",
+        "erin"
+      ]
+    },
+    {
       "name": "mention after a bare domain",
       "body": "example.com@alice",
       "mentions": []
