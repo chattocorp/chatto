@@ -55,6 +55,8 @@ type ReactionMutationSnapshot struct {
 // reactionProjectionEntry is one active reaction. emoji and user are ID-table
 // handles.
 type reactionProjectionEntry struct {
+	// addedAtNanos is the reaction's compact creation time (see
+	// projectionTime).
 	addedAtNanos int64
 	source       string
 	emoji        uint32

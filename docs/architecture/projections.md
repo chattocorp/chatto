@@ -313,10 +313,11 @@ has a short slice of active reactions, sorted by emoji and user handles.
 Timeline, Threads, and Reactions construct detached read results.
 
 Compact records store times as Unix nanoseconds, where zero means "no time".
-Each compact component keeps its restorable state in one value. A restore
-builds a new value and replaces the complete state at once, so a failed
-restore leaves the state unchanged. An empty snapshot restores an empty
-component; a cold replay of the content view depends on this reset.
+Room Timeline, Threads, Reactions, and Content Keys each keep their
+restorable state in one value. A restore builds a new value and replaces the
+complete state at once, so a failed restore leaves the state unchanged. An
+empty snapshot restores an empty component; a cold replay of the content view
+depends on this reset.
 
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A

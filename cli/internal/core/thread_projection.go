@@ -175,10 +175,10 @@ type ThreadTimelineEntry struct {
 // latest-body state instead of being retained as separate thread rows.
 type ThreadProjection struct {
 	events.MemoryProjection
-	// eventIDs interns message and thread-root event IDs. The
-	// ServerContentView shares one table with the room timeline and reaction
-	// components; a standalone projection owns a private table. It does not
-	// change after construction.
+	// eventIDs interns message and thread-root event IDs. The ServerContentView
+	// shares one table with the room timeline and reaction components; a
+	// standalone projection owns a private table. It does not change after
+	// construction.
 	eventIDs       *eventIDTable
 	sharedEventIDs bool
 	threadProjectionState
