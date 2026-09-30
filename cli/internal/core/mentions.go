@@ -127,10 +127,12 @@ var mentionMarkdown = goldmark.New(
 )
 
 func mentionMarkdownSource(body string) string {
-	// Chatto's message renderer disables Markdown backslash escapes, so a
-	// backslash never changes the Markdown structure there. Goldmark's inline
-	// loop hardcodes backslash escaping; doubling every backslash makes
-	// goldmark read each original backslash as a literal character.
+	// Chatto's message renderer disables Markdown backslash escapes in text,
+	// so a backslash does not change emphasis, links, or code spans there.
+	// Goldmark's inline loop hardcodes backslash escaping; doubling every
+	// backslash makes goldmark read each original backslash as a literal
+	// character. markdown-it still honors escapes inside link destinations
+	// and titles; FDR-006 decision 10 accepts that rare difference.
 	return strings.ReplaceAll(body, "\\", "\\\\")
 }
 

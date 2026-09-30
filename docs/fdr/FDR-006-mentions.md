@@ -154,7 +154,9 @@ libraries, so their agreement depends on the shared cases. A URL form that the
 shared cases do not cover can still be interpreted differently. Known
 differences are rare URL forms: URLs that contain Markdown syntax, an entity,
 a quote, `|`, `^`, `?@`, or `#@`; a scheme directly after a letter; `_` in a
-host name; IPv6 or punycode hosts; and email-like text such as `cc:@alice.dev`. Add a case when a difference is found.
+host name; IPv6 or punycode hosts; email-like text such as `cc:@alice.dev`; a
+backslash escape inside a link destination or title; and inline code that
+crosses a table cell boundary. Add a case when a difference is found.
 
 ## Permissions
 
