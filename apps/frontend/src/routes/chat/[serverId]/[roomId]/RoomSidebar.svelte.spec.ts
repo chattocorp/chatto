@@ -1434,7 +1434,7 @@ describe('RoomSidebar', () => {
     expect(fullscreenButton).toBeTruthy();
     expect(fullscreenButton.className).toContain('pill-button');
     expect(fullscreenButton.className).not.toContain('bg-black');
-    expect(fullscreenButton.querySelector('[class~="icon-[mdi--fullscreen]"]')).toBeTruthy();
+    expect(fullscreenButton.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
     expect(participantMenuButton).toBeTruthy();
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeNull();
     expect(
