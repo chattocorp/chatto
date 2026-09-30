@@ -188,10 +188,11 @@ are checked through the configured server's message API, so replies to older bot
 messages also work after restart. If the target cannot be verified, an unmentioned
 message is ignored. Lookup failures produce a safe warning; a mention or DM still works.
 
-Before each agent turn or steering message, the bot reads the complete thread
-through `ThreadService/GetThreadEvents`. It loads all pages in conversation
-order, including the root, earlier bot replies, and messages without mentions.
-This applies to both DM and channel threads.
+Before each agent turn or steering message, the host reads the thread through
+`ThreadService/GetThreadEvents`: on the first turn the root and the newest 100
+replies, later only the messages after its previous read. This applies to both
+DM and channel threads. The prompt carries only the conversation; the supervisor
+reads other messages with `readThread`.
 The bot needs permission to read that history. Failed reads stop the run instead
 of generating a reply from incomplete context.
 
@@ -281,7 +282,7 @@ The supervisor can cancel a task with `task_cancel` only in a turn that a
 person's message started. Task notifications do not authorize cancellation, in
 the same way that they do not authorize new work.
 
-A later conversation in the same thread reads the complete thread again,
+A later conversation in the same thread reads the thread again,
 including bot replies that used research results. Runling does not track that
 text as untrusted. Start a new thread, not only a new conversation, for work that
 must not see earlier research. An investigation plan made after research can
@@ -333,8 +334,8 @@ the chat agent with findings, source references, test coverage inspected, limita
 commit. Completion and requested-answer notifications wake the owning chat
 agent. Worker progress is retained for later user questions; raw shell output is not
 posted to Chatto. Accepted findings and worker commentary stay in the task buffer
-without a notification for each finding. A direct host notice replaces the
-completion notification for a stopped implementation. A newer host phase
+without a notification for each finding. A stopped implementation reaches
+the owner as its completion notification, and the owner reports it. A newer host phase
 supersedes older progress. Provider retries and blockers remain visible in the
 console. Each incoming prompt
 includes task status and the age of the latest finding, so the owner can distinguish
@@ -603,9 +604,8 @@ terminal reports that the agent remains active without claiming progress.
 The owner cannot start a replacement implementation from a task notification.
 After a failed attempt, ask explicitly to continue the retained worktree or
 start another implementation.
-If implementation stops, the host posts the result to the conversation directly
-and retains any worktree for review. If that post fails, the owner receives the
-task result and reports the blocker. The bot waits for user direction before it
+If implementation stops, the owner receives the result and reports it, and the
+host retains any worktree for review. The bot waits for user direction before it
 starts another attempt.
 Unexpected worker or host errors also produce a stopped result when the
 conversation remains available.

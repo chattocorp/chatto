@@ -23,6 +23,7 @@ These rules apply to `packages/chattobot/`. The root `AGENTS.md` rules also appl
 ## Adding an implementation stage
 
 Report a new stage, such as planning or review, as a milestone notice from the
-implementation task, with its facts in `data`. Then name the milestone in the
-supervisor's response policy (`workflows/response-policy.ts`) and in the
-README. Do not add a host message template.
+implementation task, with its facts in `data`. When the supervisor must relay a
+specific fact, such as a URL, add the milestone to `noticeReport` in
+`workflows/task-context.ts`. Name the milestone in the README. Do not add a host
+message template.
