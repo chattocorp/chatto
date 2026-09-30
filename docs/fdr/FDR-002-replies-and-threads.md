@@ -24,6 +24,10 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   notification attention.
 
 - A message in a room can optionally reference another message as the one it's in reply to.
+- While writing a reply, the composer shows the target name and a single-line
+  excerpt inside its input surface. Muted text keeps the draft prominent.
+  The close button removes reply attribution without clearing the draft;
+  Escape has the same effect when no editor popup is open.
 - DMs support thread creation, replies, follows, unread state, links,
   notifications, echoes, and My Threads entries. Their Threading Mode is fixed
   to Enabled and cannot be configured.

@@ -250,9 +250,10 @@ export class Server extends ServerStateStore {
       };
       const abort = () => finish(() => reject(abortSignal!.reason));
       abortSignal?.addEventListener('abort', abort, { once: true });
-      // Report only failures of attempts that start after this call: each
-      // attempt clears its error first. Between two recovery attempts, wait
-      // for the next one.
+      // Report only failures of attempts that start after this call. A viewer
+      // attempt clears its error first; a discovery attempt sets `loading` and
+      // keeps its previous error until it settles. Between two recovery
+      // attempts, wait for the next one.
       let discoveryAttempted = false;
       let viewerAttempted = false;
       const stop = effectRoot(() => {
@@ -279,9 +280,9 @@ export class Server extends ServerStateStore {
             return;
           }
           // The server is unreachable or failed. The store logs the error.
-          const discoveryFailed = serverInfo.error !== null;
+          const discoveryFailed = !serverInfo.loading && serverInfo.error !== null;
           const viewerFailed = currentUser.loadError !== null;
-          discoveryAttempted ||= !discoveryFailed;
+          discoveryAttempted ||= serverInfo.loading || serverInfo.error === null;
           viewerAttempted ||= !viewerFailed;
           if (viewerFailed && viewerAttempted) {
             finish(() => reject(new Error('Could not load the viewer from the Chatto server')));

@@ -3,7 +3,7 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
-    browserAuthorizationWindow,
+    openAuthorizationWindow,
     authorizationWindowFeatures,
     type AuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
@@ -141,12 +141,14 @@
     const url = new URL('/chat/-/settings/account', serverScope.connection.connectBaseUrl);
     url.searchParams.set('link_provider', provider.id);
     url.searchParams.set('link_user', userId);
-    const popup = window.open('about:blank', '_blank', authorizationWindowFeatures(window));
-    if (!popup) {
+    const authorizationWindow = openAuthorizationWindow(
+      '_blank',
+      authorizationWindowFeatures(window)
+    );
+    if (!authorizationWindow) {
       actionError = m('settings.account.sso.popup_blocked');
       return;
     }
-    const authorizationWindow = browserAuthorizationWindow(popup);
     authorizationWindow.detachOpener();
     const pending = {
       window: authorizationWindow,

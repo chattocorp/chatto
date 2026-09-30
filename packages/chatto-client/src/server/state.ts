@@ -9,6 +9,7 @@ import type { ProjectedServerState } from './projection.js';
 import {
   evaluateServerCompatibility,
   isSupportedServerVersion,
+  type ServerCompatibilityProblem,
   type ServerCompatibilityResult
 } from './compatibility.js';
 
@@ -97,7 +98,8 @@ export class ServerInfoState {
    * Set when `init()` failed to fetch server info (e.g. unreachable host,
    * CORS misconfiguration). Consumers can use this to render a degraded UI
    * for that server without taking down the rest of the app. Null when the
-   * latest load succeeded.
+   * latest load succeeded. A retry keeps the error until the new attempt
+   * settles, so the degraded UI stays stable.
    */
   readonly #errorSignal = signal<unknown>(null);
   get error(): unknown {
@@ -164,6 +166,18 @@ export class ServerInfoState {
   }
 
   /**
+   * Why this client cannot use the server, or null. It is null while the first
+   * discovery is in flight and when the server is supported. A retry keeps the
+   * previous problem until the new attempt settles.
+   */
+  get compatibilityProblem(): ServerCompatibilityProblem | null {
+    const discovered = !this.loading || this.lastDiscoveredAt !== null || this.error !== null;
+    if (!discovered) return null;
+    const { reason } = this.compatibility;
+    return reason === 'version-confirmed' ? null : reason;
+  }
+
+  /**
    * Whether discovery confirmed a server release that this client supports.
    * It stays false until the version is known. The realtime projection and
    * every client feature require it.
@@ -198,10 +212,7 @@ export class ServerInfoState {
     if (this.#initializing) return this.#initializing;
 
     const initializing = (async () => {
-      batch(() => {
-        this.loading = true;
-        this.error = null;
-      });
+      this.loading = true;
       try {
         await this.refreshProfile();
       } catch (err) {

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { page as browserPage } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import CallbackPage from './+page.svelte';
 
@@ -58,6 +59,16 @@ describe('server OAuth callback page', () => {
     expect(completeServerOAuthFlowMock).not.toHaveBeenCalled();
     expect(gotoMock).not.toHaveBeenCalled();
     channel.close();
+  });
+
+  it('asks the user to close a window that the browser keeps open', async () => {
+    pageState.url =
+      'https://app.example/servers/callback?mode=popup&code=cht_ACcode&state=state-open';
+    vi.spyOn(window, 'close').mockImplementation(() => {});
+
+    render(CallbackPage);
+
+    await expect.element(browserPage.getByText('You can close this window now.')).toBeVisible();
   });
 
   it('returns cookie sign-in completion without exchanging an OAuth code', async () => {

@@ -9,7 +9,8 @@ vi.mock('$lib/client', async () => ({
     tryGetStore: () => mocks.store,
     getStore: () => mocks.store,
     isOriginServer: (serverId: string) => serverId === 'origin',
-    getServer: (serverId: string) => mocks.servers?.get(serverId)
+    getServer: (serverId: string) => mocks.servers?.get(serverId),
+    recoverServer: mocks.recoverServer
   },
   serverConnectionManager: {
     getClient: () => ({
@@ -28,17 +29,20 @@ import { render } from 'vitest-browser-svelte';
 import { page, userEvent } from 'vitest/browser';
 import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
+import type { ServerCompatibilityProblem } from '@chatto/client/server/compatibility';
 
 type RegisteredState = {
   reauthRequiredAt: number | null;
   checkingPermissions?: boolean;
   userId?: string;
   connectionStatus?: 'connected' | 'disconnected';
+  compatibilityProblem?: ServerCompatibilityProblem;
 };
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
+    recoverServer: vi.fn(),
     routeId: '/chat/[serverId]/[roomId]',
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
@@ -46,6 +50,14 @@ const { mocks } = vi.hoisted(() => ({
         return mocks.servers?.get('origin')?.checkingPermissions ?? false;
       },
       realtimeSync: null as RealtimeProjectionSyncState | null,
+      serverInfo: {
+        name: 'Old Server',
+        version: '0.5.0-beta.7',
+        iconUrl: null,
+        get compatibilityProblem(): ServerCompatibilityProblem | null {
+          return mocks.servers?.get('origin')?.compatibilityProblem ?? null;
+        }
+      },
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' }
@@ -87,7 +99,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
-  provideServerScope: vi.fn()
+  provideServerScope: vi.fn(),
+  useServerScope: () => ({ serverId: 'origin', store: mocks.store })
 }));
 
 vi.mock('$lib/components/chat/Chrome.svelte', async () => {
@@ -222,5 +235,29 @@ describe('server route authentication privacy', () => {
 
     expect(container.querySelector('[data-testid="server-chrome"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).not.toBeNull();
+  });
+
+  it('explains an unusable server instead of rendering its chrome and routes', async () => {
+    mocks.servers!.set('origin', {
+      reauthRequiredAt: null,
+      userId: 'viewer-1',
+      compatibilityProblem: 'server-too-old'
+    });
+    mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-unavailable')).toBeVisible();
+    expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
+    expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
+
+    await page.getByRole('button', { name: 'Check Again' }).click();
+    expect(mocks.recoverServer).toHaveBeenCalledWith('origin');
+
+    // A supported result after the retry shows the normal server chrome.
+    mocks.servers!.set('origin', { reauthRequiredAt: null, userId: 'viewer-1' });
+    await expect.element(page.getByTestId('server-chrome')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="server-unavailable"]')).toBeNull();
   });
 });

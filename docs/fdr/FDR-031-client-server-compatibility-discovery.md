@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-28
+**Last reviewed:** 2026-09-29
 
 ## Overview
 
@@ -36,6 +36,13 @@ Chatto's pre-1.0 API remains experimental.
   state, because results from before the wake are out of date.
 - The server context menu and touch sheet explain the problem. When more than
   one problem applies, they show the first problem in the order above.
+- When discovery finds an unsupported or unknown server version, or cannot
+  reach the server, the server route shows an explanation screen instead of
+  the server sidebar and its pages. The screen names the server and its host,
+  explains the problem, shows the server version and the required version
+  when they apply, and has a Check Again action. Check Again runs discovery
+  again. When the result is a supported version, the server opens normally.
+  The screen stays visible while a new attempt runs.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown

@@ -212,3 +212,62 @@ describe('ServerInfoState.init()', () => {
     expect(state.maxUploadSize).toBe(25 * 1024 * 1024);
   });
 });
+
+describe('ServerInfoState.compatibilityProblem', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('has no problem while the first discovery is in flight', () => {
+    const state = new ServerInfoState('https://acme.test', () => new Promise(() => {}));
+    void state.init();
+
+    expect(state.compatibility.status).toBe('unknown');
+    expect(state.compatibilityProblem).toBeNull();
+  });
+
+  it('reports no problem for a supported server', async () => {
+    const state = new ServerInfoState('https://acme.test', async () => publicServerInfo());
+    await state.init();
+
+    expect(state.compatibilityProblem).toBeNull();
+  });
+
+  it('reports a server that is too old', async () => {
+    const state = new ServerInfoState('https://acme.test', async () =>
+      publicServerInfo({ version: '0.5.0-beta.7' })
+    );
+    await state.init();
+
+    expect(state.compatibilityProblem).toBe('server-too-old');
+  });
+
+  it('keeps the previous problem while a retry is in flight', async () => {
+    let finish!: (info: PublicServerInfo) => void;
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    const state = new ServerInfoState('https://acme.test', loader);
+    await state.init();
+    expect(state.compatibilityProblem).toBe('unreachable');
+
+    const unreachableRetry = state.init();
+    expect(state.loading).toBe(true);
+    expect(state.compatibilityProblem).toBe('unreachable');
+    finish(publicServerInfo({ version: '0.5.0-beta.7' }));
+    await unreachableRetry;
+    expect(state.compatibilityProblem).toBe('server-too-old');
+
+    const upgradeRetry = state.init();
+    expect(state.compatibilityProblem).toBe('server-too-old');
+    finish(publicServerInfo());
+    await upgradeRetry;
+    expect(state.compatibilityProblem).toBeNull();
+  });
+});
