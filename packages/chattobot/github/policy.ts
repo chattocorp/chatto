@@ -15,40 +15,55 @@ export class GhPolicyError extends Error {
 const MAX_ARGS = 100;
 const MAX_ARG = 65_536;
 
-/** Command groups that act on GitHub resources. Other groups, such as `alias`, `extension`,
- * `auth`, `config`, `gist`, `codespace`, `browse`, and `attestation`, run programs, handle
- * credentials, or use local state. */
-const GROUPS = new Set([
-  'api',
-  'cache',
-  'issue',
-  'label',
-  'pr',
-  'release',
-  'repo',
-  'ruleset',
-  'run',
-  'search',
-  'secret',
-  'variable',
-  'workflow'
-]);
-
-/** Subcommands that read or write local files or Git state, and why. */
-const LOCAL: Record<string, string> = {
-  'pr checkout': 'changes a local checkout',
-  'repo clone': 'writes to the bot host',
-  'repo fork': 'can clone to the bot host',
-  'repo sync': 'changes a local checkout',
-  'repo set-default': 'changes local configuration',
-  'run download': 'writes to the bot host',
-  'release download': 'writes to the bot host',
-  'release upload': 'reads files on the bot host',
-  'release create': 'can upload files from the bot host'
+/** The subcommands of each command group, as reads and changes. Only these names work: gh
+ * aliases, such as `release new` for `release create`, and subcommands that read or write local
+ * files or Git state (`release create`, `release upload`, `release download`, `run download`,
+ * `pr checkout`, `pr create`, `repo clone`, `repo create`, `repo deploy-key`) are not listed.
+ * Groups that run programs or handle credentials (`alias`, `extension`, `auth`, `config`) are
+ * not listed either. `gh api` is classified separately. */
+const COMMANDS: Record<string, { read: readonly string[]; write: readonly string[] }> = {
+  cache: { read: ['list'], write: ['delete'] },
+  issue: {
+    read: ['list', 'view', 'status'],
+    write: [
+      'create',
+      'edit',
+      'comment',
+      'close',
+      'reopen',
+      'delete',
+      'lock',
+      'unlock',
+      'pin',
+      'unpin',
+      'transfer'
+    ]
+  },
+  label: { read: ['list'], write: ['create', 'edit', 'delete'] },
+  pr: {
+    read: ['list', 'view', 'checks', 'diff', 'status'],
+    write: [
+      'comment',
+      'edit',
+      'review',
+      'close',
+      'reopen',
+      'merge',
+      'ready',
+      'lock',
+      'unlock',
+      'update-branch'
+    ]
+  },
+  release: { read: ['list', 'view'], write: ['edit', 'delete', 'delete-asset'] },
+  repo: { read: ['view'], write: ['edit'] },
+  ruleset: { read: ['list', 'view', 'check'], write: [] },
+  run: { read: ['list', 'view'], write: ['rerun', 'cancel', 'delete'] },
+  search: { read: ['issues', 'prs', 'code', 'commits'], write: [] },
+  secret: { read: ['list'], write: ['set', 'delete'] },
+  variable: { read: ['list', 'get'], write: ['set', 'delete'] },
+  workflow: { read: ['list', 'view'], write: ['run', 'enable', 'disable'] }
 };
-
-/** Subcommands that only read. Everything else is a change. */
-const READ_SUBCOMMANDS = new Set(['list', 'view', 'status', 'checks', 'diff', 'get', 'check']);
 
 /** Flags that read local files, open a browser or an editor, or change the host or repository. */
 const DENIED_FLAGS = new Set([
@@ -70,9 +85,16 @@ const DENIED_SHORTHANDS = new Set(['-R', '-w', '-e']);
  * value of a preceding flag, so it cannot mark the end of flags safely. */
 const isFlag = (arg: string) => /^-[A-Za-z-]/.test(arg);
 
-/** A `[HOST/]OWNER/REPO` argument with a host other than github.com makes gh contact that host. */
-const OTHER_HOST_REPOSITORY =
-  /^(?!github\.com\/)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?::\d+)?\/[^\s/]+\/[^\s/]+/i;
+/** True when gh could contact a host other than github.com because of this argument: a URL to
+ * another host anywhere in it, or, for a single token, an scp-style `user@host:path` or a
+ * `HOST/OWNER/REPO` with three or more segments. Free text with inner spaces is not a selector. */
+function namesOtherHost(arg: string): boolean {
+  for (const [url] of arg.matchAll(/[a-z][a-z0-9+.-]*:\/\/\S*/gi))
+    if (!/^https:\/\/github\.com\//i.test(url)) return true;
+  const token = arg.trim();
+  if (/\s/.test(token) || /^https:\/\/github\.com\//i.test(token)) return false;
+  return /^[^@\s]+@[^:\s]+:/.test(token) || /^[^/]+\/[^/]+\/./.test(token);
+}
 
 /** Split `--name=value`. Short flags are always two characters; checkFlags rejects clusters
  * such as `-cq` and attached values such as `-L5` or `-F=x`, which gh would parse in ways
@@ -94,14 +116,14 @@ function checkFlags(args: readonly string[]) {
   const workflowRun = args[0] === 'workflow' && args[1] === 'run';
   if (args.includes('--'))
     throw new GhPolicyError('`--` is not available. Pass values with their flags.');
-  // A value can be a URL, but a bare URL to another host is a positional argument that makes gh
-  // contact that host. GitHub URLs are fine: tokens are limited to one repository.
-  for (const arg of args)
-    if (!/\s/.test(arg) && /:\/\//.test(arg) && !/^https:\/\/github\.com\//.test(arg) && !api)
-      throw new GhPolicyError('Arguments can link only to https://github.com/.');
-  for (const arg of args)
-    if (OTHER_HOST_REPOSITORY.test(arg))
-      throw new GhPolicyError('Repositories on other hosts are not available.');
+  // gh contacts the host of a repository or URL argument. Only github.com is allowed; tokens are
+  // limited to one repository there. `gh api` endpoints are checked separately.
+  if (!api)
+    for (const arg of args)
+      if (namesOtherHost(arg))
+        throw new GhPolicyError(
+          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Put text with other links in body.'
+        );
   // Check every argument, including flag values: a value can hide a flag from a simple parser.
   const parsed = args;
   for (let index = 0; index < parsed.length; index++) {
@@ -196,15 +218,17 @@ export function classifyGh(args: readonly string[]): GhCommand {
     throw new GhPolicyError('An argument is too long or contains a NUL character.');
   checkFlags(args);
   const [group, subcommand] = args as [string, string | undefined];
-  if (!GROUPS.has(group))
-    throw new GhPolicyError(`gh ${group} is not available. Available: ${[...GROUPS].join(', ')}.`);
   if (group === 'api') return classifyApi(args.slice(1));
-  if (group === 'search') return { access: 'read' };
-  if (!subcommand || isFlag(subcommand))
-    throw new GhPolicyError(`Name a ${group} subcommand, such as gh ${group} list.`);
-  const local = LOCAL[`${group} ${subcommand}`];
-  if (local) throw new GhPolicyError(`gh ${group} ${subcommand} is not available: it ${local}.`);
-  return { access: READ_SUBCOMMANDS.has(subcommand) ? 'read' : 'write' };
+  const commands = COMMANDS[group];
+  if (!commands)
+    throw new GhPolicyError(
+      `gh ${group} is not available. Available: api, ${Object.keys(COMMANDS).join(', ')}.`
+    );
+  if (subcommand && commands.read.includes(subcommand)) return { access: 'read' };
+  if (subcommand && commands.write.includes(subcommand)) return { access: 'write' };
+  throw new GhPolicyError(
+    `gh ${group} ${subcommand ?? ''} is not available. Available: ${[...commands.read, ...commands.write].join(', ')}.`
+  );
 }
 
 /** Quote an argument for display in a POSIX shell command line. */

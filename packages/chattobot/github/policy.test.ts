@@ -93,7 +93,23 @@ test.each([
   // [HOST/]OWNER/REPO makes gh contact another host.
   [['repo', 'view', 'attacker.example/o/r']],
   [['repo', 'view', '169.254.169.254/o/r']],
-  [['issue', 'list', 'ghe.example.com:8443/o/r']]
+  [['issue', 'list', 'ghe.example.com:8443/o/r']],
+  // Aliases and local-file subcommands are not on the allowlist.
+  [['release', 'new', 'v9.9.9', 'hosts.yml']],
+  [['pr', 'co', '42']],
+  [['pr', 'create', '--fill']],
+  [['repo', 'create', 'x', '--source=.']],
+  [['repo', 'deploy-key', 'add', 'key.pub']],
+  [['release', 'verify-asset', 'v1', 'file']],
+  [['run', 'watch', '1']],
+  // Other hosts in any form gh accepts.
+  [['repo', 'view', 'git@attacker.example:secret/x']],
+  [['repo', 'view', 'localhost/o/r']],
+  [['repo', 'view', '[::1]/o/r']],
+  [['repo', 'view', 'metadata:8443/o/r']],
+  [['repo', 'view', 'https://attacker.example/o/r ']],
+  [['issue', 'view', 'https://github.com.attacker.example/o/r/issues/1']],
+  [['issue', 'create', '--title', 'See https://attacker.example/x for details']]
 ])('the policy rejects %j', (args) => {
   expect(() => classify(...args)).toThrow(GhPolicyError);
 });

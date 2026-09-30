@@ -83,3 +83,14 @@ test('redaction removes tokens and email addresses and bounds long output', () =
   expect(long).toContain('characters omitted');
   expect(long.length).toBeLessThan(33_000);
 });
+
+test('gh gets no standard input, so a command that reads it does not wait', async () => {
+  await fakeGh('cat; echo done');
+  const result = await runGh(['secret', 'set', 'NAME'], {
+    token: 'token-value',
+    repository: 'a/b',
+    signal: AbortSignal.timeout(5000),
+    timeoutMs: 2000
+  });
+  expect(result).toEqual({ ok: true, output: 'done' });
+});

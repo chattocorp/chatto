@@ -718,23 +718,27 @@ The supervisor has two tools:
   an issue or to list the issues of a milestone. With a private repository,
   this lets those people read it through the bot. It always uses a read-only token. A command that the host classifies
   wrongly as a read therefore fails at GitHub and changes nothing.
-- `ghWrite`, which only maintainers can use, runs any other command of the `issue`, `pr`, `label`, `run`,
-  `workflow`, `release`, `repo`, `ruleset`, `cache`, `secret`, and `variable`
-  groups, or a `gh api` write. For example, it files, updates, comments on,
-  labels, or closes issues, comments on pull requests, and reruns CI. When a
+- `ghWrite`, which only maintainers can use, runs changes: for example, it
+  files, updates, comments on, labels, closes, or transfers issues, comments on,
+  reviews, or merges pull requests, manages labels, releases, secrets, and
+  variables, reruns or starts workflows, and makes `gh api` writes. When a
   maintainer asked for the change, it runs at once. The authorization
   classifier decides this from the maintainers' messages to the bot; the
   maintainer does not have to approve the exact text that the bot writes.
   Otherwise nothing runs, and the bot asks whether to make the change. The
   App's permissions decide what succeeds.
 
-The host rejects only commands that could affect the bot host or leave the
-repository: other command groups, such as aliases, extensions, `auth`, `config`,
-and `gist`; subcommands that read or write local files or Git state, such as
-`repo clone`, `pr checkout`, `run download`, and `release create`; file input
-(`--body-file`, `--notes-file`, `--env-file`, `--input`, `-F key=@file`);
-browsers and editors; `--repo` and `--hostname`; absolute API URLs; and jq
-expressions that read the environment.
+The host protects only the bot host and keeps commands on github.com. It allows a
+fixed list of subcommands for each command group (see `github/policy.ts`). The
+list leaves out gh aliases, programs and credentials (`alias`, `extension`,
+`auth`, `config`), and subcommands that read or write local files or Git state,
+such as `release create`, `release upload`, `run download`, `pr checkout`,
+`pr create`, and `repo clone`. The host also rejects file input (`--body-file`,
+`--notes-file`, `--env-file`, `--input`, `-F key=@file`), browsers and editors,
+`--repo`, `--hostname`, `--`, absolute API URLs, jq expressions that read the
+environment, and any argument that names another host: a URL, an scp-style
+`user@host:path`, or `HOST/OWNER/REPO`. Put text with links to other sites in
+the body. `gh` gets no standard input.
 
 `gh` runs without a shell in a new temporary directory. Its environment has only
 `PATH`, `TMPDIR`, the repository, and settings that turn off prompts, pagers,

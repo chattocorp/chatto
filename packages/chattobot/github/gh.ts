@@ -56,7 +56,7 @@ export const runGh: GhRunner = async (args, { token, repository, signal, timeout
       { mode: 0o600 }
     );
     return await new Promise<GhResult>((resolve, reject) => {
-      execFile(
+      const child = execFile(
         'gh',
         [...args],
         {
@@ -103,6 +103,8 @@ export const runGh: GhRunner = async (args, { token, repository, signal, timeout
           });
         }
       );
+      // gh gets no input: a command that would read standard input fails instead of waiting.
+      child.stdin?.end();
     });
   } finally {
     await rm(home, { recursive: true, force: true });
