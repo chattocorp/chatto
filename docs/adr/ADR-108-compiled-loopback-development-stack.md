@@ -53,8 +53,9 @@ exact Chatto callback URL. Authling treats names beneath `.localhost` as
 loopback hosts for its plain-HTTP public URL and redirect URI rules. Authling
 state is in `.context/dev/<workspace>/authling/port-<port>/`. Authling cannot
 change its issuer URL, and Conductor can give a workspace a different port.
-Thus, each issuer port has its own state directory. The task moves the earlier
-`authling/nats/` directory into the directory for the current port once.
+Thus, each issuer port has its own state directory. The task does not use the
+earlier `authling/nats/` directory: its issuer port is unknown, and a different
+port stops Authling at startup.
 
 `mise dev-frontend` runs Vite at base port `+1`. Vite proxies API, realtime,
 authentication, and OAuth requests to `CHATTO_BACKEND_URL`. The default value is

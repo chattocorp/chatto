@@ -107,9 +107,11 @@ Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
 identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
-These credentials and accounts are for local development only. Stop `mise dev`
-to stop the services. With the stack stopped, remove `cli/data/` to reset
-Chatto, or remove the Authling identity directory to reset Authling. The
+These credentials and accounts are for local development only. Stop `mise dev`,
+or run `mise stop` from another terminal, to stop the services. `mise reset`
+stops the stack of the workspace and removes the Chatto data and the Authling
+data of all ports. To reset only one of them, run `mise stop`, then remove
+`cli/data/` or the Authling identity directory. The
 Authling issuer URL includes the workspace name and port, and Authling cannot
 change its issuer. Thus, a new Conductor workspace name or port starts an empty
 Authling in a new state directory. Chatto users that you linked to the previous

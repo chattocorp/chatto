@@ -401,12 +401,16 @@ run = "pnpm dev"
 #   +8  Mailpit SMTP
 #   +9  Mailpit web UI
 
+[tasks.stop]
+description = "Stop the development stack of this workspace"
+run = 'CONDUCTOR_WORKSPACE_PATH="$PWD" tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"'
+
 [tasks.dev]
 description = "Build and run Chatto, Authling, Runling, Mailpit, and LiveKit"
 # Setup is fast when nothing changed, so a fresh checkout needs only `mise dev`.
-depends = ["setup", "build-dev-cli", "build-runling-bot"]
+# A stack that still runs in this workspace stops first and frees its ports.
+depends = ["stop", "setup", "build-dev-cli", "build-runling-bot"]
 run = '''
-CONDUCTOR_WORKSPACE_PATH="$PWD" tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"
 exec "$PWD/tools/dev-supervisor.sh" mise run --jobs 5 --output prefix \
   dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
   dev-stack-backend ::: dev-stack-runling-bot
@@ -476,12 +480,9 @@ data_root="$project_dir/.context/dev/$CHATTO_DEV_WORKSPACE/authling"
 config_path="$data_root/authling.toml"
 # The issuer URL includes the port, and Authling cannot change its issuer after
 # the first start. Conductor can give a workspace a different port, so keep one
-# state directory for each issuer port.
+# state directory for each issuer port. State from before this layout stays in
+# "$data_root/nats". Its port is unknown, so the stack does not use it.
 state_dir="$data_root/port-$((CHATTO_DEV_PORT_BASE + 2))"
-if [ -d "$data_root/nats" ] && [ ! -e "$state_dir" ]; then
-  mkdir -p "$state_dir"
-  mv "$data_root/nats" "$state_dir/nats"
-fi
 mkdir -p "$state_dir/nats"
 cd authling
 mise build
@@ -887,10 +888,15 @@ description = "Reset the local development environment"
 run = [{ task = "reset-data" }]
 
 [tasks.reset-data]
-description = "Reset the development environment (NATS data etc.)"
-confirm = "Are you sure you want to reset the development environment? This will delete all data."
-dir = "cli"
-run = ["rm -rf data"]
+description = "Reset the development data of Chatto and Authling"
+confirm = "Are you sure you want to reset the development environment? This will delete all Chatto and Authling data of this workspace."
+# Stop this workspace's stack first, so that no service writes during the removal.
+# Remove the data of every Authling issuer port: Chatto users link to its accounts.
+depends = ["stop"]
+run = [
+  "rm -rf cli/data",
+  'rm -rf ".context/dev/${CHATTO_DEV_WORKSPACE:?}/authling"',
+]
 
 [tasks.docs]
 description = "Start pkgsite documentation server for the CLI"
