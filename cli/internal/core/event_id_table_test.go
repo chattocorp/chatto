@@ -220,3 +220,47 @@ func TestEventIDTable_ConcurrentInternOfSameIDsAgreesOnHandles(t *testing.T) {
 		}
 	}
 }
+
+// TestEventIDTable_ReadsPublishedHandlesDuringGrowth reads handles that other
+// goroutines published while writers add location pages and arena chunks. It
+// models components that apply and read under different locks.
+func TestEventIDTable_ReadsPublishedHandlesDuringGrowth(t *testing.T) {
+	table := newEventIDTable()
+	const writers, perWriter = 4, 3 * idLocationPageSize
+	var published sync.Map
+	var wg sync.WaitGroup
+	for writer := range writers {
+		wg.Go(func() {
+			for i := range perWriter {
+				id := fmt.Sprintf("W%d-%06d", writer, i)
+				published.Store(id, table.intern(id))
+			}
+		})
+	}
+	for range 4 {
+		wg.Go(func() {
+			for i := range perWriter {
+				id := fmt.Sprintf("W%d-%06d", i%writers, i)
+				value, ok := published.Load(id)
+				if !ok {
+					continue
+				}
+				if got := table.id(value.(uint32)); got != id {
+					t.Errorf("id(%d) = %q, want %q", value, got, id)
+					return
+				}
+				if handle, ok := table.lookup(id); !ok || handle != value.(uint32) {
+					t.Errorf("lookup(%q) = %d, %v; want %d, true", id, handle, ok, value)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if got := table.len(); got != writers*perWriter {
+		t.Fatalf("len = %d, want %d", got, writers*perWriter)
+	}
+	if pages := len(table.loadPages()); pages < writers*perWriter/idLocationPageSize {
+		t.Fatalf("table used %d location pages, want at least %d", pages, writers*perWriter/idLocationPageSize)
+	}
+}

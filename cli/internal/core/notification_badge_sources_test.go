@@ -536,3 +536,47 @@ func TestBadgeRoomDeletionClearsMessageRecords(t *testing.T) {
 		t.Fatalf("withCurrent: %v", err)
 	}
 }
+
+func TestBadgeAccountDeletionForgetsTheAccountsSources(t *testing.T) {
+	f := newBadgeTestFixture(t)
+	f.post("ROOT", "U1", "")
+	f.apply(&evtv1.Event{Id: "REACT", ActorId: "U2", Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "ROOT", Emoji: "tada"}}})
+	f.post("MENTION", "U2", "", &evtv1.MessageMention{UserId: "U1", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}})
+	f.apply(&evtv1.Event{Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "ROOT", UserId: "U1"}}})
+	f.apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "U1"}}})
+
+	if err := f.p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		encoded := snapshot.badges.snapshot()
+		for _, row := range encoded.GetMemberships() {
+			if row.GetUserId() == "U1" {
+				t.Fatalf("snapshot keeps the membership start of the deleted account in %s", row.GetRoomId())
+			}
+		}
+		for _, row := range encoded.GetAccounts() {
+			if row.GetUserId() == "U1" {
+				t.Fatal("snapshot keeps the deleted account")
+			}
+		}
+		for _, row := range encoded.GetFollows() {
+			if row.GetUserId() == "U1" {
+				t.Fatalf("snapshot keeps a follow of the deleted account: %s", row.GetThreadRootEventId())
+			}
+		}
+		for _, row := range encoded.GetTargets() {
+			if row.GetUserId() == "U1" {
+				t.Fatalf("snapshot keeps a source addressed to the deleted account: %s", row.GetMessageEventId())
+			}
+		}
+		if got := len(snapshot.badges.reactions); got != 0 {
+			t.Fatalf("reactions on the deleted account's messages = %d, want 0", got)
+		}
+		// The account's messages stay indexed as reply parents and roots for
+		// other users.
+		if roomID, _, _, _ := snapshot.badgeAudience("ROOT"); roomID != "R1" {
+			t.Fatalf("badgeAudience(ROOT) room = %q, want R1", roomID)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
+	}
+}
