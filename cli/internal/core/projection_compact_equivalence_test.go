@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -163,7 +164,8 @@ type compactHistory struct {
 // generateCompactHistory builds a deterministic history with root messages,
 // thread replies, channel echoes, bodies that arrive before their posts,
 // edits, retractions, reactions, pins, follows, membership changes, content
-// keys, key shredding, an account deletion, and a room deletion.
+// keys, key shredding, an account deletion, a room deletion, and a gap that
+// expires earlier Badge sources.
 func generateCompactHistory(seed uint64, steps int) *compactHistory {
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	h := &compactHistory{
@@ -294,6 +296,11 @@ func generateCompactHistory(seed uint64, steps int) *compactHistory {
 	}
 
 	for step := range steps {
+		if step == steps*3/5 {
+			// A gap longer than notificationTTL expires the earlier Badge
+			// sources. Live state and a restored snapshot must still agree.
+			clock += int(notificationTTL / time.Second)
+		}
 		if !deletedR2 && step == steps*4/5 {
 			emit(&evtv1.Event{Event: &evtv1.Event_RoomDeleted{RoomDeleted: &evtv1.RoomDeletedEvent{RoomId: "R2"}}})
 			deletedR2 = true
