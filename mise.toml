@@ -483,7 +483,15 @@ project_dir=$(pwd -P)
 chatto_url="http://chatto.$CHATTO_DEV_WORKSPACE.localhost:$CHATTO_DEV_PORT_BASE"
 data_root="$project_dir/.context/dev/$CHATTO_DEV_WORKSPACE/authling"
 config_path="$data_root/authling.toml"
-mkdir -p "$data_root/nats"
+# The issuer URL includes the port, and Authling cannot change its issuer after
+# the first start. Conductor can give a workspace a different port, so keep one
+# state directory for each issuer port.
+state_dir="$data_root/port-$((CHATTO_DEV_PORT_BASE + 2))"
+if [ -d "$data_root/nats" ] && [ ! -e "$state_dir" ]; then
+  mkdir -p "$state_dir"
+  mv "$data_root/nats" "$state_dir/nats"
+fi
+mkdir -p "$state_dir/nats"
 cd authling
 mise build
 cp authling.toml "$config_path"
@@ -496,7 +504,7 @@ secret = '$CHATTO_DEV_AUTHLING_CLIENT_SECRET'
 redirect_uris = ['$chatto_url/auth/providers/authling/callback']
 TOML
 export AUTHLING_HTTP_PUBLIC_URL="$CHATTO_DEV_AUTHLING_URL"
-export AUTHLING_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
+export AUTHLING_NATS_EMBEDDED_DATA_DIR="$state_dir/nats"
 echo "Authling: $AUTHLING_HTTP_PUBLIC_URL"
 exec bin/authling run --config "$config_path"
 '''

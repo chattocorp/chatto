@@ -103,13 +103,16 @@ TestBot’s outbound webhook. Existing servers keep their saved configuration.
 
 Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
-identity data is in `.context/dev/<workspace>/authling/`.
+identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
 These credentials and accounts are for local development only. Stop `mise dev`
 to stop the services. With the stack stopped, remove `cli/data/` to reset
-Chatto, or remove the Authling identity directory to reset Authling. A new
-Conductor workspace name also creates a new Authling issuer and state
-directory.
+Chatto, or remove the Authling identity directory to reset Authling. The
+Authling issuer URL includes the workspace name and port, and Authling cannot
+change its issuer. Thus, a new Conductor workspace name or port starts an empty
+Authling in a new state directory. Chatto users that you linked to the previous
+Authling accounts cannot sign in through the new Authling. If the previous port
+returns, Authling uses its previous state again.
 
 If a worktree has NATS data in the former `cli/data/jetstream/` location, use
 the migration steps in [Local Chatto Data](#local-chatto-data).
