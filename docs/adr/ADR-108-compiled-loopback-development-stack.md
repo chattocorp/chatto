@@ -33,15 +33,9 @@ names beneath `.localhost` to loopback without DNS or `/etc/hosts` changes.
 
 `mise dev` builds the embedded frontend and the bootstrap-enabled Chatto binary
 when their sources change. Then it runs this binary, Authling, the Runling bot,
-Mailpit, and LiveKit in the process group of `mise dev`. The task uses
-`raw = true` and `mise run --raw` for each service, because a plain `mise run`
-starts each task in a new process group. Conductor stops a run script with a
-signal to its process group, which can be SIGKILL. Thus, no process must catch
-a signal to stop the stack. When one service stops, the stack stops.
-`tools/stop-workspace-dev.sh` stops leftover services: it stops each process
-that listens on a development port of the workspace and has its working
-directory inside the workspace. There is no Vite process and no Portless route
-in the default stack. To see a change, the developer restarts `mise dev`.
+Mailpit, and LiveKit in the `tools/dev-supervisor.sh` process group. There is
+no Vite process and no Portless route in the default stack. To see a change, the
+developer restarts `mise dev`.
 
 All services use plain HTTP on the Conductor port block, with base `4000`
 outside Conductor. Chatto uses the base port, and Authling uses `+2`. The
@@ -49,7 +43,8 @@ browser-facing hostnames are `chatto.<workspace>.localhost` and
 `authling.<workspace>.localhost`, where `<workspace>` is the Conductor
 workspace ID or `local`. The display name of a Conductor workspace can contain
 spaces and can change, and its path differs between agent sessions and the Run
-pane after a rename. The ID is stable, so the stack uses it. Each workspace therefore has its own cookie scope.
+pane after a rename. The ID is stable, so the stack uses it. Each workspace
+therefore has its own cookie scope.
 Mailpit, LiveKit, and the Runling console use `localhost`, because they do not
 keep browser sessions for this stack. The comment above the `dev` task in
 `mise.toml` records the complete port layout.

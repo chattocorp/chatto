@@ -408,25 +408,17 @@ run = "pnpm dev"
 
 [tasks.stop]
 description = "Stop the development stack of this workspace"
-run = 'tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"'
+run = 'CONDUCTOR_WORKSPACE_PATH="$PWD" tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"'
 
 [tasks.dev]
 description = "Build and run Chatto, Authling, Runling, Mailpit, and LiveKit"
 # Setup is fast when nothing changed, so a fresh checkout needs only `mise dev`.
 # A stack that still runs in this workspace stops first and frees its ports.
 depends = ["stop", "setup", "build-dev-cli", "build-runling-bot"]
-# All services stay in the process group of `mise dev`, so a signal to that
-# group stops all of them. This includes the SIGKILL that Conductor sends when
-# it stops a run script. `raw` keeps this task in the caller's process group,
-# and `mise run --raw` keeps each service in it too. A plain `mise run` starts
-# each task in a new process group, which such a signal does not reach.
-# When one service stops, the stack stops.
-raw = true
 run = '''
-for task in dev-stack-mailpit dev-stack-livekit dev-stack-authling dev-stack-backend dev-stack-runling-bot; do
-  (mise run --raw "$task" 2>&1 | sed -u "s/^/[$task] /"; echo "[dev] $task stopped, so the stack stops" >&2; kill 0) &
-done
-wait
+exec "$PWD/tools/dev-supervisor.sh" mise run --jobs 5 --output prefix \
+  dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
+  dev-stack-backend ::: dev-stack-runling-bot
 '''
 
 [tasks.dev-frontend]
@@ -682,7 +674,7 @@ description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
-    "../tools/stop-workspace-dev_test.sh",
+    "../tools/dev-supervisor_test.sh",
     "node ../tools/dev-seed-smoke.mjs",
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
