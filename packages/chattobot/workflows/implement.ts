@@ -104,7 +104,7 @@ export function implementationExtension(
               minLength: 1,
               maxLength: 600,
               description:
-                'One brief sentence that says what you are about to implement, in the same language as currentMessage (or the language that the human asked for). Sent to the conversation before work starts.'
+                'One brief sentence that says what you are about to implement, in the same language as message.text (or the language that its author asked for). Sent to the conversation before work starts.'
             })
           })
         },

@@ -106,7 +106,7 @@ const IMPLEMENTATION_POLICY =
   'This action implements a code change and publishes a pull request. allow only when the messages ask to implement, build, fix, change, or continue this work, or clearly agree to a proposal to do it, for example "yes, implement it" or "go ahead" after asking for a fix or plan of the same thing. Questions, investigation or feasibility requests, opinions, and design discussion are not requests to implement. deny when the messages ask not to implement it. unclear otherwise.';
 /** What counts as a request for a GitHub change. The classifier sees only maintainers' messages. */
 const GITHUB_WRITE_POLICY =
-  'This action changes the GitHub repository, for example by filing an issue or adding a comment. allow when the messages ask for this kind of change on this target. Suggestions and polite questions count as requests: "make a GitHub issue for this", "how about filing an issue for this?", "could you post an issue?", "update #12 with this", "add the bug label to #12", "comment on #12", "close #12", "rerun the failed CI". allow when the newest message answers the assistant’s latest message, and that message offered or asked about this change, with agreement in any language or tone, for example "yes", "yes please", "sure", "oui", "ja", "go for it", "please do", or "I do!", even when it includes a joke. The reply does not need to repeat the change, and earlier, vaguer messages do not weaken it. allow when a maintainer sends details or corrections right after the assistant changed an item in this conversation, and the action adds them to that item. The assistant writes titles and bodies itself; the maintainers do not need to have approved the exact text. deny when the messages ask not to make this change. unclear otherwise, for example when they only discuss the problem or ask whether it is worth doing.';
+  'This action changes the GitHub repository, for example by filing an issue or adding a comment. allow when the messages ask for this kind of change on this target. Suggestions and polite questions count as requests: "make a GitHub issue for this", "how about filing an issue for this?", "could you post an issue?", "update #12 with this", "add the bug label to #12", "comment on #12", "close #12", "rerun the failed CI". allow when the newest message answers the assistant’s latest message, and that message, as shown in the context, names this change (its operation and target), with agreement in any language or tone, for example "yes", "yes please", "sure", "oui", "ja", "go for it", "please do", or "I do!", even when it includes a joke. The reply does not need to repeat the change, and earlier, vaguer messages do not weaken it. allow when a maintainer sends details or corrections right after the assistant changed an item in this conversation, and the action adds them to that item. The assistant writes titles and bodies itself; the maintainers do not need to have approved the exact text. deny when the messages ask not to make this change. unclear otherwise, for example when they only discuss the problem or ask whether it is worth doing.';
 
 /** Describe an implementChatto call for the authorization classifier. */
 const describeImplementation = (input: Record<string, unknown>) =>
@@ -160,16 +160,27 @@ export const conversation = task(
     // The bot's latest message as posted to the thread. People answer what they saw, so a short
     // "yes" can refer to an offer in it.
     let lastPosted = '';
+    /** The bot's latest posted message as authorization context. It is model text, so it can
+     * authorize only a change that it names; the end holds the question. */
+    const lastPostedContext = () =>
+      lastPosted
+        ? [
+            `The assistant's latest message in the thread, as the maintainers saw it before they replied. A short agreement authorizes only a change that this message names: ${JSON.stringify(lastPosted.slice(-3000))}`
+          ]
+        : [];
     const research = webTools(options.web).length ? options.web : undefined;
-    // The repository that issue, pull request, and code references link to.
-    const repository = options.implementation
+    // The repository that issue, pull request, and code references link to: the GitHub
+    // repository when configured, because gh finds the issues there.
+    const linkedName = options.github?.settings.repository ?? options.implementation?.repository;
+    const repository = linkedName
       ? {
-          name: options.implementation.repository,
-          branch: normalizeImplementationSettings(options.implementation).baseBranch
+          name: linkedName,
+          branch:
+            options.implementation?.repository === linkedName
+              ? normalizeImplementationSettings(options.implementation).baseBranch
+              : 'main'
         }
-      : options.github
-        ? { name: options.github.settings.repository, branch: 'main' }
-        : undefined;
+      : undefined;
     // The thread reaches the supervisor once, then only messages after the cursor: its own
     // replies and the messages it received are already in its conversation.
     let threadCursor: string | undefined;
@@ -230,9 +241,17 @@ export const conversation = task(
     let refusalPosted = false;
     const maintainers = new Set(options.maintainers ?? []);
     const requesterIsMaintainer = () => maintainers.has(options.requester());
-    // Maintainers' messages from thread reads, for the authorization checks. Server-authenticated
+    // Maintainers' messages to the bot, for the authorization checks: server-authenticated
     // authors, never names or the model's own text.
     const maintainerMessages: string[] = [];
+    // User messages and notifications can prepare at the same time. Preparation reads the thread
+    // from a shared cursor and updates shared state, so it runs one at a time.
+    let preparing: Promise<unknown> = Promise.resolve();
+    const serialize = <T>(prepare: () => Promise<T>): Promise<T> => {
+      const next = preparing.then(prepare);
+      preparing = next.catch(() => {});
+      return next;
+    };
     const classifier =
       options.classifier ??
       createAuthorizationClassifier({
@@ -311,8 +330,10 @@ export const conversation = task(
                 messages: () => maintainerMessages.slice(-AUTHORIZATION_MESSAGES),
                 classify: classifyAs('implementChatto'),
                 policy: IMPLEMENTATION_POLICY,
-                context: () =>
-                  [...plans.values()].map((plan) => `A saved implementation plan: ${plan.goal}`)
+                context: () => [
+                  ...[...plans.values()].map((plan) => `A saved implementation plan: ${plan.goal}`),
+                  ...lastPostedContext()
+                ]
               })
             ]
           : []),
@@ -359,14 +380,7 @@ export const conversation = task(
                     action: command,
                     messages: maintainerMessages.slice(-AUTHORIZATION_MESSAGES),
                     policy: GITHUB_WRITE_POLICY,
-                    context: [
-                      ...context,
-                      ...(lastPosted
-                        ? [
-                            `The assistant's latest message in the thread, which the maintainers saw before they replied: ${JSON.stringify(lastPosted.slice(0, 2000))}`
-                          ]
-                        : [])
-                    ]
+                    context: [...context, ...lastPostedContext()]
                   }),
                 onUrls: (urls) => {
                   for (const url of urls) pendingUrls.add(url);
@@ -460,109 +474,114 @@ export const conversation = task(
         bot,
         prompt,
         {
-          async prepareMessage(message, origin) {
-            options.setReplyContext(message, origin);
-            latestOrigin = origin;
-            if (origin === 'notification')
-              for (const url of notificationUrls(message)) pendingUrls.add(url);
-            if (origin === 'user') {
-              requestVersion++;
-              researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
-              recentUserMessages.push(message);
-              if (recentUserMessages.length > 8) recentUserMessages.shift();
-            }
-            const read = await readThread(options.delivery, ctx.signal, threadCursor);
-            ctx.signal.throwIfAborted();
-            threadCursor = read.cursor ?? threadCursor;
-            for (const entry of read.messages) known.set(entry.id, entry);
-            if (firstTurn && read.olderOmitted) olderThreadOmitted = true;
-            for (const entry of read.messages)
-              if (toYou(entry) && entry.authorId && maintainers.has(entry.authorId))
-                maintainerMessages.push(entry.body);
-            // A new conversation starts its language anchor with earlier messages to the bot.
-            if (firstTurn)
-              recentUserMessages.unshift(
-                ...read.messages
-                  .filter(
-                    (entry) =>
-                      toYou(entry) &&
-                      entry.id !== options.delivery.message.id &&
-                      entry.body !== message
-                  )
-                  .map((entry) => entry.body)
-              );
-            recentUserMessages.splice(0, recentUserMessages.length - 8);
-            maintainerMessages.splice(0, maintainerMessages.length - 2 * AUTHORIZATION_MESSAGES);
-            const current =
-              origin === 'user'
-                ? [...previousRead, ...read.messages].findLast(
-                    (entry) => entry.role === 'human' && entry.body === message
-                  )
-                : undefined;
-            const fresh = read.messages.filter(
-              (entry) => entry.role === 'human' && entry !== current
-            );
-            if (read.messages.length) previousRead = read.messages;
-            const notified =
-              origin === 'notification'
-                ? tasks.list().find((task) => task.id === notifiedTaskId(message))
-                : undefined;
-            const isFirstTurn = firstTurn;
-            firstTurn = false;
-            // The prompt shows the conversation: the thread root, messages to the bot, and the
-            // bot's own replies. Other messages are counted; readThread returns them on request.
-            if (current) seen.add(current.id);
-            const shown = (isFirstTurn ? read.messages : fresh).filter(
-              (entry) =>
-                entry !== current &&
-                (toYou(entry) || entry.role === 'bot' || (isFirstTurn && entry.id === rootId))
-            );
-            for (const entry of [...shown, ...read.messages.filter((e) => e.role === 'bot')])
-              seen.add(entry.id);
-            const unread = [...known.values()].filter(
-              (entry) => entry.role === 'human' && !seen.has(entry.id)
-            ).length;
-            const shownMessages = shown.map((entry) => promptThreadMessage(entry, toYou(entry)));
-            return JSON.stringify({
-              ...(shownMessages.length
-                ? { [isFirstTurn ? 'earlierThreadMessages' : 'newThreadMessages']: shownMessages }
-                : {}),
-              ...(unread ? { unreadThreadMessages: unread } : {}),
-              ...(isFirstTurn && read.olderOmitted ? { olderThreadMessagesOmitted: true } : {}),
-              ...(origin === 'user'
-                ? {
-                    message: {
-                      from: current?.authorName ?? current?.authorLogin ?? 'someone',
-                      ...(current?.authorLogin ? { login: current.authorLogin } : {}),
-                      fromMaintainer: requesterIsMaintainer(),
-                      text: message
-                    }
-                  }
-                : {
-                    notification: taskNotification(message),
-                    ...(notified ? { notifiedTask: taskContext([notified])[0] } : {})
-                  }),
-              recentMessagesToYou: [...recentUserMessages],
-              backgroundTasks: taskSummaries(tasks.list()),
-              ...(options.implementation && isFirstTurn
-                ? {
-                    resumableImplementations: await listResumableArtifacts(
-                      implementationArtifactsDirectory(options.implementation),
-                      {
-                        ownerKey,
-                        repository: options.implementation.repository,
-                        baseBranch: normalizeImplementationSettings(options.implementation)
-                          .baseBranch
-                      }
+          prepareMessage: (message, origin) =>
+            serialize(async () => {
+              options.setReplyContext(message, origin);
+              latestOrigin = origin;
+              if (origin === 'notification')
+                for (const url of notificationUrls(message)) pendingUrls.add(url);
+              if (origin === 'user') {
+                requestVersion++;
+                researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
+                recentUserMessages.push(message);
+                if (recentUserMessages.length > 8) recentUserMessages.shift();
+              }
+              const read = await readThread(options.delivery, ctx.signal, threadCursor);
+              ctx.signal.throwIfAborted();
+              threadCursor = read.cursor ?? threadCursor;
+              for (const entry of read.messages) known.set(entry.id, entry);
+              if (firstTurn && read.olderOmitted) olderThreadOmitted = true;
+              // A new conversation starts with the earlier messages that people addressed to the bot
+              // in this thread, for the language anchor and the maintainers' requests.
+              if (firstTurn) {
+                const earlierToYou = read.messages.filter(
+                  (entry) =>
+                    toYou(entry) &&
+                    entry.id !== options.delivery.message.id &&
+                    entry.body !== message
+                );
+                recentUserMessages.unshift(...earlierToYou.map((entry) => entry.body));
+                maintainerMessages.unshift(
+                  ...earlierToYou
+                    .filter((entry) => entry.authorId && maintainers.has(entry.authorId))
+                    .map((entry) => entry.body)
+                );
+              }
+              // Later requests come from deliveries, which the server addressed to the bot, so they
+              // do not depend on when the thread read sees them.
+              if (origin === 'user' && requesterIsMaintainer()) maintainerMessages.push(message);
+              recentUserMessages.splice(0, recentUserMessages.length - 8);
+              maintainerMessages.splice(0, maintainerMessages.length - 2 * AUTHORIZATION_MESSAGES);
+              const current =
+                origin === 'user'
+                  ? [...previousRead, ...read.messages].findLast(
+                      (entry) => entry.role === 'human' && entry.body === message
                     )
-                  }
-                : {}),
-              savedImplementationPlans: [...plans].map(([investigationId, plan]) => ({
-                investigationId,
-                goal: plan.goal
-              }))
-            });
-          },
+                  : undefined;
+              const fresh = read.messages.filter(
+                (entry) => entry.role === 'human' && entry !== current
+              );
+              if (read.messages.length) previousRead = read.messages;
+              const notified =
+                origin === 'notification'
+                  ? tasks.list().find((task) => task.id === notifiedTaskId(message))
+                  : undefined;
+              const isFirstTurn = firstTurn;
+              firstTurn = false;
+              // The prompt shows the conversation: the thread root, messages to the bot, and the
+              // bot's own replies. Other messages are counted; readThread returns them on request.
+              if (current) seen.add(current.id);
+              const shown = (isFirstTurn ? read.messages : fresh).filter(
+                (entry) =>
+                  entry !== current &&
+                  (toYou(entry) || entry.role === 'bot' || (isFirstTurn && entry.id === rootId))
+              );
+              for (const entry of [...shown, ...read.messages.filter((e) => e.role === 'bot')])
+                seen.add(entry.id);
+              const unread = [...known.values()].filter(
+                (entry) => entry.role === 'human' && !seen.has(entry.id)
+              ).length;
+              const shownMessages = shown.map((entry) => promptThreadMessage(entry, toYou(entry)));
+              return JSON.stringify({
+                ...(shownMessages.length
+                  ? { [isFirstTurn ? 'earlierThreadMessages' : 'newThreadMessages']: shownMessages }
+                  : {}),
+                ...(unread ? { unreadThreadMessages: unread } : {}),
+                ...(isFirstTurn && read.olderOmitted ? { olderThreadMessagesOmitted: true } : {}),
+                ...(origin === 'user'
+                  ? {
+                      message: {
+                        from: current?.authorName ?? current?.authorLogin ?? 'someone',
+                        ...(current?.authorLogin ? { login: current.authorLogin } : {}),
+                        fromMaintainer: requesterIsMaintainer(),
+                        text: message
+                      }
+                    }
+                  : {
+                      notification: parseNotification(taskNotification(message)),
+                      ...(notified ? { notifiedTask: taskContext([notified])[0] } : {})
+                    }),
+                recentMessagesToYou: [...recentUserMessages],
+                backgroundTasks: taskSummaries(tasks.list()),
+                ...(options.implementation && isFirstTurn
+                  ? {
+                      resumableImplementations: await listResumableArtifacts(
+                        implementationArtifactsDirectory(options.implementation),
+                        {
+                          ownerKey,
+                          repository: options.implementation.repository,
+                          baseBranch: normalizeImplementationSettings(options.implementation)
+                            .baseBranch
+                        }
+                      )
+                    }
+                  : {}),
+                savedImplementationPlans: [...plans].map(([investigationId, plan]) => ({
+                  investigationId,
+                  goal: plan.goal
+                }))
+              });
+            }),
           timeout: options.timeout ?? 900,
           onBusy: (busy) => {
             if (busy) {
@@ -584,6 +603,15 @@ export const conversation = task(
     }
   }
 );
+
+/** A notification as a JSON value, so that its `report` is not hidden in an escaped string. */
+function parseNotification(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
 
 /** A thread message as the supervisor sees it: who wrote it and its text. This bot's own
  * messages are `from: "you"`; messages addressed to the bot have `toYou: true`. */

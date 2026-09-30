@@ -114,7 +114,7 @@ export async function readIssue(
 const MAX_HISTORY = 5;
 
 export function githubExtension(settings: GitHubSettings, dependencies: GitHubDependencies) {
-  // Host-recorded facts, not model text: the commands that ran or that the supervisor offered.
+  // Host-recorded facts, not model text: the commands that ran in this conversation.
   const history: string[] = [];
   const remember = (fact: string) => {
     history.push(fact);
@@ -177,9 +177,8 @@ export function githubExtension(settings: GitHubSettings, dependencies: GitHubDe
         const rendered = renderCommand(action);
         const decision = await dependencies.authorize(rendered, [...history]);
         if (decision.decision !== 'allow') {
-          remember(
-            `The assistant offered this change and asked the maintainers whether to make it: ${rendered}`
-          );
+          // Nothing is recorded: the host cannot verify what the supervisor asked the maintainers.
+          // A later "yes" counts only for a change that the posted question names.
           return {
             content: [
               {
@@ -195,7 +194,12 @@ export function githubExtension(settings: GitHubSettings, dependencies: GitHubDe
           };
         }
         const result = await runChange(settings, dependencies, action, signal);
-        if (!result.ok) throw new Error(result.output.slice(0, 1000));
+        if (!result.ok)
+          throw new Error(
+            result.output === 'gh did not finish in time.'
+              ? 'gh did not finish in time. The change may have applied: check with gh before you retry.'
+              : result.output.slice(0, 1000)
+          );
         const urls = githubUrls(result.output);
         dependencies.onUrls?.(urls);
         remember(

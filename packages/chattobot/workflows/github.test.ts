@@ -32,7 +32,12 @@ async function supervisor(
     tools: Map<string, Tool>;
     gates: ((event: unknown) => Promise<unknown>)[];
     options: AgentOptions;
-    prepare: (message: string, author?: string) => Promise<Record<string, unknown>>;
+    prepare: (
+      message: string,
+      author?: string,
+      /** False: the thread read does not see the message yet. */
+      inThread?: boolean
+    ) => Promise<Record<string, unknown>>;
     emit: (text: string) => Promise<void>;
     thread: ThreadMessage[];
     replies: string[];
@@ -60,6 +65,8 @@ async function supervisor(
       return { ok: true, output: '.github/workflows/release.yml' };
     if (args[1] === 'create')
       return { ok: true, output: 'https://github.com/chattocorp/chatto/issues/99' };
+    // Issue 504 stands for a command that gh did not finish in time.
+    if (args[2] === '504') return { ok: false, output: 'gh did not finish in time.' };
     return { ok: true, output: '[{"number":1,"title":"Existing"}]' };
   };
   // Cursors are positions in the fake thread.
@@ -77,11 +84,11 @@ async function supervisor(
       tools,
       gates,
       options: agentOptions,
-      async prepare(message, author = 'maintainer') {
+      async prepare(message, author = 'maintainer', inThread = true) {
         requester = author;
         const id = `m${thread.length}`;
         addressed.add(id);
-        thread.push({ id, role: 'human', body: message, authorId: author });
+        if (inThread) thread.push({ id, role: 'human', body: message, authorId: author });
         return JSON.parse(await options.prepareMessage(message, 'user'));
       },
       emit: (text) => ctx.emit(text),
@@ -258,11 +265,9 @@ test('without a clear request nothing runs; agreement to the offered change runs
     expect(classify).toHaveBeenLastCalledWith(
       expect.objectContaining({
         messages: ['the login test is flaky again', 'yes'],
-        context: [
-          expect.stringContaining('The assistant offered this change and asked the maintainers'),
-          // The question as posted, which the maintainer answered.
-          expect.stringContaining('Shall I file an issue for the flaky login test?')
-        ]
+        // Only the question as posted, which the maintainer saw and answered. The host does not
+        // record the unrun command as an offer: it cannot verify what the supervisor asked.
+        context: [expect.stringContaining('Shall I file an issue for the flaky login test?')]
       })
     );
     expect(executed).toMatchObject({ status: 'executed' });
@@ -379,4 +384,63 @@ test('readIssue reads the complete issue with the read-only token', async () => 
   });
   // A cut would break the JSON document, so the complete output is kept.
   expect(calls[0]![1]).toMatchObject({ token: 'read-token', limit: 250_000 });
+});
+
+test('a long posted message keeps its closing question as context', async () => {
+  await supervisor(async ({ tools, prepare, emit, classify }) => {
+    await prepare('what do you think about the flaky test?');
+    await emit(`${'Finding. '.repeat(600)}Shall I file an issue for it?`);
+    await prepare('yes');
+    await tools.get('ghWrite')!.execute('1', { args: ['issue', 'create', '--title', 'Flaky'] });
+    expect(classify).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        context: [expect.stringContaining('Shall I file an issue for it?')]
+      })
+    );
+  });
+});
+
+test('a maintainer request counts even before the thread read sees it', async () => {
+  await supervisor(async ({ tools, prepare, classify }) => {
+    await prepare('file an issue about the flaky login test', 'maintainer', false);
+    await tools.get('ghWrite')!.execute('1', { args: ['issue', 'create', '--title', 'Flaky'] });
+    expect(classify).toHaveBeenLastCalledWith(
+      expect.objectContaining({ messages: ['file an issue about the flaky login test'] })
+    );
+  });
+});
+
+test('the implementation check also sees the posted question', async () => {
+  await supervisor(
+    async ({ gates, prepare, emit, classify }) => {
+      await prepare('can we fix the flaky login test?');
+      await emit('I have a plan. Should I implement it and open a pull request?');
+      await prepare('yes please');
+      await gates[1]!({
+        type: 'tool_call',
+        toolName: 'implementChatto',
+        input: { request: 'Fix the flaky login test' }
+      });
+      expect(classify).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          messages: ['can we fix the flaky login test?', 'yes please'],
+          context: [expect.stringContaining('Should I implement it and open a pull request?')]
+        })
+      );
+    },
+    { decision: 'allow', reason: 'Agreed.' },
+    { implementation: { directory: '/unused', repository: 'chattocorp/chatto' } }
+  );
+});
+
+test('a timed-out change warns that it may have applied', async () => {
+  await supervisor(
+    async ({ tools, prepare }) => {
+      await prepare('close issue 504');
+      await expect(
+        tools.get('ghWrite')!.execute('1', { args: ['issue', 'close', '504'] })
+      ).rejects.toThrow('The change may have applied');
+    },
+    { decision: 'allow', reason: 'Requested.' }
+  );
 });

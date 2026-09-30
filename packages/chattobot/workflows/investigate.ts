@@ -291,7 +291,9 @@ export function createInvestigation(
           type: 'state',
           value: {
             phase: outcome,
-            planReady: deliverables.some((deliverable) => deliverable.delivered()?.plan)
+            planReady:
+              outcome === 'completed' &&
+              deliverables.some((deliverable) => deliverable.delivered()?.plan)
           },
           activity:
             outcome === 'completed'
@@ -366,7 +368,7 @@ export function investigationExtension(
               minLength: 1,
               maxLength: 600,
               description:
-                'One brief sentence that says what you are about to investigate, in the same language as currentMessage (or the language that the human asked for). Sent to the conversation before work starts. Do not claim results yet.'
+                'One brief sentence that says what you are about to investigate, in the same language as message.text (or the language that its author asked for). Sent to the conversation before work starts. Do not claim results yet.'
             })
           })
         },
