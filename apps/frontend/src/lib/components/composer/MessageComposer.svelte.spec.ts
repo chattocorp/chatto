@@ -703,7 +703,7 @@ describe('MessageComposer', () => {
           for (const width of [200, 320, 390, 559, 560, 800, 320]) {
             // The outer composer adds 8 px padding on each side of its query box.
             container.style.width = `${width + 16}px`;
-            expect(getComputedStyle(document.body).fontSize).toBe(touch ? '17px' : '16px');
+            expect(getComputedStyle(document.body).fontSize).toBe('16px');
             const stacked = width < 560 || draft !== '';
             await expect
               .poll(() => getComputedStyle(row.parentElement!).display)

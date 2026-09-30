@@ -763,11 +763,10 @@ Touch context menus keep their bottom-sheet presentation.
   for softer product-specific objects, such as server tiles.
 - Nested rounded surfaces should be concentric when their padding is small.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
-  metadata, timestamps, and terse labels. When any touch pointer is available
-  (`any-pointer: coarse`), these sizes are 17, 15, and 13 px at the browser
-  default, including on hybrid devices. Mouse-only devices keep 16, 14, and
-  12 px at every viewport width. These text tokens do not change spacing or
-  heading sizes.
+  metadata, timestamps, and terse labels. These sizes are 16, 14, and 12 px at
+  the browser default on all devices. Input capability changes target sizes,
+  not text size: the viewing distance sets the text size, and the operating
+  system text settings of the user already apply to it.
 - A compact surface uses one text size throughout. Menus, popovers, controls,
   and nested rows must not mix smaller metadata text with base-sized actions;
   express hierarchy with color, weight, spacing, and icons instead.

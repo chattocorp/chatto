@@ -2423,11 +2423,6 @@
     @variant mobile-presentation {
       --app-header-height: 3.5rem;
     }
-    @media (any-pointer: coarse) {
-      --text-base: 1.0625rem;
-      --text-sm: 0.9375rem;
-      --text-xs: 0.8125rem;
-    }
     height: 100%;
     overflow: hidden;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
