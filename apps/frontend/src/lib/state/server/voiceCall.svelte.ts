@@ -2,6 +2,7 @@ import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
 import { participantVolumeGain } from '$lib/audio/participantVolume';
+import { endCallVideo } from '$lib/state/callPictureInPicture';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -1410,7 +1411,14 @@ export class VoiceCallState implements CallConnection {
   }
 
   private updateParticipants(): void {
+    const previousTracks = this.participants.flatMap((participant) => [
+      participant.videoTrack,
+      participant.screenShareTrack
+    ]);
     if (!this.room) {
+      for (const track of previousTracks) {
+        if (track) endCallVideo(track);
+      }
       this.participants = [];
       this.screenAudioLevels.clear();
       this.remoteMicrophoneAudioLevels.clear();
@@ -1477,6 +1485,13 @@ export class VoiceCallState implements CallConnection {
     });
     this.remoteMicrophoneAudioLevels.sync(this.playbackContext, microphoneAudioTracks);
     this.screenAudioLevels.sync(this.playbackContext, screenAudioTracks);
+    const currentTracks = this.participants.flatMap((participant) => [
+      participant.videoTrack,
+      participant.screenShareTrack
+    ]);
+    for (const track of previousTracks) {
+      if (track && !currentTracks.includes(track)) endCallVideo(track);
+    }
   }
 
   private applyAllParticipantAudioVolumes(): void {
@@ -1612,6 +1627,10 @@ export class VoiceCallState implements CallConnection {
   }
 
   private cleanup(): void {
+    for (const participant of this.participants) {
+      if (participant.videoTrack) endCallVideo(participant.videoTrack);
+      if (participant.screenShareTrack) endCallVideo(participant.screenShareTrack);
+    }
     this.microphoneProcessor?.dispose();
     this.microphoneProcessor = null;
     this.microphoneLevel = 0;

@@ -144,8 +144,11 @@ Rooms support real-time voice conversations with optional camera video and scree
   fullscreen when the browser supports requests from the page. The toggle is
   available in sidebar and stage layouts once video is ready. It opens or closes
   that tile's video; selecting another tile switches the picture-in-picture video.
-  Closing the browser's picture-in-picture window resets the toggle. Removing
-  the tile closes its picture-in-picture window. Failed requests show an error
+  Closing the browser's picture-in-picture window resets the toggle. Closing
+  the sidebar or switching rooms or servers keeps the selected video in
+  picture-in-picture while the call and stream remain active. Ending the call
+  or removing the selected stream closes its picture-in-picture window.
+  Failed requests show an error
   without interrupting the call. Browsers without this toggle retain their native
   video menu, which can offer picture-in-picture independently.
 - While the viewer is in a call, a compact joined pill above the lower-left current-user card provides the active call room link plus mute, camera, screen-share, and leave controls. It matches the user card width and remains visible when the call sidebar is open. Both toolbars place the microphone before the camera.

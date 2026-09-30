@@ -27,6 +27,11 @@ resolution to request for sidebar-width tiles.
   import type { Track } from 'livekit-client';
   import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import {
+    endCallVideo,
+    registerCallVideo,
+    releaseCallVideo
+  } from '$lib/state/callPictureInPicture';
 
   let {
     track,
@@ -84,10 +89,12 @@ resolution to request for sidebar-width tiles.
     if (t === attachedTrack && el === attachedEl) return;
 
     if (attachedTrack && attachedEl) {
-      attachedTrack.detach(attachedEl);
+      if (attachedEl === el) endCallVideo(attachedTrack);
+      releaseCallVideo(attachedTrack, attachedEl);
     }
 
     if (t && el) {
+      registerCallVideo(t, el);
       t.attach(el);
     }
 
@@ -97,7 +104,7 @@ resolution to request for sidebar-width tiles.
 
   onDestroy(() => {
     if (attachedTrack && attachedEl) {
-      attachedTrack.detach(attachedEl);
+      releaseCallVideo(attachedTrack, attachedEl);
       attachedTrack = null;
       attachedEl = null;
     }

@@ -2,18 +2,31 @@ import '../../../app.css';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { LocalVideoTrack } from 'livekit-client';
+import { registerCallVideo, releaseCallVideo } from '$lib/state/callPictureInPicture';
 import { toast } from '$lib/ui/toast';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
 
 let currentVideo: Element | null;
 
+class TestPictureInPictureWindow extends EventTarget {
+  width = 480;
+  height = 270;
+  onresize: PictureInPictureWindow['onresize'] = null;
+}
+
 function enterPictureInPicture(element: HTMLVideoElement) {
   const previous = currentVideo;
   currentVideo = element;
   previous?.dispatchEvent(new Event('leavepictureinpicture'));
-  element.dispatchEvent(new Event('enterpictureinpicture'));
+  const pipWindow = new TestPictureInPictureWindow();
+  element.dispatchEvent(
+    Object.assign(new Event('enterpictureinpicture'), { pictureInPictureWindow: pipWindow })
+  );
+  return pipWindow;
 }
 
+const moveDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'moveBefore')!;
 const requestDescriptor = Object.getOwnPropertyDescriptor(
   HTMLVideoElement.prototype,
   'requestPictureInPicture'
@@ -25,10 +38,11 @@ beforeEach(() => {
   vi.spyOn(document, 'pictureInPictureElement', 'get').mockImplementation(() => currentVideo);
   vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(1);
   vi.spyOn(HTMLVideoElement.prototype, 'videoWidth', 'get').mockReturnValue(640);
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(false);
   vi.spyOn(HTMLVideoElement.prototype, 'requestPictureInPicture').mockImplementation(
     async function (this: HTMLVideoElement) {
-      enterPictureInPicture(this);
-      return {} as PictureInPictureWindow;
+      return enterPictureInPicture(this);
     }
   );
   vi.spyOn(document, 'exitPictureInPicture').mockImplementation(async () => {
@@ -39,9 +53,106 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  const previous = currentVideo;
+  currentVideo = null;
+  previous?.dispatchEvent(new Event('leavepictureinpicture'));
   vi.restoreAllMocks();
   Object.defineProperty(HTMLVideoElement.prototype, 'requestPictureInPicture', requestDescriptor);
+  Object.defineProperty(Element.prototype, 'moveBefore', moveDescriptor);
 });
+
+it('keeps PiP through panel remounts and closes it when the call ends', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { scenario: 'screen', playableMedia: true }
+  });
+  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
+  const video = mediaCards(screen.container)[0].querySelector('video')!;
+  pipButton(mediaCards(screen.container)[0]).click();
+  await expect.poll(() => currentVideo).toBe(video);
+  await screen.getByRole('button', { name: 'Hide call panel' }).click();
+  expect(video.isConnected).toBe(true);
+  expect(video.closest('[data-call-pip-host]')).not.toBeNull();
+  expect(video.play).toHaveBeenCalled();
+  await screen.getByRole('button', { name: 'Show call panel' }).click();
+  const button = pipButton(mediaCards(screen.container)[0]);
+  await expect.poll(() => button.getAttribute('aria-pressed')).toBe('true');
+  button.click();
+  await expect.poll(() => button.getAttribute('aria-pressed')).toBe('false');
+  expect(video.isConnected).toBe(false);
+  button.click();
+  await expect.poll(() => currentVideo).not.toBeNull();
+  await screen.getByRole('button', { name: 'Hide call panel' }).click();
+  await screen.getByRole('button', { name: 'End call' }).click();
+  expect(currentVideo).toBeNull();
+  expect(document.querySelector('[data-call-pip-host]')).toBeNull();
+});
+
+it('moves the active video without restarting playback when moveBefore is available', async () => {
+  const move = vi.spyOn(Element.prototype, 'moveBefore');
+  const canvas = document.createElement('canvas');
+  const track = new LocalVideoTrack(canvas.captureStream().getVideoTracks()[0]);
+  const video = document.createElement('video');
+  document.body.append(video);
+  track.attach(video);
+  registerCallVideo(track, video);
+  vi.mocked(video.play).mockClear();
+  try {
+    enterPictureInPicture(video);
+    releaseCallVideo(track, video);
+    expect(move).toHaveBeenCalledWith(video, null);
+    expect(video.isConnected).toBe(true);
+    expect(video.play).not.toHaveBeenCalled();
+  } finally {
+    await document.exitPictureInPicture();
+    track.stop();
+    video.remove();
+  }
+});
+
+it.each([false, true])('falls back to insertion while preserving paused=%s', async (paused) => {
+  Object.defineProperty(Element.prototype, 'moveBefore', { configurable: true, value: undefined });
+  vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(paused);
+  const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'camera' } });
+  await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
+  const video = mediaCards(screen.container)[0].querySelector('video')!;
+  enterPictureInPicture(video);
+  await screen.unmount();
+  expect(video.isConnected).toBe(true);
+  expect(video.play).toHaveBeenCalledTimes(paused ? 0 : 1);
+});
+
+it.each(['browser', 'call'] as const)(
+  'sizes retained video to native PiP and removes resize listeners on %s closure',
+  async (closure) => {
+    const screen = render(VoiceCallPanelStoryHarness, {
+      props: { scenario: 'screen', playableMedia: true }
+    });
+    await expect.poll(() => mediaCards(screen.container).length).toBeGreaterThan(0);
+    const video = mediaCards(screen.container)[0].querySelector('video')!;
+    const pipWindow = enterPictureInPicture(video);
+    const removeListener = vi.spyOn(pipWindow, 'removeEventListener');
+    pipWindow.width = 800;
+    pipWindow.height = 450;
+    await screen.getByRole('button', { name: 'Hide call panel' }).click();
+    const host = video.closest<HTMLElement>('[data-call-pip-host]')!;
+    expect(host.style.width).toBe('800px');
+    expect(host.style.height).toBe('450px');
+    expect(video.clientWidth).toBe(800);
+    expect(video.clientHeight).toBe(450);
+    pipWindow.width = 960;
+    pipWindow.height = 540;
+    pipWindow.dispatchEvent(new Event('resize'));
+    expect(video.clientWidth).toBe(960);
+    expect(video.clientHeight).toBe(540);
+    if (closure === 'browser') await document.exitPictureInPicture();
+    else await screen.getByRole('button', { name: 'End call' }).click();
+    expect(removeListener).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(host.isConnected).toBe(false);
+    pipWindow.width = 1280;
+    pipWindow.dispatchEvent(new Event('resize'));
+    expect(host.style.width).toBe('960px');
+  }
+);
 
 function mediaCards(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>('[data-call-media-card]'));
@@ -225,14 +336,24 @@ it('closes its PiP window when unmounted, including a late successful request', 
   expect(currentVideo).toBeNull();
 });
 
-it('only closes the PiP window owned by the removed tile', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'screen' } });
-  await expect
-    .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
-    .not.toBeNull();
-  pipButton(mediaCards(screen.container)[0]).click();
-  await expect.poll(() => currentVideo).not.toBeNull();
-  await screen.unmount();
-  expect(document.exitPictureInPicture).toHaveBeenCalledTimes(1);
-  expect(currentVideo).toBeNull();
-});
+it.each(['sidebar', 'stage'] as const)(
+  'retains native PiP after %s tiles unmount',
+  async (layout) => {
+    const screen = render(VoiceCallPanelStoryHarness, { props: { scenario: 'screen', layout } });
+    await expect
+      .poll(() => screen.container.querySelector('[data-testid="call-feed-pip-button"]'))
+      .not.toBeNull();
+    const video = mediaCards(screen.container)[0].querySelector('video')!;
+    enterPictureInPicture(video);
+    await expect.poll(() => currentVideo).not.toBeNull();
+    await screen.unmount();
+    expect(document.exitPictureInPicture).not.toHaveBeenCalled();
+    expect(currentVideo).toBe(video);
+    expect(video.isConnected).toBe(true);
+    expect(video.closest('[data-call-pip-host]')).not.toBeNull();
+    await document.exitPictureInPicture();
+    expect(currentVideo).toBeNull();
+    expect(video.isConnected).toBe(false);
+    expect(document.querySelector('[data-call-pip-host]')).toBeNull();
+  }
+);

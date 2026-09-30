@@ -247,6 +247,21 @@ grants guarded by the complete RBAC subject tail. It reads historical decisions
 so a cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
 
+## Browser call picture-in-picture
+
+The browser's [call PiP owner](../../apps/frontend/src/lib/state/callPictureInPicture.ts)
+keeps the selected video element and its LiveKit attachment in a hidden DOM
+host when its tile unmounts. The host is outside the room and server route
+trees. Closing PiP releases the retained attachment and removes the host.
+Where supported, `moveBefore()` preserves playback state during the move.
+The fallback inserts the video and resumes it only if it was playing.
+The hidden host follows the PiP window's size so LiveKit's adaptive stream
+uses that size when it selects a video layer. Cleanup removes the window's
+resize listener with the retained attachment.
+The call state releases selected streams when they disappear or the call
+ends, including access loss and account disposal. Track object identity keeps
+different calls and servers separate. No media or PiP state is persisted.
+
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local

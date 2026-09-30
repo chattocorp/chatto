@@ -48,6 +48,7 @@
     isCurrent: () => true
   });
   let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
+  let panelVisible = $state(true);
 
   function posterTrack(svg: string): Track {
     const poster = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -288,6 +289,20 @@
   });
 </script>
 
-{#if Panel}
+{#if playableMedia}
+  <button type="button" onclick={() => (panelVisible = !panelVisible)}>
+    {panelVisible ? 'Hide call panel' : 'Show call panel'}
+  </button>
+  <button
+    type="button"
+    onclick={() =>
+      serverUi(serverRegistry.getStore(getScopedServerId())).voiceCall.handleRoomAccessRevoked(
+        roomId
+      )}
+  >
+    End call
+  </button>
+{/if}
+{#if Panel && panelVisible}
   <Panel {roomId} livekitUrl="wss://livekit.invalid" {layout} />
 {/if}
