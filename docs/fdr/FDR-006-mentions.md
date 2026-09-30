@@ -151,8 +151,9 @@ prose. A rule based only on the character before `@` cannot tell
 `example.social/@alice` from `@alice/@bob`.
 **Tradeoff:** The server and the frontend use different Markdown and URL
 libraries, so their agreement depends on the shared cases. A URL form that the
-shared cases do not cover can still be interpreted differently. Add a case when
-a difference is found.
+shared cases do not cover can still be interpreted differently. Known
+differences are rare bare-domain URLs that contain Markdown syntax, an entity,
+`|`, or `'`. Add a case when a difference is found.
 
 ## Permissions
 
