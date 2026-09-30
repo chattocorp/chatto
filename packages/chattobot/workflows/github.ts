@@ -26,7 +26,7 @@ const argsSchema = Type.Array(Type.String({ maxLength: 65_536 }), {
 export interface GitHubDependencies {
   tokens: TokenSource;
   /** Decide whether the maintainers' messages to the bot ask for this command. `context` holds
-   * host-recorded facts that a short answer can refer to, such as an offered change. */
+   * host-recorded facts: the changes that ran in this conversation. */
   authorize: (command: string, context: string[]) => Promise<AuthorizationDecision>;
   /** Receive the URLs from the output of a change, which must reach the thread exactly. */
   onUrls?: (urls: string[]) => void;

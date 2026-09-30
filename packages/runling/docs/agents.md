@@ -140,8 +140,9 @@ through `createTrustExtension(policy).extension`. See
 
 Some tools must run only when a person asked for them. An authorization
 classifier is a separate model call that decides whether messages from
-authorized people authorize an action. It never sees the acting agent's context,
-so content in that context cannot argue with the decision:
+authorized people authorize an action. It never sees the acting agent's
+conversation or tool results, so content there cannot argue with the decision.
+It sees only what the application passes, including any `context`:
 
 ```ts
 import { authorizationGate, createAuthorizationClassifier } from 'runling/agents';

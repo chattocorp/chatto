@@ -482,8 +482,8 @@ discussed and open a PR.” The owner announces the task, then starts a separate
 implementation worker. Questions and investigation requests do not authorize
 implementation. Before `implementChatto` runs, a separate authorization check
 reads the ten newest messages from maintainers in the thread and the requested
-change. It does not see the supervisor's context, other people's messages, or
-tool results. When it does not find a clear request to implement the change, the
+change, and the bot's latest posted message. It does not see the supervisor's
+conversation, other people's messages, or tool results. When it does not find a clear request to implement the change, the
 call does not run and the supervisor asks the maintainer to confirm. See
 [Authorization checks](#authorization-checks). When GitHub access is configured,
 the supervisor can pass `issueNumber`. The host then reads the issue with a
@@ -787,8 +787,12 @@ issue, ask for it in a new thread; the supervisor passes `issueNumber` to
 
 The authorization classifier is a separate model call from Runling (Runling
 [ADR-007](../runling/docs/adr/ADR-007-authorization-classifier.md)). It checks
-GitHub changes and `implementChatto` calls. It receives only the action
-and maintainers' messages, never the supervisor's context or tool results. Errors,
+GitHub changes and `implementChatto` calls. It receives the action,
+maintainers' messages to the bot, and host-chosen context: the changes that ran
+in this conversation, saved plan goals, and the bot's latest posted message,
+which people answer. That message is model text, so a short agreement counts
+only for a change that it names. The classifier never receives the supervisor's
+conversation or tool results. Errors,
 timeouts, and unclear answers count as “not authorized”. The run log records the
 category of each decision (`allow`, `deny`, or `unclear`), never the messages or
 the classifier's reason. It uses

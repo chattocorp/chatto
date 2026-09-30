@@ -1,8 +1,9 @@
 /**
  * Authorization classification: a separate model call decides whether people authorized an
- * action. It sees only the action and the messages that the application supplies, never the
- * acting agent's context, its own text, or tool results. Content in that context therefore
- * cannot argue with the decision. See ADR-007.
+ * action. It sees only what the application supplies: the action, the messages, a policy, and
+ * context. It never sees the acting agent's conversation or tool results, so content there
+ * cannot argue with the decision. Context that the application takes from agent output, such as
+ * a message that people answered, does reach it. See ADR-007.
  */
 import { tmpdir } from 'node:os';
 import { Type } from 'typebox';

@@ -25,8 +25,10 @@ action?
 - The application supplies the action as text, the messages, and an optional
   policy and context. The application selects the messages from a trusted
   source, such as server-authenticated authors.
-- The classifier never sees the acting agent's context, its text, or tool
-  results. Content in that context cannot argue with the decision.
+- The classifier never sees the acting agent's conversation or tool results.
+  Content there cannot argue with the decision. The application can add context
+  that comes from agent output, such as a message that people answered. That
+  context reaches the classifier, so the application must choose it with care.
 - The classifier fails closed. Errors, timeouts, and a missing decision give
   `unclear`. Callers treat `unclear` like `deny`.
 - `authorizationGate` applies the classifier to selected tool calls in a Pi

@@ -37,10 +37,13 @@ function to block selected tool calls unless the decision is `allow`.
 
 ### 1. Separate the judge from the actor
 
-**Decision:** The classifier never receives the acting agent's context.
+**Decision:** The classifier never receives the acting agent's conversation or
+tool results; it receives only what the application supplies.
 **Why:** Untrusted content in that context must not influence the decision.
-**Tradeoff:** The classifier cannot see what the agent asked the people. A short
-reply such as "yes" can be `unclear` without context that the application adds.
+**Tradeoff:** The classifier does not see what the agent asked the people. A
+short reply such as "yes" can be `unclear` unless the application passes the
+question as context. That context is agent output, so an application should
+accept a short agreement only for an action that the question names.
 
 ### 2. Fail closed
 
