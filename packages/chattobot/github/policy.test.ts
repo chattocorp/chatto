@@ -15,7 +15,7 @@ test.each([
   ['search', 'issues', 'flaky test', 'label:bug'],
   ['repo', 'view', 'chattocorp/chatto'],
   // Branch names and text can contain slashes.
-  ['pr', 'list', '--head', 'dependabot/npm_and_yarn/x'],
+  ['pr', 'list', '--head=dependabot/npm_and_yarn/x'],
   ['run', 'list', '--branch=feature/a/b'],
   ['issue', 'view', 'https://github.com/chattocorp/chatto/issues/1'],
   ['issue', 'list', '-L', '5'],
@@ -119,7 +119,11 @@ test.each([
   // Whitespace after the host does not stop gh from parsing it.
   [['issue', 'transfer', '1', 'evil.example/o/r x']],
   [['repo', 'view', 'evil.example/o x/r']],
-  [['repo', 'view', 'git@evil.example:o/r x']]
+  [['repo', 'view', 'git@evil.example:o/r x']],
+  // A text flag's separate value is checked too: the previous argument may be a value or a boolean.
+  [['repo', 'view', '--branch', '--body', 'evil.example/o/r']],
+  [['repo', 'edit', '--template', 'evil.example/o/r']],
+  [['pr', 'list', '--head', 'dependabot/npm_and_yarn/x']]
 ])('the policy rejects %j', (args) => {
   expect(() => classify(...args)).toThrow(GhPolicyError);
 });

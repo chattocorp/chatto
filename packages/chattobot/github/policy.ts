@@ -86,8 +86,9 @@ const DENIED_SHORTHANDS = new Set(['-R', '-w', '-e']);
  * value of a preceding flag, so it cannot mark the end of flags safely. */
 const isFlag = (arg: string) => /^-[A-Za-z-]/.test(arg);
 
-/** Flags whose values gh never reads as a repository, such as branch names and text. Their values
- * can contain slashes. */
+/** Flags whose values gh never reads as a repository, such as branch names and text. In the
+ * `--flag=value` form, their values can contain slashes. A separate value argument is checked like
+ * any other argument, because the policy cannot tell whether the previous argument is a flag. */
 const TEXT_VALUE_FLAGS = new Set([
   '--head',
   '--base',
@@ -148,12 +149,10 @@ function checkFlags(args: readonly string[]) {
     for (let index = 0; index < args.length; index++) {
       const arg = args[index]!;
       const { name, value } = splitFlag(arg);
-      const text =
-        (value !== undefined && TEXT_VALUE_FLAGS.has(name)) ||
-        TEXT_VALUE_FLAGS.has(args[index - 1] ?? '');
+      const text = value !== undefined && TEXT_VALUE_FLAGS.has(name);
       if (namesOtherHost(value ?? arg, text))
         throw new GhPolicyError(
-          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Put text with links to other sites in the body parameter of ghWrite.'
+          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Write a branch name with slashes as --flag=value, for example --head=a/b/c, and put text with links to other sites in the body parameter of ghWrite.'
         );
     }
   // Check every argument, including flag values: a value can hide a flag from a simple parser.
