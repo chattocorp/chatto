@@ -64,10 +64,10 @@ does not build anything. Run it alone to prepare a checkout without starting
 the stack. Both tasks trust the repository's `mise.toml` files automatically.
 They need mise 2026.8.9 or later.
 
-All services use plain HTTP. In Conductor, `<workspace>` is the name of the
-workspace directory and the base port is `$CONDUCTOR_PORT`. Outside Conductor,
-`<workspace>` is `local` and the base port is `4000`. Set `CHATTO_DEV_WORKSPACE`
-to use a different `<workspace>`:
+All services use plain HTTP. In Conductor, `<workspace>` is the workspace ID
+(`CONDUCTOR_WORKSPACE_ID`) and the base port is `$CONDUCTOR_PORT`. Outside
+Conductor, `<workspace>` is `local` and the base port is `4000`. Set
+`CHATTO_DEV_WORKSPACE` to use a different `<workspace>`:
 
 | Service  | URL                                                |
 | -------- | -------------------------------------------------- |
