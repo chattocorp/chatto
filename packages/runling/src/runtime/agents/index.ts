@@ -32,3 +32,12 @@ export {
 } from './tasks.ts';
 
 export { runAgentConversation } from './conversation.ts';
+export {
+  authorizationGate,
+  createAuthorizationClassifier,
+  type AuthorizationClassifier,
+  type AuthorizationClassifierOptions,
+  type AuthorizationDecision,
+  type AuthorizationGateOptions,
+  type AuthorizationRequest
+} from './authorization.ts';

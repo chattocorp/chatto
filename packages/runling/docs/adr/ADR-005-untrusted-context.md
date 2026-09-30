@@ -44,3 +44,7 @@ content does not also need powerful tools.
 This does not detect untrusted content that reaches the agent in other ways, such
 as prompts that the application builds. It does not stop an agent from sending data
 through tools that remain available.
+
+[ADR-007](ADR-007-authorization-classifier.md) adds a separate check that people
+authorized an action. It keeps the rule of this record: the acting agent does not
+decide whether a confirmation is valid.

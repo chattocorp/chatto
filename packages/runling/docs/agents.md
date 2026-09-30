@@ -102,7 +102,7 @@ was cancelled or the process restarted. When it does not exist, the agent
 starts a new conversation there. Pi writes the file after the first model reply.
 
 ```ts
-const worker = await agent({ model, cwd, sessionFile: join(artifactDirectory, "worker.jsonl") });
+const worker = await agent({ model, cwd, sessionFile: join(artifactDirectory, 'worker.jsonl') });
 ```
 
 The file contains the complete model context: prompts, tool results, and
@@ -135,6 +135,40 @@ extension from `runling/extensions/trust`, which plain Pi projects can also use
 through `createTrustExtension(policy).extension`. See
 [ADR-005](adr/ADR-005-untrusted-context.md) and
 [FDR-006](fdr/FDR-006-untrusted-tool-blocking.md).
+
+## Authorization checks
+
+Some tools must run only when a person asked for them. An authorization
+classifier is a separate model call that decides whether messages from
+authorized people authorize an action. It never sees the acting agent's context,
+so content in that context cannot argue with the decision:
+
+```ts
+import { authorizationGate, createAuthorizationClassifier } from 'runling/agents';
+
+const classifier = createAuthorizationClassifier({ model: 'openrouter/google/gemma-4-26b-a4b-it' });
+await using owner = await agent({
+  cwd: '.',
+  tools: ['publishChange'],
+  extensions: [
+    authorizationGate({
+      tools: { publishChange: (input) => `Publish: ${JSON.stringify(input)}` },
+      messages: () => messagesFromMaintainers(),
+      classify: (request) => classifier(ctx, request),
+      policy: 'allow only when a maintainer asked to publish this change.'
+    })
+  ]
+});
+```
+
+The decision is `allow`, `deny`, or `unclear`. Errors, timeouts, and a missing
+decision give `unclear`, and the gate blocks every decision except `allow`. The
+application selects the messages from a trusted source, such as
+server-authenticated authors. Call the classifier directly to decide other
+questions, such as whether a reply approves a pending action. Install the gate
+after cheaper deterministic gates. See
+[ADR-007](adr/ADR-007-authorization-classifier.md) and
+[FDR-007](fdr/FDR-007-authorization-classifier.md).
 
 ## Tasks as agent tools
 

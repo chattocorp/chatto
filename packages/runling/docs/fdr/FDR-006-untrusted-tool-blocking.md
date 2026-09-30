@@ -50,6 +50,7 @@ return untrusted content in other ways.
 
 - [ADR-005: Block tools after untrusted context](../adr/ADR-005-untrusted-context.md)
 - [ADR-002: Agent ownership](../adr/ADR-002-agent-ownership.md)
+- [FDR-007: Authorization classifier](FDR-007-authorization-classifier.md)
 - [Agent API guide](../agents.md)
 
 ## Open Questions
