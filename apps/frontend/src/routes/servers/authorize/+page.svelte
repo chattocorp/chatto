@@ -10,7 +10,7 @@ replaces itself with that URL. See `openAuthorizationWindow`.
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { m } from '$lib/i18n/messages';
-  import { replaceLaunchPage, takeAuthorizationLaunchTarget } from '$lib/oauth/authorizationWindow';
+  import { replaceLaunchPage, readAuthorizationLaunchTarget } from '$lib/oauth/authorizationWindow';
   import { EmptyState, LoadingPage, PageTitle } from '$lib/ui';
 
   const LAUNCH_POLL_INTERVAL_MS = 100;
@@ -22,9 +22,11 @@ replaces itself with that URL. See `openAuthorizationWindow`.
   let status = $state<'waiting' | 'launching' | 'error'>(launchId ? 'waiting' : 'error');
 
   function launch() {
-    if (status !== 'waiting') return;
+    // Firefox for Android can also load this page in a detached, hidden window.
+    // Only the window that the user sees continues to the target.
+    if (status !== 'waiting' || document.visibilityState !== 'visible') return;
     try {
-      const target = takeAuthorizationLaunchTarget(launchId);
+      const target = readAuthorizationLaunchTarget(launchId);
       if (!target) return;
       status = 'launching';
       replaceLaunchPage(target);

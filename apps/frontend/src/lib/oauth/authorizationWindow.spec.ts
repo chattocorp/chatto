@@ -4,7 +4,7 @@ import {
   AUTHORIZATION_LAUNCH_TTL_MS,
   authorizationLaunchStorageKey,
   openAuthorizationWindow,
-  takeAuthorizationLaunchTarget
+  readAuthorizationLaunchTarget
 } from './authorizationWindow';
 
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
@@ -77,6 +77,24 @@ describe('authorization window', () => {
     expect(popup.close).toHaveBeenCalledOnce();
   });
 
+  it('removes expired launch records that a closed client left behind', () => {
+    const stale = authorizationLaunchStorageKey('stale');
+    const fresh = authorizationLaunchStorageKey('fresh');
+    localStorage.setItem(stale, JSON.stringify({ url: 'https://remote.example/', createdAt: 0 }));
+    localStorage.setItem(
+      fresh,
+      JSON.stringify({ url: 'https://remote.example/', createdAt: Date.now() })
+    );
+    localStorage.setItem('chatto:locale', 'en-GB');
+    stubOpen(fakePopup());
+
+    openAuthorizationWindow('chatto-oauth', 'popup');
+
+    expect(localStorage.getItem(stale)).toBeNull();
+    expect(localStorage.getItem(fresh)).not.toBeNull();
+    expect(localStorage.getItem('chatto:locale')).toBe('en-GB');
+  });
+
   it('navigates the window directly when storage is unavailable', async () => {
     const popup = fakePopup();
     stubOpen(popup);
@@ -102,30 +120,31 @@ describe('authorization launch target', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('returns null until the opener stores a target', () => {
-    expect(takeAuthorizationLaunchTarget('launch-id')).toBeNull();
+    expect(readAuthorizationLaunchTarget('launch-id')).toBeNull();
   });
 
-  it('takes a fresh target exactly once', () => {
+  it('leaves a fresh target for every launch page that reads it', () => {
     localStorage.setItem(
       key,
       JSON.stringify({ url: 'https://remote.example/oauth/authorize', createdAt: 1_000 })
     );
-    expect(takeAuthorizationLaunchTarget('launch-id', 2_000)).toBe(
+    // Firefox for Android can load the launch page in a detached window too.
+    expect(readAuthorizationLaunchTarget('launch-id', 2_000)).toBe(
       'https://remote.example/oauth/authorize'
     );
-    expect(localStorage.getItem(key)).toBeNull();
-    expect(takeAuthorizationLaunchTarget('launch-id', 2_000)).toBeNull();
+    expect(readAuthorizationLaunchTarget('launch-id', 2_000)).toBe(
+      'https://remote.example/oauth/authorize'
+    );
   });
 
   it.each([
     ['an expired record', { url: 'https://remote.example/', createdAt: 0 }],
     ['a script URL', { url: 'javascript:alert(1)', createdAt: AUTHORIZATION_LAUNCH_TTL_MS }],
     ['a record without a URL', { createdAt: AUTHORIZATION_LAUNCH_TTL_MS }]
-  ])('rejects %s and removes it', (_name, record) => {
+  ])('rejects %s', (_name, record) => {
     localStorage.setItem(key, JSON.stringify(record));
     expect(() =>
-      takeAuthorizationLaunchTarget('launch-id', AUTHORIZATION_LAUNCH_TTL_MS + 1)
+      readAuthorizationLaunchTarget('launch-id', AUTHORIZATION_LAUNCH_TTL_MS + 1)
     ).toThrow();
-    expect(localStorage.getItem(key)).toBeNull();
   });
 });

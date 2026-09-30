@@ -31,7 +31,10 @@ describe('authorization launch page', () => {
     replace.mockReset();
   });
 
-  afterEach(() => localStorage.removeItem(key));
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.removeItem(key);
+  });
 
   it('opens a target that the opener stored before the page loaded', async () => {
     localStorage.setItem(
@@ -45,7 +48,25 @@ describe('authorization launch page', () => {
     await vi.waitFor(() =>
       expect(replace).toHaveBeenCalledWith('https://remote.example/oauth/authorize?state=a')
     );
-    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('does not continue in a hidden window', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        url: 'https://remote.example/oauth/authorize?state=c',
+        createdAt: Date.now()
+      })
+    );
+    render(AuthorizePage);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(replace).not.toHaveBeenCalled();
+
+    visibility.mockReturnValue('visible');
+    await vi.waitFor(() =>
+      expect(replace).toHaveBeenCalledWith('https://remote.example/oauth/authorize?state=c')
+    );
   });
 
   it('waits for a target that the opener stores later', async () => {

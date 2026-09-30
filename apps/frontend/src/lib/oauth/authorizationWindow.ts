@@ -38,6 +38,10 @@ export function authorizationLaunchStorageKey(launchId: string): string {
  * not control that tab. `navigate` therefore gives the target to the launch
  * page through `localStorage`, which the separate tab shares. If storage is
  * unavailable, `navigate` sets the window's location directly.
+ *
+ * The record stays until `close`, because more than one launch page can read
+ * it; see `readAuthorizationLaunchTarget`. Opening a window also removes
+ * expired records that a closed client left behind.
  */
 export function openAuthorizationWindow(
   target: string,
@@ -47,20 +51,17 @@ export function openAuthorizationWindow(
   const launchUrl = `${window.location.origin}${resolve(AUTHORIZATION_LAUNCH_PATH)}#${launchId}`;
   const popup = window.open(launchUrl, target, features);
   if (!popup) return null;
+  removeExpiredLaunchRecords(Date.now());
 
   const key = authorizationLaunchStorageKey(launchId);
-  const removeLaunchRecord = () => {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // Unavailable storage cannot hold a record to remove.
-    }
-  };
-
   return {
     messageSource: popup,
     close: async () => {
-      removeLaunchRecord();
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Unavailable storage cannot hold a record to remove.
+      }
       if (!popup.closed) popup.close();
     },
     isClosed: async () => popup.closed,
@@ -78,17 +79,38 @@ export function openAuthorizationWindow(
   };
 }
 
-/**
- * Read and remove the launch record for `launchId`. Returns the target URL only
- * for a fresh HTTP or HTTPS record, and `null` while no record exists.
- * Throws for an invalid or expired record.
- */
-export function takeAuthorizationLaunchTarget(launchId: string, now = Date.now()): string | null {
-  const key = authorizationLaunchStorageKey(launchId);
-  const raw = localStorage.getItem(key);
-  if (raw === null) return null;
-  localStorage.removeItem(key);
+function removeExpiredLaunchRecords(now: number): void {
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(LAUNCH_STORAGE_PREFIX)) continue;
+      try {
+        parseLaunchTarget(localStorage.getItem(key), now);
+      } catch {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Unavailable storage cannot hold records to remove.
+  }
+}
 
+/**
+ * Read the launch record for `launchId` without removing it. Returns the
+ * target URL only for a fresh HTTP or HTTPS record, and `null` while no record
+ * exists. Throws for an invalid or expired record.
+ *
+ * Firefox for Android can load the launch page twice: in the visible Custom
+ * Tab and in the detached window that `window.open` returned. A read that
+ * removed the record could let the detached window take the target from the
+ * visible tab.
+ */
+export function readAuthorizationLaunchTarget(launchId: string, now = Date.now()): string | null {
+  return parseLaunchTarget(localStorage.getItem(authorizationLaunchStorageKey(launchId)), now);
+}
+
+function parseLaunchTarget(raw: string | null, now: number): string | null {
+  if (raw === null) return null;
   const record = JSON.parse(raw) as Partial<AuthorizationLaunchRecord>;
   if (typeof record.url !== 'string' || typeof record.createdAt !== 'number') {
     throw new Error('Invalid authorization launch record.');
