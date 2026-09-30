@@ -29,6 +29,7 @@ path = [
   "pkg/natsruntime/**",
   "README.md",
   "SECURITY.md",
+  "testdata/mentions/**",
   "proto/AGENTS.md",
   "proto/buf.gen.yaml",
   "proto/buf.lock",

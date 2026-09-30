@@ -5,6 +5,11 @@ import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import tlds from 'tlds';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+import {
+  collectMentionHandles,
+  DISABLE_MENTIONS_ENV_KEY,
+  mentionPlugin
+} from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
@@ -469,6 +474,9 @@ function initialize(): void {
   // `&nbsp;` runs cannot create giant blank message rows without corrupting
   // code samples that intentionally contain the entity source.
   md.core.ruler.after('inline', 'normalize_non_breaking_spaces', normalizeInlineNonBreakingSpaces);
+  // Recognize @mentions in the token tree after linkify, so URLs, links,
+  // code, and blockquotes keep their text. See `$lib/markdownMentions`.
+  md.use(mentionPlugin);
   md.renderer.rules.softbreak = renderChatLineBreak;
   md.renderer.rules.hardbreak = renderChatLineBreak;
   md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
@@ -520,10 +528,23 @@ function initialize(): void {
 
 /**
  * Renders inline formatting and safe links on one line, without block markup.
+ * Mentions stay plain text because this output has no room members to
+ * resolve them against.
  */
 export function renderInlineMarkdown(body: string): string {
   initialize();
-  return md!.renderInline(body.replace(/[\r\n]+/g, ' '));
+  return md!.renderInline(body.replace(/[\r\n]+/g, ' '), { [DISABLE_MENTIONS_ENV_KEY]: true });
+}
+
+/**
+ * Returns the `@handle` mentions of a message body, deduplicated, in order of
+ * appearance. The renderer parses the body with the same rules, so these are
+ * exactly the mention candidates that `renderMarkdown` emits.
+ */
+export function extractMarkdownMentions(body: string): string[] {
+  if (!body.includes('@')) return [];
+  initialize();
+  return collectMentionHandles(md!.parse(body, {}));
 }
 
 /**

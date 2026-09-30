@@ -59,6 +59,7 @@ Server and CLI Go Components:
 - protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
 - Testify (https://github.com/stretchr/testify) - MIT License
 - templ (https://templ.guide/) - MIT License
+- xurls (https://github.com/mvdan/xurls) - BSD 3-Clause License
 - ZITADEL OIDC (https://github.com/zitadel/oidc) - Apache License 2.0
 - Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
 - webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License

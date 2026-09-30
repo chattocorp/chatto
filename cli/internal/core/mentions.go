@@ -67,6 +67,8 @@ var mentionNodeKind = ast.NewNodeKind("Mention")
 type mentionNode struct {
 	ast.BaseInline
 	Username string
+	// Offset is the byte offset of the '@' in the parsed source.
+	Offset int
 }
 
 func (n *mentionNode) Kind() ast.NodeKind {
@@ -116,7 +118,7 @@ func (p mentionInlineParser) Parse(parent ast.Node, block text.Reader, pc parser
 
 	username := string(line[1:stop])
 	block.Advance(stop)
-	return &mentionNode{Username: username}
+	return &mentionNode{Username: username, Offset: segment.Start}
 }
 
 func isMentionAlphanumeric(c byte) bool {
@@ -163,7 +165,12 @@ func mentionMarkdownSource(body string) string {
 // ExtractMentionUsernames extracts all unique @username mentions from a message body.
 // Returns a slice of usernames (without the @ prefix) in the order they appear.
 // Duplicate mentions are deduplicated. Mentions inside Markdown code spans,
-// code blocks, and blockquotes are ignored.
+// code blocks, blockquotes, links, and URLs are ignored.
+//
+// The bundled frontend renders mentions with the same rules (see
+// apps/frontend/src/lib/markdownMentions.ts), so a message notifies exactly
+// the handles that it shows as mentions. The shared cases in
+// testdata/mentions/extraction.json test both implementations.
 func ExtractMentionUsernames(body string) []string {
 	if !strings.Contains(body, "@") {
 		return nil
@@ -185,6 +192,7 @@ func ExtractMentionUsernames(body string) []string {
 	}
 
 	source := []byte(mentionMarkdownSource(body))
+	urlRanges := linkifiedURLRanges(source)
 	root := mentionMarkdown.Parser().Parse(text.NewReader(source))
 	_ = ast.Walk(root, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -192,10 +200,13 @@ func ExtractMentionUsernames(body string) []string {
 		}
 
 		switch node.Kind() {
-		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote:
+		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote, ast.KindLink, ast.KindAutoLink:
 			return ast.WalkSkipChildren, nil
 		case mentionNodeKind:
-			add(node.(*mentionNode).Username)
+			mention := node.(*mentionNode)
+			if !insideLinkifiedURL(urlRanges, mention.Offset) {
+				add(mention.Username)
+			}
 		}
 
 		return ast.WalkContinue, nil

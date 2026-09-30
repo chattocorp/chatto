@@ -1,100 +1,20 @@
-import MarkdownIt from 'markdown-it';
 import type { RoomMember } from '$lib/state/room';
-import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
+import { extractMarkdownMentions } from '$lib/markdown';
+import { MENTION_HANDLE_ATTRIBUTE } from '$lib/markdownMentions';
 import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
 
 // Re-export for convenience
 export type { RoomMember };
 
 /**
- * Creates a fresh mention regex. We use a factory function instead of a module-level
- * regex with the `g` flag to avoid issues with persistent lastIndex state.
- *
- * Pattern matches @username where username contains alphanumeric, underscores, hyphens, and dots.
- * Dots are only allowed as internal separators (not trailing).
- * Used for wrapping mentions in already-rendered DOM text nodes.
- */
-function createMentionRegex(): RegExp {
-  return /(^|[^a-zA-Z0-9])@([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*)/g;
-}
-
-function isMentionAlphanumeric(value: string): boolean {
-  return /^[a-zA-Z0-9]$/.test(value);
-}
-
-function isMentionHandleChar(value: string): boolean {
-  return /^[a-zA-Z0-9_-]$/.test(value);
-}
-
-function mentionRule(state: StateInline, silent: boolean): boolean {
-  const start = state.pos;
-  if (state.src[start] !== '@') return false;
-  if (start > 0 && isMentionAlphanumeric(state.src[start - 1])) return false;
-
-  let stop = start + 1;
-  while (stop < state.posMax && isMentionHandleChar(state.src[stop])) {
-    stop++;
-  }
-  if (stop === start + 1) return false;
-
-  while (stop < state.posMax && state.src[stop] === '.') {
-    const next = stop + 1;
-    if (next >= state.posMax || !isMentionHandleChar(state.src[next])) break;
-    stop = next + 1;
-    while (stop < state.posMax && isMentionHandleChar(state.src[stop])) {
-      stop++;
-    }
-  }
-
-  if (!silent) {
-    const token = state.push('mention', '', 0);
-    token.content = state.src.slice(start + 1, stop);
-    token.markup = '@';
-  }
-  state.pos = stop;
-  return true;
-}
-
-const mentionMarkdown = new MarkdownIt({
-  html: false,
-  linkify: false,
-  breaks: true
-});
-mentionMarkdown.disable(['escape']);
-mentionMarkdown.inline.ruler.before('emphasis', 'mention', mentionRule);
-
-/**
  * Extract @usernames from text (without validation).
  * Returns deduplicated list of usernames in order of appearance.
- * Ignores mentions inside Markdown code spans, code blocks, and blockquotes.
+ * Uses the message renderer's parser, so mentions inside Markdown code,
+ * blockquotes, links, and linkified URLs are ignored exactly as in the
+ * rendered message.
  */
 export function extractMentions(text: string): string[] {
-  if (!text.includes('@')) return [];
-
-  const mentions: string[] = [];
-
-  let blockquoteDepth = 0;
-  for (const token of mentionMarkdown.parse(text, {})) {
-    if (token.type === 'blockquote_open') {
-      blockquoteDepth++;
-      continue;
-    }
-    if (token.type === 'blockquote_close') {
-      blockquoteDepth = Math.max(0, blockquoteDepth - 1);
-      continue;
-    }
-    if (blockquoteDepth > 0) continue;
-    if (token.type === 'fence' || token.type === 'code_block') continue;
-    if (token.type === 'inline') {
-      for (const child of token.children ?? []) {
-        if (child.type === 'mention') {
-          mentions.push(child.content);
-        }
-      }
-    }
-  }
-
-  return [...new Set(mentions)]; // Deduplicate
+  return extractMarkdownMentions(text);
 }
 
 /**
@@ -118,8 +38,8 @@ function isVirtualMention(username: string): boolean {
 
 /**
  * Reports whether text mentions a room-wide virtual group or any known role
- * handle. Uses extractMentions, so Markdown code and blockquote regions are
- * ignored consistently with server-side mention resolution.
+ * handle. Uses extractMentions, so Markdown code, blockquote, and link regions
+ * are ignored consistently with server-side mention resolution.
  */
 export function hasRoleOrVirtualMention(text: string, roleHandles: string[]): boolean {
   const roles = new Set(roleHandles.map((role) => role.toLowerCase()));
@@ -147,151 +67,77 @@ export function isUserMentioned(text: string, userLogin: string, members: RoomMe
 }
 
 /**
- * Elements whose text content should NOT have mention styling applied.
- * These are typically code/preformatted content or quoted material.
+ * Builds the element for one mention candidate, or returns null when the
+ * handle matches no room member, virtual handle, or known role handle.
  */
-const EXCLUDED_ELEMENTS = ['PRE', 'CODE', 'BLOCKQUOTE'];
+function resolveMention(
+  doc: Document,
+  handle: string,
+  members: RoomMember[],
+  currentUserLogin: string | undefined,
+  roleHandles: string[]
+): HTMLSpanElement | null {
+  const span = doc.createElement('span');
 
-/**
- * Check if a node is inside an excluded element (code, pre, blockquote).
- */
-function isInsideExcludedElement(node: Node): boolean {
-  let current: Node | null = node.parentNode;
-  while (current && current.nodeType === Node.ELEMENT_NODE) {
-    if (EXCLUDED_ELEMENTS.includes((current as Element).tagName)) {
-      return true;
-    }
-    current = current.parentNode;
+  const member = findMemberByMention(handle, members);
+  if (member) {
+    const isSelfMention =
+      currentUserLogin && member.login.toLowerCase() === currentUserLogin.toLowerCase();
+    span.className = isSelfMention ? 'mention mention-self' : 'mention';
+    span.setAttribute('data-user-id', member.id);
+    span.setAttribute('dir', 'auto');
+    span.textContent = `@${member.displayName.trim() || member.login}`;
+    return span;
   }
-  return false;
+
+  if (isVirtualMention(handle)) {
+    span.className = 'mention mention-broadcast';
+    span.textContent = `@${handle}`;
+    return span;
+  }
+
+  const roleName = findRoleMention(handle, roleHandles);
+  if (roleName) {
+    span.className = 'mention mention-role';
+    span.setAttribute('data-role-name', roleName);
+    span.textContent = `@${handle}`;
+    return span;
+  }
+
+  return null;
 }
 
 /**
- * Wrap valid @mentions in rendered HTML with styling.
+ * Resolve the mention candidates in HTML from `renderMarkdown`.
  *
- * Uses DOMParser to properly traverse the DOM tree, ensuring we only process
- * text nodes that are NOT inside excluded elements (code, pre, blockquote).
- * Only mentions that match actual room members, virtual handles, or known
- * role handles are styled. User mentions show the member's current display
- * name while retaining the source handle for mention resolution.
+ * The markdown renderer marks each `@handle` that it recognizes in plain
+ * message text with a `data-mention-handle` span; see `$lib/markdownMentions`.
+ * This step only replaces those marked elements and never scans text, so
+ * links, URLs, code, and blockquotes keep their literal text. Candidates that
+ * match room members, virtual handles, or known role handles become styled
+ * mentions. User mentions show the member's current display name. Other
+ * candidates become plain `@handle` text.
  *
- * @param html - The rendered HTML string (from markdown)
+ * @param html - HTML from `renderMarkdown`
  * @param members - List of room members to validate mentions against
  * @param currentUserLogin - Optional login of the current user (for self-mention highlighting)
  * @param roleHandles - Valid role mention handles
- * @returns HTML string with valid mentions wrapped in <span class="mention"> (or "mention mention-self")
+ * @returns HTML string with valid mentions as `<span class="mention">` (or "mention mention-self")
  */
-export function wrapValidMentions(
+export function resolveRenderedMentions(
   html: string,
   members: RoomMember[],
   currentUserLogin?: string,
   roleHandles: string[] = []
 ): string {
-  // Handle empty input
-  if (!html) {
-    return html;
-  }
+  // Quick skip without DOM parsing when the renderer emitted no candidates.
+  if (!html.includes(MENTION_HANDLE_ATTRIBUTE)) return html;
 
-  // Quick skip if no @ symbol (avoid DOM parsing)
-  if (!html.includes('@')) {
-    return html;
-  }
-
-  // Parse HTML into a DOM tree.
   const doc = parseTrustedMarkdownHtml(html);
-
-  // Collect all text nodes that need processing
-  const textNodes: Text[] = [];
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-
-  let node: Text | null;
-  while ((node = walker.nextNode() as Text | null)) {
-    // Skip text nodes inside excluded elements
-    if (!isInsideExcludedElement(node)) {
-      textNodes.push(node);
-    }
-  }
-
-  // Process each text node
-  const regex = createMentionRegex();
-  for (const textNode of textNodes) {
-    const text = textNode.textContent || '';
-    if (!text.includes('@')) continue; // Quick skip if no @ symbol
-
-    // Find all mentions in this text node
-    const fragments: (string | Element)[] = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(text)) !== null) {
-      const [fullMatch, prefix, username] = match;
-      const matchStart = match.index;
-
-      // Add text before this match
-      if (matchStart > lastIndex) {
-        fragments.push(text.slice(lastIndex, matchStart));
-      }
-
-      // Add the prefix (character before @, if any)
-      if (prefix) {
-        fragments.push(prefix);
-      }
-
-      // Check if this is a valid mention (matches a room member or virtual handle)
-      const mentionedMember = findMemberByMention(username, members);
-      if (mentionedMember) {
-        // Create styled element for valid mention
-        const span = doc.createElement('span');
-        const isSelfMention =
-          currentUserLogin &&
-          mentionedMember.login.toLowerCase() === currentUserLogin.toLowerCase();
-        span.className = isSelfMention ? 'mention mention-self' : 'mention';
-        span.setAttribute('data-user-id', mentionedMember.id);
-        span.setAttribute('dir', 'auto');
-        span.textContent = `@${mentionedMember.displayName.trim() || mentionedMember.login}`;
-        fragments.push(span);
-      } else if (isVirtualMention(username)) {
-        const span = doc.createElement('span');
-        span.className = 'mention mention-broadcast';
-        span.textContent = `@${username}`;
-        fragments.push(span);
-      } else {
-        const roleName = findRoleMention(username, roleHandles);
-        if (roleName) {
-          const span = doc.createElement('span');
-          span.className = 'mention mention-role';
-          span.setAttribute('data-role-name', roleName);
-          span.textContent = `@${username}`;
-          fragments.push(span);
-        } else {
-          // Leave invalid mentions as plain text
-          fragments.push(`@${username}`);
-        }
-      }
-
-      lastIndex = matchStart + fullMatch.length;
-    }
-
-    // Add remaining text after last match
-    if (lastIndex < text.length) {
-      fragments.push(text.slice(lastIndex));
-    }
-
-    // Only replace if we found any mentions
-    if (lastIndex > 0) {
-      // Replace the text node with our fragments
-      const parent = textNode.parentNode;
-      if (parent) {
-        for (const fragment of fragments) {
-          if (typeof fragment === 'string') {
-            parent.insertBefore(doc.createTextNode(fragment), textNode);
-          } else {
-            parent.insertBefore(fragment, textNode);
-          }
-        }
-        parent.removeChild(textNode);
-      }
-    }
+  for (const candidate of doc.body.querySelectorAll(`span[${MENTION_HANDLE_ATTRIBUTE}]`)) {
+    const handle = candidate.getAttribute(MENTION_HANDLE_ATTRIBUTE) ?? '';
+    const mention = resolveMention(doc, handle, members, currentUserLogin, roleHandles);
+    candidate.replaceWith(mention ?? doc.createTextNode(`@${handle}`));
   }
 
   return doc.body.innerHTML;
