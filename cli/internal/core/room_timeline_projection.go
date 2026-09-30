@@ -19,18 +19,25 @@ import (
 // timeline readers walk on every page load.
 type RoomTimelineProjection struct {
 	events.MemoryProjection
-	entries []timelineRow
 	// eventIDs interns the event IDs that rows and message references use. The
 	// ServerContentView shares one table with the thread and reaction
-	// components; a standalone projection owns a private table.
+	// components; a standalone projection owns a private table. It does not
+	// change after construction.
 	eventIDs       *eventIDTable
 	sharedEventIDs bool
+	roomTimelineState
+}
+
+// roomTimelineState is the snapshot-restorable state of a
+// RoomTimelineProjection. Restore builds a new value and replaces the complete
+// state at once.
+type roomTimelineState struct {
+	entries []timelineRow
 	// rowByEvent maps an eventIDs handle to its one-based row index.
 	rowByEvent handleSlice[uint32]
-	roomIDs    map[string]uint32
-	rooms      []string
-	userIDs    map[string]uint32
-	users      []string
+	// rooms and users intern the room and user IDs of rows and body states.
+	rooms projectionIDTable
+	users projectionIDTable
 	// byRoom and messagePostsByRoom hold row indexes in stream order.
 	byRoom             map[string][]uint32
 	messagePostsByRoom map[string][]uint32
@@ -113,8 +120,7 @@ type TimelineEntry struct {
 // entries slice.
 type timelineRow struct {
 	streamSeq uint64
-	// createdAt is the event's Unix time in nanoseconds; zero means that the
-	// event has no creation time.
+	// createdAt is the event's compact creation time (see projectionTime).
 	createdAt int64
 	// event, threadRoot, and echoOf are eventIDs handles; zero means no
 	// reference. A reference can name an event that has no row.
@@ -130,23 +136,6 @@ type timelineRow struct {
 	reply bool
 
 	historicalImport bool
-}
-
-// timelineUnixNanos converts an event time to a row time. Chatto event times
-// fall well inside the int64 nanosecond range.
-func timelineUnixNanos(at time.Time) int64 {
-	if at.IsZero() {
-		return 0
-	}
-	return at.UnixNano()
-}
-
-// timelineTime converts a row time back to UTC.
-func timelineTime(nanos int64) time.Time {
-	if nanos == 0 {
-		return time.Time{}
-	}
-	return time.Unix(0, nanos).UTC()
 }
 
 type timelineEventKind uint8
@@ -299,14 +288,14 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 	entry := timelineRow{
 		streamSeq: seq,
 		event:     p.eventIDs.intern(eventID),
-		room:      p.internRoomLocked(roomIDOfEvent(event)),
-		actor:     p.internUserLocked(event.GetActorId()),
-		createdAt: timelineUnixNanos(eventCreatedAt(event)),
+		room:      p.rooms.intern(roomIDOfEvent(event)),
+		actor:     p.users.intern(event.GetActorId()),
+		createdAt: eventCreatedNanos(event),
 		kind:      timelineKind(evtstream.EventTypeOf(event)),
 	}
 	if posted := event.GetMessagePosted(); posted != nil {
 		entry.bodyIndex = uint32(len(p.bodyStates) + 1)
-		entry.author = p.internUserLocked(posted.GetAuthorId())
+		entry.author = p.users.intern(posted.GetAuthorId())
 		entry.historicalImport = posted.GetHistoricalImport()
 		inThreadID := posted.GetInThread()
 		rootID := inThreadID
@@ -354,48 +343,15 @@ func (p *RoomTimelineProjection) rowIndexLocked(eventID string) (int, bool) {
 	return int(row) - 1, ok
 }
 
-func eventCreatedAt(event *evtv1.Event) time.Time {
-	if event == nil || event.GetCreatedAt() == nil {
-		return time.Time{}
-	}
-	return event.GetCreatedAt().AsTime()
-}
-
-func (p *RoomTimelineProjection) internRoomLocked(id string) uint32 {
-	if id == "" {
-		return 0
-	}
-	if index := p.roomIDs[id]; index != 0 {
-		return index
-	}
-	index := uint32(len(p.rooms))
-	p.rooms = append(p.rooms, id)
-	p.roomIDs[id] = index
-	return index
-}
-
-func (p *RoomTimelineProjection) internUserLocked(id string) uint32 {
-	if id == "" {
-		return 0
-	}
-	if index := p.userIDs[id]; index != 0 {
-		return index
-	}
-	index := uint32(len(p.users))
-	p.users = append(p.users, id)
-	p.userIDs[id] = index
-	return index
-}
-
 func (p *RoomTimelineProjection) appendRestoredEntryLocked(entry TimelineEntry) int {
 	idx := len(p.entries)
 	row := timelineRow{
-		streamSeq: entry.StreamSeq, event: p.eventIDs.intern(entry.EventID), createdAt: timelineUnixNanos(entry.CreatedAt),
+		streamSeq: entry.StreamSeq, event: p.eventIDs.intern(entry.EventID), createdAt: projectionUnixNanos(entry.CreatedAt),
 		threadRoot: p.eventIDs.intern(entry.ThreadRootEventID),
 		reply:      entry.InThreadEventID != "",
 		echoOf:     p.eventIDs.intern(entry.EchoOfEventID),
-		room:       p.internRoomLocked(entry.RoomID),
-		actor:      p.internUserLocked(entry.ActorID), author: p.internUserLocked(entry.MessageAuthorID),
+		room:       p.rooms.intern(entry.RoomID),
+		actor:      p.users.intern(entry.ActorID), author: p.users.intern(entry.MessageAuthorID),
 		kind: timelineKind(entry.EventType), historicalImport: entry.HistoricalImport,
 	}
 	if row.kind == timelineMessagePosted {
@@ -469,9 +425,9 @@ func (p *RoomTimelineProjection) entryAtLocked(idx int) *TimelineEntry {
 		inThread = row.threadRoot
 	}
 	return &TimelineEntry{
-		StreamSeq: row.streamSeq, EventID: p.eventIDs.id(row.event), RoomID: p.rooms[row.room],
-		ActorID: p.users[row.actor], MessageAuthorID: p.users[row.author],
-		CreatedAt: timelineTime(row.createdAt), EventType: row.kind.eventType(),
+		StreamSeq: row.streamSeq, EventID: p.eventIDs.id(row.event), RoomID: p.rooms.id(row.room),
+		ActorID: p.users.id(row.actor), MessageAuthorID: p.users.id(row.author),
+		CreatedAt: projectionTime(row.createdAt), EventType: row.kind.eventType(),
 		ThreadRootEventID: p.eventIDs.id(row.threadRoot),
 		InThreadEventID:   p.eventIDs.id(inThread),
 		EchoOfEventID:     p.eventIDs.id(row.echoOf),
@@ -504,14 +460,14 @@ func newRoomTimelineProjection(eventIDs *eventIDTable) *RoomTimelineProjection {
 	if !shared {
 		eventIDs = newEventIDTable()
 	}
-	return &RoomTimelineProjection{
-		eventIDs:                   eventIDs,
-		sharedEventIDs:             shared,
+	return &RoomTimelineProjection{eventIDs: eventIDs, sharedEventIDs: shared, roomTimelineState: newRoomTimelineState()}
+}
+
+func newRoomTimelineState() roomTimelineState {
+	return roomTimelineState{
 		bodyEventIDs:               new(idArena),
-		roomIDs:                    make(map[string]uint32),
-		rooms:                      []string{""},
-		userIDs:                    make(map[string]uint32),
-		users:                      []string{""},
+		rooms:                      newProjectionIDTable(),
+		users:                      newProjectionIDTable(),
 		byRoom:                     make(map[string][]uint32),
 		messagePostsByRoom:         make(map[string][]uint32),
 		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
@@ -781,7 +737,7 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 		}
 		at = p.shreddedAt[userID]
 	}
-	user, known := p.userIDs[userID]
+	user, known := p.users.lookup(userID)
 	if !known {
 		return
 	}
@@ -819,7 +775,7 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID, bodyEventID, auth
 	}
 	state.currentSequence = sequence
 	state.currentEventID = p.bodyEventIDs.add(bodyEventID)
-	state.author = p.internUserLocked(authorID)
+	state.author = p.users.intern(authorID)
 	state.flags = timelineBodyActive | uint32(min(max(attachmentCount, 0), timelineBodyMaxAttachments))
 	p.putBodyStateLocked(eventID, state)
 }
@@ -1036,7 +992,7 @@ func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (Time
 	if state, has := p.bodyStateLocked(entry.EventID); has && state.active() {
 		return TimelineBodyReference{
 			MessageEventID: entry.EventID, BodyEventID: p.bodyEventIDs.string(state.currentEventID), RoomID: entry.RoomID,
-			AuthorID: p.users[state.author], StreamSeq: state.currentSequence, AttachmentCount: int(state.attachmentCount()),
+			AuthorID: p.users.id(state.author), StreamSeq: state.currentSequence, AttachmentCount: int(state.attachmentCount()),
 		}, false, true
 	}
 	return TimelineBodyReference{}, false, true

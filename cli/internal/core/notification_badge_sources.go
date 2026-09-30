@@ -103,7 +103,7 @@ func badgeSourceKindForMention(mention *evtv1.MessageMention) badgeSourceKind {
 // zero record in the messages slice means that no post is indexed.
 type badgeMessage struct {
 	seq uint64
-	// createdAt is the post's Unix time in nanoseconds.
+	// createdAt is the post's compact creation time (see projectionTime).
 	createdAt int64
 	room      uint32
 	// thread is the thread root handle, or zero for a root message.
@@ -304,13 +304,6 @@ func (b *notificationBadgeSources) noteSource(sources *badgeRoomSources, created
 			delete(sources.targeted, user)
 		}
 	}
-}
-
-func eventCreatedNanosOrZero(event *evtv1.Event) int64 {
-	if created := event.GetCreatedAt(); created != nil {
-		return created.AsTime().UnixNano()
-	}
-	return 0
 }
 
 // expiredBefore returns the creation time at or before which a source is
@@ -570,7 +563,7 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 	}
 	record := badgeMessage{
 		seq:       seq,
-		createdAt: eventCreatedNanosOrZero(event),
+		createdAt: eventCreatedNanos(event),
 		room:      b.ids.intern(posted.GetRoomId()),
 		thread:    b.eventIDs.intern(posted.GetInThread()),
 		actor:     b.ids.intern(event.GetActorId()),
@@ -611,7 +604,7 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 
 func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, seq uint64) {
 	target, ok := b.eventIDs.lookup(reaction.GetMessageEventId())
-	createdAt := eventCreatedNanosOrZero(event)
+	createdAt := eventCreatedNanos(event)
 	if !ok || reaction.GetEmoji() == "" || event.GetActorId() == "" || createdAt == 0 {
 		return
 	}
@@ -927,32 +920,43 @@ func (s *notificationDecisionSnapshot) badgeRoomsForUser(userID string) []string
 // estimatedBytes approximates the retained size of the index. A shared event
 // ID table is counted by the ServerContentView estimate instead.
 func (b *notificationBadgeSources) estimatedBytes() int64 {
+	// entry is the cost of one map entry with a key and value of these sizes.
+	entry := func(key, value uintptr) int64 { return projectionCompactMapEntryOverhead + int64(key+value) }
+	const (
+		handle   = unsafe.Sizeof(uint32(0))
+		sequence = unsafe.Sizeof(uint64(0))
+		list     = unsafe.Sizeof([]uint32(nil))
+		table    = unsafe.Sizeof(map[uint32]uint64(nil))
+	)
 	bytes := b.ids.estimatedBytes()
 	if !b.sharedEventIDs {
 		bytes += b.eventIDs.estimatedBytes()
 	}
 	bytes += int64(cap(b.messages)) * int64(unsafe.Sizeof(badgeMessage{}))
-	bytes += int64(len(b.reactions)) * (projectionCompactMapEntryOverhead + 12)
-	bytes += int64(len(b.memberSince)+len(b.accountSince)+len(b.universalSince)) * (projectionCompactMapEntryOverhead + 16)
+	bytes += int64(len(b.reactions)) * entry(unsafe.Sizeof(badgeReactionKey{}), 0)
+	bytes += int64(len(b.memberSince)) * entry(unsafe.Sizeof(badgeMembershipKey{}), sequence)
+	bytes += int64(len(b.accountSince)+len(b.universalSince)) * entry(handle, sequence)
 	for _, sources := range b.rooms {
-		bytes += int64(len(sources.roots)) * 4
+		bytes += entry(handle, unsafe.Sizeof(sources)) + int64(unsafe.Sizeof(*sources))
+		bytes += int64(cap(sources.roots) * int(handle))
 		for _, replies := range sources.replies {
-			bytes += projectionCompactMapEntryOverhead + projectionSliceEntryOverhead + int64(len(replies))*4
+			bytes += entry(handle, list) + int64(cap(replies)*int(handle))
 		}
 		for _, scopes := range sources.targeted {
+			bytes += entry(handle, table) + projectionMapEntryOverhead
 			for _, targeted := range scopes {
-				bytes += projectionCompactMapEntryOverhead + projectionSliceEntryOverhead + int64(len(targeted))*40
+				bytes += entry(handle, list) + int64(cap(targeted)*int(unsafe.Sizeof(badgeTargetedSource{})))
 			}
 		}
 	}
 	for _, threads := range b.follows {
-		bytes += projectionCompactMapEntryOverhead + int64(len(threads))*(projectionCompactMapEntryOverhead+12)
+		bytes += entry(unsafe.Sizeof(badgeMembershipKey{}), table) + projectionMapEntryOverhead + int64(len(threads))*entry(handle, sequence)
 	}
-	bytes += int64(len(b.followStates)) * (projectionCompactMapEntryOverhead + 13)
+	bytes += int64(len(b.followStates)) * entry(unsafe.Sizeof(badgeFollowKey{}), unsafe.Sizeof(compactThreadFollowState(0)))
 	for _, followers := range b.followers {
-		bytes += projectionCompactMapEntryOverhead + projectionSliceEntryOverhead + 8 + int64(cap(followers))*4
+		bytes += entry(unsafe.Sizeof(badgeThreadKey{}), list) + int64(cap(followers)*int(handle))
 	}
-	bytes += int64(len(b.replyCounts)) * (projectionCompactMapEntryOverhead + 12)
+	bytes += int64(len(b.replyCounts)) * entry(handle, sequence)
 	return bytes
 }
 

@@ -19,13 +19,7 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 
-	snapshot := &projectionv1.ThreadProjectionSnapshot{
-		ReplayGuard: &projectionv1.ProjectionReplayGuardSnapshot{
-			HighestSequence:   p.replayGuard.highestSeq,
-			CompatibilityMode: p.replayGuard.compatibilityMode,
-			ReplayComplete:    p.replayGuard.replayComplete,
-		},
-	}
+	snapshot := &projectionv1.ThreadProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	snapshot.ChannelRoomIds = sortedMapKeys(p.channelRooms)
 	for _, roomID := range sortedMapKeys(p.dmRooms) {
 		snapshot.DirectMessageRooms = append(snapshot.DirectMessageRooms, &projectionv1.RoomMembershipSnapshot{
@@ -53,8 +47,8 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 				ActorId:           p.principalIDs.id(entry.actor),
 				Retracted:         entry.retracted,
 			}
-			if entry.hasCreatedAt {
-				row.CreatedAt = timestamppb.New(entry.createdAtTime())
+			if entry.createdAt != 0 {
+				row.CreatedAt = timestamppb.New(projectionTime(entry.createdAt))
 			}
 			snapshot.Replies = append(snapshot.Replies, row)
 		}
@@ -116,60 +110,33 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 	snapshot.Interactions = interactions
 
 	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
-	if p.replayGuard.compatibilityMode {
-		snapshot.ReplayGuard.EventIds = sortedMapKeys(p.replayGuard.eventIDs)
-	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
-func (p *ThreadProjection) Restore(data []byte) (err error) {
-	if len(data) == 0 {
-		return nil
-	}
-	p.Lock()
-	defer p.Unlock()
-
-	previous := struct {
-		byThread        map[uint32][]threadEntry
-		replyRoots      map[uint32]uint32
-		channelRooms    map[string]struct{}
-		dmRooms         map[string]map[string]struct{}
-		principalIDs    projectionIDTable
-		messageRefs     handleSlice[threadMessageRef]
-		interactions    map[threadInteractionKey]uint32
-		summaryByThread map[uint32]*threadSummary
-		followState     map[threadFollowKey]compactThreadFollowState
-		followers       map[threadFollowTarget][]uint32
-		followedByUser  map[uint32][]threadFollowTarget
-		replayGuard     projectionReplayGuard
-		shreddedUsers   map[string]struct{}
-	}{p.byThread, p.replyRoots, p.channelRooms, p.dmRooms, p.principalIDs, p.messageRefs, p.interactions, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
-	defer func() {
-		if err == nil {
-			return
-		}
-		p.byThread = previous.byThread
-		p.replyRoots = previous.replyRoots
-		p.channelRooms = previous.channelRooms
-		p.dmRooms = previous.dmRooms
-		p.principalIDs = previous.principalIDs
-		p.messageRefs = previous.messageRefs
-		p.interactions = previous.interactions
-		p.summaryByThread = previous.summaryByThread
-		p.followState = previous.followState
-		p.followers = previous.followers
-		p.followedByUser = previous.followedByUser
-		p.replayGuard = previous.replayGuard
-		p.shreddedUsers = previous.shreddedUsers
-	}()
-
-	p.resetSnapshotStateLocked()
-
+// Restore replaces the projection state with a snapshot. Empty data restores
+// an empty projection. A failed restore leaves the current state unchanged; it
+// can only add IDs to the append-only event ID table.
+func (p *ThreadProjection) Restore(data []byte) error {
 	var snapshot projectionv1.ThreadProjectionSnapshot
 	if err := proto.Unmarshal(data, &snapshot); err != nil {
 		return fmt.Errorf("unmarshal Thread projection snapshot: %w", err)
 	}
+	// The restored model interns into the same table so handles stay shared
+	// with the other ServerContentView components.
+	restored := newThreadProjection(p.eventIDs)
+	if len(data) > 0 {
+		if err := restored.loadSnapshot(&snapshot); err != nil {
+			return err
+		}
+	}
+	p.Lock()
+	p.threadProjectionState = restored.threadProjectionState
+	p.Unlock()
+	return nil
+}
 
+// loadSnapshot fills an empty, unpublished projection from a snapshot.
+func (p *ThreadProjection) loadSnapshot(snapshot *projectionv1.ThreadProjectionSnapshot) error {
 	for _, roomID := range snapshot.GetChannelRoomIds() {
 		if roomID == "" {
 			return fmt.Errorf("Thread projection snapshot has empty channel room id")
@@ -279,8 +246,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 			if err := row.GetCreatedAt().CheckValid(); err != nil {
 				return fmt.Errorf("Thread projection snapshot reply %q timestamp: %w", replyID, err)
 			}
-			entry.createdAt = row.GetCreatedAt().AsTime().UnixNano()
-			entry.hasCreatedAt = true
+			entry.createdAt = projectionUnixNanos(row.GetCreatedAt().AsTime())
 		}
 		p.replyRoots[handle] = location.root
 	}
@@ -346,52 +312,15 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		p.interactions[key] = room
 	}
 
-	guard := snapshot.GetReplayGuard()
-	if guard == nil {
+	if snapshot.GetReplayGuard() == nil {
 		return fmt.Errorf("Thread projection snapshot is missing replay guard")
 	}
-	p.replayGuard.highestSeq = guard.GetHighestSequence()
-	p.replayGuard.replayComplete = guard.GetReplayComplete()
-	p.replayGuard.compatibilityMode = guard.GetCompatibilityMode()
-	if p.replayGuard.compatibilityMode {
-		p.replayGuard.eventIDs = make(eventIDSet, len(guard.GetEventIds()))
-		for _, eventID := range guard.GetEventIds() {
-			if eventID == "" {
-				return fmt.Errorf("Thread projection snapshot has empty compatibility event id")
-			}
-			if _, duplicate := p.replayGuard.eventIDs[eventID]; duplicate {
-				return fmt.Errorf("Thread projection snapshot repeats compatibility event %q", eventID)
-			}
-			p.replayGuard.eventIDs[eventID] = struct{}{}
-		}
-	} else {
-		if len(guard.GetEventIds()) != 0 {
-			return fmt.Errorf("Thread projection snapshot has event ids outside compatibility mode")
-		}
-		if p.replayGuard.replayComplete {
-			p.replayGuard.eventIDs = nil
-		}
+	guard, err := restoreReplayGuard(snapshot.GetReplayGuard())
+	if err != nil {
+		return fmt.Errorf("Thread projection snapshot replay guard: %w", err)
 	}
-
+	p.replayGuard = guard
 	return nil
-}
-
-func (p *ThreadProjection) resetSnapshotStateLocked() {
-	p.byThread = make(map[uint32][]threadEntry)
-	p.replyRoots = make(map[uint32]uint32)
-	p.channelRooms = make(map[string]struct{})
-	p.dmRooms = make(map[string]map[string]struct{})
-	p.principalIDs = newProjectionIDTable()
-	// The event ID table is append-only and can be shared with other
-	// ServerContentView components, so a restore keeps it.
-	p.messageRefs = nil
-	p.interactions = make(map[threadInteractionKey]uint32)
-	p.summaryByThread = make(map[uint32]*threadSummary)
-	p.followState = make(map[threadFollowKey]compactThreadFollowState)
-	p.followers = make(map[threadFollowTarget][]uint32)
-	p.followedByUser = make(map[uint32][]threadFollowTarget)
-	p.replayGuard = newProjectionReplayGuard()
-	p.shreddedUsers = make(map[string]struct{})
 }
 
 func sortedMapKeys[V any](values map[string]V) []string {

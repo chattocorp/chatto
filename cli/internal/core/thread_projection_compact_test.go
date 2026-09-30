@@ -55,12 +55,15 @@ func TestThreadProjection_ParticipantPreviewKeepsFirstReplyOrder(t *testing.T) {
 	}
 }
 
-func TestThreadProjection_FollowIndexesKeepFollowOrder(t *testing.T) {
+// TestThreadProjection_FollowReadsAreSortedByID checks that follow reads do not
+// depend on follow order, which a snapshot restore does not keep.
+func TestThreadProjection_FollowReadsAreSortedByID(t *testing.T) {
 	p := NewThreadProjection()
 	for i, event := range []*evtv1.Event{
+		threadFollowSnapshotTestEvent("F0", "R1", "ROOT", "U4", true),
 		threadFollowSnapshotTestEvent("F1", "R1", "ROOT", "U2", true),
-		threadFollowSnapshotTestEvent("F2", "R1", "ROOT", "U1", true),
 		threadFollowSnapshotTestEvent("F3", "R1", "ROOT-2", "U1", true),
+		threadFollowSnapshotTestEvent("F2", "R1", "ROOT", "U1", true),
 		threadFollowSnapshotTestEvent("F4", "R1", "ROOT", "U2", false),
 		threadFollowSnapshotTestEvent("F5", "R1", "ROOT", "U2", true),
 		threadFollowSnapshotTestEvent("F6", "R1", "ROOT-3", "U3", false),
@@ -69,8 +72,8 @@ func TestThreadProjection_FollowIndexesKeepFollowOrder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := p.ThreadFollowers("R1", "ROOT"); !slices.Equal(got, []string{"U1", "U2"}) {
-		t.Fatalf("ThreadFollowers = %v, want [U1 U2]", got)
+	if got := p.ThreadFollowers("R1", "ROOT"); !slices.Equal(got, []string{"U1", "U2", "U4"}) {
+		t.Fatalf("ThreadFollowers = %v, want [U1 U2 U4]", got)
 	}
 	if got := p.FollowedThreadsForUser("U1"); !slices.Equal(got, []threadFollowRef{{roomID: "R1", threadRootEventID: "ROOT"}, {roomID: "R1", threadRootEventID: "ROOT-2"}}) {
 		t.Fatalf("FollowedThreadsForUser(U1) = %v", got)

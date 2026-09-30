@@ -352,19 +352,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		entries += int64(len(roomEntries))
 	}
 	rawBytes := int64(cap(p.entries)) * int64(unsafe.Sizeof(timelineRow{}))
-	var sharedIDBytes int64
-	for _, id := range p.rooms {
-		sharedIDBytes += int64(unsafe.Sizeof("")) + int64(len(id))
-		if id != "" {
-			sharedIDBytes += projectionMapEntryOverhead
-		}
-	}
-	for _, id := range p.users {
-		sharedIDBytes += int64(unsafe.Sizeof("")) + int64(len(id))
-		if id != "" {
-			sharedIDBytes += projectionMapEntryOverhead
-		}
-	}
+	sharedIDBytes := p.rooms.estimatedBytes() + p.users.estimatedBytes()
 
 	var messagePostIndexBytes, messagePosts int64
 	for roomID, roomEntries := range p.messagePostsByRoom {
@@ -458,7 +446,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "timeline_entries", Value: entries, Bytes: rawBytes},
-		{Name: "shared_room_user_ids", Value: int64(len(p.rooms) + len(p.users) - 2), Bytes: sharedIDBytes},
+		{Name: "shared_room_user_ids", Value: int64(p.rooms.len() + p.users.len()), Bytes: sharedIDBytes},
 		{Name: "room_timeline_index", Value: entries, Bytes: roomIndexBytes},
 		{Name: "message_posts", Value: messagePosts, Bytes: 0},
 		{Name: "message_posts_by_room_index", Value: messagePosts, Bytes: messagePostIndexBytes},

@@ -1,8 +1,8 @@
 package core
 
 import (
+	"cmp"
 	"slices"
-	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -14,20 +14,11 @@ import (
 // no Go pointers.
 type threadEntry struct {
 	streamSeq uint64
-	// createdAt is the reply's Unix time in nanoseconds when hasCreatedAt is
-	// set. Server-assigned post times fall well inside the int64 range.
-	createdAt    int64
-	event        uint32
-	actor        uint32
-	hasCreatedAt bool
-	retracted    bool
-}
-
-func (e threadEntry) createdAtTime() time.Time {
-	if !e.hasCreatedAt {
-		return time.Time{}
-	}
-	return time.Unix(0, e.createdAt).UTC()
+	// createdAt is the reply's compact creation time (see projectionTime).
+	createdAt int64
+	event     uint32
+	actor     uint32
+	retracted bool
 }
 
 // threadSummary caches display metadata for one thread. It is derived from
@@ -35,10 +26,9 @@ func (e threadEntry) createdAtTime() time.Time {
 // changes which replies are visible.
 type threadSummary struct {
 	replyCount int
-	// lastReplyAt is the latest visible reply's Unix time in nanoseconds when
-	// hasLastReplyAt is set.
-	lastReplyAt    int64
-	hasLastReplyAt bool
+	// lastReplyAt is the latest visible reply's compact creation time (see
+	// projectionTime).
+	lastReplyAt int64
 	// latestReply is an eventIDs handle.
 	latestReply uint32
 	// participants counts visible replies per author in first-reply order.
@@ -185,6 +175,18 @@ type ThreadTimelineEntry struct {
 // latest-body state instead of being retained as separate thread rows.
 type ThreadProjection struct {
 	events.MemoryProjection
+	// eventIDs interns message and thread-root event IDs. The
+	// ServerContentView shares one table with the room timeline and reaction
+	// components; a standalone projection owns a private table. It does not
+	// change after construction.
+	eventIDs       *eventIDTable
+	sharedEventIDs bool
+	threadProjectionState
+}
+
+// threadProjectionState is the snapshot-restorable state of a ThreadProjection. Restore
+// builds a new value and replaces the complete state at once.
+type threadProjectionState struct {
 	// byThread maps a thread root handle to its replies in stream order. An
 	// entry without replies records an explicitly created thread.
 	byThread map[uint32][]threadEntry
@@ -197,11 +199,6 @@ type ThreadProjection struct {
 	// principalIDs interns user and room IDs. The table stays small, so the
 	// lookups on authorization read paths stay cache-resident.
 	principalIDs projectionIDTable
-	// eventIDs interns message and thread-root event IDs. The
-	// ServerContentView shares one table with the room timeline and reaction
-	// components; a standalone projection owns a private table.
-	eventIDs       *eventIDTable
-	sharedEventIDs bool
 	// messageRefs is indexed by eventIDs handle minus one.
 	messageRefs handleSlice[threadMessageRef]
 	// interactions maps each relationship to its room handle.
@@ -209,7 +206,7 @@ type ThreadProjection struct {
 	summaryByThread map[uint32]*threadSummary
 	// followState holds the latest explicit follow state of each user and
 	// thread. followers and followedByUser index the current follows in
-	// follow order.
+	// follow order; reads sort them by ID.
 	followState    map[threadFollowKey]compactThreadFollowState
 	followers      map[threadFollowTarget][]uint32
 	followedByUser map[uint32][]threadFollowTarget
@@ -230,14 +227,16 @@ func newThreadProjection(eventIDs *eventIDTable) *ThreadProjection {
 	if !shared {
 		eventIDs = newEventIDTable()
 	}
-	return &ThreadProjection{
+	return &ThreadProjection{eventIDs: eventIDs, sharedEventIDs: shared, threadProjectionState: newThreadProjectionState()}
+}
+
+func newThreadProjectionState() threadProjectionState {
+	return threadProjectionState{
 		byThread:        make(map[uint32][]threadEntry),
 		replyRoots:      make(map[uint32]uint32),
 		channelRooms:    make(map[string]struct{}),
 		dmRooms:         make(map[string]map[string]struct{}),
 		principalIDs:    newProjectionIDTable(),
-		eventIDs:        eventIDs,
-		sharedEventIDs:  shared,
 		interactions:    make(map[threadInteractionKey]uint32),
 		summaryByThread: make(map[uint32]*threadSummary),
 		followState:     make(map[threadFollowKey]compactThreadFollowState),
@@ -401,10 +400,7 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 			streamSeq: seq,
 			event:     p.eventIDs.intern(event.GetId()),
 			actor:     p.principalIDs.intern(messageAuthorID(event)),
-		}
-		if created := event.GetCreatedAt(); created != nil {
-			entry.createdAt = created.AsTime().UnixNano()
-			entry.hasCreatedAt = true
+			createdAt: eventCreatedNanos(event),
 		}
 		p.byThread[threadRoot] = append(p.byThread[threadRoot], entry)
 		p.replyRoots[entry.event] = threadRoot
@@ -634,7 +630,6 @@ func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, ent
 	summary.replyCount++
 	summary.latestReply = entry.event
 	summary.lastReplyAt = entry.createdAt
-	summary.hasLastReplyAt = entry.hasCreatedAt
 	if entry.actor != 0 {
 		summary.countReply(entry.actor)
 	}
@@ -699,8 +694,8 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 			metadata.ParticipantIDs[i] = p.principalIDs.id(participant.actor)
 		}
 	}
-	if summary.hasLastReplyAt {
-		at := time.Unix(0, summary.lastReplyAt).UTC()
+	if summary.lastReplyAt != 0 {
+		at := projectionTime(summary.lastReplyAt)
 		metadata.LastReplyAt = &at
 	}
 	return metadata
@@ -717,8 +712,9 @@ func (p *ThreadProjection) FollowState(userID, roomID, threadRootEventID string)
 	return p.followState[threadFollowKey{user: user, threadFollowTarget: target}].public()
 }
 
-// ThreadFollowers returns the users who currently follow a thread, in follow
-// order.
+// ThreadFollowers returns the users who currently follow a thread, sorted by
+// user ID. A restore does not keep the follow order, so reads do not expose
+// it.
 func (p *ThreadProjection) ThreadFollowers(roomID, threadRootEventID string) []string {
 	p.RLock()
 	defer p.RUnlock()
@@ -731,11 +727,12 @@ func (p *ThreadProjection) ThreadFollowers(roomID, threadRootEventID string) []s
 	for i, user := range followers {
 		userIDs[i] = p.principalIDs.id(user)
 	}
+	slices.Sort(userIDs)
 	return userIDs
 }
 
 // FollowedThreadsForUser returns the threads that a user currently follows,
-// in follow order.
+// sorted by room ID and then thread root ID.
 func (p *ThreadProjection) FollowedThreadsForUser(userID string) []threadFollowRef {
 	p.RLock()
 	defer p.RUnlock()
@@ -748,6 +745,9 @@ func (p *ThreadProjection) FollowedThreadsForUser(userID string) []threadFollowR
 	for i, target := range followed {
 		refs[i] = threadFollowRef{roomID: p.principalIDs.id(target.room), threadRootEventID: p.eventIDs.id(target.root)}
 	}
+	slices.SortFunc(refs, func(a, b threadFollowRef) int {
+		return cmp.Or(cmp.Compare(a.roomID, b.roomID), cmp.Compare(a.threadRootEventID, b.threadRootEventID))
+	})
 	return refs
 }
 

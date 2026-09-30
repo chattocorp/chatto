@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"slices"
 	"strings"
-	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -19,15 +18,21 @@ import (
 // known.
 type ReactionProjection struct {
 	events.MemoryProjection
+	// messages interns message event IDs. The ServerContentView shares one
+	// table with the room timeline and thread components; a standalone
+	// projection owns a private table. It does not change after construction.
+	messages       *eventIDTable
+	sharedEventIDs bool
+	reactionState
+}
+
+// reactionState is the snapshot-restorable state of a ReactionProjection.
+// Restore builds a new value and replaces the complete state at once.
+type reactionState struct {
 	// ids interns emoji, user, and room IDs as handles. Reaction source event
 	// IDs are unique per reaction, so entries keep them as strings; interning
 	// them would only grow the append-only table.
 	ids projectionIDTable
-	// messages interns message event IDs. The ServerContentView shares one
-	// table with the room timeline and thread components; a standalone
-	// projection owns a private table.
-	messages       *eventIDTable
-	sharedEventIDs bool
 	// byMessage maps a canonical message handle to its active reactions,
 	// sorted by emoji handle and then user handle. Each pair appears once.
 	byMessage map[uint32][]reactionProjectionEntry
@@ -69,16 +74,14 @@ func newReactionProjection(messages *eventIDTable) *ReactionProjection {
 	if !shared {
 		messages = newEventIDTable()
 	}
-	return &ReactionProjection{
-		ids:            newProjectionIDTable(),
-		messages:       messages,
-		sharedEventIDs: shared,
-		byMessage:      make(map[uint32][]reactionProjectionEntry),
-		roomSeq:        make(map[string]uint64),
-		echoOriginal:   make(map[uint32]uint32),
-		assetRoom:      make(map[string]string),
-		replayGuard:    newProjectionReplayGuard(),
-	}
+	return &ReactionProjection{messages: messages, sharedEventIDs: shared, reactionState: reactionState{
+		ids:          newProjectionIDTable(),
+		byMessage:    make(map[uint32][]reactionProjectionEntry),
+		roomSeq:      make(map[string]uint64),
+		echoOriginal: make(map[uint32]uint32),
+		assetRoom:    make(map[string]string),
+		replayGuard:  newProjectionReplayGuard(),
+	}}
 }
 
 func (p *ReactionProjection) Subjects() []string {
@@ -266,13 +269,6 @@ func (p *ReactionProjection) reactionsForMessageLocked(messageEventID string) []
 		return nil
 	}
 	return p.byMessage[p.canonicalMessageLocked(message)]
-}
-
-func eventCreatedNanos(event *evtv1.Event) int64 {
-	if ts := event.GetCreatedAt(); ts != nil {
-		return ts.AsTime().UnixNano()
-	}
-	return time.Now().UnixNano()
 }
 
 // RoomSequence returns the highest applied EVT sequence among the events that

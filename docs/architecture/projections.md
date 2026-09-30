@@ -295,7 +295,8 @@ pointer-free slice with the reply's author, time, and retraction state, and a
 small map locates the thread of a reply. The cached thread summary counts
 visible replies per author in first-reply order; the first authors form the
 display preview. Follow state, thread followers, and followed threads use
-handle keys and keep follows in follow order. Room deletion removes the room's
+handle keys. Reads of followers and followed threads sort them by ID, because
+a restore does not keep the follow order. Room deletion removes the room's
 message references and relationships. The message IDs of that room stay in
 the shared event ID table.
 
@@ -310,6 +311,12 @@ reaction as a string, because each source ID occurs only once. Each message
 has a short slice of active reactions, sorted by emoji and user handles.
 
 Timeline, Threads, and Reactions construct detached read results.
+
+Compact records store times as Unix nanoseconds, where zero means "no time".
+Each compact component keeps its restorable state in one value. A restore
+builds a new value and replaces the complete state at once, so a failed
+restore leaves the state unchanged. An empty snapshot restores an empty
+component; a cold replay of the content view depends on this reset.
 
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A

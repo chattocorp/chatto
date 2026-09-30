@@ -291,6 +291,20 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			}
 			p.CompleteStartupReplay()
 		}},
+		{"threads", func() snapshotProjection { return NewThreadProjection() }, func(raw snapshotProjection) {
+			p := raw.(*ThreadProjection)
+			for i, event := range []*evtv1.Event{
+				{Id: "ROOM", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+				postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
+				postedEvent(postedOpts{envelopeID: "REPLY", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+				threadFollowSnapshotTestEvent("FOLLOW", "R1", "ROOT", "U2", true),
+			} {
+				if err := p.Apply(event, uint64(38+i)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			p.CompleteStartupReplay()
+		}},
 		{"call_state", func() snapshotProjection { return NewCallStateProjection() }, func(raw snapshotProjection) {
 			p := raw.(*CallStateProjection)
 			p.roomSeq["R1"] = 41
@@ -351,7 +365,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v2-", "server_config": "v3-", "room_group_layout": "v1-",
 		"notification_decisions": "v2-", "notifications": "v2-",
-		"room_timeline": "v9-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
+		"room_timeline": "v9-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {

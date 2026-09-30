@@ -79,7 +79,6 @@ func (p *ReactionProjection) Restore(data []byte) error {
 	// The restored model interns into the same message table so handles stay
 	// shared with the other ServerContentView components.
 	restored := newReactionProjection(p.messages)
-	restored.sharedEventIDs = p.sharedEventIDs
 	restored.replayGuard = guard
 	for _, message := range snapshot.GetMessages() {
 		if message.GetMessageEventId() == "" {
@@ -157,7 +156,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		restored.assetRoom[row.GetKey()] = row.GetValue()
 	}
 	p.Lock()
-	p.ids, p.byMessage, p.roomSeq, p.messageRooms, p.echoOriginal, p.assetRoom, p.replayGuard = restored.ids, restored.byMessage, restored.roomSeq, restored.messageRooms, restored.echoOriginal, restored.assetRoom, restored.replayGuard
+	p.reactionState = restored.reactionState
 	p.Unlock()
 	return nil
 }

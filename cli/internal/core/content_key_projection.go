@@ -11,6 +11,12 @@ import (
 // ContentKeyProjection indexes per-user encrypted DEK epochs by purpose.
 type ContentKeyProjection struct {
 	events.MemoryProjection
+	contentKeyState
+}
+
+// contentKeyState is the snapshot-restorable state of a ContentKeyProjection.
+// Restore builds a new value and replaces the complete state at once.
+type contentKeyState struct {
 	// users interns the user IDs of stored keys.
 	users projectionIDTable
 	// keys holds each stored DEK epoch in compact form. Reads rebuild the
@@ -48,14 +54,14 @@ type contentKeyRecord struct {
 }
 
 func NewContentKeyProjection() *ContentKeyProjection {
-	return &ContentKeyProjection{
+	return &ContentKeyProjection{contentKeyState: contentKeyState{
 		users:         newProjectionIDTable(),
 		keys:          make(map[contentKeyID]contentKeyRecord),
 		activeEpoch:   make(map[contentKeyPurposeID]int32),
 		algorithms:    make(map[string]string),
 		shreddedUsers: make(map[string]struct{}),
 		replayGuard:   newProjectionReplayGuard(),
-	}
+	}}
 }
 
 func (p *ContentKeyProjection) Subjects() []string {

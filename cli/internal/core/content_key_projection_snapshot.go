@@ -75,7 +75,7 @@ func (p *ContentKeyProjection) Restore(data []byte) error {
 		restored.applyDEKGeneratedLocked(key)
 	}
 	p.Lock()
-	p.users, p.keys, p.activeEpoch, p.algorithms, p.shreddedUsers, p.replayGuard = restored.users, restored.keys, restored.activeEpoch, restored.algorithms, restored.shreddedUsers, restored.replayGuard
+	p.contentKeyState = restored.contentKeyState
 	p.Unlock()
 	return nil
 }
