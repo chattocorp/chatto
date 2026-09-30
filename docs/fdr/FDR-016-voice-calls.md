@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-30
 
 ## Overview
 
@@ -16,7 +16,10 @@ Rooms support real-time voice conversations with optional camera video and scree
   warning. Recovery removes the warning and closes its explanation.
 
 - Open a participant's user context menu with the three-dot button or a
-  right-click on their card. Touch users can long-press the card. For remote
+  right-click on their card outside the video. Right-clicking a camera or
+  screen-share video opens the browser's native video menu, so browser media
+  features remain available. Left-clicking the video opens the user menu.
+  Touch users can long-press the card, including its video. For remote
   participants in the active call, participant and camera card menus include
   **Voice volume** alongside profile actions. This control is also available
   from the members list. Screen-share card menus show **Stream volume** instead.
@@ -137,6 +140,14 @@ Rooms support real-time voice conversations with optional camera video and scree
 - A desktop active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
 - Camera and screen-share tiles expose a compact fullscreen button in their header. Joined participant cards expose a compact mute button directly in the header; remote cards keep volume controls in their three-dot menu. Voice cards use the same height for local and remote participants. In a wide sidebar with a screen share or multiple video feeds, participant cards use equal-width columns; screen shares span the full row. Narrow sidebars use one column. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.
 - Call controls form one joined pill with separators at the bottom of the call pane. Its height and rounded corners match the composer and other bottom-row controls. Participant content scrolls above it.
+- Camera and screen-share tiles show a picture-in-picture toggle beside
+  fullscreen when the browser supports requests from the page. The toggle is
+  available in sidebar and stage layouts once video is ready. It opens or closes
+  that tile's video; selecting another tile switches the picture-in-picture video.
+  Closing the browser's picture-in-picture window resets the toggle. Removing
+  the tile closes its picture-in-picture window. Failed requests show an error
+  without interrupting the call. Browsers without this toggle retain their native
+  video menu, which can offer picture-in-picture independently.
 - While the viewer is in a call, a compact joined pill above the lower-left current-user card provides the active call room link plus mute, camera, screen-share, and leave controls. It matches the user card width and remains visible when the call sidebar is open. Both toolbars place the microphone before the camera.
 - While the viewer is connected to a call, supported browsers request a screen wake lock so the display does not automatically dim or lock. The lock is released when the call ends and requested again when the app returns to the foreground. Browsers that do not support or grant wake locks continue the call without this enhancement; a wake lock does not prevent mobile operating systems from suspending an app that the user backgrounds or manually locks.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.

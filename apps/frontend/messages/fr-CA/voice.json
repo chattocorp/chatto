@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "Image dans l’image",
+    "picture_in_picture_failed": "Impossible de modifier le mode image dans l’image.",
     "connection_lost": "Connexion perdue",
     "connecting": "Connexion...",
     "joining": "Rejoindre...",

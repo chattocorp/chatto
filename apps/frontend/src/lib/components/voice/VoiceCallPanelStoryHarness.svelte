@@ -19,12 +19,15 @@
     layout = 'stage',
     scenario = 'screen',
     animateVoice = false,
-    initiallyMuted = false
+    initiallyMuted = false,
+    playableMedia = false
   }: {
     layout?: 'sidebar' | 'stage';
     scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
     animateVoice?: boolean;
     initiallyMuted?: boolean;
+    /** Use a local canvas stream to exercise native media controls without a call server. */
+    playableMedia?: boolean;
   } = $props();
 
   const roomId = 'storybook-call-room';
@@ -47,12 +50,40 @@
 
   function posterTrack(svg: string): Track {
     const poster = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const cleanups = new WeakMap<HTMLVideoElement, () => void>();
     return {
       attach(element: HTMLVideoElement) {
         element.poster = poster;
+        if (playableMedia) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 640;
+          canvas.height = 360;
+          const context = canvas.getContext('2d')!;
+          let frame = 0;
+          const draw = () => {
+            context.fillStyle = '#293f50';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = '#ffbe2e';
+            context.fillRect((frame++ * 4) % canvas.width, 250, 80, 24);
+            context.fillStyle = '#ffffff';
+            context.font = '28px sans-serif';
+            context.fillText('Picture-in-picture preview', 40, 100);
+          };
+          draw();
+          const stream = canvas.captureStream(10);
+          element.srcObject = stream;
+          const timer = window.setInterval(draw, 100);
+          cleanups.set(element, () => {
+            window.clearInterval(timer);
+            for (const track of stream.getTracks()) track.stop();
+            element.srcObject = null;
+          });
+        }
         return element;
       },
       detach(element: HTMLVideoElement) {
+        cleanups.get(element)?.();
+        cleanups.delete(element);
         element.removeAttribute('poster');
         return element;
       }

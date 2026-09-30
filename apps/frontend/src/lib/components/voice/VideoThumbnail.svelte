@@ -23,6 +23,7 @@ resolution to request for sidebar-width tiles.
 <script lang="ts">
   import { formatAccountName } from '$lib/render/accountName';
   import { onDestroy } from 'svelte';
+  import { on } from 'svelte/events';
   import type { Track } from 'livekit-client';
   import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -52,6 +53,23 @@ resolution to request for sidebar-width tiles.
   } = $props();
 
   let videoEl = $state<HTMLVideoElement | null>(null);
+
+  /** Keep native mouse menus while the card still owns touch long-press gestures. */
+  function nativeVideoMenu(element: HTMLVideoElement) {
+    let fromTouch = false;
+    const cleanups = [
+      on(element, 'pointerdown', (event) => {
+        fromTouch = event.pointerType === 'touch';
+      }),
+      on(element, 'contextmenu', (event) => {
+        if (fromTouch || (event instanceof PointerEvent && event.pointerType === 'touch')) return;
+        event.stopPropagation();
+      })
+    ];
+    return () => {
+      for (const cleanup of cleanups) cleanup();
+    };
+  }
 
   // Track what's currently attached to avoid unnecessary detach/reattach cycles.
   // The parent's audio level polling (60ms) triggers $derived recalculations that
@@ -95,6 +113,7 @@ resolution to request for sidebar-width tiles.
 >
   <video
     bind:this={videoEl}
+    {@attach nativeVideoMenu}
     width="640"
     height="360"
     class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}

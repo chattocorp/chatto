@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "子母畫面",
+    "picture_in_picture_failed": "無法變更子母畫面模式。",
     "connection_lost": "連線已中斷",
     "connecting": "連線中...",
     "joining": "加入中...",

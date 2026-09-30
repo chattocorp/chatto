@@ -1,5 +1,7 @@
 {
   "voice": {
+    "picture_in_picture": "ピクチャーインピクチャー",
+    "picture_in_picture_failed": "ピクチャーインピクチャーモードを変更できませんでした。",
     "connection_lost": "接続が切れました",
     "connecting": "接続中...",
     "joining": "参加中...",

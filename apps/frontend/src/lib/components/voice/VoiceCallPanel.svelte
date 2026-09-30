@@ -30,6 +30,7 @@ Room sidebar panel for voice/video calls.
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
+  import CallPictureInPictureButton from './CallPictureInPictureButton.svelte';
   import ConnectionQualityHint from './ConnectionQualityHint.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -291,13 +292,16 @@ Room sidebar panel for voice/video calls.
   {/if}
 {/snippet}
 
-{#snippet mediaTileActions()}
+{#snippet mediaTileActions(track: Track | null)}
+  {#key track}
+    <CallPictureInPictureButton />
+  {/key}
   <CompactActionButton
     label={m('voice.fullscreen_feed')}
     data-testid="call-feed-fullscreen-button"
     onclick={toggleClosestMediaFullscreen}
   >
-    <span class="iconify icon-[mdi--fullscreen]" aria-hidden="true"></span>
+    <span class="iconify icon-[mdi--monitor-share]" aria-hidden="true"></span>
   </CompactActionButton>
 {/snippet}
 
@@ -357,7 +361,7 @@ Room sidebar panel for voice/video calls.
         <ConnectionQualityHint quality={participant.connectionQuality} />
       {/if}
       {#if headerActions === 'media'}
-        {@render mediaTileActions()}
+        {@render mediaTileActions(screen ? participant.screenShareTrack : participant.videoTrack)}
       {/if}
       {#if isInThisCall}
         {@render localMuteButton(participant)}
