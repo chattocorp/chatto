@@ -164,3 +164,41 @@ test.each(['deny', 'unclear'] as const)('the gate blocks a %s decision', async (
     reason: 'Only a question.'
   });
 });
+
+test('the classifier bounds context and rethrows a workflow abort', async () => {
+  const prompts: string[] = [];
+  const classify = createAuthorizationClassifier({
+    model: 'm',
+    createAgent: fakeModel({ decision: 'allow', reason: 'Ok.' }, prompts)
+  });
+  await classify(createWorkflowContext(), {
+    action: 'a',
+    messages: ['yes'],
+    context: Array.from({ length: 15 }, (_, index) => `${index}:${'x'.repeat(10_000)}`)
+  });
+  const { context } = JSON.parse(prompts[0]!) as { context: string[] };
+  expect(context).toHaveLength(10);
+  expect(context[0]!.startsWith('5:')).toBe(true);
+  expect(context.every((entry) => entry.length === 8_000)).toBe(true);
+
+  const controller = new AbortController();
+  const aborting = createAuthorizationClassifier({
+    model: 'm',
+    createAgent: async (options) => {
+      const agent = await fakeModel({ decision: 'allow', reason: 'Ok.' })(options);
+      return {
+        ...agent,
+        async runOutcome(ctx: unknown, prompt: string) {
+          controller.abort(new Error('cancelled'));
+          return agent.runOutcome(ctx, prompt);
+        }
+      };
+    }
+  });
+  await expect(
+    aborting(
+      { ...createWorkflowContext(), signal: controller.signal },
+      { action: 'a', messages: ['yes'] }
+    )
+  ).rejects.toThrow('cancelled');
+});

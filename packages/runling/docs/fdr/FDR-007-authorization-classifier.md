@@ -24,6 +24,7 @@ function to block selected tool calls unless the decision is `allow`.
 - Errors, a timeout (60 seconds by default), and a missing decision return
   `unclear`. Cancellation of the workflow still throws.
 - The classifier sends at most the 20 newest messages, each cut to 4,000
+  characters, and at most the 10 newest context entries, each cut to 8,000
   characters.
 - `authorizationGate` classifies only the listed tools. Each tool has a function
   that describes a call as the action text. Any decision other than `allow`

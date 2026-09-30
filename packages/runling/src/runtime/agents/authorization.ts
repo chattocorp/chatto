@@ -56,6 +56,8 @@ export interface AuthorizationClassifierOptions {
 const MAX_ACTION = 60_000;
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE = 4_000;
+const MAX_CONTEXT = 10;
+const MAX_CONTEXT_ENTRY = 8_000;
 
 const decisionParameters = Type.Object({
   decision: Type.Union([Type.Literal('allow'), Type.Literal('deny'), Type.Literal('unclear')]),
@@ -111,6 +113,7 @@ export function createAuthorizationClassifier(
         }
       });
       await classifier.runOutcome({ ...ctx, signal }, classificationPrompt(request), { signal });
+      ctx.signal.throwIfAborted();
     } catch {
       ctx.signal.throwIfAborted();
       return decided ?? { decision: 'unclear', reason: 'The classifier could not decide.' };
@@ -126,7 +129,13 @@ function classificationPrompt(request: AuthorizationRequest): string {
   return JSON.stringify({
     ...(request.policy ? { policy: request.policy } : {}),
     proposedAction: request.action,
-    ...(request.context?.length ? { context: request.context } : {}),
+    ...(request.context?.length
+      ? {
+          context: request.context
+            .slice(-MAX_CONTEXT)
+            .map((entry) => entry.slice(0, MAX_CONTEXT_ENTRY))
+        }
+      : {}),
     messagesFromAuthorizedPeople: request.messages
       .slice(-MAX_MESSAGES)
       .map((message) => message.slice(0, MAX_MESSAGE))
