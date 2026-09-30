@@ -14,6 +14,9 @@ test.each([
   ['variable', 'get', 'NAME'],
   ['search', 'issues', 'flaky test', 'label:bug'],
   ['repo', 'view', 'chattocorp/chatto'],
+  // Branch names and text can contain slashes.
+  ['pr', 'list', '--head', 'dependabot/npm_and_yarn/x'],
+  ['run', 'list', '--branch=feature/a/b'],
   ['issue', 'view', 'https://github.com/chattocorp/chatto/issues/1'],
   ['issue', 'list', '-L', '5'],
   ['api', 'repos/{owner}/{repo}/issues/12/comments'],
@@ -34,6 +37,7 @@ test.each([
   ['pr', 'comment', '42', '--body', 'Looks good'],
   ['pr', 'merge', '42', '--squash'],
   ['label', 'delete', 'stale', '--yes'],
+  ['label', 'create', 'bug', '-f'],
   ['run', 'rerun', '123', '--failed'],
   ['run', 'cancel', '123'],
   ['workflow', 'run', 'ci.yml', '-f', 'debug=true'],
@@ -109,7 +113,13 @@ test.each([
   [['repo', 'view', 'metadata:8443/o/r']],
   [['repo', 'view', 'https://attacker.example/o/r ']],
   [['issue', 'view', 'https://github.com.attacker.example/o/r/issues/1']],
-  [['issue', 'create', '--title', 'See https://attacker.example/x for details']]
+  [['issue', 'create', '--title', 'See https://attacker.example/x for details']],
+  // --attach uploads a local file.
+  [['issue', 'comment', '12', '--attach', '/host/path/screenshot.png']],
+  // Whitespace after the host does not stop gh from parsing it.
+  [['issue', 'transfer', '1', 'evil.example/o/r x']],
+  [['repo', 'view', 'evil.example/o x/r']],
+  [['repo', 'view', 'git@evil.example:o/r x']]
 ])('the policy rejects %j', (args) => {
   expect(() => classify(...args)).toThrow(GhPolicyError);
 });

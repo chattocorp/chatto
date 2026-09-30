@@ -734,7 +734,8 @@ list leaves out gh aliases, programs and credentials (`alias`, `extension`,
 `auth`, `config`), and subcommands that read or write local files or Git state,
 such as `release create`, `release upload`, `run download`, `pr checkout`,
 `pr create`, and `repo clone`. The host also rejects file input (`--body-file`,
-`--notes-file`, `--env-file`, `--input`, `-F key=@file`), browsers and editors,
+`--notes-file`, `--env-file`, `--input`, `-F key=@file`, `--attach`), browsers
+and editors,
 `--repo`, `--hostname`, `--`, absolute API URLs, jq expressions that read the
 environment, and any argument that names another host: a URL, an scp-style
 `user@host:path`, or `HOST/OWNER/REPO`. Put text with links to other sites in

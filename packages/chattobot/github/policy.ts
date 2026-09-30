@@ -72,6 +72,7 @@ const DENIED_FLAGS = new Set([
   '--body-file',
   '--notes-file',
   '--env-file',
+  '--attach',
   '--input',
   '--web',
   '--editor',
@@ -85,15 +86,38 @@ const DENIED_SHORTHANDS = new Set(['-R', '-w', '-e']);
  * value of a preceding flag, so it cannot mark the end of flags safely. */
 const isFlag = (arg: string) => /^-[A-Za-z-]/.test(arg);
 
+/** Flags whose values gh never reads as a repository, such as branch names and text. Their values
+ * can contain slashes. */
+const TEXT_VALUE_FLAGS = new Set([
+  '--head',
+  '--base',
+  '--branch',
+  '--label',
+  '--add-label',
+  '--remove-label',
+  '--milestone',
+  '--title',
+  '--body',
+  '--search',
+  '--json',
+  '--jq',
+  '-q',
+  '--template'
+]);
+
 /** True when gh could contact a host other than github.com because of this argument: a URL to
- * another host anywhere in it, or, for a single token, an scp-style `user@host:path` or a
- * `HOST/OWNER/REPO` with three or more segments. Free text with inner spaces is not a selector. */
-function namesOtherHost(arg: string): boolean {
+ * another host anywhere in it, an scp-style `git@host:path`, or a `HOST/OWNER/REPO` with three
+ * or more segments. `text` marks the value of a flag in TEXT_VALUE_FLAGS, which gh does not read
+ * as a repository; only the URL check applies to it. */
+function namesOtherHost(arg: string, text: boolean): boolean {
   for (const [url] of arg.matchAll(/[a-z][a-z0-9+.-]*:\/\/\S*/gi))
     if (!/^https:\/\/github\.com\//i.test(url)) return true;
-  const token = arg.trim();
-  if (/\s/.test(token) || /^https:\/\/github\.com\//i.test(token)) return false;
-  return /^[^@\s]+@[^:\s]+:/.test(token) || /^[^/]+\/[^/]+\/./.test(token);
+  if (text) return false;
+  const value = arg.trimStart();
+  if (/^https:\/\/github\.com\//i.test(value)) return false;
+  // gh treats a `git@` prefix as an scp address and splits other values on `/`, whatever they
+  // contain, so whitespace after the host does not make an argument harmless.
+  return value.startsWith('git@') || /^[^/\s]+\/[^/]+\/[^/]/.test(value);
 }
 
 /** Split `--name=value`. Short flags are always two characters; checkFlags rejects clusters
@@ -114,16 +138,24 @@ const readsFile = (value: string) =>
 function checkFlags(args: readonly string[]) {
   const api = args[0] === 'api';
   const workflowRun = args[0] === 'workflow' && args[1] === 'run';
+  // In `label create` and `label edit`, -f is --force.
+  const label = args[0] === 'label';
   if (args.includes('--'))
     throw new GhPolicyError('`--` is not available. Pass values with their flags.');
   // gh contacts the host of a repository or URL argument. Only github.com is allowed; tokens are
   // limited to one repository there. `gh api` endpoints are checked separately.
   if (!api)
-    for (const arg of args)
-      if (namesOtherHost(arg))
+    for (let index = 0; index < args.length; index++) {
+      const arg = args[index]!;
+      const { name, value } = splitFlag(arg);
+      const text =
+        (value !== undefined && TEXT_VALUE_FLAGS.has(name)) ||
+        TEXT_VALUE_FLAGS.has(args[index - 1] ?? '');
+      if (namesOtherHost(value ?? arg, text))
         throw new GhPolicyError(
-          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Put text with other links in body.'
+          'Arguments can name only OWNER/REPO or https://github.com/ addresses. Put text with links to other sites in the body parameter of ghWrite.'
         );
+    }
   // Check every argument, including flag values: a value can hide a flag from a simple parser.
   const parsed = args;
   for (let index = 0; index < parsed.length; index++) {
@@ -139,7 +171,7 @@ function checkFlags(args: readonly string[]) {
         `${name} is not available. The host selects the repository, and commands cannot read local files, open a browser, or open an editor.`
       );
     // Outside `gh api` and `gh workflow run`, `-f` is the shorthand of `--env-file`.
-    if (name === '-f' && !api && !workflowRun)
+    if (name === '-f' && !api && !workflowRun && !label)
       throw new GhPolicyError('-f is not available here: it reads a file. Pass values directly.');
     if (name === '-F' && !api)
       throw new GhPolicyError(

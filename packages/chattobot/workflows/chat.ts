@@ -147,6 +147,7 @@ export const conversation = task(
     let delegationReported = false;
     const announce = async (text: string, signal: AbortSignal) => {
       await options.announce(text, signal);
+      lastPosted = text;
       delegationReported = true;
     };
     // PR URLs from task notifications. The supervisor writes every message in its own words,
@@ -273,6 +274,7 @@ export const conversation = task(
     const postRefusal = async (text: string) => {
       if (latestOrigin !== 'user' || refusalPosted) return;
       await ctx.emit(text);
+      lastPosted = text;
       refusalPosted = true;
     };
     const maintainerGate = defineAgentExtension((pi) => {
