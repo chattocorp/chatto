@@ -460,6 +460,50 @@
       ]
     },
     {
+      "name": "mention at the end of underscore emphasis",
+      "body": "_thanks @alice_",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mention at the end of strong underscore emphasis",
+      "body": "__thanks @alice__",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "mentions in underscore emphasis",
+      "body": "- _@alice_\n\nhey _@bob_ and _@carol_",
+      "mentions": [
+        "alice",
+        "bob",
+        "carol"
+      ]
+    },
+    {
+      "name": "mention at the end of star emphasis",
+      "body": "*thanks @alice*",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "trailing underscore in a handle",
+      "body": "@alice_ hi",
+      "mentions": [
+        "alice_"
+      ]
+    },
+    {
+      "name": "underscores inside a handle",
+      "body": "ping @user_name_x",
+      "mentions": [
+        "user_name_x"
+      ]
+    },
+    {
       "name": "backslash before mention",
       "body": "\\@alice",
       "mentions": [
