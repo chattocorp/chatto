@@ -133,7 +133,7 @@
     timestampSettings: TimeFormatSettings,
     timestampLocale: string | undefined
   ): Promise<string> {
-    const html = await renderMd(body);
+    const html = await renderMd(body, { mentions: true });
     const wrapped = resolveRenderedMentions(html, members, viewerLogin, roleHandles);
     const withTimestamps = wrapMessageTimestamps(
       wrapped,

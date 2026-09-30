@@ -15,10 +15,11 @@ export const MENTION_TOKEN_TYPE = 'mention';
 export const MENTION_HANDLE_ATTRIBUTE = 'data-mention-handle';
 
 /**
- * markdown-it `env` key that turns mention tokenization off for one render,
- * for surfaces without room members to resolve mentions against.
+ * markdown-it `env` key that turns mention tokenization on for one parse or
+ * render. Only message bodies have mentions; other Markdown surfaces, such as
+ * the MOTD and the server welcome message, leave `@handle` as plain text.
  */
-export const DISABLE_MENTIONS_ENV_KEY = 'disableMentions';
+export const MENTIONS_ENV_KEY = 'mentions';
 
 function isAlphanumeric(value: string): boolean {
   return /^[a-zA-Z0-9]$/.test(value);
@@ -131,7 +132,7 @@ function tokenizeInlineMentions(state: StateCore, children: Token[]): Token[] {
  * `testdata/mentions/extraction.json` keep both implementations in agreement.
  */
 function mentionCoreRule(state: StateCore): void {
-  if (state.env?.[DISABLE_MENTIONS_ENV_KEY] === true) return;
+  if (state.env?.[MENTIONS_ENV_KEY] !== true) return;
 
   let blockquoteDepth = 0;
   for (const token of state.tokens) {
@@ -146,6 +147,7 @@ function mentionCoreRule(state: StateCore): void {
 /**
  * markdown-it plugin that adds mention tokens and renders each one as an
  * unresolved candidate: `<span data-mention-handle="alice">@alice</span>`.
+ * The rule only runs when the markdown-it `env` sets {@link MENTIONS_ENV_KEY}.
  * Rendering does not know the room members; `resolveRenderedMentions` in
  * `$lib/mentions` resolves the candidates later.
  *

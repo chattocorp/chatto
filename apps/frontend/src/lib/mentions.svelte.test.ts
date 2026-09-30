@@ -27,7 +27,7 @@ async function render(
   roleHandles?: string[]
 ): Promise<string> {
   return resolveRenderedMentions(
-    await renderMarkdown(body),
+    await renderMarkdown(body, { mentions: true }),
     members,
     currentUserLogin,
     roleHandles
