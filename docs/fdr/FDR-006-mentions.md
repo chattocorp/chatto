@@ -152,8 +152,8 @@ prose. A rule based only on the character before `@` cannot tell
 **Tradeoff:** The server and the frontend use different Markdown and URL
 libraries, so their agreement depends on the shared cases. A URL form that the
 shared cases do not cover can still be interpreted differently. Known
-differences are rare bare-domain URLs that contain Markdown syntax, an entity,
-`|`, or `'`. Add a case when a difference is found.
+differences are rare URLs that contain Markdown syntax, an entity, `|`, `'`,
+`^`, a scheme directly after a letter, or a punycode top-level domain. Add a case when a difference is found.
 
 ## Permissions
 
