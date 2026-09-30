@@ -749,9 +749,9 @@ characters. Tokens and email addresses are removed from it.
 
 Every change needs a maintainer's request. The authorization classifier checks
 each `ghWrite` call against the maintainers' messages to the bot. It also
-receives host-recorded context: the changes that the bot made or offered in this
-conversation, and the bot's latest message as posted to the thread. So these
-all run a change:
+receives the changes that the bot made in this conversation, and the bot's
+latest message as posted to the thread. A short agreement, such as “yes”,
+counts only for a change that this message names. So these all run a change:
 
 - a direct request, such as “make a GH issue for this” or “how about filing an
   issue?”;
