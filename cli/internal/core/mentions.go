@@ -149,7 +149,8 @@ var mentionMarkdown = goldmark.New(
 			util.Prioritized(mentionInlineParser{}, 400),
 			util.Prioritized(parser.NewEmphasisParser(), 500),
 		),
-		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+		// No paragraph transformers: the frontend disables link reference
+		// definitions, so [@alice]: url stays text with a mention there.
 	)),
 )
 
@@ -200,7 +201,9 @@ func ExtractMentionUsernames(body string) []string {
 		}
 
 		switch node.Kind() {
-		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote, ast.KindLink, ast.KindAutoLink:
+		// The frontend disables images, so ![label](url) renders as "!"
+		// and a link: the label is link text there too.
+		case ast.KindCodeBlock, ast.KindFencedCodeBlock, ast.KindBlockquote, ast.KindLink, ast.KindAutoLink, ast.KindImage:
 			return ast.WalkSkipChildren, nil
 		case mentionNodeKind:
 			mention := node.(*mentionNode)

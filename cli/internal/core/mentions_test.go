@@ -66,6 +66,7 @@ func TestLinkifiedURLRanges(t *testing.T) {
 		{"mailto", "mailto:alice@example.com", []string{"mailto:alice@example.com"}},
 		{"protocol-relative URL", "(//localhost/@alice)", []string{"//localhost/@alice)"}},
 		{"protocol-relative URL after letter", "a//example.com/@alice", nil},
+		{"protocol-relative URL with single-label host", "a //x/@alice", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

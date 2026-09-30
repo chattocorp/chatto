@@ -31,9 +31,10 @@ var (
 	mentionLinkifySchemes = map[string]bool{"http://": true, "https://": true, "ftp://": true}
 
 	// mentionProtocolRelativeRegexp matches a protocol-relative URL such as
-	// //example.com/@alice. linkify-it links these with any host, including
-	// hosts without a top-level domain, which xurls does not match.
-	mentionProtocolRelativeRegexp = regexp.MustCompile(`//[a-zA-Z0-9][^\s<>]*`)
+	// //example.com/@alice. linkify-it links these for localhost and for any
+	// dotted host, also without a known top-level domain (//foo.local), which
+	// xurls does not match. A single-label host such as //x is not linked.
+	mentionProtocolRelativeRegexp = regexp.MustCompile(`//(?:localhost|[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+)[^\s<>]*`)
 
 	// mentionLinkifyTLDs holds the top-level domains that linkify-it accepts
 	// without a scheme. The frontend loads the full IANA list from the `tlds`

@@ -245,6 +245,18 @@
       ]
     },
     {
+      "name": "protocol-relative URL needs a dotted host",
+      "body": "a //x/@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "protocol-relative URL with a pseudo top-level domain",
+      "body": "//foo.local/@alice",
+      "mentions": []
+    },
+    {
       "name": "handle in emphasized bare-domain URL",
       "body": "*example.com/@alice*",
       "mentions": []
@@ -325,6 +337,27 @@
       "body": "<https://social.5f9.de/@alice> and @bob",
       "mentions": [
         "bob"
+      ]
+    },
+    {
+      "name": "mention in image syntax label",
+      "body": "![@alice](https://example.com/a.png) @bob",
+      "mentions": [
+        "bob"
+      ]
+    },
+    {
+      "name": "link reference definition is plain text",
+      "body": "[@alice]: https://example.com",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "reference-style link is plain text",
+      "body": "[@alice][r]\n\n[r]: https://example.com",
+      "mentions": [
+        "alice"
       ]
     },
     {
