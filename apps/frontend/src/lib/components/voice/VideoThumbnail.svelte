@@ -22,16 +22,11 @@ resolution to request for sidebar-width tiles.
 -->
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
-  import { onDestroy } from 'svelte';
   import { on } from 'svelte/events';
   import type { Track } from 'livekit-client';
   import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import {
-    endCallVideo,
-    registerCallVideo,
-    releaseCallVideo
-  } from '$lib/state/callPictureInPicture';
+  import { registerCallVideo, releaseCallVideo } from '$lib/state/callPictureInPicture';
 
   let {
     track,
@@ -57,8 +52,6 @@ resolution to request for sidebar-width tiles.
     fill?: boolean;
   } = $props();
 
-  let videoEl = $state<HTMLVideoElement | null>(null);
-
   /** Keep native mouse menus while the card still owns touch long-press gestures. */
   function nativeVideoMenu(element: HTMLVideoElement) {
     let fromTouch = false;
@@ -76,39 +69,13 @@ resolution to request for sidebar-width tiles.
     };
   }
 
-  // Track what's currently attached to avoid unnecessary detach/reattach cycles.
-  // The parent's audio level polling (60ms) triggers $derived recalculations that
-  // pass the same Track reference — we must not detach/reattach on those no-ops.
-  let attachedTrack: Track | null = null;
-  let attachedEl: HTMLVideoElement | null = null;
-
-  $effect(() => {
-    const t = track;
-    const el = videoEl;
-
-    if (t === attachedTrack && el === attachedEl) return;
-
-    if (attachedTrack && attachedEl) {
-      if (attachedEl === el) endCallVideo(attachedTrack);
-      releaseCallVideo(attachedTrack, attachedEl);
-    }
-
-    if (t && el) {
-      registerCallVideo(t, el);
-      t.attach(el);
-    }
-
-    attachedTrack = t ?? null;
-    attachedEl = el ?? null;
-  });
-
-  onDestroy(() => {
-    if (attachedTrack && attachedEl) {
-      releaseCallVideo(attachedTrack, attachedEl);
-      attachedTrack = null;
-      attachedEl = null;
-    }
-  });
+  /** Give each track its own element so a replacement cannot overwrite retained PiP media. */
+  function attachVideo(element: HTMLVideoElement) {
+    const attachedTrack = track;
+    registerCallVideo(attachedTrack, element);
+    attachedTrack.attach(element);
+    return () => releaseCallVideo(attachedTrack, element);
+  }
 </script>
 
 <div
@@ -118,17 +85,19 @@ resolution to request for sidebar-width tiles.
     fill ? 'h-full min-h-0' : 'aspect-video'
   ]}
 >
-  <video
-    bind:this={videoEl}
-    {@attach nativeVideoMenu}
-    width="640"
-    height="360"
-    class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}
-    title={formatAccountName(name, user)}
-    autoplay
-    playsinline
-    muted
-  ></video>
+  {#key track}
+    <video
+      {@attach attachVideo}
+      {@attach nativeVideoMenu}
+      width="640"
+      height="360"
+      class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}
+      title={formatAccountName(name, user)}
+      autoplay
+      playsinline
+      muted
+    ></video>
+  {/key}
   {#if showIdentityOverlay}
     <div class="absolute start-2 top-2 h-6 w-6 rounded-full ring-[1.5px] ring-surface">
       <UserAvatar {user} size="xs" />

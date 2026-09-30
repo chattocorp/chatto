@@ -3,9 +3,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { LocalVideoTrack } from 'livekit-client';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { registerCallVideo, releaseCallVideo } from '$lib/state/callPictureInPicture';
 import { toast } from '$lib/ui/toast';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
+import VideoThumbnail from './VideoThumbnail.svelte';
 
 let currentVideo: Element | null;
 
@@ -161,6 +163,47 @@ function mediaCards(container: HTMLElement) {
 function pipButton(card: HTMLElement) {
   return card.querySelector<HTMLButtonElement>('[data-testid="call-feed-pip-button"]')!;
 }
+
+it('retains the original PiP stream when a tile is reused for another track', async () => {
+  const original = new LocalVideoTrack(
+    document.createElement('canvas').captureStream().getVideoTracks()[0]
+  );
+  const replacement = new LocalVideoTrack(
+    document.createElement('canvas').captureStream().getVideoTracks()[0]
+  );
+  const screen = render(VideoThumbnail, {
+    props: {
+      track: original,
+      name: 'Participant',
+      showIdentityOverlay: false,
+      user: {
+        id: 'participant',
+        login: 'participant',
+        displayName: 'Participant',
+        isBot: false,
+        deleted: false,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.OFFLINE
+      }
+    }
+  });
+  try {
+    const video = screen.container.querySelector('video')!;
+    enterPictureInPicture(video);
+    await screen.rerender({ track: replacement });
+    expect(currentVideo).toBe(video);
+    expect(document.exitPictureInPicture).not.toHaveBeenCalled();
+    expect(video.isConnected).toBe(true);
+    expect(original.attachedElements).toContain(video);
+    expect(screen.container.querySelector('video')).not.toBe(video);
+    expect(replacement.attachedElements).toContain(screen.container.querySelector('video'));
+  } finally {
+    await document.exitPictureInPicture();
+    await screen.unmount();
+    original.stop();
+    replacement.stop();
+  }
+});
 
 it.each([
   ['sidebar', 'screen'],
