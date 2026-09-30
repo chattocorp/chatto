@@ -1,7 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 /**
  * Unit tests for mention parsing utilities (pure functions).
- * Tests for wrapValidMentions are in mentions.svelte.test.ts (requires browser APIs).
+ * Tests for resolveRenderedMentions are in mentions.svelte.test.ts (requires browser APIs).
  */
 import { describe, it, expect } from 'vitest';
 import {

@@ -805,9 +805,19 @@ describe('MessageContent component', () => {
   });
 
   describe('mention wiring', () => {
-    // wrapValidMentions itself is exhaustively tested in $lib/mentions.svelte.test.ts.
-    // These tests assert that MessageContent actually invokes it — i.e., that the
-    // wrapper class shows up in the rendered DOM when a matching member is present.
+    // resolveRenderedMentions itself is exhaustively tested in
+    // $lib/mentions.svelte.test.ts. These tests assert that MessageContent renders
+    // mention candidates and resolves them, i.e. that the mention class shows up
+    // in the rendered DOM when a matching member is present.
+    it('keeps a member handle in a URL as literal link text', async () => {
+      const url = 'https://social.5f9.de/@alice/117331230238178837';
+      const { container } = renderMessage(`Zum Thema ${url}`, [
+        { ...member('alice'), displayName: 'Alice Smith' }
+      ]);
+      await expect.poll(() => q(container, 'a')?.textContent).toBe(url);
+      expect(q(container, 'span.mention')).toBeNull();
+    });
+
     it('wraps a known @mention in span.mention when members include the login', async () => {
       const { container } = renderMessage('Hello @alice!', [member('alice')]);
       await expect.poll(() => q(container, 'span.mention')).toBeTruthy();
