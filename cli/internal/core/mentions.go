@@ -103,9 +103,10 @@ func isMentionHandleChar(c byte) bool {
 
 var mentionMarkdown = goldmark.New(
 	goldmark.WithParser(parser.NewParser(
+		// Only the block syntax that the frontend renders: it disables
+		// setext headings and thematic breaks, so a "---" line cannot end
+		// a blockquote there.
 		parser.WithBlockParsers(
-			util.Prioritized(parser.NewSetextHeadingParser(), 100),
-			util.Prioritized(parser.NewThematicBreakParser(), 200),
 			util.Prioritized(parser.NewListParser(), 300),
 			util.Prioritized(parser.NewListItemParser(), 400),
 			util.Prioritized(parser.NewCodeBlockParser(), 500),
@@ -126,12 +127,11 @@ var mentionMarkdown = goldmark.New(
 )
 
 func mentionMarkdownSource(body string) string {
-	// Chatto's message renderer disables Markdown backslash escapes, so
-	// \` still participates in code-span parsing and \@alice still contains
-	// a visible mention boundary. Goldmark's inline loop hardcodes backslash
-	// escaping, so normalize just those cases for mention extraction.
-	body = strings.ReplaceAll(body, "\\`", "`")
-	return strings.ReplaceAll(body, "\\@", "\\\\@")
+	// Chatto's message renderer disables Markdown backslash escapes, so a
+	// backslash never changes the Markdown structure there. Goldmark's inline
+	// loop hardcodes backslash escaping; doubling every backslash makes
+	// goldmark read each original backslash as a literal character.
+	return strings.ReplaceAll(body, "\\", "\\\\")
 }
 
 // ExtractMentionUsernames extracts all unique @username mentions from a message body.

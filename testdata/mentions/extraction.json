@@ -433,6 +433,23 @@
       ]
     },
     {
+      "name": "dash line continues a blockquote",
+      "body": "> quote\n---\n@alice",
+      "mentions": []
+    },
+    {
+      "name": "star line continues a blockquote",
+      "body": "> quote\n***\n@alice",
+      "mentions": []
+    },
+    {
+      "name": "dash line after a paragraph",
+      "body": "Title\n---\n@alice",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
       "name": "mention inside emphasis",
       "body": "*@alice* and **@bob**",
       "mentions": [
@@ -508,6 +525,26 @@
       "body": "\\@alice",
       "mentions": [
         "alice"
+      ]
+    },
+    {
+      "name": "backslash before link syntax",
+      "body": "\\[@alice](https://example.com)",
+      "mentions": []
+    },
+    {
+      "name": "backslash before emphasis",
+      "body": "\\_thanks @alice_",
+      "mentions": [
+        "alice"
+      ]
+    },
+    {
+      "name": "backslash at line end",
+      "body": "@alice\\\n@bob",
+      "mentions": [
+        "alice",
+        "bob"
       ]
     },
     {
