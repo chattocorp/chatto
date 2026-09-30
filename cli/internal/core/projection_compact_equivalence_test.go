@@ -51,7 +51,8 @@ func newPrivateCompactProjections() *compactProjections {
 // production wiring does. The table first interns foreignIDs unrelated IDs, so
 // the handles differ from those of a private table. The projections' own ID
 // tables first intern the user, room, and emoji IDs in reverse order, so their
-// handle order differs from the order of the history.
+// handle order differs from the order of the history. A restore replaces these
+// tables with tables in snapshot order, which differs again.
 func newSharedCompactProjections(foreignIDs int) *compactProjections {
 	table := newEventIDTable()
 	for i := range foreignIDs {
@@ -471,11 +472,6 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 		}
 		return strings.Join(parts, " | ")
 	}
-	sorted := func(values []string) []string {
-		values = slices.Clone(values)
-		slices.Sort(values)
-		return values
-	}
 
 	tl := c.timeline
 	for _, id := range h.messages {
@@ -534,7 +530,7 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 			metadata.LatestReplyEventID, metadata.ParticipantCount, metadata.ParticipantIDs, lastReply, th.ParticipantIDs(id))
 		for _, roomID := range h.rooms {
 			root, ok := th.ThreadRootForMessage(roomID, id)
-			line("thread root %s in %s: %s %v followers=%v", id, roomID, root, ok, sorted(th.ThreadFollowers(roomID, id)))
+			line("thread root %s in %s: %s %v followers=%v", id, roomID, root, ok, th.ThreadFollowers(roomID, id))
 			for _, userID := range h.users {
 				line("thread user %s %s %s: follow=%q interaction=%v", userID, roomID, id, th.FollowState(userID, roomID, id), th.HasInteraction(userID, roomID, id))
 			}
@@ -546,7 +542,7 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 		for i, ref := range followed {
 			refs[i] = ref.roomID + "/" + ref.threadRootEventID
 		}
-		line("thread followed %s: %v", userID, sorted(refs))
+		line("thread followed %s: %v", userID, refs)
 	}
 	threads, threadEntries, replies := th.Stats()
 	line("thread stats: %d %d %d %d", threads, threadEntries, replies, th.ThreadCount())

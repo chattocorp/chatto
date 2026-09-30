@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -228,35 +229,40 @@ func TestEventIDTable_ReadsPublishedHandlesDuringGrowth(t *testing.T) {
 	table := newEventIDTable()
 	const writers, perWriter = 4, 3 * idLocationPageSize
 	var published sync.Map
-	var wg sync.WaitGroup
+	var writing sync.WaitGroup
+	var done atomic.Bool
 	for writer := range writers {
-		wg.Go(func() {
+		writing.Go(func() {
 			for i := range perWriter {
 				id := fmt.Sprintf("W%d-%06d", writer, i)
 				published.Store(id, table.intern(id))
 			}
 		})
 	}
+	var reading sync.WaitGroup
 	for range 4 {
-		wg.Go(func() {
-			for i := range perWriter {
-				id := fmt.Sprintf("W%d-%06d", i%writers, i)
-				value, ok := published.Load(id)
-				if !ok {
-					continue
-				}
-				if got := table.id(value.(uint32)); got != id {
-					t.Errorf("id(%d) = %q, want %q", value, got, id)
-					return
-				}
-				if handle, ok := table.lookup(id); !ok || handle != value.(uint32) {
-					t.Errorf("lookup(%q) = %d, %v; want %d, true", id, handle, ok, value)
-					return
-				}
+		reading.Go(func() {
+			// Read every published ID until the writers finish, then once more.
+			for last := false; !last; {
+				last = done.Load()
+				published.Range(func(key, value any) bool {
+					id, handle := key.(string), value.(uint32)
+					if got := table.id(handle); got != id {
+						t.Errorf("id(%d) = %q, want %q", handle, got, id)
+						return false
+					}
+					if got, ok := table.lookup(id); !ok || got != handle {
+						t.Errorf("lookup(%q) = %d, %v; want %d, true", id, got, ok, handle)
+						return false
+					}
+					return true
+				})
 			}
 		})
 	}
-	wg.Wait()
+	writing.Wait()
+	done.Store(true)
+	reading.Wait()
 	if got := table.len(); got != writers*perWriter {
 		t.Fatalf("len = %d, want %d", got, writers*perWriter)
 	}
