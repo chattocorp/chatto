@@ -66,8 +66,13 @@ const DENIED_FLAGS = new Set([
 /** Their shorthand forms. */
 const DENIED_SHORTHANDS = new Set(['-R', '-w', '-e']);
 
-/** True for an argument that gh parses as a flag. After `--`, gh parses no more flags. */
-const isFlag = (arg: string) => /^-[A-Za-z-]/.test(arg) && arg !== '--';
+/** True for an argument that gh can parse as a flag. The policy rejects `--`: gh reads it as the
+ * value of a preceding flag, so it cannot mark the end of flags safely. */
+const isFlag = (arg: string) => /^-[A-Za-z-]/.test(arg);
+
+/** A `[HOST/]OWNER/REPO` argument with a host other than github.com makes gh contact that host. */
+const OTHER_HOST_REPOSITORY =
+  /^(?!github\.com\/)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?::\d+)?\/[^\s/]+\/[^\s/]+/i;
 
 /** Split `--name=value`. Short flags are always two characters; checkFlags rejects clusters
  * such as `-cq` and attached values such as `-L5` or `-F=x`, which gh would parse in ways
@@ -76,10 +81,6 @@ function splitFlag(arg: string): { name: string; value?: string } {
   const index = arg.startsWith('--') ? arg.indexOf('=') : -1;
   return index === -1 ? { name: arg } : { name: arg.slice(0, index), value: arg.slice(index + 1) };
 }
-
-/** Arguments before the `--` separator, where gh parses flags. */
-const flagArgs = (args: readonly string[]) =>
-  args.includes('--') ? args.slice(0, args.indexOf('--')) : args;
 
 /** True when a `-F` field value reads a file or standard input (`key=@path`, `@-`). */
 const readsFile = (value: string) =>
@@ -90,12 +91,19 @@ const readsFile = (value: string) =>
  * the environment. */
 function checkFlags(args: readonly string[]) {
   const api = args[0] === 'api';
+  const workflowRun = args[0] === 'workflow' && args[1] === 'run';
+  if (args.includes('--'))
+    throw new GhPolicyError('`--` is not available. Pass values with their flags.');
   // A value can be a URL, but a bare URL to another host is a positional argument that makes gh
   // contact that host. GitHub URLs are fine: tokens are limited to one repository.
   for (const arg of args)
     if (!/\s/.test(arg) && /:\/\//.test(arg) && !/^https:\/\/github\.com\//.test(arg) && !api)
       throw new GhPolicyError('Arguments can link only to https://github.com/.');
-  const parsed = flagArgs(args);
+  for (const arg of args)
+    if (OTHER_HOST_REPOSITORY.test(arg))
+      throw new GhPolicyError('Repositories on other hosts are not available.');
+  // Check every argument, including flag values: a value can hide a flag from a simple parser.
+  const parsed = args;
   for (let index = 0; index < parsed.length; index++) {
     const arg = parsed[index]!;
     if (!isFlag(arg)) continue;
@@ -108,6 +116,9 @@ function checkFlags(args: readonly string[]) {
       throw new GhPolicyError(
         `${name} is not available. The host selects the repository, and commands cannot read local files, open a browser, or open an editor.`
       );
+    // Outside `gh api` and `gh workflow run`, `-f` is the shorthand of `--env-file`.
+    if (name === '-f' && !api && !workflowRun)
+      throw new GhPolicyError('-f is not available here: it reads a file. Pass values directly.');
     if (name === '-F' && !api)
       throw new GhPolicyError(
         '-F is not available here: it reads files. Pass text with body, or fields with -f.'
@@ -154,10 +165,6 @@ function classifyApi(args: readonly string[]): GhCommand {
   const positionals: string[] = [];
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
-    if (arg === '--') {
-      positionals.push(...args.slice(index + 1));
-      break;
-    }
     if (!isFlag(arg)) {
       positionals.push(arg);
       continue;
