@@ -19,8 +19,11 @@ Do not generate playground links for code written into this repository.
 - Server data lives in `@chatto/client` (`packages/chatto-client/`):
   connections, sessions, the realtime projection, and the server and room
   data. Follow [its instructions](../../packages/chatto-client/AGENTS.md) when
-  you change it. Import its modules as `@chatto/client/<path>`. Put data and
-  operations that integrations can use there (ADR-111).
+  you change it. Import its modules as `@chatto/client/<path>`. Put generic
+  client behavior there, also when only this frontend uses it now. Do not
+  implement client behavior again in `$lib`. The root
+  [AGENTS.md](../../AGENTS.md#chatto-client-and-bundled-frontend) has the
+  rule (ADR-111).
   `$lib/client` creates the frontend's one client and exports it with its
   parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
   Import them from there.

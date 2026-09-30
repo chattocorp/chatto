@@ -27,6 +27,26 @@ needed to extract and validate the shared framework. Move Authling to its own
 repository when the shared boundary is stable. Do not describe this repository
 as its permanent home. Do not add coupling that makes this move more difficult.
 
+### Chatto Client And Bundled Frontend
+
+Chatto has one client: `@chatto/client` in `packages/chatto-client/`. The
+bundled frontend in `apps/frontend/`, ChattoBot, and third-party bots and
+frontends use it. See ADR-111.
+
+- Put generic client behavior in `@chatto/client`: requests to Chatto servers,
+  sessions, realtime delivery, server and room data, privacy fences, and the
+  operations on this data. Do this also when only the bundled frontend uses
+  the behavior now.
+- Put the behavior of the bundled frontend in `apps/frontend/`: components,
+  routes, translated text, toasts, sounds, UI state such as navigation, search
+  sessions, and call media, and the frontend's caches.
+- To decide, ask: does a different host, such as a bot or a different
+  frontend, need this behavior to use Chatto correctly? If yes, put it in
+  `@chatto/client`. If only the screens or flows of the bundled frontend need
+  it, put it in the frontend.
+- The frontend uses the client. The client never calls into the frontend.
+  Do not implement client behavior again in the frontend.
+
 ## Prime Directives
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
@@ -57,8 +77,8 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
-  framework-neutral Chatto client: stores, realtime projection, sessions,
-  reactivity, and its Svelte adapter.
+  framework-neutral Chatto client: what belongs in it, stores, realtime
+  projection, sessions, reactivity, and its Svelte adapter.
 - [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
   only the supervisor talks to users, with no hardcoded user-facing text.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,

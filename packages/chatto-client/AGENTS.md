@@ -9,6 +9,15 @@ examples use it. See
 
 ## Boundary
 
+- Put generic client behavior here, also when only the bundled frontend uses
+  it now: requests, sessions, realtime delivery, server data, privacy fences,
+  and the operations on server data. The root
+  [AGENTS.md](../../AGENTS.md#chatto-client-and-bundled-frontend) has the
+  rule. A new server feature usually adds a facade in `src/api/` and, when
+  hosts read its data, state in the server or room stores.
+- The frontend keeps some API modules that only its screens use: admin
+  tools, first-run setup, Web Push, and the cross-tab session channel
+  (ADR-111). Do not add generic requests there.
 - Keep the package framework-neutral. Only `src/svelte/` may import Svelte.
   Do not use runes, `svelte/reactivity`, or `$lib`/`$app` imports anywhere
   else. `src/reactivity/boundary.test.ts` enforces this.
