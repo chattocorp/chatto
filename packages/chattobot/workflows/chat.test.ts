@@ -29,11 +29,12 @@ test.each([
   const post = vi.fn(async () => {});
   const createAgent = vi.fn(async () => ({
     async runOutcome(_ctx: unknown, prompt: string, options?: AgentRunOptions) {
+      // The message to answer is apart from the thread, which is background.
       expect(JSON.parse(prompt)).toEqual({
-        thread: [{ id: 'earlier', role: 'human', body: 'eins, zwei, drei' }],
-        currentMessage: 'Hello!',
-        origin: 'user',
-        requesterIsMaintainer: false,
+        // Another person's message is not in the prompt; readThread returns it on request.
+        unreadThreadMessages: 1,
+        message: { from: 'someone', fromMaintainer: false, text: 'Hello!' },
+        recentMessagesToYou: ['Hello!'],
         backgroundTasks: [],
         savedImplementationPlans: []
       });
@@ -92,11 +93,10 @@ test.each([
       output: 'text',
       allowEmptyResponse: true,
       tools: thread
-        ? ['fetchPage', 'investigateChatto', 'task_send', 'task_cancel']
-        : ['fetchPage'],
-      extensions: thread
-        ? [expect.any(Function), expect.any(Function), expect.any(Function), expect.any(Function)]
-        : [expect.any(Function)],
+        ? ['readThread', 'fetchPage', 'investigateChatto', 'task_send', 'task_cancel']
+        : ['readThread', 'fetchPage'],
+      // The prompt hygiene extension comes first, then the gates and tools.
+      extensions: Array(thread ? 6 : 3).fill(expect.any(Function)),
       resources: {
         extensions: false,
         skills: false,
@@ -125,17 +125,16 @@ test('implementation is a separate opt-in tool with host-result reporting instru
     implementation: { directory: '/configured/chatto', repository: 'example/chatto' },
     createAgent: async (options) => {
       expect(options.tools).toEqual([
+        'readThread',
         'fetchPage',
         'implementChatto',
         'askImplementation',
         'task_send',
         'task_cancel'
       ]);
-      expect(options.systemPrompt).toContain('conversational assistant');
-      expect(options.instructions?.join('\n')).toContain(
-        'the pull request URL exactly as result.prUrl'
-      );
-      expect(options.instructions?.join('\n')).not.toContain('Implementation is disabled.');
+      expect(options.systemPrompt).toContain('You are ChattoBot');
+      expect(options.instructions?.join('\n')).toContain('implementChatto starts a worker');
+      expect(options.instructions?.join('\n')).not.toContain('Implementation is not available.');
       return {
         dispose: () => {},
         steer: async () => false,
@@ -185,17 +184,16 @@ test('language context uses human input even when the thread contains a wrong-la
       olderOmitted: false
     }),
     createAgent: async (options) => {
-      expect(options.instructions?.join('\n')).toContain(
-        'Never adopt a language from your own earlier replies'
-      );
+      expect(options.instructions?.join('\n')).toContain('Nothing else chooses the language.');
       return {
         dispose: () => {},
         steer: async () => false,
         async runOutcome(_ctx, prompt) {
+          // The bot's own earlier reply is marked as its own and does not set the language.
           expect(JSON.parse(prompt)).toMatchObject({
-            origin: 'user',
-            currentMessage: 'Hello!',
-            thread: [{ id: 'prior', role: 'bot', body: '我正在调查' }]
+            message: { text: 'Hello!' },
+            recentMessagesToYou: ['Hello!'],
+            earlierThreadMessages: [{ from: 'you', text: '我正在调查' }]
           });
           return { outcome: 'completed', summary: '', usage: emptyTokenUsage() };
         }
@@ -273,13 +271,13 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
     return { messages: [], olderOmitted: false };
   });
   const runOutcome = vi.fn(async (_ctx, prompt: string) => {
-    messages.push(JSON.parse(prompt).currentMessage);
+    messages.push(JSON.parse(prompt).message.text);
     await finished;
     return { outcome: 'completed' as const, summary: 'Done', usage: emptyTokenUsage() };
   });
   const steer = vi.fn(async (prompt: string) => {
     expect(runOutcome).toHaveBeenCalledOnce();
-    messages.push(JSON.parse(prompt).currentMessage);
+    messages.push(JSON.parse(prompt).message.text);
     return new Promise<boolean>((resolve) => receipts.push(() => resolve(true)));
   });
   const bot = createChattoBot({
@@ -391,24 +389,21 @@ test('a later turn gets only new thread messages, read after the saved cursor', 
   );
   expect(prompts).toHaveLength(2);
   expect(acknowledged).toEqual(['root']);
-  // Only the first turn names the run, for the supervisor to announce.
+  // The prompt does not name the run.
+  expect(JSON.parse(prompts[0]!)).not.toHaveProperty('runName');
   expect(JSON.parse(prompts[0]!)).toMatchObject({
-    runName: 'funky-comics-8426',
-    thread: [{ id: 'root', role: 'human', body: 'Hey' }],
+    earlierThreadMessages: [{ from: 'someone', text: 'Hey' }],
     olderThreadMessagesOmitted: true
   });
   // The second turn reads after the cursor and gets only what the supervisor has not seen:
   // not its own reply, and not the message that woke it.
   expect(readThread.mock.calls[1]![2]).toBe('c1');
   expect(JSON.parse(prompts[1]!)).toEqual({
-    newThreadMessages: [
-      { id: 'count', role: 'human', authorName: 'Bob', body: 'eins, zwei, drei' }
-    ],
-    currentMessage: "What's next?",
-    currentAuthor: 'Alice',
+    // Bob wrote to someone else: counted, and available through readThread.
+    unreadThreadMessages: 1,
+    message: { from: 'Alice', fromMaintainer: false, text: "What's next?" },
     savedImplementationPlans: [],
-    origin: 'user',
-    requesterIsMaintainer: false,
+    recentMessagesToYou: ['Hello!', "What's next?"],
     backgroundTasks: []
   });
 });
@@ -460,7 +455,7 @@ test('a queued message read in an earlier turn keeps its author', async () => {
   await bot(createWorkflowContext(), { ...delivery, triggers: ['mention'] });
   expect(prompts).toHaveLength(2);
   const second = JSON.parse(prompts[1]!);
-  expect(second).toMatchObject({ currentMessage: 'Und jetzt?', currentAuthor: 'Dana' });
+  expect(second).toMatchObject({ message: { text: 'Und jetzt?', from: 'Dana' } });
   expect(second).not.toHaveProperty('newThreadMessages');
 });
 
@@ -556,7 +551,7 @@ test('maintainer tools follow the author of the latest human message', async () 
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
           on: (name: string, handler: (event: unknown) => Promise<unknown>) => {
-            if (name === 'tool_call') gate = handler;
+            if (name === 'tool_call') gate ??= handler; // The maintainer gate comes first.
           },
           registerTool() {}
         } as unknown as import('runling/agents').AgentExtensionAPI);
@@ -564,7 +559,7 @@ test('maintainer tools follow the author of the latest human message', async () 
       return {
         async runOutcome(_ctx: unknown, prompt: string) {
           decisions.push({
-            flag: JSON.parse(prompt).requesterIsMaintainer,
+            flag: JSON.parse(prompt).message.fromMaintainer,
             gate: await gate!({ type: 'tool_call', toolName: 'investigateChatto', input: {} }),
             open: await gate!({ type: 'tool_call', toolName: 'fetchPage', input: {} })
           });

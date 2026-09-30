@@ -90,7 +90,7 @@ test('a notification turn cannot cancel a task; a person can', async () => {
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
           on: (name: string, handler: (event: unknown) => Promise<unknown>) => {
-            if (name === 'tool_call') gate = handler;
+            if (name === 'tool_call') gate ??= handler; // The maintainer gate comes first.
           },
           registerTool() {}
         } as unknown as import('runling/agents').AgentExtensionAPI);

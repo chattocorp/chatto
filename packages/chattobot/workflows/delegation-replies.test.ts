@@ -36,7 +36,7 @@ test.each(['accepted', 'refused'])(
         const factory = typeof extension === 'function' ? extension : extension.factory;
         await factory({
           on(name: string, handler: (event: unknown) => Promise<unknown>) {
-            if (name === 'tool_call') gate = handler;
+            if (name === 'tool_call') gate ??= handler; // The maintainer gate comes first.
           },
           registerTool(tool: { name: string }) {
             tools.set(tool.name, tool as never);
@@ -99,6 +99,7 @@ test.each(['accepted', 'refused'])(
         onBusy() {},
         setReplyContext() {},
         requester: () => 'human',
+        isAddressed: () => true,
         announce: async (text) => {
           replies.push(text);
         }

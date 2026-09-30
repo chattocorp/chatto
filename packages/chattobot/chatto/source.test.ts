@@ -323,7 +323,7 @@ test.each([
   [{ CHATTO_URL: 'not a url' }, 'CHATTO_URL must be an HTTP or HTTPS URL without credentials'],
   [
     { CHATTO_SOURCE_DIRECTORY: '/configured/chatto', CHATTO_MAINTAINER_USER_IDS: '' },
-    'Source investigation and implementation require CHATTO_MAINTAINER_USER_IDS'
+    'Source investigation, implementation, and GitHub access require CHATTO_MAINTAINER_USER_IDS'
   ],
   [
     { CHATTO_MAINTAINER_USER_IDS: 'alice; drop table' },
@@ -332,6 +332,17 @@ test.each([
   [
     { CHATTO_CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef' },
     'Set both CHATTO_CLOUDFLARE_ACCOUNT_ID and CHATTO_CLOUDFLARE_API_TOKEN, or neither'
+  ],
+  [
+    { CHATTO_GITHUB_APP_CLIENT_ID: 'Iv23liExample1' },
+    'Set both CHATTO_GITHUB_APP_CLIENT_ID and CHATTO_GITHUB_APP_PRIVATE_KEY_FILE, or neither'
+  ],
+  [
+    {
+      CHATTO_GITHUB_APP_CLIENT_ID: 'Iv23liExample1',
+      CHATTO_GITHUB_APP_PRIVATE_KEY_FILE: '/nonexistent/secret-key.pem'
+    },
+    'CHATTO_GITHUB_APP_PRIVATE_KEY_FILE must name a readable GitHub App private key (.pem)'
   ],
   [
     { CHATTO_URL: 'https://user:secret@chat.example' },

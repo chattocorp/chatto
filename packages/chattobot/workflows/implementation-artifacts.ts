@@ -4,11 +4,23 @@ import { resolve } from 'node:path';
 import { Type, type Static } from 'runling';
 import { implementationPlanSchema } from './plan.ts';
 
+/** A GitHub issue that an implementation resolves. The host reads it from GitHub; its text is
+ * untrusted public content. */
+export const githubIssueSchema = Type.Object({
+  repository: Type.String({ pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' }),
+  number: Type.Integer({ minimum: 1 }),
+  title: Type.String({ maxLength: 1_000 }),
+  body: Type.String({ maxLength: 60_000 }),
+  url: Type.String({ maxLength: 500 })
+});
+export type GitHubIssue = Static<typeof githubIssueSchema>;
+
 /** Input accepted by an implementation task. */
 export const implementationInput = Type.Object({
   request: Type.String({ minLength: 1, maxLength: 12_000 }),
   context: Type.Optional(Type.String({ maxLength: 24_000 })),
   plan: Type.Optional(implementationPlanSchema),
+  issue: Type.Optional(githubIssueSchema),
   resumeArtifactId: Type.Optional(Type.String({ pattern: '^implementation-[A-Za-z0-9_-]{6,}$' }))
 });
 export type ImplementationInput = Static<typeof implementationInput>;
@@ -41,7 +53,7 @@ export interface ImplementationMetadata {
   /** Hash of the conversation's thread key, never raw Chatto identifiers. */
   ownerKey?: string;
   /** Original input, retained so a new worker can continue the same request. */
-  input?: Pick<ImplementationInput, 'request' | 'context'> & { plan?: unknown };
+  input?: Pick<ImplementationInput, 'request' | 'context' | 'issue'> & { plan?: unknown };
   /** Worker-authored continuation notes. The resumed worker must verify them against the diff. */
   handoff?: { summary: string; nextSteps: string[]; risks: string[] };
   /** Later user instructions from resume requests, oldest first. They refine the original request. */
@@ -65,6 +77,20 @@ function isHandoff(value: unknown): value is NonNullable<ImplementationMetadata[
     shortList(handoff.risks)
   );
 }
+/** Check a retained issue before it reaches a new model session or a PR body. */
+function isIssue(value: unknown): value is GitHubIssue {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const issue = value as Record<string, unknown>;
+  return (
+    typeof issue.repository === 'string' &&
+    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(issue.repository) &&
+    Number.isSafeInteger(issue.number) &&
+    (issue.number as number) > 0 &&
+    typeof issue.title === 'string' &&
+    typeof issue.body === 'string' &&
+    typeof issue.url === 'string'
+  );
+}
 /** Reject malformed or incomplete local metadata before selecting a worktree. */
 function isImplementationMetadata(value: unknown): value is ImplementationMetadata {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -85,6 +111,7 @@ function isImplementationMetadata(value: unknown): value is ImplementationMetada
     typeof metadata.ownerKey === 'string' &&
     typeof input.request === 'string' &&
     (input.context === undefined || typeof input.context === 'string') &&
+    (input.issue === undefined || isIssue(input.issue)) &&
     (metadata.commit === undefined || typeof metadata.commit === 'string') &&
     (metadata.prUrl === undefined || typeof metadata.prUrl === 'string') &&
     (metadata.handoff === undefined || isHandoff(metadata.handoff)) &&

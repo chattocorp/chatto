@@ -1271,7 +1271,7 @@ test('the supervisor hears each milestone; a CI failure and its job log go to th
       (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
         .text!
     );
-    await vi.waitFor(() => expect(woken.at(-1)?.type).toBe('task.completed'));
+    await vi.waitFor(() => expect(woken.at(-1)?.type).toBe('task.completed'), { timeout: 10_000 });
     // Each stage reaches the supervisor as facts; it tells the user in its own words.
     expect(woken.map((notice) => notice.data?.milestone ?? notice.type)).toEqual([
       'validating',
@@ -1761,6 +1761,8 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
     dispose: () => {},
     async runOutcome(_ctx: unknown, prompt: string) {
       expect(JSON.parse(prompt).plan).toEqual(plan);
+      // The host passes the issue that it read to the worker.
+      expect(JSON.parse(prompt).issue).toMatchObject({ number: 12, title: 'Wrong value' });
       started.resolve();
       await finish.promise;
       const call = await workerTools(options);
@@ -1772,7 +1774,14 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
   const extension = implementationExtension(ctx, f.settings, announce, tasks, {
     execute: f.execute,
     createAgent,
-    plans: new Map([['investigation', plan]])
+    plans: new Map([['investigation', plan]]),
+    fetchIssue: async (number) => ({
+      repository: 'example/chatto',
+      number,
+      title: 'Wrong value',
+      body: 'The value is wrong.',
+      url: `https://github.com/example/chatto/issues/${number}`
+    })
   });
   const call = await workerTools({
     cwd: f.settings.directory,
@@ -1791,6 +1800,7 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
     const pending = call('implementChatto', {
       request: 'Fix the value',
       investigationId: 'investigation',
+      issueNumber: 12,
       announcement: "I'll implement the fix and run its checks."
     });
     await vi.waitFor(() => expect(announce).toHaveBeenCalledOnce());
@@ -1812,6 +1822,7 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
       outcome: 'completed',
       prUrl: 'https://github.com/example/chatto/pull/7'
     });
+    expect(f.body).toMatch(/\n\nCloses #12\.$/);
     expect(announce).toHaveBeenCalledOnce();
   } finally {
     delivered.resolve();

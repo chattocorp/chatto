@@ -128,7 +128,13 @@ test('a notice notification carries its text for the owner', () => {
         JSON.stringify({ type: 'task.notice', text: 'Tests pass.', task: { id: 'worker' } })
       )
     )
-  ).toEqual({ type: 'task.notice', taskId: 'worker', text: 'Tests pass.' });
+  ).toEqual({
+    type: 'task.notice',
+    taskId: 'worker',
+    text: 'Tests pass.',
+    // Progress without a milestone: pass on only what is new.
+    report: expect.stringContaining('worker’s progress')
+  });
   expect(
     JSON.parse(
       taskNotification(
@@ -140,7 +146,10 @@ test('a notice notification carries its text for the owner', () => {
         })
       )
     )
-  ).toMatchObject({ data: { milestone: 'published' } });
+  ).toMatchObject({
+    data: { milestone: 'published' },
+    report: expect.stringContaining('Include data.prUrl once, exactly as given.')
+  });
 });
 
 test('a finished implementation wakes the owner with its result and a request for a full report', () => {

@@ -4,6 +4,8 @@ import { runConversationTask, type ConversationActivityHandler } from './convers
 import type { ChattoTyping } from './routing.ts';
 import {
   createChattoRouter,
+  createConversationState,
+  wasAddressed,
   type ChattoPost,
   type Delivery,
   type ConversationState
@@ -22,6 +24,9 @@ export type ConversationOptions<Settings> = Settings & {
   /** Author ID of the latest human message prepared for the agent. Notifications do not change
    * it. Several people can write in one conversation, so check permissions per request. */
   requester: () => string;
+  /** True when a thread message was addressed to the bot (see `wasAddressed`). Only such
+   * messages count as messages to the bot; the rest of the thread is context. */
+  isAddressed: (messageId: string) => boolean;
 };
 
 /** Connect a string-in/string-out task to a Chatto thread. */
@@ -46,11 +51,12 @@ export function chattoConversation<Settings>({
   typing: ChattoTyping;
   state?: ConversationState;
 }) {
+  const conversations = state ?? createConversationState();
   return createChattoRouter({
     name,
     output: Type.Object({ reply: Type.String() }),
     post,
-    state,
+    state: conversations,
     async run(ctx, delivery, destination, inbox) {
       const messages = [delivery];
       let inReplyTo: string | undefined = delivery.message.id;
@@ -110,6 +116,7 @@ export function chattoConversation<Settings>({
             delivery,
             setReplyContext,
             requester: () => requester,
+            isAddressed: (messageId) => wasAddressed(conversations, delivery.bot_id, messageId),
             announce: (text, signal) =>
               send(
                 text,

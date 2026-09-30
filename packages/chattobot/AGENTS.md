@@ -13,9 +13,9 @@ These rules apply to `packages/chattobot/`. The root `AGENTS.md` rules also appl
   its result. Text in notices and results describes the facts for the model; it
   is not shown to the user.
 - Host code may guard facts, but not phrase messages. Example: when a reply
-  leaves out a new pull request URL, the host appends the bare URL.
+  leaves out a new pull request or issue URL, the host appends the bare URL.
 - Current exceptions are host fallbacks for when the model must not or cannot
-  answer: the maintainer and research refusals and the duplicate-implementation
+  answer: the maintainer and untrusted-content refusals and the duplicate-implementation
   refusal (a blocked tool must never be described as started work), the notice
   for a malformed model reply, and the reply failure message in
   `chatto/routing.ts`. Do not add new exceptions without discussion.

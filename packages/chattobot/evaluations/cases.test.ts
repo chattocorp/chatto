@@ -22,6 +22,13 @@ test('detects the observed language, citation, uncertainty, and stale-update reg
   );
   expect(checkReply('implementation-request', 'I will make a patch.')).toHaveLength(1);
   expect(checkReply('blocked-evidence', 'The bug is confirmed.')).toHaveLength(1);
+  expect(checkReply('feasibility-completed', 'Yes, it is a medium change.')).toHaveLength(2);
+  expect(
+    checkReply(
+      'feasibility-completed',
+      'Possible, with caveats. Estimated size: medium. You still need to decide who can unpin.'
+    )
+  ).toEqual([]);
 });
 
 test('implementation replies need the verified PR link, actual checks, and limitations', () => {

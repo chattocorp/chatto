@@ -10,7 +10,7 @@ import {
 } from 'runling/agents';
 import { implementationProcess } from './implementation-process.ts';
 import type { InvestigationPlans } from './plan.ts';
-import { implementationInput } from './implementation-artifacts.ts';
+import { implementationInput, type GitHubIssue } from './implementation-artifacts.ts';
 import { ownerQuestionPrefix } from './implementation-safety.ts';
 import type { ImplementationSettings } from './implementation-settings.ts';
 import { createImplementation } from './implementation-task.ts';
@@ -38,6 +38,8 @@ export function implementationExtension(
     plans?: InvestigationPlans;
     /** Report a refusal directly so the supervisor cannot describe it as started work. */
     onBlocked?: (summary: string) => Promise<void>;
+    /** Read a GitHub issue for the worker. Absent when GitHub access is not configured. */
+    fetchIssue?: (number: number, signal: AbortSignal) => Promise<GitHubIssue>;
   } = {}
 ) {
   let attemptedVersion: number | undefined;
@@ -87,7 +89,23 @@ export function implementationExtension(
                   'ID of a completed investigation whose original plan should be implemented. Use this after an investigation instead of rewriting its plan in context.'
               })
             ),
-            announcement: Type.String({ minLength: 1, maxLength: 600 })
+            ...(dependencies.fetchIssue
+              ? {
+                  issueNumber: Type.Optional(
+                    Type.Integer({
+                      minimum: 1,
+                      description:
+                        'Number of the GitHub issue that this change resolves. The host reads the issue and passes it to the worker, and the pull request closes it.'
+                    })
+                  )
+                }
+              : {}),
+            announcement: Type.String({
+              minLength: 1,
+              maxLength: 600,
+              description:
+                'One brief sentence that says what you are about to implement, in the same language as currentMessage (or the language that the human asked for). Sent to the conversation before work starts.'
+            })
           })
         },
         async (context, input) => {
@@ -115,6 +133,12 @@ export function implementationExtension(
               'No completed implementation plan exists for this investigation in this conversation'
             );
           const retainedPlan = plan ? structuredClone(plan) : undefined;
+          const issueNumber = (input as { issueNumber?: number }).issueNumber;
+          // Read the issue before announcing, so that a missing issue is not described as started work.
+          const issue =
+            issueNumber && dependencies.fetchIssue
+              ? await dependencies.fetchIssue(issueNumber, context.signal)
+              : undefined;
           attemptedVersion = version;
           await announce(announcement, context.signal);
           context.signal.throwIfAborted();
@@ -126,6 +150,7 @@ export function implementationExtension(
                 request: input.request,
                 context: input.context,
                 plan: retainedPlan,
+                ...(issue ? { issue } : {}),
                 resumeArtifactId: input.resumeArtifactId
               });
             } catch {

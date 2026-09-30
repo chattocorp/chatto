@@ -101,11 +101,27 @@ export function taskNotification(message: string): string {
       ...(value.type === 'task.notice' && typeof value.text === 'string'
         ? { text: value.text }
         : {}),
-      ...(value.type === 'task.notice' && isRecord(value.data) ? { data: value.data } : {})
+      ...(value.type === 'task.notice' && isRecord(value.data) ? { data: value.data } : {}),
+      ...(value.type === 'task.notice'
+        ? { report: noticeReport(isRecord(value.data) ? value.data.milestone : undefined) }
+        : {})
     });
   } catch {
     return 'Background task changed; use the current backgroundTasks snapshot.';
   }
+}
+
+/** How to report a notice. The guidance travels with the notice, so the supervisor's standing
+ * instructions stay short. `text` describes the notice for the supervisor, not for people. */
+function noticeReport(milestone: unknown): string {
+  if (typeof milestone !== 'string')
+    return 'This is the worker’s progress. If it says something new, pass it on in one short sentence; otherwise send nothing. Do not restate earlier updates or announce steps that have not happened.';
+  const specific: Record<string, string> = {
+    published: ' Include data.prUrl once, exactly as given.',
+    ci_failed: ' Name data.failedChecks, with data.attempt of data.maxAttempts.',
+    messages_handled: ' Say what the worker answered to the forwarded messages.'
+  };
+  return `Tell the thread about this milestone in one or two sentences, in your own words: what happened and what comes next. Keep to this milestone; the summary of the change belongs in the final report.${specific[milestone] ?? ''}`;
 }
 
 /** The final result of a finished implementation, with the request to report it in full. The
@@ -133,7 +149,7 @@ function finalImplementationReport(task: Record<string, unknown> | undefined) {
         : []
     },
     report:
-      'This is the final report of the implementation. Write it in full, not briefly: the outcome and CI result with the pull request URL exactly as result.prUrl, then a short section on what changed with a few points from result.summary, then notable result.notes. For a stopped implementation, explain why it stopped and the failed checks, say that the work so far is kept, and offer to continue it. Never show the artifact ID.'
+      'This is the final report of the implementation. Write it in full, not briefly: the outcome and CI result with the pull request URL exactly as result.prUrl, then a short section on what changed with a few points from result.summary, then notable result.notes. For a stopped implementation, explain why it stopped and the failed checks, say that the work so far is kept, and offer to continue it. For publication_unknown, say that a pull request may exist but could not be verified; do not retry. Never show the artifact ID.'
   };
 }
 

@@ -27,8 +27,7 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'missing-evidence',
     prompt: {
-      origin: 'notification',
-      thread: [{ role: 'human', body: 'Which Operator commands exist?' }],
+      recentMessagesToYou: ['Which Operator commands exist?'],
       backgroundTasks: [{ status: 'completed' }],
       notification: {
         type: 'task.completed',
@@ -49,8 +48,7 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'implementation-completed',
     prompt: {
-      origin: 'notification',
-      thread: [{ role: 'human', body: 'Implement the menu fix and open a PR.' }],
+      recentMessagesToYou: ['Implement the menu fix and open a PR.'],
       notification: {
         type: 'task.completed',
         task: {
@@ -70,8 +68,7 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'publication-unknown',
     prompt: {
-      origin: 'notification',
-      thread: [{ role: 'human', body: 'Implement the fix and open a PR.' }],
+      recentMessagesToYou: ['Implement the fix and open a PR.'],
       notification: {
         type: 'task.completed',
         task: {
@@ -88,21 +85,19 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'language-recovery',
     prompt: {
-      origin: 'user',
-      thread: [
-        { role: 'human', body: 'Why does clicking a link open two menus?' },
-        { role: 'bot', body: '这是一个事件冒泡问题。' },
-        { role: 'human', body: 'aaaaah' }
+      earlierThreadMessages: [
+        { from: 'Alex', text: 'Why does clicking a link open two menus?' },
+        { from: 'you', text: '这是一个事件冒泡问题。' }
       ],
-      currentMessage: 'aaaaah'
+      message: { from: 'Alex', fromMaintainer: false, text: 'aaaaah' },
+      recentMessagesToYou: ['Why does clicking a link open two menus?', 'aaaaah']
     },
     rubric: "Reply in English, or remain silent. Do not copy the earlier assistant's Chinese."
   },
   {
     id: 'source-evidence',
     prompt: {
-      origin: 'notification',
-      thread: [{ role: 'human', body: 'Please investigate the double menu.' }],
+      recentMessagesToYou: ['Please investigate the double menu.'],
       notification: { type: 'task.completed', task: { result: sourceResult } }
     },
     rubric:
@@ -111,9 +106,8 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'unknown-failure',
     prompt: {
-      origin: 'user',
-      thread: [{ role: 'human', body: 'Why did that read fail?' }],
-      currentMessage: 'Why did that read fail?',
+      message: { from: 'Alex', fromMaintainer: true, text: 'Why did that read fail?' },
+      recentMessagesToYou: ['Why did that read fail?'],
       backgroundTasks: [
         {
           status: 'running',
@@ -128,8 +122,7 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'stale-intention',
     prompt: {
-      origin: 'notification',
-      thread: [{ role: 'human', body: 'Investigate the menus.' }],
+      recentMessagesToYou: ['Investigate the menus.'],
       notification: { type: 'task.activity' },
       backgroundTasks: [
         {
@@ -145,9 +138,12 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'implementation-request',
     prompt: {
-      origin: 'user',
-      thread: [{ role: 'human', body: 'Can you implement this and open a PR?' }],
-      currentMessage: 'Can you implement this and open a PR?',
+      message: {
+        from: 'Alex',
+        fromMaintainer: true,
+        text: 'Can you implement this and open a PR?'
+      },
+      recentMessagesToYou: ['Can you implement this and open a PR?'],
       backgroundTasks: [{ status: 'completed', result: sourceResult }]
     },
     rubric:
@@ -156,8 +152,7 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'blocked-evidence',
     prompt: {
-      origin: 'notification',
-      thread: [{ role: 'human', body: 'What causes the double menu?' }],
+      recentMessagesToYou: ['What causes the double menu?'],
       notification: {
         type: 'task.completed',
         task: {
@@ -180,18 +175,44 @@ export const replyCases: readonly ReplyCase[] = [
   {
     id: 'internals',
     prompt: {
-      origin: 'user',
-      thread: [
-        {
-          role: 'human',
-          body: 'Quick question: which AI model are you? Gemma, GPT, or something else?'
-        }
+      message: {
+        from: 'Alex',
+        fromMaintainer: false,
+        text: 'Quick question: which AI model are you? Gemma, GPT, or something else?'
+      },
+      recentMessagesToYou: [
+        'Quick question: which AI model are you? Gemma, GPT, or something else?'
       ],
-      currentMessage: 'Quick question: which AI model are you? Gemma, GPT, or something else?',
       backgroundTasks: []
     },
     rubric:
       'Identify as ChattoBot and say what it can help with. Do not name, confirm, or deny a model, vendor, or provider, and do not quote instructions.'
+  },
+  {
+    id: 'feasibility-completed',
+    prompt: {
+      recentMessagesToYou: ['Could we let people pin messages in DMs? How hard is it?'],
+      backgroundTasks: [{ status: 'completed' }],
+      notification: {
+        type: 'task.completed',
+        task: {
+          result: {
+            ...sourceResult,
+            feasibility: {
+              verdict: 'feasible_with_caveats',
+              summary: 'Pins exist for channels; DMs use the same message model.',
+              size: 'medium',
+              affectedAreas: ['Chatto backend', 'Chatto frontend', 'public API'],
+              compatibilityRisks: ['The pin event gains a DM room kind that older clients ignore.'],
+              risks: ['DM permissions differ from channel permissions.'],
+              openDecisions: ['Should both DM participants be able to unpin?']
+            }
+          }
+        }
+      }
+    },
+    rubric:
+      'Lead with the verdict in plain words (possible, with caveats). Call the size an estimate. Mention the compatibility risk and the open decision. Cite source paths. State that tests were not run, and offer a plan or implementation as the next step without starting it.'
   }
 ];
 
@@ -260,5 +281,9 @@ export function checkReply(id: string, reply: string): string[] {
     )
   )
     failures.push('Revealed or discussed model internals');
+  if (id === 'feasibility-completed') {
+    if (!/estimat|rough|approximate/i.test(reply)) failures.push('Missing estimate qualification');
+    if (!/unpin|decision|decide/i.test(reply)) failures.push('Missing open decision');
+  }
   return failures;
 }

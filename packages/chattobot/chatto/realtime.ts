@@ -10,6 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createChattoBot } from '../workflows/chat.ts';
 import { investigationSettings } from '../workflows/investigate.ts';
 import { implementationSettings } from '../workflows/implement.ts';
+import { createTokenSource, githubSettings } from '../github/app.ts';
 import {
   createConversationState,
   RegistrationError,
@@ -70,10 +71,11 @@ function sourceSettings() {
       throw new ConfigurationError('CHATTO_URL must be an HTTP or HTTPS URL without credentials');
     const implementation = implementationSettings();
     const investigation = investigationSettings(implementation);
+    const github = githubSettings(implementation?.repository);
     const maintainers = maintainerIds();
-    if ((investigation || implementation) && !maintainers.length)
+    if ((investigation || implementation || github) && !maintainers.length)
       throw new ConfigurationError(
-        'Source investigation and implementation require CHATTO_MAINTAINER_USER_IDS'
+        'Source investigation, implementation, and GitHub access require CHATTO_MAINTAINER_USER_IDS'
       );
     return {
       serverUrl,
@@ -85,6 +87,10 @@ function sourceSettings() {
       investigation,
       implementation,
       maintainers,
+      // One token source per generation, so conversations share cached installation tokens.
+      github: github && { settings: github, tokens: createTokenSource(github) },
+      classifierModel: setting('CHATTO_CLASSIFIER_MODEL'),
+      classifierThinkingLevel: thinkingSetting('CHATTO_CLASSIFIER_THINKING', 'low'),
       web: webSettings()
     };
   } catch (error) {

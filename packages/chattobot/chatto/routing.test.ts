@@ -257,7 +257,7 @@ test('DM thread follow-ups share a conversation but separate roots start new run
     timeout: 0.2,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
-        prompts.push(JSON.parse(prompt).currentMessage);
+        prompts.push(JSON.parse(prompt).message.text);
         options?.onText?.('Reply');
         return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
       },
@@ -342,7 +342,7 @@ test('different people in one thread share its conversation', async () => {
     timeout: 0.2,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
-        prompts.push(JSON.parse(prompt).currentMessage);
+        prompts.push(JSON.parse(prompt).message.text);
         options?.onText?.('Reply');
         return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
       },

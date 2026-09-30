@@ -337,6 +337,82 @@ test.each([true, false])(
   }
 );
 
+test.each([true, false])(
+  'feasibility investigations require a verdict and accept an optional plan: %s',
+  async (withVerdict) => {
+    const settings = await fixture();
+    const verdict = {
+      verdict: 'feasible_with_caveats',
+      summary: 'The fixture can change, but a reader depends on its value.',
+      size: 'small',
+      affectedAreas: ['Chatto backend'],
+      compatibilityRisks: [],
+      risks: ['A reader expects the original value'],
+      openDecisions: ['Choose the new value']
+    };
+    const prompts: string[] = [];
+    let toolNames: readonly string[] = [];
+    const investigate = createInvestigation(settings, async (options) => {
+      toolNames = options.tools ?? [];
+      const tools = new Map<string, (id: string, input: unknown) => Promise<unknown>>();
+      for (const extension of options.extensions ?? []) {
+        const factory = typeof extension === 'function' ? extension : extension.factory;
+        await factory({
+          registerTool(tool: {
+            name: string;
+            execute: (id: string, input: unknown) => Promise<unknown>;
+          }) {
+            tools.set(tool.name, tool.execute);
+          }
+        } as unknown as AgentExtensionAPI);
+      }
+      expect(options.instructions?.join('\n')).toContain(
+        'Your deliverables are recordFinding and reportFeasibility tool calls.'
+      );
+      await expect(tools.get('reportFeasibility')!('early', verdict)).rejects.toThrow(
+        'Record source evidence'
+      );
+      return {
+        dispose: () => {},
+        async runOutcome(_ctx: unknown, prompt: string) {
+          prompts.push(prompt);
+          await tools.get('recordFinding')!('finding', {
+            claim: 'Contains original',
+            kind: 'observation',
+            evidence: [{ path: 'example.txt', startLine: 1, endLine: 1 }]
+          });
+          if (withVerdict) await tools.get('reportFeasibility')!('verdict', verdict);
+          return { outcome: 'completed', summary: 'Done', usage: emptyTokenUsage() };
+        }
+      };
+    });
+    const result = await investigate(createWorkflowContext(), {
+      question: 'Can the fixture change?',
+      purpose: 'feasibility'
+    });
+    expect(toolNames).toEqual([
+      'read',
+      'grep',
+      'find',
+      'ls',
+      'recordFinding',
+      'reportFeasibility',
+      'prepareImplementationPlan'
+    ]);
+    expect(result.plan).toBeUndefined();
+    if (withVerdict) {
+      expect(result).toMatchObject({ outcome: 'completed', feasibility: verdict });
+      expect(prompts).toHaveLength(1);
+    } else {
+      expect(result).toMatchObject({ outcome: 'blocked', failureReason: 'missing_feasibility' });
+      expect(result.feasibility).toBeUndefined();
+      // One repair turn in the same session asks for the missing verdict.
+      expect(prompts).toHaveLength(2);
+      expect(prompts[1]).toContain('Call reportFeasibility using your checked findings.');
+    }
+  }
+);
+
 test('repairs the loud-waves handoff in the same worker before the owner receives completion', async () => {
   const settings = await fixture();
   const tasks = createAgentTasks(createWorkflowContext());
@@ -508,8 +584,7 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
       await owner.runOutcome(
         ctx,
         JSON.stringify({
-          origin: 'notification',
-          recentUserMessages: ['What does example.txt contain?'],
+          recentMessagesToYou: ['What does example.txt contain?'],
           backgroundTasks: [{ status: 'completed', result }],
           notification: { type: 'task.completed' }
         }),

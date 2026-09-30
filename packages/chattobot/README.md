@@ -50,6 +50,7 @@ source and console. Without `--watch`, restart to load code or configuration cha
    | `CHATTO_AGENT_THINKING`          | Supervisor and web research | `low`    |
    | `CHATTO_INVESTIGATION_THINKING`  | Source investigation        | `medium` |
    | `CHATTO_IMPLEMENTATION_THINKING` | Implementation worker       | `medium` |
+   | `CHATTO_CLASSIFIER_THINKING`     | Authorization classifier    | `low`    |
 
    `runling serve` loads `.env` from its working directory at startup. Restart
    the bot after changes. Existing shell environment variables take precedence
@@ -88,26 +89,45 @@ are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
 They do not start runs or trigger reactions. This filters incoming requests;
 thread history loaded for an allowed request can still include other participants.
 
-At the start of a conversation, the supervisor reads the thread root and the
-newest 100 replies. On later turns, it reads only the messages that arrived
-after its previous read, and it keeps the earlier messages in its conversation.
-It does not see edits or deletions of messages that it already read. Each
-message carries its author's display name and login from the thread page, so
-the supervisor can tell people apart and address them. The bot reads no other
-profile fields. The model provider receives these names in the prompts, and
-they can appear in run journals and the detailed server log when the model
+At the start of a conversation, the host reads the thread root and the newest
+100 replies. On later turns, it reads only the messages that arrived after its
+previous read. It does not see edits or deletions of messages that it already
+read. Each message carries its author's display name and login from the thread
+page, so the supervisor can tell people apart and address them. The bot reads no
+other profile fields. The model provider receives these names in the prompts,
+and they can appear in run journals and the detailed server log when the model
 repeats them.
+
+The host reads the thread before each turn, but the prompt carries only the
+conversation: `message` (the message that the supervisor answers, its author,
+and whether the author is a maintainer), the message that opened the thread,
+messages addressed to the bot (`toYou: true`), and the bot's own replies
+(`from: "you"`). Other messages are only counted in `unreadThreadMessages`. The
+supervisor reads them with the `readThread` tool when the message that it answers
+refers to them, for example “what do you think?”. The tool returns the newest
+messages with their authors and a note that messages to other people are context
+only. A self-contained question needs no thread read. A notification turn has
+`notification` instead of `message`.
+
+A message is addressed to the bot when the bot accepted it as a direct message,
+a mention, or a reply to one of its messages, from an allowed user. Only
+addressed messages count as requests: the supervisor takes instructions and its
+reply language only from them, and only addressed messages from maintainers
+reach the authorization checks for implementation and GitHub changes. The bot
+remembers addressed messages in process memory for 24 hours; after a restart,
+older messages count as context. The bot's system prompt does not include its
+working directory.
 
 ### Maintainers
 
-Source investigation and implementation are available only to maintainers. Set
-`CHATTO_MAINTAINER_USER_IDS` to their exact Chatto user IDs, separated by commas.
-The bot does not start if source investigation or implementation is configured
-without maintainers.
+Source investigation, implementation, and changes on GitHub are available only
+to maintainers. Anyone who can address the bot can ask it to read GitHub. Set `CHATTO_MAINTAINER_USER_IDS` to their exact Chatto user IDs,
+separated by commas. The bot does not start if one of these capabilities is
+configured without maintainers.
 
 Several people can write in one conversation, so the bot checks permission for
 each request, not for the conversation. When the agent calls `investigateChatto`,
-`implementChatto`, `askImplementation`, or `task_send`, the host checks the author
+`implementChatto`, `askImplementation`, `task_send`, or `ghWrite`, the host checks the author
 of the latest human message that the bot received in the conversation. If that
 author is not a maintainer, or the turn started from a task notification, the tool
 does not run. In a user turn, the bot then posts one fixed message that a
@@ -196,6 +216,11 @@ The tool permits only those HTTPS locations, including redirects. It rejects URL
 credentials and query strings, limits requests to 15 seconds and 512 KB, and
 returns at most 30,000 characters of page text with a truncation marker.
 It does not execute scripts or fetch page assets. Other websites remain unavailable.
+
+When implementation or GitHub access is configured, replies link issue and pull
+request numbers and code references to the repository. Code links from an
+investigation point to its base commit; other code links point to the base
+branch.
 
 Replies use the Markdown that Chatto renders. Commands, configuration, and code
 for the user to copy appear in fenced code blocks.
@@ -290,7 +315,7 @@ credentials in Pi or the host environment, then restart ChattoBot and start a ne
 conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent.
 
 The chat agent can call `investigateChatto` with a question and relevant context.
-It supplies a brief announcement in the user's language. The tool posts that
+It supplies a brief announcement in the language of the message that it answers. The tool posts that
 message to the conversation thread and waits for delivery before starting work.
 If posting fails or the conversation is cancelled, the investigation does not start.
 Tool-call preambles stay in agent logs. A delegation announcement or implementation
@@ -324,6 +349,15 @@ proof of current activity, and does not itself trigger a reply. The buffer is
 process-local and does not survive a restart.
 
 Both direct investigation calls and the agent tool default to `purpose: assessment`.
+To check whether a bug fix or feature is possible, the supervisor selects
+`purpose: feasibility`. The investigator must then return a verdict through
+`reportFeasibility`: `already_supported`, `feasible`, `feasible_with_caveats`,
+`needs_product_decision`, or `not_feasible`. The verdict also names the estimated
+size, the affected areas, compatibility risks, other risks, and open decisions.
+The size is an estimate from reading the source, not a commitment. A feasibility
+investigation can also return a plan; the conversation keeps it like other plans.
+A missing verdict gets one corrective turn, then a blocked `missing_feasibility`
+result. Each purpose is a list of deliverables in `workflows/deliverables.ts`.
 For a feature or bug plan, the supervisor explicitly selects `purpose: implementation` and
 returns a typed plan through `prepareImplementationPlan`. The plan contains a
 goal, base commit, file-level steps, acceptance criteria, proposed checks, and
@@ -359,9 +393,13 @@ operation category without success; its artifacts remain available. Provider
 recovery updates status silently and does not announce investigation progress.
 Routine tool activity updates snapshots without waking the chat agent. User
 messages and background notifications have separate, host-supplied origins.
-Every prompt includes the last eight incoming human messages as a language
-anchor. The agent is instructed to follow the human's requested language and
-correct earlier accidental language switches, rather than copy its own history.
+Every prompt includes the last eight messages addressed to the bot
+(`recentMessagesToYou`) as a language anchor. The supervisor writes in English,
+unless the message that it answers is in another language or asks for one. For a
+short message and on notification turns, it uses the language of the anchor.
+Other thread messages and its own earlier replies do not choose the language.
+Without the English default, the model sometimes switched to an unrelated
+language.
 Reports must distinguish source evidence from hypotheses and respect the
 separate Chatto, Authling, and Runling product boundaries.
 
@@ -441,13 +479,21 @@ conversation after changing these settings.
 Ask the bot to implement a specific change, for example: “Implement the fix we
 discussed and open a PR.” The owner announces the task, then starts a separate
 implementation worker. Questions and investigation requests do not authorize
-implementation. The investigator stays read-only. Follow-up messages can steer
+implementation. Before `implementChatto` runs, a separate authorization check
+reads the ten newest messages from maintainers in the thread and the requested
+change. It does not see the supervisor's context, other people's messages, or
+tool results. When it does not find a clear request to implement the change, the
+call does not run and the supervisor asks the maintainer to confirm. See
+[Authorization checks](#authorization-checks). When GitHub access is configured,
+the supervisor can pass `issueNumber`. The host then reads the issue with a
+read-only token and gives its title and body to the worker as untrusted
+reference text. The pull request closes the issue on merge. The investigator stays read-only. Follow-up messages can steer
 the implementation through the same `task_send` channel. Before publication, if
 the worker does not consume a forwarded clarification, publication stops. After
 publication, the worker waits for CI, and a forwarded message starts its next
 turn. Use `/cancel` to stop the whole flow, including while CI runs.
 
-Only the supervisor talks to the user, in the user's language and its own words.
+Only the supervisor talks to people in the thread, in its own words.
 The implementation task reports only to the supervisor task (Runling ADR-006),
 as task notices that wake the supervisor model:
 
@@ -630,6 +676,121 @@ dependency installation or verification can contact package registries and
 other services used by the checkout. Package registries receive the host's
 network address and requested package names.
 
+## GitHub access
+
+ChattoBot can read GitHub and, when a maintainer asks, change anything in the
+repository that its GitHub App may change. It uses a GitHub App, not a personal
+token. Actions show as the App's bot account, for example `chatto-bot[bot]`.
+
+1. Create a GitHub App in the organization settings. Turn off its webhook and
+   user authorization. Give it the repository permissions that ChattoBot may
+   use. These permissions are the limit of what it can do on GitHub. For issue
+   and CI work: Issues (read and write), Pull requests (read and write), Actions
+   (read and write), Checks (read), Commit statuses (read), and Metadata (read).
+   Add Contents (write) only if the bot may merge pull requests or change
+   repository files. Actions (write) lets it rerun and start workflows, so
+   protect release workflows with GitHub environments that need a reviewer.
+2. Generate a private key and store the `.pem` file on the bot host with mode
+   `0600`. Install the App on the repository only.
+3. Configure the bot:
+
+   ```dotenv
+   CHATTO_GITHUB_APP_CLIENT_ID=Iv23li...
+   CHATTO_GITHUB_APP_PRIVATE_KEY_FILE=/absolute/path/to/app.private-key.pem
+   # Defaults to CHATTO_IMPLEMENTATION_REPOSITORY.
+   CHATTO_GITHUB_REPOSITORY=owner/repo
+   ```
+
+4. Install `gh` on the bot host and restart the bot.
+
+The client ID is not secret; the private key is. The host uses the key to get
+installation tokens, which expire after one hour. Each token can reach only the
+configured repository. Reads use a read-only token; changes use a token with the
+installation's permissions. The host
+reuses a token until shortly before it expires. The key never reaches `gh` or a
+model.
+
+The supervisor has two tools:
+
+- `gh` runs read-only commands, such as `issue list` or `view`, `pr checks` or
+  `diff`, `run view`, `search issues`, and `gh api` GET requests and GraphQL
+  queries. Anyone who can address the bot can ask for them, for example to find
+  an issue or to list the issues of a milestone. With a private repository,
+  this lets those people read it through the bot. It always uses a read-only token. A command that the host classifies
+  wrongly as a read therefore fails at GitHub and changes nothing.
+- `ghWrite`, which only maintainers can use, runs any other command of the `issue`, `pr`, `label`, `run`,
+  `workflow`, `release`, `repo`, `ruleset`, `cache`, `secret`, and `variable`
+  groups, or a `gh api` write. For example, it files, updates, comments on,
+  labels, or closes issues, comments on pull requests, and reruns CI. When a
+  maintainer asked for the change, it runs at once. The authorization
+  classifier decides this from the maintainers' messages to the bot; the
+  maintainer does not have to approve the exact text that the bot writes.
+  Otherwise nothing runs, and the bot asks whether to make the change. The
+  App's permissions decide what succeeds.
+
+The host rejects only commands that could affect the bot host or leave the
+repository: other command groups, such as aliases, extensions, `auth`, `config`,
+and `gist`; subcommands that read or write local files or Git state, such as
+`repo clone`, `pr checkout`, `run download`, and `release create`; file input
+(`--body-file`, `--notes-file`, `--env-file`, `--input`, `-F key=@file`);
+browsers and editors; `--repo` and `--hostname`; absolute API URLs; and jq
+expressions that read the environment.
+
+`gh` runs without a shell in a new temporary directory. Its environment has only
+`PATH`, `TMPDIR`, the repository, and settings that turn off prompts, pagers,
+update checks, and telemetry. The token is in a configuration file in that
+directory, not in the environment. `gh` cannot see the host's `gh` login, other
+credentials, or the private key. The host also rejects combined short flags,
+such as `-cq`, so that each flag and value is checked. The supervisor receives
+only the URLs from the output of a write. Output is limited to about 32,000
+characters. Tokens and email addresses are removed from it.
+
+### Requests and offers
+
+Every change needs a maintainer's request. The authorization classifier checks
+each `ghWrite` call against the maintainers' messages to the bot. It also
+receives host-recorded context: the changes that the bot made or offered in this
+conversation, and the bot's latest message as posted to the thread. So these
+all run a change:
+
+- a direct request, such as “make a GH issue for this” or “how about filing an
+  issue?”;
+- agreement to an offer, such as “yes please” after the bot asked whether it
+  should file an issue;
+- details or corrections sent right after the bot changed an item, which it adds
+  to that item, for example as a comment.
+
+When the messages only discuss a problem, nothing runs, and the bot asks in its
+own words whether it should make the change. A refusal, such as “not yet”,
+prevents the change. A reply to the bot's question counts in any language or
+tone, for example “Oui” or “I do!”. When a maintainer asks for a tone, such as
+humor, the bot writes in it, unless the text would insult or harass a person.
+There is no approval command and no posted command line.
+An explicit confirmation, for example a direct message to the requesting
+maintainer, is a possible later addition.
+The host gives the supervisor only the URLs from a change's output, and adds
+them to the reply when the supervisor leaves them out.
+
+GitHub output is untrusted: anyone can write issue bodies and CI logs. After `gh`
+returns output in a conversation, `implementChatto`, `askImplementation`, and
+`task_send` are blocked in it, as after web research. `ghWrite` stays
+available, because every change needs a maintainer's request. To implement an
+issue, ask for it in a new thread; the supervisor passes `issueNumber` to
+`implementChatto` without reading the issue itself.
+
+### Authorization checks
+
+The authorization classifier is a separate model call from Runling (Runling
+[ADR-007](../runling/docs/adr/ADR-007-authorization-classifier.md)). It checks
+GitHub changes and `implementChatto` calls. It receives only the action
+and maintainers' messages, never the supervisor's context or tool results. Errors,
+timeouts, and unclear answers count as “not authorized”. The run log records the
+category of each decision (`allow`, `deny`, or `unclear`), never the messages or
+the classifier's reason. It uses
+`CHATTO_CLASSIFIER_MODEL`, or the supervisor model when that setting is unset.
+The classifier's model provider receives the action text and the maintainers'
+messages.
+
 ## Development
 
 `runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`
@@ -641,7 +802,13 @@ The implementation run is in `implementation-task.ts`, which uses
 checks), `implementation-publication.ts` (commit, push, and PR),
 `implementation-ci.ts` (PR checks, failed job logs, and reruns),
 `implementation-artifacts.ts` (retained state), `implementation-safety.ts`
-(redaction and protected paths), and `implementation-settings.ts`.
+(redaction and protected paths), and `implementation-settings.ts`. The run is a
+composition of stage functions: `implementation-preflight.ts`,
+`implementation-progress.ts`, `implementation-work.ts` (worker turns), and
+`implementation-follow-ci.ts` (CI after publication). `workflows/deliverables.ts`
+defines the investigation deliverables. `github/` owns the GitHub App tokens,
+the `gh` command policy and runner, and the command rendering; `workflows/github.ts`
+registers the supervisor's GitHub tools.
 
 To run an implementation without Chatto, use `workflows/implement-cli.ts` with
 the same `.env` settings:
@@ -681,7 +848,9 @@ Reference requests disclose the host's IP address and requested page path to
 for the Awesome Chatto list. They do not send Chatto credentials. Retrieved page
 text is sent to the model provider as reference material. When web access is
 configured, Tavily and Cloudflare receive the data described in
-[Web research](#web-research).
+[Web research](#web-research). When GitHub access is configured, GitHub receives
+the host's IP address, App token requests, and each command; issue text
+and comments become public in public repositories.
 
 Run checks from the repository root:
 
