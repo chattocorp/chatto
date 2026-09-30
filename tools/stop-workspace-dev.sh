@@ -2,100 +2,25 @@
 # SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+# Stops the development stack of the workspace that contains this script, and
+# reports other processes that use its development ports.
+#
+# Usage: tools/stop-workspace-dev.sh [PORT_BASE]
+#
+# PORT_BASE defaults to CONDUCTOR_PORT, or 4000 outside Conductor. A process
+# belongs to the stack when it listens on a development port and its working
+# directory is inside the workspace. Every service of `mise dev` does. The
+# script stops these processes. It does not stop other listeners. It exits
+# with status 1 when such a listener remains.
+
 set -euo pipefail
 
-workspace_path="${CONDUCTOR_WORKSPACE_PATH:-$PWD}"
-workspace_path="$(cd "$workspace_path" && pwd -P)"
-supervisor_path="$workspace_path/tools/dev-supervisor.sh"
-port_base="${1:-}"
-supervisor_pids=()
-workspace_pids=()
+workspace_path="$(cd "$(dirname "$0")/.." && pwd -P)"
+port_base="${1:-${CONDUCTOR_PORT:-4000}}"
 
-if [[ -n "$port_base" ]] &&
-	{ [[ ! "$port_base" =~ ^[0-9]+$ ]] || (( port_base < 1 || port_base > 65526 )); }; then
+if [[ ! "$port_base" =~ ^[0-9]+$ ]] || (( port_base < 1 || port_base > 65526 )); then
 	echo "development port base must be an integer from 1 through 65526" >&2
 	exit 2
-fi
-
-descendants_of() {
-	local root_pid="$1"
-	ps -A -o pid=,ppid= | awk -v root_pid="$root_pid" '
-		{ parent[$1] = $2 }
-		END {
-			for (pid in parent) {
-				ancestor = pid
-				while (ancestor in parent && parent[ancestor] != 0) {
-					if (parent[ancestor] == root_pid) {
-						print pid
-						break
-					}
-					ancestor = parent[ancestor]
-				}
-			}
-		}
-	'
-}
-
-working_directory_of() {
-	local pid="$1"
-	local process_directory
-
-	if [[ -e "/proc/$pid/cwd" ]]; then
-		readlink "/proc/$pid/cwd" 2>/dev/null || true
-		return
-	fi
-
-	process_directory="$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' || true)"
-	if [[ -n "$process_directory" ]]; then
-		(cd "$process_directory" 2>/dev/null && pwd -P) || true
-	fi
-}
-
-while read -r pid command; do
-	if [[ "$command" == *"$supervisor_path"* ]]; then
-		supervisor_pids+=("$pid")
-	elif [[ "$command" =~ (^|[[:space:]])([^[:space:]]*/)?tools/dev-supervisor\.sh([[:space:]]|$) ]] &&
-		[[ "$(working_directory_of "$pid")" == "$workspace_path" ]]; then
-		# Older commands used a relative path. Conductor can also rename a
-		# workspace through a symlink while its processes keep the physical path.
-		# The exact working directory keeps both fallbacks workspace-specific.
-		supervisor_pids+=("$pid")
-	fi
-done < <(ps -A -o pid= -o command=)
-
-if (( ${#supervisor_pids[@]} > 0 )); then
-	workspace_pids=("${supervisor_pids[@]}")
-	for pid in "${supervisor_pids[@]}"; do
-		while read -r descendant_pid; do
-			workspace_pids+=("$descendant_pid")
-		done < <(descendants_of "$pid")
-	done
-
-	kill -TERM "${supervisor_pids[@]}" 2>/dev/null || true
-
-	# The supervisor normally terminates this tree itself.
-	for _ in {1..10}; do
-		live=false
-		for pid in "${workspace_pids[@]}"; do
-			if kill -0 "$pid" 2>/dev/null; then
-				live=true
-				break
-			fi
-		done
-		if [[ "$live" == false ]]; then
-			break
-		fi
-		sleep 0.05
-	done
-
-	if [[ "$live" == true ]]; then
-		# The pre-TERM snapshot remains valid after children are reparented.
-		kill -KILL "${workspace_pids[@]}" 2>/dev/null || true
-	fi
-fi
-
-if [[ -z "$port_base" ]]; then
-	exit 0
 fi
 
 if ! command -v lsof >/dev/null 2>&1; then
@@ -107,37 +32,40 @@ fi
 tcp_port_offsets=(0 2 3 4 5 6 8 9)
 udp_port_offset=7
 
-dev_port_listeners() {
-	local port_offset
+# Prints "<protocol> <port> <pid>" for each listener on a development port.
+listeners() {
+	local port_offset port pid
 	for port_offset in "${tcp_port_offsets[@]}"; do
-		lsof -nP -t -iTCP:"$((port_base + port_offset))" -sTCP:LISTEN 2>/dev/null || true
+		port=$((port_base + port_offset))
+		for pid in $(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true); do
+			echo "TCP $port $pid"
+		done
 	done
-	lsof -nP -t -iUDP:"$((port_base + udp_port_offset))" 2>/dev/null || true
+	port=$((port_base + udp_port_offset))
+	for pid in $(lsof -nP -t -iUDP:"$port" 2>/dev/null || true); do
+		echo "UDP $port $pid"
+	done
 }
 
 is_inside_workspace() {
 	local directory
-	directory="$(working_directory_of "$1")"
-	[[ "$directory" == "$workspace_path" || "$directory" == "$workspace_path/"* ]]
+	directory="$(lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' || true)"
+	directory="$( (cd "$directory" 2>/dev/null && pwd -P) || true)"
+	[[ -n "$directory" && ( "$directory" == "$workspace_path" || "$directory" == "$workspace_path/"* ) ]]
 }
 
-# A stack can outlive its supervisor. For example, a SIGKILL to the
-# supervisor's process group does not reach the services, because the
-# supervised command runs in a separate process group. A listener on a
-# development port of this workspace that runs from inside this workspace is
-# such a leftover service, so stop it.
-orphan_pids=()
-while read -r listener_pid; do
-	if [[ -n "$listener_pid" ]] && is_inside_workspace "$listener_pid"; then
-		orphan_pids+=("$listener_pid")
+stack_pids=()
+while read -r _ _ pid; do
+	if is_inside_workspace "$pid"; then
+		stack_pids+=("$pid")
 	fi
-done < <(dev_port_listeners | sort -n -u)
+done < <(listeners)
 
-if (( ${#orphan_pids[@]} > 0 )); then
-	kill -TERM "${orphan_pids[@]}" 2>/dev/null || true
+if (( ${#stack_pids[@]} > 0 )); then
+	kill -TERM "${stack_pids[@]}" 2>/dev/null || true
 	for _ in {1..40}; do
 		live=false
-		for pid in "${orphan_pids[@]}"; do
+		for pid in "${stack_pids[@]}"; do
 			if kill -0 "$pid" 2>/dev/null; then
 				live=true
 				break
@@ -149,39 +77,17 @@ if (( ${#orphan_pids[@]} > 0 )); then
 		sleep 0.05
 	done
 	if [[ "$live" == true ]]; then
-		kill -KILL "${orphan_pids[@]}" 2>/dev/null || true
+		kill -KILL "${stack_pids[@]}" 2>/dev/null || true
 		sleep 0.1
 	fi
 fi
 
 has_conflicts=false
-
-report_listeners() {
-	local protocol="$1"
-	local port="$2"
-	local listener_pids
-	local process_name
-
-	if [[ "$protocol" == TCP ]]; then
-		listener_pids="$(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -n -u || true)"
-	else
-		listener_pids="$(lsof -nP -t -iUDP:"$port" 2>/dev/null | sort -n -u || true)"
-	fi
-
-	while read -r listener_pid; do
-		if [[ -z "$listener_pid" ]]; then
-			continue
-		fi
-		has_conflicts=true
-		process_name="$(ps -p "$listener_pid" -o comm= 2>/dev/null | sed 's/^[[:space:]]*//' || true)"
-		printf '  %s port %s: PID %s (%s)\n' "$protocol" "$port" "$listener_pid" "${process_name:-unknown process}" >&2
-	done <<<"$listener_pids"
-}
-
-for port_offset in "${tcp_port_offsets[@]}"; do
-	report_listeners TCP "$((port_base + port_offset))"
-done
-report_listeners UDP "$((port_base + udp_port_offset))"
+while read -r protocol port pid; do
+	has_conflicts=true
+	process_name="$(ps -p "$pid" -o comm= 2>/dev/null | sed 's/^[[:space:]]*//' || true)"
+	printf '  %s port %s: PID %s (%s)\n' "$protocol" "$port" "$pid" "${process_name:-unknown process}" >&2
+done < <(listeners)
 
 if [[ "$has_conflicts" == true ]]; then
 	echo "Development ports are in use. Stop the listed processes or select another port range." >&2
