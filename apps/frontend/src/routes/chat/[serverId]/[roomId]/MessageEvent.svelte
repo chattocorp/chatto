@@ -530,7 +530,7 @@
 
   function handleReply() {
     const quote = takeSelectedReplyQuote();
-    const excerpt = (msg?.body ?? '').slice(0, 80);
+    const excerpt = msg?.body ?? '';
     if (isEcho && messageEvent?.echoOfEventId && messageEvent.echoFromThreadRootEventId) {
       onOpenThread?.(messageEvent.echoFromThreadRootEventId, {
         highlightEventId: messageEvent.echoOfEventId,
@@ -567,7 +567,7 @@
   }
 
   function startReplyInCurrentComposer(quote: QuoteInsertionContent | null) {
-    const excerpt = (msg?.body ?? '').slice(0, 80);
+    const excerpt = msg?.body ?? '';
     replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt, actor ?? undefined);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
@@ -585,7 +585,7 @@
         eventId: roomReplyTargetEventId(event),
         actorDisplayName: displayName,
         actorIdentity: actor ?? undefined,
-        excerpt: (msg?.body ?? '').slice(0, 80)
+        excerpt: msg?.body ?? ''
       }
     });
   }

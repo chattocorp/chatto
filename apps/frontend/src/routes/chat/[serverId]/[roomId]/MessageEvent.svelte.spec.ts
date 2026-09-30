@@ -434,16 +434,51 @@ describe('MessageEvent action model integration', () => {
     }
   );
 
-  it('starts an attributed thread reply from the hover toolbar', () => {
+  it('keeps the full reply excerpt for CSS truncation in the room composer', async () => {
+    const body = 'A reply preview should use all available space. '.repeat(5);
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent({ body }) }
+    });
+
+    (q(container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="active-reply-excerpt"]'))
+      .toHaveTextContent(body.trim());
+  });
+
+  it('keeps the full reply excerpt for CSS truncation when replying to an echo', async () => {
+    const body = 'A reply preview should use all available space. '.repeat(5);
     const onOpenThread = vi.fn();
-    const event = messageEvent({ id: 'toolbar-target' });
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event: messageEvent({ body, echoOfEventId: 'reply', echoFromThreadRootEventId: 'root' }),
+        onOpenThread
+      }
+    });
+
+    await openContextMenu(container);
+    menuButton(container, 'Reply in thread')!.click();
+
+    expect(onOpenThread).toHaveBeenCalledWith(
+      'root',
+      expect.objectContaining({ reply: expect.objectContaining({ excerpt: body }) })
+    );
+  });
+
+  it('starts an attributed thread reply with the full excerpt from the hover toolbar', () => {
+    const onOpenThread = vi.fn();
+    const body = 'A reply preview should use all available space. '.repeat(5);
+    const event = messageEvent({ id: 'toolbar-target', body });
     const { container } = render(MessageEventTestHarness, { props: { event, onOpenThread } });
 
     (q(container, 'button[aria-label="Reply in thread"]') as HTMLButtonElement).click();
 
     expect(onOpenThread).toHaveBeenCalledWith(
       event.id,
-      expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
+      expect.objectContaining({
+        reply: expect.objectContaining({ eventId: event.id, excerpt: body })
+      })
     );
   });
 

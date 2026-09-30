@@ -139,3 +139,4 @@
 <output data-testid="active-reply-target">
   {composerContext.replyState.messageEventId ?? ''}
 </output>
+<output data-testid="active-reply-excerpt">{composerContext.replyState.excerpt}</output>
