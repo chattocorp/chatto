@@ -11,6 +11,7 @@ all_test_pids=""
 archive_workspace=""
 archive_workspace_alias=""
 conflict_output=""
+listener_workspace=""
 
 descendants_of() {
 	local root_pid="$1"
@@ -51,8 +52,41 @@ cleanup() {
 	if [[ -n "$conflict_output" ]]; then
 		rm -f "$conflict_output"
 	fi
+	if [[ -n "$listener_workspace" ]]; then
+		rm -rf "$listener_workspace"
+	fi
 }
 trap cleanup EXIT
+
+# Starts a TCP listener on port $2 with working directory $1 and waits until it
+# accepts connections. Sets listener_pid.
+start_listener() {
+	local directory="$1"
+	local port="$2"
+	(
+		cd "$directory"
+		exec perl -MIO::Socket::INET -e '
+			my $port = shift;
+			my $socket = IO::Socket::INET->new(
+				LocalAddr => "127.0.0.1",
+				LocalPort => $port,
+				Proto => "tcp",
+				Listen => 5,
+			) or die "listen on TCP port $port: $!";
+			sleep 300;
+		' "$port"
+	) &
+	listener_pid=$!
+	all_test_pids+=" $listener_pid"
+	for _ in {1..100}; do
+		if lsof -nP -a -p "$listener_pid" -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | grep -q .; then
+			return
+		fi
+		sleep 0.01
+	done
+	echo "test listener did not listen on TCP port $port" >&2
+	exit 1
+}
 
 assert_signal_cleanup() {
 	local signal="$1"
@@ -174,24 +208,9 @@ for port_base in $(seq 42000 10 60000); do
 		break
 	fi
 done
-perl -MIO::Socket::INET -e '
-	my $port = shift;
-	my $socket = IO::Socket::INET->new(
-		LocalAddr => "127.0.0.1",
-		LocalPort => $port,
-		Proto => "tcp",
-		Listen => 5,
-	) or die "listen on TCP port $port: $!";
-	sleep 300;
-' "$port_base" &
-foreign_listener_pid=$!
-all_test_pids+=" $foreign_listener_pid"
-for _ in {1..100}; do
-	if lsof -nP -a -p "$foreign_listener_pid" -iTCP:"$port_base" -sTCP:LISTEN 2>/dev/null | grep -q .; then
-		break
-	fi
-	sleep 0.01
-done
+listener_workspace="$(cd "$(mktemp -d)" && pwd -P)"
+start_listener "$(dirname "$listener_workspace")" "$port_base"
+foreign_listener_pid="$listener_pid"
 conflict_output="$(mktemp)"
 if CONDUCTOR_WORKSPACE_PATH="$repository_root" \
 	"$repository_root/tools/stop-workspace-dev.sh" "$port_base" 2>"$conflict_output"; then
@@ -209,6 +228,21 @@ rm -f "$conflict_output"
 conflict_output=""
 CONDUCTOR_WORKSPACE_PATH="$repository_root" \
 	"$repository_root/tools/stop-workspace-dev.sh" "$port_base"
+
+# A service that outlived its supervisor runs from inside the workspace. It
+# must stop so that the next `mise dev` can start.
+mkdir -p "$listener_workspace/authling"
+start_listener "$listener_workspace/authling" "$((port_base + 2))"
+orphan_listener_pid="$listener_pid"
+CONDUCTOR_WORKSPACE_PATH="$listener_workspace" \
+	"$repository_root/tools/stop-workspace-dev.sh" "$port_base"
+wait "$orphan_listener_pid" 2>/dev/null || true
+if is_live "$orphan_listener_pid"; then
+	echo "workspace cleanup left an orphaned development service running" >&2
+	exit 1
+fi
+rm -rf "$listener_workspace"
+listener_workspace=""
 
 natural_exit_directory="$(mktemp -d)"
 grandchild_file="$natural_exit_directory/grandchild.pid"

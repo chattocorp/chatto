@@ -103,6 +103,57 @@ if ! command -v lsof >/dev/null 2>&1; then
 	exit 1
 fi
 
+# Offset 1 belongs to `mise dev-frontend`, which may run beside `mise dev`.
+tcp_port_offsets=(0 2 3 4 5 6 8 9)
+udp_port_offset=7
+
+dev_port_listeners() {
+	local port_offset
+	for port_offset in "${tcp_port_offsets[@]}"; do
+		lsof -nP -t -iTCP:"$((port_base + port_offset))" -sTCP:LISTEN 2>/dev/null || true
+	done
+	lsof -nP -t -iUDP:"$((port_base + udp_port_offset))" 2>/dev/null || true
+}
+
+is_inside_workspace() {
+	local directory
+	directory="$(working_directory_of "$1")"
+	[[ "$directory" == "$workspace_path" || "$directory" == "$workspace_path/"* ]]
+}
+
+# A stack can outlive its supervisor. For example, a SIGKILL to the
+# supervisor's process group does not reach the services, because the
+# supervised command runs in a separate process group. A listener on a
+# development port of this workspace that runs from inside this workspace is
+# such a leftover service, so stop it.
+orphan_pids=()
+while read -r listener_pid; do
+	if [[ -n "$listener_pid" ]] && is_inside_workspace "$listener_pid"; then
+		orphan_pids+=("$listener_pid")
+	fi
+done < <(dev_port_listeners | sort -n -u)
+
+if (( ${#orphan_pids[@]} > 0 )); then
+	kill -TERM "${orphan_pids[@]}" 2>/dev/null || true
+	for _ in {1..40}; do
+		live=false
+		for pid in "${orphan_pids[@]}"; do
+			if kill -0 "$pid" 2>/dev/null; then
+				live=true
+				break
+			fi
+		done
+		if [[ "$live" == false ]]; then
+			break
+		fi
+		sleep 0.05
+	done
+	if [[ "$live" == true ]]; then
+		kill -KILL "${orphan_pids[@]}" 2>/dev/null || true
+		sleep 0.1
+	fi
+fi
+
 has_conflicts=false
 
 report_listeners() {
@@ -127,11 +178,10 @@ report_listeners() {
 	done <<<"$listener_pids"
 }
 
-# Offset 1 belongs to `mise dev-frontend`, which may run beside `mise dev`.
-for port_offset in 0 2 3 4 5 6 8 9; do
+for port_offset in "${tcp_port_offsets[@]}"; do
 	report_listeners TCP "$((port_base + port_offset))"
 done
-report_listeners UDP "$((port_base + 7))"
+report_listeners UDP "$((port_base + udp_port_offset))"
 
 if [[ "$has_conflicts" == true ]]; then
 	echo "Development ports are in use. Stop the listed processes or select another port range." >&2
