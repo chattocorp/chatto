@@ -853,9 +853,12 @@ func (s *notificationDecisionSnapshot) badgeMembershipStart(user, room uint32, u
 // badgeAudience returns the users whose Badge attention a message could have
 // given, with the message's scope and handle: room members for a root
 // message; for a thread reply, the thread's followers and root author; and the
-// users addressed by a targeted source of the message, including the author
-// for reactions on it. Only users who can currently see the room are returned,
-// so the result never names a room to a user outside it.
+// users addressed by a current targeted source of the message, including the
+// author for reactions on it. A targeted source that is older than
+// notificationTTL at the snapshot time does not count: it cannot give
+// attention, and a snapshot restore drops it. Only users who can currently see
+// the room are returned, so the result never names a room to a user outside
+// it.
 func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roomID, threadRootEventID string, message uint32, userIDs []string) {
 	b := s.badges
 	message, ok := b.eventIDs.lookup(messageEventID)
@@ -881,8 +884,11 @@ func (s *notificationDecisionSnapshot) badgeAudience(messageEventID string) (roo
 		}
 	}
 	if sources := b.rooms[record.room]; sources != nil {
+		expired := expiredBefore(s.at.UnixNano())
 		for user, scopes := range sources.targeted {
-			if slices.ContainsFunc(scopes[record.thread], func(source badgeTargetedSource) bool { return source.message == message }) {
+			if slices.ContainsFunc(scopes[record.thread], func(source badgeTargetedSource) bool {
+				return source.message == message && source.createdAt > expired
+			}) {
 				users[b.ids.id(user)] = struct{}{}
 			}
 		}
