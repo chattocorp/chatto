@@ -3,7 +3,7 @@
 
 Room header affordance for opening or hiding room extras panels. Each toggle
 has a stable accessible name and expresses its state with `aria-pressed`. When
-the pane header is at least 60 rem wide, the toggles also show their labels.
+the pane header is at least 80 rem wide, the toggles also show their labels.
 
 **Props:**
 - `activePanel` - Currently visible room sidebar panel, or `null` when hidden.
@@ -112,7 +112,7 @@ the pane header is at least 60 rem wide, the toggles also show their labels.
           <UnreadDot class="absolute -end-1 -top-1 ring-2 ring-surface" testid="unseen-pin-dot" />
         {/if}
       </span>
-      <span class="hidden @min-[60rem]/pane-header:inline" aria-hidden="true">{panel.label}</span>
+      <span class="hidden @min-[80rem]/pane-header:inline" aria-hidden="true">{panel.label}</span>
     </button>
   {/each}
 </span>
