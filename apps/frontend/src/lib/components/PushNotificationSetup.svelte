@@ -12,9 +12,6 @@ save in this page is a day old or the browser replaced the subscription.
 These refreshes keep the server-side subscriptions from expiring while the
 device is in use.
 
-A new page controller means a new app version. Saving every server then also
-updates each server's push worker to the new script.
-
 Include this component once in the chat root.
 -->
 <script lang="ts">
@@ -31,24 +28,11 @@ Include this component once in the chat root.
     void refreshPushSubscriptions();
   }
 
-  function refreshAllSubscriptions(): void {
-    void refreshPushSubscriptions({ force: true });
-  }
-
   $effect(() => {
     const targets = getPushRegistrationTargets();
     if (getPermission() !== 'granted' || targets.length === 0) return;
 
     void refreshPushSubscriptions();
-  });
-
-  $effect(() => {
-    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-
-    navigator.serviceWorker.addEventListener('controllerchange', refreshAllSubscriptions);
-    return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', refreshAllSubscriptions);
-    };
   });
 </script>
 

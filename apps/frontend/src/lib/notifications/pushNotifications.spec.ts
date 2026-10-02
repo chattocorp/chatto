@@ -1058,7 +1058,9 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
       } as ServiceWorkerRegistration
     ]);
     // Start each test from a known save time for every eligible server.
-    await refreshPushSubscriptions({ force: true });
+    for (const target of getPushRegistrationTargets()) {
+      await expect(ensureRegistered(target)).resolves.toBe(true);
+    }
     mocks.subscribePush.mockClear();
     mocks.createPushNotificationAPI.mockClear();
   });
@@ -1116,12 +1118,6 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     }
   });
 
-  it('saves every server when forced', async () => {
-    await refreshPushSubscriptions({ force: true });
-
-    expect(mocks.subscribePush).toHaveBeenCalledTimes(2);
-  });
-
   it('saves a server that becomes eligible later without asking again', async () => {
     mocks.serverStores.remote.isAuthenticated = false;
     await unsubscribeBeforeLeaving('remote');
@@ -1164,7 +1160,7 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     permission = 'default';
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
 
-    await refreshPushSubscriptions({ force: true });
+    await refreshPushSubscriptions();
 
     expect(requestPermission).not.toHaveBeenCalled();
     expect(mocks.subscribePush).not.toHaveBeenCalled();

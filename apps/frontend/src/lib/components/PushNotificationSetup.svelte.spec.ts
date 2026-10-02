@@ -59,33 +59,6 @@ vi.mock('$lib/notifications/pushNotifications', async () => {
   };
 });
 
-type ServiceWorkerListener = (event: Event) => void;
-
-function installServiceWorkerStub() {
-  const listeners = new Set<ServiceWorkerListener>();
-  const serviceWorker = {
-    addEventListener: vi.fn((type: string, listener: ServiceWorkerListener) => {
-      if (type === 'controllerchange') listeners.add(listener);
-    }),
-    removeEventListener: vi.fn((type: string, listener: ServiceWorkerListener) => {
-      if (type === 'controllerchange') listeners.delete(listener);
-    }),
-    dispatchControllerChange() {
-      for (const listener of listeners) listener(new Event('controllerchange'));
-    },
-    listenerCount() {
-      return listeners.size;
-    }
-  };
-
-  Object.defineProperty(navigator, 'serviceWorker', {
-    configurable: true,
-    value: serviceWorker
-  });
-
-  return serviceWorker;
-}
-
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
@@ -111,7 +84,6 @@ describe('PushNotificationSetup', () => {
   it.each(['default', 'denied'] as const)(
     'does not reconcile while browser permission is %s',
     async (permission) => {
-      installServiceWorkerStub();
       mocks.getPermission.mockReturnValue(permission);
       render(PushNotificationSetup);
       await settle();
@@ -120,28 +92,15 @@ describe('PushNotificationSetup', () => {
     }
   );
 
-  it('refreshes granted-permission subscriptions on startup and service worker changes', async () => {
-    const serviceWorker = installServiceWorkerStub();
+  it('refreshes granted-permission subscriptions on startup', async () => {
     render(PushNotificationSetup);
     await settle();
 
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith();
-    expect(serviceWorker.addEventListener).toHaveBeenCalledWith(
-      'controllerchange',
-      expect.any(Function)
-    );
-
-    // A new app version saves every server, which also updates their workers.
-    serviceWorker.dispatchControllerChange();
-    await settle();
-
-    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledTimes(2);
-    expect(mocks.refreshPushSubscriptions).toHaveBeenLastCalledWith({ force: true });
   });
 
   it('checks for subscriptions that are due for a refresh when the window gets focus', async () => {
-    installServiceWorkerStub();
     render(PushNotificationSetup);
     await settle();
     mocks.refreshPushSubscriptions.mockClear();
@@ -154,17 +113,14 @@ describe('PushNotificationSetup', () => {
   });
 
   it('does not reconcile when push is not configured', async () => {
-    const serviceWorker = installServiceWorkerStub();
     mocks.stores.origin.serverInfo.pushNotificationsEnabled = false;
     render(PushNotificationSetup);
     await settle();
 
     expect(mocks.refreshPushSubscriptions).not.toHaveBeenCalled();
-    expect(serviceWorker.listenerCount()).toBe(1);
   });
 
   it('reconciles a server that becomes eligible after mount', async () => {
-    installServiceWorkerStub();
     mocks.stores.origin.serverInfo.pushNotificationsEnabled = false;
     render(PushNotificationSetup);
     await settle();
@@ -179,7 +135,6 @@ describe('PushNotificationSetup', () => {
   });
 
   it('reconciles authenticated remote servers independently', async () => {
-    installServiceWorkerStub();
     mocks.stores.origin.isAuthenticated = false;
     mocks.stores.remote.serverInfo.pushNotificationsEnabled = true;
     mocks.stores.remote.serverInfo.vapidPublicKey = 'remote-vapid';

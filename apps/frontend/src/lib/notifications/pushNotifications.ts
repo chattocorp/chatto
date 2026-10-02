@@ -75,7 +75,6 @@ type SavedRegistration = {
 
 /** Why a refresh saves a server's subscription. Logged for debugging. */
 type RefreshReason =
-  | 'forced'
   | 'requested-by-another-tab'
   | 'first-save-in-page'
   | 'account-changed'
@@ -352,11 +351,9 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
  */
 async function refreshReason(
   target: PushRegistrationTarget,
-  options: { force?: boolean },
   requestId: string | null,
   now: number
 ): Promise<RefreshReason | null> {
-  if (options.force) return 'forced';
   if (requestId) return 'requested-by-another-tab';
   const saved = savedRegistrations.get(target.serverId);
   if (!saved) return 'first-save-in-page';
@@ -389,11 +386,8 @@ async function currentBrowserEndpoint(serverId: string): Promise<string | null> 
  * until the browser has granted notification permission. A server that
  * becomes eligible later, for example after it is added, is saved on the
  * next call.
- *
- * @param options.force - Save every eligible server, for example after the
- *   service worker changes.
  */
-export async function refreshPushSubscriptions(options: { force?: boolean } = {}): Promise<void> {
+export async function refreshPushSubscriptions(): Promise<void> {
   if (enableAllInFlight) await enableAllInFlight;
   if (getPermission() !== 'granted') return;
 
@@ -402,11 +396,11 @@ export async function refreshPushSubscriptions(options: { force?: boolean } = {}
     getPushRegistrationTargets().map(async (target) => {
       const requestId = pendingPushRegistrationRefresh(target.serverId);
       // Startup, focus, and reactive updates often arrive together. One save
-      // per server is enough unless a save is forced or requested.
-      if (refreshesInFlight.has(target.serverId) && !options.force && !requestId) return;
+      // per server is enough unless another tab requested a save.
+      if (refreshesInFlight.has(target.serverId) && !requestId) return;
       refreshesInFlight.add(target.serverId);
       try {
-        const reason = await refreshReason(target, options, requestId, now);
+        const reason = await refreshReason(target, requestId, now);
         if (!reason) return;
 
         console.debug('[push] Refreshing push subscription', {
