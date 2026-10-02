@@ -560,7 +560,8 @@ build check. `runFocusedTests` runs selected existing frontend test or spec
 files in one Vitest project, and `runGoTests` runs the tests of selected Go
 packages of the `cli` module. The worker cannot run complete test suites. The worker can save brief
 handoff notes for a later attempt.
-Patch and check failures return bounded diagnostics to the worker. Worker checks
+Patch and check failures return bounded diagnostics to the worker. A failed
+patch also shows the current lines around its first failed hunk. Worker checks
 are recorded separately from the final host checks because edits can make earlier results stale. Repository
 setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final

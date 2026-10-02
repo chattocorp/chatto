@@ -1,7 +1,7 @@
 /** Tools and instructions for the implementation worker. The worker has no shell: it edits through
  * patches and runs only host-approved checks. */
 import { randomUUID } from 'node:crypto';
-import { lstat, realpath, rm, writeFile } from 'node:fs/promises';
+import { lstat, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import { Type, type Static, type WorkflowContext } from 'runling';
 import { defineAgentExtension, type AgentTaskUpdate } from 'runling/agents';
@@ -448,12 +448,16 @@ export function workerToolsExtension({
           );
         } catch (error) {
           patchSignal.throwIfAborted();
+          const output =
+            error instanceof ImplementationCommandError
+              ? error.output.slice(-8000)
+              : 'Git could not apply the patch.';
           return {
             isError: true,
             content: [
               {
                 type: 'text' as const,
-                text: `Patch not applied. Read the current file and correct the patch context.\n${error instanceof ImplementationCommandError ? error.output.slice(-8000) : 'Git could not apply the patch.'}`
+                text: `Patch not applied. Correct the patch context from the current file.\n${output}${await failedHunkLines(worktree, output)}`
               }
             ],
             details: {}
@@ -538,4 +542,34 @@ export function workerToolsExtension({
       }
     });
   });
+}
+
+/** Largest file whose lines a failed patch shows. */
+const MAX_HUNK_FILE_BYTES = 2 * 1024 * 1024;
+
+/** The current lines around the first hunk that Git could not apply, numbered, so that the
+ * worker can correct the patch without another read. Empty when Git names no hunk or the file
+ * is not a regular file inside the worktree. */
+export async function failedHunkLines(worktree: string, output: string): Promise<string> {
+  const failed = /^error: patch failed: (.+):(\d+)$/m.exec(output);
+  if (!failed) return '';
+  const [, path, start] = failed as unknown as [string, string, string];
+  try {
+    const root = await realpath(worktree);
+    const file = await realpath(resolve(root, path));
+    const info = await lstat(file);
+    if (!file.startsWith(`${root}${sep}`) || !info.isFile() || info.size > MAX_HUNK_FILE_BYTES)
+      return '';
+    const lines = (await readFile(file, 'utf8')).split('\n');
+    const first = Math.max(1, Number(start) - 10);
+    const last = Math.min(lines.length, Number(start) + 30);
+    if (first > last) return '';
+    const numbered = lines
+      .slice(first - 1, last)
+      .map((line, index) => `${first + index}: ${line}`)
+      .join('\n');
+    return `\n\nCurrent lines ${first}-${last} of ${path}:\n${numbered.slice(0, 6000)}`;
+  } catch {
+    return '';
+  }
 }

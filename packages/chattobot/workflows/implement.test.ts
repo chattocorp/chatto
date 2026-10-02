@@ -19,6 +19,7 @@ import {
 import { ConfigurationError } from '../settings.ts';
 import { taskContext, userFacingTaskNotifications } from './task-context.ts';
 import { listResumableArtifacts } from './implementation-artifacts.ts';
+import { failedHunkLines } from './implementation-tools.ts';
 import {
   HostCommandError,
   implementationProcess,
@@ -296,6 +297,9 @@ test('worker can inspect one changed file and run selected frontend and Go tests
     execute: f.execute,
     createAgent: worker(async (options, call) => {
       await call('apply_patch', { patch });
+      // A failed patch shows the current lines around its hunk.
+      const stale = await call('apply_patch', { patch });
+      expect(stale.content[0]?.text).toContain('Current lines 1-2 of example.txt:\n1: fixed');
       await call('apply_patch', {
         patch: '--- /dev/null\n+++ b/other.txt\n@@ -0,0 +1 @@\n+other\n'
       });
@@ -1948,3 +1952,18 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)(
   },
   160_000
 );
+
+test('failed patch context stays inside the worktree', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chattobot-hunk-'));
+  folders.push(root);
+  await mkdir(join(root, 'worktree'));
+  await writeFile(join(root, 'outside.txt'), 'secret\n');
+  await writeFile(join(root, 'worktree', 'inside.txt'), 'a\nb\n');
+  const worktree = join(root, 'worktree');
+  expect(await failedHunkLines(worktree, 'error: patch failed: ../outside.txt:1')).toBe('');
+  expect(await failedHunkLines(worktree, 'error: patch failed: missing.txt:1')).toBe('');
+  expect(await failedHunkLines(worktree, 'error: no hunk')).toBe('');
+  expect(await failedHunkLines(worktree, 'error: patch failed: inside.txt:2')).toContain(
+    'Current lines 1-3 of inside.txt:\n1: a\n2: b'
+  );
+});
