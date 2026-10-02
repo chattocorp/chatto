@@ -208,6 +208,7 @@ vi.mock('$lib/ui/toast', () => ({
   toast: { error: mocks.toastError, success: mocks.toastSuccess }
 }));
 
+import { isRemoteSignInPending } from '$lib/auth/remoteSignIn.svelte';
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
 /** Opens the server menu as a right-click does. */
@@ -719,7 +720,7 @@ describe('ServerSidebarEntry', () => {
     });
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
 
-    await expect.element(icon).toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
     await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
     openServerMenu(icon);
 
@@ -773,10 +774,8 @@ describe('ServerSidebarEntry', () => {
     });
     const icon = q(container, '[data-testid="server-icon"]');
 
-    await expect.element(icon).toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
-    await expect
-      .element(icon)
-      .toHaveAttribute('aria-label', 'Sign in to reconnect to Loaded Remote');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
     const warning = q(container, '[data-testid="server-warning"]');
     await expect.element(warning).toBeInTheDocument();
     expect(warning?.querySelector('[class~="icon-[uil--exclamation-circle]"]')).not.toBeNull();
@@ -788,7 +787,7 @@ describe('ServerSidebarEntry', () => {
     );
     await expect
       .element(q(document.body, '[data-testid="server-problem-message"]'))
-      .toHaveTextContent('Sign in to reconnect to Loaded Remote');
+      .toHaveTextContent('Loaded Remote needs sign-in');
     expect(document.body.querySelectorAll('[data-testid="server-problem-message"]')).toHaveLength(
       1
     );
@@ -800,9 +799,7 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]');
-    await expect
-      .element(icon)
-      .not.toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
+    await expect.element(icon).not.toHaveAttribute('title', 'Loaded Remote needs sign-in');
     await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
   });
 
@@ -856,7 +853,10 @@ describe('ServerSidebarEntry', () => {
   it('does not start a second sign-in while the first attempt is pending', async () => {
     mocks.server.token = null;
     mocks.store.isAuthenticated = false;
-    mocks.startRemoteReauthentication.mockReturnValueOnce(new Promise(() => {}));
+    let finishSignIn: () => void = () => {};
+    mocks.startRemoteReauthentication.mockReturnValueOnce(
+      new Promise<void>((resolve) => (finishSignIn = resolve))
+    );
 
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote' }
@@ -868,10 +868,17 @@ describe('ServerSidebarEntry', () => {
     );
     q(document.body, '[data-testid="server-log-in"]')?.click();
     openServerMenu(icon);
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
+    q(document.body, '[data-testid="server-log-in"]')?.click();
 
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledOnce();
     });
+    // Sign-in state is shared by all controls, so finish this attempt.
+    finishSignIn();
+    await vi.waitFor(() => expect(isRemoteSignInPending('remote')).toBe(false));
   });
 
   it('shows an error and permits retry after sign-in fails', async () => {

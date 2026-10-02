@@ -3,12 +3,10 @@
   import { serverRegistry } from '$lib/client';
   import { type RegisteredServer } from '@chatto/client/server/registry';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
-  import { RemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
+  import { isRemoteSignInPending, startRemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
   import { TopOverlayNotice } from '$lib/ui';
   import { showsServerSignedOut } from '$lib/components/chat/serverSignedOut';
   import { m } from '$lib/i18n/messages';
-
-  const remoteSignIn = new RemoteSignIn();
 
   const originServer = $derived(serverRegistry.originServer);
   const originNeedsReauth = $derived(originServer?.reauthRequiredAt != null);
@@ -43,7 +41,7 @@
     message={isOriginNotice
       ? m('ui.auth_status.origin_message')
       : m('ui.auth_status.remote_message')}
-    loading={remoteSignIn.pendingServerId === noticeServer.id}
+    loading={isRemoteSignInPending(noticeServer.id)}
     primaryAction={{
       label: isOriginNotice ? m('ui.auth_status.origin_action') : m('ui.auth_status.remote_action'),
       icon: 'icon-[uil--signin] rtl:-scale-x-100',
@@ -52,7 +50,7 @@
           beginOriginReauthentication();
           return;
         }
-        void remoteSignIn.start(noticeServer);
+        void startRemoteSignIn(noticeServer);
       }
     }}
   />

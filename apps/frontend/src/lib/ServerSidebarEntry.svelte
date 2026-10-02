@@ -22,7 +22,7 @@
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
-  import { RemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
+  import { isRemoteSignInPending, startRemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
   import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
@@ -110,7 +110,6 @@
       !serverConnection.showConnectionLostIcon
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
-  const remoteSignIn = new RemoteSignIn();
   let signingOut = $state(false);
   const serverContextMenuTrigger = contextMenuTrigger((details) => {
     contextMenu = details;
@@ -158,7 +157,7 @@
       beginOriginReauthentication(resolve('/chat/[serverId]', { serverId: serverSegment }));
       return;
     }
-    void remoteSignIn.start(server);
+    void startRemoteSignIn(server);
   }
 
   async function handleSignOut(): Promise<void> {
@@ -332,7 +331,7 @@
             icon="icon-[uil--sign-in-alt]"
             mirrorIconInRtl
             onclick={handleSignIn}
-            disabled={remoteSignIn.pending}
+            disabled={isRemoteSignInPending(serverId)}
             dataTestid="server-log-in"
           >
             {m('chat.server_gutter.log_in')}
