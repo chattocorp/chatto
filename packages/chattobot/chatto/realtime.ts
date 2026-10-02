@@ -1,6 +1,6 @@
 import { createApi, createClient, type AddressedMessage, type Server } from '@chatto/client';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
-import { createThreadReader } from '../thread.ts';
+import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { createEyesReaction } from '../reaction.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { webSettings } from '../web.ts';
@@ -144,6 +144,7 @@ async function consume(
     },
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     readThread: createThreadReader(api),
+    readAttachment: createAttachmentReader(api),
     acknowledge: createEyesReaction(api)
   });
   await chatto.consumeEvents({

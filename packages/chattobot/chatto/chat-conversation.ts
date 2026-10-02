@@ -24,6 +24,9 @@ export type ConversationOptions<Settings> = Settings & {
   /** Author ID of the latest human message prepared for the agent. Notifications do not change
    * it. Several people can write in one conversation, so check permissions per request. */
   requester: () => string;
+  /** ID of the latest human message prepared for the agent, or undefined when the router could
+   * not match it. Notifications do not change it. */
+  currentMessageId: () => string | undefined;
   /** True when a thread message was addressed to the bot (see `wasAddressed`). Only such
    * messages count as messages to the bot; the rest of the thread is context. */
   isAddressed: (messageId: string) => boolean;
@@ -61,6 +64,7 @@ export function chattoConversation<Settings>({
       const messages = [delivery];
       let inReplyTo: string | undefined = delivery.message.id;
       let requester = delivery.message.author_id;
+      let currentMessageId: string | undefined = delivery.message.id;
       const setReplyContext = (text: string, origin: 'user' | 'notification') => {
         inReplyTo = undefined;
         if (origin !== 'user') return;
@@ -68,10 +72,12 @@ export function chattoConversation<Settings>({
         // An unmatched message has no known author; fail closed for permission checks.
         if (index === -1) {
           requester = '';
+          currentMessageId = undefined;
           return;
         }
         const [prompting] = messages.splice(index, 1);
         inReplyTo = prompting!.message.id;
+        currentMessageId = prompting!.message.id;
         requester = prompting!.message.author_id;
       };
       // Assistant text and tool announcements can arrive concurrently. Serialize
@@ -116,6 +122,7 @@ export function chattoConversation<Settings>({
             delivery,
             setReplyContext,
             requester: () => requester,
+            currentMessageId: () => currentMessageId,
             isAddressed: (messageId) => wasAddressed(conversations, delivery.bot_id, messageId),
             announce: (text, signal) =>
               send(

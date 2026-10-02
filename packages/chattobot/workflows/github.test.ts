@@ -153,6 +153,7 @@ async function supervisor(
       onBusy() {},
       setReplyContext() {},
       requester: () => requester,
+      currentMessageId: () => undefined,
       isAddressed: (id) => addressed.has(id),
       announce: async () => {},
       ...extra

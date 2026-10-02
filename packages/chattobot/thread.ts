@@ -1,4 +1,9 @@
-import type { MessagingRequests, ThreadMessage as ClientThreadMessage } from '@chatto/client';
+import type {
+  AttachmentContent,
+  AttachmentReadOptions,
+  MessagingRequests,
+  ThreadMessage as ClientThreadMessage
+} from '@chatto/client';
 import type { Delivery } from './chatto/routing.ts';
 
 /** Thread text classified relative to this bot; other bots also have the human role. */
@@ -45,4 +50,19 @@ export function createThreadReader(client: Pick<MessagingRequests, 'readThread'>
       }))
     };
   };
+}
+
+/** Read the content of an attachment in a delivery's room. */
+export type ReadAttachment = (
+  delivery: Delivery,
+  attachmentId: string,
+  options: AttachmentReadOptions & { signal: AbortSignal }
+) => Promise<AttachmentContent>;
+
+/** Read attachments in a delivery's room as the client's viewer. */
+export function createAttachmentReader(
+  client: Pick<MessagingRequests, 'readAttachment'>
+): ReadAttachment {
+  return (delivery, attachmentId, options) =>
+    client.readAttachment({ roomId: delivery.room_id, attachmentId }, options);
 }

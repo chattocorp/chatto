@@ -373,7 +373,7 @@ test('a later turn gets only new thread messages, read after the saved cursor', 
     timeout: 0.05,
     createAgent: async () => ({
       async runOutcome(_ctx, prompt, options) {
-        expect(acknowledged).toEqual(['root']);
+        expect(acknowledged).toEqual(['first']);
         prompts.push(prompt);
         options?.onText?.('Reply');
         return { outcome: 'completed', summary: 'Reply', usage: emptyTokenUsage() };
@@ -385,10 +385,15 @@ test('a later turn gets only new thread messages, read after the saved cursor', 
 
   await bot(
     { ...createWorkflowContext(), run: { id: 'run', reference: 'funky-comics-8426' } },
-    { ...delivery, triggers: ['mention'] }
+    {
+      ...delivery,
+      triggers: ['mention'],
+      thread_root_id: 'root',
+      message: { ...delivery.message, id: 'first' }
+    }
   );
   expect(prompts).toHaveLength(2);
-  expect(acknowledged).toEqual(['root']);
+  expect(acknowledged).toEqual(['first']);
   // The prompt does not name the run.
   expect(JSON.parse(prompts[0]!)).not.toHaveProperty('runName');
   expect(JSON.parse(prompts[0]!)).toMatchObject({

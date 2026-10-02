@@ -109,6 +109,18 @@ messages with their authors and a note that messages to other people are context
 only. A self-contained question needs no thread read. A notification turn has
 `notification` instead of `message`.
 
+Messages also carry the metadata of their attachments: file name, type, image
+size, and description. The supervisor looks at an attachment with the
+`viewAttachment` tool when it matters for the answer, for example a screenshot
+of a bug. The tool accepts only attachments of messages in the conversation's
+thread, and at most four views for each message to the bot. It returns PNG,
+JPEG, GIF, and WebP images that Chatto resized to at most 1600 pixels on each
+side, and text files of up to 100 KB, such as logs. It does not read other
+files. The bot downloads an attachment from the configured Chatto server only
+when the supervisor views it. Then the model provider receives the content, as
+it receives message text. The bot does not log attachment content.
+A model without image input receives a placeholder instead of the image.
+
 A message is addressed to the bot when the bot accepted it as a direct message,
 a mention, or a reply to one of its messages, from an allowed user. Only
 addressed messages count as requests: the supervisor takes instructions and its
@@ -192,7 +204,8 @@ Before each agent turn or steering message, the host reads the thread through
 `ThreadService/GetThreadEvents`: on the first turn the root and the newest 100
 replies, later only the messages after its previous read. This applies to both
 DM and channel threads. The prompt carries only the conversation; the supervisor
-reads other messages with `readThread`.
+reads other messages with `readThread`. To view an attachment, the host reads its
+address through `AssetService/BatchGetAssets` and downloads it from the same server.
 The bot needs permission to read that history. Failed reads stop the run instead
 of generating a reply from incomplete context.
 

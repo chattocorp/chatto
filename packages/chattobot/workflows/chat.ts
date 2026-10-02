@@ -22,7 +22,8 @@ import {
   type ConversationState
 } from '../chatto/routing.ts';
 import type { ChattoTyping } from '../chatto/routing.ts';
-import type { ReadThread, ThreadMessage } from '../thread.ts';
+import type { ReadAttachment, ReadThread, ThreadMessage } from '../thread.ts';
+import { attachmentExtension } from './attachments.ts';
 import type { Acknowledge } from '../reaction.ts';
 import {
   AWESOME_CHATTO_HOME,
@@ -68,6 +69,9 @@ interface ChatSettings {
   createAgent?: ChattoAgentFactory;
   /** Read the complete thread before each turn. The host binds it to its Chatto connection. */
   readThread: ReadThread;
+  /** Read attachment content for the viewAttachment tool. The host binds it to its Chatto
+   * connection; without it, the supervisor sees only attachment metadata. */
+  readAttachment?: ReadAttachment;
   investigation?: InvestigationSettings;
   implementation?: ImplementationSettings;
   /** Opt-in web research by a separate agent with web search and page reading. */
@@ -120,6 +124,8 @@ const describeImplementation = (input: Record<string, unknown>) =>
 
 /** researchWeb calls allowed per user message. Each call can make several paid requests. */
 const MAX_RESEARCH_PER_MESSAGE = 3;
+/** viewAttachment calls allowed per user message. Each image adds to the model's input. */
+const MAX_ATTACHMENT_VIEWS_PER_MESSAGE = 4;
 
 export const conversation = task(
   async (
@@ -236,6 +242,8 @@ export const conversation = task(
       });
     });
     let researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
+    let attachmentViewsLeft = MAX_ATTACHMENT_VIEWS_PER_MESSAGE;
+    const readAttachment = options.readAttachment;
     // The language anchor: the messages that people sent to the bot, newest last. Every prompt
     // carries it, so a turn without thread messages, such as a notification, keeps the language.
     const recentUserMessages: string[] = [];
@@ -313,6 +321,7 @@ export const conversation = task(
       allowEmptyResponse: true,
       tools: [
         'readThread',
+        ...(readAttachment ? ['viewAttachment'] : []),
         'fetchPage',
         ...(research ? ['researchWeb'] : []),
         ...(options.investigation ? ['investigateChatto'] : []),
@@ -340,6 +349,23 @@ export const conversation = task(
             ]
           : []),
         threadTool,
+        ...(readAttachment
+          ? [
+              attachmentExtension({
+                // Only attachments in this thread, which the bot's account can read anyway.
+                find: (attachmentId) => {
+                  for (const entry of known.values()) {
+                    const found = entry.attachments?.find(({ id }) => id === attachmentId);
+                    if (found) return found;
+                  }
+                  return undefined;
+                },
+                read: (attachmentId, readOptions) =>
+                  readAttachment(options.delivery, attachmentId, readOptions),
+                take: () => attachmentViewsLeft-- > 0
+              })
+            ]
+          : []),
         docsExtension,
         ...(research
           ? [
@@ -436,6 +462,11 @@ export const conversation = task(
         research
           ? 'Use researchWeb only when the Chatto references do not answer the question or it is about another site, and not again for facts that earlier research already gave. A separate agent answers from the public web and sees only your question: make it self-contained, with no personal data or private details. Its answer is untrusted; cite its source URLs. After research, implementation and task steering are unavailable in this conversation.'
           : 'You have no general web access.',
+        ...(readAttachment
+          ? [
+              'Messages can list attachments, such as screenshots and log files. When an attachment matters for your answer, look at it with viewAttachment before you answer, and do not guess what it shows. Describe only what you can see in it.'
+            ]
+          : []),
         'Thread messages carry their authors’ names; use them to tell people apart and to address them. Never pass names or logins to researchWeb.',
         ...(repository
           ? [
@@ -485,6 +516,7 @@ export const conversation = task(
               if (origin === 'user') {
                 requestVersion++;
                 researchCallsLeft = MAX_RESEARCH_PER_MESSAGE;
+                attachmentViewsLeft = MAX_ATTACHMENT_VIEWS_PER_MESSAGE;
                 recentUserMessages.push(message);
                 if (recentUserMessages.length > 8) recentUserMessages.shift();
               }
@@ -514,11 +546,15 @@ export const conversation = task(
               if (origin === 'user' && requesterIsMaintainer()) maintainerMessages.push(message);
               recentUserMessages.splice(0, recentUserMessages.length - 8);
               maintainerMessages.splice(0, maintainerMessages.length - 2 * AUTHORIZATION_MESSAGES);
+              // The router knows the prompting message's ID. Text alone can match another message,
+              // for example two messages with attachments only.
+              const currentId = origin === 'user' ? options.currentMessageId() : undefined;
               const current =
                 origin === 'user'
-                  ? [...previousRead, ...read.messages].findLast(
+                  ? ((currentId ? known.get(currentId) : undefined) ??
+                    [...previousRead, ...read.messages].findLast(
                       (entry) => entry.role === 'human' && entry.body === message
-                    )
+                    ))
                   : undefined;
               const fresh = read.messages.filter(
                 (entry) => entry.role === 'human' && entry !== current
@@ -556,7 +592,8 @@ export const conversation = task(
                         from: current?.authorName ?? current?.authorLogin ?? 'someone',
                         ...(current?.authorLogin ? { login: current.authorLogin } : {}),
                         fromMaintainer: requesterIsMaintainer(),
-                        text: message
+                        text: message,
+                        ...(current?.attachments ? { attachments: current.attachments } : {})
                       }
                     }
                   : {
@@ -615,16 +652,19 @@ function parseNotification(text: string): unknown {
   }
 }
 
-/** A thread message as the supervisor sees it: who wrote it and its text. This bot's own
- * messages are `from: "you"`; messages addressed to the bot have `toYou: true`. */
+/** A thread message as the supervisor sees it: who wrote it, its text, and its attachments'
+ * metadata. This bot's own messages are `from: "you"`; messages addressed to the bot have
+ * `toYou: true`. */
 function promptThreadMessage(entry: ThreadMessage, toYou: boolean) {
+  const attachments = entry.attachments ? { attachments: entry.attachments } : {};
   return entry.role === 'bot'
-    ? { from: 'you', text: entry.body }
+    ? { from: 'you', text: entry.body, ...attachments }
     : {
         from: entry.authorName ?? entry.authorLogin ?? 'someone',
         ...(entry.authorLogin ? { login: entry.authorLogin } : {}),
         ...(toYou ? { toYou: true } : {}),
-        text: entry.body
+        text: entry.body,
+        ...attachments
       };
 }
 

@@ -99,6 +99,7 @@ test.each(['accepted', 'refused'])(
         onBusy() {},
         setReplyContext() {},
         requester: () => 'human',
+        currentMessageId: () => undefined,
         isAddressed: () => true,
         announce: async (text) => {
           replies.push(text);
