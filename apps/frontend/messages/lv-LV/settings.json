@@ -285,7 +285,7 @@
         "off_description": "Chatto lūdz pārlūkprogrammai atļauju, kamēr izmantojat lietotni. Ja aizvērāt pieprasījumu, pārlādējiet Chatto, lai to redzētu vēlreiz.",
         "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža.",
         "setup_failed_title": "Šajā ierīcē neizdevās iestatīt push paziņojumus",
-        "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz, kad atgriezīsieties lietotnē.",
+        "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz rīt.",
         "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu.",
         "setup_failed_details": "Tehniskā informācija: {reason}"
       },

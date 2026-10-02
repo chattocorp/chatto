@@ -285,7 +285,7 @@
         "off_description": "O Chatto pede permissão ao browser enquanto utiliza a aplicação. Se fechou o pedido, recarregue o Chatto para o ver novamente.",
         "test_failed": "Não foi possível enviar uma notificação de teste. Tente novamente dentro de momentos.",
         "setup_failed_title": "Não foi possível configurar as notificações push neste dispositivo",
-        "setup_failed_description": "O browser ou o servidor recusou a subscrição. O Chatto tenta novamente quando regressar à aplicação.",
+        "setup_failed_description": "O browser ou o servidor recusou a subscrição. O Chatto tenta novamente amanhã.",
         "test_rate_limited": "Aguarde alguns segundos antes de enviar outra notificação de teste.",
         "setup_failed_details": "Detalhes técnicos: {reason}"
       },

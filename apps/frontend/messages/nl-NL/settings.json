@@ -285,7 +285,7 @@
         "off_description": "Chatto vraagt je browser om toestemming terwijl je de app gebruikt. Heb je het verzoek gesloten, laad Chatto dan opnieuw om het weer te zien.",
         "test_failed": "Kan geen testmelding verzenden. Probeer het zo opnieuw.",
         "setup_failed_title": "Pushmeldingen konden niet worden ingesteld op dit apparaat",
-        "setup_failed_description": "De browser of de server heeft het abonnement geweigerd. Chatto probeert het opnieuw als je terugkeert naar de app.",
+        "setup_failed_description": "De browser of de server heeft het abonnement geweigerd. Chatto probeert het morgen opnieuw.",
         "test_rate_limited": "Wacht een paar seconden voordat je nog een testmelding verstuurt.",
         "setup_failed_details": "Technische details: {reason}"
       },

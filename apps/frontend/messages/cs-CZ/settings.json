@@ -285,7 +285,7 @@
         "off_description": "Chatto žádá váš prohlížeč o povolení, když aplikaci používáte. Pokud jste žádost zavřeli, znovu načtěte Chatto, abyste ji viděli znovu.",
         "test_failed": "Testovací oznámení se nepodařilo odeslat. Zkuste to znovu za chvíli.",
         "setup_failed_title": "Push oznámení se na tomto zařízení nepodařilo nastavit",
-        "setup_failed_description": "Prohlížeč nebo server odmítl odběr. Chatto to zkusí znovu, až se vrátíte do aplikace.",
+        "setup_failed_description": "Prohlížeč nebo server odmítl odběr. Chatto to zkusí znovu zítra.",
         "test_rate_limited": "Než odešlete další testovací oznámení, počkejte několik sekund.",
         "setup_failed_details": "Technické podrobnosti: {reason}"
       },

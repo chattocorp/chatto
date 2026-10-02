@@ -7,6 +7,7 @@ import {
   getPushRegistrationTargets,
   hasSavedPushRegistration,
   pushRegistrationFailure,
+  retryPushRegistration,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
   refreshPushSubscriptions,
   unsubscribeBeforeLeaving
@@ -1183,9 +1184,31 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     expect(pushRegistrationFailure('remote')).toBeNull();
     expect(pushRegistrationFailure('origin')).toBe('Error: rejected');
 
-    await refreshPushSubscriptions();
+    await retryPushRegistration('origin');
     expect(pushRegistrationFailure('origin')).toBeNull();
     expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
+  });
+
+  it('backs off after a failed save instead of retrying on every check', async () => {
+    const originSubscribe = vi.fn().mockRejectedValue(new Error('push service error'));
+    mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
+      subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
+      unsubscribe: mocks.unsubscribePush,
+      deleteByCapability: mocks.deleteByCapabilityPush
+    }));
+    const failedAt = start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS;
+    vi.setSystemTime(failedAt);
+    await refreshPushSubscriptions();
+    expect(originSubscribe).toHaveBeenCalledOnce();
+
+    // Focus and hourly checks within the back-off do not try again.
+    vi.setSystemTime(failedAt + PUSH_REGISTRATION_REFRESH_INTERVAL_MS - 1);
+    await refreshPushSubscriptions();
+    expect(originSubscribe).toHaveBeenCalledOnce();
+
+    vi.setSystemTime(failedAt + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
+    await refreshPushSubscriptions();
+    expect(originSubscribe).toHaveBeenCalledTimes(2);
   });
 
   it('never asks for permission', async () => {

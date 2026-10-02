@@ -90,7 +90,7 @@ const savedRegistrations = new SvelteMap<string, SavedRegistration>();
  * the server can reject a subscription. Reactive, so settings can explain the
  * failure.
  */
-const failedRegistrations = new SvelteMap<string, string>();
+const failedRegistrations = new SvelteMap<string, { reason: string; failedAt: number }>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
@@ -274,7 +274,7 @@ export function hasSavedPushRegistration(serverId: string, userId: string | null
  * not translated.
  */
 export function pushRegistrationFailure(serverId: string): string | null {
-  return failedRegistrations.get(serverId) ?? null;
+  return failedRegistrations.get(serverId)?.reason ?? null;
 }
 
 /** Formats a browser or transport error for a technical failure reason. */
@@ -399,6 +399,12 @@ async function refreshReason(
   now: number
 ): Promise<RefreshReason | null> {
   if (requestId) return 'requested-by-another-tab';
+  // Chrome keeps a push service registration for every failed attempt and
+  // refuses new ones once a profile holds about 1,000. Retrying a failed save
+  // on every focus would fill that limit, so automatic retries wait as long
+  // as a refresh. `retryPushRegistration` retries at once.
+  const failure = failedRegistrations.get(target.serverId);
+  if (failure && now - failure.failedAt < PUSH_REGISTRATION_REFRESH_INTERVAL_MS) return null;
   const saved = savedRegistrations.get(target.serverId);
   if (!saved) return 'first-save-in-page';
   if (saved.userId !== target.userId) return 'account-changed';
@@ -422,6 +428,16 @@ async function currentBrowserEndpoint(serverId: string): Promise<string | null> 
   } catch {
     return null;
   }
+}
+
+/**
+ * Saves one server's subscription again at once, also after a recent failure.
+ * For an explicit user retry; automatic refreshes back off after failures.
+ */
+export async function retryPushRegistration(serverId: string): Promise<boolean> {
+  if (getPermission() !== 'granted') return false;
+  const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
+  return target ? ensureRegistered(target) : false;
 }
 
 /**
@@ -532,7 +548,10 @@ export async function ensureRegistered(target: PushRegistrationTarget): Promise<
       failedRegistrations.delete(target.serverId);
     } else if (!isPushRegistrationSuspended(target.serverId) && getPermission() === 'granted') {
       // Leaving the server and missing permission are not failures.
-      failedRegistrations.set(target.serverId, saved.failure);
+      failedRegistrations.set(target.serverId, {
+        reason: saved.failure,
+        failedAt: Date.now()
+      });
     }
   }
   return registered;

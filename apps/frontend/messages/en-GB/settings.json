@@ -285,7 +285,7 @@
         "off_description": "Chatto asks your browser for permission while you use the app. If you dismissed the request, reload Chatto to see it again.",
         "test_failed": "Could not send a test notification. Try again in a moment.",
         "setup_failed_title": "Push notifications could not be set up on this device",
-        "setup_failed_description": "The browser or the server rejected the subscription. Chatto tries again when you return to the app.",
+        "setup_failed_description": "The browser or the server rejected the subscription. Chatto tries again tomorrow.",
         "test_rate_limited": "Wait a few seconds before you send another test notification.",
         "setup_failed_details": "Technical details: {reason}"
       },

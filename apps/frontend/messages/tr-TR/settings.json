@@ -285,7 +285,7 @@
         "off_description": "Chatto, uygulamayı kullanırken tarayıcınızdan izin ister. İsteği kapattıysanız tekrar görmek için Chatto'yu yeniden yükleyin.",
         "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin.",
         "setup_failed_title": "Bu cihazda anlık bildirimler ayarlanamadı",
-        "setup_failed_description": "Tarayıcı veya sunucu aboneliği reddetti. Chatto, uygulamaya döndüğünüzde yeniden dener.",
+        "setup_failed_description": "Tarayıcı veya sunucu aboneliği reddetti. Chatto yarın yeniden dener.",
         "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin.",
         "setup_failed_details": "Teknik ayrıntılar: {reason}"
       },

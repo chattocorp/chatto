@@ -285,7 +285,7 @@
         "off_description": "Chatto demande l’autorisation à votre navigateur pendant que vous utilisez l’application. Si vous avez fermé la demande, rechargez Chatto pour la voir à nouveau.",
         "test_failed": "Impossible d’envoyer une notification de test. Réessayez dans un instant.",
         "setup_failed_title": "Impossible de configurer les notifications poussées sur cet appareil",
-        "setup_failed_description": "Le navigateur ou le serveur a refusé l’abonnement. Chatto réessaie quand vous revenez dans l’application.",
+        "setup_failed_description": "Le navigateur ou le serveur a refusé l’abonnement. Chatto réessaie demain.",
         "test_rate_limited": "Attendez quelques secondes avant d’envoyer une autre notification de test.",
         "setup_failed_details": "Détails techniques : {reason}"
       },

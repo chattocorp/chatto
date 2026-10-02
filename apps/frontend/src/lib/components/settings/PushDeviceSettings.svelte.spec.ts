@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   registered: true,
   failure: null as string | null,
   webPushRuntime: true,
-  refreshPushSubscriptions: vi.fn(),
+  retryPushRegistration: vi.fn(),
   sendTestNotification: vi.fn(),
   hasSavedPushRegistration: vi.fn()
 }));
@@ -21,7 +21,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
   isBrowserWebPushRuntime: () => mocks.webPushRuntime,
   pushRegistrationFailure: () => mocks.failure,
-  refreshPushSubscriptions: mocks.refreshPushSubscriptions,
+  retryPushRegistration: mocks.retryPushRegistration,
   sendTestNotification: mocks.sendTestNotification
 }));
 
@@ -48,8 +48,8 @@ describe('PushDeviceSettings', () => {
     mocks.hasSavedPushRegistration.mockImplementation(() => mocks.registered);
     mocks.registered = true;
     mocks.failure = null;
-    mocks.refreshPushSubscriptions.mockReset();
-    mocks.refreshPushSubscriptions.mockResolvedValue(undefined);
+    mocks.retryPushRegistration.mockReset();
+    mocks.retryPushRegistration.mockResolvedValue(true);
     mocks.sendTestNotification.mockReset();
     mocks.sendTestNotification.mockResolvedValue(true);
   });
@@ -115,7 +115,7 @@ describe('PushDeviceSettings', () => {
       .toHaveTextContent('Technical details: AbortError: Registration failed - push service error');
     await screen.getByRole('button', { name: 'Try Again' }).click();
 
-    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
+    expect(mocks.retryPushRegistration).toHaveBeenCalledWith('origin');
   });
 
   it('shows setup progress until this page saves the subscription', async () => {

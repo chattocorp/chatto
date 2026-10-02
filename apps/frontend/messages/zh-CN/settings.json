@@ -285,7 +285,7 @@
         "off_description": "你使用应用时，Chatto 会向浏览器请求权限。如果你关闭了请求，请重新加载 Chatto 以再次看到它。",
         "test_failed": "无法发送测试通知。请稍后再试。",
         "setup_failed_title": "无法在此设备上设置推送通知",
-        "setup_failed_description": "浏览器或服务器拒绝了订阅。你返回应用时，Chatto 会重试。",
+        "setup_failed_description": "浏览器或服务器拒绝了订阅。Chatto 会在明天重试。",
         "test_rate_limited": "请等待几秒钟后再发送另一条测试通知。",
         "setup_failed_details": "技术详情：{reason}"
       },

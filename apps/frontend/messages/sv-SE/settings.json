@@ -285,7 +285,7 @@
         "off_description": "Chatto ber din webbläsare om tillstånd medan du använder appen. Om du stängde förfrågan kan du ladda om Chatto för att se den igen.",
         "test_failed": "Det gick inte att skicka ett testmeddelande. Försök igen om en stund.",
         "setup_failed_title": "Push-meddelanden kunde inte konfigureras på den här enheten",
-        "setup_failed_description": "Webbläsaren eller servern avvisade prenumerationen. Chatto försöker igen när du återvänder till appen.",
+        "setup_failed_description": "Webbläsaren eller servern avvisade prenumerationen. Chatto försöker igen i morgon.",
         "test_rate_limited": "Vänta några sekunder innan du skickar ett nytt testmeddelande.",
         "setup_failed_details": "Tekniska detaljer: {reason}"
       },

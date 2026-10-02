@@ -20,7 +20,7 @@ server has no Web Push configuration or the app does not run in a browser.
     hasSavedPushRegistration,
     isBrowserWebPushRuntime,
     pushRegistrationFailure,
-    refreshPushSubscriptions,
+    retryPushRegistration,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -78,7 +78,7 @@ server has no Web Push configuration or the app does not run in a browser.
   async function retryRegistration(): Promise<void> {
     retrying = true;
     try {
-      await refreshPushSubscriptions();
+      await retryPushRegistration(serverId);
     } finally {
       retrying = false;
     }

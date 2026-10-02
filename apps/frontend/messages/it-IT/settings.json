@@ -285,7 +285,7 @@
         "off_description": "Chatto chiede l’autorizzazione al tuo browser mentre usi l’app. Se hai chiuso la richiesta, ricarica Chatto per vederla di nuovo.",
         "test_failed": "Impossibile inviare una notifica di prova. Riprova tra un momento.",
         "setup_failed_title": "Impossibile configurare le notifiche push su questo dispositivo",
-        "setup_failed_description": "Il browser o il server ha rifiutato l’iscrizione. Chatto riprova quando torni nell’app.",
+        "setup_failed_description": "Il browser o il server ha rifiutato l’iscrizione. Chatto riprova domani.",
         "test_rate_limited": "Attendi qualche secondo prima di inviare un’altra notifica di prova.",
         "setup_failed_details": "Dettagli tecnici: {reason}"
       },

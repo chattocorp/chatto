@@ -285,7 +285,7 @@
         "off_description": "Chatto petas permeson de via retumilo dum vi uzas la aplikaĵon. Se vi fermis la peton, reŝargu Chatto por vidi ĝin denove.",
         "test_failed": "Ne eblis sendi testan sciigon. Reprovu post momento.",
         "setup_failed_title": "Ne eblis agordi puŝajn sciigojn en ĉi tiu aparato",
-        "setup_failed_description": "La retumilo aŭ la servilo rifuzis la abonon. Chatto reprovos, kiam vi revenos al la aplikaĵo.",
+        "setup_failed_description": "La retumilo aŭ la servilo rifuzis la abonon. Chatto reprovos morgaŭ.",
         "test_rate_limited": "Atendu kelkajn sekundojn antaŭ ol sendi alian testan sciigon.",
         "setup_failed_details": "Teknikaj detaloj: {reason}"
       },
