@@ -9,7 +9,9 @@ import type { RegisteredServer } from '@chatto/client/server/registry';
  *   chat data is loaded, for example after a page load. With retained data,
  *   the chrome stays visible and `AuthStatusNotice` offers to reconnect.
  *
- * The origin never shows the view: its route redirects to `/login`.
+ * The origin never shows the view. Without a session, its route redirects to
+ * `/login`; during reauthentication, it keeps the chrome and the reconnect
+ * notice.
  */
 export function showsServerSignedOut(
   server: Pick<RegisteredServer, 'token' | 'reauthRequiredAt'>,

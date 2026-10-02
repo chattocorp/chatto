@@ -21,8 +21,8 @@
   // view. Explain the problem instead of the server chrome and its fog.
   const compatibilityProblem = $derived(serverStore?.serverInfo.compatibilityProblem ?? null);
 
-  // A known remote server that this client cannot sign in to. Explain this
-  // instead of server chrome that would stay empty.
+  // A known remote server without a usable session. Explain this instead of
+  // server chrome that would stay empty.
   const registration = $derived(serverRegistry.getServer(serverId));
   const signedOutRegistration = $derived(
     registration &&
