@@ -411,6 +411,26 @@ describe('Server Directory page', () => {
     ).toBe(false);
   });
 
+  it('shows a generic error when the server cannot be registered', async () => {
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
+    mocks.addSignedOutServer.mockImplementation(() => {
+      throw new Error('The server could not be registered.');
+    });
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [entry('https://remote.example', cached('Remote'))],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    button(container, 'Join')?.click();
+
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+    expect(mocks.toastError).toHaveBeenCalledWith('Something went wrong');
+    expect(button(container, 'Join')).toBeDefined();
+  });
+
   it('hands an incompatible advertised server off to its own client', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [

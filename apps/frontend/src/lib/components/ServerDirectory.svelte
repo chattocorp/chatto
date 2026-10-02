@@ -199,19 +199,25 @@ dialog shows it directly on its work plane. See FDR-042.
         });
         return;
       }
-      // A stale cached profile can hide an incompatible version or missing
-      // sign-in support.
-      const current = isPublicServerInfo(profile) ? profile : await loadJoinableProfile(origin);
+      let current: PublicServerInfo;
+      try {
+        // A stale cached profile can hide an incompatible version or missing
+        // sign-in support.
+        current = isPublicServerInfo(profile) ? profile : await loadJoinableProfile(origin);
+      } catch (error) {
+        toast.error(
+          error instanceof ServerJoinUnavailableError
+            ? m('add_server.directory.sign_in_unavailable')
+            : discoveryError(error)
+        );
+        return;
+      }
       serverRegistry.addSignedOutServer(origin, {
         name: current.name,
         iconUrl: current.iconUrl ?? null
       });
-    } catch (error) {
-      toast.error(
-        error instanceof ServerJoinUnavailableError
-          ? m('add_server.directory.sign_in_unavailable')
-          : discoveryError(error)
-      );
+    } catch {
+      toast.error(m('common.error.generic'));
     } finally {
       pendingOrigin = null;
     }
