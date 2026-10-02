@@ -89,7 +89,9 @@ test('refuses unknown and unviewable attachments, large files, and views over th
     'server.log is too large to view.'
   );
   await tool.execute('4', { attachmentId: 'shot' });
-  await expect(tool.execute('5', { attachmentId: 'shot' })).rejects.toThrow('enough attachments');
+  await expect(tool.execute('5', { attachmentId: 'shot' })).rejects.toThrow(
+    'limit of attachment views'
+  );
   expect(read).toHaveBeenCalledTimes(2);
 });
 
@@ -118,11 +120,11 @@ test('the supervisor sees attachment metadata and views attachments in its threa
     });
     expect(agentOptions.tools).toContain('viewAttachment');
     expect(agentOptions.instructions?.join('\n')).toContain('viewAttachment');
-    for (let index = 0; index < 4; index++)
+    for (let index = 0; index < 30; index++)
       await tools.get('viewAttachment')!.execute(String(index), { attachmentId: 'shot' });
     await expect(
       tools.get('viewAttachment')!.execute('5', { attachmentId: 'shot' })
-    ).rejects.toThrow('enough attachments');
+    ).rejects.toThrow('limit of attachment views');
     current = 'other';
     const second = JSON.parse(await options.prepareMessage('', 'user'));
     expect(second.message).toMatchObject({ from: 'Bob', attachments: [log] });
@@ -169,6 +171,6 @@ test('the supervisor sees attachment metadata and views attachments in its threa
     isAddressed: () => true,
     announce: async () => {}
   });
-  expect(read).toHaveBeenCalledTimes(5);
+  expect(read).toHaveBeenCalledTimes(31);
   expect(read.mock.calls[0]!.slice(0, 2)).toEqual([delivery, 'shot']);
 });

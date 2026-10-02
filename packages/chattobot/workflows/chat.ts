@@ -124,8 +124,9 @@ const describeImplementation = (input: Record<string, unknown>) =>
 
 /** researchWeb calls allowed per user message. Each call can make several paid requests. */
 const MAX_RESEARCH_PER_MESSAGE = 3;
-/** viewAttachment calls allowed per user message. Each image adds to the model's input. */
-const MAX_ATTACHMENT_VIEWS_PER_MESSAGE = 4;
+/** viewAttachment calls allowed per user message, enough to compare a thread's images. Each
+ * image adds about 2,000 tokens to the model's input. */
+const MAX_ATTACHMENT_VIEWS_PER_MESSAGE = 30;
 
 export const conversation = task(
   async (

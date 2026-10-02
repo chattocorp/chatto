@@ -76,7 +76,7 @@ export function attachmentExtension(options: AttachmentToolOptions) {
           );
         if (!options.take())
           throw new Error(
-            'You viewed enough attachments for this message. Answer with what you have.'
+            'Not viewed: you reached the limit of attachment views for this message. Answer from the attachments that you viewed, and say how many you could not view.'
           );
         signal ??= AbortSignal.timeout(60_000);
         const content = await options

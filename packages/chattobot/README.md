@@ -113,7 +113,7 @@ Messages also carry the metadata of their attachments: file name, type, image
 size, and description. The supervisor looks at an attachment with the
 `viewAttachment` tool when it matters for the answer, for example a screenshot
 of a bug. The tool accepts only attachments of messages in the conversation's
-thread, and at most four views for each message to the bot. It returns PNG,
+thread, and at most 30 views for each message to the bot. It returns PNG,
 JPEG, GIF, and WebP images that Chatto resized to at most 1600 pixels on each
 side, and text files of up to 100 KB, such as logs. It does not read other
 files. The bot downloads an attachment from the configured Chatto server only
