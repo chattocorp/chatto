@@ -17,8 +17,12 @@ beforeEach(() => {
 
 describe('RecentEmojisStore reaction history', () => {
   it('starts with only the pinned reactions and ignores general emoji history', () => {
-    getRecentEmojis(SERVER_ID).record('🌿');
-    expect(getRecentEmojis(SERVER_ID).quickReactions).toEqual([...PINNED_REACTIONS]);
+    localStorage.setItem(serverStorageKey(SERVER_ID, 'recentEmojis'), JSON.stringify(['🌿']));
+    const store = getRecentEmojis(SERVER_ID);
+    expect(store.recent).toEqual(['🌿']);
+    expect(store.quickReactions).toEqual([...PINNED_REACTIONS]);
+    store.record('🚀');
+    expect(store.quickReactions).toEqual([...PINNED_REACTIONS]);
   });
 
   it('shows zero, one, or two distinct custom choices, newest first', () => {
