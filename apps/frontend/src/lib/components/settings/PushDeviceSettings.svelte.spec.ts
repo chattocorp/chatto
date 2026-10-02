@@ -128,17 +128,14 @@ describe('PushDeviceSettings', () => {
     expect(screen.container.querySelector('button')).toBeNull();
   });
 
-  it('points to the Notifications page while permission is unset, without asking', async () => {
+  it('explains that Chatto asks the browser while permission is unset', async () => {
     mocks.permission = 'default';
     const screen = renderSettings();
 
     await expect
-      .element(screen.getByText('Push notifications are off on this device'))
+      .element(screen.getByText('Push notifications are not allowed on this device yet'))
       .toBeVisible();
-    await expect
-      .element(screen.getByRole('link', { name: 'Open Notifications' }))
-      .toHaveAttribute('href', '/chat/notifications');
-    expect(mocks.sendTestNotification).not.toHaveBeenCalled();
+    expect(screen.container.querySelector('a, button')).toBeNull();
   });
 
   it('explains blocked permission', async () => {

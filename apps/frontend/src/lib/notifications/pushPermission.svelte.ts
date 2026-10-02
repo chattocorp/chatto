@@ -4,8 +4,8 @@
  * Notification permission belongs to the browser origin, not to a Chatto
  * server. It can change outside this page: in another tab, in browser or
  * operating-system settings, or through the permission prompt. This state
- * follows those changes so the permission action and automatic push
- * registration always use the current value.
+ * follows those changes so the automatic permission request, push
+ * registration, and the push settings always use the current value.
  */
 
 function readNotificationPermission(): NotificationPermission | null {

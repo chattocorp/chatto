@@ -281,21 +281,13 @@
         "device_unknown": "Ta przeglądarka",
         "opens_at": "Powiadomienia otwierają Chatto pod adresem {origin}",
         "registering": "Konfigurowanie powiadomień push na tym urządzeniu…",
-        "off_title": "Powiadomienia push są wyłączone na tym urządzeniu",
-        "off_description": "Włącz je na stronie Powiadomienia. Ten wybór dotyczy wszystkich twoich serwerów.",
-        "open_notifications": "Otwórz powiadomienia",
+        "off_title": "Powiadomienia push nie są jeszcze dozwolone na tym urządzeniu",
+        "off_description": "Chatto prosi przeglądarkę o zgodę, gdy korzystasz z aplikacji. Jeśli zamknąłeś prośbę, odśwież Chatto, aby zobaczyć ją ponownie.",
         "test_failed": "Nie można wysłać powiadomienia testowego. Spróbuj ponownie za chwilę.",
         "setup_failed_title": "Nie udało się skonfigurować powiadomień push na tym urządzeniu",
         "setup_failed_description": "Przeglądarka lub serwer odrzucił subskrypcję. Chatto spróbuje ponownie, gdy wrócisz do aplikacji.",
         "test_rate_limited": "Odczekaj kilka sekund, zanim wyślesz kolejne powiadomienie testowe.",
         "setup_failed_details": "Szczegóły techniczne: {reason}"
-      },
-      "push_prompt": {
-        "title": "Włącz powiadomienia push",
-        "enabled": "Powiadomienia push włączone",
-        "blocked": "Powiadomienia push są blokowane w ustawieniach przeglądarki lub systemu operacyjnego",
-        "enable_failed": "Nie udało się włączyć powiadomień push",
-        "enabling": "Włączam..."
       },
       "sound": {
         "title": "Dźwięk powiadomienia",

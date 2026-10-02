@@ -6,6 +6,7 @@ import PushNotificationSetup from './PushNotificationSetup.svelte';
 
 const mocks = vi.hoisted(() => ({
   getPermission: vi.fn(),
+  enablePushOnAllServers: vi.fn(),
   refreshPushSubscriptions: vi.fn(),
   stores: {
     origin: {
@@ -31,6 +32,7 @@ vi.mock('$lib/notifications/pushNotifications', async () => {
   const { userPreferences: reactivePreferences } =
     await import('$lib/state/userPreferences.svelte');
   return {
+    enablePushOnAllServers: mocks.enablePushOnAllServers,
     getPermission: mocks.getPermission,
     getPushRegistrationTargets: () => {
       // Give the mutable fixture the same reactive invalidation behaviour as
@@ -59,6 +61,13 @@ vi.mock('$lib/notifications/pushNotifications', async () => {
   };
 });
 
+function setUserActivation(isActive: boolean): void {
+  Object.defineProperty(navigator, 'userActivation', {
+    configurable: true,
+    value: { isActive, hasBeenActive: isActive }
+  });
+}
+
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
@@ -70,6 +79,9 @@ describe('PushNotificationSetup', () => {
     mocks.getPermission.mockReset();
     mocks.getPermission.mockReturnValue('granted');
     mocks.refreshPushSubscriptions.mockReset();
+    mocks.enablePushOnAllServers.mockReset();
+    mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'granted', registrations: [] });
+    setUserActivation(false);
     userPreferences.composerEditor = 'markdown';
     mocks.stores.origin.isAuthenticated = true;
     mocks.stores.origin.currentUser.user.id = 'origin-user';
@@ -142,5 +154,63 @@ describe('PushNotificationSetup', () => {
     await settle();
 
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
+  });
+
+  describe('automatic permission request', () => {
+    beforeEach(() => {
+      mocks.getPermission.mockReturnValue('default');
+    });
+
+    it('asks at once while the page has user activation', async () => {
+      setUserActivation(true);
+      render(PushNotificationSetup);
+      await settle();
+
+      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+    });
+
+    it('asks on the next interaction that grants user activation, and only once', async () => {
+      render(PushNotificationSetup);
+      await settle();
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+      // A key that grants no activation, such as Escape, keeps waiting.
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+      setUserActivation(true);
+      window.dispatchEvent(new MouseEvent('click'));
+      window.dispatchEvent(new MouseEvent('click'));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+
+      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+    });
+
+    it.each(['granted', 'denied', null] as const)(
+      'does not ask while permission is %s',
+      async (permission) => {
+        mocks.getPermission.mockReturnValue(permission);
+        setUserActivation(true);
+        render(PushNotificationSetup);
+        await settle();
+        window.dispatchEvent(new MouseEvent('click'));
+
+        expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+      }
+    );
+
+    it('waits for a server that supports push', async () => {
+      mocks.stores.origin.serverInfo.pushNotificationsEnabled = false;
+      setUserActivation(true);
+      render(PushNotificationSetup);
+      await settle();
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+      mocks.stores.origin.serverInfo.pushNotificationsEnabled = true;
+      userPreferences.composerEditor = 'visual';
+      await settle();
+
+      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+    });
   });
 });

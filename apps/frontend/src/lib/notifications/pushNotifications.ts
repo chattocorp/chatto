@@ -332,9 +332,10 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
 }
 
 /**
- * Ask for notification permission directly from a user interaction, then
- * register every eligible server. This is the only place where Chatto asks the
- * browser for notification permission.
+ * Ask for notification permission, then register every eligible server. This
+ * is the only place where Chatto asks the browser for notification
+ * permission. `PushNotificationSetup` calls it automatically, once, while the
+ * page has user activation.
  *
  * The permission request must happen before registration enters its async
  * coordination queue. Some browsers require the call itself to retain the

@@ -281,21 +281,13 @@
         "device_unknown": "此浏览器",
         "opens_at": "通知会在 {origin} 打开 Chatto",
         "registering": "正在为此设备设置推送通知…",
-        "off_title": "此设备上的推送通知已关闭",
-        "off_description": "请在通知页面中开启。此选择适用于你的所有服务器。",
-        "open_notifications": "打开通知",
+        "off_title": "此设备尚未允许推送通知",
+        "off_description": "你使用应用时，Chatto 会向浏览器请求权限。如果你关闭了请求，请重新加载 Chatto 以再次看到它。",
         "test_failed": "无法发送测试通知。请稍后再试。",
         "setup_failed_title": "无法在此设备上设置推送通知",
         "setup_failed_description": "浏览器或服务器拒绝了订阅。你返回应用时，Chatto 会重试。",
         "test_rate_limited": "请等待几秒钟后再发送另一条测试通知。",
         "setup_failed_details": "技术详情：{reason}"
-      },
-      "push_prompt": {
-        "title": "启用推送通知",
-        "enabled": "推送通知已启用",
-        "blocked": "浏览器或操作系统设置已阻止推送通知",
-        "enable_failed": "推送通知启用失败",
-        "enabling": "正在启用..."
       },
       "sound": {
         "title": "通知提示音",

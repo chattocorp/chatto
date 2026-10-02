@@ -281,21 +281,13 @@
         "device_unknown": "Šī pārlūkprogramma",
         "opens_at": "Paziņojumi atver Chatto adresē {origin}",
         "registering": "Notiek push paziņojumu iestatīšana šai ierīcei…",
-        "off_title": "Push paziņojumi šajā ierīcē ir izslēgti",
-        "off_description": "Ieslēdziet tos lapā Paziņojumi. Šī izvēle attiecas uz visiem jūsu serveriem.",
-        "open_notifications": "Atvērt paziņojumus",
+        "off_title": "Push paziņojumi šajā ierīcē vēl nav atļauti",
+        "off_description": "Chatto lūdz pārlūkprogrammai atļauju, kamēr izmantojat lietotni. Ja aizvērāt pieprasījumu, pārlādējiet Chatto, lai to redzētu vēlreiz.",
         "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža.",
         "setup_failed_title": "Šajā ierīcē neizdevās iestatīt push paziņojumus",
         "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz, kad atgriezīsieties lietotnē.",
         "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu.",
         "setup_failed_details": "Tehniskā informācija: {reason}"
-      },
-      "push_prompt": {
-        "title": "Iespējot push paziņojumus",
-        "enabled": "Push paziņojumi ir iespējoti",
-        "blocked": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos",
-        "enable_failed": "Neizdevās iespējot push paziņojumus",
-        "enabling": "Notiek iespējošana..."
       },
       "sound": {
         "title": "Paziņojuma skaņa",

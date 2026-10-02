@@ -281,21 +281,13 @@
         "device_unknown": "Denne nettleseren",
         "opens_at": "Varsler åpner Chatto på {origin}",
         "registering": "Konfigurerer push-varsler for denne enheten…",
-        "off_title": "Push-varsler er slått av på denne enheten",
-        "off_description": "Slå dem på fra siden Varsler. Valget gjelder alle serverne dine.",
-        "open_notifications": "Åpne varsler",
+        "off_title": "Push-varsler er ikke tillatt på denne enheten ennå",
+        "off_description": "Chatto ber nettleseren din om tillatelse mens du bruker appen. Hvis du lukket forespørselen, laster du inn Chatto på nytt for å se den igjen.",
         "test_failed": "Kunne ikke sende et testvarsel. Prøv igjen om litt.",
         "setup_failed_title": "Push-varsler kunne ikke konfigureres på denne enheten",
         "setup_failed_description": "Nettleseren eller serveren avviste abonnementet. Chatto prøver igjen når du går tilbake til appen.",
         "test_rate_limited": "Vent noen sekunder før du sender et nytt testvarsel.",
         "setup_failed_details": "Tekniske detaljer: {reason}"
-      },
-      "push_prompt": {
-        "title": "Aktiver push-varsler",
-        "enabled": "Push-varsler aktivert",
-        "blocked": "Push-varsler er blokkert i nettleseren eller OS-innstillingene",
-        "enable_failed": "Kunne ikke aktivere push-varsler",
-        "enabling": "Aktiverer..."
       },
       "sound": {
         "title": "Varslingslyd",

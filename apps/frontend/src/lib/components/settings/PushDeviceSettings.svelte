@@ -6,12 +6,11 @@ lets the user send a test notification.
 
 The panel names the browser and platform that receive the notifications and
 the origin that notification clicks open. It never asks for notification
-permission: while permission is unset, it points to the Notifications page,
-whose header action is the only permission request. Renders nothing when the
+permission itself: Chatto asks the browser automatically, and the panel
+explains that while permission is unset. Renders nothing when the
 server has no Web Push configuration or the app does not run in a browser.
 -->
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { m } from '$lib/i18n/messages';
   import { describePushDevice } from '$lib/notifications/pushDevice';
@@ -105,11 +104,6 @@ server has no Web Push configuration or the app does not run in a browser.
         <div class="flex flex-col gap-1">
           <p class="font-medium text-text-top">{m('settings.notifications.push.off_title')}</p>
           <p class="text-muted">{m('settings.notifications.push.off_description')}</p>
-        </div>
-        <div>
-          <Button variant="secondary" size="sm" href={resolve('/chat/notifications')}>
-            {m('settings.notifications.push.open_notifications')}
-          </Button>
         </div>
       {:else if !registered && registrationFailure}
         <Hint tone="warning">

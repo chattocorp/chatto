@@ -281,21 +281,13 @@
         "device_unknown": "Este browser",
         "opens_at": "As notificações abrem o Chatto em {origin}",
         "registering": "A configurar as notificações push para este dispositivo…",
-        "off_title": "As notificações push estão desativadas neste dispositivo",
-        "off_description": "Ative-as na página Notificações. Esta escolha aplica-se a todos os seus servidores.",
-        "open_notifications": "Abrir notificações",
+        "off_title": "As notificações push ainda não estão permitidas neste dispositivo",
+        "off_description": "O Chatto pede permissão ao browser enquanto utiliza a aplicação. Se fechou o pedido, recarregue o Chatto para o ver novamente.",
         "test_failed": "Não foi possível enviar uma notificação de teste. Tente novamente dentro de momentos.",
         "setup_failed_title": "Não foi possível configurar as notificações push neste dispositivo",
         "setup_failed_description": "O browser ou o servidor recusou a subscrição. O Chatto tenta novamente quando regressar à aplicação.",
         "test_rate_limited": "Aguarde alguns segundos antes de enviar outra notificação de teste.",
         "setup_failed_details": "Detalhes técnicos: {reason}"
-      },
-      "push_prompt": {
-        "title": "Ativar notificações push",
-        "enabled": "Notificações push ativadas",
-        "blocked": "As notificações push são bloqueadas nas definições do seu browser ou sistema operativo",
-        "enable_failed": "Falha ao ativar as notificações push",
-        "enabling": "Activando..."
       },
       "sound": {
         "title": "Som de notificação",

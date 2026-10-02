@@ -8,7 +8,6 @@
   import {
     ActivityListRow,
     EmptyState,
-    Hint,
     LoadingFog,
     PageTitle,
     PaneContent,
@@ -42,12 +41,6 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getEmojiByName } from '$lib/emoji';
-  import {
-    enablePushOnAllServers,
-    getPermission,
-    getPushCapability,
-    getPushRegistrationTargets
-  } from '$lib/notifications/pushNotifications';
 
   type ServerGroup = {
     serverId: string;
@@ -77,7 +70,6 @@
   let loadingMore = $state(false);
   let loadMoreError = $state(false);
   let dismissingRead = $state(false);
-  let enablingPush = $state(false);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasPendingMutation = $derived(pendingMutationKeys.size > 0);
   const hasMore = $derived(pagination.some((source) => source.hasMore));
@@ -116,19 +108,6 @@
     )
   );
   const readOccurrenceBatches = $derived.by(readOccurrencesByServer);
-  // The only place where Chatto asks for notification permission. Permission
-  // and targets are both reactive, so the action follows grants and denials
-  // from other tabs or browser settings, and servers that load after mount.
-  const showEnablePush = $derived(
-    getPushCapability() === 'supported' &&
-      getPermission() === 'default' &&
-      getPushRegistrationTargets().length > 0
-  );
-  // iOS and iPadOS offer Web Push only to Home Screen web apps, so a browser
-  // tab gets this guidance instead of the action.
-  const showIosHomeScreenHint = $derived(
-    getPushCapability() === 'ios_home_screen_required' && getPushRegistrationTargets().length > 0
-  );
 
   // Realtime normally hydrates this retained store before the route is opened.
   // Fetch only genuinely missing projections as a transport fallback.
@@ -489,29 +468,6 @@
     }
     dismissingRead = false;
   }
-
-  async function enablePushNotifications() {
-    if (enablingPush) return;
-    enablingPush = true;
-    try {
-      const result = await enablePushOnAllServers();
-      if (result.permission === 'denied') {
-        toast.error(m('settings.notifications.push_prompt.blocked'));
-      } else if (
-        result.permission === 'granted' &&
-        result.registrations.length > 0 &&
-        result.registrations.every((registration) => registration.registered)
-      ) {
-        toast.success(m('settings.notifications.push_prompt.enabled'));
-      } else if (result.permission === 'granted') {
-        toast.error(m('settings.notifications.push_prompt.enable_failed'));
-      }
-    } catch {
-      toast.error(m('settings.notifications.push_prompt.enable_failed'));
-    } finally {
-      enablingPush = false;
-    }
-  }
 </script>
 
 <PageTitle title={m('chat.notifications.title')} />
@@ -522,19 +478,6 @@
   <PaneContent fillHeight>
     <Panel title={m('chat.notifications.list_title')} noPadding fillHeight>
       {#snippet actions()}
-        {#if showEnablePush}
-          <Button
-            size="sm"
-            disabled={enablingPush}
-            loading={enablingPush}
-            loadingText={m('settings.notifications.push_prompt.enabling')}
-            label={m('settings.notifications.push_prompt.title')}
-            onclick={enablePushNotifications}
-          >
-            <span class="iconify icon-[uil--bell] text-base" aria-hidden="true"></span>
-            <span>{m('settings.notifications.push_prompt.title')}</span>
-          </Button>
-        {/if}
         {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
           <Button
             variant="danger-secondary"
@@ -548,18 +491,6 @@
           </Button>
         {/if}
       {/snippet}
-      {#if showIosHomeScreenHint}
-        <div class="px-3 pt-3" data-testid="push-ios-home-screen-hint">
-          <Hint icon="icon-[uil--mobile-android]">
-            <p class="font-medium">
-              {m('settings.notifications.push.ios_home_screen_title')}
-            </p>
-            <p class="text-muted">
-              {m('settings.notifications.push.ios_home_screen_description')}
-            </p>
-          </Hint>
-        </div>
-      {/if}
       <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
         <div class="flex min-h-full flex-col">
           {#if pageError && groups.length === 0}

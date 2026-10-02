@@ -281,21 +281,13 @@
         "device_unknown": "Deze browser",
         "opens_at": "Meldingen openen Chatto op {origin}",
         "registering": "Pushmeldingen voor dit apparaat worden ingesteld…",
-        "off_title": "Pushmeldingen staan uit op dit apparaat",
-        "off_description": "Schakel ze in via de pagina Meldingen. Deze keuze geldt voor al je servers.",
-        "open_notifications": "Meldingen openen",
+        "off_title": "Pushmeldingen zijn op dit apparaat nog niet toegestaan",
+        "off_description": "Chatto vraagt je browser om toestemming terwijl je de app gebruikt. Heb je het verzoek gesloten, laad Chatto dan opnieuw om het weer te zien.",
         "test_failed": "Kan geen testmelding verzenden. Probeer het zo opnieuw.",
         "setup_failed_title": "Pushmeldingen konden niet worden ingesteld op dit apparaat",
         "setup_failed_description": "De browser of de server heeft het abonnement geweigerd. Chatto probeert het opnieuw als je terugkeert naar de app.",
         "test_rate_limited": "Wacht een paar seconden voordat je nog een testmelding verstuurt.",
         "setup_failed_details": "Technische details: {reason}"
-      },
-      "push_prompt": {
-        "title": "Schakel pushmeldingen in",
-        "enabled": "Pushmeldingen ingeschakeld",
-        "blocked": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen",
-        "enable_failed": "Kan pushmeldingen niet inschakelen",
-        "enabling": "Aanzetten..."
       },
       "sound": {
         "title": "Meldingsgeluid",

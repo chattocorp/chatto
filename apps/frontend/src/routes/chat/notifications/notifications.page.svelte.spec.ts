@@ -11,18 +11,10 @@ import {
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
 import { NotificationStore } from '@chatto/client/server/notifications';
-import { notificationPermission } from '$lib/notifications/pushPermission.svelte';
-import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
-    pushNotifications: {
-      enablePushOnAllServers: vi.fn(),
-      getPushCapability: vi.fn(),
-      permission: 'default' as NotificationPermission,
-      targets: [] as { serverId: string; userId: string; vapidPublicKey: string }[]
-    },
     servers: [{ id: 'origin', url: 'https://chat.example.test' }],
     stores: new Map<string, unknown>(),
     appUi: { disableRoomCallWideFor: vi.fn() },
@@ -97,26 +89,6 @@ vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => mocks.appUi
 }));
 
-vi.mock('$lib/notifications/pushNotifications', async () => {
-  // Use the real reactive permission state so the specs follow permission
-  // changes the same way the page does.
-  const { notificationPermission: permissionState } =
-    await import('$lib/notifications/pushPermission.svelte');
-  const { userPreferences: reactivePreferences } =
-    await import('$lib/state/userPreferences.svelte');
-  return {
-    enablePushOnAllServers: mocks.pushNotifications.enablePushOnAllServers,
-    getPermission: () => permissionState.current,
-    getPushCapability: mocks.pushNotifications.getPushCapability,
-    getPushRegistrationTargets: () => {
-      // Give the mutable fixture the same reactive invalidation behaviour as
-      // the real server registry.
-      void reactivePreferences.composerEditor;
-      return mocks.pushNotifications.targets;
-    }
-  };
-});
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
@@ -127,12 +99,6 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 }));
 
 import NotificationsPage from './+page.svelte';
-
-/** Sets the browser permission and tells the reactive permission state. */
-function setNotificationPermission(permission: NotificationPermission): void {
-  mocks.pushNotifications.permission = permission;
-  notificationPermission.refresh();
-}
 
 function page(
   occurrences: NotificationOccurrenceItem[] = [mocks.occurrence as NotificationOccurrenceItem],
@@ -186,215 +152,11 @@ describe('notifications page', () => {
     });
     mocks.stores.clear();
     mocks.stores.set('origin', mocks.store);
-    setNotificationPermission('granted');
-    vi.stubGlobal('Notification', {
-      get permission() {
-        return mocks.pushNotifications.permission;
-      }
-    });
-    notificationPermission.refresh();
-    userPreferences.composerEditor = 'markdown';
-    mocks.pushNotifications.getPushCapability.mockReturnValue('supported');
-    mocks.pushNotifications.targets = [
-      { serverId: 'origin', userId: 'user-1', vapidPublicKey: 'vapid-key' }
-    ];
-    mocks.pushNotifications.enablePushOnAllServers.mockReset();
-    mocks.pushNotifications.enablePushOnAllServers.mockImplementation(async () => {
-      setNotificationPermission('granted');
-      notificationPermission.refresh();
-      return {
-        permission: 'granted',
-        registrations: [
-          {
-            serverId: 'origin',
-            userId: 'user-1',
-            vapidPublicKey: 'vapid-key',
-            registered: true
-          }
-        ]
-      };
-    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
-  });
-
-  it('offers explicit push activation while browser permission is unset', async () => {
-    setNotificationPermission('default');
-
-    const { container } = render(NotificationsPage);
-    const enableButton = await vi.waitFor(() => {
-      const button = Array.from(container.querySelectorAll('button')).find(
-        (candidate) => candidate.textContent?.trim() === 'Enable push notifications'
-      );
-      expect(button).toBeDefined();
-      return button as HTMLButtonElement;
-    });
-
-    enableButton.click();
-
-    await vi.waitFor(() => {
-      expect(mocks.pushNotifications.enablePushOnAllServers).toHaveBeenCalledOnce();
-      expect(getToasts().at(-1)?.message).toBe('Push notifications enabled');
-    });
-    expect(container.textContent).not.toContain('Enable push notifications');
-  });
-
-  it('reports a partial push registration failure without offering permission again', async () => {
-    setNotificationPermission('default');
-    mocks.pushNotifications.enablePushOnAllServers.mockImplementation(async () => {
-      setNotificationPermission('granted');
-      notificationPermission.refresh();
-      return {
-        permission: 'granted',
-        registrations: [
-          {
-            serverId: 'origin',
-            userId: 'user-1',
-            vapidPublicKey: 'vapid-key',
-            registered: true
-          },
-          {
-            serverId: 'remote',
-            userId: 'user-2',
-            vapidPublicKey: 'remote-vapid-key',
-            registered: false
-          }
-        ]
-      };
-    });
-
-    const { container } = render(NotificationsPage);
-    const enableButton = await vi.waitFor(() => {
-      const button = Array.from(container.querySelectorAll('button')).find(
-        (candidate) => candidate.textContent?.trim() === 'Enable push notifications'
-      );
-      expect(button).toBeDefined();
-      return button as HTMLButtonElement;
-    });
-    enableButton.click();
-
-    await vi.waitFor(() => {
-      expect(getToasts().at(-1)?.message).toBe('Failed to enable push notifications');
-    });
-    expect(container.textContent).not.toContain('Enable push notifications');
-  });
-
-  it.each([
-    ['granted', 'supported', 1],
-    ['denied', 'supported', 1],
-    ['default', 'unsupported', 1],
-    ['default', 'supported', 0]
-  ] as const)(
-    'hides push activation for permission %s, capability %s, and %i targets',
-    async (permission, capability, targetCount) => {
-      setNotificationPermission(permission);
-      mocks.pushNotifications.getPushCapability.mockReturnValue(capability);
-      mocks.pushNotifications.targets =
-        targetCount === 0
-          ? []
-          : [{ serverId: 'origin', userId: 'user-1', vapidPublicKey: 'vapid-key' }];
-
-      const { container } = render(NotificationsPage);
-
-      await vi.waitFor(() => {
-        expect(container.textContent).not.toContain('Enable push notifications');
-      });
-    }
-  );
-
-  it('explains the Home Screen requirement instead of offering activation on iOS browsers', async () => {
-    setNotificationPermission('default');
-    mocks.pushNotifications.getPushCapability.mockReturnValue('ios_home_screen_required');
-
-    const { container } = render(NotificationsPage);
-
-    await vi.waitFor(() => {
-      expect(q(container, '[data-testid="push-ios-home-screen-hint"]')?.textContent).toContain(
-        'Add Chatto to your Home Screen'
-      );
-    });
-    expect(container.textContent).not.toContain('Enable push notifications');
-  });
-
-  it('shows no Home Screen guidance without a server that supports push', async () => {
-    mocks.pushNotifications.getPushCapability.mockReturnValue('ios_home_screen_required');
-    mocks.pushNotifications.targets = [];
-
-    const { container } = render(NotificationsPage);
-    await vi.waitFor(() => expect(container.textContent).toContain('Notifications'));
-
-    expect(q(container, '[data-testid="push-ios-home-screen-hint"]')).toBeNull();
-  });
-
-  it('shows push activation for servers that become eligible after mount', async () => {
-    setNotificationPermission('default');
-    mocks.pushNotifications.targets = [];
-
-    const { container } = render(NotificationsPage);
-    await vi.waitFor(() => expect(container.textContent).toContain('Notifications'));
-    expect(container.textContent).not.toContain('Enable push notifications');
-
-    mocks.pushNotifications.targets = [
-      { serverId: 'remote', userId: 'user-2', vapidPublicKey: 'remote-vapid-key' }
-    ];
-    userPreferences.composerEditor = 'visual';
-
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain('Enable push notifications');
-    });
-  });
-
-  it('follows permission decisions made outside the page', async () => {
-    setNotificationPermission('default');
-
-    const { container } = render(NotificationsPage);
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain('Enable push notifications');
-    });
-
-    // Another tab or the browser settings grant permission.
-    mocks.pushNotifications.permission = 'granted';
-    window.dispatchEvent(new FocusEvent('focus'));
-    await vi.waitFor(() => {
-      expect(container.textContent).not.toContain('Enable push notifications');
-    });
-
-    // The user resets the permission in the browser settings.
-    mocks.pushNotifications.permission = 'default';
-    window.dispatchEvent(new FocusEvent('focus'));
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain('Enable push notifications');
-    });
-  });
-
-  it('keeps offering push activation after the browser prompt is dismissed', async () => {
-    setNotificationPermission('default');
-    mocks.pushNotifications.enablePushOnAllServers.mockResolvedValue({
-      permission: 'default',
-      registrations: [
-        { serverId: 'origin', userId: 'user-1', vapidPublicKey: 'vapid-key', registered: false }
-      ]
-    });
-
-    const { container } = render(NotificationsPage);
-    const enableButton = await vi.waitFor(() => {
-      const button = Array.from(container.querySelectorAll('button')).find(
-        (candidate) => candidate.textContent?.trim() === 'Enable push notifications'
-      );
-      expect(button).toBeDefined();
-      return button as HTMLButtonElement;
-    });
-    enableButton.click();
-
-    await vi.waitFor(() => {
-      expect(mocks.pushNotifications.enablePushOnAllServers).toHaveBeenCalledOnce();
-    });
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain('Enable push notifications');
-    });
   });
 
   it('queues an unread occurrence to be marked read after its target is displayed', async () => {

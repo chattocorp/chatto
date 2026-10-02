@@ -281,21 +281,13 @@
         "device_unknown": "このブラウザ",
         "opens_at": "通知を開くと {origin} の Chatto が開きます",
         "registering": "このデバイスのプッシュ通知を設定しています…",
-        "off_title": "このデバイスではプッシュ通知がオフです",
-        "off_description": "通知ページでオンにしてください。この設定はすべてのサーバーに適用されます。",
-        "open_notifications": "通知を開く",
+        "off_title": "このデバイスではまだプッシュ通知が許可されていません",
+        "off_description": "アプリの使用中に、Chatto がブラウザに許可を求めます。リクエストを閉じた場合は、Chatto を再読み込みすると再度表示されます。",
         "test_failed": "テスト通知を送信できませんでした。しばらくしてからもう一度お試しください。",
         "setup_failed_title": "このデバイスでプッシュ通知を設定できませんでした",
         "setup_failed_description": "ブラウザまたはサーバーが登録を拒否しました。アプリに戻ると、Chatto が再試行します。",
         "test_rate_limited": "次のテスト通知を送信する前に、数秒お待ちください。",
         "setup_failed_details": "技術的な詳細: {reason}"
-      },
-      "push_prompt": {
-        "title": "プッシュ通知を有効にする",
-        "enabled": "プッシュ通知が有効になっています",
-        "blocked": "ブラウザまたは OS の設定でプッシュ通知がブロックされています",
-        "enable_failed": "プッシュ通知を有効にできませんでした",
-        "enabling": "有効化中..."
       },
       "sound": {
         "title": "通知音",

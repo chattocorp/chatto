@@ -281,21 +281,13 @@
         "device_unknown": "This browser",
         "opens_at": "Notifications open Chatto at {origin}",
         "registering": "Setting up push notifications for this device…",
-        "off_title": "Push notifications are off on this device",
-        "off_description": "Turn them on from the Notifications page. One choice covers all your servers.",
-        "open_notifications": "Open Notifications",
+        "off_title": "Push notifications are not allowed on this device yet",
+        "off_description": "Chatto asks your browser for permission while you use the app. If you dismissed the request, reload Chatto to see it again.",
         "test_failed": "Could not send a test notification. Try again in a moment.",
         "setup_failed_title": "Push notifications could not be set up on this device",
         "setup_failed_description": "The browser or the server rejected the subscription. Chatto tries again when you return to the app.",
         "test_rate_limited": "Wait a few seconds before you send another test notification.",
         "setup_failed_details": "Technical details: {reason}"
-      },
-      "push_prompt": {
-        "title": "Enable push notifications",
-        "enabled": "Push notifications enabled",
-        "blocked": "Push notifications are blocked in your browser or OS settings",
-        "enable_failed": "Failed to enable push notifications",
-        "enabling": "Enabling..."
       },
       "sound": {
         "title": "Notification Sound",

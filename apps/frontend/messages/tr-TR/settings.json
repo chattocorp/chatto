@@ -281,21 +281,13 @@
         "device_unknown": "Bu tarayıcı",
         "opens_at": "Bildirimler Chatto'yu {origin} adresinde açar",
         "registering": "Bu cihaz için anlık bildirimler ayarlanıyor…",
-        "off_title": "Bu cihazda anlık bildirimler kapalı",
-        "off_description": "Bunları Bildirimler sayfasından açın. Bu seçim tüm sunucularınız için geçerlidir.",
-        "open_notifications": "Bildirimleri aç",
+        "off_title": "Bu cihazda anlık bildirimlere henüz izin verilmedi",
+        "off_description": "Chatto, uygulamayı kullanırken tarayıcınızdan izin ister. İsteği kapattıysanız tekrar görmek için Chatto'yu yeniden yükleyin.",
         "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin.",
         "setup_failed_title": "Bu cihazda anlık bildirimler ayarlanamadı",
         "setup_failed_description": "Tarayıcı veya sunucu aboneliği reddetti. Chatto, uygulamaya döndüğünüzde yeniden dener.",
         "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin.",
         "setup_failed_details": "Teknik ayrıntılar: {reason}"
-      },
-      "push_prompt": {
-        "title": "Anlık bildirimleri etkinleştir",
-        "enabled": "Anında bildirimler etkinleştirildi",
-        "blocked": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellendi",
-        "enable_failed": "Anlık bildirimler etkinleştirilemedi",
-        "enabling": "Etkinleştiriliyor..."
       },
       "sound": {
         "title": "Bildirim Sesi",

@@ -116,7 +116,7 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-When at least one registered server supports push, the header of the Notifications page shows **Enable push notifications** while browser permission is unset. This is the only place where Chatto asks for permission. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings. The browser permission is the only switch.
+When a signed-in server supports push and browser permission is unset, Chatto asks the browser for permission automatically. It asks right after sign-in, or on the next click or key press. The browser or operating system presents the choice. If the user dismisses the prompt, Chatto asks again after the next page load. If the user blocks notifications, Chatto does not ask again; the user can change the choice in browser or operating-system settings. The browser permission is the only switch.
 
 Each server's notification settings show whether that server sends push notifications to this device. When it does, the panel names the browser and platform, and the address where notifications open Chatto. Use **Send test notification** to check delivery to your devices.
 
@@ -145,7 +145,7 @@ On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safar
 3. Keep the service worker path reachable through your proxy.
 4. Test from a normal member account, not only an owner account.
 5. Test one desktop browser and one mobile installed PWA if mobile push matters.
-6. Explain to members that push is per device and opt-in, and that they enable it from the Notifications page.
+6. Explain to members that push is per device and that the browser asks for permission once Chatto is in use.
 
 ## Related Guides
 
