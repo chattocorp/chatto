@@ -524,12 +524,14 @@
   }
 
   // The virtual keyboard and a growing composer shrink the timeline. Keep the
-  // newest visible messages in view. Restores and unread landings own the
-  // position while they run.
+  // newest visible messages in view. Restores, jumps, and unread landings own
+  // the position while they run.
   const anchorTimelineBottom = anchorBottomOnResize({
     followsBottom: () => viewport.shouldScrollToBottom,
-    isPaused: () => viewport.isUnreadEntryLandingRunning || Boolean(recoveryViewport(messageStore)),
-    onAdjust: () => scrollFader?.refresh()
+    isPaused: () =>
+      Boolean(scrollToEventId) ||
+      viewport.isUnreadEntryLandingRunning ||
+      Boolean(recoveryViewport(messageStore))
   });
 
   // Auto-scroll to bottom when new events arrive or existing events update.
