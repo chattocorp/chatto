@@ -19,6 +19,7 @@ import {
   type AuthorizationWindow
 } from '$lib/oauth/authorizationWindow';
 import { serverRegistry } from '$lib/client';
+import { getActiveServer } from '$lib/state/activeServer.svelte';
 import type { RegisteredServer } from '@chatto/client/server/registry';
 import { serverIdToSegment } from '$lib/navigation';
 import { isLoopbackHostname } from '@chatto/client/util/runtimeOrigin';
@@ -92,7 +93,7 @@ async function runServerOAuthFlow(
       response.code,
       MOBILE_CALLBACK
     );
-    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+    await openSignedInServer(serverId);
     return;
   }
   const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
@@ -159,13 +160,23 @@ async function runServerOAuthFlow(
 
     const serverId = await completeServerOAuthFlow(flow, response.code, redirectUri);
     loadAndClearFlowState();
-    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+    await openSignedInServer(serverId);
   } catch (err) {
     responseWait.cancel();
     loadAndClearFlowState();
     await closeAuthorizationWindow(authorizationWindow);
     throw err;
   }
+}
+
+/**
+ * Open a server after sign-in completes. When the current route already shows
+ * the server, stay on it: the server layout replaces the signed-out view with
+ * the server chrome, and the route keeps its deep link, for example a room.
+ */
+async function openSignedInServer(serverId: string): Promise<void> {
+  if (getActiveServer() === serverId) return;
+  await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
 }
 
 function createResponseChannel(state: string): BroadcastChannel | null {

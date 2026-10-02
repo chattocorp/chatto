@@ -3,6 +3,8 @@ import type { RegisteredServer } from '@chatto/client/server/registry';
 import { authorizationLaunchTarget } from '$lib/test-utils/authorizationWindow';
 
 const native = vi.hoisted(() => ({ available: false, authorize: vi.fn() }));
+const activeServer = vi.hoisted(() => ({ id: 'origin' }));
+vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => activeServer.id }));
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
@@ -158,6 +160,7 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('sessionStorage', memoryStorage());
     vi.stubGlobal('localStorage', memoryStorage());
     registered.servers = [remote];
+    activeServer.id = 'origin';
     getPublicServerInfoMock.mockReset();
     getPublicServerInfoMock.mockResolvedValue({
       name: 'Remote',
@@ -205,6 +208,26 @@ describe('remote server OAuth popup', () => {
       expect.objectContaining({ token: 'cht_ATtoken' })
     );
     expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
+  });
+
+  it('stays on the route of the server that the user signs in to', async () => {
+    native.available = true;
+    native.authorize.mockImplementation(async (_raw: string, state: string) => ({
+      state,
+      code: 'native-code'
+    }));
+    vi.stubGlobal('window', { open: vi.fn() });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => tokenResponse())
+    );
+    activeServer.id = 'remote';
+    const { startRemoteReauthentication } = await import('./reauth');
+
+    await startRemoteReauthentication(remote);
+
+    expect(replaceServerAuthenticationMock).toHaveBeenCalledOnce();
+    expect(gotoMock).not.toHaveBeenCalled();
   });
 
   it('does not exchange credentials or store a session after native cancellation', async () => {
