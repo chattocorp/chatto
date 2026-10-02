@@ -32,11 +32,15 @@ export {
   type AddressedMessage,
   type AddressingOptions,
   type AddressingReason,
+  type AssetAccess,
   type ServiceSource
 } from './messaging/requests.js';
 export type {
+  AttachmentContent,
+  AttachmentReadOptions,
   ChattoMessage,
   Destination,
+  MessageAttachmentInfo,
   RealtimeStatus,
   RequestOptions,
   ThreadLocation,

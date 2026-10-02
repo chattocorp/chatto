@@ -16,7 +16,7 @@ import type { ServiceType } from '@bufbuild/protobuf';
 import { createClient, type Client } from '@connectrpc/connect';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { connectEndpoint, createChattoTransport } from './api/connect.js';
-import { MessagingRequests } from './messaging/requests.js';
+import { MessagingRequests, type AssetAccess } from './messaging/requests.js';
 import type { RequestOptions } from './messaging/types.js';
 import { parseServerUrl } from './util/serverUrl.js';
 
@@ -49,7 +49,8 @@ export class Api extends MessagingRequests {
   constructor(
     serverUrl: string,
     service: <T extends ServiceType>(service: T) => Client<T>,
-    knownViewerId?: string
+    knownViewerId?: string,
+    assets?: AssetAccess
   ) {
     const viewerId = knownViewerId
       ? async ({ signal }: RequestOptions) => {
@@ -57,7 +58,7 @@ export class Api extends MessagingRequests {
           return knownViewerId;
         }
       : cachedViewerId(service);
-    super({ service }, viewerId);
+    super({ service }, viewerId, assets);
     this.serverUrl = serverUrl;
     this.#service = service;
     this.#viewerId = viewerId;
@@ -127,5 +128,11 @@ export function createApi(options: ApiOptions): Api {
       fetch: (input, init) => request(input, { ...init, redirect: 'error' })
     }
   );
-  return new Api(url.origin, (service) => createClient(service, transport), options.viewerId);
+  return new Api(
+    url.origin,
+    (service) => createClient(service, transport),
+    options.viewerId,
+    // Attachment addresses carry access tickets; the bearer token is not sent.
+    { origin: url.origin, fetch: request }
+  );
 }

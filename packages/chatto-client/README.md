@@ -120,17 +120,18 @@ A server and a stateless `Api` have the same request helpers. Each
 request has a ten-second timeout and is never retried; a failed write can
 still have reached the server.
 
-| Helper                                            | Does                                                   |
-| ------------------------------------------------- | ------------------------------------------------------ |
-| `getMessage({ roomId, messageId })`               | Reads one message                                      |
-| `createMessage(destination, body, { inReplyTo })` | Sends one message; returns its `id`                    |
-| `postMessage(destination, body)`                  | Sends text of any length, in parts of 8000 code points |
-| `reply(message, body)`                            | Posts in the message's thread with a reference to it   |
-| `readThread(location, { after, limit })`          | Reads a thread; `after` reads only newer messages      |
-| `refreshTyping(destination)`                      | Refreshes the typing indicator once                    |
-| `withTyping(destination, work)`                   | Shows the typing indicator while `work` runs           |
-| `addReaction({ roomId, messageId }, emoji)`       | Reacts to a message                                    |
-| `addressedMessage(event, { reasons })`            | Recognizes an event as a message to the viewer         |
+| Helper                                            | Does                                                      |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| `getMessage({ roomId, messageId })`               | Reads one message                                         |
+| `createMessage(destination, body, { inReplyTo })` | Sends one message; returns its `id`                       |
+| `postMessage(destination, body)`                  | Sends text of any length, in parts of 8000 code points    |
+| `reply(message, body)`                            | Posts in the message's thread with a reference to it      |
+| `readThread(location, { after, limit })`          | Reads a thread; `after` reads only newer messages         |
+| `readAttachment({ roomId, attachmentId }, opts)`  | Reads a file; `maxImageSize` resizes images on the server |
+| `refreshTyping(destination)`                      | Refreshes the typing indicator once                       |
+| `withTyping(destination, work)`                   | Shows the typing indicator while `work` runs              |
+| `addReaction({ roomId, messageId }, emoji)`       | Reacts to a message                                       |
+| `addressedMessage(event, { reasons })`            | Recognizes an event as a message to the viewer            |
 
 Every helper takes `{ signal }` as its last argument. `postMessage`, `reply`,
 and `ctx.reply` return the `ids` of the new messages. Other helpers are

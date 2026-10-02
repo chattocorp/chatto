@@ -32,6 +32,7 @@ import {
   type AddressingReason
 } from '../messaging/requests.js';
 import type {
+  AttachmentReadOptions,
   ChattoMessage,
   Destination,
   RealtimeStatus,
@@ -190,11 +191,15 @@ export class Server extends ServerStateStore {
     );
     this.serverUrl = registration.url;
     this.#serverContext = context;
-    this.#requests = new MessagingRequests(this, async (options) => {
-      const current = this.accountId;
-      if (current) return current;
-      return (await this.ready(options)).viewerId;
-    });
+    this.#requests = new MessagingRequests(
+      this,
+      async (options) => {
+        const current = this.accountId;
+        if (current) return current;
+        return (await this.ready(options)).viewerId;
+      },
+      { origin: new URL(registration.url).origin, fetch: (input, init) => fetch(input, init) }
+    );
     this.#disposeBusSubscription = effectRoot(() => this.#subscribeToBus());
     this.onDispose(() => this.#release());
   }
@@ -323,8 +328,7 @@ export class Server extends ServerStateStore {
       // Fail responses that arrive after close(). With a fixed token, the
       // account cannot change, so a privacy reset does not fail them: the
       // host, not a shared cache, receives these responses.
-      dataGeneration: () =>
-        closed.peek() ? -1 : fixedToken ? 0 : (base.dataGeneration?.() ?? 0),
+      dataGeneration: () => (closed.peek() ? -1 : fixedToken ? 0 : (base.dataGeneration?.() ?? 0)),
       transport: (interceptors) => send([refuseAfterClose, ...interceptors])
     };
     return createServiceClient(service, config);
@@ -567,6 +571,14 @@ export class Server extends ServerStateStore {
   /** Read a thread; see `MessagingRequests.readThread`. */
   readThread(location: ThreadLocation, options?: ThreadReadOptions) {
     return this.#requests.readThread(location, options);
+  }
+
+  /** Read the content of an attachment; see `MessagingRequests.readAttachment`. */
+  readAttachment(
+    attachment: { roomId: string; attachmentId: string },
+    options?: AttachmentReadOptions
+  ) {
+    return this.#requests.readAttachment(attachment, options);
   }
 
   /** Recognize an event as a message addressed to the viewer; see `run`. */

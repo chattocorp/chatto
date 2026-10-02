@@ -7,24 +7,32 @@ import {
   createRouterTransport,
   type ConnectRouter
 } from '@connectrpc/connect';
+import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
+import type { BatchGetAssetsRequest } from '@chatto/api-types/api/v1/attachments_pb';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import type { CreateMessageRequest } from '@chatto/api-types/api/v1/messages_pb';
 import type { GetThreadEventsRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { conversationKey, MessagingRequests, replyDestination } from './requests.js';
+import {
+  conversationKey,
+  MessagingRequests,
+  replyDestination,
+  type AssetAccess
+} from './requests.js';
 import { createDeliveryTracker } from './deliveries.js';
 
 /** Request helpers for the viewer `bot`, answered by an in-memory Connect router. */
-function requests(routes: (router: ConnectRouter) => void = () => {}) {
+function requests(routes: (router: ConnectRouter) => void = () => {}, assets?: AssetAccess) {
   const transport = createRouterTransport(routes);
   const viewerId = vi.fn(async () => 'bot');
   return {
     viewerId,
     requests: new MessagingRequests(
       { service: (service) => createClient(service, transport) },
-      viewerId
+      viewerId,
+      assets
     )
   };
 }
@@ -238,6 +246,178 @@ describe('threads', () => {
       api.readThread({ roomId: 'room', threadRootId: 'root' }, { after: 'same' })
     ).rejects.toThrow('did not advance');
   });
+});
+
+describe('attachments', () => {
+  test('thread reads keep messages with attachments only and leave out deleted messages', async () => {
+    const { requests: api } = requests((router) =>
+      router.service(ThreadService, {
+        getThreadEvents: () => ({
+          page: {
+            events: ['files', 'deleted'].map((id) => ({
+              id,
+              actorId: 'human',
+              event: {
+                case: 'messagePosted' as const,
+                value: {
+                  message: {
+                    id,
+                    actorId: 'human',
+                    attachments: [
+                      {
+                        id: `${id}-a`,
+                        filename: 'shot.png',
+                        contentType: 'image/png',
+                        width: 800,
+                        height: 600,
+                        assetUrl: { url: '/assets/files/a?ticket=secret' }
+                      }
+                    ],
+                    ...(id === 'deleted' ? { deletedAt: { seconds: 1n } } : {})
+                  }
+                }
+              }
+            }))
+          }
+        })
+      })
+    );
+    const read = await api.readThread({ roomId: 'room', threadRootId: 'root' });
+    expect(read.messages).toEqual([
+      {
+        id: 'files',
+        authorId: 'human',
+        body: '',
+        attachments: [
+          { id: 'files-a', filename: 'shot.png', contentType: 'image/png', width: 800, height: 600 }
+        ],
+        fromViewer: false
+      }
+    ]);
+    expect(JSON.stringify(read)).not.toContain('ticket');
+  });
+
+  /** Request helpers with one asset, `a`, and a fetch that answers its addresses. */
+  function withAsset(
+    asset: { contentType: string; size: number },
+    respond: (url: URL) => Response = () => new Response('content')
+  ) {
+    const lookups: BatchGetAssetsRequest[] = [];
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => respond(new URL(String(input))));
+    const { requests: api } = requests(
+      (router) =>
+        router.service(AssetService, {
+          batchGetAssets(request) {
+            lookups.push(request);
+            return {
+              assets: [
+                {
+                  id: 'a',
+                  filename: 'file',
+                  contentType: asset.contentType,
+                  size: BigInt(asset.size),
+                  assetUrl: { url: '/assets/files/a?t=1' },
+                  thumbnailAssetUrl: { url: '/assets/files/a/image/1600x1600/contain?t=2' }
+                }
+              ]
+            };
+          }
+        }),
+      { origin: 'https://chat.example', fetch }
+    );
+    return { api, fetch, lookups };
+  }
+
+  test('reads a resized image from the thumbnail address without credentials', async () => {
+    const { api, fetch, lookups } = withAsset(
+      { contentType: 'image/png', size: 50_000_000 },
+      () => new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'image/webp' } })
+    );
+    const content = await api.readAttachment(
+      { roomId: 'room', attachmentId: 'a' },
+      { maxImageSize: 1600 }
+    );
+    expect(content).toEqual({
+      filename: 'file',
+      contentType: 'image/webp',
+      data: new Uint8Array([1, 2, 3])
+    });
+    expect(lookups[0]?.thumbnail).toMatchObject({ width: 1600, height: 1600 });
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(String(url)).toBe('https://chat.example/assets/files/a/image/1600x1600/contain?t=2');
+    expect(init?.redirect).toBe('error');
+    expect(init?.headers).toBeUndefined();
+  });
+
+  test('reads other files from the original address with download=1', async () => {
+    const { api, fetch } = withAsset({ contentType: 'text/plain', size: 7 });
+    const content = await api.readAttachment({ roomId: 'room', attachmentId: 'a' });
+    expect(new TextDecoder().decode(content.data)).toBe('content');
+    expect(String(fetch.mock.calls[0]![0])).toBe(
+      'https://chat.example/assets/files/a?t=1&download=1'
+    );
+  });
+
+  test('rejects content above the limit, declared or streamed', async () => {
+    const declared = withAsset({ contentType: 'text/plain', size: 10_000 });
+    await expect(
+      declared.api.readAttachment({ roomId: 'room', attachmentId: 'a' }, { maxBytes: 100 })
+    ).rejects.toThrow('too large');
+    expect(declared.fetch).not.toHaveBeenCalled();
+    const streamed = withAsset(
+      { contentType: 'text/plain', size: 1 },
+      () => new Response('x'.repeat(200))
+    );
+    await expect(
+      streamed.api.readAttachment({ roomId: 'room', attachmentId: 'a' }, { maxBytes: 100 })
+    ).rejects.toThrow('too large');
+  });
+
+  test('requests absolute addresses from its own origin', async () => {
+    const { requests: api, fetch } = assetOnly('https://public.example/assets/files/a?t=1');
+    await api.readAttachment({ roomId: 'room', attachmentId: 'a' });
+    expect(String(fetch.mock.calls[0]![0])).toBe(
+      'https://chat.example/assets/files/a?t=1&download=1'
+    );
+  });
+
+  test('rejects unexpected addresses, failed downloads, and missing assets', async () => {
+    const unexpected = assetOnly('https://evil.example/steal?t=1');
+    await expect(
+      unexpected.requests.readAttachment({ roomId: 'room', attachmentId: 'a' })
+    ).rejects.toThrow('unexpected attachment address');
+    expect(unexpected.fetch).not.toHaveBeenCalled();
+    const failed = withAsset(
+      { contentType: 'text/plain', size: 1 },
+      () => new Response('no', { status: 403 })
+    );
+    await expect(failed.api.readAttachment({ roomId: 'room', attachmentId: 'a' })).rejects.toThrow(
+      'HTTP 403'
+    );
+    await expect(
+      failed.api.readAttachment({ roomId: 'room', attachmentId: 'missing' })
+    ).rejects.toThrow('not found');
+    await expect(
+      requests().requests.readAttachment({ roomId: 'room', attachmentId: 'a' })
+    ).rejects.toThrow('cannot read attachment content');
+  });
+
+  /** Request helpers whose text asset `a` has the original address `url`. */
+  function assetOnly(url: string) {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response('x'));
+    return {
+      fetch,
+      ...requests(
+        (router) =>
+          router.service(AssetService, {
+            batchGetAssets: () => ({
+              assets: [{ id: 'a', contentType: 'text/plain', assetUrl: { url } }]
+            })
+          }),
+        { origin: 'https://chat.example', fetch }
+      )
+    };
+  }
 });
 
 describe('addressing', () => {

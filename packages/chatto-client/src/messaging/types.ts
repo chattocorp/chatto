@@ -32,14 +32,31 @@ export interface ThreadLocation {
   threadRootId: string;
 }
 
-/** A textual thread message; attachments and non-message events are left out. */
+/** A file attached to a message: its metadata only. `readAttachment` reads its content. */
+export interface MessageAttachmentInfo {
+  id: string;
+  filename: string;
+  /** MIME type, such as `image/png`. */
+  contentType: string;
+  /** Image or video width in pixels, when known. */
+  width?: number;
+  /** Image or video height in pixels, when known. */
+  height?: number;
+  /** The author's description of the file, when given. */
+  description?: string;
+}
+
+/** A thread message with text, attachments, or both; non-message events are left out. */
 export interface ThreadMessage {
   id: string;
   authorId?: string;
   /** The author's display name, or login when no display name is set. */
   authorName?: string;
   authorLogin?: string;
+  /** The message text. Empty for a message with attachments only. */
   body: string;
+  /** Files attached to the message. Absent when there are none. */
+  attachments?: MessageAttachmentInfo[];
   /** Whether the viewer, the account of the API key, wrote the message. */
   fromViewer: boolean;
 }
@@ -68,6 +85,26 @@ export interface ThreadReadOptions extends RequestOptions {
   after?: string;
   /** Most replies to return without `after`. Default: 100. */
   limit?: number;
+}
+
+/** Options for `readAttachment`. */
+export interface AttachmentReadOptions extends RequestOptions {
+  /**
+   * Resize an image on the server to fit within this many pixels on each side
+   * (at most 2048). Other files, and images without this option, return the
+   * original.
+   */
+  maxImageSize?: number;
+  /** Reject content larger than this many bytes. Default: 5 MB. */
+  maxBytes?: number;
+}
+
+/** The content of one attachment. */
+export interface AttachmentContent {
+  filename: string;
+  /** MIME type of `data`. A resized image can have another type than the original. */
+  contentType: string;
+  data: Uint8Array;
 }
 
 /** Realtime status for hosts, without remote messages or connection details. */

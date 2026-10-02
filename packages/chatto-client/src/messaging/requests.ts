@@ -11,13 +11,19 @@ import type { Client } from '@connectrpc/connect';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
+import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
+import type { MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { withTyping } from './typing.js';
 import type {
+  AttachmentContent,
+  AttachmentReadOptions,
   ChattoMessage,
   Destination,
+  MessageAttachmentInfo,
   RequestOptions,
   ThreadLocation,
   ThreadMessage,
@@ -33,6 +39,10 @@ const THREAD_READ_TIMEOUT_MS = 30_000;
 const MESSAGE_CHUNK_LENGTH = 8000;
 /** Thread events requested per page. */
 const THREAD_PAGE_SIZE = 100;
+/** Default size limit of attachment content. */
+const DEFAULT_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+/** Timeout of one attachment download. */
+const ATTACHMENT_TIMEOUT_MS = 30_000;
 
 /** Why a message is addressed to the viewer; see `addressedMessage`. */
 export type AddressingReason = 'direct_message' | 'mention' | 'reply';
@@ -49,6 +59,16 @@ export interface AddressedMessage extends ChattoMessage {
   /** When the message was posted, as an ISO 8601 timestamp. */
   occurredAt?: string;
   reasons: AddressingReason[];
+}
+
+/**
+ * How a client fetches attachment content: the server origin and a fetch
+ * function. Attachment addresses carry their own access tickets, so the fetch
+ * sends no credentials. Every download goes to `origin`.
+ */
+export interface AssetAccess {
+  origin: string;
+  fetch: typeof globalThis.fetch;
 }
 
 /** Anything that creates typed service clients, such as a connection or an `Api`. */
@@ -95,6 +115,8 @@ function callOptions(signal: AbortSignal | undefined, timeoutMs = REQUEST_TIMEOU
 
 /** Request helpers bound to one server and one viewer. */
 export class MessagingRequests {
+  readonly #assetService: Client<typeof AssetService>;
+  readonly #assets?: AssetAccess;
   readonly #messages: Client<typeof MessageService>;
   readonly #rooms: Client<typeof RoomService>;
   readonly #threads: Client<typeof ThreadService>;
@@ -102,9 +124,15 @@ export class MessagingRequests {
 
   /**
    * `viewerId` returns the account of the source's token. Thread reads and
-   * addressing use it.
+   * addressing use it. `assets` lets `readAttachment` fetch attachment content.
    */
-  constructor(source: ServiceSource, viewerId: (options: RequestOptions) => Promise<string>) {
+  constructor(
+    source: ServiceSource,
+    viewerId: (options: RequestOptions) => Promise<string>,
+    assets?: AssetAccess
+  ) {
+    this.#assetService = source.service(AssetService);
+    this.#assets = assets;
     this.#messages = source.service(MessageService);
     this.#rooms = source.service(RoomService);
     this.#threads = source.service(ThreadService);
@@ -298,7 +326,9 @@ export class MessagingRequests {
       if (!event.id || seen.has(event.id) || event.event.case !== 'messagePosted') return [];
       seen.add(event.id);
       const message = event.event.value.message;
-      if (!message?.body) return [];
+      if (!message || message.deletedAt || (!message.body && !message.attachments.length))
+        return [];
+      const attachments = message.attachments.map(attachmentInfo);
       const user = message.actorId ? users[message.actorId] : undefined;
       const name = user?.displayName || user?.login;
       return [
@@ -307,12 +337,75 @@ export class MessagingRequests {
           authorId: message.actorId || undefined,
           ...(name ? { authorName: name } : {}),
           ...(user?.login ? { authorLogin: user.login } : {}),
-          body: message.body,
+          body: message.body ?? '',
+          ...(attachments.length ? { attachments } : {}),
           fromViewer: message.actorId === viewerId
         }
       ];
     });
     return { messages, ...(cursor ? { cursor } : {}), olderOmitted };
+  }
+
+  /**
+   * Read the content of one attachment in a room that the viewer can read. An
+   * image with `maxImageSize` is resized on the server. The request fails when
+   * the content is larger than `maxBytes` (default 5 MB), when the server
+   * returns no address for it, or when this client cannot fetch assets. The
+   * download has a 30-second timeout and does not follow redirects.
+   */
+  async readAttachment(
+    { roomId, attachmentId }: { roomId: string; attachmentId: string },
+    { signal, maxImageSize, maxBytes = DEFAULT_ATTACHMENT_BYTES }: AttachmentReadOptions = {}
+  ): Promise<AttachmentContent> {
+    if (!this.#assets) throw new Error('This client cannot read attachment content');
+    const size = maxImageSize && Math.max(1, Math.min(2048, Math.round(maxImageSize)));
+    const { assets } = await this.#assetService.batchGetAssets(
+      {
+        roomId,
+        assetIds: [attachmentId],
+        ...(size
+          ? {
+              thumbnail: new ImageTransformOptions({
+                width: size,
+                height: size,
+                fit: ImageFitMode.CONTAIN
+              })
+            }
+          : {})
+      },
+      callOptions(signal)
+    );
+    const asset = assets.find((entry) => entry.id === attachmentId);
+    if (!asset) throw new Error('Attachment not found');
+    const resized = Boolean(size && asset.contentType.startsWith('image/'));
+    if (!resized && Number(asset.size) > maxBytes) throw new Error('Attachment is too large');
+    const path = resized ? asset.thumbnailAssetUrl?.url : asset.assetUrl?.url;
+    if (!path) throw new Error('Chatto did not return an address for the attachment');
+    // The server can return an absolute address on its public URL, which a host on an internal
+    // address cannot reach. Asset tickets sign the path, so the client requests it from its own
+    // origin and never sends a request to another host.
+    const returned = new URL(path, this.#assets.origin);
+    if (!returned.pathname.startsWith('/assets/'))
+      throw new Error('Chatto returned an unexpected attachment address');
+    const url = new URL(returned.pathname + returned.search, this.#assets.origin);
+    // `download=1` streams the original from Chatto instead of redirecting to object storage.
+    if (!resized) url.searchParams.set('download', '1');
+    const response = await this.#assets.fetch(url, {
+      signal: AbortSignal.any([
+        ...(signal ? [signal] : []),
+        AbortSignal.timeout(ATTACHMENT_TIMEOUT_MS)
+      ]),
+      redirect: 'error'
+    });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      throw new Error(`Attachment request failed (HTTP ${response.status})`);
+    }
+    return {
+      filename: asset.filename,
+      contentType: response.headers.get('content-type')?.split(';')[0]?.trim() || asset.contentType,
+      data: await readLimited(response, maxBytes)
+    };
   }
 
   /**
@@ -362,4 +455,46 @@ export class MessagingRequests {
       reasons
     };
   }
+}
+
+/** Attachment metadata for hosts, without asset addresses. */
+function attachmentInfo(attachment: MessageAttachment): MessageAttachmentInfo {
+  return {
+    id: attachment.id,
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    ...(attachment.width ? { width: attachment.width } : {}),
+    ...(attachment.height ? { height: attachment.height } : {}),
+    ...(attachment.description ? { description: attachment.description } : {})
+  };
+}
+
+/** Read a response body, and stop with an error when it exceeds `maxBytes`. */
+async function readLimited(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const declared = Number(response.headers.get('content-length'));
+  if (declared > maxBytes) {
+    await response.body?.cancel().catch(() => {});
+    throw new Error('Attachment is too large');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.byteLength;
+    if (length > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new Error('Attachment is too large');
+    }
+    chunks.push(value);
+  }
+  const data = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    data.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return data;
 }
