@@ -16,7 +16,6 @@
       "remote_title": "{server} oturum açılması gerekiyor",
       "remote_message": "Bu sunucu, depolanan oturum açma işlemini reddetti. Canlı güncellemeleri ve eylemleri sürdürmek için yeniden bağlayın.",
       "remote_action": "Yeniden bağlan",
-      "remote_failed": "Yeniden bağlanma başlatılamadı",
       "sidebar_reauth": "{server} oturum açılması gerekiyor"
     },
     "access_denied": {

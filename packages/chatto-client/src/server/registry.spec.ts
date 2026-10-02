@@ -317,6 +317,18 @@ describe('ServerRegistry', () => {
     });
   });
 
+  describe('findServerByUrl', () => {
+    it('matches registered servers by canonical origin', async () => {
+      const registry = await createRegistry();
+      registry.removeAll();
+      registry.addServer(makeServer({ id: 'remote', url: 'https://Remote.example.com' }));
+
+      expect(registry.findServerByUrl('https://remote.example.com:443/')?.id).toBe('remote');
+      expect(registry.findServerByUrl('https://remote.example.com:8443')).toBeUndefined();
+      expect(registry.findServerByUrl('not a url')).toBeUndefined();
+    });
+  });
+
   describe('removeServer', () => {
     it('removes an instance by ID', async () => {
       const registry = await createRegistry();

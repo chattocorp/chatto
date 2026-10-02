@@ -24,14 +24,13 @@ dialog shows it directly on its work plane. See FDR-042.
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import {
-    canonicalServerOrigin,
     loadServerDirectory,
     type ServerDirectory,
     type ServerDirectoryEntry
   } from '$lib/serverDirectory';
+  import { canonicalServerOrigin, serverHost } from '@chatto/client/util/serverUrl';
   import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
   import { serverRegistry } from '$lib/client';
-  import { type RegisteredServer } from '@chatto/client/server/registry';
   import { EmptyState, Hint, LoadingFog, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -145,14 +144,8 @@ dialog shows it directly on its work plane. See FDR-042.
     }
   }
 
-  function registeredServer(origin: string): RegisteredServer | undefined {
-    return serverRegistry.servers.find(
-      (server) => canonicalServerOrigin(server.url) === canonicalServerOrigin(origin)
-    );
-  }
-
   function actionLabel(origin: string, profile: ServerVersionProfile): string {
-    if (registeredServer(origin)) return m('add_server.directory.open');
+    if (serverRegistry.findServerByUrl(origin)) return m('add_server.directory.open');
     if (opensInServerClient(origin, profile)) return m('add_server.directory.open_in_new_tab');
     if (isPublicServerInfo(profile) && !profile.authorizeUrl) {
       return m('add_server.directory.sign_in_unavailable');
@@ -180,7 +173,7 @@ dialog shows it directly on its work plane. See FDR-042.
 
   function opensInServerClient(origin: string, profile: ServerVersionProfile): boolean {
     return (
-      !registeredServer(origin) &&
+      !serverRegistry.findServerByUrl(origin) &&
       profile !== null &&
       evaluateServerCompatibility({ serverVersion: profile.version }).status !== 'supported'
     );
@@ -196,7 +189,7 @@ dialog shows it directly on its work plane. See FDR-042.
    * explicitly.
    */
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
-    const joined = registeredServer(origin);
+    const joined = serverRegistry.findServerByUrl(origin);
     if (!joined && !canJoin(profile)) return;
     pendingOrigin = origin;
     try {
@@ -239,15 +232,11 @@ dialog shows it directly on its work plane. See FDR-042.
   }
 
   function sourceName(origin: string): string {
-    const registered = registeredServer(origin);
+    const registered = serverRegistry.findServerByUrl(origin);
     if (registered) return registered.name;
     const discovered = entries.find((entry) => entry.origin === origin);
     if (discovered?.profile?.name) return discovered.profile.name;
-    try {
-      return new URL(origin).host;
-    } catch {
-      return origin;
-    }
+    return serverHost(origin);
   }
 
   function sourceAttribution(entry: ServerDirectoryEntry): { visible: string; full: string } {
@@ -274,7 +263,7 @@ dialog shows it directly on its work plane. See FDR-042.
 </script>
 
 {#snippet entryAction(origin: string, profile: ServerVersionProfile, fullWidth: boolean)}
-  {@const joined = registeredServer(origin)}
+  {@const joined = serverRegistry.findServerByUrl(origin)}
   {#if opensInServerClient(origin, profile)}
     <Button href={origin} opensInNewTab variant="secondary" size="sm" {fullWidth}>
       <span>{actionLabel(origin, profile)}</span>
@@ -348,7 +337,7 @@ dialog shows it directly on its work plane. See FDR-042.
 
     {#if customProfile && customOrigin}
       {@const profile = customProfile}
-      {@const joined = registeredServer(customOrigin)}
+      {@const joined = serverRegistry.findServerByUrl(customOrigin)}
       {@const external = opensInServerClient(customOrigin, profile)}
       <div class="max-w-md">
         {#snippet customActions()}
@@ -405,7 +394,7 @@ dialog shows it directly on its work plane. See FDR-042.
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {#each entries as entry (entry.origin)}
         {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
-        {@const joined = registeredServer(entry.origin)}
+        {@const joined = serverRegistry.findServerByUrl(entry.origin)}
         {@const external = opensInServerClient(entry.origin, profile)}
         {#snippet cardActions()}
           <div class="flex items-center gap-3">

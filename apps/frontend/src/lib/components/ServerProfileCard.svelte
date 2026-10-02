@@ -6,6 +6,7 @@ card. Callers supply trusted badges and actions through explicit props.
 -->
 <script lang="ts" module>
   import type { PublicServerInfo } from '@chatto/client/api/server';
+  import { serverHost } from '@chatto/client/util/serverUrl';
 
   /** Public profile fields that the card renders. */
   export type ServerProfileCardProfile = Pick<
@@ -62,13 +63,7 @@ card. Callers supply trusted badges and actions through explicit props.
     headingTag?: 'h3' | 'h4';
   } = $props();
 
-  const hostname = $derived.by(() => {
-    try {
-      return new URL(origin).host;
-    } catch {
-      return origin;
-    }
-  });
+  const hostname = $derived(serverHost(origin));
   const logoServer = $derived({
     name: profile?.name ?? hostname,
     logoUrl: profile?.iconUrl

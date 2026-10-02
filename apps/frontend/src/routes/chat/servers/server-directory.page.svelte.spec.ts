@@ -35,6 +35,10 @@ vi.mock('$lib/client', async () => {
         return [...mocks.servers, ...mocks.added!.values()];
       },
       isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId),
+      findServerByUrl: (url: string) =>
+        [...mocks.servers, ...mocks.added!.values()].find(
+          (server) => new URL(server.url).origin === new URL(url).origin
+        ),
       addSignedOutServer: mocks.addSignedOutServer
     }
   };

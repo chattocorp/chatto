@@ -6,6 +6,8 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { notificationTarget } from '@chatto/client/server/notifications';
+  import { serverDisplayName } from '@chatto/client/server/state';
+  import { serverHost } from '@chatto/client/util/serverUrl';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
@@ -19,7 +21,8 @@
   } from '$lib/ui';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
-  import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
+  import { beginOriginReauthentication } from '$lib/auth/reauth';
+  import { RemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
   import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
@@ -40,14 +43,7 @@
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const serverConnection = serverConnectionManager.getClient(serverId);
   const registeredServer = $derived(serverRegistry.getServer(serverId));
-  const serverHost = $derived.by(() => {
-    if (!registeredServer) return null;
-    try {
-      return new URL(registeredServer.url).host;
-    } catch {
-      return registeredServer.url;
-    }
-  });
+  const host = $derived(registeredServer ? serverHost(registeredServer.url) : null);
 
   // After the URL collapse (ADR-027), the active context is the deployment-wide
   // server named in the current URL segment.
@@ -62,9 +58,8 @@
   const privateDataLoaded = $derived(stores.projection?.viewer != null);
 
   const iconServer = $derived.by(() => {
-    const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
     return {
-      name: refreshedName || registeredServer?.name || stores.serverInfo.name,
+      name: serverDisplayName(stores.serverInfo, registeredServer?.name),
       logoUrl:
         stores.isAuthenticated && privateDataLoaded
           ? stores.serverInfo.iconUrl
@@ -115,7 +110,7 @@
       !serverConnection.showConnectionLostIcon
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
-  let signingIn = $state(false);
+  const remoteSignIn = new RemoteSignIn();
   let signingOut = $state(false);
   const serverContextMenuTrigger = contextMenuTrigger((details) => {
     contextMenu = details;
@@ -131,7 +126,7 @@
   }
 
   async function handleCopyServerHostname(): Promise<void> {
-    const hostname = serverHost;
+    const hostname = host;
     closeContextMenu();
     if (!hostname) return;
 
@@ -155,26 +150,15 @@
     });
   }
 
-  async function handleSignIn(): Promise<void> {
+  function handleSignIn(): void {
     const server = registeredServer;
-    if (signingIn || !server) return;
+    if (!server) return;
     closeContextMenu();
-    signingIn = true;
     if (serverRegistry.isOriginServer(serverId)) {
-      try {
-        beginOriginReauthentication(resolve('/chat/[serverId]', { serverId: serverSegment }));
-      } finally {
-        signingIn = false;
-      }
+      beginOriginReauthentication(resolve('/chat/[serverId]', { serverId: serverSegment }));
       return;
     }
-    try {
-      await startRemoteReauthentication(server);
-    } catch {
-      toast.error(m('add_server.start_failed'));
-    } finally {
-      signingIn = false;
-    }
+    void remoteSignIn.start(server);
   }
 
   async function handleSignOut(): Promise<void> {
@@ -297,13 +281,13 @@
       <div class="truncate font-medium text-text" data-testid="server-name">
         {iconServer.name}
       </div>
-      {#if serverHost}
+      {#if host}
         <div
           class="mt-0.5 truncate text-muted"
           title={registeredServer?.url}
           data-testid="server-hostname"
         >
-          {serverHost}
+          {host}
         </div>
       {/if}
       {#if stores.serverInfo.version}
@@ -347,8 +331,8 @@
           <MenuItem
             icon="icon-[uil--sign-in-alt]"
             mirrorIconInRtl
-            onclick={() => void handleSignIn()}
-            disabled={signingIn}
+            onclick={handleSignIn}
+            disabled={remoteSignIn.pending}
             dataTestid="server-log-in"
           >
             {m('chat.server_gutter.log_in')}
@@ -371,7 +355,7 @@
         </MenuItem>
       {/if}
     </MenuSection>
-    {#if serverHost}
+    {#if host}
       <MenuSection>
         <MenuItem
           icon="icon-[uil--copy]"

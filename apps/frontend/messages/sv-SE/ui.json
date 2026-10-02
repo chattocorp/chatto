@@ -16,7 +16,6 @@
       "remote_title": "{server} behöver logga in",
       "remote_message": "Den här servern avvisade den lagrade inloggningen. Återanslut den för att återuppta liveuppdateringar och åtgärder.",
       "remote_action": "Återanslut",
-      "remote_failed": "Det gick inte att starta återanslutningen",
       "sidebar_reauth": "{server} behöver logga in"
     },
     "access_denied": {

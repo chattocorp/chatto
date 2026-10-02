@@ -16,7 +16,6 @@
       "remote_title": "{server} זקוק לכניסה",
       "remote_message": "שרת זה דחה את הכניסה המאוחסנת. חבר אותו מחדש כדי לחדש עדכונים ופעולות בזמן אמת.",
       "remote_action": "התחבר מחדש",
-      "remote_failed": "נכשלה להתחיל להתחבר מחדש",
       "sidebar_reauth": "{server} זקוק לכניסה"
     },
     "access_denied": {

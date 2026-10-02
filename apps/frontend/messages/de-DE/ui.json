@@ -16,7 +16,6 @@
       "remote_title": "{server} benötigt eine Anmeldung",
       "remote_message": "Dieser Server hat die gespeicherte Anmeldung abgelehnt. Verbinde ihn erneut, um Live-Aktualisierungen und Aktionen fortzusetzen.",
       "remote_action": "Neu verbinden",
-      "remote_failed": "Neuverbinden konnte nicht gestartet werden",
       "sidebar_reauth": "{server} benötigt eine Anmeldung"
     },
     "access_denied": {

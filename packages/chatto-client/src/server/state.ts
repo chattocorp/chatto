@@ -15,13 +15,27 @@ import {
 
 const DEFAULT_MAX_UPLOAD_SIZE = 25 * 1024 * 1024;
 const DEFAULT_MESSAGE_EDIT_WINDOW_SECONDS = 3 * 60 * 60;
+/** Name of a server until discovery returns its own name. */
+const DEFAULT_SERVER_NAME = 'Chatto';
+
+/**
+ * A server's name for display. Until discovery returns a name,
+ * `ServerInfoState.name` keeps the default name; `savedName`, for example the
+ * name saved at registration, then takes precedence over the default.
+ */
+export function serverDisplayName(
+  serverInfo: Pick<ServerInfoState, 'name'>,
+  savedName?: string | null
+): string {
+  return serverInfo.name !== DEFAULT_SERVER_NAME ? serverInfo.name : savedName || serverInfo.name;
+}
 
 export class ServerInfoState {
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
   #initializing: Promise<void> | null = null;
 
-  readonly #nameSignal = signal('Chatto');
+  readonly #nameSignal = signal(DEFAULT_SERVER_NAME);
   get name() {
     return this.#nameSignal.get();
   }

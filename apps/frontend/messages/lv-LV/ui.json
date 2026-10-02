@@ -16,7 +16,6 @@
       "remote_title": "{server} nepieciešama pierakstīšanās",
       "remote_message": "Šis serveris noraidīja saglabāto pierakstīšanos. Atkārtoti pievienojiet to, lai atsāktu tiešraides atjauninājumus un darbības.",
       "remote_action": "Atkārtoti izveidojiet savienojumu",
-      "remote_failed": "Neizdevās atjaunot savienojumu",
       "sidebar_reauth": "{server} nepieciešama pierakstīšanās"
     },
     "access_denied": {

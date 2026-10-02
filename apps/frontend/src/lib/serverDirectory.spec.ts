@@ -1,11 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it, vi } from 'vitest';
 import type { NeighborhoodServer } from '@chatto/client/api/server';
-import {
-  canonicalServerOrigin,
-  loadServerDirectory,
-  serverOriginFromInput
-} from '$lib/serverDirectory';
+import { loadServerDirectory, serverOriginFromInput } from '$lib/serverDirectory';
 
 function neighbor(origin: string, overrides: Partial<NeighborhoodServer> = {}): NeighborhoodServer {
   return {
@@ -22,14 +18,6 @@ function neighbor(origin: string, overrides: Partial<NeighborhoodServer> = {}): 
     ...overrides
   };
 }
-
-describe('canonicalServerOrigin', () => {
-  it('normalizes valid HTTP origins and rejects other schemes or credentials', () => {
-    expect(canonicalServerOrigin('HTTPS://Example.COM:443/path')).toBe('https://example.com');
-    expect(canonicalServerOrigin('ftp://example.com')).toBeNull();
-    expect(canonicalServerOrigin('https://user@example.com')).toBeNull();
-  });
-});
 
 describe('serverOriginFromInput', () => {
   it('accepts a hostname or full server URL and keeps only its origin', () => {

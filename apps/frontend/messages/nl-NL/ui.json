@@ -16,7 +16,6 @@
       "remote_title": "{server} moet inloggen",
       "remote_message": "Deze server heeft de opgeslagen aanmelding afgewezen. Sluit hem opnieuw aan om live updates en acties te hervatten.",
       "remote_action": "Opnieuw verbinding maken",
-      "remote_failed": "Kan opnieuw verbinden niet starten",
       "sidebar_reauth": "{server} moet inloggen"
     },
     "access_denied": {

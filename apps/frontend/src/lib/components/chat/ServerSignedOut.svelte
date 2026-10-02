@@ -10,11 +10,10 @@ its route redirects to the origin's own sign-in page.
 -->
 <script lang="ts">
   import ServerStatusView from './ServerStatusView.svelte';
-  import { startRemoteReauthentication } from '$lib/auth/reauth';
+  import { RemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
   import { m } from '$lib/i18n/messages';
   import type { RegisteredServer } from '@chatto/client/server/registry';
   import { Button } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast';
 
   let {
     registration
@@ -23,19 +22,7 @@ its route redirects to the origin's own sign-in page.
     registration: RegisteredServer;
   } = $props();
 
-  let signingIn = $state(false);
-
-  async function logIn(): Promise<void> {
-    if (signingIn) return;
-    signingIn = true;
-    try {
-      await startRemoteReauthentication(registration);
-    } catch {
-      toast.error(m('add_server.start_failed'));
-    } finally {
-      signingIn = false;
-    }
-  }
+  const signIn = new RemoteSignIn();
 </script>
 
 <ServerStatusView
@@ -44,7 +31,7 @@ its route redirects to the origin's own sign-in page.
   body={m('chat.server_signed_out.body')}
   testId="server-signed-out"
 >
-  <Button loading={signingIn} onclick={() => void logIn()}>
+  <Button loading={signIn.pending} onclick={() => void signIn.start(registration)}>
     {m('chat.server_gutter.log_in')}
   </Button>
 </ServerStatusView>

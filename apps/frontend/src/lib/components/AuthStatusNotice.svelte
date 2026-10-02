@@ -2,13 +2,13 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/client';
   import { type RegisteredServer } from '@chatto/client/server/registry';
-  import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
+  import { beginOriginReauthentication } from '$lib/auth/reauth';
+  import { RemoteSignIn } from '$lib/auth/remoteSignIn.svelte';
   import { TopOverlayNotice } from '$lib/ui';
   import { showsServerSignedOut } from '$lib/components/chat/serverSignedOut';
-  import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
 
-  let reconnectingServerId = $state<string | null>(null);
+  const remoteSignIn = new RemoteSignIn();
 
   const originServer = $derived(serverRegistry.originServer);
   const originNeedsReauth = $derived(originServer?.reauthRequiredAt != null);
@@ -32,16 +32,6 @@
     return null;
   });
   const isOriginNotice = $derived(noticeServer?.id === originServer?.id);
-
-  async function reconnectRemote(server: RegisteredServer) {
-    reconnectingServerId = server.id;
-    try {
-      await startRemoteReauthentication(server);
-    } catch {
-      reconnectingServerId = null;
-      toast.error(m('ui.auth_status.remote_failed'));
-    }
-  }
 </script>
 
 {#if noticeServer}
@@ -53,7 +43,7 @@
     message={isOriginNotice
       ? m('ui.auth_status.origin_message')
       : m('ui.auth_status.remote_message')}
-    loading={reconnectingServerId === noticeServer.id}
+    loading={remoteSignIn.pendingServerId === noticeServer.id}
     primaryAction={{
       label: isOriginNotice ? m('ui.auth_status.origin_action') : m('ui.auth_status.remote_action'),
       icon: 'icon-[uil--signin] rtl:-scale-x-100',
@@ -62,7 +52,7 @@
           beginOriginReauthentication();
           return;
         }
-        void reconnectRemote(noticeServer);
+        void remoteSignIn.start(noticeServer);
       }
     }}
   />

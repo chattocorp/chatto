@@ -10,6 +10,8 @@ a body text, and renders the caller's details and actions below them.
   import type { Snippet } from 'svelte';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import type { ServerRegistration } from '@chatto/client/server/catalog';
+  import { serverDisplayName } from '@chatto/client/server/state';
+  import { serverHost } from '@chatto/client/util/serverUrl';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PageTitle } from '$lib/ui';
 
@@ -39,19 +41,8 @@ a body text, and renders the caller's details and actions below them.
   const { store } = useServerScope();
   const serverInfo = store.serverInfo;
 
-  // Discovery keeps the default name until it succeeds. Prefer the name that
-  // was saved at registration over that default.
-  const serverName = $derived(
-    serverInfo.name !== 'Chatto' ? serverInfo.name : registration?.name || serverInfo.name
-  );
-  const serverHost = $derived.by(() => {
-    if (!registration) return null;
-    try {
-      return new URL(registration.url).host;
-    } catch {
-      return registration.url;
-    }
-  });
+  const serverName = $derived(serverDisplayName(serverInfo, registration?.name));
+  const host = $derived(registration ? serverHost(registration.url) : null);
   const logoUrl = $derived(serverInfo.iconUrl ?? registration?.iconUrl ?? null);
 </script>
 
@@ -67,8 +58,8 @@ a body text, and renders the caller's details and actions below them.
     </div>
     <div class="max-w-full min-w-0">
       <p class="truncate font-medium text-text"><bdi>{serverName}</bdi></p>
-      {#if serverHost}
-        <p class="truncate text-sm text-muted" dir="ltr">{serverHost}</p>
+      {#if host}
+        <p class="truncate text-sm text-muted" dir="ltr">{host}</p>
       {/if}
     </div>
 

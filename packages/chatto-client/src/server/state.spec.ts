@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicServerInfo } from '../api/server.js';
 import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import type { ProjectedServerState } from './projection.js';
-import { ServerInfoState } from './state.js';
+import { ServerInfoState, serverDisplayName } from './state.js';
 
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
@@ -269,5 +269,19 @@ describe('ServerInfoState.compatibilityProblem', () => {
     finish(publicServerInfo());
     await upgradeRetry;
     expect(state.compatibilityProblem).toBeNull();
+  });
+});
+
+describe('serverDisplayName()', () => {
+  it('prefers a saved name only while discovery keeps the default name', async () => {
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
+    const state = new ServerInfoState('https://acme.test', loader);
+
+    expect(serverDisplayName(state, 'Saved')).toBe('Saved');
+    expect(serverDisplayName(state, null)).toBe('Chatto');
+
+    await state.init();
+
+    expect(serverDisplayName(state, 'Saved')).toBe('Acme');
   });
 });

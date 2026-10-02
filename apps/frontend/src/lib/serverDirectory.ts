@@ -1,5 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { listNeighborhoodServers, type NeighborhoodServerProfile } from '@chatto/client/api/server';
+import { canonicalServerOrigin } from '@chatto/client/util/serverUrl';
 
 /** Request limits for public discovery requests from this client. */
 export const SERVER_DIRECTORY_LIMITS = {
@@ -33,19 +34,6 @@ type DirectoryLoadOptions = {
   signal?: AbortSignal;
   listNeighborhood?: typeof listNeighborhoodServers;
 };
-
-/** Convert an advertised URL to a canonical HTTP(S) origin. */
-export function canonicalServerOrigin(value: string): string | null {
-  try {
-    const url = new URL(value);
-    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password) {
-      return null;
-    }
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
 
 /** Convert a hostname or HTTP(S) URL entered by a person to its origin. */
 export function serverOriginFromInput(value: string): string | null {
