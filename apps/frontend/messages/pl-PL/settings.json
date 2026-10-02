@@ -287,7 +287,8 @@
         "test_failed": "Nie można wysłać powiadomienia testowego. Spróbuj ponownie za chwilę.",
         "setup_failed_title": "Nie udało się skonfigurować powiadomień push na tym urządzeniu",
         "setup_failed_description": "Przeglądarka lub serwer odrzucił subskrypcję. Chatto spróbuje ponownie, gdy wrócisz do aplikacji.",
-        "test_rate_limited": "Odczekaj kilka sekund, zanim wyślesz kolejne powiadomienie testowe."
+        "test_rate_limited": "Odczekaj kilka sekund, zanim wyślesz kolejne powiadomienie testowe.",
+        "setup_failed_details": "Szczegóły techniczne: {reason}"
       },
       "push_prompt": {
         "title": "Włącz powiadomienia push",

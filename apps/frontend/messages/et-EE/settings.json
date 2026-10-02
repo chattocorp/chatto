@@ -287,7 +287,8 @@
         "test_failed": "Testmärguannet ei õnnestunud saata. Proovige hetke pärast uuesti.",
         "setup_failed_title": "Tõukemärguandeid ei õnnestunud selles seadmes seadistada",
         "setup_failed_description": "Brauser või server lükkas tellimuse tagasi. Chatto proovib uuesti, kui te rakendusse naasete.",
-        "test_rate_limited": "Oodake mõni sekund, enne kui saadate uue testmärguande."
+        "test_rate_limited": "Oodake mõni sekund, enne kui saadate uue testmärguande.",
+        "setup_failed_details": "Tehnilised üksikasjad: {reason}"
       },
       "push_prompt": {
         "title": "Luba tõukemärguanded",

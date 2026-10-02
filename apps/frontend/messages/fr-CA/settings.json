@@ -287,7 +287,8 @@
         "test_failed": "Impossible d’envoyer une notification de test. Réessayez dans un instant.",
         "setup_failed_title": "Impossible de configurer les notifications poussées sur cet appareil",
         "setup_failed_description": "Le navigateur ou le serveur a refusé l’abonnement. Chatto réessaie quand vous revenez dans l’application.",
-        "test_rate_limited": "Attendez quelques secondes avant d’envoyer une autre notification de test."
+        "test_rate_limited": "Attendez quelques secondes avant d’envoyer une autre notification de test.",
+        "setup_failed_details": "Détails techniques : {reason}"
       },
       "push_prompt": {
         "title": "Activer les notifications poussées",

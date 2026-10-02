@@ -287,7 +287,8 @@
         "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža.",
         "setup_failed_title": "Šajā ierīcē neizdevās iestatīt push paziņojumus",
         "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz, kad atgriezīsieties lietotnē.",
-        "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu."
+        "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu.",
+        "setup_failed_details": "Tehniskā informācija: {reason}"
       },
       "push_prompt": {
         "title": "Iespējot push paziņojumus",

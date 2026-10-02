@@ -14,7 +14,7 @@ import {
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
 import { serverConnectionManager, serverRegistry } from '$lib/client';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 import {
   completePushRegistrationRefresh,
   enqueuePushRegistration,
@@ -89,11 +89,12 @@ type RefreshReason =
  */
 const savedRegistrations = new SvelteMap<string, SavedRegistration>();
 /**
- * Servers whose latest save in this page failed although permission was
- * granted, for example because the browser's push service or the server
- * rejected the subscription. Reactive, so settings can explain the failure.
+ * Technical reason of the latest failed save for each server in this page,
+ * recorded only while permission is granted. The browser's push service or
+ * the server can reject a subscription. Reactive, so settings can explain the
+ * failure.
  */
-const failedRegistrations = new SvelteSet<string>();
+const failedRegistrations = new SvelteMap<string, string>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
@@ -271,9 +272,22 @@ export function hasSavedPushRegistration(serverId: string, userId: string | null
   return saved !== undefined && saved.userId === userId;
 }
 
-/** Whether the latest save of this page for a server failed. Reactive. */
-export function hasFailedPushRegistration(serverId: string): boolean {
-  return failedRegistrations.has(serverId);
+/**
+ * The technical reason why the latest save of this page for a server failed,
+ * or null. Reactive. The reason comes from the browser or the server and is
+ * not translated.
+ */
+export function pushRegistrationFailure(serverId: string): string | null {
+  return failedRegistrations.get(serverId) ?? null;
+}
+
+/** Formats a browser or transport error for a technical failure reason. */
+function technicalReason(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const name = 'name' in error ? String(error.name) : 'Error';
+    return `${name}: ${String(error.message)}`;
+  }
+  return String(error);
 }
 
 /**
@@ -494,14 +508,22 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * one server run one after another.
  */
 export async function ensureRegistered(target: PushRegistrationTarget): Promise<boolean> {
-  const saved = { endpoint: null as string | null };
+  const saved = { endpoint: null as string | null, failure: 'Unknown failure' };
   let registered = false;
   try {
     registered = await enqueuePushRegistration(target.serverId, (signal) =>
-      ensureRegisteredOnce(target.serverId, target.vapidPublicKey, signal, (endpoint) => {
-        saved.endpoint = endpoint;
+      ensureRegisteredOnce(target.serverId, target.vapidPublicKey, signal, {
+        saved: (endpoint) => {
+          saved.endpoint = endpoint;
+        },
+        failed: (reason) => {
+          saved.failure = reason;
+        }
       })
     );
+  } catch (error) {
+    saved.failure = technicalReason(error);
+    throw error;
   } finally {
     if (registered && saved.endpoint) {
       savedRegistrations.set(target.serverId, {
@@ -513,7 +535,7 @@ export async function ensureRegistered(target: PushRegistrationTarget): Promise<
       failedRegistrations.delete(target.serverId);
     } else if (!isPushRegistrationSuspended(target.serverId) && getPermission() === 'granted') {
       // Leaving the server and missing permission are not failures.
-      failedRegistrations.add(target.serverId);
+      failedRegistrations.set(target.serverId, saved.failure);
     }
   }
   return registered;
@@ -523,7 +545,7 @@ async function ensureRegisteredOnce(
   serverId: string,
   vapidPublicKey: string,
   signal: AbortSignal,
-  onSaved: (endpoint: string) => void
+  report: { saved: (endpoint: string) => void; failed: (reason: string) => void }
 ): Promise<boolean> {
   if (!isSupported()) {
     console.warn('Push notifications not supported');
@@ -534,10 +556,18 @@ async function ensureRegisteredOnce(
     return false;
   }
 
-  const registration = await getServiceWorkerRegistration(serverId, { create: true });
+  let registration: ServiceWorkerRegistration | null;
+  try {
+    registration = await lookupServiceWorkerRegistration(serverId, { create: true });
+  } catch (error) {
+    console.error('Failed to register the push service worker:', error);
+    report.failed(technicalReason(error));
+    return false;
+  }
   if (isPushRegistrationSuspended(serverId, signal)) return false;
   if (!registration) {
     console.error('No service worker registration');
+    report.failed('No service worker registration');
     return false;
   }
 
@@ -587,6 +617,7 @@ async function ensureRegisteredOnce(
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
       console.error('Invalid push subscription');
+      report.failed('Invalid push subscription');
       return false;
     }
     subscriptionAuth = json.keys.auth;
@@ -626,17 +657,19 @@ async function ensureRegisteredOnce(
 
     if (!saved.subscribed) {
       console.error('Failed to save push subscription');
+      report.failed('The server did not save the subscription');
       if (createdSubscription) {
         await invalidateSubscription(serverId, subscription);
       }
       return false;
     }
 
-    onSaved(subscription.endpoint);
+    report.saved(subscription.endpoint);
     await retireLegacyOriginSubscription(serverId, subscription.endpoint);
     return true;
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
+    report.failed(technicalReason(error));
     const cancelled = isPushRegistrationSuspended(serverId, signal);
     const activeSuspension = shouldInvalidateCancelledPushRegistration(serverId);
     if (subscription) {

@@ -287,7 +287,8 @@
         "test_failed": "Kan geen testmelding verzenden. Probeer het zo opnieuw.",
         "setup_failed_title": "Pushmeldingen konden niet worden ingesteld op dit apparaat",
         "setup_failed_description": "De browser of de server heeft het abonnement geweigerd. Chatto probeert het opnieuw als je terugkeert naar de app.",
-        "test_rate_limited": "Wacht een paar seconden voordat je nog een testmelding verstuurt."
+        "test_rate_limited": "Wacht een paar seconden voordat je nog een testmelding verstuurt.",
+        "setup_failed_details": "Technische details: {reason}"
       },
       "push_prompt": {
         "title": "Schakel pushmeldingen in",

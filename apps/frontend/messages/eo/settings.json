@@ -287,7 +287,8 @@
         "test_failed": "Ne eblis sendi testan sciigon. Reprovu post momento.",
         "setup_failed_title": "Ne eblis agordi puŝajn sciigojn en ĉi tiu aparato",
         "setup_failed_description": "La retumilo aŭ la servilo rifuzis la abonon. Chatto reprovos, kiam vi revenos al la aplikaĵo.",
-        "test_rate_limited": "Atendu kelkajn sekundojn antaŭ ol sendi alian testan sciigon."
+        "test_rate_limited": "Atendu kelkajn sekundojn antaŭ ol sendi alian testan sciigon.",
+        "setup_failed_details": "Teknikaj detaloj: {reason}"
       },
       "push_prompt": {
         "title": "Ebligu puŝajn sciigojn",

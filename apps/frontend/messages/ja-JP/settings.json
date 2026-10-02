@@ -287,7 +287,8 @@
         "test_failed": "テスト通知を送信できませんでした。しばらくしてからもう一度お試しください。",
         "setup_failed_title": "このデバイスでプッシュ通知を設定できませんでした",
         "setup_failed_description": "ブラウザまたはサーバーが登録を拒否しました。アプリに戻ると、Chatto が再試行します。",
-        "test_rate_limited": "次のテスト通知を送信する前に、数秒お待ちください。"
+        "test_rate_limited": "次のテスト通知を送信する前に、数秒お待ちください。",
+        "setup_failed_details": "技術的な詳細: {reason}"
       },
       "push_prompt": {
         "title": "プッシュ通知を有効にする",

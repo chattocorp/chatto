@@ -287,7 +287,8 @@
         "test_failed": "Não foi possível enviar uma notificação de teste. Tente novamente dentro de momentos.",
         "setup_failed_title": "Não foi possível configurar as notificações push neste dispositivo",
         "setup_failed_description": "O browser ou o servidor recusou a subscrição. O Chatto tenta novamente quando regressar à aplicação.",
-        "test_rate_limited": "Aguarde alguns segundos antes de enviar outra notificação de teste."
+        "test_rate_limited": "Aguarde alguns segundos antes de enviar outra notificação de teste.",
+        "setup_failed_details": "Detalhes técnicos: {reason}"
       },
       "push_prompt": {
         "title": "Ativar notificações push",

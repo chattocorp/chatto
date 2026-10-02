@@ -287,7 +287,8 @@
         "test_failed": "Kunne ikke sende et testvarsel. Prøv igjen om litt.",
         "setup_failed_title": "Push-varsler kunne ikke konfigureres på denne enheten",
         "setup_failed_description": "Nettleseren eller serveren avviste abonnementet. Chatto prøver igjen når du går tilbake til appen.",
-        "test_rate_limited": "Vent noen sekunder før du sender et nytt testvarsel."
+        "test_rate_limited": "Vent noen sekunder før du sender et nytt testvarsel.",
+        "setup_failed_details": "Tekniske detaljer: {reason}"
       },
       "push_prompt": {
         "title": "Aktiver push-varsler",

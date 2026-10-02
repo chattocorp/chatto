@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   capability: 'supported' as 'supported' | 'ios_home_screen_required' | 'unsupported',
   permission: 'granted' as NotificationPermission | null,
   registered: true,
-  failed: false,
+  failure: null as string | null,
   webPushRuntime: true,
   refreshPushSubscriptions: vi.fn(),
   sendTestNotification: vi.fn(),
@@ -18,9 +18,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/notifications/pushNotifications', () => ({
   getPermission: () => mocks.permission,
   getPushCapability: () => mocks.capability,
-  hasFailedPushRegistration: () => mocks.failed,
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
   isBrowserWebPushRuntime: () => mocks.webPushRuntime,
+  pushRegistrationFailure: () => mocks.failure,
   refreshPushSubscriptions: mocks.refreshPushSubscriptions,
   sendTestNotification: mocks.sendTestNotification
 }));
@@ -47,7 +47,7 @@ describe('PushDeviceSettings', () => {
     mocks.hasSavedPushRegistration.mockReset();
     mocks.hasSavedPushRegistration.mockImplementation(() => mocks.registered);
     mocks.registered = true;
-    mocks.failed = false;
+    mocks.failure = null;
     mocks.refreshPushSubscriptions.mockReset();
     mocks.refreshPushSubscriptions.mockResolvedValue(undefined);
     mocks.sendTestNotification.mockReset();
@@ -104,12 +104,15 @@ describe('PushDeviceSettings', () => {
 
   it('explains a failed setup and lets the user try again', async () => {
     mocks.registered = false;
-    mocks.failed = true;
+    mocks.failure = 'AbortError: Registration failed - push service error';
     const screen = renderSettings();
 
     await expect
       .element(screen.getByText('Push notifications could not be set up on this device'))
       .toBeVisible();
+    await expect
+      .element(screen.getByTestId('push-setup-failure'))
+      .toHaveTextContent('Technical details: AbortError: Registration failed - push service error');
     await screen.getByRole('button', { name: 'Try Again' }).click();
 
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();

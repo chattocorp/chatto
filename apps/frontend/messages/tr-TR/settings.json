@@ -287,7 +287,8 @@
         "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin.",
         "setup_failed_title": "Bu cihazda anlık bildirimler ayarlanamadı",
         "setup_failed_description": "Tarayıcı veya sunucu aboneliği reddetti. Chatto, uygulamaya döndüğünüzde yeniden dener.",
-        "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin."
+        "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin.",
+        "setup_failed_details": "Teknik ayrıntılar: {reason}"
       },
       "push_prompt": {
         "title": "Anlık bildirimleri etkinleştir",

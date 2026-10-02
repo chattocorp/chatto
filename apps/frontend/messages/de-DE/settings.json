@@ -287,7 +287,8 @@
         "test_failed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es gleich noch einmal.",
         "setup_failed_title": "Push-Benachrichtigungen konnten auf diesem Gerät nicht eingerichtet werden",
         "setup_failed_description": "Der Browser oder der Server hat das Abonnement abgelehnt. Chatto versucht es erneut, wenn du zur App zurückkehrst.",
-        "test_rate_limited": "Warte ein paar Sekunden, bevor du eine weitere Testbenachrichtigung sendest."
+        "test_rate_limited": "Warte ein paar Sekunden, bevor du eine weitere Testbenachrichtigung sendest.",
+        "setup_failed_details": "Technische Details: {reason}"
       },
       "push_prompt": {
         "title": "Push-Benachrichtigungen aktivieren",

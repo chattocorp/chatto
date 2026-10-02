@@ -18,9 +18,9 @@ server has no Web Push configuration or the app does not run in a browser.
   import {
     getPermission,
     getPushCapability,
-    hasFailedPushRegistration,
     hasSavedPushRegistration,
     isBrowserWebPushRuntime,
+    pushRegistrationFailure,
     refreshPushSubscriptions,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
@@ -49,7 +49,7 @@ server has no Web Push configuration or the app does not run in a browser.
   const visible = $derived(isBrowserWebPushRuntime() && store.serverInfo.pushNotificationsEnabled);
   const permission = $derived(getPermission());
   const registered = $derived(hasSavedPushRegistration(serverId, store.accountId));
-  const registrationFailed = $derived(hasFailedPushRegistration(serverId));
+  const registrationFailure = $derived(pushRegistrationFailure(serverId));
   let retrying = $state(false);
 
   let testing = $state(false);
@@ -111,10 +111,15 @@ server has no Web Push configuration or the app does not run in a browser.
             {m('settings.notifications.push.open_notifications')}
           </Button>
         </div>
-      {:else if !registered && registrationFailed}
+      {:else if !registered && registrationFailure}
         <Hint tone="warning">
           <p class="font-medium">{m('settings.notifications.push.setup_failed_title')}</p>
           <p>{m('settings.notifications.push.setup_failed_description')}</p>
+          <p class="mt-2 break-words" data-testid="push-setup-failure">
+            {m('settings.notifications.push.setup_failed_details', {
+              reason: registrationFailure
+            })}
+          </p>
         </Hint>
         <div>
           <Button

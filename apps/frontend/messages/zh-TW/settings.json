@@ -287,7 +287,8 @@
         "test_failed": "無法傳送測試通知。請稍後再試。",
         "setup_failed_title": "無法在此裝置上設定推播通知",
         "setup_failed_description": "瀏覽器或伺服器拒絕了訂閱。你返回應用程式時，Chatto 會重試。",
-        "test_rate_limited": "請等待幾秒鐘後再傳送另一則測試通知。"
+        "test_rate_limited": "請等待幾秒鐘後再傳送另一則測試通知。",
+        "setup_failed_details": "技術詳細資料：{reason}"
       },
       "push_prompt": {
         "title": "啟用推播通知",

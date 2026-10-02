@@ -5,9 +5,9 @@ import {
   ensureRegistered,
   getPushCapability,
   getPushRegistrationTargets,
-  hasFailedPushRegistration,
   hasSavedPushRegistration,
   onNotificationClick,
+  pushRegistrationFailure,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
   refreshPushSubscriptions,
   unsubscribeBeforeLeaving
@@ -1180,11 +1180,11 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
 
     await refreshPushSubscriptions();
-    expect(hasFailedPushRegistration('remote')).toBe(false);
-    expect(hasFailedPushRegistration('origin')).toBe(true);
+    expect(pushRegistrationFailure('remote')).toBeNull();
+    expect(pushRegistrationFailure('origin')).toBe('Error: rejected');
 
     await refreshPushSubscriptions();
-    expect(hasFailedPushRegistration('origin')).toBe(false);
+    expect(pushRegistrationFailure('origin')).toBeNull();
     expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
   });
 
