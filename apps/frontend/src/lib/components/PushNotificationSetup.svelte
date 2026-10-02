@@ -40,13 +40,19 @@ Include this component once in the chat root.
     void refreshPushSubscriptions();
   }
 
-  function hasUserActivation(): boolean {
-    return navigator.userActivation?.isActive ?? false;
+  /**
+   * Whether the page has user activation. Browsers without the User
+   * Activation API, such as Firefox before 120, count a trusted interaction
+   * event other than Escape.
+   */
+  function hasUserActivation(event?: Event): boolean {
+    if (navigator.userActivation) return navigator.userActivation.isActive;
+    return event?.isTrusted === true && !(event instanceof KeyboardEvent && event.key === 'Escape');
   }
 
-  function requestOnInteraction(): void {
+  function requestOnInteraction(event: Event): void {
     // Keys such as Escape do not grant user activation; wait for one that does.
-    if (!awaitingInteraction || !hasUserActivation()) return;
+    if (!awaitingInteraction || !hasUserActivation(event)) return;
     awaitingInteraction = false;
     if (getPermission() === 'default') void enablePushOnAllServers();
   }

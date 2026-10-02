@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { userEvent } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import PushNotificationSetup from './PushNotificationSetup.svelte';
@@ -182,6 +183,21 @@ describe('PushNotificationSetup', () => {
       window.dispatchEvent(new MouseEvent('click'));
       window.dispatchEvent(new MouseEvent('click'));
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+
+      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+    });
+
+    it('falls back to the interaction in browsers without the User Activation API', async () => {
+      Object.defineProperty(navigator, 'userActivation', { configurable: true, value: undefined });
+      render(PushNotificationSetup);
+      await settle();
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+      // Synthetic events are untrusted and cannot grant activation.
+      window.dispatchEvent(new MouseEvent('click'));
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+      await userEvent.click(document.body);
 
       expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
     });
