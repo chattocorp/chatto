@@ -17,30 +17,23 @@ export type TimelineSelectionKeys = { anchor: string; focus: string };
  * across several screens copies completely. A collapsed caret also counts: it keeps the
  * clicked item mounted, so a later Shift+click after a scroll extends from that item.
  *
- * An end before or after `container` maps to the first or last item. Returns null when
- * both ends are outside `container`, for example for Select All, or when an end inside
- * `container` is not in an item.
+ * Returns null when an end is not in a timeline item inside `container`, for example for
+ * a caret in the composer or for Select All. Such a selection is not kept mounted: an end
+ * in another pane would otherwise keep all loaded history between it and the list edge
+ * mounted.
  */
 export function selectionEndpointKeys(
   selection: Selection | null,
-  container: Element,
-  items: readonly VirtualItem[]
+  container: Element
 ): TimelineSelectionKeys | null {
-  if (!selection?.anchorNode || !selection.focusNode || items.length === 0) return null;
-  const anchorInside = container.contains(selection.anchorNode);
-  const focusInside = container.contains(selection.focusNode);
-  if (!anchorInside && !focusInside) return null;
-
-  const anchor = endpointKey(selection.anchorNode, container, items);
-  const focus = endpointKey(selection.focusNode, container, items);
+  if (!selection?.anchorNode || !selection.focusNode) return null;
+  const anchor = itemKey(selection.anchorNode, container);
+  const focus = itemKey(selection.focusNode, container);
   return anchor && focus ? { anchor, focus } : null;
 }
 
-function endpointKey(node: Node, container: Element, items: readonly VirtualItem[]) {
-  if (!container.contains(node)) {
-    const before = container.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING;
-    return (before ? items[0] : items[items.length - 1]).key;
-  }
+function itemKey(node: Node, container: Element) {
+  if (!container.contains(node)) return null;
   const element = node instanceof Element ? node : node.parentElement;
   return element
     ?.closest(`[${TIMELINE_ITEM_KEY_ATTRIBUTE}]`)

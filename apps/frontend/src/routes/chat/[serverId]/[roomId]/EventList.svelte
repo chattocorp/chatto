@@ -413,7 +413,7 @@
   // the selection cannot unmount the anchor and break the selection.
   function trackSelection() {
     const next = scrollContainer
-      ? selectionEndpointKeys(document.getSelection(), scrollContainer, virtualItems)
+      ? selectionEndpointKeys(document.getSelection(), scrollContainer)
       : null;
     if (next?.anchor === selectionKeys?.anchor && next?.focus === selectionKeys?.focus) return;
     selectionKeys = next;

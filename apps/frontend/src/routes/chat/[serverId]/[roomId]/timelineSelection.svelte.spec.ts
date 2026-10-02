@@ -48,7 +48,7 @@ describe('selectionEndpointKeys', () => {
     const { container } = renderTimeline(['b', 'c', 'd']);
     const selection = select(textOf(container, 'd'), 3, textOf(container, 'b'), 1);
 
-    expect(selectionEndpointKeys(selection, container, items)).toEqual({
+    expect(selectionEndpointKeys(selection, container)).toEqual({
       anchor: 'd',
       focus: 'b'
     });
@@ -58,34 +58,26 @@ describe('selectionEndpointKeys', () => {
     const { container } = renderTimeline(['b', 'c']);
     const selection = select(textOf(container, 'c'), 2, textOf(container, 'c'), 2);
 
-    expect(selectionEndpointKeys(selection, container, items)).toEqual({
+    expect(selectionEndpointKeys(selection, container)).toEqual({
       anchor: 'c',
       focus: 'c'
     });
   });
 
-  it('maps ends before and after the list to the first and last items', () => {
+  it('ignores a selection with an end outside the list', () => {
     const { header, container, footer } = renderTimeline(['c']);
 
     expect(
-      selectionEndpointKeys(select(textOf(container, 'c'), 0, header, 0), container, items)
-    ).toEqual({ anchor: 'c', focus: 'a' });
-    expect(
-      selectionEndpointKeys(select(textOf(container, 'c'), 0, footer, 0), container, items)
-    ).toEqual({ anchor: 'c', focus: 'e' });
-  });
-
-  it('ignores a selection with both ends outside the list', () => {
-    const { header, container, footer } = renderTimeline(['c']);
-
-    expect(selectionEndpointKeys(select(header, 0, footer, 0), container, items)).toBeNull();
+      selectionEndpointKeys(select(textOf(container, 'c'), 0, header, 0), container)
+    ).toBeNull();
+    expect(selectionEndpointKeys(select(header, 0, footer, 0), container)).toBeNull();
   });
 
   it('ignores an end inside the list but outside an item', () => {
     const { container } = renderTimeline(['b', 'c']);
 
     expect(
-      selectionEndpointKeys(select(textOf(container, 'b'), 0, container, 1), container, items)
+      selectionEndpointKeys(select(textOf(container, 'b'), 0, container, 1), container)
     ).toBeNull();
   });
 
@@ -93,7 +85,7 @@ describe('selectionEndpointKeys', () => {
     const { container } = renderTimeline(['c']);
     window.getSelection()?.removeAllRanges();
 
-    expect(selectionEndpointKeys(window.getSelection(), container, items)).toBeNull();
+    expect(selectionEndpointKeys(window.getSelection(), container)).toBeNull();
   });
 });
 
