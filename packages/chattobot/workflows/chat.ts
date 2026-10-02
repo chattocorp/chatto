@@ -63,7 +63,7 @@ type ChattoAgentFactory = (
 
 interface ChatSettings {
   model?: string;
-  /** Reasoning effort of the supervisor and the research agent. Defaults to `low`. */
+  /** Reasoning effort of the supervisor (default `medium`) and the research agent (default `low`). */
   thinkingLevel?: ThinkingLevel;
   timeout?: number;
   createAgent?: ChattoAgentFactory;
@@ -314,7 +314,7 @@ export const conversation = task(
       cwd: fileURLToPath(new URL('..', import.meta.url)),
       model: options.model ?? 'openrouter/google/gemma-4-26b-a4b-it',
       label: 'supervisor',
-      thinkingLevel: options.thinkingLevel ?? 'low',
+      thinkingLevel: options.thinkingLevel ?? 'medium',
       output: 'text',
       textDelivery: 'final',
       systemPrompt,

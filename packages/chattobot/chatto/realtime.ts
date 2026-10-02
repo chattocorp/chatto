@@ -83,7 +83,7 @@ function sourceSettings() {
       // Match the server-authenticated actor ID, never a display name or user-supplied message field.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       model: setting('CHATTO_AGENT_MODEL'),
-      thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'low'),
+      thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
       investigation,
       implementation,
       maintainers,

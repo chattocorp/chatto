@@ -47,7 +47,7 @@ source and console. Without `--watch`, restart to load code or configuration cha
 
    | Setting                          | Agents                      | Default  |
    | -------------------------------- | --------------------------- | -------- |
-   | `CHATTO_AGENT_THINKING`          | Supervisor and web research | `low`    |
+   | `CHATTO_AGENT_THINKING`          | Supervisor and web research | `medium` |
    | `CHATTO_INVESTIGATION_THINKING`  | Source investigation        | `medium` |
    | `CHATTO_IMPLEMENTATION_THINKING` | Implementation worker       | `medium` |
    | `CHATTO_CLASSIFIER_THINKING`     | Authorization classifier    | `low`    |
