@@ -1,21 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { render } from 'vitest-browser-svelte';
 import EventListTestHarness from './EventListTestHarness.svelte';
 import '../../../../app.css';
 
 // This spec renders the real virtua Virtualizer: the fix depends on its `itemProps`
 // and `keepMounted` behavior, which the shared Virtualizer mock does not have.
-
-vi.mock('$lib/client', async () => ({
-  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
-  serverRegistry: {
-    getStore: () => ({
-      currentUser: { user: { id: 'test-user' } },
-      realtimeSync: { isRecoveringSnapshot: false },
-      serverInfo: { messageEditWindowSeconds: 300 }
-    })
-  }
-}));
 
 vi.mock('./RoomEvent.svelte', async () => {
   const { default: RoomEvent } = await import('./EventListRoomEventMock.svelte');
@@ -26,18 +16,10 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'
 }));
 
-vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/client');
-  return {
-    useServerScope: () => ({
-      serverId: 'server-1',
-      connection: {},
-      get store() {
-        return serverRegistry.getStore('server-1');
-      }
-    })
-  };
-});
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
@@ -55,6 +37,13 @@ function eventText(id: string) {
 }
 
 describe('EventList selection', () => {
+  beforeEach(() => {
+    createTestServerScope({
+      store: { realtimeSync: { isRecoveringSnapshot: false } },
+      serverInfo: { messageEditWindowSeconds: 300 }
+    });
+  });
+
   it('copies a selection that spans more than the rendered window', async () => {
     const eventIds = Array.from({ length: 60 }, (_, i) => `msg-${i}`);
     const { container } = render(EventListTestHarness, {
@@ -94,8 +83,11 @@ describe('EventList selection', () => {
 
     // The selection now spans all messages, so all of them are mounted and copied.
     await vi.waitFor(() => {
-      const copied = selection.toString();
-      for (const id of eventIds) expect(copied).toContain(id);
+      const copied = selection
+        .toString()
+        .split('\n')
+        .filter((line) => line.startsWith('msg-'));
+      expect(copied).toEqual(eventIds);
     });
 
     selection.removeAllRanges();
