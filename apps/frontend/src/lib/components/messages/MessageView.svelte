@@ -7,6 +7,8 @@ identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import { getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
@@ -102,6 +104,12 @@ identity, body rendering, and row geometry consistent.
   const actorInteractive = $derived(
     actor !== null && (!!onActorClick || !!onActorContextMenu || !!onActorTouchStart)
   );
+  // Read the current profile so retained messages follow status changes and clears.
+  const customStatus = $derived(
+    actor && !actor.deleted && !authorLoading && !compact
+      ? getLiveCustomStatus(actor.id, actor.customStatus)
+      : null
+  );
 </script>
 
 <div class={['group relative hover:z-10', className]} role="article" data-event-id={eventId}>
@@ -181,6 +189,7 @@ identity, body rendering, and row geometry consistent.
                 oncontextmenu={onActorContextMenu}
               >
                 <AccountName name={displayName} identity={actor} badgeSize="md" />
+                <UserCustomStatusBadge status={customStatus} />
                 {@render authorSuffix?.()}
               </button>
             {:else}
@@ -188,6 +197,7 @@ identity, body rendering, and row geometry consistent.
                 class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-tight font-semibold"
               >
                 <AccountName name={displayName} identity={actor} badgeSize="md" />
+                <UserCustomStatusBadge status={customStatus} />
                 {@render authorSuffix?.()}
               </strong>
             {/if}
