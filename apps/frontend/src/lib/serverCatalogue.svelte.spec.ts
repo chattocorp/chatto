@@ -121,7 +121,7 @@ describe('registerOriginServer', () => {
   });
 
   it('registers nothing for a page origin without a Chatto backend', async () => {
-    await registerOriginServer({ signedIn: true, location: new URL('chatto://desktop') });
+    await registerOriginServer({ signedIn: true, protocol: 'chatto:' });
 
     expect(serverRegistry.servers).toHaveLength(0);
     expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
