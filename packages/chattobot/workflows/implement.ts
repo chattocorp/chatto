@@ -43,6 +43,8 @@ export function implementationExtension(
   } = {}
 ) {
   let attemptedVersion: number | undefined;
+  // True from the claim of an attempt until its task runs or the start fails.
+  let starting = false;
   return defineAgentExtension((pi) => {
     pi.registerTool({
       name: 'askImplementation',
@@ -113,75 +115,82 @@ export function implementationExtension(
           const active = tasks
             .list()
             .find((task) => task.name === 'Chatto implementation' && task.status === 'running');
-          const refusal = active
-            ? 'An implementation is already running. No second task was started.'
-            : attemptedVersion === version
-              ? 'An implementation was already attempted for this request. No new task was started. Please review its result before asking for another attempt.'
-              : undefined;
+          const refusal =
+            active || starting
+              ? 'An implementation is already running. No second task was started.'
+              : attemptedVersion === version
+                ? 'An implementation was already attempted for this request. No new task was started. Please review its result before asking for another attempt.'
+                : undefined;
           if (refusal) {
             await dependencies.onBlocked?.(refusal);
             return JSON.stringify({ outcome: 'blocked', summary: refusal });
           }
-          const announcement = input.announcement.trim();
-          if (!announcement || announcement.length > 600)
-            throw new Error('A brief implementation announcement is required');
-          const plan = input.investigationId
-            ? dependencies.plans?.get(input.investigationId)
-            : undefined;
-          if (input.investigationId && !plan)
-            throw new Error(
-              'No completed implementation plan exists for this investigation in this conversation'
-            );
-          const retainedPlan = plan ? structuredClone(plan) : undefined;
-          const issueNumber = (input as { issueNumber?: number }).issueNumber;
-          // Claim the attempt before the first await, so that a parallel call is refused.
-          const previousAttempt = attemptedVersion;
-          attemptedVersion = version;
-          // Read the issue before announcing, so that a missing issue is not described as started work.
-          let issue: GitHubIssue | undefined;
+          starting = true;
           try {
-            issue =
-              issueNumber && dependencies.fetchIssue
-                ? await dependencies.fetchIssue(issueNumber, context.signal)
-                : undefined;
-          } catch (error) {
-            attemptedVersion = previousAttempt;
-            throw error;
-          }
-          await announce(announcement, context.signal);
-          context.signal.throwIfAborted();
-          const implement = createImplementation(settings, dependencies);
-          // The implementation task reports only to this task (Runling ADR-006).
-          const run = ctx.spawn(async (ctx: WorkflowContext<string, AgentTaskUpdate>) => {
+            const announcement = input.announcement.trim();
+            if (!announcement || announcement.length > 600)
+              throw new Error('A brief implementation announcement is required');
+            const plan = input.investigationId
+              ? dependencies.plans?.get(input.investigationId)
+              : undefined;
+            if (input.investigationId && !plan)
+              throw new Error(
+                'No completed implementation plan exists for this investigation in this conversation'
+              );
+            const retainedPlan = plan ? structuredClone(plan) : undefined;
+            const issueNumber = (input as { issueNumber?: number }).issueNumber;
+            // Claim the attempt before the first await; `starting` refuses parallel calls.
+            const previousAttempt = attemptedVersion;
+            attemptedVersion = version;
+            // Read the issue before announcing, so that a missing issue is not described as started work.
+            let issue: GitHubIssue | undefined;
             try {
-              return await implement(ctx, {
-                request: input.request,
-                context: input.context,
-                plan: retainedPlan,
-                ...(issue ? { issue } : {}),
-                resumeArtifactId: input.resumeArtifactId
-              });
-            } catch {
-              ctx.signal.throwIfAborted();
-              return {
-                outcome: 'blocked' as const,
-                summary:
-                  'The implementation stopped after a worker or host error. Its local artifacts may contain unfinished changes.',
-                notes: ['No PR was verified.'],
-                branch: '',
-                baseCommit: '',
-                worktree: '',
-                ...(input.resumeArtifactId ? { artifactId: input.resumeArtifactId } : {}),
-                checks: [],
-                workerChecks: []
-              };
+              issue =
+                issueNumber && dependencies.fetchIssue
+                  ? await dependencies.fetchIssue(issueNumber, context.signal)
+                  : undefined;
+            } catch (error) {
+              // Release only our own claim; a newer request may have claimed another attempt.
+              if (attemptedVersion === version) attemptedVersion = previousAttempt;
+              throw error;
             }
-          });
-          try {
-            return JSON.stringify(tasks.observe('Chatto implementation', run));
-          } catch (error) {
-            await run[Symbol.asyncDispose]();
-            throw error;
+            await announce(announcement, context.signal);
+            context.signal.throwIfAborted();
+            const implement = createImplementation(settings, dependencies);
+            // The implementation task reports only to this task (Runling ADR-006).
+            const run = ctx.spawn(async (ctx: WorkflowContext<string, AgentTaskUpdate>) => {
+              try {
+                return await implement(ctx, {
+                  request: input.request,
+                  context: input.context,
+                  plan: retainedPlan,
+                  ...(issue ? { issue } : {}),
+                  resumeArtifactId: input.resumeArtifactId
+                });
+              } catch {
+                ctx.signal.throwIfAborted();
+                return {
+                  outcome: 'blocked' as const,
+                  summary:
+                    'The implementation stopped after a worker or host error. Its local artifacts may contain unfinished changes.',
+                  notes: ['No PR was verified.'],
+                  branch: '',
+                  baseCommit: '',
+                  worktree: '',
+                  ...(input.resumeArtifactId ? { artifactId: input.resumeArtifactId } : {}),
+                  checks: [],
+                  workerChecks: []
+                };
+              }
+            });
+            try {
+              return JSON.stringify(tasks.observe('Chatto implementation', run));
+            } catch (error) {
+              await run[Symbol.asyncDispose]();
+              throw error;
+            }
+          } finally {
+            starting = false;
           }
         }
       )

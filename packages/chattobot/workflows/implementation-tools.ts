@@ -406,12 +406,13 @@ export function workerToolsExtension({
         }
         // `cmd` embeds legal files that `sync-cli-legal` copies into the module, as `setup-cli`
         // and `lint-cli` do. A failed copy shows up as a test failure.
+        const syncSignal = toolSignal ? AbortSignal.any([signal, toolSignal]) : signal;
         await execute('mise', ['run', 'sync-cli-legal'], {
           cwd: worktree,
-          signal: toolSignal ? AbortSignal.any([signal, toolSignal]) : signal,
+          signal: syncSignal,
           timeoutMs: 60_000,
           unsetEnv
-        }).catch(() => signal.throwIfAborted());
+        }).catch(() => syncSignal.throwIfAborted());
         return runWorkerCheck(
           [
             'x',

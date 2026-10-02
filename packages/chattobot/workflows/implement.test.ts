@@ -1879,6 +1879,7 @@ test('a parallel call is refused while the first reads its issue; a failed read 
   const read = Promise.withResolvers<never>();
   const fetchIssue = vi.fn(() => read.promise);
   const onBlocked = vi.fn(async () => {});
+  let version = 1;
   const call = await workerTools({
     cwd: f.settings.directory,
     model: 'test/model',
@@ -1886,7 +1887,8 @@ test('a parallel call is refused while the first reads its issue; a failed read 
       implementationExtension(ctx, f.settings, async () => {}, tasks, {
         execute: f.execute,
         onBlocked,
-        fetchIssue
+        fetchIssue,
+        requestVersion: () => version
       })
     ]
   });
@@ -1895,7 +1897,12 @@ test('a parallel call is refused while the first reads its issue; a failed read 
     const first = call('implementChatto', input);
     const second = JSON.parse((await call('implementChatto', input)).content[0]!.text!);
     expect(second).toMatchObject({ outcome: 'blocked' });
-    expect(onBlocked).toHaveBeenCalledOnce();
+    // A newer request does not start a second implementation while the first one starts.
+    version = 2;
+    const third = JSON.parse((await call('implementChatto', input)).content[0]!.text!);
+    expect(third).toMatchObject({ outcome: 'blocked' });
+    expect(onBlocked).toHaveBeenCalledTimes(2);
+    version = 1;
     read.reject(new Error('Issue not found'));
     await expect(first).rejects.toThrow('Issue not found');
     // The failed read did not start work, so the same request can try again.

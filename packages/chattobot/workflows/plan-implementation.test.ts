@@ -147,7 +147,7 @@ test.each([
     decision: 'allow' as const
   },
   {
-    name: 'does not start a plan that a maintainer only asked to plan',
+    name: 'leaves a plan that a maintainer only asked to plan to the authorization check',
     request: 'Please plan how to fix this.',
     decision: 'unclear' as const
   }
@@ -157,6 +157,8 @@ test.each([
     await prepare(completion('implementation-1'), 'notification');
     expect(await gated(gates, { investigationId: 'investigation-1' })).toMatchObject(blocked);
     await prepare(completion('investigation-1'), 'notification');
+    // A later notification of another task does not take the plan's turn away.
+    await prepare(completion('implementation-1'), 'notification');
     for (const input of [
       { investigationId: 'unknown' },
       { investigationId: 'investigation-1', resumeArtifactId: 'implementation-abcdef' },
@@ -170,6 +172,10 @@ test.each([
     expect(requests).toHaveLength(1);
     expect(requests[0]!.messages).toEqual([request]);
     expect(requests[0]!.context?.join('\n')).toContain('Keep the newest message visible');
+    // The action names the plan that the call implements.
+    expect(requests[0]!.action).toContain(
+      '"savedPlanGoal":"Keep the newest message visible when the keyboard opens"'
+    );
     // The completion starts the plan once; a later notification cannot start it again.
     expect(await gated(gates.slice(0, 1), { investigationId: 'investigation-1' })).toMatchObject(
       blocked

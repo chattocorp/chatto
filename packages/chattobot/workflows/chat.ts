@@ -113,13 +113,16 @@ const IMPLEMENTATION_POLICY =
 const GITHUB_WRITE_POLICY =
   'This action changes the GitHub repository, for example by filing an issue or adding a comment. allow when the messages ask for this kind of change on this target. Suggestions and polite questions count as requests: "make a GitHub issue for this", "how about filing an issue for this?", "could you post an issue?", "update #12 with this", "add the bug label to #12", "comment on #12", "close #12", "rerun the failed CI". allow when the newest message answers the assistant’s latest message, and that message, as shown in the context, names this change (its operation and target), with agreement in any language or tone, for example "yes", "yes please", "sure", "oui", "ja", "go for it", "please do", or "I do!", even when it includes a joke. The reply does not need to repeat the change, and earlier, vaguer messages do not weaken it. allow when a maintainer sends details or corrections right after the assistant changed an item in this conversation, and the action adds them to that item. The assistant writes titles and bodies itself; the maintainers do not need to have approved the exact text. deny when the messages ask not to make this change. unclear otherwise, for example when they only discuss the problem or ask whether it is worth doing.';
 
-/** Describe an implementChatto call for the authorization classifier. */
-const describeImplementation = (input: Record<string, unknown>) =>
+/** Describe an implementChatto call for the authorization classifier, with the goal of the saved
+ * plan that it implements. */
+const describeImplementation = (plans: InvestigationPlans) => (input: Record<string, unknown>) =>
   `Implement a change and publish a pull request: ${JSON.stringify({
     request: input.request,
     context: input.context,
     continuesEarlierWork: Boolean(input.resumeArtifactId),
-    usesSavedPlan: Boolean(input.investigationId),
+    ...(typeof input.investigationId === 'string'
+      ? { savedPlanGoal: plans.get(input.investigationId)?.goal ?? 'unknown plan' }
+      : {}),
     ...(input.issueNumber ? { githubIssue: input.issueNumber } : {})
   })}`;
 
@@ -287,22 +290,18 @@ export const conversation = task(
       lastPosted = text;
       refusalPosted = true;
     };
-    // The task whose notification the current turn answers, whether the latest person who wrote to
-    // the bot is a maintainer, and the plans that a notification turn already started.
-    let notifiedId: string | undefined;
-    let latestUserIsMaintainer = false;
+    // Plans whose completion notification arrived after a maintainer was the latest person to write
+    // to the bot, and that no notification turn has started yet. A user message clears them.
+    const readyPlans = new Set<string>();
     const startedPlans = new Set<string>();
+    let latestUserIsMaintainer = false;
     /** True for the one implementChatto call that a plan's own completion notification can make. */
     const startsSavedPlan = (event: { toolName: string; input: unknown }) => {
       const input = event.input as { investigationId?: unknown; resumeArtifactId?: unknown };
-      const id = input.investigationId;
       return (
         event.toolName === 'implementChatto' &&
-        typeof id === 'string' &&
-        id === notifiedId &&
-        plans.has(id) &&
-        !startedPlans.has(id) &&
-        latestUserIsMaintainer &&
+        typeof input.investigationId === 'string' &&
+        readyPlans.has(input.investigationId) &&
         input.resumeArtifactId === undefined
       );
     };
@@ -322,7 +321,9 @@ export const conversation = task(
         // when the latest person who wrote to the bot is a maintainer. Only maintainers start
         // investigations, and the authorization check still needs a maintainer's request.
         if (latestOrigin === 'notification' && startsSavedPlan(event)) {
-          startedPlans.add((event.input as { investigationId: string }).investigationId);
+          const id = (event.input as { investigationId: string }).investigationId;
+          readyPlans.delete(id);
+          startedPlans.add(id);
           return;
         }
         await postRefusal(
@@ -365,7 +366,7 @@ export const conversation = task(
         ...(options.implementation
           ? [
               authorizationGate({
-                tools: { implementChatto: describeImplementation },
+                tools: { implementChatto: describeImplementation(plans) },
                 messages: () => maintainerMessages.slice(-AUTHORIZATION_MESSAGES),
                 classify: classifyAs('implementChatto'),
                 policy: IMPLEMENTATION_POLICY,
@@ -539,8 +540,14 @@ export const conversation = task(
             serialize(async () => {
               options.setReplyContext(message, origin);
               latestOrigin = origin;
-              notifiedId = origin === 'notification' ? notifiedTaskId(message) : undefined;
-              if (origin === 'user') latestUserIsMaintainer = requesterIsMaintainer();
+              if (origin === 'user') {
+                latestUserIsMaintainer = requesterIsMaintainer();
+                readyPlans.clear();
+              } else {
+                const id = notifiedTaskId(message);
+                if (id && plans.has(id) && !startedPlans.has(id) && latestUserIsMaintainer)
+                  readyPlans.add(id);
+              }
               if (origin === 'notification')
                 for (const url of notificationUrls(message)) pendingUrls.add(url);
               if (origin === 'user') {

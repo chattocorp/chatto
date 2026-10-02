@@ -143,11 +143,12 @@ each request, not for the conversation. When the agent calls `investigateChatto`
 of the latest human message that the bot received in the conversation. If that
 author is not a maintainer, or the turn started from a task notification, the tool
 does not run. In a user turn, the bot then posts one fixed message that a
-maintainer must ask. There is one exception: the completion notification of a
-saved implementation plan can call `implementChatto` with that plan's
-`investigationId` once, when the latest person who wrote to the bot is a
-maintainer. Only maintainers can start investigations, and the authorization
-check must find a maintainer's request to implement. A maintainer who asks for a
+maintainer must ask. There is one exception: on the turn of a saved
+implementation plan's completion notification, the supervisor can call
+`implementChatto` with that plan's `investigationId` once. This requires that a
+maintainer was the latest person who wrote to the bot. Only maintainers can
+start investigations, and the authorization check, which receives the plan's
+goal, must find a maintainer's request to implement. A maintainer who asks for a
 pull request therefore does not have to ask again after the plan. Other users can still ask questions, and the
 bot can answer from the documentation and web research.
 
@@ -559,8 +560,8 @@ the complete diff is too long. `runCheck` runs an approved typecheck, lint, or
 build check. `runFocusedTests` runs selected existing frontend test or spec
 files in one Vitest project, and `runGoTests` runs the tests of selected Go
 packages of the `cli` module, after it copies the legal files that `cmd` embeds.
-These tools reject complete suites such as `./...`; tests of other areas, such
-as the workspace packages, run only in CI. The worker can save brief
+`runGoTests` rejects `./...`, the complete module. Tests of other areas, such as
+the workspace packages, run only in CI. The worker can save brief
 handoff notes for a later attempt.
 Patch and check failures return bounded diagnostics to the worker. A failed
 patch also shows the current lines around its first failed hunk. Worker checks
