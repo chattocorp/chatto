@@ -17,7 +17,9 @@ type BottomAnchorOptions = {
  *
  * When a scroller gets taller, the browser can clamp `scrollTop` during layout,
  * before the resize callback runs. The adjustment therefore starts from the
- * offset of the last scroll event, which the clamp has not changed yet.
+ * offset of the last scroll event, which the clamp has not changed yet. For the
+ * same reason, a `requestAnimationFrame` write in the frame of a resize is not
+ * recorded yet: callers pause the attachment while such an operation runs.
  */
 export function anchorBottomOnResize({
   followsBottom,
