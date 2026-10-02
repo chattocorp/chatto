@@ -290,8 +290,8 @@ export const conversation = task(
       lastPosted = text;
       refusalPosted = true;
     };
-    // Plans whose completion notification arrived after a maintainer was the latest person to write
-    // to the bot, and that no notification turn has started yet. A user message clears them.
+    // Plans whose completion notification arrived while a maintainer was the latest person to write
+    // to the bot, and that no implementChatto call has used yet. A user message clears them.
     const readyPlans = new Set<string>();
     const startedPlans = new Set<string>();
     let latestUserIsMaintainer = false;

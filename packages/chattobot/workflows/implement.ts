@@ -150,8 +150,8 @@ export function implementationExtension(
                   ? await dependencies.fetchIssue(issueNumber, context.signal)
                   : undefined;
             } catch (error) {
-              // Release only our own claim; a newer request may have claimed another attempt.
-              if (attemptedVersion === version) attemptedVersion = previousAttempt;
+              // No work started, so the same request can try again.
+              attemptedVersion = previousAttempt;
               throw error;
             }
             await announce(announcement, context.signal);
