@@ -89,6 +89,9 @@ type ChattoCore struct {
 
 	notificationAlertHandler func(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) error
 
+	// OnPushTestRequested sends a test notification to a user's push subscriptions.
+	OnPushTestRequested func(ctx context.Context, userID string) error
+
 	// pushClock overrides the clock for push-subscription save times and
 	// expiry in tests. Nil means time.Now.
 	pushClock func() time.Time

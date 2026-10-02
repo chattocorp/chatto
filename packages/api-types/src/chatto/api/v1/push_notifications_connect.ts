@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SubscribeRequest, SubscribeResponse, UnsubscribeRequest, UnsubscribeResponse } from "./push_notifications_pb.js";
+import { SendTestNotificationRequest, SendTestNotificationResponse, SubscribeRequest, SubscribeResponse, UnsubscribeRequest, UnsubscribeResponse } from "./push_notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -46,6 +46,19 @@ export const PushNotificationService = {
       O: UnsubscribeResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Sends a test notification to the caller's registered browser subscriptions.
+     * Calls are rate-limited per account. Delivery failures return a generic
+     * unavailable error without exposing the push provider's response body.
+     *
+     * @generated from rpc chatto.api.v1.PushNotificationService.SendTestNotification
+     */
+    sendTestNotification: {
+      name: "SendTestNotification",
+      I: SendTestNotificationRequest,
+      O: SendTestNotificationResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

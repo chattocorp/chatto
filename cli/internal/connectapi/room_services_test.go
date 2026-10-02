@@ -2405,6 +2405,27 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 
+	testPushCalls := 0
+	env.core.OnPushTestRequested = func(_ context.Context, userID string) error {
+		if userID == env.viewer.Id {
+			testPushCalls++
+		}
+		return nil
+	}
+	testResp, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{}))
+	if err != nil {
+		t.Fatalf("SendTestNotification: %v", err)
+	}
+	requireEmptyResponse(t, testResp.Msg)
+	if testPushCalls != 1 {
+		t.Fatalf("SendTestNotification callback calls = %d, want 1", testPushCalls)
+	}
+	if _, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{})); errorCode(err) != connect.CodeResourceExhausted {
+		t.Fatalf("repeated SendTestNotification code = %v, want resource_exhausted", errorCode(err))
+	}
+	if testPushCalls != 1 {
+		t.Fatalf("rate-limited SendTestNotification callback calls = %d, want 1", testPushCalls)
+	}
 	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribeRequest{
 		Endpoint: "https://push.example.test/sub",
 	}))
@@ -2442,6 +2463,28 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	requireEmptyResponse(t, cleanupResp.Msg)
 	if owned, err := env.core.PushSubscriptionOwnedByUser(env.ctx, env.viewer.Id, capabilityEndpoint); err != nil || owned {
 		t.Fatalf("capability cleanup ownership = %t, err = %v", owned, err)
+	}
+}
+
+func TestPushNotificationServiceHidesDeliveryFailureDetails(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	env.api.config.Push = config.PushConfig{
+		Enabled:         true,
+		VAPIDPublicKey:  "public-key",
+		VAPIDPrivateKey: "private-key",
+		VAPIDSubject:    "mailto:admin@example.com",
+	}
+	env.core.OnPushTestRequested = func(context.Context, string) error {
+		return errors.New("private response marker")
+	}
+
+	_, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{}))
+	if errorCode(err) != connect.CodeUnavailable {
+		t.Fatalf("SendTestNotification code = %v, want unavailable", errorCode(err))
+	}
+	if strings.Contains(err.Error(), "private response marker") {
+		t.Fatalf("SendTestNotification disclosed delivery error: %v", err)
 	}
 }
 

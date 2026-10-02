@@ -238,6 +238,80 @@ func (*UnsubscribeResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{3}
 }
 
+// Request to test the current user's registered browser push subscriptions.
+type SendTestNotificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTestNotificationRequest) Reset() {
+	*x = SendTestNotificationRequest{}
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTestNotificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTestNotificationRequest) ProtoMessage() {}
+
+func (x *SendTestNotificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTestNotificationRequest.ProtoReflect.Descriptor instead.
+func (*SendTestNotificationRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{4}
+}
+
+// Result of sending a test Web Push notification.
+type SendTestNotificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTestNotificationResponse) Reset() {
+	*x = SendTestNotificationResponse{}
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTestNotificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTestNotificationResponse) ProtoMessage() {}
+
+func (x *SendTestNotificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTestNotificationResponse.ProtoReflect.Descriptor instead.
+func (*SendTestNotificationResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{5}
+}
+
 var File_chatto_api_v1_push_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
@@ -263,10 +337,13 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\x12UnsubscribeRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\")\n" +
-	"\x13UnsubscribeResponseJ\x04\b\x01\x10\x02R\funsubscribed2\xc4\x01\n" +
+	"\x13UnsubscribeResponseJ\x04\b\x01\x10\x02R\funsubscribed\"\x1d\n" +
+	"\x1bSendTestNotificationRequest\"*\n" +
+	"\x1cSendTestNotificationResponseJ\x04\b\x01\x10\x02R\x04sent2\xb5\x02\n" +
 	"\x17PushNotificationService\x12N\n" +
 	"\tSubscribe\x12\x1f.chatto.api.v1.SubscribeRequest\x1a .chatto.api.v1.SubscribeResponse\x12Y\n" +
-	"\vUnsubscribe\x12!.chatto.api.v1.UnsubscribeRequest\x1a\".chatto.api.v1.UnsubscribeResponse\"\x03\x90\x02\x02B\xb2\x01\n" +
+	"\vUnsubscribe\x12!.chatto.api.v1.UnsubscribeRequest\x1a\".chatto.api.v1.UnsubscribeResponse\"\x03\x90\x02\x02\x12o\n" +
+	"\x14SendTestNotification\x12*.chatto.api.v1.SendTestNotificationRequest\x1a+.chatto.api.v1.SendTestNotificationResponseB\xb2\x01\n" +
 	"\x11com.chatto.api.v1B\x16PushNotificationsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -281,20 +358,24 @@ func file_chatto_api_v1_push_notifications_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_push_notifications_proto_rawDescData
 }
 
-var file_chatto_api_v1_push_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_push_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_push_notifications_proto_goTypes = []any{
-	(*SubscribeRequest)(nil),    // 0: chatto.api.v1.SubscribeRequest
-	(*SubscribeResponse)(nil),   // 1: chatto.api.v1.SubscribeResponse
-	(*UnsubscribeRequest)(nil),  // 2: chatto.api.v1.UnsubscribeRequest
-	(*UnsubscribeResponse)(nil), // 3: chatto.api.v1.UnsubscribeResponse
+	(*SubscribeRequest)(nil),             // 0: chatto.api.v1.SubscribeRequest
+	(*SubscribeResponse)(nil),            // 1: chatto.api.v1.SubscribeResponse
+	(*UnsubscribeRequest)(nil),           // 2: chatto.api.v1.UnsubscribeRequest
+	(*UnsubscribeResponse)(nil),          // 3: chatto.api.v1.UnsubscribeResponse
+	(*SendTestNotificationRequest)(nil),  // 4: chatto.api.v1.SendTestNotificationRequest
+	(*SendTestNotificationResponse)(nil), // 5: chatto.api.v1.SendTestNotificationResponse
 }
 var file_chatto_api_v1_push_notifications_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.PushNotificationService.Subscribe:input_type -> chatto.api.v1.SubscribeRequest
 	2, // 1: chatto.api.v1.PushNotificationService.Unsubscribe:input_type -> chatto.api.v1.UnsubscribeRequest
-	1, // 2: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribeResponse
-	3, // 3: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribeResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 2: chatto.api.v1.PushNotificationService.SendTestNotification:input_type -> chatto.api.v1.SendTestNotificationRequest
+	1, // 3: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribeResponse
+	3, // 4: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribeResponse
+	5, // 5: chatto.api.v1.PushNotificationService.SendTestNotification:output_type -> chatto.api.v1.SendTestNotificationResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -312,7 +393,7 @@ func file_chatto_api_v1_push_notifications_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_push_notifications_proto_rawDesc), len(file_chatto_api_v1_push_notifications_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

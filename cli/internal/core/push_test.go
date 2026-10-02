@@ -376,6 +376,19 @@ func TestSavePushSubscription_LimitsActiveEndpointsPerUser(t *testing.T) {
 	}
 }
 
+func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-test-rate-limit-user"
+
+	if err := core.AdmitPushTestNotification(ctx, userID); err != nil {
+		t.Fatalf("first AdmitPushTestNotification: %v", err)
+	}
+	if err := core.AdmitPushTestNotification(ctx, userID); !errors.Is(err, ErrPushTestNotificationRateLimited) {
+		t.Fatalf("second AdmitPushTestNotification error = %v, want ErrPushTestNotificationRateLimited", err)
+	}
+}
+
 func TestGetUserPushSubscriptions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
