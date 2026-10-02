@@ -1,6 +1,12 @@
 import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { postThreadReplyFromServerUser, withServerUser } from './fixtures/serverUser';
+import {
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyViaConnect,
+  updateScopedNotificationPolicy
+} from './fixtures/connectHelpers';
 import { test } from './setup';
 import { MyThreadsPage } from './pages';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
@@ -222,7 +228,7 @@ test.describe('My Threads', () => {
     await expect(threadItem).toHaveAttribute('data-thread-attention', 'important');
   });
 
-  test('sidebar unread indicator appears when another user replies', async ({
+  test('sidebar notification badge appears when another user replies', async ({
     page,
     chatPage,
     roomPage,
@@ -268,7 +274,7 @@ test.describe('My Threads', () => {
     await expect(myThreads.sidebarUnreadIndicator).toBeVisible();
   });
 
-  test('sidebar unread indicator clears after opening the thread', async ({
+  test('sidebar notification badge clears after opening the thread', async ({
     page,
     chatPage,
     roomPage,
@@ -311,7 +317,66 @@ test.describe('My Threads', () => {
     await expect(async () => {
       await expect(myThreads.sidebarUnreadIndicator).not.toBeVisible();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+
+    await myThreads.goto();
+    await page.getByRole('radio', { name: 'Unread' }).click();
+    await expect(page.getByText('All caught up')).toBeVisible();
+    await expect(myThreads.myThreadsLink.locator('[data-testid]')).toHaveCount(0);
   });
+
+  for (const mode of ['OFF', 'UNREAD_BADGE'] as const) {
+    test(`unread replies with ${mode} delivery do not show a sidebar indicator`, async ({
+      page,
+      chatPage,
+      roomPage,
+      browser,
+      serverURL
+    }) => {
+      const pageErrors: string[] = [];
+      const consoleErrors: string[] = [];
+      page.on('pageerror', (error) => pageErrors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error') consoleErrors.push(message.text());
+      });
+
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await updateScopedNotificationPolicy(
+        page,
+        { server: {} },
+        { followedThreads: mode, replies: 'OFF' }
+      );
+      await chatPage.enterRoom('general');
+
+      const rootText = `Thread without notifications ${mode} ${Date.now()}`;
+      const roomId = await getRoomIdByNameViaConnect(page, 'general');
+      const rootId = await postMessageViaConnect(page, roomId, rootText);
+      await postThreadReplyViaConnect(page, roomId, `Initial reply ${Date.now()}`, rootId);
+      await roomPage.getMessage(rootText).expectFollowingThread();
+
+      const replyText = `Unread reply ${Date.now()}`;
+      await postThreadReplyFromServerUser(browser!, serverURL, rootText, replyText);
+
+      const myThreads = new MyThreadsPage(page);
+      await myThreads.goto();
+      await page.getByRole('radio', { name: 'Unread' }).click();
+      const threadItem = myThreads.threadItems;
+      await expect(threadItem).toHaveCount(1);
+      await expect(threadItem).toHaveAttribute('data-thread-state', 'unread');
+      await expect(threadItem.getByText(replyText)).toBeVisible();
+      await expect(threadItem).toHaveAttribute('data-thread-attention', 'none');
+      await expect(myThreads.myThreadsLink.locator('[data-testid]')).toHaveCount(0);
+
+      const markReadButton = threadItem.getByRole('button', { name: 'Mark as read' });
+      await markReadButton.focus();
+      await markReadButton.press('Enter');
+      await expect(page.getByText('All caught up')).toBeVisible();
+      await expect(myThreads.threadItems).toHaveCount(0);
+      await expect(myThreads.myThreadsLink.locator('[data-testid]')).toHaveCount(0);
+      expect(pageErrors).toEqual([]);
+      expect(consoleErrors).toEqual([]);
+    });
+  }
 
   test('manually following a thread from room view shows it in My Threads', async ({
     page,

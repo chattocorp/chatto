@@ -5,7 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import { NotificationBadge, UnreadDot } from '$lib/ui';
+  import { NotificationBadge } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let { active }: { active: boolean } = $props();
@@ -50,7 +50,5 @@
     <span class="sr-only"
       >{m('chat.threads.notifications_count', { count: notificationCount })}</span
     >
-  {:else if serverUi(serverScope.store).hasUnreadFollowedThreadInLoadedRooms()}
-    <UnreadDot class="ms-auto" color="neutral" testid="my-threads-unread-dot" />
   {/if}
 </a>

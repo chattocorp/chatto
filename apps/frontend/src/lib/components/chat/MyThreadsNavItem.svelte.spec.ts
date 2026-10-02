@@ -11,8 +11,7 @@ const mocks = {
     threadRootId: string | null;
     attentionLevel: number;
   }>,
-  threadFollowStates: new Map<string, boolean>(),
-  hasUnreadFollowedThread: false
+  threadFollowStates: new Map<string, boolean>()
 };
 
 vi.mock('$app/paths', () => ({
@@ -32,7 +31,6 @@ describe('MyThreadsNavItem', () => {
   beforeEach(async () => {
     mocks.unreadOccurrences = [];
     mocks.threadFollowStates.clear();
-    mocks.hasUnreadFollowedThread = false;
     createTestServerScope({
       store: {
         loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
@@ -43,21 +41,11 @@ describe('MyThreadsNavItem', () => {
           get occurrences() {
             return mocks.unreadOccurrences;
           }
-        },
-        hasUnreadFollowedThreadInLoadedRooms: () => mocks.hasUnreadFollowedThread
+        }
       }
     });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-  });
-
-  it('uses a neutral dot for unread replies', async () => {
-    mocks.hasUnreadFollowedThread = true;
-
-    const { container } = render(MyThreadsNavItem, { props: { active: false } });
-
-    const dot = await waitForTestId(container, 'my-threads-unread-dot');
-    expect(dot.classList).toContain('bg-neutral-action');
   });
 
   it('shows an Important count badge for a followed-thread notification', async () => {
@@ -71,7 +59,6 @@ describe('MyThreadsNavItem', () => {
     expect(badge.classList).toContain('bg-attention');
     expect(container.querySelector('a')?.textContent).toContain('1 notification');
     expect(container.querySelector('a')?.textContent).not.toContain('1 notifications');
-    expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 
   it('shows an ambient count badge for an Ambient notification occurrence', async () => {
@@ -110,13 +97,12 @@ describe('MyThreadsNavItem', () => {
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
     expect(container.querySelector('[data-testid="my-threads-notification-badge"]')).toBeNull();
-    expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 
-  it('does not show unread reply state when no thread is followed', async () => {
+  it('does not show a badge without unread notifications', async () => {
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
+    expect(container.querySelector('[data-testid="my-threads-notification-badge"]')).toBeNull();
   });
 
   it('marks the active route semantically for the shared sidebar item treatment', async () => {

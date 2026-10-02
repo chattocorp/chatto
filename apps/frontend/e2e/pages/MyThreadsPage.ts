@@ -18,11 +18,9 @@ export class MyThreadsPage {
     return this.page.getByTestId('my-thread-item');
   }
 
-  /** The sidebar unread indicator: a notification count badge or an unread dot */
+  /** The sidebar count badge for unread thread notifications. */
   get sidebarUnreadIndicator(): Locator {
-    return this.page.locator(
-      '[data-testid="my-threads-notification-badge"], [data-testid="my-threads-unread-dot"]'
-    );
+    return this.page.getByTestId('my-threads-notification-badge');
   }
 
   /** Navigate to My Threads and wait for the page to load */

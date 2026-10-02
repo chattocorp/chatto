@@ -3895,7 +3895,7 @@ describe('ServerStateStore realtime resource hints', () => {
 });
 
 describe('ServerStateStore loaded thread state', () => {
-  it('reads follow and unread state from loaded room timelines', async () => {
+  it('reads follow state from loaded room timelines', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.rooms.messages('R1');
     await flushPromises();
@@ -3921,9 +3921,7 @@ describe('ServerStateStore loaded thread state', () => {
     root('unfollowed', false, true);
     root('unknown', null, false);
 
-    expect(store.unreadFollowedThreadsInLoadedRooms()).toEqual([
-      { roomId: 'R1', threadRootId: 'followed-unread' }
-    ]);
+    expect(store.loadedThreadFollowState('R1', 'followed-unread')).toBe(true);
     expect(store.loadedThreadFollowState('R1', 'followed-read')).toBe(true);
     expect(store.loadedThreadFollowState('R1', 'unfollowed')).toBe(false);
     expect(store.loadedThreadFollowState('R1', 'unknown')).toBeNull();

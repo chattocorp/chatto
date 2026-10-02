@@ -29,7 +29,6 @@ function fakeStore() {
       return () => {};
     };
   const projection = new ServerProjectionStore();
-  const followed: { roomId: string; threadRootId: string }[] = [];
   const store = {
     serverId: 'server',
     isAuthenticated: true,
@@ -38,7 +37,6 @@ function fakeStore() {
     projection,
     notifications: new NotificationStore({} as NotificationAPI),
     roomList: new RoomListView(projection, { hasUsableProjection: true }),
-    unreadFollowedThreadsInLoadedRooms: () => followed,
     connection: { getAPI: () => ({}) },
     onReset: on(listeners.reset),
     onRoomAccessLost: on(listeners.roomAccessLost),
@@ -56,7 +54,7 @@ function fakeStore() {
     update: (update: unknown) => listeners.update.forEach((listener) => listener(update)),
     dispose: () => listeners.dispose.forEach((listener) => listener())
   };
-  return { store, emit, followed };
+  return { store, emit };
 }
 
 describe('serverUi', () => {
@@ -351,15 +349,5 @@ describe('serverUi', () => {
     expect(ui.serverIndicator()).toBe('unread');
     store.notifications.setUnreadNotificationCount(1);
     expect(ui.serverIndicator()).toBe('notification');
-  });
-
-  it('ignores an unread followed thread that the user reads now', () => {
-    const { store, followed } = fakeStore();
-    const ui = serverUi(store);
-    followed.push({ roomId: 'R1', threadRootId: 'T1' });
-    expect(ui.hasUnreadFollowedThreadInLoadedRooms()).toBe(true);
-    const close = ui.readViews.register({ roomId: 'R1', threadRootId: 'T1' });
-    expect(ui.hasUnreadFollowedThreadInLoadedRooms()).toBe(false);
-    close();
   });
 });

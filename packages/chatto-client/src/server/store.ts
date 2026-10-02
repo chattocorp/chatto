@@ -598,21 +598,6 @@ export class ServerStateStore {
     return event.event.viewerIsFollowingThread ?? null;
   }
 
-  /** Unread followed threads whose roots are in loaded room timelines. */
-  unreadFollowedThreadsInLoadedRooms(): { roomId: string; threadRootId: string }[] {
-    return this.#rooms
-      .entries()
-      .flatMap(([roomId, { messages }]) =>
-        (messages?.rootEvents ?? []).flatMap((event) =>
-          event.event.kind === TimelineEventKind.MessagePosted &&
-          event.event.viewerIsFollowingThread === true &&
-          event.event.viewerHasUnreadThread === true
-            ? [{ roomId, threadRootId: event.id }]
-            : []
-        )
-      );
-  }
-
   /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
   reconcileThreadRead(roomId: string, threadRootEventId: string): void {
     if (this.#rooms.loaded(roomId)?.messages) {

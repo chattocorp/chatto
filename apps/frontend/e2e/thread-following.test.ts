@@ -42,7 +42,7 @@ test.describe('Thread Following', () => {
       // Observe the complete interval, not only the final DOM after auto-reading.
       await page.evaluate(() => {
         const selector =
-          '[data-testid="thread-notification-dot"], [data-testid="thread-unread-dot"], [data-testid="my-threads-unread-dot"], [data-testid="my-threads-notification-badge"], [data-testid="notifications-unread-dot"]';
+          '[data-testid="thread-notification-dot"], [data-testid="thread-unread-dot"], [data-testid="my-threads-notification-badge"], [data-testid="notifications-unread-dot"]';
         const state = {
           flashed: false,
           observer: new MutationObserver(() => {

@@ -233,13 +233,6 @@ export class ServerUi {
     return null;
   }
 
-  /** Whether a loaded room timeline has an unread followed thread that nobody reads now. */
-  hasUnreadFollowedThreadInLoadedRooms(): boolean {
-    return this.#store
-      .unreadFollowedThreadsInLoadedRooms()
-      .some(({ roomId, threadRootId }) => !this.readViews.covers(roomId, threadRootId));
-  }
-
   /** Forward call participant and end events to the voice call. */
   #handleCallEvent(event: RealtimeEvent | null): void {
     const payload = event?.event;
