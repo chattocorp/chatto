@@ -99,6 +99,27 @@ describe('registerOriginServer', () => {
     expect(serverRegistry.servers).toHaveLength(1);
   });
 
+  it('settles the unauthenticated origin after it registers it from public data', async () => {
+    const settle = vi.spyOn(serverRegistry, 'settleOriginUnauthenticated');
+
+    await registerOriginServer({ serverInfo: profile('Origin') });
+
+    expect(settle).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an origin that another caller registered while discovery ran', async () => {
+    let respond: (info: PublicServerInfo) => void = () => {};
+    mocks.getPublicServerInfo.mockReturnValueOnce(new Promise((resolve) => (respond = resolve)));
+
+    const discovery = registerOriginServer();
+    await registerOriginServer({ signedIn: true });
+    respond(profile('Discovered'));
+    await discovery;
+
+    expect(serverRegistry.servers).toHaveLength(1);
+    expect(serverRegistry.originServer?.name).toBe('Chatto');
+  });
+
   it('registers nothing when the origin is not a Chatto server', async () => {
     mocks.getPublicServerInfo.mockRejectedValueOnce(new Error('not Chatto'));
 
