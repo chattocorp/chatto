@@ -120,6 +120,13 @@ describe('registerOriginServer', () => {
     expect(serverRegistry.originServer?.name).toBe('Chatto');
   });
 
+  it('registers nothing for a page origin without a Chatto backend', async () => {
+    await registerOriginServer({ signedIn: true, location: new URL('chatto://desktop') });
+
+    expect(serverRegistry.servers).toHaveLength(0);
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+  });
+
   it('registers nothing when the origin is not a Chatto server', async () => {
     mocks.getPublicServerInfo.mockRejectedValueOnce(new Error('not Chatto'));
 

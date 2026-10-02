@@ -51,10 +51,19 @@ function addServer(url: string, profile: ServerProfile): string | undefined {
  */
 export async function registerOriginServer({
   signedIn = false,
-  serverInfo
-}: { signedIn?: boolean; serverInfo?: PublicServerInfo | null } = {}): Promise<void> {
-  if (!isBackendCapableOrigin(window.location) || serverRegistry.originServer) return;
-  const origin = window.location.origin;
+  serverInfo,
+  location
+}: {
+  signedIn?: boolean;
+  serverInfo?: PublicServerInfo | null;
+  /** The page's location; the default is `window.location`. */
+  location?: Pick<Location, 'origin' | 'protocol'>;
+} = {}): Promise<void> {
+  // Without a page, for example in Node tests, there is no origin server.
+  if (typeof window === 'undefined') return;
+  const page = location ?? window.location;
+  if (!isBackendCapableOrigin(page) || serverRegistry.originServer) return;
+  const origin = page.origin;
 
   if (signedIn) {
     addServer(origin, { name: 'Chatto' });
