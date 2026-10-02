@@ -6,6 +6,9 @@ import { PINNED_REACTIONS } from '$lib/emoji';
 import { __resetRecentEmojisForTests, getRecentEmojis } from '$lib/state/recentEmojis.svelte';
 import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 import MessageHoverBar from './MessageHoverBar.svelte';
+import MessageActionMenuTestHarness from './MessageActionMenuTestHarness.svelte';
+import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
+import { MessageEventInteractionState } from './messageEventInteractions.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 
 const SERVER_ID = 'recent-reactions-server';
@@ -22,8 +25,8 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-function renderBar() {
-  const action = buildMessageActionModel({
+function buildAction() {
+  return buildMessageActionModel({
     actions: mocks.actions,
     params: {
       serverId: SERVER_ID,
@@ -39,10 +42,10 @@ function renderBar() {
     replyInRoomLabel: 'Reply',
     replyThreadLabel: 'Reply in thread'
   });
+}
 
-  return render(MessageHoverBar, {
-    props: { action }
-  });
+function renderBar() {
+  return render(MessageHoverBar, { props: { action: buildAction() } });
 }
 
 function quickReactionLabels(container: HTMLElement): string[] {
@@ -51,18 +54,33 @@ function quickReactionLabels(container: HTMLElement): string[] {
     .filter(Boolean);
 }
 
-function searchInput(container: HTMLElement): HTMLInputElement {
+async function selectEmoji(container: HTMLElement, query: string, title: string) {
   const input = container.querySelector<HTMLInputElement>('input[placeholder="Search emojis..."]');
   if (!input) throw new Error('emoji search input not found');
-  return input;
-}
-
-async function searchEmoji(container: HTMLElement, query: string) {
-  const input = searchInput(container);
   input.value = query;
   input.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
   await tick();
+  const button = container.querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+  if (!button) throw new Error('emoji search result not found');
+  button.click();
+  flushSync();
+  await tick();
+}
+
+function renderReactionPicker() {
+  const interactions = new MessageEventInteractionState();
+  interactions.openEmojiPicker();
+  const overlay = render(MessageEventActionOverlays, {
+    props: {
+      interactions,
+      action: buildAction(),
+      roomId: 'room-1',
+      messageEventId: 'message-event-1',
+      reactions: []
+    }
+  });
+  return { ...overlay, interactions };
 }
 
 beforeEach(() => {
@@ -71,49 +89,101 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('MessageHoverBar recent reactions integration', () => {
-  it('uses a checkmark emoji selected in the picker as the first non-pinned quick reaction', async () => {
+describe('Recent quick reactions integration', () => {
+  it('updates all mounted quick-reaction surfaces through the real reaction picker handler', async () => {
     const bar = renderBar();
-    expect(quickReactionLabels(bar.container)).toEqual(['👍', '👋', '🤣', '🙏', '❤️', '😂']);
-
-    const picker = render(EmojiPicker, {
-      props: {
-        serverId: SERVER_ID,
-        onSelect: vi.fn(),
-        onClose: vi.fn()
-      }
+    const menu = render(MessageActionMenuTestHarness, {
+      props: { action: buildAction(), onClose: vi.fn() }
     });
-    await searchEmoji(picker.container, 'check');
-    (
-      picker.container.querySelector('button[title="white_check_mark"]') as HTMLButtonElement
-    ).click();
+    const sheet = render(MessageActionMenuTestHarness, {
+      props: { action: buildAction(), presentation: 'sheet', onClose: vi.fn() }
+    });
+    const surfaces = [bar, menu, sheet];
+    for (const surface of surfaces) {
+      expect(quickReactionLabels(surface.container)).toEqual([...PINNED_REACTIONS]);
+    }
+
+    const picker = renderReactionPicker();
+    await vi.waitFor(() => expect(picker.container.querySelector('input')).not.toBeNull());
+    await selectEmoji(picker.container, 'check', 'white_check_mark');
+    expect(picker.interactions.emojiPickerPosition).toBeNull();
+    expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(expect.anything(), '✅', false);
+    for (const surface of surfaces) {
+      expect(quickReactionLabels(surface.container)).toEqual([...PINNED_REACTIONS, '✅']);
+    }
+    expect(getRecentEmojis(SERVER_ID).recent).toEqual(['✅']);
+  });
+
+  it('continues updating after the component that first created the store is destroyed', async () => {
+    // First access must occur in a mounted component, not in the test body.
+    const first = renderBar();
+    expect(quickReactionLabels(first.container)).toEqual([...PINNED_REACTIONS]);
+    const store = getRecentEmojis(SERVER_ID);
+    store.recordReaction('🔥');
     flushSync();
-    await tick();
+    expect(quickReactionLabels(first.container)).toEqual([...PINNED_REACTIONS, '🔥']);
+    await first.unmount();
 
-    const reactions = quickReactionLabels(bar.container);
-    expect(reactions.slice(0, PINNED_REACTIONS.length)).toEqual([...PINNED_REACTIONS]);
-    expect(reactions[PINNED_REACTIONS.length]).toBe('✅');
-    expect(reactions).toHaveLength(6);
-    expect(reactions).not.toContain('😂');
+    const second = renderBar();
+    store.recordReaction('🚀');
+    flushSync();
+    expect(quickReactionLabels(second.container)).toEqual([...PINNED_REACTIONS, '🚀', '🔥']);
+    store.recordReaction('✅');
+    flushSync();
+    expect(quickReactionLabels(second.container)).toEqual([...PINNED_REACTIONS, '✅', '🚀']);
   });
 
-  it('hydrates recent quick reactions from server-scoped localStorage', () => {
-    localStorage.setItem(serverStorageKey(SERVER_ID, 'recentEmojis'), JSON.stringify(['🔥']));
-
-    const { container } = renderBar();
-    const reactions = quickReactionLabels(container);
-
-    expect(reactions.slice(0, PINNED_REACTIONS.length)).toEqual([...PINNED_REACTIONS]);
-    expect(reactions[PINNED_REACTIONS.length]).toBe('🔥');
+  it('keeps profile-status picker choices in general history only', async () => {
+    getRecentEmojis(SERVER_ID).recordReaction('🔥');
+    const bar = renderBar();
+    const picker = render(EmojiPicker, {
+      props: { serverId: SERVER_ID, onSelect: vi.fn(), onClose: vi.fn() }
+    });
+    await selectEmoji(picker.container, 'rocket', 'rocket');
+    expect(getRecentEmojis(SERVER_ID).recent).toEqual(['🚀']);
+    expect(quickReactionLabels(bar.container)).toEqual([...PINNED_REACTIONS, '🔥']);
   });
 
-  it('does not reorder recent reactions when a toolbar quick reaction is clicked', async () => {
-    const { container } = renderBar();
-    const before = [...getRecentEmojis(SERVER_ID).quickReactions];
-
-    (container.querySelector('[aria-label="React with ❤️"]') as HTMLButtonElement).click();
-    await vi.waitFor(() => expect(mocks.actions.toggleReaction).toHaveBeenCalledOnce());
-
-    expect([...getRecentEmojis(SERVER_ID).quickReactions]).toEqual(before);
+  it('records the choice before awaiting the reaction request', async () => {
+    let completeRequest!: () => void;
+    mocks.actions.toggleReaction.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          completeRequest = resolve;
+        })
+    );
+    const picker = renderReactionPicker();
+    await vi.waitFor(() => expect(picker.container.querySelector('input')).not.toBeNull());
+    await selectEmoji(picker.container, 'fire', 'fire');
+    expect(getRecentEmojis(SERVER_ID).quickReactions).toEqual([...PINNED_REACTIONS, '🔥']);
+    expect(picker.interactions.emojiPickerPosition).toBeNull();
+    completeRequest();
   });
+
+  it('hydrates recent quick reactions from the new server-scoped storage key', () => {
+    localStorage.setItem(
+      serverStorageKey(SERVER_ID, 'recentReactions'),
+      JSON.stringify(['🔥', '🚀'])
+    );
+    expect(quickReactionLabels(renderBar().container)).toEqual([...PINNED_REACTIONS, '🔥', '🚀']);
+  });
+
+  it.each(['toolbar', 'menu', 'sheet'] as const)(
+    'does not reorder history when a %s quick reaction is clicked',
+    async (surface) => {
+      const store = getRecentEmojis(SERVER_ID);
+      store.recordReaction('🔥');
+      store.recordReaction('🚀');
+      const rendered =
+        surface === 'toolbar'
+          ? renderBar()
+          : render(MessageActionMenuTestHarness, {
+              props: { action: buildAction(), presentation: surface, onClose: vi.fn() }
+            });
+      const before = [...store.quickReactions];
+      rendered.container.querySelector<HTMLButtonElement>('[aria-label="React with 🔥"]')!.click();
+      await vi.waitFor(() => expect(mocks.actions.toggleReaction).toHaveBeenCalledOnce());
+      expect(store.quickReactions).toEqual(before);
+    }
+  );
 });

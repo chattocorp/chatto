@@ -25,7 +25,6 @@ vi.mock('$lib/attachments/copyImage', () => ({
 }));
 
 vi.mock('$lib/state/recentEmojis.svelte', () => ({
-  MAX_RECENT_EMOJIS: 16,
   getRecentEmojis: () => ({
     quickReactions: ['👍', '❤️']
   })

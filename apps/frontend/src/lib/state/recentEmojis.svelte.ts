@@ -1,91 +1,88 @@
-/**
- * Recently used emojis, per-server.
- *
- * Single source of truth for "what emojis has this user picked lately" on a
- * given server. Used by:
- * - The full emoji picker, which leads with a "Recently Used" section.
- * - The message quick-reaction bar / context menu / mobile action sheet,
- *   which fill the trailing (non-pinned) slots with these recents.
- *
- * State is keyed by server ID via {@link serverSlot}; switching servers
- * shows a different recent list.
- */
-
-import { PINNED_REACTIONS, QUICK_REACTIONS_COUNT, RECENT_REACTION_FALLBACKS } from '$lib/emoji';
+/** Per-server emoji history, with separate lists for the full picker and quick reactions. */
+import { PINNED_REACTIONS } from '$lib/emoji';
 import { Codecs, serverSlot, type StorageSlot } from '@chatto/client/storage/slot';
 
-const STORAGE_SUFFIX = 'recentEmojis';
+/** Maximum number of choices shown in the full picker's Recently Used section. */
 export const MAX_RECENT_EMOJIS = 16;
+const MAX_RECENT_REACTIONS = 2;
 
-// Codec only checks "is an array"; individual entries are filtered on read
-// so corrupt items don't invalidate the whole payload.
-const emojiListCodec = Codecs.json<string[]>((v): v is string[] => Array.isArray(v));
+// Validate entries on read so one corrupt entry does not discard the list.
+const emojiListCodec = Codecs.json<unknown[]>((value): value is unknown[] => Array.isArray(value));
 
+function isCustomReaction(emoji: unknown): emoji is string {
+  return (
+    typeof emoji === 'string' &&
+    emoji.length > 0 &&
+    !PINNED_REACTIONS.some((pinned) => pinned === emoji)
+  );
+}
+
+/** Owns independent general-picker and reaction-picker histories for one server. */
 export class RecentEmojisStore {
+  /** Full-picker choices, newest first. Includes profile-status selections. */
   recent = $state<string[]>([]);
-  private storage: StorageSlot<string[]>;
+  private reactions = $state<string[]>([]);
+  private storage: StorageSlot<unknown[]>;
+  private reactionStorage: StorageSlot<unknown[]>;
 
   constructor(serverId: string) {
-    this.storage = serverSlot(serverId, STORAGE_SUFFIX, [], emojiListCodec);
+    this.storage = serverSlot(serverId, 'recentEmojis', [], emojiListCodec);
     this.recent = this.storage
       .get()
       .filter((e): e is string => typeof e === 'string')
       .slice(0, MAX_RECENT_EMOJIS);
+
+    // Do not import general history: it includes profile-status choices.
+    this.reactionStorage = serverSlot(serverId, 'recentReactions', [], emojiListCodec);
+    const stored = this.reactionStorage.get().filter(isCustomReaction);
+    this.reactions = stored
+      .filter((emoji, index) => stored.indexOf(emoji) === index)
+      .slice(0, MAX_RECENT_REACTIONS);
   }
 
-  record(emoji: string) {
-    const filtered = this.recent.filter((e) => e !== emoji);
-    this.recent = [emoji, ...filtered].slice(0, MAX_RECENT_EMOJIS);
+  /** Record a selection from any full emoji picker. */
+  record(emoji: string): void {
+    this.recent = [emoji, ...this.recent.filter((previous) => previous !== emoji)].slice(
+      0,
+      MAX_RECENT_EMOJIS
+    );
     this.storage.set(this.recent);
   }
 
+  /** Record a message reaction-picker choice, independent of the request result. */
+  recordReaction(emoji: string): void {
+    if (!isCustomReaction(emoji)) return;
+    this.reactions = [emoji, ...this.reactions.filter((previous) => previous !== emoji)].slice(
+      0,
+      MAX_RECENT_REACTIONS
+    );
+    this.reactionStorage.set(this.reactions);
+  }
+
   /**
-   * The quick-reactions list shown on the message hover bar / context menu /
-   * mobile action sheet: pinned emojis followed by the user's most recent
-   * non-pinned emojis on this server, backfilled with fallback defaults so
-   * the list always has exactly {@link QUICK_REACTIONS_COUNT} entries.
-   *
-   * Declared as a $derived class field rather than a JS getter so consumers
-   * across the app share one memoised computation that re-fires on `recent`
-   * mutations — the getter form silently lost reactivity for some consumers.
+   * Pinned reactions followed by up to two recent reaction-picker choices.
+   * Read state in the caller's reactive context. A shared $derived field can
+   * become inert when the component that first creates this store is destroyed.
    */
-  quickReactions: readonly string[] = $derived.by(() => {
-    const pinned = PINNED_REACTIONS as readonly string[];
-    const result: string[] = [...pinned];
-    const recent = [...this.recent];
-
-    for (const emoji of recent) {
-      if (result.length >= QUICK_REACTIONS_COUNT) break;
-      if (!result.includes(emoji)) result.push(emoji);
-    }
-
-    for (const emoji of RECENT_REACTION_FALLBACKS) {
-      if (result.length >= QUICK_REACTIONS_COUNT) break;
-      if (!result.includes(emoji)) result.push(emoji);
-    }
-
-    return result;
-  });
+  get quickReactions(): readonly string[] {
+    return [...PINNED_REACTIONS, ...this.reactions];
+  }
 }
 
-// Private singleton registry. Reactivity comes from each store's $state.recent
-// field; the Map itself is just an identity cache so the same serverId always
-// returns the same store instance. A SvelteMap would invalidate readers on
-// every first-access (mutate-during-derived), which is not the intent.
-// eslint-disable-next-line svelte/prefer-svelte-reactivity
-const stores = new Map<string, RecentEmojisStore>();
+// Keep this identity cache non-reactive: first access inside a derivation must
+// not invalidate the caller. The store owns the reactive state.
+let stores: Record<string, RecentEmojisStore | undefined> = Object.create(null);
 
-/** Get (or lazily create) the recent-emojis store for a given server. */
+/**
+ * Get (or lazily create) the recent-emojis store for a server.
+ * Derive the lookup separately from state reads: Svelte does not track state
+ * created within the same derivation that reads it.
+ */
 export function getRecentEmojis(serverId: string): RecentEmojisStore {
-  let store = stores.get(serverId);
-  if (!store) {
-    store = new RecentEmojisStore(serverId);
-    stores.set(serverId, store);
-  }
-  return store;
+  return (stores[serverId] ??= new RecentEmojisStore(serverId));
 }
 
 /** Test-only: clear the store cache so a fresh instance is built per test. */
-export function __resetRecentEmojisForTests() {
-  stores.clear();
+export function __resetRecentEmojisForTests(): void {
+  stores = Object.create(null);
 }

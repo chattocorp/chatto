@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
@@ -73,6 +74,7 @@
   }
 
   async function handleEmojiSelect(emoji: string): Promise<void> {
+    getRecentEmojis(action.serverId).recordReaction(emoji);
     closeEmojiPicker();
     await action.toggleReaction(emoji);
   }

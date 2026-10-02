@@ -14,7 +14,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
   import { m } from '$lib/i18n/messages';
   import { searchEmojis, EMOJI_BY_CATEGORY } from '$lib/emoji';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { getRecentEmojis, MAX_RECENT_EMOJIS } from '$lib/state/recentEmojis.svelte';
+  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
 
   let {
     serverId,
@@ -29,7 +29,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
   let query = $state('');
 
   const recentStore = $derived(getRecentEmojis(serverId));
-  const recent = $derived(recentStore.recent.slice(0, MAX_RECENT_EMOJIS));
+  const recent = $derived(recentStore.recent);
 
   const searchResults = $derived(query.trim() ? searchEmojis(query.trim(), 50) : []);
   const isSearching = $derived(query.trim().length > 0);

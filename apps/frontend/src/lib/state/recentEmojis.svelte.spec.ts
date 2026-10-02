@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { flushSync } from 'svelte';
 import {
   RecentEmojisStore,
   MAX_RECENT_EMOJIS,
   getRecentEmojis,
   __resetRecentEmojisForTests
 } from './recentEmojis.svelte';
-import { PINNED_REACTIONS, QUICK_REACTIONS_COUNT, RECENT_REACTION_FALLBACKS } from '$lib/emoji';
 import { serverStorageKey } from '@chatto/client/storage/serverStorage';
-
-const PINNED_COUNT = PINNED_REACTIONS.length;
-const TRAILING_SLOTS = QUICK_REACTIONS_COUNT - PINNED_COUNT;
 
 const SERVER_A = 'server-a';
 const SERVER_B = 'server-b';
@@ -111,66 +106,6 @@ describe('RecentEmojisStore', () => {
       a.record('🚀');
       expect([...a.recent]).toEqual(['🚀']);
       expect([...b.recent]).toEqual([]);
-    });
-  });
-
-  describe('quickReactions reactivity', () => {
-    // Regression: previously `quickReactions` was a plain JS getter on the
-    // class. Reading it inside a $derived/$effect tracked correctly in
-    // isolation, but cross-component consumers (the message hover bar) didn't
-    // re-fire after `record()`, so the toolbar showed stale recents until a
-    // page reload. Switching to a $derived.by class field fixed it. This test
-    // pins the reactive contract so a future refactor can't quietly regress.
-    it('an external $effect sees quickReactions updates after record()', () => {
-      const store = getRecentEmojis(SERVER_A);
-      let captured: readonly string[] = [];
-      const cleanup = $effect.root(() => {
-        $effect(() => {
-          captured = store.quickReactions;
-        });
-      });
-      flushSync();
-      const before = [...captured];
-
-      store.record('🚀');
-      flushSync();
-
-      expect(captured).not.toEqual(before);
-      expect(captured).toContain('🚀');
-      cleanup();
-    });
-  });
-
-  describe('quickReactions', () => {
-    it('returns pinned + fallbacks when there are no recents', () => {
-      const store = new RecentEmojisStore(SERVER_A);
-      expect([...store.quickReactions]).toEqual([
-        ...PINNED_REACTIONS,
-        ...RECENT_REACTION_FALLBACKS.slice(0, TRAILING_SLOTS)
-      ]);
-    });
-
-    it('always returns exactly QUICK_REACTIONS_COUNT items', () => {
-      const store = new RecentEmojisStore(SERVER_A);
-      expect(store.quickReactions.length).toBe(QUICK_REACTIONS_COUNT);
-    });
-
-    it('puts the most recent non-pinned emojis into the trailing slots', () => {
-      const store = new RecentEmojisStore(SERVER_A);
-      store.record('🚀');
-      store.record('🔥');
-      const list = [...store.quickReactions];
-      expect(list.slice(0, PINNED_COUNT)).toEqual([...PINNED_REACTIONS]);
-      expect(list[PINNED_COUNT]).toBe('🔥');
-      expect(list[PINNED_COUNT + 1]).toBe('🚀');
-    });
-
-    it('does not duplicate when a recorded emoji is already pinned', () => {
-      const store = new RecentEmojisStore(SERVER_A);
-      store.record(PINNED_REACTIONS[0]);
-      const list = [...store.quickReactions];
-      expect(list.filter((e) => e === PINNED_REACTIONS[0]).length).toBe(1);
-      expect(list.slice(0, PINNED_COUNT)).toEqual([...PINNED_REACTIONS]);
     });
   });
 
