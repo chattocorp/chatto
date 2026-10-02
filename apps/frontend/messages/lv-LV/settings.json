@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Atbalstītās iOS/iPadOS versijās sākuma ekrānam pievienojiet Chatto un atveriet to no lietotnes ikonas, lai iespējotu informatīvos paziņojumus.",
         "blocked_title": "Push paziņojumi ir bloķēti",
         "blocked_description": "Iespējojiet paziņojumus savā pārlūkprogrammā vai OS iestatījumos, pēc tam vēlreiz atveriet Chatto.",
-        "enabled_title": "Push paziņojumi ir iespējoti",
         "enabled_description": "Chatto kā slēdzi izmanto jūsu pārlūkprogrammas vai OS paziņojumu atļauju. Lai izslēgtu paziņojumus, pārlūkprogrammas vai OS iestatījumos atspējojiet tos šai vietnei.",
         "test_button": "Nosūtiet testa paziņojumu",
         "testing": "Notiek sūtīšana…",
@@ -285,7 +284,10 @@
         "off_title": "Push paziņojumi šajā ierīcē ir izslēgti",
         "off_description": "Ieslēdziet tos lapā Paziņojumi. Šī izvēle attiecas uz visiem jūsu serveriem.",
         "open_notifications": "Atvērt paziņojumus",
-        "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža."
+        "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža.",
+        "setup_failed_title": "Šajā ierīcē neizdevās iestatīt push paziņojumus",
+        "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz, kad atgriezīsieties lietotnē.",
+        "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu."
       },
       "push_prompt": {
         "title": "Iespējot push paziņojumus",

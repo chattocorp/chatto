@@ -266,13 +266,12 @@
       "title": "Bildirimler",
       "subtitle": "Bildirimleri nasıl alacağınızı yapılandırın",
       "push": {
-        "title": "Anında Bildirimler",
+        "title": "Anlık bildirimler",
         "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
         "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
-        "ios_home_screen_description": "Desteklenen iOS/ıpados sürümlerinde, Ana Ekrana Chatto ekleyin ve anında bildirimleri etkinleştirmek için uygulama simgesinden açın.",
+        "ios_home_screen_description": "Desteklenen iOS/iPadOS sürümlerinde Chatto'yu Ana Ekrana ekleyin ve anlık bildirimleri etkinleştirmek için uygulama simgesinden açın.",
         "blocked_title": "Anlık bildirimler engellendi",
         "blocked_description": "Tarayıcınızda veya işletim sistemi ayarlarınızda bildirimleri etkinleştirin, ardından Chatto'yi tekrar açın.",
-        "enabled_title": "Anında bildirimler etkinleştirildi",
         "enabled_description": "Chatto anahtar olarak tarayıcınızı veya işletim sistemi bildirim izninizi kullanır. Bildirimleri kapatmak için tarayıcınızda veya işletim sistemi ayarlarınızda bu site için bildirimleri devre dışı bırakın.",
         "test_button": "Test bildirimi gönder",
         "testing": "Gönderiliyor…",
@@ -285,7 +284,10 @@
         "off_title": "Bu cihazda anlık bildirimler kapalı",
         "off_description": "Bunları Bildirimler sayfasından açın. Bu seçim tüm sunucularınız için geçerlidir.",
         "open_notifications": "Bildirimleri aç",
-        "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin."
+        "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin.",
+        "setup_failed_title": "Bu cihazda anlık bildirimler ayarlanamadı",
+        "setup_failed_description": "Tarayıcı veya sunucu aboneliği reddetti. Chatto, uygulamaya döndüğünüzde yeniden dener.",
+        "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin."
       },
       "push_prompt": {
         "title": "Anlık bildirimleri etkinleştir",

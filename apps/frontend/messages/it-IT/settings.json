@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Nelle versioni iOS/iPadOS supportate, aggiungi Chatto alla schermata principale e aprila dall'icona dell'app per abilitare le notifiche push.",
         "blocked_title": "Notifiche push bloccate",
         "blocked_description": "Abilita le notifiche nel browser o nelle impostazioni del sistema operativo, quindi apri di nuovo Chatto.",
-        "enabled_title": "Notifiche push abilitate",
         "enabled_description": "Chatto utilizza l'autorizzazione di notifica del browser o del sistema operativo come interruttore. Per disattivare le notifiche, disabilitale per questo sito nelle impostazioni del browser o del sistema operativo.",
         "test_button": "Invia notifica di prova",
         "testing": "Invio…",
@@ -285,7 +284,10 @@
         "off_title": "Le notifiche push sono disattivate su questo dispositivo",
         "off_description": "Attivale dalla pagina Notifiche. La scelta vale per tutti i tuoi server.",
         "open_notifications": "Apri notifiche",
-        "test_failed": "Impossibile inviare una notifica di prova. Riprova tra un momento."
+        "test_failed": "Impossibile inviare una notifica di prova. Riprova tra un momento.",
+        "setup_failed_title": "Impossibile configurare le notifiche push su questo dispositivo",
+        "setup_failed_description": "Il browser o il server ha rifiutato l’iscrizione. Chatto riprova quando torni nell’app.",
+        "test_rate_limited": "Attendi qualche secondo prima di inviare un’altra notifica di prova."
       },
       "push_prompt": {
         "title": "Abilita le notifiche push",

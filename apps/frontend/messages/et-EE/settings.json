@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Toetatud iOS-i/iPadOS-i versioonides lisage Chatto avakuvale ja avage see tõukemärguannete lubamiseks rakenduse ikooni kaudu.",
         "blocked_title": "Tõukemärguanded on blokeeritud",
         "blocked_description": "Lubage oma brauseris või OS-i seadetes märguanded, seejärel avage Chatto uuesti.",
-        "enabled_title": "Tõukemärguanded on lubatud",
         "enabled_description": "Chatto kasutab lülitina teie brauseri või OS-i teavitusluba. Märguannete väljalülitamiseks keelake need sellel saidil oma brauseris või OS-i seadetes.",
         "test_button": "Saada testiteade",
         "testing": "Saatmine…",
@@ -285,7 +284,10 @@
         "off_title": "Tõukemärguanded on selles seadmes välja lülitatud",
         "off_description": "Lülitage need sisse lehel Märguanded. See valik kehtib kõigile teie serveritele.",
         "open_notifications": "Ava märguanded",
-        "test_failed": "Testmärguannet ei õnnestunud saata. Proovige hetke pärast uuesti."
+        "test_failed": "Testmärguannet ei õnnestunud saata. Proovige hetke pärast uuesti.",
+        "setup_failed_title": "Tõukemärguandeid ei õnnestunud selles seadmes seadistada",
+        "setup_failed_description": "Brauser või server lükkas tellimuse tagasi. Chatto proovib uuesti, kui te rakendusse naasete.",
+        "test_rate_limited": "Oodake mõni sekund, enne kui saadate uue testmärguande."
       },
       "push_prompt": {
         "title": "Luba tõukemärguanded",

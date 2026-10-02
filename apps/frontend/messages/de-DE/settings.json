@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Auf unterstützten iOS-/iPadOS-Versionen kannst du Push-Benachrichtigungen aktivieren, nachdem du Chatto zum Home-Bildschirm hinzugefügt und über das App-Symbol geöffnet hast.",
         "blocked_title": "Push-Benachrichtigungen blockiert",
         "blocked_description": "Aktiviere Benachrichtigungen in deinen Browser- oder Betriebssystemeinstellungen und öffne Chatto danach erneut.",
-        "enabled_title": "Push-Benachrichtigungen aktiviert",
         "enabled_description": "Chatto verwendet die Benachrichtigungsberechtigung deines Browsers oder Betriebssystems als Schalter. Um Benachrichtigungen auszuschalten, deaktiviere sie für diese Website in deinen Browser- oder Betriebssystemeinstellungen.",
         "test_button": "Testbenachrichtigung senden",
         "testing": "Wird gesendet…",
@@ -285,7 +284,10 @@
         "off_title": "Push-Benachrichtigungen sind auf diesem Gerät aus",
         "off_description": "Schalte sie auf der Seite „Benachrichtigungen“ ein. Diese Wahl gilt für alle deine Server.",
         "open_notifications": "Benachrichtigungen öffnen",
-        "test_failed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es gleich noch einmal."
+        "test_failed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es gleich noch einmal.",
+        "setup_failed_title": "Push-Benachrichtigungen konnten auf diesem Gerät nicht eingerichtet werden",
+        "setup_failed_description": "Der Browser oder der Server hat das Abonnement abgelehnt. Chatto versucht es erneut, wenn du zur App zurückkehrst.",
+        "test_rate_limited": "Warte ein paar Sekunden, bevor du eine weitere Testbenachrichtigung sendest."
       },
       "push_prompt": {
         "title": "Push-Benachrichtigungen aktivieren",

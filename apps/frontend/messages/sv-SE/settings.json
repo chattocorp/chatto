@@ -272,7 +272,6 @@
         "ios_home_screen_description": "På versioner av iOS/iPadOS som stöds lägger du till Chatto på startskärmen och öppnar den från appikonen för att aktivera push-meddelanden.",
         "blocked_title": "Push-meddelanden blockerade",
         "blocked_description": "Aktivera aviseringar i din webbläsare eller OS-inställningar och öppna sedan Chatto igen.",
-        "enabled_title": "Push-meddelanden har aktiverats",
         "enabled_description": "Chatto använder din webbläsar- eller OS-aviseringsbehörighet som switch. För att stänga av aviseringar, inaktivera dem för den här webbplatsen i din webbläsare eller OS-inställningar.",
         "test_button": "Skicka testavisering",
         "testing": "Skickar...",
@@ -285,7 +284,10 @@
         "off_title": "Push-meddelanden är avstängda på den här enheten",
         "off_description": "Slå på dem från sidan Aviseringar. Valet gäller alla dina servrar.",
         "open_notifications": "Öppna aviseringar",
-        "test_failed": "Det gick inte att skicka ett testmeddelande. Försök igen om en stund."
+        "test_failed": "Det gick inte att skicka ett testmeddelande. Försök igen om en stund.",
+        "setup_failed_title": "Push-meddelanden kunde inte konfigureras på den här enheten",
+        "setup_failed_description": "Webbläsaren eller servern avvisade prenumerationen. Chatto försöker igen när du återvänder till appen.",
+        "test_rate_limited": "Vänta några sekunder innan du skickar ett nytt testmeddelande."
       },
       "push_prompt": {
         "title": "Aktivera push-meddelanden",
