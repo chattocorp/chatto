@@ -305,6 +305,30 @@ describe('notifications page', () => {
     }
   );
 
+  it('explains the Home Screen requirement instead of offering activation on iOS browsers', async () => {
+    setNotificationPermission('default');
+    mocks.pushNotifications.getPushCapability.mockReturnValue('ios_home_screen_required');
+
+    const { container } = render(NotificationsPage);
+
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="push-ios-home-screen-hint"]')?.textContent).toContain(
+        'Add Chatto to your Home Screen'
+      );
+    });
+    expect(container.textContent).not.toContain('Enable push notifications');
+  });
+
+  it('shows no Home Screen guidance without a server that supports push', async () => {
+    mocks.pushNotifications.getPushCapability.mockReturnValue('ios_home_screen_required');
+    mocks.pushNotifications.targets = [];
+
+    const { container } = render(NotificationsPage);
+    await vi.waitFor(() => expect(container.textContent).toContain('Notifications'));
+
+    expect(q(container, '[data-testid="push-ios-home-screen-hint"]')).toBeNull();
+  });
+
   it('shows push activation for servers that become eligible after mount', async () => {
     setNotificationPermission('default');
     mocks.pushNotifications.targets = [];

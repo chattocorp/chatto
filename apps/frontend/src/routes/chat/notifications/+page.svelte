@@ -8,6 +8,7 @@
   import {
     ActivityListRow,
     EmptyState,
+    Hint,
     LoadingFog,
     PageTitle,
     PaneContent,
@@ -122,6 +123,11 @@
     getPushCapability() === 'supported' &&
       getPermission() === 'default' &&
       getPushRegistrationTargets().length > 0
+  );
+  // iOS and iPadOS offer Web Push only to Home Screen web apps, so a browser
+  // tab gets this guidance instead of the action.
+  const showIosHomeScreenHint = $derived(
+    getPushCapability() === 'ios_home_screen_required' && getPushRegistrationTargets().length > 0
   );
 
   // Realtime normally hydrates this retained store before the route is opened.
@@ -542,6 +548,18 @@
           </Button>
         {/if}
       {/snippet}
+      {#if showIosHomeScreenHint}
+        <div class="px-3 pt-3" data-testid="push-ios-home-screen-hint">
+          <Hint icon="icon-[uil--mobile-android]">
+            <p class="font-medium">
+              {m('settings.notifications.push_prompt.ios_home_screen_title')}
+            </p>
+            <p class="text-muted">
+              {m('settings.notifications.push_prompt.ios_home_screen_message')}
+            </p>
+          </Hint>
+        </div>
+      {/if}
       <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
         <div class="flex min-h-full flex-col">
           {#if pageError && groups.length === 0}

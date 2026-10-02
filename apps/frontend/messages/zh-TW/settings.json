@@ -270,7 +270,9 @@
         "enabled": "推播通知已啟用",
         "blocked": "推播通知已在瀏覽器或作業系統設定中遭到封鎖",
         "enable_failed": "無法啟用推播通知",
-        "enabling": "正在啟用..."
+        "enabling": "正在啟用...",
+        "ios_home_screen_title": "將 Chatto 加入主畫面",
+        "ios_home_screen_message": "在支援的 iOS/iPadOS 版本中，請先從主畫面圖示開啟 Chatto，再啟用推播通知。"
       },
       "sound": {
         "title": "通知音效",

@@ -270,7 +270,9 @@
         "enabled": "Notifiche push abilitate",
         "blocked": "Le notifiche push sono bloccate nelle impostazioni del browser o del sistema operativo",
         "enable_failed": "Impossibile abilitare le notifiche push",
-        "enabling": "Abilitazione..."
+        "enabling": "Abilitazione...",
+        "ios_home_screen_title": "Aggiungi Chatto alla schermata iniziale",
+        "ios_home_screen_message": "Nelle versioni iOS/iPadOS supportate, apri Chatto dall'icona della schermata Home prima di abilitare le notifiche push."
       },
       "sound": {
         "title": "Suono di notifica",

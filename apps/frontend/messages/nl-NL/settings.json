@@ -270,7 +270,9 @@
         "enabled": "Pushmeldingen ingeschakeld",
         "blocked": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen",
         "enable_failed": "Kan pushmeldingen niet inschakelen",
-        "enabling": "Aanzetten..."
+        "enabling": "Aanzetten...",
+        "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
+        "ios_home_screen_message": "Op ondersteunde iOS/iPadOS-versies opent u Chatto via het startschermpictogram voordat u pushmeldingen inschakelt."
       },
       "sound": {
         "title": "Meldingsgeluid",

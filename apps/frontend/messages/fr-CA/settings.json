@@ -270,7 +270,9 @@
         "enabled": "Notifications poussées activées",
         "blocked": "Les notifications poussées sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation",
         "enable_failed": "Échec de l'activation des notifications poussées",
-        "enabling": "Activation..."
+        "enabling": "Activation...",
+        "ios_home_screen_title": "Ajoutez Chatto à votre écran d'accueil",
+        "ios_home_screen_message": "Sur les versions iOS/iPadOS prises en charge, ouvrez Chatto à partir de son icône sur l'écran d'accueil avant d'activer les notifications push."
       },
       "sound": {
         "title": "Son de notification",

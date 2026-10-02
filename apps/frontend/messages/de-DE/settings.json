@@ -270,7 +270,9 @@
         "enabled": "Push-Benachrichtigungen aktiviert",
         "blocked": "Push-Benachrichtigungen sind in deinem Browser oder Betriebssystem blockiert",
         "enable_failed": "Push-Benachrichtigungen konnten nicht aktiviert werden",
-        "enabling": "Wird aktiviert..."
+        "enabling": "Wird aktiviert...",
+        "ios_home_screen_title": "Füge Chatto zum Home-Bildschirm hinzu",
+        "ios_home_screen_message": "Auf unterstützten iOS-/iPadOS-Versionen musst du Chatto über das Home-Bildschirm-Symbol öffnen, bevor du Push-Benachrichtigungen aktivierst."
       },
       "sound": {
         "title": "Benachrichtigungston",

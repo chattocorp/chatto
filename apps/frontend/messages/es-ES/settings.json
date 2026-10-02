@@ -270,7 +270,9 @@
         "enabled": "Notificaciones push habilitadas",
         "blocked": "Las notificaciones push están bloqueadas en tu navegador o en la configuración del sistema operativo",
         "enable_failed": "No se pudieron habilitar las notificaciones push",
-        "enabling": "Habilitando..."
+        "enabling": "Habilitando...",
+        "ios_home_screen_title": "Agrega Chatto a tu pantalla de inicio",
+        "ios_home_screen_message": "En las versiones compatibles de iOS/iPadOS, abra Chatto desde el ícono de su pantalla de inicio antes de habilitar las notificaciones automáticas."
       },
       "sound": {
         "title": "Sonido de notificación",

@@ -270,7 +270,9 @@
         "enabled": "推送通知已启用",
         "blocked": "浏览器或操作系统设置已阻止推送通知",
         "enable_failed": "推送通知启用失败",
-        "enabling": "正在启用..."
+        "enabling": "正在启用...",
+        "ios_home_screen_title": "将 Chatto 添加到主屏幕",
+        "ios_home_screen_message": "在受支持的 iOS/iPadOS 版本上，启用推送通知前，请先通过主屏幕图标打开 Chatto。"
       },
       "sound": {
         "title": "通知提示音",

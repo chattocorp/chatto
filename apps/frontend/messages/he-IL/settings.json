@@ -270,7 +270,9 @@
         "enabled": "התראות דחיפה מופעלות",
         "blocked": "התראות דחיפה חסומות בהגדרות הדפדפן או מערכת ההפעלה",
         "enable_failed": "נכשל בהפעלת הודעות דחיפה",
-        "enabling": "מפעיל..."
+        "enabling": "מפעיל...",
+        "ios_home_screen_title": "הוסף את Chatto למסך הבית שלך",
+        "ios_home_screen_message": "בגרסאות נתמכות של iOS/iPadOS, פתח את Chatto מסמל מסך הבית לפני הפעלת התראות דחיפה."
       },
       "sound": {
         "title": "צליל התראה",

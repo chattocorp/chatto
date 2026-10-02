@@ -270,7 +270,9 @@
         "enabled": "Push-varsler aktivert",
         "blocked": "Push-varsler er blokkert i nettleseren eller OS-innstillingene",
         "enable_failed": "Kunne ikke aktivere push-varsler",
-        "enabling": "Aktiverer..."
+        "enabling": "Aktiverer...",
+        "ios_home_screen_title": "Legg til Chatto på startskjermen",
+        "ios_home_screen_message": "På støttede versjoner av iOS/iPadOS åpner du Chatto fra startskjermikonet før du aktiverer push-varsler."
       },
       "sound": {
         "title": "Varslingslyd",

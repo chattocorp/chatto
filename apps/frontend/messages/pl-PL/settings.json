@@ -270,7 +270,9 @@
         "enabled": "Powiadomienia push włączone",
         "blocked": "Powiadomienia push są blokowane w ustawieniach przeglądarki lub systemu operacyjnego",
         "enable_failed": "Nie udało się włączyć powiadomień push",
-        "enabling": "Włączam..."
+        "enabling": "Włączam...",
+        "ios_home_screen_title": "Dodaj Chatto do swojego ekranu głównego",
+        "ios_home_screen_message": "W obsługiwanych wersjach iOS/iPadOS otwórz Chatto z poziomu ikony na ekranie głównym przed włączeniem powiadomień push."
       },
       "sound": {
         "title": "Dźwięk powiadomienia",
