@@ -398,13 +398,15 @@ async function refreshReason(
   requestId: string | null,
   now: number
 ): Promise<RefreshReason | null> {
-  if (requestId) return 'requested-by-another-tab';
   // Chrome keeps a push service registration for every failed attempt and
   // refuses new ones once a profile holds about 1,000. Retrying a failed save
   // on every focus would fill that limit, so automatic retries wait as long
-  // as a refresh. `retryPushRegistration` retries at once.
+  // as a refresh. This also applies to a stored request from another tab: it
+  // stays until a save succeeds. The cross-tab listener still handles a new
+  // request at once, and `retryPushRegistration` retries at once.
   const failure = failedRegistrations.get(target.serverId);
   if (failure && now - failure.failedAt < PUSH_REGISTRATION_REFRESH_INTERVAL_MS) return null;
+  if (requestId) return 'requested-by-another-tab';
   const saved = savedRegistrations.get(target.serverId);
   if (!saved) return 'first-save-in-page';
   if (saved.userId !== target.userId) return 'account-changed';
@@ -456,8 +458,8 @@ export async function refreshPushSubscriptions(): Promise<void> {
     getPushRegistrationTargets().map(async (target) => {
       const requestId = pendingPushRegistrationRefresh(target.serverId);
       // Startup, focus, and reactive updates often arrive together. One save
-      // per server is enough unless another tab requested a save.
-      if (refreshesInFlight.has(target.serverId) && !requestId) return;
+      // per server at a time is enough.
+      if (refreshesInFlight.has(target.serverId)) return;
       refreshesInFlight.add(target.serverId);
       try {
         const reason = await refreshReason(target, requestId, now);

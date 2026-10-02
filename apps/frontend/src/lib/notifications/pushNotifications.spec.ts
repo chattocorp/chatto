@@ -1211,6 +1211,24 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     expect(originSubscribe).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps backing off while a refresh request from another tab stays pending', async () => {
+    const originSubscribe = vi.fn().mockRejectedValue(new Error('push service error'));
+    mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
+      subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
+      unsubscribe: mocks.unsubscribePush,
+      deleteByCapability: mocks.deleteByCapabilityPush
+    }));
+    // A request marker stays until a save succeeds.
+    window.localStorage.setItem('chatto.push-registration.refresh.origin', 'pending-request');
+
+    for (let round = 0; round < 5; round++) {
+      await Promise.all([refreshPushSubscriptions(), refreshPushSubscriptions()]);
+    }
+
+    expect(originSubscribe).toHaveBeenCalledOnce();
+    window.localStorage.removeItem('chatto.push-registration.refresh.origin');
+  });
+
   it('never asks for permission', async () => {
     permission = 'default';
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
