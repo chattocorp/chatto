@@ -280,7 +280,7 @@ describe('ChatRoot', () => {
     unmount();
   });
 
-  it('uses the origin viewer and bus installed by the application-root coordinator', () => {
+  it('uses the origin viewer and bus installed by the application-root coordinator', async () => {
     mocks.originCurrentUser.user = originUser;
     mocks.originCurrentUser.loading = false;
     mocks.originCurrentUser.verifiedUserId = originUser.id;
@@ -297,7 +297,10 @@ describe('ChatRoot', () => {
       getPresenceAPIs().map((api) => ({ serverId: (api as { serverId: string }).serverId }))
     ).toEqual([{ serverId: 'origin' }, { serverId: 'remote' }]);
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
+    // Push setup loads on demand, after the first render.
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3)
+    );
 
     const [[handleCrossTabLogout]] = mocks.initSessionChannel.mock.calls as [[() => void]];
     handleCrossTabLogout();
@@ -339,7 +342,7 @@ describe('ChatRoot', () => {
     expect(mocks.stopSessionChannel).toHaveBeenCalledOnce();
   });
 
-  it('keeps remote realtime and presence active without installing origin-only behavior', () => {
+  it('keeps remote realtime and presence active without installing origin-only behavior', async () => {
     const { container, unmount } = render(ChatRoot, {
       props: { children }
     });
@@ -358,7 +361,10 @@ describe('ChatRoot', () => {
     ).toEqual([{ serverId: 'remote' }]);
 
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2);
+    // Push setup loads on demand, after the first render.
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2)
+    );
 
     unmount();
 

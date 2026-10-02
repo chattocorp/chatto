@@ -6,12 +6,12 @@ import {
   getPushCapability,
   getPushRegistrationTargets,
   hasSavedPushRegistration,
-  onNotificationClick,
   pushRegistrationFailure,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
   refreshPushSubscriptions,
   unsubscribeBeforeLeaving
 } from './pushNotifications';
+import { onNotificationClick } from './notificationClick';
 import {
   notificationRoomTargetFromPathname,
   prepareUiForNotificationPath,

@@ -6,10 +6,18 @@ import {
   signOutServers
 } from '@chatto/client/auth/signOut';
 import { notifyLogout } from '$lib/auth/sessionChannel';
-import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
 import { serverRegistry } from '$lib/client';
 import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
+
+/**
+ * Removes a server's push delivery to this device before leaving it. Loaded on
+ * demand, so Web Push registration code stays out of the initial bundle.
+ */
+async function unsubscribePushBeforeLeaving(serverId: string): Promise<void> {
+  const { unsubscribeBeforeLeaving } = await import('$lib/notifications/pushNotifications');
+  await unsubscribeBeforeLeaving(serverId);
+}
 
 export interface ClientAccountNavigation {
   kind: 'hard' | 'soft';

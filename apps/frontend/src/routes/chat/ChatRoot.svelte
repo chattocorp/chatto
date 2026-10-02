@@ -9,7 +9,6 @@
   import { hardRedirectAfterSignOut } from '$lib/auth/signOutRedirect';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
-  import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import { eventBusManager, serverRegistry, serverConnectionManager } from '$lib/client';
@@ -165,13 +164,19 @@
         });
     }
   });
+
+  // Web Push registration is not needed for the first paint. Loading it on
+  // demand keeps it out of every chat route's initial bundle.
+  const pushNotificationSetup = import('$lib/components/PushNotificationSetup.svelte');
 </script>
 
 <AuthStatusNotice />
 {#if idleState.isInAnyCall}
   <ScreenWakeLock />
 {/if}
-<PushNotificationSetup />
+{#await pushNotificationSetup then { default: PushNotificationSetup }}
+  <PushNotificationSetup />
+{/await}
 {#if verifiedOriginUserId}
   <WelcomeBanner />
 {/if}

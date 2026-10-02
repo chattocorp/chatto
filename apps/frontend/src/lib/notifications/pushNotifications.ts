@@ -9,10 +9,6 @@
 import { createPushNotificationAPI } from '$lib/api/pushNotifications';
 import type { PushNotificationAPI } from '$lib/api/pushNotifications';
 import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
-import {
-  NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
-  NOTIFICATION_CLICK_MESSAGE_TYPE
-} from '$lib/pwa/notificationClick.worker';
 import { serverConnectionManager, serverRegistry } from '$lib/client';
 import { SvelteMap } from 'svelte/reactivity';
 import {
@@ -820,36 +816,4 @@ function arrayBuffersEqual(left: ArrayBuffer, right: Uint8Array<ArrayBuffer>): b
 
 function pushAPI(serverId: string) {
   return serverConnectionManager.getClient(serverId).getAPI(createPushNotificationAPI);
-}
-
-/**
- * Listen for notification-click messages from the service worker.
- * The SW posts these instead of calling `WindowClient.navigate()` so the
- * SPA can route via `goto()` (client-side navigation, no full reload).
- */
-export function onNotificationClick(callback: (url: string) => void | Promise<void>): () => void {
-  if (!('serviceWorker' in navigator)) {
-    return () => {};
-  }
-
-  const handler = (event: MessageEvent) => {
-    if (
-      event.data?.type === NOTIFICATION_CLICK_MESSAGE_TYPE &&
-      typeof event.data.url === 'string'
-    ) {
-      const responsePort = event.ports[0];
-      void (async () => {
-        try {
-          await callback(event.data.url);
-          responsePort?.postMessage({ type: NOTIFICATION_CLICK_ACK_MESSAGE_TYPE });
-        } catch {
-          // Leave the service worker unacknowledged so it can fall back to
-          // WindowClient.navigate() after its timeout.
-        }
-      })();
-    }
-  };
-
-  navigator.serviceWorker.addEventListener('message', handler);
-  return () => navigator.serviceWorker.removeEventListener('message', handler);
 }
