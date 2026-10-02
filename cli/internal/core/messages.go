@@ -1315,10 +1315,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		if echoTarget.RoomID != roomID {
 			return ErrMessageNotFound
 		}
-		if echoTarget.ActorID != actorID {
+		if *options.channelEcho && echoTarget.ActorID != actorID {
 			return ErrNotMessageAuthor
 		}
-		if _, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, echoTarget.EventID, messageMutationAuthorization{authorOnly: true, enforceEditWindow: true}, now()); err != nil {
+		if _, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, echoTarget.EventID, messageMutationAuthorization{authorOnly: *options.channelEcho, enforceEditWindow: true}, now()); err != nil {
 			return err
 		}
 		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTarget.EventID)
@@ -1334,7 +1334,8 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 
 	agg := evtstream.RoomAggregate(roomID)
 	policy := messageMutationAuthorization{
-		authorOnly:                  options.channelEcho != nil,
+		// Removal follows normal edit authority. Creation stays author-only.
+		authorOnly:                  options.channelEcho != nil && *options.channelEcho,
 		enforceEditWindow:           true,
 		requireEchoPermissions:      options.channelEcho != nil && *options.channelEcho,
 		channelEchoCreationTargetID: channelEchoCreationTargetID,

@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-09-18
+**Last reviewed:** 2026-10-02
 
 ## Overview
 
@@ -48,6 +48,9 @@ attachments and initially leave a "[Message deleted]" placeholder.
 - Every authorized edit, attachment removal, preview removal, and deletion rechecks mutable authority inside a room-OCC attempt. The authorization read repeats when RBAC, room-group, or user inputs change during the decision. A concurrent room change forces the complete command attempt to retry. A cross-aggregate authorization change after the stable decision can overlap the command.
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
 - Creating or removing a channel echo through an edit commits atomically with the parent edit. Echo creation also rechecks `message.echo`, `message.post`, and the room's Threading Mode on each room-OCC attempt. Disabled rooms reject new echoes while still allowing an existing historical echo to be removed.
+- Effective `message.manage` permits removal of another author's channel echo
+  through an edit. Echo creation remains author-only. Text-only edits omit
+  unchanged echo state, so they do not require echo creation permission.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
 - ConnectRPC `MessageService.UpdateMessage`, `DeleteMessage`, `DeleteAttachment`, and `DeleteLinkPreview` expose message-management behavior through the shared core `MessageModel`.

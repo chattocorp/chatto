@@ -122,6 +122,10 @@ server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.
+`MessageService.UpdateMessage` permits an author or a user with effective
+`message.manage` to remove a thread reply's channel echo. Enabling an echo
+remains author-only and requires `message.echo` and `message.post`. Clients omit
+unchanged echo state. Removal uses the existing atomic room edit and retraction.
 Hydrated messages include optional `viewer_state.can_reply_in_thread` authority
 for their canonical thread, including roots without an established thread.
 The shared posting check combines membership, room policy,

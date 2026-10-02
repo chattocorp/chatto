@@ -76,6 +76,7 @@ const roomStateMock = vi.hoisted(() => ({
     threadRootEventId: null as string | null,
     channelEchoEventId: null as string | null,
     canAddChannelEcho: false,
+    canRemoveChannelEcho: false,
     startEdit: vi.fn(),
     cancelEdit: vi.fn()
   },
@@ -402,6 +403,7 @@ describe('MessageComposer', () => {
     roomStateMock.editState.threadRootEventId = null;
     roomStateMock.editState.channelEchoEventId = null;
     roomStateMock.editState.canAddChannelEcho = false;
+    roomStateMock.editState.canRemoveChannelEcho = false;
     roomStateMock.editState.startEdit.mockClear();
     roomStateMock.editState.cancelEdit.mockClear();
     roomStateMock.reactiveEditState = null;
@@ -2218,6 +2220,7 @@ describe('MessageComposer', () => {
       roomStateMock.editState.eventId = 'evt_image_reply';
       roomStateMock.editState.threadRootEventId = 'evt_root';
       roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      roomStateMock.editState.canRemoveChannelEcho = true;
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
       const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
 
@@ -2231,6 +2234,64 @@ describe('MessageComposer', () => {
         roomId: expect.any(String),
         eventId: 'evt_image_reply',
         alsoSendToChannel: false
+      });
+    });
+
+    it.each([true, false])(
+      'omits unchanged echo state during a text edit (echoed: %s)',
+      async (echoed) => {
+        roomStateMock.editState.eventId = 'evt_reply';
+        roomStateMock.editState.originalBody = 'original reply';
+        roomStateMock.editState.threadRootEventId = 'evt_root';
+        roomStateMock.editState.channelEchoEventId = echoed ? 'evt_echo' : null;
+        roomStateMock.editState.canAddChannelEcho = !echoed;
+        roomStateMock.editState.canRemoveChannelEcho = echoed;
+        const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+        const editor = await findEditor(container, 'thread-reply-input');
+
+        await typeInEditor(editor, 'edited reply');
+        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+        await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+        expect(updateMessageConnectMock).toHaveBeenCalledWith({
+          roomId: expect.any(String),
+          eventId: 'evt_reply',
+          body: 'edited reply'
+        });
+      }
+    );
+
+    it('hides the echo toggle when an existing echo cannot be removed', async () => {
+      roomStateMock.editState.eventId = 'evt_reply';
+      roomStateMock.editState.originalBody = 'original reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      await findEditor(container, 'thread-reply-input');
+
+      expect(q(container, 'button[aria-label="Also send to channel"]')).toBeNull();
+    });
+
+    it('omits echo state after a moderator clears and restores the checkbox', async () => {
+      roomStateMock.editState.eventId = 'evt_reply';
+      roomStateMock.editState.originalBody = 'original reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      roomStateMock.editState.canRemoveChannelEcho = true;
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      const editor = await findEditor(container, 'thread-reply-input');
+      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+
+      await userEvent.click(toggle);
+      await userEvent.click(toggle);
+      await typeInEditor(editor, 'edited reply');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_reply',
+        body: 'edited reply'
       });
     });
 

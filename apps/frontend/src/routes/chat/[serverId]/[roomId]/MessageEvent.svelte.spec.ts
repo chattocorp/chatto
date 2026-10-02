@@ -591,6 +591,46 @@ describe('MessageEvent action model integration', () => {
     expect(!!q(container, 'button[aria-label="Reply"]')).toBe(allowed);
   });
 
+  it('permits moderators to remove existing echoes without permitting additions', async () => {
+    const event = messageEvent({
+      id: 'bot-reply',
+      actorId: 'bot',
+      threadRootEventId: 'thread-root',
+      channelEchoEventId: 'echo'
+    });
+    const rendered = render(MessageEventTestHarness, {
+      props: {
+        event,
+        canManageOthersMessage: true,
+        canPostMessage: false,
+        threadingMode: RoomThreadingMode.DISABLED
+      }
+    });
+    (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
+    expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventId: 'bot-reply',
+        canAddChannelEcho: false,
+        canRemoveChannelEcho: true
+      })
+    );
+
+    await rendered.rerender({ event, canManageOthersMessage: false });
+    expect(q(rendered.container, 'button[aria-label="Edit message"]')).toBeNull();
+
+    await rendered.rerender({
+      event: messageEvent({ actorId: 'bot', threadRootEventId: 'thread-root' }),
+      canManageOthersMessage: true
+    });
+    (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
+    expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        canAddChannelEcho: false,
+        canRemoveChannelEcho: false
+      })
+    );
+  });
+
   it('rebinds every action surface when a virtualized row changes message shape', async () => {
     const regular = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: regular } });
@@ -677,7 +717,8 @@ describe('MessageEvent action model integration', () => {
         deleteEventId: 'echo-wrapper',
         threadRootEventId: 'thread-root',
         channelEchoEventId: 'echo-wrapper',
-        canAddChannelEcho: true
+        canAddChannelEcho: false,
+        canRemoveChannelEcho: true
       })
     );
 

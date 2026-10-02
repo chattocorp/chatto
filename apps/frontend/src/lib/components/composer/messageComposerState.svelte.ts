@@ -230,7 +230,9 @@ export class MessageComposerState {
     return (
       this.isEditing &&
       this.editState.threadRootEventId !== null &&
-      (this.editState.channelEchoEventId !== null || this.editState.canAddChannelEcho)
+      (this.editState.channelEchoEventId !== null
+        ? this.editState.canRemoveChannelEcho
+        : this.editState.canAddChannelEcho)
     );
   }
 
@@ -647,7 +649,8 @@ export class MessageComposerState {
       eventId
     };
     if (body) input.body = body;
-    if (this.showEditEchoToggle) input.alsoSendToChannel = this.alsoSendToChannel;
+    // Omit unchanged placement so text edits do not request echo authority.
+    if (echoStateChanged) input.alsoSendToChannel = this.alsoSendToChannel;
     await this.submission.editMessage(input);
   }
 
@@ -702,7 +705,8 @@ export class MessageComposerState {
     this.editState.startEdit(message.eventId, message.body, {
       threadRootEventId: message.threadRootEventId,
       channelEchoEventId: message.channelEchoEventId,
-      canAddChannelEcho: message.canAddChannelEcho
+      canAddChannelEcho: message.canAddChannelEcho,
+      canRemoveChannelEcho: message.canRemoveChannelEcho
     });
     return true;
   }

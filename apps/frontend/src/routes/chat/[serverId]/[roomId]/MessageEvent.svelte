@@ -250,13 +250,17 @@
   const isPinned = $derived(
     pinsStore?.isPinned(editEventId, messageEvent?.pinned ?? false) ?? messageEvent?.pinned ?? false
   );
-  const canReconcileChannelEcho = $derived(
+  const canAddChannelEcho = $derived(
     isAuthor &&
       !!editThreadRootEventId &&
-      (!!editChannelEchoEventId ||
-        (threadingMode !== RoomThreadingMode.DISABLED &&
-          roomPermissions.canEchoMessage &&
-          roomPermissions.canPostMessage))
+      threadingMode !== RoomThreadingMode.DISABLED &&
+      roomPermissions.canEchoMessage &&
+      roomPermissions.canPostMessage
+  );
+  const canRemoveChannelEcho = $derived(
+    (isAuthor || roomPermissions.canManageOthersMessage) &&
+      !!editThreadRootEventId &&
+      !!editChannelEchoEventId
   );
 
   // Common message data for rendering (body, attachments, reactions, updatedAt)
@@ -348,7 +352,8 @@
         permalinkThreadRootEventId,
         threadRootEventId: editThreadRootEventId,
         channelEchoEventId: editChannelEchoEventId,
-        canAddChannelEcho: canReconcileChannelEcho,
+        canAddChannelEcho,
+        canRemoveChannelEcho,
         messageStore
       },
       reactions: msg?.reactions ?? [],

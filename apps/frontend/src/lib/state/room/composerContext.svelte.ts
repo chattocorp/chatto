@@ -11,6 +11,8 @@ export class EditState {
   threadRootEventId = $state<string | null>(null);
   channelEchoEventId = $state<string | null>(null);
   canAddChannelEcho = $state(false);
+  /** Whether this edit may remove the reply's existing channel echo. */
+  canRemoveChannelEcho = $state(false);
 
   startEdit(eventId: string, body: string, options: EditMessageOptions = {}) {
     this.eventId = eventId;
@@ -18,6 +20,7 @@ export class EditState {
     this.threadRootEventId = options.threadRootEventId ?? null;
     this.channelEchoEventId = options.channelEchoEventId ?? null;
     this.canAddChannelEcho = options.canAddChannelEcho ?? false;
+    this.canRemoveChannelEcho = options.canRemoveChannelEcho ?? false;
   }
 
   cancelEdit() {
@@ -26,6 +29,7 @@ export class EditState {
     this.threadRootEventId = null;
     this.channelEchoEventId = null;
     this.canAddChannelEcho = false;
+    this.canRemoveChannelEcho = false;
   }
 }
 
@@ -104,6 +108,8 @@ export type EditMessageOptions = {
   threadRootEventId?: string | null;
   channelEchoEventId?: string | null;
   canAddChannelEcho?: boolean;
+  /** Removal authority is separate from author-only echo creation. */
+  canRemoveChannelEcho?: boolean;
 };
 export type EditableMessage = { eventId: string; body: string } & EditMessageOptions;
 export type FindLastEditableMessage = () => EditableMessage | null;

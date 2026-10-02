@@ -90,8 +90,10 @@ type MessageServiceClient interface {
 	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
-	// window. Effective message.manage permits edits at any time. Only the
-	// message author can change channel echo state. Disabled rooms reject
+	// window. Effective message.manage permits edits at any time and removal of
+	// another author's channel echo. Only the author can enable an echo, which
+	// also requires message.echo and message.post. Omit unchanged echo state.
+	// Disabled rooms reject
 	// creation of a new channel echo while allowing an existing echo to be
 	// removed. Room membership is also required.
 	// Edits require message.read or a matching thread relationship with
@@ -316,8 +318,10 @@ type MessageServiceHandler interface {
 	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
-	// window. Effective message.manage permits edits at any time. Only the
-	// message author can change channel echo state. Disabled rooms reject
+	// window. Effective message.manage permits edits at any time and removal of
+	// another author's channel echo. Only the author can enable an echo, which
+	// also requires message.echo and message.post. Omit unchanged echo state.
+	// Disabled rooms reject
 	// creation of a new channel echo while allowing an existing echo to be
 	// removed. Room membership is also required.
 	// Edits require message.read or a matching thread relationship with

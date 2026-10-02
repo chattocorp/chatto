@@ -21,6 +21,8 @@ export type MessageActionParams = {
   threadRootEventId?: string | null;
   channelEchoEventId?: string | null;
   canAddChannelEcho?: boolean;
+  /** Allows removal of an existing echo without granting echo creation. */
+  canRemoveChannelEcho?: boolean;
   messageStore?: MessagesStore | null;
 };
 
@@ -121,7 +123,8 @@ export function useMessageActions() {
     editState.startEdit(params.eventId, params.messageBody, {
       threadRootEventId: params.threadRootEventId,
       channelEchoEventId: params.channelEchoEventId,
-      canAddChannelEcho: params.canAddChannelEcho
+      canAddChannelEcho: params.canAddChannelEcho,
+      canRemoveChannelEcho: params.canRemoveChannelEcho
     });
   }
 
