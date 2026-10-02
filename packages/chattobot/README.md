@@ -555,9 +555,10 @@ workspace packages that the frontend imports, such as the generated API types,
 so that focused frontend tests can load. The worker uses
 `apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
 to read the current diff, including new files, or select one changed path when
-the complete diff is too long. `runCheck` runs an approved repository check,
-including frontend lint and build. `runFocusedTests` runs selected existing
-frontend test or spec files in one Vitest project. The worker can save brief
+the complete diff is too long. `runCheck` runs an approved typecheck, lint, or
+build check. `runFocusedTests` runs selected existing frontend test or spec
+files in one Vitest project, and `runGoTests` runs the tests of selected Go
+packages of the `cli` module. The worker cannot run complete test suites. The worker can save brief
 handoff notes for a later attempt.
 Patch and check failures return bounded diagnostics to the worker. Worker checks
 are recorded separately from the final host checks because edits can make earlier results stale. Repository
@@ -593,8 +594,8 @@ and the root `check` and `lint` scripts otherwise. Commands run through
 `mise x -- pnpm run`. Protobuf changes also run `mise run lint-proto`, and
 changes to Go source or module files also run `mise run lint-cli`. These checks
 are fast and do not fail intermittently. The host does not run test suites: CI
-runs them on the pull request, and the worker runs focused tests for the code it
-changed. Some local browser tests fail intermittently, so a local test failure
+runs them on the pull request, and the worker runs only the tests that its change
+affects. Some local browser tests fail intermittently, so a local test failure
 would often block a correct change.
 The worker must finish its edits before it requests final validation. For a
 large, actionable change, it can save progress with `checkpointWork` and get

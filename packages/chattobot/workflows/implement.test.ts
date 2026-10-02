@@ -114,6 +114,10 @@ type Tool = {
   ) => Promise<{ isError?: boolean; content: { text?: string }[] }>;
 };
 async function workerTools(options: AgentOptions) {
+  const tools = await registeredTools(options);
+  return async (name: string, input: object) => tools.get(name)!.execute('call', input as never);
+}
+async function registeredTools(options: AgentOptions) {
   const tools = new Map<string, Tool>();
   for (const extension of options.extensions ?? []) {
     const factory = typeof extension === 'function' ? extension : extension.factory;
@@ -123,7 +127,7 @@ async function workerTools(options: AgentOptions) {
       }
     } as unknown as AgentExtensionAPI);
   }
-  return async (name: string, input: object) => tools.get(name)!.execute('call', input as never);
+  return tools;
 }
 const patch =
   'diff --git a/example.txt b/example.txt\n--- a/example.txt\n+++ b/example.txt\n@@ -1 +1 @@\n-original\n+fixed\n';
@@ -275,17 +279,22 @@ test('worker can review new changes and run an approved check before host valida
   ).toHaveLength(2);
 });
 
-test('worker can inspect one changed file and run selected frontend tests', async () => {
+test('worker can inspect one changed file and run selected frontend and Go tests', async () => {
   const f = await fixture();
-  const spec = 'src/lib/example.test.ts';
-  await mkdir(join(f.settings.directory, 'apps/frontend/src/lib'), { recursive: true });
+  // SvelteKit route folders contain brackets.
+  const spec = 'src/routes/[serverId]/example.test.ts';
+  await mkdir(join(f.settings.directory, 'apps/frontend/src/routes/[serverId]'), {
+    recursive: true
+  });
+  await mkdir(join(f.settings.directory, 'cli/internal/core'), { recursive: true });
+  await writeFile(join(f.settings.directory, 'cli/internal/core/core.go'), 'package core\n');
   await writeFile(join(f.settings.directory, 'apps/frontend', spec), 'test fixture\n');
   await f.git('add', '.');
   await f.git('-c', 'commit.gpgsign=false', 'commit', '-m', 'Add test fixture');
   await f.git('push', 'origin', 'main');
   const result = await createImplementation(f.settings, {
     execute: f.execute,
-    createAgent: worker(async (_options, call) => {
+    createAgent: worker(async (options, call) => {
       await call('apply_patch', { patch });
       await call('apply_patch', {
         patch: '--- /dev/null\n+++ b/other.txt\n@@ -0,0 +1 @@\n+other\n'
@@ -304,6 +313,27 @@ test('worker can inspect one changed file and run selected frontend tests', asyn
       expect(f.calls).toHaveLength(before);
       const focused = await call('runFocusedTests', { project: 'server', files: [spec] });
       expect(focused.content[0]?.text).toContain('Passed: mise x -- pnpm --dir apps/frontend');
+      for (const packages of [['./...'], ['../cli'], ['./internal/missing'], ['-exec=sh']])
+        expect((await call('runGoTests', { packages })).content[0]?.text).toContain(
+          'Select existing Go package directories'
+        );
+      expect(f.calls).toHaveLength(before + 1);
+      expect(
+        (await call('runGoTests', { packages: ['./internal/core/...'], run: 'TestCore' }))
+          .content[0]?.text
+      ).toContain('Passed: mise x -- go -C cli test');
+      // Complete test suites run in CI, not in the worker.
+      const runCheck = (await registeredTools(options)).get('runCheck') as unknown as {
+        parameters: { properties: { check: { anyOf: { const: string }[] } } };
+      };
+      expect(runCheck.parameters.properties.check.anyOf.map((option) => option.const)).toEqual([
+        'check',
+        'lint',
+        'check:frontend',
+        'lint:frontend',
+        'build:frontend',
+        'lint-cli'
+      ]);
       expect((await call('runCheck', { check: 'lint:frontend' })).content[0]?.text).toContain(
         'Passed: mise x -- pnpm run lint:frontend'
       );
@@ -317,6 +347,11 @@ test('worker can inspect one changed file and run selected frontend tests', asyn
   expect(result.workerChecks).toEqual([
     {
       command: `mise x -- pnpm --dir apps/frontend exec vitest run --project=server ${spec}`,
+      passed: true
+    },
+    {
+      command:
+        'mise x -- go -C cli test -trimpath -tags test_endpoints -run=TestCore ./internal/core/...',
       passed: true
     },
     { command: 'mise x -- pnpm run lint:frontend', passed: true },
