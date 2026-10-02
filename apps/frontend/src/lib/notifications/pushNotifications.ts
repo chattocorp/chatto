@@ -511,10 +511,7 @@ export async function ensureRegistered(target: PushRegistrationTarget): Promise<
         savedAt: Date.now()
       });
       failedRegistrations.delete(target.serverId);
-    } else if (
-      !isPushRegistrationSuspended(target.serverId) &&
-      Notification.permission === 'granted'
-    ) {
+    } else if (!isPushRegistrationSuspended(target.serverId) && getPermission() === 'granted') {
       // Leaving the server and missing permission are not failures.
       failedRegistrations.add(target.serverId);
     }

@@ -552,10 +552,10 @@
         <div class="px-3 pt-3" data-testid="push-ios-home-screen-hint">
           <Hint icon="icon-[uil--mobile-android]">
             <p class="font-medium">
-              {m('settings.notifications.push_prompt.ios_home_screen_title')}
+              {m('settings.notifications.push.ios_home_screen_title')}
             </p>
             <p class="text-muted">
-              {m('settings.notifications.push_prompt.ios_home_screen_message')}
+              {m('settings.notifications.push.ios_home_screen_description')}
             </p>
           </Hint>
         </div>

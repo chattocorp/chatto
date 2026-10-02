@@ -294,9 +294,7 @@
         "enabled": "プッシュ通知が有効になっています",
         "blocked": "ブラウザまたは OS の設定でプッシュ通知がブロックされています",
         "enable_failed": "プッシュ通知を有効にできませんでした",
-        "enabling": "有効化中...",
-        "ios_home_screen_title": "Chatto をホーム画面に追加します",
-        "ios_home_screen_message": "サポートされている iOS/iPadOS バージョンでは、プッシュ通知を有効にする前に、ホーム画面アイコンから Chatto を開きます。"
+        "enabling": "有効化中..."
       },
       "sound": {
         "title": "通知音",

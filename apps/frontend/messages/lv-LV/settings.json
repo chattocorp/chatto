@@ -294,9 +294,7 @@
         "enabled": "Push paziņojumi ir iespējoti",
         "blocked": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos",
         "enable_failed": "Neizdevās iespējot push paziņojumus",
-        "enabling": "Notiek iespējošana...",
-        "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
-        "ios_home_screen_message": "Atbalstītās iOS/iPadOS versijās pirms informatīvo paziņojumu iespējošanas atveriet Chatto no tās sākuma ekrāna ikonas."
+        "enabling": "Notiek iespējošana..."
       },
       "sound": {
         "title": "Paziņojuma skaņa",

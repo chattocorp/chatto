@@ -294,9 +294,7 @@
         "enabled": "Push notifications enabled",
         "blocked": "Push notifications are blocked in your browser or OS settings",
         "enable_failed": "Failed to enable push notifications",
-        "enabling": "Enabling...",
-        "ios_home_screen_title": "Add Chatto to your Home Screen",
-        "ios_home_screen_message": "On supported iOS/iPadOS versions, open Chatto from its Home Screen icon before enabling push notifications."
+        "enabling": "Enabling..."
       },
       "sound": {
         "title": "Notification Sound",

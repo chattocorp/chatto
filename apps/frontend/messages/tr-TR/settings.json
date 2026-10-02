@@ -294,9 +294,7 @@
         "enabled": "Anında bildirimler etkinleştirildi",
         "blocked": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellendi",
         "enable_failed": "Anlık bildirimler etkinleştirilemedi",
-        "enabling": "Etkinleştiriliyor...",
-        "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
-        "ios_home_screen_message": "Desteklenen iOS/ıpados sürümlerinde, anında bildirimleri etkinleştirmeden önce Ana Ekran simgesinden Chatto öğesini açın."
+        "enabling": "Etkinleştiriliyor..."
       },
       "sound": {
         "title": "Bildirim Sesi",

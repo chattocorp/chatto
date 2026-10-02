@@ -294,9 +294,7 @@
         "enabled": "Push-meddelanden har aktiverats",
         "blocked": "Push-meddelanden blockeras i din webbläsare eller OS-inställningar",
         "enable_failed": "Det gick inte att aktivera push-meddelanden",
-        "enabling": "Aktiverar...",
-        "ios_home_screen_title": "Lägg till Chatto på din startskärm",
-        "ios_home_screen_message": "På versioner av iOS/iPadOS som stöds, öppna Chatto från dess hemskärmsikon innan du aktiverar push-meddelanden."
+        "enabling": "Aktiverar..."
       },
       "sound": {
         "title": "Aviseringsljud",

@@ -294,9 +294,7 @@
         "enabled": "Tõukemärguanded on lubatud",
         "blocked": "Tõukemärguanded on teie brauseris või OS-i seadetes blokeeritud",
         "enable_failed": "Tõukemärguannete lubamine ebaõnnestus",
-        "enabling": "Lubamine...",
-        "ios_home_screen_title": "Lisage Chatto oma avakuvale",
-        "ios_home_screen_message": "Toetatud iOS-i/iPadOS-i versioonides avage Chatto selle avaekraani ikoonil enne tõukemärguannete lubamist."
+        "enabling": "Lubamine..."
       },
       "sound": {
         "title": "Teavitusheli",

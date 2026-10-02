@@ -294,9 +294,7 @@
         "enabled": "Puŝaj sciigoj ebligitaj",
         "blocked": "Puŝaj sciigoj estas blokitaj en via retumilo aŭ OS-agordoj",
         "enable_failed": "Malsukcesis ebligi puŝajn sciigojn",
-        "enabling": "Ebligante...",
-        "ios_home_screen_title": "Aldonu Chatto al via Hejma Ekrano",
-        "ios_home_screen_message": "Sur subtenataj versioj de iOS/iPadOS, malfermu Chatto de ĝia Hejma Ekrano-piktogramo antaŭ ebligi puŝajn sciigojn."
+        "enabling": "Ebligante..."
       },
       "sound": {
         "title": "Sciiga Sono",
