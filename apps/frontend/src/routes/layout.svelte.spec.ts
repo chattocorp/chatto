@@ -133,10 +133,6 @@ vi.mock('$lib/state/server/ServerRuntimeCoordinator.svelte', async () => ({
   default: (await import('./chat/ChatRootTestStub.svelte')).default
 }));
 
-vi.mock('@chatto/client/server/serverIds', () => ({
-  generateServerId: vi.fn(() => 'server-id')
-}));
-
 import Layout from './+layout.svelte';
 
 function installMobileMatchMedia() {

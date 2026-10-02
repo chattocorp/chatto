@@ -220,7 +220,7 @@ test.describe('Origin Auto-Registration', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    // Origin should be re-registered via probeOrigin — give it time
+    // The root load registers the origin again (registerOriginServer) — give it time
     await expect(async () => {
       const stored = await page.evaluate(() =>
         JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')

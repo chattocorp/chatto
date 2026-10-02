@@ -1,14 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import type { PublicServerInfo } from './api/server.js';
-
-const mocks = vi.hoisted(() => ({
-  discovery: vi.fn<(url: string) => Promise<PublicServerInfo>>()
-}));
-vi.mock('./api/server.js', async (original) => ({
-  ...(await original<typeof import('./api/server.js')>()),
-  getPublicServerInfo: mocks.discovery
-}));
-
+import { afterEach, expect, it } from 'vitest';
 import { isServerIdClaimed } from './server/serverIds.js';
 import { createAppClient } from './testing/appClient.js';
 
