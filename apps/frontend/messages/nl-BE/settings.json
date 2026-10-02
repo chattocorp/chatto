@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Configureer hoe u meldingen ontvangt",
+      "push": {
+        "title": "Pushmeldingen",
+        "not_supported": "Pushmeldingen worden niet ondersteund in deze browser.",
+        "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
+        "ios_home_screen_description": "Voeg op ondersteunde iOS/iPadOS-versies Chatto toe aan het startscherm en open het via het app-pictogram om pushmeldingen in te schakelen.",
+        "blocked_title": "Pushmeldingen geblokkeerd",
+        "blocked_description": "Schakel meldingen in uw browser of OS-instellingen in en open Chatto vervolgens opnieuw.",
+        "enabled_title": "Pushmeldingen ingeschakeld",
+        "enabled_description": "Chatto gebruikt de toestemming voor meldingen van uw browser of besturingssysteem als schakelaar. Als u meldingen wilt uitschakelen, schakelt u ze voor deze site uit in uw browser- of besturingssysteeminstellingen.",
+        "test_button": "Testmelding verzenden",
+        "testing": "Verzenden…",
+        "test_sent": "Testmelding verzonden.",
+        "active_description": "Deze server stuurt pushmeldingen naar dit apparaat.",
+        "device": "{browser} op {platform}",
+        "device_unknown": "Deze browser",
+        "opens_at": "Meldingen openen Chatto op {origin}",
+        "registering": "Pushmeldingen voor dit apparaat worden ingesteld…",
+        "off_title": "Pushmeldingen staan uit op dit apparaat",
+        "off_description": "Schakel ze in via de pagina Meldingen. Deze keuze geldt voor al je servers.",
+        "open_notifications": "Meldingen openen",
+        "test_failed": "Kan geen testmelding verzenden. Probeer het zo opnieuw."
+      },
       "push_prompt": {
         "title": "Schakel pushmeldingen in",
         "enabled": "Pushmeldingen ingeschakeld",

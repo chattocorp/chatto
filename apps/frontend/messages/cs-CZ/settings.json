@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Nakonfigurujte způsob přijímání oznámení",
+      "push": {
+        "title": "Push oznámení",
+        "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
+        "ios_home_screen_title": "Přidejte si Chatto na svou domovskou obrazovku",
+        "ios_home_screen_description": "Na podporovaných verzích iOS/iPadOS přidejte Chatto na domovskou obrazovku a otevřete ji z ikony aplikace, abyste povolili oznámení push.",
+        "blocked_title": "Push oznámení jsou blokována",
+        "blocked_description": "Povolte oznámení v nastavení prohlížeče nebo operačního systému a poté znovu otevřete Chatto.",
+        "enabled_title": "Push notifikace povolena",
+        "enabled_description": "Chatto používá jako přepínač oprávnění k oznámení vašeho prohlížeče nebo operačního systému. Chcete-li oznámení vypnout, zakažte je pro tento web v nastavení prohlížeče nebo operačního systému.",
+        "test_button": "Odeslat testovací oznámení",
+        "testing": "Odesílání…",
+        "test_sent": "Oznámení o testu odesláno.",
+        "active_description": "Tento server posílá push oznámení do tohoto zařízení.",
+        "device": "{browser} v systému {platform}",
+        "device_unknown": "Tento prohlížeč",
+        "opens_at": "Oznámení otevírají Chatto na adrese {origin}",
+        "registering": "Nastavují se push oznámení pro toto zařízení…",
+        "off_title": "Push oznámení jsou na tomto zařízení vypnutá",
+        "off_description": "Zapněte je na stránce Oznámení. Tato volba platí pro všechny vaše servery.",
+        "open_notifications": "Otevřít oznámení",
+        "test_failed": "Testovací oznámení se nepodařilo odeslat. Zkuste to znovu za chvíli."
+      },
       "push_prompt": {
         "title": "Povolit push oznámení",
         "enabled": "Push notifikace povolena",

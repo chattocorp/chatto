@@ -265,6 +265,28 @@
     "notifications": {
       "title": "通知",
       "subtitle": "設定通知接收方式",
+      "push": {
+        "title": "推播通知",
+        "not_supported": "此瀏覽器不支援推播通知。",
+        "ios_home_screen_title": "將 Chatto 加入主畫面",
+        "ios_home_screen_description": "在支援的 iOS/iPadOS 版本中，請將 Chatto 加入主畫面，並從 App 圖示開啟，以啟用推播通知。",
+        "blocked_title": "推播通知已封鎖",
+        "blocked_description": "請在瀏覽器或作業系統設定中啟用通知，然後重新開啟 Chatto。",
+        "enabled_title": "推播通知已啟用",
+        "enabled_description": "Chatto 會以瀏覽器或作業系統的通知權限控制通知。若要關閉通知，請在瀏覽器或作業系統設定中停用此網站的通知。",
+        "test_button": "傳送測試通知",
+        "testing": "正在傳送…",
+        "test_sent": "測試通知已傳送。",
+        "active_description": "此伺服器會向此裝置傳送推播通知。",
+        "device": "{platform} 上的 {browser}",
+        "device_unknown": "此瀏覽器",
+        "opens_at": "通知會在 {origin} 開啟 Chatto",
+        "registering": "正在為此裝置設定推播通知…",
+        "off_title": "此裝置上的推播通知已關閉",
+        "off_description": "請在通知頁面中開啟。此選擇適用於你的所有伺服器。",
+        "open_notifications": "開啟通知",
+        "test_failed": "無法傳送測試通知。請稍後再試。"
+      },
       "push_prompt": {
         "title": "啟用推播通知",
         "enabled": "推播通知已啟用",

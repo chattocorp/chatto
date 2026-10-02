@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Paziņojumi",
       "subtitle": "Konfigurējiet paziņojumu saņemšanas veidu",
+      "push": {
+        "title": "Push paziņojumi",
+        "not_supported": "Push paziņojumi šajā pārlūkprogrammā netiek atbalstīti.",
+        "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
+        "ios_home_screen_description": "Atbalstītās iOS/iPadOS versijās sākuma ekrānam pievienojiet Chatto un atveriet to no lietotnes ikonas, lai iespējotu informatīvos paziņojumus.",
+        "blocked_title": "Push paziņojumi ir bloķēti",
+        "blocked_description": "Iespējojiet paziņojumus savā pārlūkprogrammā vai OS iestatījumos, pēc tam vēlreiz atveriet Chatto.",
+        "enabled_title": "Push paziņojumi ir iespējoti",
+        "enabled_description": "Chatto kā slēdzi izmanto jūsu pārlūkprogrammas vai OS paziņojumu atļauju. Lai izslēgtu paziņojumus, pārlūkprogrammas vai OS iestatījumos atspējojiet tos šai vietnei.",
+        "test_button": "Nosūtiet testa paziņojumu",
+        "testing": "Notiek sūtīšana…",
+        "test_sent": "Testa paziņojums nosūtīts.",
+        "active_description": "Šis serveris sūta push paziņojumus uz šo ierīci.",
+        "device": "{browser} sistēmā {platform}",
+        "device_unknown": "Šī pārlūkprogramma",
+        "opens_at": "Paziņojumi atver Chatto adresē {origin}",
+        "registering": "Notiek push paziņojumu iestatīšana šai ierīcei…",
+        "off_title": "Push paziņojumi šajā ierīcē ir izslēgti",
+        "off_description": "Ieslēdziet tos lapā Paziņojumi. Šī izvēle attiecas uz visiem jūsu serveriem.",
+        "open_notifications": "Atvērt paziņojumus",
+        "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža."
+      },
       "push_prompt": {
         "title": "Iespējot push paziņojumus",
         "enabled": "Push paziņojumi ir iespējoti",

@@ -14,6 +14,7 @@ import {
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
 import { serverConnectionManager, serverRegistry } from '$lib/client';
+import { SvelteMap } from 'svelte/reactivity';
 import {
   completePushRegistrationRefresh,
   enqueuePushRegistration,
@@ -82,8 +83,11 @@ type RefreshReason =
   | 'refresh-interval-elapsed'
   | 'browser-subscription-changed';
 
-/** The most recent successful save for each server in this page. */
-const savedRegistrations = new Map<string, SavedRegistration>();
+/**
+ * The most recent successful save for each server in this page. Reactive, so
+ * settings can show when a server stores this device's subscription.
+ */
+const savedRegistrations = new SvelteMap<string, SavedRegistration>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
@@ -250,6 +254,24 @@ async function getSubscriptionsForCleanup(serverId: string): Promise<PushSubscri
     if (subscription) subscriptions.push(subscription);
   }
   return subscriptions;
+}
+
+/**
+ * Whether this page saved the current browser subscription for the account on
+ * a server. Reactive.
+ */
+export function hasSavedPushRegistration(serverId: string, userId: string | null): boolean {
+  const saved = savedRegistrations.get(serverId);
+  return saved !== undefined && saved.userId === userId;
+}
+
+/**
+ * Asks a server to send a test notification to the account's registered
+ * devices. Rejects with the server's error, for example when the account
+ * sends tests too often.
+ */
+export function sendTestNotification(serverId: string): Promise<boolean> {
+  return pushAPI(serverId).sendTestNotification();
 }
 
 /**

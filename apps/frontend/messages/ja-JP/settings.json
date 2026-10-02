@@ -265,6 +265,28 @@
     "notifications": {
       "title": "通知",
       "subtitle": "通知の受信方法を設定する",
+      "push": {
+        "title": "プッシュ通知",
+        "not_supported": "このブラウザではプッシュ通知がサポートされていません。",
+        "ios_home_screen_title": "Chatto をホーム画面に追加します",
+        "ios_home_screen_description": "サポートされている iOS/iPadOS バージョンでは、Chatto をホーム画面に追加し、アプリアイコンから開いてプッシュ通知を有効にします。",
+        "blocked_title": "プッシュ通知がブロックされました",
+        "blocked_description": "ブラウザまたは OS 設定で通知を有効にしてから、Chatto を再度開きます。",
+        "enabled_title": "プッシュ通知が有効になりました",
+        "enabled_description": "Chatto はブラウザまたは OS の通知権限をスイッチとして使用します。通知をオフにするには、ブラウザまたは OS の設定でこのサイトの通知を無効にします。",
+        "test_button": "テスト通知を送信します",
+        "testing": "送信中…",
+        "test_sent": "テスト通知が送信されました。",
+        "active_description": "このサーバーはこのデバイスにプッシュ通知を送信します。",
+        "device": "{platform} 上の {browser}",
+        "device_unknown": "このブラウザー",
+        "opens_at": "通知を開くと {origin} の Chatto が開きます",
+        "registering": "このデバイスのプッシュ通知を設定しています…",
+        "off_title": "このデバイスではプッシュ通知がオフです",
+        "off_description": "通知ページでオンにしてください。この設定はすべてのサーバーに適用されます。",
+        "open_notifications": "通知を開く",
+        "test_failed": "テスト通知を送信できませんでした。しばらくしてからもう一度お試しください。"
+      },
       "push_prompt": {
         "title": "プッシュ通知を有効にする",
         "enabled": "プッシュ通知が有効になっています",

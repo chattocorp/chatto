@@ -265,6 +265,28 @@
     "notifications": {
       "title": "通知",
       "subtitle": "设置通知接收方式",
+      "push": {
+        "title": "推送通知",
+        "not_supported": "此浏览器不支持推送通知。",
+        "ios_home_screen_title": "将 Chatto 添加到主屏幕",
+        "ios_home_screen_description": "在受支持的 iOS/iPadOS 版本上，请将 Chatto 添加到主屏幕并通过应用图标打开，以启用推送通知。",
+        "blocked_title": "推送通知已被阻止",
+        "blocked_description": "请在浏览器或操作系统设置中启用通知，然后重新打开 Chatto。",
+        "enabled_title": "推送通知已启用",
+        "enabled_description": "Chatto 使用浏览器或操作系统的通知权限作为开关。如需关闭通知，请在浏览器或操作系统设置中禁止此网站发送通知。",
+        "test_button": "发送测试通知",
+        "testing": "正在发送…",
+        "test_sent": "测试通知已发送。",
+        "active_description": "此服务器会向此设备发送推送通知。",
+        "device": "{platform} 上的 {browser}",
+        "device_unknown": "此浏览器",
+        "opens_at": "通知会在 {origin} 打开 Chatto",
+        "registering": "正在为此设备设置推送通知…",
+        "off_title": "此设备上的推送通知已关闭",
+        "off_description": "请在通知页面中开启。此选择适用于你的所有服务器。",
+        "open_notifications": "打开通知",
+        "test_failed": "无法发送测试通知。请稍后再试。"
+      },
       "push_prompt": {
         "title": "启用推送通知",
         "enabled": "推送通知已启用",

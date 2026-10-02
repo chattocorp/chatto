@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Notificações",
       "subtitle": "Configure como você recebe notificações",
+      "push": {
+        "title": "Notificações push",
+        "not_supported": "Notificações push não são suportadas neste navegador.",
+        "ios_home_screen_title": "Adicione Chatto à sua tela inicial",
+        "ios_home_screen_description": "Nas versões iOS/iPadOS suportadas, adicione Chatto à tela inicial e abra-o no ícone do aplicativo para ativar notificações push.",
+        "blocked_title": "Notificações push bloqueadas",
+        "blocked_description": "Ative as notificações nas configurações do seu navegador ou sistema operacional e abra Chatto novamente.",
+        "enabled_title": "Notificações push ativadas",
+        "enabled_description": "Chatto usa a permissão de notificação do seu navegador ou sistema operacional como opção. Para desativar as notificações, desative-as para este site nas configurações do seu navegador ou sistema operacional.",
+        "test_button": "Enviar notificação de teste",
+        "testing": "Enviando…",
+        "test_sent": "Notificação de teste enviada.",
+        "active_description": "Este servidor envia notificações push para este dispositivo.",
+        "device": "{browser} em {platform}",
+        "device_unknown": "Este navegador",
+        "opens_at": "As notificações abrem o Chatto em {origin}",
+        "registering": "Configurando as notificações push para este dispositivo…",
+        "off_title": "As notificações push estão desativadas neste dispositivo",
+        "off_description": "Ative-as na página Notificações. Essa escolha vale para todos os seus servidores.",
+        "open_notifications": "Abrir notificações",
+        "test_failed": "Não foi possível enviar uma notificação de teste. Tente novamente em instantes."
+      },
       "push_prompt": {
         "title": "Habilitar notificações push",
         "enabled": "Notificações push ativadas",

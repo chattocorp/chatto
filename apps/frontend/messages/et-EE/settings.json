@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Seadistage teatiste saamise viis",
+      "push": {
+        "title": "Tõukemärguanded",
+        "not_supported": "See brauser ei toeta tõukemärguandeid.",
+        "ios_home_screen_title": "Lisage Chatto oma avakuvale",
+        "ios_home_screen_description": "Toetatud iOS-i/iPadOS-i versioonides lisage Chatto avakuvale ja avage see tõukemärguannete lubamiseks rakenduse ikooni kaudu.",
+        "blocked_title": "Tõukemärguanded on blokeeritud",
+        "blocked_description": "Lubage oma brauseris või OS-i seadetes märguanded, seejärel avage Chatto uuesti.",
+        "enabled_title": "Tõukemärguanded on lubatud",
+        "enabled_description": "Chatto kasutab lülitina teie brauseri või OS-i teavitusluba. Märguannete väljalülitamiseks keelake need sellel saidil oma brauseris või OS-i seadetes.",
+        "test_button": "Saada testiteade",
+        "testing": "Saatmine…",
+        "test_sent": "Testiteatis saadetud.",
+        "active_description": "See server saadab sellele seadmele tõukemärguandeid.",
+        "device": "{browser} platvormil {platform}",
+        "device_unknown": "See brauser",
+        "opens_at": "Märguanded avavad Chatto aadressil {origin}",
+        "registering": "Selle seadme tõukemärguannete seadistamine…",
+        "off_title": "Tõukemärguanded on selles seadmes välja lülitatud",
+        "off_description": "Lülitage need sisse lehel Märguanded. See valik kehtib kõigile teie serveritele.",
+        "open_notifications": "Ava märguanded",
+        "test_failed": "Testmärguannet ei õnnestunud saata. Proovige hetke pärast uuesti."
+      },
       "push_prompt": {
         "title": "Luba tõukemärguanded",
         "enabled": "Tõukemärguanded on lubatud",

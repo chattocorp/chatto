@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Bildirimler",
       "subtitle": "Bildirimleri nasıl alacağınızı yapılandırın",
+      "push": {
+        "title": "Anında Bildirimler",
+        "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
+        "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
+        "ios_home_screen_description": "Desteklenen iOS/ıpados sürümlerinde, Ana Ekrana Chatto ekleyin ve anında bildirimleri etkinleştirmek için uygulama simgesinden açın.",
+        "blocked_title": "Anlık bildirimler engellendi",
+        "blocked_description": "Tarayıcınızda veya işletim sistemi ayarlarınızda bildirimleri etkinleştirin, ardından Chatto'yi tekrar açın.",
+        "enabled_title": "Anında bildirimler etkinleştirildi",
+        "enabled_description": "Chatto anahtar olarak tarayıcınızı veya işletim sistemi bildirim izninizi kullanır. Bildirimleri kapatmak için tarayıcınızda veya işletim sistemi ayarlarınızda bu site için bildirimleri devre dışı bırakın.",
+        "test_button": "Test bildirimi gönder",
+        "testing": "Gönderiliyor…",
+        "test_sent": "Test bildirimi gönderildi.",
+        "active_description": "Bu sunucu bu cihaza anlık bildirimler gönderir.",
+        "device": "{platform} üzerinde {browser}",
+        "device_unknown": "Bu tarayıcı",
+        "opens_at": "Bildirimler Chatto'yu {origin} adresinde açar",
+        "registering": "Bu cihaz için anlık bildirimler ayarlanıyor…",
+        "off_title": "Bu cihazda anlık bildirimler kapalı",
+        "off_description": "Bunları Bildirimler sayfasından açın. Bu seçim tüm sunucularınız için geçerlidir.",
+        "open_notifications": "Bildirimleri aç",
+        "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin."
+      },
       "push_prompt": {
         "title": "Anlık bildirimleri etkinleştir",
         "enabled": "Anında bildirimler etkinleştirildi",

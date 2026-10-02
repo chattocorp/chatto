@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Sciigoj",
       "subtitle": "Agordu kiel vi ricevas sciigojn",
+      "push": {
+        "title": "Puŝaj Sciigoj",
+        "not_supported": "Puŝaj sciigoj ne estas subtenataj en ĉi tiu retumilo.",
+        "ios_home_screen_title": "Aldonu Chatto al via Hejma Ekrano",
+        "ios_home_screen_description": "Sur subtenataj versioj iOS/iPadOS, aldonu Chatto al la Hejma Ekrano kaj malfermu ĝin de la aplikaĵa ikono por ebligi puŝajn sciigojn.",
+        "blocked_title": "Puŝaj sciigoj blokitaj",
+        "blocked_description": "Ebligu sciigojn en via retumilo aŭ OS-agordoj, poste malfermu Chatto denove.",
+        "enabled_title": "Puŝaj sciigoj ebligitaj",
+        "enabled_description": "Chatto uzas vian retumilon aŭ OS-sciigpermeson kiel la ŝaltilon. Por malŝalti sciigojn, malŝaltu ilin por ĉi tiu retejo en via retumilo aŭ OS-agordoj.",
+        "test_button": "Sendu testan sciigon",
+        "testing": "Sendante...",
+        "test_sent": "Testa sciigo sendita.",
+        "active_description": "Ĉi tiu servilo sendas puŝajn sciigojn al ĉi tiu aparato.",
+        "device": "{browser} en {platform}",
+        "device_unknown": "Ĉi tiu retumilo",
+        "opens_at": "Sciigoj malfermas Chatto ĉe {origin}",
+        "registering": "Agordado de puŝaj sciigoj por ĉi tiu aparato…",
+        "off_title": "Puŝaj sciigoj estas malŝaltitaj en ĉi tiu aparato",
+        "off_description": "Ŝaltu ilin en la paĝo Sciigoj. Ĉi tiu elekto validas por ĉiuj viaj serviloj.",
+        "open_notifications": "Malfermi sciigojn",
+        "test_failed": "Ne eblis sendi testan sciigon. Reprovu post momento."
+      },
       "push_prompt": {
         "title": "Ebligu puŝajn sciigojn",
         "enabled": "Puŝaj sciigoj ebligitaj",

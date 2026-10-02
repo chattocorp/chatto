@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "subtitle": "Lege fest, wie du Benachrichtigungen erhältst",
+      "push": {
+        "title": "Push-Benachrichtigungen",
+        "not_supported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
+        "ios_home_screen_title": "Füge Chatto zum Home-Bildschirm hinzu",
+        "ios_home_screen_description": "Auf unterstützten iOS-/iPadOS-Versionen kannst du Push-Benachrichtigungen aktivieren, nachdem du Chatto zum Home-Bildschirm hinzugefügt und über das App-Symbol geöffnet hast.",
+        "blocked_title": "Push-Benachrichtigungen blockiert",
+        "blocked_description": "Aktiviere Benachrichtigungen in deinen Browser- oder Betriebssystemeinstellungen und öffne Chatto danach erneut.",
+        "enabled_title": "Push-Benachrichtigungen aktiviert",
+        "enabled_description": "Chatto verwendet die Benachrichtigungsberechtigung deines Browsers oder Betriebssystems als Schalter. Um Benachrichtigungen auszuschalten, deaktiviere sie für diese Website in deinen Browser- oder Betriebssystemeinstellungen.",
+        "test_button": "Testbenachrichtigung senden",
+        "testing": "Wird gesendet…",
+        "test_sent": "Testbenachrichtigung gesendet.",
+        "active_description": "Dieser Server sendet Push-Benachrichtigungen an dieses Gerät.",
+        "device": "{browser} auf {platform}",
+        "device_unknown": "Dieser Browser",
+        "opens_at": "Benachrichtigungen öffnen Chatto unter {origin}",
+        "registering": "Push-Benachrichtigungen für dieses Gerät werden eingerichtet…",
+        "off_title": "Push-Benachrichtigungen sind auf diesem Gerät aus",
+        "off_description": "Schalte sie auf der Seite „Benachrichtigungen“ ein. Diese Wahl gilt für alle deine Server.",
+        "open_notifications": "Benachrichtigungen öffnen",
+        "test_failed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es gleich noch einmal."
+      },
       "push_prompt": {
         "title": "Push-Benachrichtigungen aktivieren",
         "enabled": "Push-Benachrichtigungen aktiviert",

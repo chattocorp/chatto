@@ -179,15 +179,23 @@ describe('Notification settings page', () => {
     await expect.element(silentButton).toHaveClass(/choice-row-selected/);
   });
 
-  it('has no push controls, even when the server supports push', async () => {
+  it('shows this device’s push status first when the server supports push', async () => {
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
 
     const { container } = render(NotificationsPage);
     await settle();
 
+    const pushSettings = q(container, '[data-testid="push-notification-settings"]');
+    expect(pushSettings).not.toBeNull();
+    expect(container.querySelector('.panel-shell')?.contains(pushSettings)).toBe(true);
+  });
+
+  it('hides push status when the server has no push configuration', async () => {
+    const { container } = render(NotificationsPage);
+    await settle();
+
     expect(q(container, '[data-testid="push-notification-settings"]')).toBeNull();
-    expect(container.textContent).not.toContain('Push Notifications');
   });
 
   it('updates and persists notification sound filter sliders', async () => {

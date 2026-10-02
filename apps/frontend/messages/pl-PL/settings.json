@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Powiadomienia",
       "subtitle": "Skonfiguruj sposób otrzymywania powiadomień",
+      "push": {
+        "title": "Powiadomienia push",
+        "not_supported": "Powiadomienia push nie są obsługiwane w tej przeglądarce.",
+        "ios_home_screen_title": "Dodaj Chatto do swojego ekranu głównego",
+        "ios_home_screen_description": "W obsługiwanych wersjach iOS/iPadOS dodaj Chatto do ekranu głównego i otwórz go za pomocą ikony aplikacji, aby włączyć powiadomienia push.",
+        "blocked_title": "Powiadomienia push zablokowane",
+        "blocked_description": "Włącz powiadomienia w ustawieniach przeglądarki lub systemu operacyjnego, a następnie ponownie otwórz Chatto.",
+        "enabled_title": "Powiadomienia push włączone",
+        "enabled_description": "Chatto wykorzystuje uprawnienia do powiadamiania przeglądarki lub systemu operacyjnego jako przełącznik. Aby wyłączyć powiadomienia, wyłącz je dla tej witryny w ustawieniach przeglądarki lub systemu operacyjnego.",
+        "test_button": "Wyślij powiadomienie testowe",
+        "testing": "Wysyłam…",
+        "test_sent": "Wysłano powiadomienie testowe.",
+        "active_description": "Ten serwer wysyła powiadomienia push na to urządzenie.",
+        "device": "{browser} w systemie {platform}",
+        "device_unknown": "Ta przeglądarka",
+        "opens_at": "Powiadomienia otwierają Chatto pod adresem {origin}",
+        "registering": "Konfigurowanie powiadomień push na tym urządzeniu…",
+        "off_title": "Powiadomienia push są wyłączone na tym urządzeniu",
+        "off_description": "Włącz je na stronie Powiadomienia. Ten wybór dotyczy wszystkich twoich serwerów.",
+        "open_notifications": "Otwórz powiadomienia",
+        "test_failed": "Nie można wysłać powiadomienia testowego. Spróbuj ponownie za chwilę."
+      },
       "push_prompt": {
         "title": "Włącz powiadomienia push",
         "enabled": "Powiadomienia push włączone",

@@ -265,6 +265,28 @@
     "notifications": {
       "title": "Notificaciones",
       "subtitle": "Configura cómo recibes notificaciones",
+      "push": {
+        "title": "Notificaciones Push",
+        "not_supported": "Las notificaciones push no son compatibles con este navegador.",
+        "ios_home_screen_title": "Agrega Chatto a tu pantalla de inicio",
+        "ios_home_screen_description": "En las versiones compatibles de iOS/iPadOS, agregue Chatto a la pantalla de inicio y ábrala desde el ícono de la aplicación para habilitar las notificaciones automáticas.",
+        "blocked_title": "Notificaciones push bloqueadas",
+        "blocked_description": "Habilite las notificaciones en su navegador o en la configuración del sistema operativo, luego abra Chatto nuevamente.",
+        "enabled_title": "Notificaciones push habilitadas",
+        "enabled_description": "Chatto utiliza el permiso de notificación de su navegador o sistema operativo como interruptor. Para desactivar las notificaciones, desactívelas para este sitio en su navegador o en la configuración del sistema operativo.",
+        "test_button": "Enviar notificación de prueba",
+        "testing": "Enviando…",
+        "test_sent": "Notificación de prueba enviada.",
+        "active_description": "Este servidor envía notificaciones push a este dispositivo.",
+        "device": "{browser} en {platform}",
+        "device_unknown": "Este navegador",
+        "opens_at": "Las notificaciones abren Chatto en {origin}",
+        "registering": "Configurando las notificaciones push para este dispositivo…",
+        "off_title": "Las notificaciones push están desactivadas en este dispositivo",
+        "off_description": "Actívalas desde la página Notificaciones. Esta elección se aplica a todos tus servidores.",
+        "open_notifications": "Abrir notificaciones",
+        "test_failed": "No se pudo enviar una notificación de prueba. Inténtalo de nuevo en un momento."
+      },
       "push_prompt": {
         "title": "Habilitar notificaciones push",
         "enabled": "Notificaciones push habilitadas",

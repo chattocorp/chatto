@@ -3,6 +3,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button, RangeField } from '$lib/ui/form';
   import NotificationPolicySettings from '$lib/components/settings/NotificationPolicySettings.svelte';
+  import PushDeviceSettings from '$lib/components/settings/PushDeviceSettings.svelte';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import {
     notificationSounds,
@@ -165,6 +166,8 @@
 
   <PaneContent>
     <div class="flex flex-col gap-6">
+      <PushDeviceSettings />
+
       <NotificationPolicySettings />
 
       <!-- Notification Sound Section -->

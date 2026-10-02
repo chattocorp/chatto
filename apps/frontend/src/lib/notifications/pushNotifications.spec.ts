@@ -5,6 +5,7 @@ import {
   ensureRegistered,
   getPushCapability,
   getPushRegistrationTargets,
+  hasSavedPushRegistration,
   onNotificationClick,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
   refreshPushSubscriptions,
@@ -1154,6 +1155,15 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     await Promise.all([refreshPushSubscriptions(), refreshPushSubscriptions()]);
 
     expect(mocks.subscribePush).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports which account this page saved for each server', async () => {
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
+    expect(hasSavedPushRegistration('origin', 'another-user')).toBe(false);
+
+    await unsubscribeBeforeLeaving('origin');
+
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(false);
   });
 
   it('never asks for permission', async () => {

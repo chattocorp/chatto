@@ -116,7 +116,9 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-When at least one registered server supports push, the header of the Notifications page shows **Enable push notifications** while browser permission is unset. This is the only place where Chatto asks for permission. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings. The browser permission is the only switch: server notification settings have no push controls.
+When at least one registered server supports push, the header of the Notifications page shows **Enable push notifications** while browser permission is unset. This is the only place where Chatto asks for permission. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings. The browser permission is the only switch.
+
+Each server's notification settings show whether that server sends push notifications to this device. When it does, the panel names the browser and platform, and the address where notifications open Chatto. Use **Send test notification** to check delivery to your devices.
 
 When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. While permission is granted, Chatto also registers servers that the user adds or signs in to later, without asking again. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 
