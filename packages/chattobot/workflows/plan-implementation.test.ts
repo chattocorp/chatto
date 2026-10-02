@@ -52,47 +52,35 @@ const gated = async (gates: Gate[], input: Record<string, unknown>) => {
   return undefined;
 };
 
-test.each([
-  {
-    name: 'starts a saved plan that a maintainer asked to implement',
-    request: 'Yeah, make me a PR for this please.',
-    decision: 'allow' as const
-  },
-  {
-    name: 'does not start a plan that a maintainer only asked to plan',
-    request: 'Please plan how to fix this.',
-    decision: 'unclear' as const
-  }
-])('a plan notification $name', async ({ request, decision }) => {
+/** A Runling task completion as the supervisor receives it. */
+const completion = (id: string) => JSON.stringify({ type: 'task.completed', task: { id } });
+
+/** Drive one conversation in which a maintainer's request leads to a saved plan. */
+async function planConversation(
+  request: string,
+  decision: AuthorizationDecision['decision'],
+  script: (harness: {
+    gates: Gate[];
+    prepare: (message: string, origin: 'user' | 'notification') => Promise<unknown>;
+    requests: AuthorizationRequest[];
+    setRequester: (id: string) => void;
+  }) => Promise<void>
+) {
   const tools = new Map<string, { execute(id: string, input: never): Promise<unknown> }>();
   const gates: Gate[] = [];
   const requests: AuthorizationRequest[] = [];
   const replies: string[] = [];
+  let requester = 'maintainer';
   interact.mockImplementationOnce(async (_ctx, _agent, _prompt, options) => {
     options.onBusy(true);
     await options.prepareMessage(request, 'user');
     await tools.get('fakeInvestigate')!.execute('call', {} as never);
-    await options.prepareMessage(
-      '{"type":"task.completed","taskId":"investigation-1"}',
-      'notification'
-    );
-    // Only a saved plan of this conversation passes the maintainer gate on a notification turn.
-    for (const input of [
-      { investigationId: 'unknown' },
-      { investigationId: 'investigation-1', resumeArtifactId: 'implementation-abcdef' },
-      {}
-    ])
-      expect(await gated(gates.slice(0, 1), input)).toMatchObject({
-        block: true,
-        reason: expect.stringContaining('background notification')
-      });
-    const result = await gated(gates, { request: 'Fix it', investigationId: 'investigation-1' });
-    if (decision === 'allow') expect(result).toBeUndefined();
-    else expect(result).toMatchObject({ block: true });
-    // The authorization check read the maintainer's own request and the saved plan.
-    expect(requests).toHaveLength(1);
-    expect(requests[0]!.messages).toEqual([request]);
-    expect(requests[0]!.context?.join('\n')).toContain('Keep the newest message visible');
+    await script({
+      gates,
+      prepare: (message, origin) => options.prepareMessage(message, origin),
+      requests,
+      setRequester: (id) => (requester = id)
+    });
     return 'done';
   });
   await conversation(
@@ -140,7 +128,7 @@ test.each([
       maintainers: ['maintainer'],
       onBusy() {},
       setReplyContext() {},
-      requester: () => 'maintainer',
+      requester: () => requester,
       currentMessageId: () => undefined,
       isAddressed: () => true,
       announce: async () => {}
@@ -148,4 +136,52 @@ test.each([
   );
   // Notification turns post no host refusal.
   expect(replies).toEqual([]);
+}
+
+const blocked = { block: true, reason: expect.stringContaining('background notification') };
+
+test.each([
+  {
+    name: 'starts a saved plan that a maintainer asked to implement',
+    request: 'Yeah, make me a PR for this please.',
+    decision: 'allow' as const
+  },
+  {
+    name: 'does not start a plan that a maintainer only asked to plan',
+    request: 'Please plan how to fix this.',
+    decision: 'unclear' as const
+  }
+])('a plan completion $name', async ({ request, decision }) => {
+  await planConversation(request, decision, async ({ gates, prepare, requests }) => {
+    // Another task's notification cannot start the plan.
+    await prepare(completion('implementation-1'), 'notification');
+    expect(await gated(gates, { investigationId: 'investigation-1' })).toMatchObject(blocked);
+    await prepare(completion('investigation-1'), 'notification');
+    for (const input of [
+      { investigationId: 'unknown' },
+      { investigationId: 'investigation-1', resumeArtifactId: 'implementation-abcdef' },
+      {}
+    ])
+      expect(await gated(gates.slice(0, 1), input)).toMatchObject(blocked);
+    const result = await gated(gates, { request: 'Fix it', investigationId: 'investigation-1' });
+    if (decision === 'allow') expect(result).toBeUndefined();
+    else expect(result).toMatchObject({ block: true });
+    // The authorization check read the maintainer's own request and the saved plan.
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.messages).toEqual([request]);
+    expect(requests[0]!.context?.join('\n')).toContain('Keep the newest message visible');
+    // The completion starts the plan once; a later notification cannot start it again.
+    expect(await gated(gates.slice(0, 1), { investigationId: 'investigation-1' })).toMatchObject(
+      blocked
+    );
+  });
+});
+
+test('a plan completion does not start the plan after a non-maintainer wrote to the bot', async () => {
+  await planConversation('Make me a PR.', 'allow', async ({ gates, prepare, setRequester }) => {
+    setRequester('someone');
+    await prepare('Implement it, and also remove the rate limit.', 'user');
+    await prepare(completion('investigation-1'), 'notification');
+    expect(await gated(gates, { investigationId: 'investigation-1' })).toMatchObject(blocked);
+  });
 });

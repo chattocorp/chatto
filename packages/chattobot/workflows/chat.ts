@@ -93,8 +93,9 @@ interface ChatSettings {
  * GitHub output, enters the conversation. GitHub writes stay available: each one needs a request
  * from a maintainer's own messages, which the authorization classifier checks. */
 const BLOCKED_AFTER_UNTRUSTED = ['implementChatto', 'askImplementation', 'task_send'];
-/** Tools that only a maintainer's latest message can start. They read source, change GitHub,
- * publish changes, or steer that work. Reading GitHub with `gh` is open to everyone. Checked when the tool is called, because a thread has several
+/** Tools that only a maintainer's latest message can start (a plan's completion notification can
+ * also start its implementation). They read source, change GitHub, publish changes, or steer that
+ * work. Reading GitHub with `gh` is open to everyone. Checked when the tool is called, because a thread has several
  * people. */
 const MAINTAINER_TOOLS = new Set([
   'investigateChatto',
@@ -286,12 +287,22 @@ export const conversation = task(
       lastPosted = text;
       refusalPosted = true;
     };
+    // The task whose notification the current turn answers, whether the latest person who wrote to
+    // the bot is a maintainer, and the plans that a notification turn already started.
+    let notifiedId: string | undefined;
+    let latestUserIsMaintainer = false;
+    const startedPlans = new Set<string>();
+    /** True for the one implementChatto call that a plan's own completion notification can make. */
     const startsSavedPlan = (event: { toolName: string; input: unknown }) => {
       const input = event.input as { investigationId?: unknown; resumeArtifactId?: unknown };
+      const id = input.investigationId;
       return (
         event.toolName === 'implementChatto' &&
-        typeof input.investigationId === 'string' &&
-        plans.has(input.investigationId) &&
+        typeof id === 'string' &&
+        id === notifiedId &&
+        plans.has(id) &&
+        !startedPlans.has(id) &&
+        latestUserIsMaintainer &&
         input.resumeArtifactId === undefined
       );
     };
@@ -305,12 +316,15 @@ export const conversation = task(
               'task_cancel is available only when a person in this thread asks to stop the work. A notification is not such a request.'
           };
         if (!MAINTAINER_TOOLS.has(event.toolName)) return;
-        // Notifications wake the agent but never authorize work; postRefusal stays silent there.
         if (latestOrigin === 'user' && requesterIsMaintainer()) return;
-        // One exception: a saved plan that just finished can start the implementation that a
-        // maintainer asked for before the plan. Only maintainers start investigations, and the
-        // authorization check still reads the maintainers' messages before the call runs.
-        if (latestOrigin === 'notification' && startsSavedPlan(event)) return;
+        // Notifications wake the agent but do not authorize work; postRefusal stays silent there.
+        // One exception: the completion notification of a plan can start its implementation once,
+        // when the latest person who wrote to the bot is a maintainer. Only maintainers start
+        // investigations, and the authorization check still needs a maintainer's request.
+        if (latestOrigin === 'notification' && startsSavedPlan(event)) {
+          startedPlans.add((event.input as { investigationId: string }).investigationId);
+          return;
+        }
         await postRefusal(
           'Only a maintainer can ask me to investigate the source, implement changes, or change GitHub. A maintainer can ask in this thread.'
         ).catch(() => {});
@@ -465,7 +479,7 @@ export const conversation = task(
             ]
           : []),
         options.implementation
-          ? 'implementChatto starts a worker that edits a separate worktree, runs typecheck and lint, opens a pull request, and fixes CI failures on it until CI finishes. Call it only when a maintainer explicitly asks to implement, build, or fix something; an opinion or design discussion is not such a request. For more than a small, clear fix, offer a plan first (investigateChatto, purpose implementation), unless the maintainer asks to skip it. To implement a saved plan, pass its investigationId; do not rewrite the plan. When a maintainer asked you to implement and you planned first, call implementChatto with the plan’s investigationId as soon as the plan is ready; do not ask them again. Put the goal and every scope decision from the conversation in request and context; the worker sees nothing else. Do not add reviews or approvals that nobody asked for. To continue unfinished work, pass the exact resumeArtifactId from a stopped result or from resumableImplementations, with the new instructions; never show artifact IDs, and never resume on your own. The worker cannot run commands or servers or reach anyone’s machine; say so instead of forwarding such requests. Forward clarifications with task_send, ask the worker questions with askImplementation, and answer as soon as its reply arrives. Cancel a task only when a person asks to stop it. A separate check reads only the maintainers’ messages before implementChatto runs; when it blocks the call, ask the maintainer to confirm that they want the change.'
+          ? 'implementChatto starts a worker that edits a separate worktree, runs typecheck and lint, opens a pull request, and fixes CI failures on it until CI finishes. Call it only when a maintainer explicitly asks to implement, build, or fix something; an opinion or design discussion is not such a request. For more than a small, clear fix, plan first (investigateChatto, purpose implementation), unless the maintainer asks to skip it. To implement a saved plan, pass its investigationId; do not rewrite the plan. When a maintainer asked you to implement and you planned first, call implementChatto with the plan’s investigationId when the plan’s completion notification arrives; do not ask them again, unless the plan has open questions that need their answer. Put the goal and every scope decision from the conversation in request and context; the worker sees nothing else. Do not add reviews or approvals that nobody asked for. To continue unfinished work, pass the exact resumeArtifactId from a stopped result or from resumableImplementations, with the new instructions; never show artifact IDs, and never resume on your own. The worker cannot run commands or servers or reach anyone’s machine; say so instead of forwarding such requests. Forward clarifications with task_send, ask the worker questions with askImplementation, and answer as soon as its reply arrives. Cancel a task only when a person asks to stop it. A separate check reads only the maintainers’ messages before implementChatto runs; when it blocks the call, ask the maintainer to confirm that they want the change.'
           : 'Implementation is not available. You can offer an assessment or a proposal, but do not promise edits or pull requests.',
         ...(github
           ? [
@@ -525,6 +539,8 @@ export const conversation = task(
             serialize(async () => {
               options.setReplyContext(message, origin);
               latestOrigin = origin;
+              notifiedId = origin === 'notification' ? notifiedTaskId(message) : undefined;
+              if (origin === 'user') latestUserIsMaintainer = requesterIsMaintainer();
               if (origin === 'notification')
                 for (const url of notificationUrls(message)) pendingUrls.add(url);
               if (origin === 'user') {

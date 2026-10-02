@@ -361,7 +361,7 @@ export function investigationExtension(
           name: 'investigateChatto',
           label: 'Investigate Chatto source',
           description:
-            'Assess a source-code question, the feasibility of a bug fix or feature, or a change plan in a read-only background investigation. For explicit implementation or PR requests, call implementChatto directly instead: its worker can inspect the source. Cannot edit files, run shell commands, or execute tests. Posts your announcement before starting and returns a task handle. Progress and completion arrive automatically.',
+            'Assess a source-code question, the feasibility of a bug fix or feature, or a change plan in a read-only background investigation. For an explicit implementation or PR request, call implementChatto directly for a small, clear fix (its worker can inspect the source), and plan first with purpose implementation otherwise. Cannot edit files, run shell commands, or execute tests. Posts your announcement before starting and returns a task handle. Progress and completion arrive automatically.',
           parameters: Type.Object({
             ...parameters.properties,
             announcement: Type.String({

@@ -143,12 +143,12 @@ each request, not for the conversation. When the agent calls `investigateChatto`
 of the latest human message that the bot received in the conversation. If that
 author is not a maintainer, or the turn started from a task notification, the tool
 does not run. In a user turn, the bot then posts one fixed message that a
-maintainer must ask. There is one exception: when a saved implementation plan
-is ready, its notification turn can call `implementChatto` with that plan's
-`investigationId`. Only maintainers can start investigations, and the
-authorization check must find a maintainer's request to implement, so a
-maintainer who asks for a pull request does not have to ask again after the
-plan. Other users can still ask questions, and the
+maintainer must ask. There is one exception: the completion notification of a
+saved implementation plan can call `implementChatto` with that plan's
+`investigationId` once, when the latest person who wrote to the bot is a
+maintainer. Only maintainers can start investigations, and the authorization
+check must find a maintainer's request to implement. A maintainer who asks for a
+pull request therefore does not have to ask again after the plan. Other users can still ask questions, and the
 bot can answer from the documentation and web research.
 
 This gives a simple approval flow: a user reports a problem in a thread, and a
@@ -341,7 +341,7 @@ Tool-call preambles stay in agent logs. A delegation announcement or implementat
 refusal supplies the turn's user-facing reply; the supervisor's second version
 is suppressed. Later turns can report progress or answer new questions normally.
 A task notification cannot start investigation. It can start implementation
-only for a saved plan, as described above. A refusal
+only for its own saved plan, as described above. A refusal
 states whether work is active or was already attempted for the same request. The
 bot posts refusals once per user turn, and the rest of its reply still posts.
 Runling's `taskTool` bridge starts a background child workflow and returns a task
@@ -558,7 +558,9 @@ to read the current diff, including new files, or select one changed path when
 the complete diff is too long. `runCheck` runs an approved typecheck, lint, or
 build check. `runFocusedTests` runs selected existing frontend test or spec
 files in one Vitest project, and `runGoTests` runs the tests of selected Go
-packages of the `cli` module. The worker cannot run complete test suites. The worker can save brief
+packages of the `cli` module, after it copies the legal files that `cmd` embeds.
+These tools reject complete suites such as `./...`; tests of other areas, such
+as the workspace packages, run only in CI. The worker can save brief
 handoff notes for a later attempt.
 Patch and check failures return bounded diagnostics to the worker. A failed
 patch also shows the current lines around its first failed hunk. Worker checks

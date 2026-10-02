@@ -134,12 +134,20 @@ export function implementationExtension(
             );
           const retainedPlan = plan ? structuredClone(plan) : undefined;
           const issueNumber = (input as { issueNumber?: number }).issueNumber;
-          // Read the issue before announcing, so that a missing issue is not described as started work.
-          const issue =
-            issueNumber && dependencies.fetchIssue
-              ? await dependencies.fetchIssue(issueNumber, context.signal)
-              : undefined;
+          // Claim the attempt before the first await, so that a parallel call is refused.
+          const previousAttempt = attemptedVersion;
           attemptedVersion = version;
+          // Read the issue before announcing, so that a missing issue is not described as started work.
+          let issue: GitHubIssue | undefined;
+          try {
+            issue =
+              issueNumber && dependencies.fetchIssue
+                ? await dependencies.fetchIssue(issueNumber, context.signal)
+                : undefined;
+          } catch (error) {
+            attemptedVersion = previousAttempt;
+            throw error;
+          }
           await announce(announcement, context.signal);
           context.signal.throwIfAborted();
           const implement = createImplementation(settings, dependencies);

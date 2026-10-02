@@ -326,6 +326,8 @@ test('worker can inspect one changed file and run selected frontend and Go tests
         (await call('runGoTests', { packages: ['./internal/core/...'], run: 'TestCore' }))
           .content[0]?.text
       ).toContain('Passed: mise x -- go -C cli test');
+      // `cmd` embeds legal files that the sync copies first.
+      expect(f.calls.at(-2)).toEqual({ command: 'mise', args: ['run', 'sync-cli-legal'] });
       // Complete test suites run in CI, not in the worker.
       const runCheck = (await registeredTools(options)).get('runCheck') as unknown as {
         parameters: { properties: { check: { anyOf: { const: string }[] } } };
@@ -355,7 +357,7 @@ test('worker can inspect one changed file and run selected frontend and Go tests
     },
     {
       command:
-        'mise x -- go -C cli test -trimpath -tags test_endpoints -run=TestCore ./internal/core/...',
+        'mise x -- go -C cli test -trimpath -p 4 -tags test_endpoints -run=TestCore ./internal/core/...',
       passed: true
     },
     { command: 'mise x -- pnpm run lint:frontend', passed: true },
@@ -1866,6 +1868,40 @@ test('the tool waits for its announcement, returns a handle, accepts steering, a
   } finally {
     delivered.resolve();
     finish.resolve();
+    await tasks.dispose();
+  }
+});
+
+test('a parallel call is refused while the first reads its issue; a failed read frees the attempt', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx);
+  const read = Promise.withResolvers<never>();
+  const fetchIssue = vi.fn(() => read.promise);
+  const onBlocked = vi.fn(async () => {});
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'test/model',
+    extensions: [
+      implementationExtension(ctx, f.settings, async () => {}, tasks, {
+        execute: f.execute,
+        onBlocked,
+        fetchIssue
+      })
+    ]
+  });
+  const input = { request: 'Fix', issueNumber: 12, announcement: 'Starting' };
+  try {
+    const first = call('implementChatto', input);
+    const second = JSON.parse((await call('implementChatto', input)).content[0]!.text!);
+    expect(second).toMatchObject({ outcome: 'blocked' });
+    expect(onBlocked).toHaveBeenCalledOnce();
+    read.reject(new Error('Issue not found'));
+    await expect(first).rejects.toThrow('Issue not found');
+    // The failed read did not start work, so the same request can try again.
+    await expect(call('implementChatto', input)).rejects.toThrow('Issue not found');
+    expect(fetchIssue).toHaveBeenCalledTimes(2);
+  } finally {
     await tasks.dispose();
   }
 });
