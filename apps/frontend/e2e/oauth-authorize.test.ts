@@ -103,8 +103,8 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await popupClosed;
     await expectSignedOutViewGone(page);
 
-    // 7. Wait for the callback page to redirect into the newly-added
-    // remote server's chat tree. Its URL segment is its hostname.
+    // 7. The signed-out view is gone, so sign-in finished. The route of the
+    // server stays open; its URL segment is its hostname.
     await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });

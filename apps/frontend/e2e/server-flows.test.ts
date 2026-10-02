@@ -337,8 +337,8 @@ test.describe('Add Server - Remote Auth Flow', () => {
     await popupClosed;
     await expectSignedOutViewGone(page);
 
-    // Post-PR(a) the OAuth callback drops the user directly into the
-    // newly-added remote instance's chat tree (`/chat/<hostname>/...`).
+    // Sign-in stays on the route of the joined server (`/chat/<hostname>/...`),
+    // which Open showed before sign-in.
     const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
     await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
       timeout: TIMEOUTS.COMPLEX_OPERATION

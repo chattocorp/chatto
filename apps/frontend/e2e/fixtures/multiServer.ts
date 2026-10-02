@@ -570,15 +570,13 @@ export async function connectRemoteInstance(
   await popup.waitForEvent('close');
   await expectSignedOutViewGone(page);
 
-  // The main client redirects into the newly-added remote server's chat tree
-  // after the popup reports success. The hostname is the server URL segment.
+  // Open already showed the server's route before sign-in, and sign-in stays
+  // on it. The hostname is the server URL segment.
   const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
   await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
 
-  // URL mutation happens before SvelteKit's navigation promise and the new
-  // server projection have necessarily settled. Wait for projected private
-  // sidebar state so callers can safely initiate another client navigation
-  // without cancelling the OAuth route transition mid-hydration.
+  // Wait until the signed-in server connects, so callers start from a server
+  // with loaded private data.
   const serverIcon = page
     .locator(`a[data-testid="server-icon"][href*="/chat/${hostname.split(':')[0]}"]`)
     .first();
