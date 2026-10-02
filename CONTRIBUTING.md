@@ -64,8 +64,8 @@ does not build anything. Run it alone to prepare a checkout without starting
 the stack. Both tasks trust the repository's `mise.toml` files automatically.
 They need mise 2026.8.9 or later.
 
-All services use plain HTTP. In Conductor, `<workspace>` is the workspace ID
-(`CONDUCTOR_WORKSPACE_ID`) and the base port is `$CONDUCTOR_PORT`. Outside
+All services use plain HTTP. In Conductor, the base port is `$CONDUCTOR_PORT`
+and `<workspace>` is `ws` followed by this port, for example `ws55060`. Outside
 Conductor, `<workspace>` is `local` and the base port is `4000`. Set
 `CHATTO_DEV_WORKSPACE` to use a different `<workspace>`:
 
@@ -178,10 +178,9 @@ show their URLs in the terminal.
 
 This configuration does not allocate ports or hostnames for each worktree.
 The development stack uses base port `4000` and workspace name `local` outside
-Conductor. Run one such stack at a time, or set distinct `CONDUCTOR_PORT` and
-`CHATTO_DEV_WORKSPACE` values for each workspace before starting its
-actions. These variables are the existing `mise` inputs for port and hostname
-isolation. Conductor's preview URL list, `.worktreeinclude` handling, Git
+Conductor. Run one such stack at a time, or set a distinct `CONDUCTOR_PORT`
+value for each workspace before starting its actions. `mise` uses this value
+for the ports and for the `ws<port>` workspace label of the hostnames. Conductor's preview URL list, `.worktreeinclude` handling, Git
 settings, and PR prompt are not part of the Codex environment configuration.
 
 ## Developing Outside of Conductor

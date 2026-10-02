@@ -23,12 +23,13 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # Browser-facing development services use `<service>.<workspace>.localhost`.
 # These names resolve to loopback without DNS or /etc/hosts changes. They also
 # give concurrent workspaces separate cookie scopes, because cookies ignore ports.
-# The label is the Conductor workspace ID. The workspace name is a display title
-# that can contain spaces and can change, and the workspace path differs
-# between agent sessions and the Run pane after a rename. The label must be a
-# valid DNS label, and it keys the Authling state directory. Set
-# CHATTO_DEV_WORKSPACE to override it.
-CHATTO_DEV_WORKSPACE = "{{env.CHATTO_DEV_WORKSPACE | default(value=env.CONDUCTOR_WORKSPACE_ID | default(value='local')) | slugify}}"
+# In Conductor, the label is `ws` followed by the Conductor port. Conductor
+# preview URLs in .conductor/settings.toml can expand the port, but not the
+# workspace name or ID. The port is different for each concurrent workspace
+# and does not change when a workspace is renamed. Outside Conductor, the
+# label is `local`. The label must be a valid DNS label, and it keys the
+# Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
+CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
 CHATTO_DEV_AUTHLING_CLIENT_ID = "chatto-dev"
 CHATTO_DEV_AUTHLING_CLIENT_SECRET = "development-only-chatto-authling-client-secret"

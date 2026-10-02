@@ -2,15 +2,15 @@
 
 [[preview_urls]]
 name = "Chatto"
-url = "http://chatto.$CONDUCTOR_WORKSPACE_ID.localhost:$CONDUCTOR_PORT"
+url = "http://chatto.ws$CONDUCTOR_PORT.localhost:$CONDUCTOR_PORT"
 
 [[preview_urls]]
 name = "Chatto (Vite)"
-url = "http://chatto.$CONDUCTOR_WORKSPACE_ID.localhost:$((CONDUCTOR_PORT + 1))"
+url = "http://chatto.ws$CONDUCTOR_PORT.localhost:$((CONDUCTOR_PORT + 1))"
 
 [[preview_urls]]
 name = "Authling"
-url = "http://authling.$CONDUCTOR_WORKSPACE_ID.localhost:$((CONDUCTOR_PORT + 2))"
+url = "http://authling.ws$CONDUCTOR_PORT.localhost:$((CONDUCTOR_PORT + 2))"
 
 [[preview_urls]]
 name = "Runling"
