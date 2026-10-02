@@ -1,14 +1,15 @@
-import { ReactiveMap, batch, signal, untrack } from '../reactivity/index.js';
+import { ReactiveMap, batch, untrack } from '../reactivity/index.js';
 import { clearUserStores } from './users.js';
 import { Server } from './server.js';
 import type { ServerConnectionManager } from './serverConnection.js';
 import type { EventBusManager } from './realtimeTransport.js';
-import { claimServerId, isServerIdClaimed, releaseServerId } from './serverIds.js';
+import {
+  claimServerId,
+  generateServerId,
+  isServerIdClaimed,
+  releaseServerId
+} from './serverIds.js';
 import { Codecs, globalSlot, serverSlot } from '../storage/slot.js';
-import { getPublicServerInfo } from '../api/server.js';
-import type { PublicServerInfo } from '../api/server.js';
-import { isBackendCapableOrigin } from '../util/runtimeOrigin.js';
-import { canonicalServerOrigin } from '../util/serverUrl.js';
 import { getViewerStateViaConnect, type CurrentUser } from '../api/viewer.js';
 import { connectEndpoint } from '../api/connect.js';
 import { isAuthenticationRequiredError } from '../auth/errors.js';
@@ -50,34 +51,6 @@ export interface AuthenticatedUserSummary {
   login: string;
   displayName?: string | null;
   avatarUrl?: string | null;
-}
-
-/**
- * Generate a URL-safe server ID from a base URL.
- * Extracts the hostname and replaces dots/colons with hyphens. When the ID is
- * in `existingIds` or another client in the process holds it, appends a
- * numeric suffix.
- */
-export function generateServerId(url: string, existingIds: string[] = []): string {
-  let hostname: string;
-  try {
-    hostname = new URL(url).hostname;
-  } catch {
-    hostname = url.replace(/[^a-z0-9-]/gi, '-');
-  }
-
-  const base = hostname.replace(/\./g, '-').replace(/^-+|-+$/g, '');
-  const taken = (id: string) => existingIds.includes(id) || isServerIdClaimed(id);
-
-  if (!taken(base)) {
-    return base;
-  }
-
-  let suffix = 2;
-  while (taken(`${base}-${suffix}`)) {
-    suffix++;
-  }
-  return `${base}-${suffix}`;
 }
 
 // Storage key intentionally stays as 'instances' — renaming would lose users'
@@ -414,7 +387,6 @@ export class ServerRegistry {
   #renewalPromises = new Map<string, Promise<string | null>>();
   /** In-flight viewer checks that confirm a rejected origin cookie session. */
   #authenticationChecks = new Map<string, Promise<boolean>>();
-  #originProbe: Promise<void> | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
   #startedServerNetwork = new Set<string>();
   /**
@@ -457,19 +429,6 @@ export class ServerRegistry {
   }
 
   /**
-   * Whether the async origin probe has completed (resolved or rejected).
-   * When `probeOrigin(true)` is called (known server), this is set immediately.
-   * Use this to distinguish "probe in progress" from "no origin backend."
-   */
-  readonly #originProbedSignal = signal(false);
-  get originProbed() {
-    return this.#originProbedSignal.get();
-  }
-  set originProbed(value) {
-    this.#originProbedSignal.set(value);
-  }
-
-  /**
    * The origin server — the one serving the SPA.
    * Derived by matching registered server URLs against window.location.origin.
    * Returns undefined if the origin server isn't registered.
@@ -509,97 +468,6 @@ export class ServerRegistry {
     } catch {
       return false;
     }
-  }
-
-  /**
-   * Auto-register the origin server as a Chatto server.
-   *
-   * When `knownServer` is true (e.g., cookie-authenticated user), registers
-   * synchronously with a placeholder name — the store's serverInfo.init()
-   * fetches the real name.
-   *
-   * When `knownServer` is false, probes ServerDiscoveryService.GetServer first.
-   * If it responds, the origin is a Chatto server — register it. If it fails
-   * (static hosting), nothing happens.
-   *
-   * No-ops if the origin is already registered (e.g., from localStorage).
-   */
-  async probeOrigin(
-    knownServer = false,
-    location?: Pick<Location, 'origin' | 'protocol'> | URL,
-    discoveredServerInfo?: PublicServerInfo
-  ): Promise<void> {
-    if (!this.#options.originServer || typeof window === 'undefined') {
-      this.originProbed = true;
-      return;
-    }
-    const currentLocation = location ?? window.location;
-    if (!isBackendCapableOrigin(currentLocation)) {
-      this.originProbed = true;
-      return;
-    }
-    if (this.originServer) {
-      this.originProbed = true;
-      return; // Already registered
-    }
-
-    const origin = currentLocation.origin;
-
-    if (knownServer) {
-      // Synchronous registration — we already know it's a Chatto server
-      const id = generateServerId(
-        origin,
-        this.servers.map((s) => s.id)
-      );
-      this.#registerOrigin(id, origin, 'Chatto', null);
-      this.originProbed = true;
-      return;
-    }
-
-    // Root layout load already retrieves this data for the public shell. Reuse
-    // that result so route bootstrap does not issue a second discovery request.
-    if (discoveredServerInfo !== undefined) {
-      const id = generateServerId(
-        origin,
-        this.servers.map((s) => s.id)
-      );
-      this.#registerOrigin(
-        id,
-        origin,
-        discoveredServerInfo.name || 'Chatto',
-        discoveredServerInfo.iconUrl ?? null
-      );
-      this.settleOriginUnauthenticated();
-      this.originProbed = true;
-      return;
-    }
-
-    if (this.#originProbe) {
-      await this.#originProbe;
-      return;
-    }
-
-    // Async probe — detect if the origin is a Chatto server
-    const probe = getPublicServerInfo(origin)
-      .then((info) => {
-        if (this.originServer) return; // Registered while we were fetching
-
-        const id = generateServerId(
-          origin,
-          this.servers.map((s) => s.id)
-        );
-        this.#registerOrigin(id, origin, info.name || 'Chatto', info.iconUrl ?? null);
-        this.settleOriginUnauthenticated();
-      })
-      .catch(() => {
-        // Not a Chatto server — ignore
-      })
-      .finally(() => {
-        this.originProbed = true;
-        if (this.#originProbe === probe) this.#originProbe = null;
-      });
-    this.#originProbe = probe;
-    await probe;
   }
 
   #registerOrigin(
@@ -656,7 +524,6 @@ export class ServerRegistry {
         this.servers.map((s) => s.id)
       );
       this.#registerOrigin(id, originUrl, 'Chatto', null, null, user);
-      this.originProbed = true;
       return;
     }
 
@@ -694,7 +561,6 @@ export class ServerRegistry {
     } else {
       this.#replaceServerAuth(origin.id, cookieSession);
     }
-    this.originProbed = true;
   }
 
   /** Settle the origin cookie-auth store when root load found no user. */
@@ -1051,33 +917,6 @@ export class ServerRegistry {
     });
   }
 
-  /**
-   * Register a remote server without a session and return its ID. When
-   * `findServerByUrl` finds a registered server for `url`, return that server
-   * and leave it unchanged. A later sign-in adds its session to this
-   * registration. The server stays signed out until the host starts sign-in.
-   *
-   * @throws Error when the registry cannot add the server, for example after
-   *   it was disposed.
-   */
-  addSignedOutServer(url: string, profile: { name: string; iconUrl: string | null }): string {
-    const existing = this.findServerByUrl(url);
-    if (existing) return existing.id;
-    const id = generateServerId(
-      url,
-      this.servers.map((server) => server.id)
-    );
-    this.addServer({
-      id,
-      url,
-      name: profile.name || 'Chatto',
-      iconUrl: profile.iconUrl,
-      addedAt: Date.now()
-    });
-    if (!this.getServer(id)) throw new Error('The server could not be registered.');
-    return id;
-  }
-
   /** Remove a server by ID. Disposes its event bus, store, and connection state. */
   removeServer(id: string): boolean {
     return batch(() => {
@@ -1279,17 +1118,6 @@ export class ServerRegistry {
   }
 
   /**
-   * Get the registered server that `url` addresses, compared by canonical
-   * origin (see `canonicalServerOrigin`). Returns `undefined` for a URL that
-   * is not an HTTP(S) server URL.
-   */
-  findServerByUrl(url: string): RegisteredServer | undefined {
-    const origin = canonicalServerOrigin(url);
-    if (!origin) return undefined;
-    return this.servers.find((server) => canonicalServerOrigin(server.url) === origin);
-  }
-
-  /**
    * Get the state store for a registered server.
    * Safe in computed values — stores are created atomically with registration,
    * so every registered server always has a store.
@@ -1455,17 +1283,5 @@ export class ServerRegistry {
   /** Whether the server has an authenticated user. False if not registered. */
   isAuthenticated(serverId: string): boolean {
     return this.tryGetStore(serverId)?.isAuthenticated ?? false;
-  }
-
-  /** Choose a server for navigation after sign-out or from chat-wide settings. */
-  firstAuthenticatedServerId(excludedId?: string): string | undefined {
-    const originId = this.originServer?.id;
-    if (originId && originId !== excludedId && this.isAuthenticated(originId)) {
-      return originId;
-    }
-
-    return this.servers.find(
-      (server) => server.id !== excludedId && this.isAuthenticated(server.id)
-    )?.id;
   }
 }

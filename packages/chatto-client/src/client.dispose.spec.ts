@@ -22,17 +22,20 @@ function stored(): string {
   }).join('\n');
 }
 
-it('lets no late work of a closed client register servers or write device storage', async () => {
-  let respond!: (info: PublicServerInfo) => void;
-  mocks.discovery.mockReturnValueOnce(new Promise((resolve) => (respond = resolve)));
+it('lets no late work of a closed client register servers or write device storage', () => {
   const client = createAppClient();
-  const probe = client.registry.probeOrigin();
-  await vi.waitFor(() => expect(mocks.discovery).toHaveBeenCalled());
   client.close();
   const before = stored();
 
-  respond({ name: 'Origin', version: '0.5.0' } as PublicServerInfo);
-  await probe;
+  // Work that was still running, such as a host's origin discovery, adds the
+  // server after the client closed.
+  client.registry.addServer({
+    id: 'localhost',
+    url: 'http://localhost:3000',
+    name: 'Origin',
+    iconUrl: null,
+    addedAt: 1
+  });
 
   expect(client.registry.servers).toEqual([]);
   expect(stored()).toBe(before);

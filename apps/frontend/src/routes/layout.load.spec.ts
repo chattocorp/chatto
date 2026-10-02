@@ -7,7 +7,7 @@ const { mocks } = vi.hoisted(() => ({
     loadCurrentUser: vi.fn(),
     isBackendCapableOrigin: vi.fn(),
     init: vi.fn(),
-    probeOrigin: vi.fn(),
+    registerOriginServer: vi.fn(),
     settleOriginUnauthenticated: vi.fn()
   }
 }));
@@ -16,9 +16,12 @@ vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     init: mocks.init,
-    probeOrigin: mocks.probeOrigin,
     settleOriginUnauthenticated: mocks.settleOriginUnauthenticated
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  registerOriginServer: mocks.registerOriginServer
 }));
 
 vi.mock('$lib/i18n/messages', () => ({
@@ -51,7 +54,7 @@ describe('root layout load', () => {
     mocks.getPublicServerInfo.mockResolvedValue(serverInfo);
     mocks.loadCurrentUser.mockResolvedValue({ id: 'viewer-1' });
     mocks.isBackendCapableOrigin.mockReturnValue(true);
-    mocks.probeOrigin.mockResolvedValue(undefined);
+    mocks.registerOriginServer.mockResolvedValue(undefined);
   });
 
   it.each(['/setup', '/chat/servers', '/chat/remote/overview'])(
@@ -63,7 +66,7 @@ describe('root layout load', () => {
       await expect(
         load({ url: new URL(path, 'https://chat.example.test') } as never)
       ).resolves.toMatchObject({ serverInfo: pending, user: null });
-      expect(mocks.probeOrigin).toHaveBeenCalledWith(false, undefined, pending);
+      expect(mocks.registerOriginServer).toHaveBeenCalledWith({ serverInfo: pending });
     }
   );
 
@@ -71,7 +74,7 @@ describe('root layout load', () => {
     const result = await load({ url: new URL('https://chat.example.test/chat/-') } as never);
 
     expect(mocks.init).toHaveBeenCalledOnce();
-    expect(mocks.probeOrigin).toHaveBeenCalledWith(true, undefined, serverInfo);
+    expect(mocks.registerOriginServer).toHaveBeenCalledWith({ signedIn: true, serverInfo });
     expect(mocks.settleOriginUnauthenticated).not.toHaveBeenCalled();
     expect(result).toMatchObject({ serverInfo, user: { id: 'viewer-1' } });
   });
@@ -81,7 +84,7 @@ describe('root layout load', () => {
 
     await load({ url: new URL('https://chat.example.test/chat/-') } as never);
 
-    expect(mocks.probeOrigin).toHaveBeenCalledWith(false, undefined, serverInfo);
+    expect(mocks.registerOriginServer).toHaveBeenCalledWith({ signedIn: false, serverInfo });
     expect(mocks.settleOriginUnauthenticated).not.toHaveBeenCalled();
   });
 
@@ -91,6 +94,6 @@ describe('root layout load', () => {
 
     await load({ url: new URL('https://chat.example.test/chat/-') } as never);
 
-    expect(mocks.probeOrigin).toHaveBeenCalledWith(false, undefined, undefined);
+    expect(mocks.registerOriginServer).toHaveBeenCalledWith({ signedIn: false, serverInfo: null });
   });
 });

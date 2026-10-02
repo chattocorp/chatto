@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalServerOrigin, serverHost } from './serverUrl.js';
+import { canonicalServerOrigin, serverHost } from './serverUrl';
 
 describe('canonicalServerOrigin', () => {
   it('normalizes case, default ports, and paths of HTTP(S) URLs', () => {

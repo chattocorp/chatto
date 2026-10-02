@@ -9,6 +9,7 @@ import { notifyLogout } from '$lib/auth/sessionChannel';
 import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
 import { serverRegistry } from '$lib/client';
+import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
 
 export interface ClientAccountNavigation {
   kind: 'hard' | 'soft';
@@ -40,14 +41,14 @@ class ClientAccountCoordinator {
       notifyLogout();
       return {
         kind: 'hard',
-        serverId: serverRegistry.firstAuthenticatedServerId(serverId)
+        serverId: firstAuthenticatedServerId(serverId)
       };
     }
 
     serverRegistry.clearServerAuthentication(serverId);
     return {
       kind: 'soft',
-      serverId: serverRegistry.firstAuthenticatedServerId(serverId)
+      serverId: firstAuthenticatedServerId(serverId)
     };
   }
 

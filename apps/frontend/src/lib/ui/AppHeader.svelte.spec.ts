@@ -43,8 +43,6 @@ vi.mock('$lib/client', async () => ({
       return undefined;
     },
     isAuthenticated: (id: string) => mocks.authenticated[id] === true,
-    firstAuthenticatedServerId: () =>
-      mocks.servers.find((server) => mocks.authenticated[server.id])?.id,
     isOriginServer: () => false,
     getServer: (id: string) =>
       mocks.servers.find((server) => server.id === id)
@@ -59,6 +57,11 @@ vi.mock('$lib/client', async () => ({
       showConnectionLostBanner: false
     }
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: () =>
+    mocks.servers.find((server) => mocks.authenticated[server.id])?.id
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));

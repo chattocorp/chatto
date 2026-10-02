@@ -125,4 +125,5 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-108](ADR-108-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |
 | [ADR-109](ADR-109-compute-badge-attention-from-projections.md)           | Compute Badge Attention from Projections                         | Accepted             | 2026-09-27 |
 | [ADR-110](ADR-110-share-process-local-event-id-interning.md)             | Share Process-Local Event ID Interning Across Projections        | Accepted             | 2026-09-29 |
-| [ADR-111](ADR-111-move-client-state-into-chatto-client.md)               | Move the Client State Layer into `@chatto/client`                | Accepted             | 2026-09-28 |
+| [ADR-111](ADR-111-move-client-state-into-chatto-client.md)               | Move the Client State Layer into `@chatto/client`                | Partially superseded | 2026-09-28 |
+| [ADR-112](ADR-112-keep-the-server-catalogue-in-the-frontend.md)          | Keep the Server Catalogue in the Frontend                        | Accepted             | 2026-10-02 |

@@ -57,8 +57,8 @@ const mocks = vi.hoisted(() => {
     stopSessionChannel: vi.fn(),
     onSessionTerminated: vi.fn(),
     stopSessionTermination: vi.fn(),
-    firstAuthenticatedServerId: vi.fn(() => 'remote'),
     clearServerAuthentication: vi.fn(),
+    firstAuthenticatedServerId: vi.fn(() => 'remote'),
     hardRedirectAfterSignOut: vi.fn(),
     originSignInRequired: false,
     beginOriginReauthentication: vi.fn(),
@@ -90,7 +90,6 @@ vi.mock('$lib/client', async () => ({
       if (serverId === 'remote') return mocks.remoteStore;
       return undefined;
     },
-    firstAuthenticatedServerId: mocks.firstAuthenticatedServerId,
     clearServerAuthentication: mocks.clearServerAuthentication,
     watchStores: (setup: (store: unknown) => void) => {
       mocks.watchStores(setup);
@@ -123,6 +122,10 @@ vi.mock('$lib/client', async () => ({
       }
     })
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: mocks.firstAuthenticatedServerId
 }));
 
 vi.mock('$lib/auth/reauth', () => ({

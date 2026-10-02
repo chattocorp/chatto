@@ -34,15 +34,16 @@ vi.mock('$lib/client', async () => {
       get servers() {
         return [...mocks.servers, ...mocks.added!.values()];
       },
-      isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId),
-      findServerByUrl: (url: string) =>
-        [...mocks.servers, ...mocks.added!.values()].find(
-          (server) => new URL(server.url).origin === new URL(url).origin
-        ),
-      addSignedOutServer: mocks.addSignedOutServer
+      isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId)
     }
   };
 });
+
+// The real catalogue finds servers in the mocked registry; joining is mocked.
+vi.mock('$lib/serverCatalogue', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/serverCatalogue')>()),
+  addSignedOutServer: mocks.addSignedOutServer
+}));
 
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 

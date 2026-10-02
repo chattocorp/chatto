@@ -13,6 +13,7 @@
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import { eventBusManager, serverRegistry, serverConnectionManager } from '$lib/client';
+  import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import {
     initPresenceTracking,
     refreshPresencePreference
@@ -62,7 +63,7 @@
       const store = serverRegistry.tryGetStore(serverId);
       if (store?.accountId !== userId || store.currentUser.verifiedUserId !== userId) return;
       serverRegistry.clearServerAuthentication(serverId);
-      const remainingServerId = serverRegistry.firstAuthenticatedServerId(serverId);
+      const remainingServerId = firstAuthenticatedServerId(serverId);
       hardRedirectAfterSignOut(
         remainingServerId
           ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(remainingServerId) })

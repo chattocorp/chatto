@@ -4,7 +4,6 @@ import { SvelteMap } from 'svelte/reactivity';
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
-    originProbed: true,
     originServer: { id: 'origin' },
     tryGetStore: () => mocks.store,
     getStore: () => mocks.store,

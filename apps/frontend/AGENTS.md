@@ -26,7 +26,9 @@ Do not generate playground links for code written into this repository.
   rule (ADR-111).
   `$lib/client` creates the frontend's one client and exports it with its
   parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
-  Import them from there.
+  Import them from there. The frontend's server catalogue policy, such as
+  origin discovery, the Server Directory join, and the choice of a server to
+  show, lives in `$lib/serverCatalogue` on top of the registry (ADR-112).
   Each client read in a `$derived`, `$effect`, or template creates a small
   Svelte render effect; read a store value once before a loop.
 - The frontend keeps UI state, Svelte context, routing, translated text,

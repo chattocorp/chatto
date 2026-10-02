@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { listNeighborhoodServers, type NeighborhoodServerProfile } from '@chatto/client/api/server';
-import { canonicalServerOrigin } from '@chatto/client/util/serverUrl';
+import { canonicalServerOrigin } from '$lib/serverUrl';
 
 /** Request limits for public discovery requests from this client. */
 export const SERVER_DIRECTORY_LIMITS = {

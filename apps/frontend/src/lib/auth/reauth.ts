@@ -19,6 +19,7 @@ import {
   type AuthorizationWindow
 } from '$lib/oauth/authorizationWindow';
 import { serverRegistry } from '$lib/client';
+import { findServerByUrl } from '$lib/serverCatalogue';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 import type { RegisteredServer } from '@chatto/client/server/registry';
 import { serverIdToSegment } from '$lib/navigation';
@@ -289,7 +290,7 @@ export async function completeServerOAuthFlow(
 ): Promise<string> {
   // Check before the exchange, so that no session is created for a server
   // that this client no longer knows.
-  if (!serverRegistry.findServerByUrl(flow.remoteUrl)) throw new ServerNotRegisteredError();
+  if (!findServerByUrl(flow.remoteUrl)) throw new ServerNotRegisteredError();
 
   const response = await fetch(`${flow.remoteUrl}/oauth/token`, {
     method: 'POST',
@@ -318,7 +319,7 @@ export async function completeServerOAuthFlow(
   const persistedCredentials = persistedBearerSession(credentials);
 
   // The user can remove the server while the exchange runs.
-  const server = serverRegistry.findServerByUrl(flow.remoteUrl);
+  const server = findServerByUrl(flow.remoteUrl);
   if (!server) throw new ServerNotRegisteredError();
   serverRegistry.updateRegistration(server.id, {
     name: flow.serverName || server.name,

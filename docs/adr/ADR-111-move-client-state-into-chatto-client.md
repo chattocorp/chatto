@@ -4,7 +4,8 @@
 
 ## Status
 
-Accepted. Supersedes [ADR-100](ADR-100-shared-chatto-integration-client.md).
+Accepted. Amended by [ADR-112](ADR-112-keep-the-server-catalogue-in-the-frontend.md):
+the frontend keeps its server catalogue. Supersedes [ADR-100](ADR-100-shared-chatto-integration-client.md).
 Amends [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md),
 [ADR-025](ADR-025-multi-instance-client-architecture.md), and
 [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md).

@@ -12,10 +12,13 @@ vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
     isAuthenticated: () => false,
-    firstAuthenticatedServerId: () => mocks.authenticatedServerId,
     isOriginServer: () => false,
     getServer: (id: string) => ({ id, url: `https://${id}.example.com` })
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: () => mocks.authenticatedServerId
 }));
 
 vi.mock('$app/state', () => ({

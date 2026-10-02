@@ -29,6 +29,11 @@ examples use it. See
   state that one client could change for another. Process-wide state, such
   as the user stores, must be keyed by server ID; server IDs
   are unique in a process (`src/server/serverIds.ts`).
+- Keep the frontend's server catalogue out of the package (ADR-112): the
+  servers that the user added on a device, origin discovery, the Server
+  Directory join, and the choice of a server to show. The registry keeps the
+  servers of a client, their sessions, and their stores. The frontend builds
+  its catalogue on the public registry API in `$lib/serverCatalogue`.
 - Keep the package integration-shaped: server data, requests, and the
   operations that integrations need. State that exists only for one host's
   UI, such as search sessions, highlights, editors, or call media, belongs to

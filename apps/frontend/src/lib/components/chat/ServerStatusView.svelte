@@ -11,7 +11,7 @@ a body text, and renders the caller's details and actions below them.
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import type { ServerRegistration } from '@chatto/client/server/catalog';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import { serverHost } from '@chatto/client/util/serverUrl';
+  import { serverHost } from '$lib/serverUrl';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PageTitle } from '$lib/ui';
 

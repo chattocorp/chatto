@@ -7,7 +7,7 @@
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import { serverHost } from '@chatto/client/util/serverUrl';
+  import { serverHost } from '$lib/serverUrl';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';

@@ -26,13 +26,16 @@ vi.mock('$lib/client', async () => ({
     },
     getServer: (id: string) => mocks.servers.find((server) => server.id === id),
     isOriginServer: (id: string) => id === mocks.originId,
-    firstAuthenticatedServerId: (excludedId?: string) =>
-      mocks.servers.find((server) => server.id !== excludedId && mocks.authenticated.has(server.id))
-        ?.id,
     clearServerAuthentication: mocks.clearServerAuthentication,
     removeServer: mocks.removeServer,
     resetToOrigin: mocks.resetToOrigin
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: (excludedId?: string) =>
+    mocks.servers.find((server) => server.id !== excludedId && mocks.authenticated.has(server.id))
+      ?.id
 }));
 
 vi.mock('@chatto/client/auth/signOut', () => ({

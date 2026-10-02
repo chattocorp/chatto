@@ -11,13 +11,16 @@ vi.mock('$lib/client', async () => ({
     get servers() {
       return registered.servers;
     },
-    findServerByUrl: (url: string) =>
-      registered.servers.find((server) => new URL(server.url).origin === new URL(url).origin),
     getStore: vi.fn(() => ({ serverInfo: { init: initServerInfoMock } })),
     updateRegistration: updateRegistrationMock,
     replaceServerAuthentication: replaceServerAuthenticationMock,
     clearOriginAuthentication: clearOriginAuthenticationMock
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  findServerByUrl: (url: string) =>
+    registered.servers.find((server) => new URL(server.url).origin === new URL(url).origin)
 }));
 
 vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({

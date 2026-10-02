@@ -4,6 +4,7 @@ import { getPublicServerInfo } from '@chatto/client/api/server';
 import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
 import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
 import { serverRegistry } from '$lib/client';
+import { registerOriginServer } from '$lib/serverCatalogue';
 import { deleteLegacySavedViews } from '$lib/storage/legacySavedViews';
 import type { LayoutLoad } from './$types';
 
@@ -29,7 +30,7 @@ export const load: LayoutLoad = async ({ url }) => {
         if (!serverRegistry.originServer) {
           const info = await serverInfoPromise;
           if (!info) return null;
-          await serverRegistry.probeOrigin(false, undefined, info);
+          await registerOriginServer({ serverInfo: info });
         }
         return loadCurrentUser(serverRegistry);
       })()
@@ -42,7 +43,7 @@ export const load: LayoutLoad = async ({ url }) => {
 
   // Child route loads need a settled origin registry to resolve the "-" URL
   // segment and make authentication decisions before components render.
-  await serverRegistry.probeOrigin(user !== null, undefined, serverInfo ?? undefined);
+  await registerOriginServer({ signedIn: user !== null, serverInfo });
 
   if (
     serverInfo?.setupRequired &&

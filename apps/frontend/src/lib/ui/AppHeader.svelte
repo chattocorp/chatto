@@ -3,6 +3,7 @@
   import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
+  import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { version } from '$app/environment';
@@ -44,7 +45,7 @@
   const preferencesServerId = $derived.by(() => {
     const activeServerId = getActiveServer();
     if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
-    return serverRegistry.firstAuthenticatedServerId();
+    return firstAuthenticatedServerId();
   });
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });

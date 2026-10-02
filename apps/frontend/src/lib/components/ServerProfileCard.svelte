@@ -6,7 +6,7 @@ card. Callers supply trusted badges and actions through explicit props.
 -->
 <script lang="ts" module>
   import type { PublicServerInfo } from '@chatto/client/api/server';
-  import { serverHost } from '@chatto/client/util/serverUrl';
+  import { serverHost } from '$lib/serverUrl';
 
   /** Public profile fields that the card renders. */
   export type ServerProfileCardProfile = Pick<

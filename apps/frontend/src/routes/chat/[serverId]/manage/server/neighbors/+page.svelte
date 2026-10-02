@@ -15,7 +15,7 @@ polls the cache briefly after a change. See FDR-042.
   import { adminQueryKeys } from '$lib/query/admin';
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { serverOriginFromInput } from '$lib/serverDirectory';
-  import { canonicalServerOrigin } from '@chatto/client/util/serverUrl';
+  import { canonicalServerOrigin } from '$lib/serverUrl';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '@chatto/client/server/serverConnection';
   import { m } from '$lib/i18n/messages';

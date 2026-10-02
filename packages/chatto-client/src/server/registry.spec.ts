@@ -1,11 +1,11 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  generateServerId,
   restorePersistedServerState,
   splitPersistedServers,
   type RegisteredServer
 } from './registry.js';
 import { serverStorageKey } from '../storage/serverStorage.js';
+import { generateServerId } from './serverIds.js';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { ViewerState } from '../api/viewer.js';
@@ -140,19 +140,6 @@ describe('ServerRegistry', () => {
     });
   });
 
-  describe('probeOrigin', () => {
-    it('settles a custom application origin without registering it', async () => {
-      const registry = await createRegistry();
-      registry.removeAll();
-      registry.originProbed = false;
-
-      registry.probeOrigin(false, new URL('chatto://desktop'));
-
-      expect(registry.originProbed).toBe(true);
-      expect(registry.servers).toHaveLength(0);
-    });
-  });
-
   describe('originServer', () => {
     it('returns the instance matching window.location.origin', async () => {
       const registry = await createRegistry();
@@ -195,27 +182,6 @@ describe('ServerRegistry', () => {
       );
 
       expect(registry.isOriginServer('remote')).toBe(false);
-    });
-  });
-
-  describe('firstAuthenticatedServerId', () => {
-    it('prefers the origin and can exclude the session being cleared', async () => {
-      const registry = await createRegistry();
-      registry.removeAll();
-
-      registry.addServer(
-        makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'remote-token' })
-      );
-      registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
-      registry.getStore('remote').currentUser.user = { id: 'remote-user' } as never;
-      registry.getStore('origin').currentUser.accept({
-        ...accountFields,
-        id: 'origin-user',
-        login: 'origin'
-      });
-
-      expect(registry.firstAuthenticatedServerId()).toBe('origin');
-      expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
     });
   });
 
@@ -274,58 +240,6 @@ describe('ServerRegistry', () => {
       registry.addServer(server);
 
       expect(registry.servers).toHaveLength(1);
-    });
-  });
-
-  describe('addSignedOutServer', () => {
-    it('registers a remote server without a session', async () => {
-      const registry = await createRegistry();
-      registry.removeAll();
-
-      const id = registry.addSignedOutServer('https://remote.example.com', {
-        name: 'Remote',
-        iconUrl: 'https://remote.example.com/icon.png'
-      });
-
-      expect(id).toBe('remote-example-com');
-      expect(registry.getServer(id)).toMatchObject({
-        url: 'https://remote.example.com',
-        name: 'Remote',
-        iconUrl: 'https://remote.example.com/icon.png',
-        token: null,
-        reauthRequiredAt: null
-      });
-      expect(registry.tryGetStore(id)).toBeDefined();
-      expect(registry.isAuthenticated(id)).toBe(false);
-    });
-
-    it('returns an existing registration with the same URL unchanged', async () => {
-      const registry = await createRegistry();
-      registry.removeAll();
-      registry.addServer(
-        makeServer({ id: 'existing', url: 'https://Remote.example.com', token: 'kept' })
-      );
-
-      const id = registry.addSignedOutServer('https://remote.example.com', {
-        name: 'Other',
-        iconUrl: null
-      });
-
-      expect(id).toBe('existing');
-      expect(registry.servers).toHaveLength(1);
-      expect(registry.getServer('existing')?.token).toBe('kept');
-    });
-  });
-
-  describe('findServerByUrl', () => {
-    it('matches registered servers by canonical origin', async () => {
-      const registry = await createRegistry();
-      registry.removeAll();
-      registry.addServer(makeServer({ id: 'remote', url: 'https://Remote.example.com' }));
-
-      expect(registry.findServerByUrl('https://remote.example.com:443/')?.id).toBe('remote');
-      expect(registry.findServerByUrl('https://remote.example.com:8443')).toBeUndefined();
-      expect(registry.findServerByUrl('not a url')).toBeUndefined();
     });
   });
 

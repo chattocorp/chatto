@@ -42,3 +42,31 @@ export function isServerIdClaimed(serverId: string): boolean {
 export function ownerOfServerId(serverId: string): ServerIdOwner | undefined {
   return owners.get(serverId);
 }
+
+/**
+ * Generate a URL-safe server ID from a base URL.
+ * Extracts the hostname and replaces dots/colons with hyphens. When the ID is
+ * in `existingIds` or another client in the process holds it, appends a
+ * numeric suffix.
+ */
+export function generateServerId(url: string, existingIds: string[] = []): string {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    hostname = url.replace(/[^a-z0-9-]/gi, '-');
+  }
+
+  const base = hostname.replace(/\./g, '-').replace(/^-+|-+$/g, '');
+  const taken = (id: string) => existingIds.includes(id) || isServerIdClaimed(id);
+
+  if (!taken(base)) {
+    return base;
+  }
+
+  let suffix = 2;
+  while (taken(`${base}-${suffix}`)) {
+    suffix++;
+  }
+  return `${base}-${suffix}`;
+}

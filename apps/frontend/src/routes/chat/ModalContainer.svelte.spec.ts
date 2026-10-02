@@ -51,13 +51,6 @@ vi.mock('$lib/client', async () => ({
     getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
     isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
     isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
-    firstAuthenticatedServerId: vi.fn((excludedId: string) => {
-      const originId = mocks.originServer?.id;
-      if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
-      return mocks.servers.find(
-        (server) => server.id !== excludedId && mocks.authenticated[server.id]
-      )?.id;
-    }),
     clearServerAuthentication: mocks.clearServerAuthentication,
     tryGetStore: mocks.tryGetStore,
     removeServer: mocks.removeServer,
@@ -84,6 +77,16 @@ vi.mock('$lib/client', async () => ({
       };
     }
   }
+}));
+
+vi.mock('$lib/serverCatalogue', () => ({
+  firstAuthenticatedServerId: vi.fn((excludedId: string) => {
+    const originId = mocks.originServer?.id;
+    if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
+    return mocks.servers.find(
+      (server) => server.id !== excludedId && mocks.authenticated[server.id]
+    )?.id;
+  })
 }));
 
 vi.mock('$app/state', async () => {
