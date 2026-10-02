@@ -37,6 +37,7 @@
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
+  import { anchorBottomOnResize } from '$lib/dom/anchorBottomOnResize';
   import { visibleTombstoneEvents, visibleUnreadMarkerEventId } from './tombstoneVisibility';
   import { TimelineViewportController } from './TimelineViewportController.svelte';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
@@ -522,18 +523,13 @@
     });
   }
 
-  // Register the scroll container with ScrollState so the sibling MessageComposer
-  // can synchronously scroll without waiting for ResizeObserver callbacks.
-  $effect(() => {
-    if (scrollContainer) {
-      scrollState.setContainer(scrollContainer);
-      return () => scrollState.setContainer(null);
-    }
-  });
-
-  // Keep ScrollState's shouldScroll flag in sync with our local state
-  $effect(() => {
-    scrollState.setShouldScroll(viewport.shouldScrollToBottom);
+  // The virtual keyboard and a growing composer shrink the timeline. Keep the
+  // newest visible messages in view. Restores and unread landings own the
+  // position while they run.
+  const anchorTimelineBottom = anchorBottomOnResize({
+    followsBottom: () => viewport.shouldScrollToBottom,
+    isPaused: () => viewport.isUnreadEntryLandingRunning || Boolean(recoveryViewport(messageStore)),
+    onAdjust: () => scrollFader?.refresh()
   });
 
   // Auto-scroll to bottom when new events arrive or existing events update.
@@ -846,6 +842,7 @@
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}
     onpointerdown={markUserScrollIntent}
+    {@attach anchorTimelineBottom}
   >
     <div
       class="mt-auto mobile-presentation:px-1"

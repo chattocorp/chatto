@@ -255,13 +255,6 @@ export class MessageComposerState {
     );
   }
 
-  observeResize = (node: HTMLDivElement) => {
-    const scrollState = this.#dependencies.context.scrollState;
-    const observer = new ResizeObserver(() => scrollState.scrollToBottomIfSticky());
-    observer.observe(node);
-    return () => observer.disconnect();
-  };
-
   handleFileSelect(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!this.#dependencies.getCanAttach() || this.inputDisabled) {

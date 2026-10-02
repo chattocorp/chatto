@@ -132,25 +132,9 @@ export class LastEditableMessageContext {
 
 export class ScrollState {
   scrollRequestCounter = $state(0);
-  private container: HTMLDivElement | null = null;
-  private shouldScroll = true;
 
   requestScrollToBottom() {
     this.scrollRequestCounter++;
-  }
-
-  setContainer(el: HTMLDivElement | null) {
-    this.container = el;
-  }
-
-  setShouldScroll(value: boolean) {
-    this.shouldScroll = value;
-  }
-
-  scrollToBottomIfSticky() {
-    if (this.shouldScroll && this.container) {
-      this.container.scrollTop = this.container.scrollHeight;
-    }
   }
 }
 

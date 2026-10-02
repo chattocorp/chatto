@@ -93,10 +93,7 @@ const roomStateMock = vi.hoisted(() => ({
   },
   scrollState: {
     scrollRequestCounter: 0,
-    requestScrollToBottom: vi.fn(),
-    setContainer: vi.fn(),
-    setShouldScroll: vi.fn(),
-    scrollToBottomIfSticky: vi.fn()
+    requestScrollToBottom: vi.fn()
   }
 }));
 
@@ -413,7 +410,6 @@ describe('MessageComposer', () => {
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
     roomStateMock.lastEditableMessage.setFinder.mockClear();
     roomStateMock.scrollState.requestScrollToBottom.mockClear();
-    roomStateMock.scrollState.scrollToBottomIfSticky.mockClear();
     toast.clear();
     Object.defineProperty(URL, 'createObjectURL', {
       value: vi.fn(() => 'blob:test'),
