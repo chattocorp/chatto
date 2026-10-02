@@ -143,7 +143,12 @@ each request, not for the conversation. When the agent calls `investigateChatto`
 of the latest human message that the bot received in the conversation. If that
 author is not a maintainer, or the turn started from a task notification, the tool
 does not run. In a user turn, the bot then posts one fixed message that a
-maintainer must ask. Other users can still ask questions, and the
+maintainer must ask. There is one exception: when a saved implementation plan
+is ready, its notification turn can call `implementChatto` with that plan's
+`investigationId`. Only maintainers can start investigations, and the
+authorization check must find a maintainer's request to implement, so a
+maintainer who asks for a pull request does not have to ask again after the
+plan. Other users can still ask questions, and the
 bot can answer from the documentation and web research.
 
 This gives a simple approval flow: a user reports a problem in a thread, and a
@@ -335,7 +340,8 @@ If posting fails or the conversation is cancelled, the investigation does not st
 Tool-call preambles stay in agent logs. A delegation announcement or implementation
 refusal supplies the turn's user-facing reply; the supervisor's second version
 is suppressed. Later turns can report progress or answer new questions normally.
-A task notification cannot start investigation or implementation. A refusal
+A task notification cannot start investigation. It can start implementation
+only for a saved plan, as described above. A refusal
 states whether work is active or was already attempted for the same request. The
 bot posts refusals once per user turn, and the rest of its reply still posts.
 Runling's `taskTool` bridge starts a background child workflow and returns a task

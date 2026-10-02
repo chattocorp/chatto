@@ -286,6 +286,15 @@ export const conversation = task(
       lastPosted = text;
       refusalPosted = true;
     };
+    const startsSavedPlan = (event: { toolName: string; input: unknown }) => {
+      const input = event.input as { investigationId?: unknown; resumeArtifactId?: unknown };
+      return (
+        event.toolName === 'implementChatto' &&
+        typeof input.investigationId === 'string' &&
+        plans.has(input.investigationId) &&
+        input.resumeArtifactId === undefined
+      );
+    };
     const maintainerGate = defineAgentExtension((pi) => {
       pi.on('tool_call', async (event) => {
         // Notifications do not authorize stopping work either: only a person can ask for that.
@@ -298,6 +307,10 @@ export const conversation = task(
         if (!MAINTAINER_TOOLS.has(event.toolName)) return;
         // Notifications wake the agent but never authorize work; postRefusal stays silent there.
         if (latestOrigin === 'user' && requesterIsMaintainer()) return;
+        // One exception: a saved plan that just finished can start the implementation that a
+        // maintainer asked for before the plan. Only maintainers start investigations, and the
+        // authorization check still reads the maintainers' messages before the call runs.
+        if (latestOrigin === 'notification' && startsSavedPlan(event)) return;
         await postRefusal(
           'Only a maintainer can ask me to investigate the source, implement changes, or change GitHub. A maintainer can ask in this thread.'
         ).catch(() => {});
@@ -452,7 +465,7 @@ export const conversation = task(
             ]
           : []),
         options.implementation
-          ? 'implementChatto starts a worker that edits a separate worktree, runs typecheck and lint, opens a pull request, and fixes CI failures on it until CI finishes. Call it only when a maintainer explicitly asks to implement, build, or fix something; an opinion or design discussion is not such a request. For more than a small, clear fix, offer a plan first (investigateChatto, purpose implementation), unless the maintainer asks to skip it. To implement a saved plan, pass its investigationId; do not rewrite the plan. Put the goal and every scope decision from the conversation in request and context; the worker sees nothing else. Do not add reviews or approvals that nobody asked for. To continue unfinished work, pass the exact resumeArtifactId from a stopped result or from resumableImplementations, with the new instructions; never show artifact IDs, and never resume on your own. The worker cannot run commands or servers or reach anyone’s machine; say so instead of forwarding such requests. Forward clarifications with task_send, ask the worker questions with askImplementation, and answer as soon as its reply arrives. Cancel a task only when a person asks to stop it. A separate check reads only the maintainers’ messages before implementChatto runs; when it blocks the call, ask the maintainer to confirm that they want the change.'
+          ? 'implementChatto starts a worker that edits a separate worktree, runs typecheck and lint, opens a pull request, and fixes CI failures on it until CI finishes. Call it only when a maintainer explicitly asks to implement, build, or fix something; an opinion or design discussion is not such a request. For more than a small, clear fix, offer a plan first (investigateChatto, purpose implementation), unless the maintainer asks to skip it. To implement a saved plan, pass its investigationId; do not rewrite the plan. When a maintainer asked you to implement and you planned first, call implementChatto with the plan’s investigationId as soon as the plan is ready; do not ask them again. Put the goal and every scope decision from the conversation in request and context; the worker sees nothing else. Do not add reviews or approvals that nobody asked for. To continue unfinished work, pass the exact resumeArtifactId from a stopped result or from resumableImplementations, with the new instructions; never show artifact IDs, and never resume on your own. The worker cannot run commands or servers or reach anyone’s machine; say so instead of forwarding such requests. Forward clarifications with task_send, ask the worker questions with askImplementation, and answer as soon as its reply arrives. Cancel a task only when a person asks to stop it. A separate check reads only the maintainers’ messages before implementChatto runs; when it blocks the call, ask the maintainer to confirm that they want the change.'
           : 'Implementation is not available. You can offer an assessment or a proposal, but do not promise edits or pull requests.',
         ...(github
           ? [
