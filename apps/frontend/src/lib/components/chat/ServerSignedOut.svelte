@@ -5,8 +5,8 @@ Replaces the server chrome when the client knows a remote server but has no
 usable session for it: the user joined the server and did not sign in yet,
 signed out of it, or the server rejected the stored session and no chat data
 is loaded. `showsServerSignedOut` decides this. The view names the server and
-lets the user log in. Only the button starts sign-in; opening the route does
-not. The origin server never uses this view: without a session, its route
+lets the user log in or remove the server. Only the log-in button starts
+sign-in; opening the route does not. The origin server never uses this view: without a session, its route
 redirects to `/login`; during reauthentication, it keeps the server chrome and
 the reconnect notice.
 -->
