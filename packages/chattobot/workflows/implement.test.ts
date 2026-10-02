@@ -282,6 +282,7 @@ test('worker can review new changes and run an approved check before host valida
 
 test('worker can inspect one changed file and run selected frontend and Go tests', async () => {
   const f = await fixture();
+  const lintGate = Promise.withResolvers<void>();
   // SvelteKit route folders contain brackets.
   const spec = 'src/routes/[serverId]/example.test.ts';
   await mkdir(join(f.settings.directory, 'apps/frontend/src/routes/[serverId]'), {
@@ -294,7 +295,11 @@ test('worker can inspect one changed file and run selected frontend and Go tests
   await f.git('-c', 'commit.gpgsign=false', 'commit', '-m', 'Add test fixture');
   await f.git('push', 'origin', 'main');
   const result = await createImplementation(f.settings, {
-    execute: f.execute,
+    // lint-cli waits until the test releases it, so another check can start meanwhile.
+    execute: async (command, args, options) => {
+      if (args.at(-1) === 'lint-cli') await lintGate.promise;
+      return f.execute(command, args, options);
+    },
     createAgent: worker(async (options, call) => {
       await call('apply_patch', { patch });
       // A failed patch shows the current lines around its hunk.
@@ -322,6 +327,14 @@ test('worker can inspect one changed file and run selected frontend and Go tests
           'Select existing Go package directories'
         );
       expect(f.calls).toHaveLength(before + 1);
+      // A Go test does not copy files while another check runs.
+      const lint = call('runCheck', { check: 'lint-cli' });
+      expect(
+        (await call('runGoTests', { packages: ['./internal/core'] })).content[0]?.text
+      ).toContain('already running');
+      expect(f.calls).toHaveLength(before + 1);
+      lintGate.resolve();
+      await lint;
       expect(
         (await call('runGoTests', { packages: ['./internal/core/...'], run: 'TestCore' }))
           .content[0]?.text
@@ -355,6 +368,7 @@ test('worker can inspect one changed file and run selected frontend and Go tests
       command: `mise x -- pnpm --dir apps/frontend exec vitest run --project=server ${spec}`,
       passed: true
     },
+    { command: 'mise run lint-cli', passed: true },
     {
       command:
         'mise x -- go -C cli test -trimpath -p 4 -tags test_endpoints -run=TestCore ./internal/core/...',

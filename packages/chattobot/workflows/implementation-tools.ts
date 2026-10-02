@@ -247,7 +247,12 @@ export function workerToolsExtension({
       }
     });
     let checkInFlight = false;
-    const runWorkerCheck = async (args: string[], toolSignal?: AbortSignal) => {
+    /** Run one check at a time. `prepare` runs first, inside the same guard. */
+    const runWorkerCheck = async (
+      args: string[],
+      toolSignal?: AbortSignal,
+      prepare?: (signal: AbortSignal) => Promise<void>
+    ) => {
       if (checkInFlight)
         return {
           content: [
@@ -262,6 +267,7 @@ export function workerToolsExtension({
       const toolAbort = toolSignal ? AbortSignal.any([signal, toolSignal]) : signal;
       const command = `mise ${args.join(' ')}`;
       try {
+        await prepare?.(toolAbort);
         await execute('mise', args, {
           cwd: worktree,
           signal: toolAbort,
@@ -406,13 +412,16 @@ export function workerToolsExtension({
         }
         // `cmd` embeds legal files that `sync-cli-legal` copies into the module, as `setup-cli`
         // and `lint-cli` do. A failed copy shows up as a test failure.
-        const syncSignal = toolSignal ? AbortSignal.any([signal, toolSignal]) : signal;
-        await execute('mise', ['run', 'sync-cli-legal'], {
-          cwd: worktree,
-          signal: syncSignal,
-          timeoutMs: 60_000,
-          unsetEnv
-        }).catch(() => syncSignal.throwIfAborted());
+        const syncLegalFiles = (syncSignal: AbortSignal) =>
+          execute('mise', ['run', 'sync-cli-legal'], {
+            cwd: worktree,
+            signal: syncSignal,
+            timeoutMs: 60_000,
+            unsetEnv
+          }).then(
+            () => {},
+            () => syncSignal.throwIfAborted()
+          );
         return runWorkerCheck(
           [
             'x',
@@ -430,7 +439,8 @@ export function workerToolsExtension({
             ...(run ? [`-run=${run}`] : []),
             ...packages
           ],
-          toolSignal
+          toolSignal,
+          syncLegalFiles
         );
       }
     });
