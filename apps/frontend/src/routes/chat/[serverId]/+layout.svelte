@@ -49,6 +49,7 @@
         <ServerUnavailable
           reason={compatibilityProblem}
           {registration}
+          removable={!serverRegistry.isOriginServer(serverId)}
           onretry={() => serverRegistry.recoverServer(serverId)}
         />
       {:else if signedOutRegistration}

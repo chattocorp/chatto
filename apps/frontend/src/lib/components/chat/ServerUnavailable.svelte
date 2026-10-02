@@ -21,12 +21,15 @@ discovery has a result; see `ServerInfoState.compatibilityProblem`.
   let {
     reason,
     registration,
+    removable = false,
     onretry
   }: {
     /** Why the client cannot use the server. */
     reason: ServerCompatibilityProblem;
     /** Saved catalogue entry. It names the server while discovery fails. */
     registration?: Pick<ServerRegistration, 'name' | 'url' | 'iconUrl'>;
+    /** Offer **Remove server**; false for the origin server. */
+    removable?: boolean;
     /** Runs discovery again. A supported result makes the layout show the server. */
     onretry: () => Promise<void>;
   } = $props();
@@ -71,25 +74,30 @@ discovery has a result; see `ServerInfoState.compatibilityProblem`.
   body={copy.body}
   tone="warning"
   testId="server-unavailable"
+  {removable}
 >
-  {#if reason !== 'unreachable'}
-    <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-      {#if serverInfo.version}
-        <dt class="text-end text-muted">{m('chat.server_unavailable.server_version')}</dt>
-        <dd class="text-start font-medium" data-testid="server-unavailable-version">
-          {serverInfo.version}
+  {#snippet details()}
+    {#if reason !== 'unreachable'}
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+        {#if serverInfo.version}
+          <dt class="text-end text-muted">{m('chat.server_unavailable.server_version')}</dt>
+          <dd class="text-start font-medium" data-testid="server-unavailable-version">
+            {serverInfo.version}
+          </dd>
+        {/if}
+        <dt class="text-end text-muted">{m('chat.server_unavailable.required_version')}</dt>
+        <dd class="text-start font-medium" data-testid="server-unavailable-required-version">
+          {m('chat.server_unavailable.required_version_value', {
+            version: MINIMUM_SUPPORTED_SERVER_VERSION
+          })}
         </dd>
-      {/if}
-      <dt class="text-end text-muted">{m('chat.server_unavailable.required_version')}</dt>
-      <dd class="text-start font-medium" data-testid="server-unavailable-required-version">
-        {m('chat.server_unavailable.required_version_value', {
-          version: MINIMUM_SUPPORTED_SERVER_VERSION
-        })}
-      </dd>
-    </dl>
-  {/if}
+      </dl>
+    {/if}
+  {/snippet}
 
-  <Button variant="secondary" loading={checking} onclick={() => void checkAgain()}>
-    {m('chat.server_unavailable.check_again')}
-  </Button>
+  {#snippet actions()}
+    <Button variant="secondary" loading={checking} onclick={() => void checkAgain()}>
+      {m('chat.server_unavailable.check_again')}
+    </Button>
+  {/snippet}
 </ServerStatusView>

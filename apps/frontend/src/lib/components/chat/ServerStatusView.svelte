@@ -3,17 +3,22 @@
 
 Replaces the server chrome with a centred explanation when the client cannot
 show a server. It names the server with its logo and host, shows a title and
-a body text, and renders the caller's details and actions below them.
-`ServerUnavailable` and `ServerSignedOut` use it.
+a body text, and renders the caller's details and actions below them. When
+the caller allows it, it also offers **Remove server**, which opens the same
+confirmation as the gutter menu. `ServerUnavailable` and
+`ServerSignedOut` use it.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { pushState } from '$app/navigation';
+  import { m } from '$lib/i18n/messages';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import type { ServerRegistration } from '@chatto/client/server/catalog';
   import { serverDisplayName } from '@chatto/client/server/state';
   import { serverHost } from '$lib/serverUrl';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PageTitle } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
 
   let {
     registration,
@@ -21,7 +26,9 @@ a body text, and renders the caller's details and actions below them.
     body,
     tone,
     testId,
-    children
+    removable = false,
+    details,
+    actions
   }: {
     /** Saved catalogue entry. It names the server while discovery fails. */
     registration?: Pick<ServerRegistration, 'name' | 'url' | 'iconUrl'>;
@@ -33,17 +40,27 @@ a body text, and renders the caller's details and actions below them.
     tone?: 'warning';
     /** `data-testid` of the root element. */
     testId: string;
-    /** Details and actions below the explanation. */
-    children: Snippet;
+    /**
+     * Offer **Remove server**. The origin server belongs to the deployment, so
+     * callers pass `false` for it.
+     */
+    removable?: boolean;
+    /** Details below the explanation, such as version facts. */
+    details?: Snippet;
+    /** Actions for the server's state, before **Remove server**. */
+    actions: Snippet;
   } = $props();
 
   const titleId = $props.id();
-  const { store } = useServerScope();
+  const { serverId, store } = useServerScope();
   const serverInfo = store.serverInfo;
 
   const serverName = $derived(serverDisplayName(serverInfo, registration?.name));
   const host = $derived(registration ? serverHost(registration.url) : null);
   const logoUrl = $derived(serverInfo.iconUrl ?? registration?.iconUrl ?? null);
+  function removeServer(): void {
+    pushState('', { modal: { type: 'removeServer', serverId, spaceName: serverName } });
+  }
 </script>
 
 <PageTitle title={serverName} />
@@ -79,6 +96,15 @@ a body text, and renders the caller's details and actions below them.
       <p class="text-muted">{body}</p>
     </div>
 
-    {@render children()}
+    {@render details?.()}
+
+    <div class="flex flex-wrap justify-center gap-2">
+      {@render actions()}
+      {#if removable}
+        <Button variant="danger" onclick={removeServer}>
+          {m('room_list.remove_server')}
+        </Button>
+      {/if}
+    </div>
   </section>
 </div>

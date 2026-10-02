@@ -5,8 +5,11 @@ import type { RegisteredServer } from '@chatto/client/server/registry';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
-  startRemoteReauthentication: vi.fn()
+  startRemoteReauthentication: vi.fn(),
+  pushState: vi.fn()
 }));
+
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -67,5 +70,16 @@ describe('ServerSignedOut', () => {
 
     await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
     await expect.element(page.getByRole('button', { name: 'Log in to this server' })).toBeEnabled();
+  });
+
+  it('opens the remove-server confirmation', async () => {
+    render(ServerSignedOut, { props: { registration } });
+
+    await page.getByRole('button', { name: 'Remove server' }).click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'removeServer', serverId: 'server-1', spaceName: 'Saved Server' }
+    });
+    expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
   });
 });

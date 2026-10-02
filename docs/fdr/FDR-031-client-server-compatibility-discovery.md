@@ -42,7 +42,9 @@ Chatto's pre-1.0 API remains experimental.
   explains the problem, shows the server version and the required version
   when they apply, and has a Check Again action. Check Again runs discovery
   again. When the result is a supported version, the server opens normally.
-  The screen stays visible while a new attempt runs.
+  The screen stays visible while a new attempt runs. For a remote server, the
+  screen also offers **Remove server**, with the same confirmation as the
+  gutter menu. The origin server cannot be removed.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown

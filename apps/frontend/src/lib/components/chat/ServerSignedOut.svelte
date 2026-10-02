@@ -30,11 +30,14 @@ the reconnect notice.
   title={m('chat.server_signed_out.title')}
   body={m('chat.server_signed_out.body')}
   testId="server-signed-out"
+  removable
 >
-  <Button
-    loading={isRemoteSignInPending(registration.id)}
-    onclick={() => void startRemoteSignIn(registration)}
-  >
-    {m('chat.server_gutter.log_in')}
-  </Button>
+  {#snippet actions()}
+    <Button
+      loading={isRemoteSignInPending(registration.id)}
+      onclick={() => void startRemoteSignIn(registration)}
+    >
+      {m('chat.server_gutter.log_in')}
+    </Button>
+  {/snippet}
 </ServerStatusView>

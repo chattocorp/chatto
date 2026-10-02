@@ -258,6 +258,10 @@ describe('server route authentication privacy', () => {
     });
 
     await expect.element(page.getByTestId('server-unavailable')).toBeVisible();
+    // The origin belongs to the deployment and cannot be removed.
+    await expect
+      .element(page.getByRole('button', { name: 'Remove server' }))
+      .not.toBeInTheDocument();
     expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
 
@@ -284,6 +288,7 @@ describe('server route authentication privacy', () => {
 
     await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
     await expect.element(page.getByRole('button', { name: 'Log in to this server' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Remove server' })).toBeVisible();
     expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
   });

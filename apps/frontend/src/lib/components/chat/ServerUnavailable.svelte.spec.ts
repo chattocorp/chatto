@@ -4,6 +4,10 @@ import { page } from 'vitest/browser';
 import { MINIMUM_SUPPORTED_SERVER_VERSION } from '@chatto/client/server/compatibility';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
+const mocks = vi.hoisted(() => ({ pushState: vi.fn() }));
+
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+
 vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
@@ -88,5 +92,30 @@ describe('ServerUnavailable', () => {
 
     settle();
     await expect.element(button).toBeEnabled();
+  });
+
+  it('offers to remove a server that the caller allows to remove', async () => {
+    createTestServerScope({ serverId: 'remote', serverInfo: serverInfo() });
+    render(ServerUnavailable, {
+      props: { reason: 'server-too-old', registration, removable: true, onretry: vi.fn() }
+    });
+
+    await page.getByRole('button', { name: 'Remove server' }).click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'removeServer', serverId: 'remote', spaceName: 'Old Server' }
+    });
+  });
+
+  it('does not offer to remove the origin server', async () => {
+    createTestServerScope({ serverInfo: serverInfo() });
+    render(ServerUnavailable, {
+      props: { reason: 'server-too-old', registration, onretry: vi.fn() }
+    });
+
+    await expect.element(page.getByRole('button', { name: 'Check Again' })).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Remove server' }))
+      .not.toBeInTheDocument();
   });
 });
