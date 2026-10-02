@@ -1,8 +1,9 @@
 /**
- * The frontend's server catalogue: which servers the user added on this
- * device, which server is the origin, and which server to show. The client
- * keeps the servers, their sessions, and their stores; this module adds the
- * frontend's policy on top of the client's public registry API (ADR-112).
+ * The frontend's server catalogue policy: how servers join the catalogue,
+ * which server is the origin, and which server to show. The client keeps the
+ * servers, their sessions, and their stores; this module adds the frontend's
+ * policy on top of the client's public registry API (ADR-112). Until phase 2
+ * of ADR-112, the registry still stores the device-local server list.
  */
 
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';

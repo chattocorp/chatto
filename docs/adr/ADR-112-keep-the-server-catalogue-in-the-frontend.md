@@ -4,8 +4,12 @@
 
 ## Status
 
-Accepted. Amends [ADR-111](ADR-111-move-client-state-into-chatto-client.md).
-Phase 1 is implemented. Phase 2 is planned.
+Accepted. Partially supersedes
+[ADR-111](ADR-111-move-client-state-into-chatto-client.md). Phase 1 is
+implemented. Phase 2 is planned. The server catalogue is the device-local
+list of servers that [ADR-064](ADR-064-separate-server-catalog-and-sessions.md)
+separates from sessions and
+[ADR-074](ADR-074-keep-server-catalogue-device-local.md) keeps on the device.
 
 ## Context
 
@@ -43,7 +47,9 @@ client.
 - The origin cookie session: `originServer`, `isOriginServer`,
   `authenticateOriginCookie`, `clearOriginAuthentication`,
   `settleOriginUnauthenticated`, and `originSignInRequired`. Any browser host
-  on a Chatto origin needs these.
+  on a Chatto origin needs these. `authenticateOriginCookie` still registers
+  the origin when a signed-in cookie session arrives before the origin is
+  registered.
 - Recovery of discovery and of the viewer (`needsRecovery`, `recoverServer`,
   and the runtime's recovery schedule). Bots use it to reconnect.
 - The storage option for sessions (`memory` or `device`), because a
