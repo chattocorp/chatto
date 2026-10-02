@@ -549,6 +549,11 @@ env = {
   CHATTO_VIDEO_ENABLED = "true",
   CHATTO_ASSET_PROCESSING_ENABLED = "true",
   CHATTO_LIVEKIT_ENABLED = "true",
+  # Development-only Web Push keys, the same pair as cli/chatto.toml.
+  CHATTO_PUSH_ENABLED = "true",
+  CHATTO_PUSH_VAPID_PUBLIC_KEY = "BKBVYBi1oSQ0rOjiS86KCNa2VfxnH03kON54RUqm3X7Q2JQMBkspTHlgBo27OV3wfcX36cxVyJ2h2I_Zd4Yz_DI",
+  CHATTO_PUSH_VAPID_PRIVATE_KEY = "rOYtIsUZwE3_91odhvbJX7W6sEFjxCAPeC1FO3CtPEc",
+  CHATTO_PUSH_VAPID_SUBJECT = "mailto:dev@chatto.run",
   CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
   CHATTO_LIVEKIT_WEBHOOK_URL = "http://127.0.0.1:{{env.CHATTO_DEV_PORT_BASE}}/webhooks/livekit",
   CHATTO_LIVEKIT_API_KEY = "devkey",
@@ -623,6 +628,11 @@ env = {
   CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 4}}",
   CHATTO_MCP_ENABLED = "true",
   CHATTO_LIVEKIT_ENABLED = "true",
+  # Development-only Web Push keys, the same pair as cli/chatto.toml.
+  CHATTO_PUSH_ENABLED = "true",
+  CHATTO_PUSH_VAPID_PUBLIC_KEY = "BKBVYBi1oSQ0rOjiS86KCNa2VfxnH03kON54RUqm3X7Q2JQMBkspTHlgBo27OV3wfcX36cxVyJ2h2I_Zd4Yz_DI",
+  CHATTO_PUSH_VAPID_PRIVATE_KEY = "rOYtIsUZwE3_91odhvbJX7W6sEFjxCAPeC1FO3CtPEc",
+  CHATTO_PUSH_VAPID_SUBJECT = "mailto:dev@chatto.run",
   CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
   CHATTO_LIVEKIT_API_KEY = "devkey",
   CHATTO_LIVEKIT_API_SECRET = "compose-only-livekit-secret-change-me",
