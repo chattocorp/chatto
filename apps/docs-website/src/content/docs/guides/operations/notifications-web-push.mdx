@@ -116,11 +116,11 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-When at least one registered server supports push, the Notifications pane shows an action to enable push while browser permission is unset. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings.
+When at least one registered server supports push, the header of the Notifications page shows **Enable push notifications** while browser permission is unset. This is the only place where Chatto asks for permission. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings. The browser permission is the only switch: server notification settings have no push controls.
 
-When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. Chatto also registers servers that become eligible later. Users can review the current state, send a test notification, or find recovery guidance in notification settings. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
+When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. While permission is granted, Chatto also registers servers that the user adds or signs in to later, without asking again. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 
-When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
+A server keeps a device's subscription for 180 days after the device last saved it. While the device uses Chatto, the app saves its subscriptions again when it starts and at most once a day after that. A device that does not open Chatto for 180 days stops receiving pushes until it opens Chatto again. Chatto also removes subscriptions when push providers report them as gone.
 
 Chatto sends regular notifications in a declarative-compatible Web Push format, with browser-managed display and app-badge updates where supported. User-visible pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Its service worker preserves notification display and click compatibility for browsers that do not handle the declarative payload directly.
 
@@ -133,7 +133,7 @@ For security, Chatto connects directly only to absolute HTTPS push endpoints wit
 On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
 
 <Aside type="note">
-  In multi-server use, each remote server registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it. This requires a 0.5 client and server.
+  In multi-server use, each server, including the server that hosts the app, registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it. This requires a 0.5 client and server.
 </Aside>
 
 ## Operator Checklist
@@ -143,7 +143,7 @@ On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safar
 3. Keep the service worker path reachable through your proxy.
 4. Test from a normal member account, not only an owner account.
 5. Test one desktop browser and one mobile installed PWA if mobile push matters.
-6. Explain to members that push is per device and opt-in.
+6. Explain to members that push is per device and opt-in, and that they enable it from the Notifications page.
 
 ## Related Guides
 

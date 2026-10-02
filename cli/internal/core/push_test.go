@@ -375,46 +375,6 @@ func TestSavePushSubscription_LimitsActiveEndpointsPerUser(t *testing.T) {
 	}
 }
 
-func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := context.Background()
-	userID := "push-test-rate-limit-user"
-
-	if err := core.AdmitPushTestNotification(ctx, userID); err != nil {
-		t.Fatalf("first AdmitPushTestNotification: %v", err)
-	}
-	if err := core.AdmitPushTestNotification(ctx, userID); !errors.Is(err, ErrPushTestNotificationRateLimited) {
-		t.Fatalf("second AdmitPushTestNotification error = %v, want ErrPushTestNotificationRateLimited", err)
-	}
-}
-
-func TestGetAllPushSubscriptions(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := context.Background()
-
-	_, err := core.SavePushSubscription(ctx, "push-user-all-a", "https://push.example.com/all-a", "key", "auth", "browser-a")
-	if err != nil {
-		t.Fatalf("SavePushSubscription user A error: %v", err)
-	}
-	_, err = core.SavePushSubscription(ctx, "push-user-all-b", "https://push.example.com/all-b", "key", "auth", "browser-b")
-	if err != nil {
-		t.Fatalf("SavePushSubscription user B error: %v", err)
-	}
-
-	subs, err := core.GetAllPushSubscriptions(ctx)
-	if err != nil {
-		t.Fatalf("GetAllPushSubscriptions error: %v", err)
-	}
-
-	seen := map[string]bool{}
-	for _, sub := range subs {
-		seen[sub.UserID] = true
-	}
-	if !seen["push-user-all-a"] || !seen["push-user-all-b"] {
-		t.Fatalf("GetAllPushSubscriptions missing users; got %#v", seen)
-	}
-}
-
 func TestGetUserPushSubscriptions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()

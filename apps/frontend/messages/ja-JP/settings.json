@@ -265,39 +265,12 @@
     "notifications": {
       "title": "通知",
       "subtitle": "通知の受信方法を設定する",
-      "push": {
-        "title": "プッシュ通知",
-        "not_configured": "このサーバーではプッシュ通知が設定されていません",
-        "not_supported": "このブラウザではプッシュ通知がサポートされていません。",
-        "ios_home_screen_title": "Chatto をホーム画面に追加します",
-        "ios_home_screen_description": "サポートされている iOS/iPadOS バージョンでは、Chatto をホーム画面に追加し、アプリアイコンから開いてプッシュ通知を有効にします。",
-        "blocked_title": "プッシュ通知がブロックされました",
-        "blocked_description": "ブラウザまたは OS 設定で通知を有効にしてから、Chatto を再度開きます。",
-        "enabled_title": "プッシュ通知が有効になりました",
-        "enabled_description": "Chatto はブラウザまたは OS の通知権限をスイッチとして使用します。通知をオフにするには、ブラウザまたは OS の設定でこのサイトの通知を無効にします。",
-        "test_button": "テスト通知を送信します",
-        "testing": "送信中…",
-        "test_sent": "テスト通知が送信されました。",
-        "test_failed": "テスト通知を送信できませんでした。プッシュ通知を再度有効にしてみてください。",
-        "enable_title": "プッシュ通知を有効にする",
-        "enable_description": "Chatto が閉じられているとき、またはバックグラウンドで実行されているときに、新しいメッセージに関する通知を受け取ります。",
-        "enable_button": "有効にする",
-        "enabling": "有効化中...",
-        "blocked_error": "ブラウザまたは OS の設定でプッシュ通知がブロックされています。",
-        "enable_failed": "プッシュ通知を有効にできませんでした。もう一度試してください。",
-        "enable_error": "プッシュ通知を有効にするときにエラーが発生しました"
-      },
       "push_prompt": {
         "title": "プッシュ通知を有効にする",
-        "message": "DM、メンション、返信に関する通知を受け取ります。",
-        "ios_home_screen_title": "Chatto をホーム画面に追加します",
-        "ios_home_screen_message": "サポートされている iOS/iPadOS バージョンでは、プッシュ通知を有効にする前に、ホーム画面アイコンから Chatto を開きます。",
         "enabled": "プッシュ通知が有効になっています",
         "blocked": "ブラウザまたは OS の設定でプッシュ通知がブロックされています",
         "enable_failed": "プッシュ通知を有効にできませんでした",
-        "enabling": "有効化中...",
-        "enable": "有効にする",
-        "dismiss": "いいえ、ありがとう"
+        "enabling": "有効化中..."
       },
       "sound": {
         "title": "通知音",

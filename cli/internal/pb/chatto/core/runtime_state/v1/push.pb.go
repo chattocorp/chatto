@@ -37,7 +37,10 @@ type PushSubscription struct {
 	P256Dh string `protobuf:"bytes,2,opt,name=p256dh,proto3" json:"p256dh,omitempty"`
 	// Authentication secret for message encryption (base64url-encoded)
 	Auth string `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
-	// When this subscription was created
+	// Time of the most recent save. Every save overwrites this value, so it is
+	// the refresh time rather than the first registration time. The record
+	// expires PushSubscriptionLifetime after this time; a record without this
+	// value is expired.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// User agent string (for debugging/device identification)
 	UserAgent string `protobuf:"bytes,5,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`

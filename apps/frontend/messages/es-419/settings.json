@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Notificaciones",
       "subtitle": "Configura cómo recibes notificaciones",
-      "push": {
-        "title": "Notificaciones Push",
-        "not_configured": "Las notificaciones push no están configuradas en este servidor",
-        "not_supported": "Las notificaciones push no son compatibles con este navegador.",
-        "ios_home_screen_title": "Agrega Chatto a tu pantalla de inicio",
-        "ios_home_screen_description": "En las versiones compatibles de iOS/iPadOS, agregue Chatto a la pantalla de inicio y ábrala desde el ícono de la aplicación para habilitar las notificaciones automáticas.",
-        "blocked_title": "Notificaciones push bloqueadas",
-        "blocked_description": "Habilite las notificaciones en su navegador o en la configuración del sistema operativo, luego abra Chatto nuevamente.",
-        "enabled_title": "Notificaciones push habilitadas",
-        "enabled_description": "Chatto utiliza el permiso de notificación de su navegador o sistema operativo como interruptor. Para desactivar las notificaciones, desactívelas para este sitio en su navegador o en la configuración del sistema operativo.",
-        "test_button": "Enviar notificación de prueba",
-        "testing": "Enviando…",
-        "test_sent": "Notificación de prueba enviada.",
-        "test_failed": "No se pudo enviar una notificación de prueba. Intente habilitar las notificaciones automáticas nuevamente.",
-        "enable_title": "Habilitar notificaciones push",
-        "enable_description": "Recibe notificaciones sobre nuevos mensajes mientras Chatto está cerrado o ejecutándose en segundo plano.",
-        "enable_button": "Habilitar",
-        "enabling": "Habilitando...",
-        "blocked_error": "Las notificaciones push están bloqueadas en la configuración de su navegador o sistema operativo.",
-        "enable_failed": "No se pudieron habilitar las notificaciones push. Por favor inténtalo de nuevo.",
-        "enable_error": "Ocurrió un error al habilitar las notificaciones push"
-      },
       "push_prompt": {
         "title": "Habilitar notificaciones push",
-        "message": "Recibe notificaciones sobre mensajes directos, menciones y respuestas.",
-        "ios_home_screen_title": "Agrega Chatto a tu pantalla de inicio",
-        "ios_home_screen_message": "En las versiones compatibles de iOS/iPadOS, abra Chatto desde el ícono de su pantalla de inicio antes de habilitar las notificaciones automáticas.",
         "enabled": "Notificaciones push habilitadas",
         "blocked": "Las notificaciones push están bloqueadas en tu navegador o en la configuración del sistema operativo",
         "enable_failed": "No se pudieron habilitar las notificaciones push",
-        "enabling": "Habilitando...",
-        "enable": "Habilitar",
-        "dismiss": "No, gracias"
+        "enabling": "Habilitando..."
       },
       "sound": {
         "title": "Sonido de notificación",

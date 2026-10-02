@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
@@ -405,53 +404,6 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 
 	logger.Info("Push notifications enabled")
 
-	chattoCore.OnPushTestRequested = func(ctx context.Context, userID string) error {
-		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
-		if err != nil {
-			return err
-		}
-		if len(subscriptions) == 0 {
-			return errors.New("no push subscriptions registered")
-		}
-		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions)
-		if err != nil {
-			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
-		}
-		if len(subscriptions) == 0 {
-			return errors.New("no current push subscriptions registered")
-		}
-		results := sender.SendToManyMapped(ctx, subscriptions, func(subscription *runtimestatev1.PushSubscription) *push.Payload {
-			return &push.Payload{
-				Title: "Test notification",
-				Body:  "Push notifications are working.",
-				URL:   push.NavigationBaseURL(subscription, cfg.Webserver.URL, cfg.Webserver.ServerOrigins()...),
-				Icon:  "/icons/icon-192.png",
-				Badge: "/icons/icon-192.png",
-				Tag:   "push-test",
-			}
-		})
-		var sendErr error
-		accepted := false
-		for _, result := range results {
-			if result.Gone {
-				_ = chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint)
-			}
-			if result.Error == nil && result.Success {
-				accepted = true
-			}
-			if result.Error != nil {
-				sendErr = result.Error
-			}
-		}
-		if accepted {
-			return nil
-		}
-		if sendErr != nil {
-			return sendErr
-		}
-		return errors.New("push provider did not accept the test notification")
-	}
-
 	chattoCore.SetNotificationAlertHandler(notificationAlertHandler(chattoCore, cfg, sender, logger))
 }
 
@@ -533,7 +485,12 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		accepted := false
 		for _, result := range results {
 			if result.Gone {
-				_ = chattoCore.DeletePushSubscription(ctx, occurrence.GetRecipientId(), result.Endpoint)
+				if err := chattoCore.DeletePushSubscription(ctx, occurrence.GetRecipientId(), result.Endpoint); err != nil {
+					logger.Warn("Failed to remove gone push subscription",
+						"user_id", occurrence.GetRecipientId(),
+						"endpoint_hash", push.EndpointLogID(result.Endpoint),
+						"error", err)
+				}
 				continue
 			}
 			if result.Success {

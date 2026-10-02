@@ -92,12 +92,6 @@ async function settle() {
   flushSync();
 }
 
-const originTarget = {
-  serverId: 'origin',
-  userId: 'origin-user',
-  vapidPublicKey: 'origin-vapid'
-};
-
 describe('PushNotificationSetup', () => {
   beforeEach(() => {
     mocks.getPermission.mockReset();
@@ -131,16 +125,32 @@ describe('PushNotificationSetup', () => {
     render(PushNotificationSetup);
     await settle();
 
-    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith([originTarget]);
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith();
     expect(serviceWorker.addEventListener).toHaveBeenCalledWith(
       'controllerchange',
       expect.any(Function)
     );
 
+    // A new app version saves every server, which also updates their workers.
     serviceWorker.dispatchControllerChange();
     await settle();
 
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledTimes(2);
+    expect(mocks.refreshPushSubscriptions).toHaveBeenLastCalledWith({ force: true });
+  });
+
+  it('checks for subscriptions that are due for a refresh when the window gets focus', async () => {
+    installServiceWorkerStub();
+    render(PushNotificationSetup);
+    await settle();
+    mocks.refreshPushSubscriptions.mockClear();
+
+    window.dispatchEvent(new FocusEvent('focus'));
+    await settle();
+
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith();
   });
 
   it('does not reconcile when push is not configured', async () => {
@@ -165,13 +175,7 @@ describe('PushNotificationSetup', () => {
     userPreferences.composerEditor = 'visual';
     await settle();
 
-    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith([
-      {
-        serverId: 'remote',
-        userId: 'remote-user',
-        vapidPublicKey: 'remote-vapid'
-      }
-    ]);
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
   });
 
   it('reconciles authenticated remote servers independently', async () => {
@@ -182,12 +186,6 @@ describe('PushNotificationSetup', () => {
     render(PushNotificationSetup);
     await settle();
 
-    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith([
-      {
-        serverId: 'remote',
-        userId: 'remote-user',
-        vapidPublicKey: 'remote-vapid'
-      }
-    ]);
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
   });
 });

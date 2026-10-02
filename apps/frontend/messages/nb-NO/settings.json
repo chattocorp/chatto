@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Varsler",
       "subtitle": "Konfigurer hvordan du mottar varsler",
-      "push": {
-        "title": "Push-varsler",
-        "not_configured": "Push-varsler er ikke konfigurert på denne serveren",
-        "not_supported": "Push-varsler støttes ikke i denne nettleseren.",
-        "ios_home_screen_title": "Legg til Chatto på startskjermen",
-        "ios_home_screen_description": "På støttede versjoner av iOS/iPadOS legger du til Chatto på startskjermen og åpner den fra appikonet for å aktivere push-varslinger.",
-        "blocked_title": "Push-varsler blokkert",
-        "blocked_description": "Aktiver varsler i nettleseren eller OS-innstillingene, og åpne Chatto igjen.",
-        "enabled_title": "Push-varsler aktivert",
-        "enabled_description": "Chatto bruker nettleser- eller OS-varslingstillatelsen din som bryter. For å slå av varsler, deaktiver dem for dette nettstedet i nettleseren eller OS-innstillingene.",
-        "test_button": "Send testvarsel",
-        "testing": "Sender …",
-        "test_sent": "Testvarsel er sendt.",
-        "test_failed": "Kunne ikke sende et testvarsel. Prøv å aktivere push-varsler igjen.",
-        "enable_title": "Aktiver push-varsler",
-        "enable_description": "Bli varslet om nye meldinger mens Chatto er lukket eller kjører i bakgrunnen.",
-        "enable_button": "Aktiver",
-        "enabling": "Aktiverer...",
-        "blocked_error": "Push-varsler er blokkert i nettleseren eller OS-innstillingene.",
-        "enable_failed": "Kunne ikke aktivere push-varsler. Vennligst prøv igjen.",
-        "enable_error": "Det oppstod en feil under aktivering av push-varsler"
-      },
       "push_prompt": {
         "title": "Aktiver push-varsler",
-        "message": "Bli varslet om DM, omtaler og svar.",
-        "ios_home_screen_title": "Legg til Chatto på startskjermen",
-        "ios_home_screen_message": "På støttede versjoner av iOS/iPadOS åpner du Chatto fra startskjermikonet før du aktiverer push-varsler.",
         "enabled": "Push-varsler aktivert",
         "blocked": "Push-varsler er blokkert i nettleseren eller OS-innstillingene",
         "enable_failed": "Kunne ikke aktivere push-varsler",
-        "enabling": "Aktiverer...",
-        "enable": "Aktiver",
-        "dismiss": "Nei takk"
+        "enabling": "Aktiverer..."
       },
       "sound": {
         "title": "Varslingslyd",

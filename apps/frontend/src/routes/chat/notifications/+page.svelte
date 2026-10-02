@@ -76,7 +76,6 @@
   let loadingMore = $state(false);
   let loadMoreError = $state(false);
   let dismissingRead = $state(false);
-  let pushPermission = $state<NotificationPermission | null>(getPermission());
   let enablingPush = $state(false);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasPendingMutation = $derived(pendingMutationKeys.size > 0);
@@ -116,9 +115,12 @@
     )
   );
   const readOccurrenceBatches = $derived.by(readOccurrencesByServer);
+  // The only place where Chatto asks for notification permission. Permission
+  // and targets are both reactive, so the action follows grants and denials
+  // from other tabs or browser settings, and servers that load after mount.
   const showEnablePush = $derived(
     getPushCapability() === 'supported' &&
-      pushPermission === 'default' &&
+      getPermission() === 'default' &&
       getPushRegistrationTargets().length > 0
   );
 
@@ -487,7 +489,6 @@
     enablingPush = true;
     try {
       const result = await enablePushOnAllServers();
-      pushPermission = result.permission;
       if (result.permission === 'denied') {
         toast.error(m('settings.notifications.push_prompt.blocked'));
       } else if (

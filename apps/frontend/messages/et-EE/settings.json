@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Seadistage teatiste saamise viis",
-      "push": {
-        "title": "Tõukemärguanded",
-        "not_configured": "Tõukemärguanded pole selles serveris konfigureeritud",
-        "not_supported": "See brauser ei toeta tõukemärguandeid.",
-        "ios_home_screen_title": "Lisage Chatto oma avakuvale",
-        "ios_home_screen_description": "Toetatud iOS-i/iPadOS-i versioonides lisage Chatto avakuvale ja avage see tõukemärguannete lubamiseks rakenduse ikooni kaudu.",
-        "blocked_title": "Tõukemärguanded on blokeeritud",
-        "blocked_description": "Lubage oma brauseris või OS-i seadetes märguanded, seejärel avage Chatto uuesti.",
-        "enabled_title": "Tõukemärguanded on lubatud",
-        "enabled_description": "Chatto kasutab lülitina teie brauseri või OS-i teavitusluba. Märguannete väljalülitamiseks keelake need sellel saidil oma brauseris või OS-i seadetes.",
-        "test_button": "Saada testiteade",
-        "testing": "Saatmine…",
-        "test_sent": "Testiteatis saadetud.",
-        "test_failed": "Testi teatist ei saanud saata. Proovige tõukemärguanded uuesti lubada.",
-        "enable_title": "Luba tõukemärguanded",
-        "enable_description": "Saate märguandeid uute sõnumite kohta, kui Chatto on suletud või töötab taustal.",
-        "enable_button": "Luba",
-        "enabling": "Lubamine...",
-        "blocked_error": "Tõukemärguanded on teie brauseris või OS-i seadetes blokeeritud.",
-        "enable_failed": "Tõukemärguannete lubamine ebaõnnestus. Palun proovi uuesti.",
-        "enable_error": "Tõukemärguannete lubamisel ilmnes viga"
-      },
       "push_prompt": {
         "title": "Luba tõukemärguanded",
-        "message": "Saate märguandeid DM-ide, mainimiste ja vastuste kohta.",
-        "ios_home_screen_title": "Lisage Chatto oma avakuvale",
-        "ios_home_screen_message": "Toetatud iOS-i/iPadOS-i versioonides avage Chatto selle avaekraani ikoonil enne tõukemärguannete lubamist.",
         "enabled": "Tõukemärguanded on lubatud",
         "blocked": "Tõukemärguanded on teie brauseris või OS-i seadetes blokeeritud",
         "enable_failed": "Tõukemärguannete lubamine ebaõnnestus",
-        "enabling": "Lubamine...",
-        "enable": "Luba",
-        "dismiss": "Ei aitäh"
+        "enabling": "Lubamine..."
       },
       "sound": {
         "title": "Teavitusheli",

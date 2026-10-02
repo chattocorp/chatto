@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Configureer hoe u meldingen ontvangt",
-      "push": {
-        "title": "Pushmeldingen",
-        "not_configured": "Pushmeldingen zijn niet geconfigureerd op deze server",
-        "not_supported": "Pushmeldingen worden niet ondersteund in deze browser.",
-        "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
-        "ios_home_screen_description": "Voeg op ondersteunde iOS/iPadOS-versies Chatto toe aan het startscherm en open het via het app-pictogram om pushmeldingen in te schakelen.",
-        "blocked_title": "Pushmeldingen geblokkeerd",
-        "blocked_description": "Schakel meldingen in uw browser of OS-instellingen in en open Chatto vervolgens opnieuw.",
-        "enabled_title": "Pushmeldingen ingeschakeld",
-        "enabled_description": "Chatto gebruikt de toestemming voor meldingen van uw browser of besturingssysteem als schakelaar. Als u meldingen wilt uitschakelen, schakelt u ze voor deze site uit in uw browser- of besturingssysteeminstellingen.",
-        "test_button": "Testmelding verzenden",
-        "testing": "Verzenden…",
-        "test_sent": "Testmelding verzonden.",
-        "test_failed": "Kan geen testmelding verzenden. Probeer pushmeldingen opnieuw in te schakelen.",
-        "enable_title": "Schakel pushmeldingen in",
-        "enable_description": "Ontvang meldingen over nieuwe berichten terwijl Chatto gesloten is of op de achtergrond actief is.",
-        "enable_button": "Inschakelen",
-        "enabling": "Aanzetten...",
-        "blocked_error": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen.",
-        "enable_failed": "Kan pushmeldingen niet inschakelen. Probeer het opnieuw.",
-        "enable_error": "Er is een fout opgetreden bij het inschakelen van pushmeldingen"
-      },
       "push_prompt": {
         "title": "Schakel pushmeldingen in",
-        "message": "Ontvang meldingen over DM's, vermeldingen en antwoorden.",
-        "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
-        "ios_home_screen_message": "Op ondersteunde iOS/iPadOS-versies opent u Chatto via het startschermpictogram voordat u pushmeldingen inschakelt.",
         "enabled": "Pushmeldingen ingeschakeld",
         "blocked": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen",
         "enable_failed": "Kan pushmeldingen niet inschakelen",
-        "enabling": "Aanzetten...",
-        "enable": "Inschakelen",
-        "dismiss": "Nee bedankt"
+        "enabling": "Aanzetten..."
       },
       "sound": {
         "title": "Meldingsgeluid",

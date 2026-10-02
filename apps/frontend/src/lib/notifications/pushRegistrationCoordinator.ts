@@ -1,6 +1,11 @@
 type RegistrationOperation = (signal: AbortSignal) => Promise<boolean>;
 type CleanupOperation = () => Promise<void>;
-type CrossTabSuspension = 'disabled' | 'leaving';
+/**
+ * Sign-out or server removal in progress. Earlier versions also stored
+ * `disabled`; that value no longer suspends registration because browser
+ * permission is now the only push opt-in.
+ */
+type CrossTabSuspension = 'leaving';
 type CrossTabSuspensionState = {
   available: boolean;
   suspension: CrossTabSuspension | null;
@@ -56,7 +61,7 @@ function crossTabSuspensionState(serverId: string): CrossTabSuspensionState {
     const value = storage.getItem(crossTabSuspensionKey(serverId));
     return {
       available: true,
-      suspension: value === 'disabled' || value === 'leaving' ? value : null
+      suspension: value === 'leaving' ? value : null
     };
   } catch {
     return { available: false, suspension: null };
@@ -97,7 +102,7 @@ function ensureCrossTabCoordination(): void {
   if (!storageListenerInstalled && typeof window.addEventListener === 'function') {
     window.addEventListener('storage', (event) => {
       if (event.key?.startsWith(crossTabSuspensionKeyPrefix)) {
-        if (event.newValue !== 'disabled' && event.newValue !== 'leaving') return;
+        if (event.newValue !== 'leaving') return;
         const serverId = event.key.slice(crossTabSuspensionKeyPrefix.length);
         if (serverId) suspendLocally(serverId, true);
       } else if (event.key?.startsWith(crossTabRefreshKeyPrefix) && event.newValue) {
@@ -230,17 +235,6 @@ export function enqueuePushRegistration(
   });
 }
 
-/** Cancels queued registration and runs cleanup after any active registration. */
-export function suspendPushRegistration(
-  serverId: string,
-  cleanup: CleanupOperation
-): Promise<void> {
-  const crossTabPersisted = setCrossTabSuspension(serverId, 'disabled');
-  suspendLocally(serverId, crossTabPersisted);
-  broadcastSuspension(serverId, crossTabPersisted);
-  return enqueue(serverId, cleanup);
-}
-
 /** Persists suspension across same-origin tabs before sign-out or removal. */
 export function suspendPushRegistrationBeforeLeaving(
   serverId: string,
@@ -265,17 +259,9 @@ export function shouldInvalidateCancelledPushRegistration(serverId: string): boo
   return local !== undefined && (!local.crossTabPersisted || !shared.available);
 }
 
-/** Allows registration again after a new authenticated session is installed. */
-export function resumePushRegistration(serverId: string): void {
-  if (crossTabSuspension(serverId) === 'disabled') {
-    setCrossTabSuspension(serverId, null);
-  }
-  suspendedServers.delete(serverId);
-  registrationEpochs.set(serverId, epoch(serverId) + 1);
-}
-
 /** Clears cross-tab sign-out suspension once new authentication is installed. */
 export function resumePushRegistrationAfterAuthentication(serverId: string): void {
   setCrossTabSuspension(serverId, null);
-  resumePushRegistration(serverId);
+  suspendedServers.delete(serverId);
+  registrationEpochs.set(serverId, epoch(serverId) + 1);
 }

@@ -50,11 +50,6 @@ export function createPushNotificationAPI(config: ConnectAPIConfig) {
     ): Promise<boolean> {
       await cleanupClient.deleteSubscription({ endpoint, auth, cleanupToken });
       return true;
-    },
-
-    async sendTestNotification(): Promise<boolean> {
-      await client.sendTestNotification({});
-      return true;
     }
   };
 }

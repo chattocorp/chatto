@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Nakonfigurujte způsob přijímání oznámení",
-      "push": {
-        "title": "Push oznámení",
-        "not_configured": "Push notifikace nejsou na tomto serveru nakonfigurovány",
-        "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
-        "ios_home_screen_title": "Přidejte si Chatto na svou domovskou obrazovku",
-        "ios_home_screen_description": "Na podporovaných verzích iOS/iPadOS přidejte Chatto na domovskou obrazovku a otevřete ji z ikony aplikace, abyste povolili oznámení push.",
-        "blocked_title": "Push oznámení jsou blokována",
-        "blocked_description": "Povolte oznámení v nastavení prohlížeče nebo operačního systému a poté znovu otevřete Chatto.",
-        "enabled_title": "Push notifikace povolena",
-        "enabled_description": "Chatto používá jako přepínač oprávnění k oznámení vašeho prohlížeče nebo operačního systému. Chcete-li oznámení vypnout, zakažte je pro tento web v nastavení prohlížeče nebo operačního systému.",
-        "test_button": "Odeslat testovací oznámení",
-        "testing": "Odesílání…",
-        "test_sent": "Oznámení o testu odesláno.",
-        "test_failed": "Nelze odeslat testovací oznámení. Zkuste znovu aktivovat oznámení push.",
-        "enable_title": "Povolit push oznámení",
-        "enable_description": "Dostávejte upozornění na nové zprávy, když je Chatto zavřeno nebo spuštěno na pozadí.",
-        "enable_button": "Povolit",
-        "enabling": "Povolení...",
-        "blocked_error": "Oznámení push jsou blokována v nastavení prohlížeče nebo operačního systému.",
-        "enable_failed": "Nepodařilo se aktivovat oznámení push. Zkuste to prosím znovu.",
-        "enable_error": "Při povolování oznámení push došlo k chybě"
-      },
       "push_prompt": {
         "title": "Povolit push oznámení",
-        "message": "Získejte upozornění na DM, zmínky a odpovědi.",
-        "ios_home_screen_title": "Přidejte si Chatto na svou domovskou obrazovku",
-        "ios_home_screen_message": "Na podporovaných verzích iOS/iPadOS otevřete Chatto z jeho ikony na domovské obrazovce, než povolíte oznámení push.",
         "enabled": "Push notifikace povolena",
         "blocked": "Oznámení push jsou blokována v nastavení prohlížeče nebo operačního systému",
         "enable_failed": "Nepodařilo se aktivovat oznámení push",
-        "enabling": "Povolení...",
-        "enable": "Povolit",
-        "dismiss": "Ne, děkuji"
+        "enabling": "Povolení..."
       },
       "sound": {
         "title": "Zvuk upozornění",

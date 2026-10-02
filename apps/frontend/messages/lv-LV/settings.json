@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Paziņojumi",
       "subtitle": "Konfigurējiet paziņojumu saņemšanas veidu",
-      "push": {
-        "title": "Push paziņojumi",
-        "not_configured": "Push paziņojumi šajā serverī nav konfigurēti",
-        "not_supported": "Push paziņojumi šajā pārlūkprogrammā netiek atbalstīti.",
-        "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
-        "ios_home_screen_description": "Atbalstītās iOS/iPadOS versijās sākuma ekrānam pievienojiet Chatto un atveriet to no lietotnes ikonas, lai iespējotu informatīvos paziņojumus.",
-        "blocked_title": "Push paziņojumi ir bloķēti",
-        "blocked_description": "Iespējojiet paziņojumus savā pārlūkprogrammā vai OS iestatījumos, pēc tam vēlreiz atveriet Chatto.",
-        "enabled_title": "Push paziņojumi ir iespējoti",
-        "enabled_description": "Chatto kā slēdzi izmanto jūsu pārlūkprogrammas vai OS paziņojumu atļauju. Lai izslēgtu paziņojumus, pārlūkprogrammas vai OS iestatījumos atspējojiet tos šai vietnei.",
-        "test_button": "Nosūtiet testa paziņojumu",
-        "testing": "Notiek sūtīšana…",
-        "test_sent": "Testa paziņojums nosūtīts.",
-        "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz iespējot pašpiegādes paziņojumus.",
-        "enable_title": "Iespējot push paziņojumus",
-        "enable_description": "Saņemiet paziņojumus par jauniem ziņojumiem, kamēr Chatto ir aizvērts vai darbojas fonā.",
-        "enable_button": "Iespējot",
-        "enabling": "Notiek iespējošana...",
-        "blocked_error": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos.",
-        "enable_failed": "Neizdevās iespējot push paziņojumus. Lūdzu, mēģiniet vēlreiz.",
-        "enable_error": "Iespējojot pašpiegādes paziņojumus, radās kļūda"
-      },
       "push_prompt": {
         "title": "Iespējot push paziņojumus",
-        "message": "Saņemiet paziņojumus par DM, pieminējumiem un atbildēm.",
-        "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
-        "ios_home_screen_message": "Atbalstītās iOS/iPadOS versijās pirms informatīvo paziņojumu iespējošanas atveriet Chatto no tās sākuma ekrāna ikonas.",
         "enabled": "Push paziņojumi ir iespējoti",
         "blocked": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos",
         "enable_failed": "Neizdevās iespējot push paziņojumus",
-        "enabling": "Notiek iespējošana...",
-        "enable": "Iespējot",
-        "dismiss": "Nē, paldies"
+        "enabling": "Notiek iespējošana..."
       },
       "sound": {
         "title": "Paziņojuma skaņa",

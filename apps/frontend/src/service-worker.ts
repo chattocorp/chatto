@@ -270,19 +270,20 @@ async function refreshVisibleAppBadges(): Promise<void> {
  */
 self.addEventListener('push', (event) => {
   const declarativeNotification = (event as PushEventWithDeclarativeNotification).notification;
-  let payload: DeclarativePushPayload;
+  // Subscriptions promise to show a notification for every push. An unreadable
+  // push still shows a generic notification instead of the browser's own
+  // "updated in the background" fallback.
+  let payload: DeclarativePushPayload = {};
   if (event.data) {
     try {
       payload = event.data.json() as DeclarativePushPayload;
     } catch {
       console.error('Failed to parse push payload');
-      return;
     }
   } else if (declarativeNotification) {
     payload = declarativePayloadFromEventNotification(declarativeNotification);
   } else {
     console.warn('Push event received with no data or declarative notification');
-    return;
   }
 
   const notification = normalizePushNotification(payload);

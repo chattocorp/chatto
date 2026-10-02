@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Bildirimler",
       "subtitle": "Bildirimleri nasıl alacağınızı yapılandırın",
-      "push": {
-        "title": "Anında Bildirimler",
-        "not_configured": "Anında bildirimler bu sunucuda yapılandırılmamış",
-        "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
-        "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
-        "ios_home_screen_description": "Desteklenen iOS/ıpados sürümlerinde, Ana Ekrana Chatto ekleyin ve anında bildirimleri etkinleştirmek için uygulama simgesinden açın.",
-        "blocked_title": "Anlık bildirimler engellendi",
-        "blocked_description": "Tarayıcınızda veya işletim sistemi ayarlarınızda bildirimleri etkinleştirin, ardından Chatto'yi tekrar açın.",
-        "enabled_title": "Anında bildirimler etkinleştirildi",
-        "enabled_description": "Chatto anahtar olarak tarayıcınızı veya işletim sistemi bildirim izninizi kullanır. Bildirimleri kapatmak için tarayıcınızda veya işletim sistemi ayarlarınızda bu site için bildirimleri devre dışı bırakın.",
-        "test_button": "Test bildirimi gönder",
-        "testing": "Gönderiliyor…",
-        "test_sent": "Test bildirimi gönderildi.",
-        "test_failed": "Test bildirimi gönderilemedi. Anlık bildirimleri tekrar etkinleştirmeyi deneyin.",
-        "enable_title": "Anlık bildirimleri etkinleştir",
-        "enable_description": "Chatto kapalıyken veya arka planda çalışırken yeni mesajlar hakkında bildirim alın.",
-        "enable_button": "Etkinleştir",
-        "enabling": "Etkinleştiriliyor...",
-        "blocked_error": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellenir.",
-        "enable_failed": "Anlık bildirimler etkinleştirilemedi. Lütfen tekrar deneyin.",
-        "enable_error": "Anlık bildirimler etkinleştirilirken bir hata oluştu"
-      },
       "push_prompt": {
         "title": "Anlık bildirimleri etkinleştir",
-        "message": "DM'ler, bahsetmeler ve yanıtlar hakkında bildirim alın.",
-        "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
-        "ios_home_screen_message": "Desteklenen iOS/ıpados sürümlerinde, anında bildirimleri etkinleştirmeden önce Ana Ekran simgesinden Chatto öğesini açın.",
         "enabled": "Anında bildirimler etkinleştirildi",
         "blocked": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellendi",
         "enable_failed": "Anlık bildirimler etkinleştirilemedi",
-        "enabling": "Etkinleştiriliyor...",
-        "enable": "Etkinleştir",
-        "dismiss": "Hayır teşekkürler"
+        "enabling": "Etkinleştiriliyor..."
       },
       "sound": {
         "title": "Bildirim Sesi",

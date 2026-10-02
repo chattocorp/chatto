@@ -265,39 +265,12 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Configurez la façon dont vous recevez les notifications",
-      "push": {
-        "title": "Notifications poussées",
-        "not_configured": "Les notifications push ne sont pas configurées sur ce serveur",
-        "not_supported": "Les notifications push ne sont pas prises en charge dans ce navigateur.",
-        "ios_home_screen_title": "Ajoutez Chatto à votre écran d'accueil",
-        "ios_home_screen_description": "Sur les versions iOS/iPadOS prises en charge, ajoutez Chatto à l'écran d'accueil et ouvrez-le à partir de l'icône de l'application pour activer les notifications push.",
-        "blocked_title": "Notifications push bloquées",
-        "blocked_description": "Activez les notifications dans les paramètres de votre navigateur ou de votre système d'exploitation, puis ouvrez à nouveau Chatto.",
-        "enabled_title": "Notifications push activées",
-        "enabled_description": "Chatto utilise l'autorisation de notification de votre navigateur ou de votre système d'exploitation comme commutateur. Pour désactiver les notifications, désactivez-les pour ce site dans les paramètres de votre navigateur ou de votre système d'exploitation.",
-        "test_button": "Envoyer une notification de test",
-        "testing": "Envoi en cours…",
-        "test_sent": "Notification de test envoyée.",
-        "test_failed": "Impossible d'envoyer une notification de test. Essayez à nouveau d'activer les notifications push.",
-        "enable_title": "Activer les notifications push",
-        "enable_description": "Soyez averti des nouveaux messages lorsque Chatto est fermé ou exécuté en arrière-plan.",
-        "enable_button": "Activer",
-        "enabling": "Activation...",
-        "blocked_error": "Les notifications push sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation.",
-        "enable_failed": "Échec de l'activation des notifications push. Veuillez réessayer.",
-        "enable_error": "Une erreur s'est produite lors de l'activation des notifications push"
-      },
       "push_prompt": {
         "title": "Activer les notifications push",
-        "message": "Soyez informé des DM, des mentions et des réponses.",
-        "ios_home_screen_title": "Ajoutez Chatto à votre écran d'accueil",
-        "ios_home_screen_message": "Sur les versions iOS/iPadOS prises en charge, ouvrez Chatto à partir de son icône sur l'écran d'accueil avant d'activer les notifications push.",
         "enabled": "Notifications push activées",
         "blocked": "Les notifications push sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation",
         "enable_failed": "Échec de l'activation des notifications push",
-        "enabling": "Activation...",
-        "enable": "Activer",
-        "dismiss": "Non merci"
+        "enabling": "Activation..."
       },
       "sound": {
         "title": "Son de notification",
