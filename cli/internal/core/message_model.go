@@ -508,8 +508,8 @@ func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypa
 // UpdateMessage edits an existing message. Authorization: actor must be a room
 // member and authorized to read the message. Authors may edit their own
 // messages within the core edit window. Effective message.manage bypasses the
-// window and permits edits to other authors' messages. Changing a thread
-// reply's room-timeline echo can be removed by the author or with effective
+// window and permits edits to other authors' messages. A thread reply's
+// room-timeline echo can be removed by the author or with effective
 // message.manage. Enabling the echo is author-only and additionally requires
 // message.echo and message.post.
 func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*evtv1.Event, RoomKind, error) {
