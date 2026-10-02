@@ -462,7 +462,7 @@ func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	}
 }
 
-func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
+func TestOneSourceFactSelectsOneSignalPerRecipient(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "signal-author", "Signal Author", "password")
@@ -497,22 +497,8 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 		t.Fatal(err)
 	}
 	occurrences := testNotificationOccurrences(t, chattoCore, recipient.Id)
-	if len(occurrences) != 3 {
-		t.Fatalf("occurrences = %+v, want three exact signals", occurrences)
-	}
-	kinds := []notificationTestSignalKind{
-		notificationTestSignalKind(notificationSignalIdentity(occurrences[0].GetSignal())),
-		notificationTestSignalKind(notificationSignalIdentity(occurrences[1].GetSignal())),
-		notificationTestSignalKind(notificationSignalIdentity(occurrences[2].GetSignal())),
-	}
-	slices.Sort(kinds)
-	want := []notificationTestSignalKind{
-		notificationTestSignalAll,
-		notificationTestSignalDirectMention,
-		notificationTestSignalRoomMessage,
-	}
-	if !slices.Equal(kinds, want) || occurrences[0].GetSourceEventId() != posted.GetId() || occurrences[0].GetId() == occurrences[1].GetId() {
-		t.Fatalf("signal kinds/identities = (%v, %+v)", kinds, occurrences)
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != posted.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
+		t.Fatalf("occurrences = %+v, want one direct mention", occurrences)
 	}
 }
 
