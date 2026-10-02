@@ -85,8 +85,8 @@
     "prepack": "node -e \"for (const file of ['dist/src/runtime/index.js', 'dist/src/runtime/index.d.ts', 'dist/web/handler.js']) { if (!require('node:fs').existsSync(file)) throw new Error('Run pnpm build before packing Runling'); }\""
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.4",
-    "@earendil-works/pi-tui": "0.84.4",
+    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@earendil-works/pi-tui": "1.0.0",
     "@standard-schema/spec": "^1.1.0",
     "ajv": "^8.20.0",
     "chokidar": "^5.0.0",
