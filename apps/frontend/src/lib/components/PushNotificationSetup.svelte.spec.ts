@@ -195,6 +195,8 @@ describe('PushNotificationSetup', () => {
 
       // Synthetic events are untrusted and cannot grant activation.
       window.dispatchEvent(new MouseEvent('click'));
+      // Modifier keys do not grant activation in these browsers.
+      await userEvent.keyboard('{Shift}');
       expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
 
       await userEvent.click(document.body);

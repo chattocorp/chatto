@@ -42,16 +42,19 @@ Include this component once in the chat root.
 
   /**
    * Whether the page has user activation. Browsers without the User
-   * Activation API, such as Firefox before 120, count a trusted interaction
-   * event other than Escape.
+   * Activation API, such as Firefox before 120, count only a trusted click or
+   * a trusted press of a printable key or Enter: modifier keys and Escape do
+   * not grant activation there.
    */
   function hasUserActivation(event?: Event): boolean {
     if (navigator.userActivation) return navigator.userActivation.isActive;
-    return event?.isTrusted === true && !(event instanceof KeyboardEvent && event.key === 'Escape');
+    if (event?.isTrusted !== true) return false;
+    if (event instanceof KeyboardEvent) return event.key.length === 1 || event.key === 'Enter';
+    return true;
   }
 
   function requestOnInteraction(event: Event): void {
-    // Keys such as Escape do not grant user activation; wait for one that does.
+    // Keys such as Escape or Shift do not grant user activation; wait for one that does.
     if (!awaitingInteraction || !hasUserActivation(event)) return;
     awaitingInteraction = false;
     if (getPermission() === 'default') void enablePushOnAllServers();
