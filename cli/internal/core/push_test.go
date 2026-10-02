@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestPushSubscriptionKey(t *testing.T) {
@@ -604,7 +605,14 @@ func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
 	ctx := context.Background()
 	userID := "push-legacy-user"
 	endpoint := "https://push.example.com/legacy-unclaimed"
-	data, err := proto.Marshal(&runtimestatev1.PushSubscription{Endpoint: endpoint, P256Dh: "key", Auth: "auth"})
+	// Every version has written created_at, so a legacy record is unexpired and
+	// only its missing owner claim keeps it inactive.
+	data, err := proto.Marshal(&runtimestatev1.PushSubscription{
+		Endpoint:  endpoint,
+		P256Dh:    "key",
+		Auth:      "auth",
+		CreatedAt: timestamppb.Now(),
+	})
 	if err != nil {
 		t.Fatalf("marshal legacy subscription: %v", err)
 	}
@@ -619,6 +627,8 @@ func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
 	if len(subscriptions) != 0 {
 		t.Fatalf("unclaimed legacy subscription should be inactive, got %d", len(subscriptions))
 	}
+	// Inactive is not expired: the record stays until the browser registers again.
+	requirePushKeyPresence(t, core, pushSubscriptionKey(userID, endpoint), true)
 }
 
 func TestConcurrentPushEndpointOwnershipClaimsHaveOneWinner(t *testing.T) {

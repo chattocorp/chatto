@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 )
 
 // setPushClock pins the push-subscription clock of core to the value that the
@@ -176,4 +180,28 @@ func TestExpiredPushSubscriptionRemovalKeepsRefreshedRecord(t *testing.T) {
 	if len(subs) != 1 {
 		t.Fatalf("subscriptions after stale removal = %d, want the refreshed record", len(subs))
 	}
+}
+
+func TestPushSubscriptionWithoutSaveTimeIsRemoved(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-no-save-time-user"
+	endpoint := "https://push.example.com/no-save-time"
+	key := pushSubscriptionKey(userID, endpoint)
+	data, err := proto.Marshal(&runtimestatev1.PushSubscription{Endpoint: endpoint, P256Dh: "key", Auth: "auth"})
+	if err != nil {
+		t.Fatalf("marshal subscription: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Put(ctx, key, data); err != nil {
+		t.Fatalf("store subscription: %v", err)
+	}
+
+	subs, err := core.GetUserPushSubscriptions(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPushSubscriptions: %v", err)
+	}
+	if len(subs) != 0 {
+		t.Fatalf("subscriptions = %d, want 0", len(subs))
+	}
+	requirePushKeyPresence(t, core, key, false)
 }
