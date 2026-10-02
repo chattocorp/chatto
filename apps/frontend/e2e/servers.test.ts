@@ -115,7 +115,7 @@ test.describe('Leave Server', () => {
     await page.getByRole('menuitem', { name: 'Sign out of this server' }).click();
 
     await expect(page).toHaveURL(/\/chat\/-/);
-    await expect(remoteSidebarIcon).toHaveAttribute('title', /Sign in to reconnect/, {
+    await expect(remoteSidebarIcon).toHaveAttribute('title', /needs sign-in/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
     try {
