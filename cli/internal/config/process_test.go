@@ -99,7 +99,7 @@ func TestSearchProviderLanguagesDefaultAndExplicitEmpty(t *testing.T) {
 	}
 }
 
-func TestAssetProcessingEnabledIsIndependentFromVideoUploads(t *testing.T) {
+func TestAssetProcessingEnabledFollowsVideoEnabled(t *testing.T) {
 	tests := []struct {
 		name                string
 		toml                string
@@ -107,15 +107,21 @@ func TestAssetProcessingEnabledIsIndependentFromVideoUploads(t *testing.T) {
 		wantAssetProcessing bool
 	}{
 		{
-			name:                "uploads only",
+			name:                "video enabled automatically enables asset processing",
 			toml:                "[video]\nenabled = true\n",
 			wantVideoUploads:    true,
-			wantAssetProcessing: false,
+			wantAssetProcessing: true,
 		},
 		{
 			name:                "worker only",
 			toml:                "[asset_processing]\nenabled = true\n",
 			wantVideoUploads:    false,
+			wantAssetProcessing: true,
+		},
+		{
+			name:                "video and worker both enabled",
+			toml:                "[video]\nenabled = true\n[asset_processing]\nenabled = true\n",
+			wantVideoUploads:    true,
 			wantAssetProcessing: true,
 		},
 	}
@@ -128,6 +134,7 @@ func TestAssetProcessingEnabledIsIndependentFromVideoUploads(t *testing.T) {
 			if cfg.Video.Enabled != test.wantVideoUploads {
 				t.Fatalf("video.enabled = %v, want %v", cfg.Video.Enabled, test.wantVideoUploads)
 			}
+			cfg.ApplyDefaults()
 			if cfg.AssetProcessing.Enabled != test.wantAssetProcessing {
 				t.Fatalf("asset_processing.enabled = %v, want %v", cfg.AssetProcessing.Enabled, test.wantAssetProcessing)
 			}
