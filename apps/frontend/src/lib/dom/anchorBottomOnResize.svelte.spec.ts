@@ -46,8 +46,7 @@ describe('anchorBottomOnResize', () => {
   });
 
   it('keeps the bottom edge in place for a scrolled-up reader', async () => {
-    const onAdjust = vi.fn();
-    const scroller = mountScroller({ followsBottom: () => false, onAdjust });
+    const scroller = mountScroller({ followsBottom: () => false });
     scroller.scrollTop = 600;
     await nextFrames();
     const distance = distanceFromBottom(scroller);
@@ -55,10 +54,24 @@ describe('anchorBottomOnResize', () => {
     scroller.style.height = '150px';
     await vi.waitFor(() => expect(scroller.scrollTop).toBe(850));
     expect(distanceFromBottom(scroller)).toBe(distance);
-    expect(onAdjust).toHaveBeenCalled();
 
     scroller.style.height = '400px';
     await vi.waitFor(() => expect(scroller.scrollTop).toBe(600));
+  });
+
+  it('keeps the distance when the browser clamps a scroller that gets taller', async () => {
+    const scroller = mountScroller({ followsBottom: () => false });
+    scroller.style.height = '150px';
+    await nextFrames();
+    scroller.scrollTop = scroller.scrollHeight - 150 - 100;
+    await nextFrames();
+    expect(distanceFromBottom(scroller)).toBe(100);
+
+    scroller.style.height = '400px';
+
+    await vi.waitFor(() => expect(scroller.clientHeight).toBe(400));
+    await nextFrames();
+    expect(distanceFromBottom(scroller)).toBe(100);
   });
 
   it('leaves the position alone while another operation owns it', async () => {
