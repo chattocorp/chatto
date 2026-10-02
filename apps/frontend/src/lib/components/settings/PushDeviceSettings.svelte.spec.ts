@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
   capability: 'supported' as 'supported' | 'ios_home_screen_required' | 'unsupported',
   permission: 'granted' as NotificationPermission | null,
   registered: true,
+  failed: false,
   webPushRuntime: true,
+  refreshPushSubscriptions: vi.fn(),
   sendTestNotification: vi.fn(),
   hasSavedPushRegistration: vi.fn()
 }));
@@ -16,8 +18,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/notifications/pushNotifications', () => ({
   getPermission: () => mocks.permission,
   getPushCapability: () => mocks.capability,
+  hasFailedPushRegistration: () => mocks.failed,
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
   isBrowserWebPushRuntime: () => mocks.webPushRuntime,
+  refreshPushSubscriptions: mocks.refreshPushSubscriptions,
   sendTestNotification: mocks.sendTestNotification
 }));
 
@@ -43,6 +47,9 @@ describe('PushDeviceSettings', () => {
     mocks.hasSavedPushRegistration.mockReset();
     mocks.hasSavedPushRegistration.mockImplementation(() => mocks.registered);
     mocks.registered = true;
+    mocks.failed = false;
+    mocks.refreshPushSubscriptions.mockReset();
+    mocks.refreshPushSubscriptions.mockResolvedValue(undefined);
     mocks.sendTestNotification.mockReset();
     mocks.sendTestNotification.mockResolvedValue(true);
   });
@@ -69,13 +76,43 @@ describe('PushDeviceSettings', () => {
     await expect.element(screen.getByRole('status')).toHaveTextContent('Test notification sent.');
   });
 
-  it('reports a failed test notification', async () => {
-    mocks.sendTestNotification.mockRejectedValue(new ConnectError('offline', Code.Unavailable));
+  it('reports a failed delivery as a failed test, not as a network error', async () => {
+    mocks.sendTestNotification.mockRejectedValue(
+      new ConnectError('push notification could not be delivered', Code.Unavailable)
+    );
     const screen = renderSettings();
 
     await screen.getByRole('button', { name: 'Send test notification' }).click();
 
-    await expect.element(screen.getByRole('alert')).toBeVisible();
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent('Could not send a test notification. Try again in a moment.');
+  });
+
+  it('asks the user to wait when tests are sent too often', async () => {
+    mocks.sendTestNotification.mockRejectedValue(
+      new ConnectError('test push notification rate limit exceeded', Code.ResourceExhausted)
+    );
+    const screen = renderSettings();
+
+    await screen.getByRole('button', { name: 'Send test notification' }).click();
+
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent('Wait a few seconds before you send another test notification.');
+  });
+
+  it('explains a failed setup and lets the user try again', async () => {
+    mocks.registered = false;
+    mocks.failed = true;
+    const screen = renderSettings();
+
+    await expect
+      .element(screen.getByText('Push notifications could not be set up on this device'))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
   });
 
   it('shows setup progress until this page saves the subscription', async () => {

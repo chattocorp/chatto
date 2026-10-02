@@ -12,19 +12,21 @@ server has no Web Push configuration or the app does not run in a browser.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { Code, ConnectError } from '@connectrpc/connect';
   import { m } from '$lib/i18n/messages';
   import { describePushDevice } from '$lib/notifications/pushDevice';
   import {
     getPermission,
     getPushCapability,
+    hasFailedPushRegistration,
     hasSavedPushRegistration,
     isBrowserWebPushRuntime,
+    refreshPushSubscriptions,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, Panel } from '$lib/ui';
   import { Button } from '$lib/ui/form';
-  import { errorMessage } from '$lib/utils/errorMessage';
 
   type TestResult = { kind: 'sent' } | { kind: 'failed'; message: string };
 
@@ -47,6 +49,8 @@ server has no Web Push configuration or the app does not run in a browser.
   const visible = $derived(isBrowserWebPushRuntime() && store.serverInfo.pushNotificationsEnabled);
   const permission = $derived(getPermission());
   const registered = $derived(hasSavedPushRegistration(serverId, store.accountId));
+  const registrationFailed = $derived(hasFailedPushRegistration(serverId));
+  let retrying = $state(false);
 
   let testing = $state(false);
   let testResult = $state<TestResult | null>(null);
@@ -58,12 +62,26 @@ server has no Web Push configuration or the app does not run in a browser.
       await sendTestNotification(serverId);
       testResult = { kind: 'sent' };
     } catch (error) {
+      // The server reports every delivery failure as unavailable, so a
+      // generic network message would mislead here.
+      const rateLimited = ConnectError.from(error).code === Code.ResourceExhausted;
       testResult = {
         kind: 'failed',
-        message: errorMessage(error, m('settings.notifications.push.test_failed'))
+        message: rateLimited
+          ? m('settings.notifications.push.test_rate_limited')
+          : m('settings.notifications.push.test_failed')
       };
     } finally {
       testing = false;
+    }
+  }
+
+  async function retryRegistration(): Promise<void> {
+    retrying = true;
+    try {
+      await refreshPushSubscriptions();
+    } finally {
+      retrying = false;
     }
   }
 </script>
@@ -91,6 +109,22 @@ server has no Web Push configuration or the app does not run in a browser.
         <div>
           <Button variant="secondary" size="sm" href={resolve('/chat/notifications')}>
             {m('settings.notifications.push.open_notifications')}
+          </Button>
+        </div>
+      {:else if !registered && registrationFailed}
+        <Hint tone="warning">
+          <p class="font-medium">{m('settings.notifications.push.setup_failed_title')}</p>
+          <p>{m('settings.notifications.push.setup_failed_description')}</p>
+        </Hint>
+        <div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onclick={retryRegistration}
+            disabled={retrying}
+            loading={retrying}
+          >
+            {m('common.retry')}
           </Button>
         </div>
       {:else if !registered}

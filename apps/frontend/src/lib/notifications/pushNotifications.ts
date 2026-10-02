@@ -14,7 +14,7 @@ import {
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
 import { serverConnectionManager, serverRegistry } from '$lib/client';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import {
   completePushRegistrationRefresh,
   enqueuePushRegistration,
@@ -88,6 +88,12 @@ type RefreshReason =
  * settings can show when a server stores this device's subscription.
  */
 const savedRegistrations = new SvelteMap<string, SavedRegistration>();
+/**
+ * Servers whose latest save in this page failed although permission was
+ * granted, for example because the browser's push service or the server
+ * rejected the subscription. Reactive, so settings can explain the failure.
+ */
+const failedRegistrations = new SvelteSet<string>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
@@ -263,6 +269,11 @@ async function getSubscriptionsForCleanup(serverId: string): Promise<PushSubscri
 export function hasSavedPushRegistration(serverId: string, userId: string | null): boolean {
   const saved = savedRegistrations.get(serverId);
   return saved !== undefined && saved.userId === userId;
+}
+
+/** Whether the latest save of this page for a server failed. Reactive. */
+export function hasFailedPushRegistration(serverId: string): boolean {
+  return failedRegistrations.has(serverId);
 }
 
 /**
@@ -484,18 +495,29 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  */
 export async function ensureRegistered(target: PushRegistrationTarget): Promise<boolean> {
   const saved = { endpoint: null as string | null };
-  const registered = await enqueuePushRegistration(target.serverId, (signal) =>
-    ensureRegisteredOnce(target.serverId, target.vapidPublicKey, signal, (endpoint) => {
-      saved.endpoint = endpoint;
-    })
-  );
-  if (registered && saved.endpoint) {
-    savedRegistrations.set(target.serverId, {
-      userId: target.userId,
-      vapidPublicKey: target.vapidPublicKey,
-      endpoint: saved.endpoint,
-      savedAt: Date.now()
-    });
+  let registered = false;
+  try {
+    registered = await enqueuePushRegistration(target.serverId, (signal) =>
+      ensureRegisteredOnce(target.serverId, target.vapidPublicKey, signal, (endpoint) => {
+        saved.endpoint = endpoint;
+      })
+    );
+  } finally {
+    if (registered && saved.endpoint) {
+      savedRegistrations.set(target.serverId, {
+        userId: target.userId,
+        vapidPublicKey: target.vapidPublicKey,
+        endpoint: saved.endpoint,
+        savedAt: Date.now()
+      });
+      failedRegistrations.delete(target.serverId);
+    } else if (
+      !isPushRegistrationSuspended(target.serverId) &&
+      Notification.permission === 'granted'
+    ) {
+      // Leaving the server and missing permission are not failures.
+      failedRegistrations.add(target.serverId);
+    }
   }
   return registered;
 }
@@ -702,6 +724,7 @@ async function retireLegacyOriginSubscription(
 /** Establishes a local or server-side delivery fence before navigation. */
 export function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
   savedRegistrations.delete(serverId);
+  failedRegistrations.delete(serverId);
   return suspendPushRegistrationBeforeLeaving(serverId, async () => {
     const cleanup = await beginUnsubscribe(serverId);
     if (cleanup.removedFromBrowser) {

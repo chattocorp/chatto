@@ -5,6 +5,7 @@ import {
   ensureRegistered,
   getPushCapability,
   getPushRegistrationTargets,
+  hasFailedPushRegistration,
   hasSavedPushRegistration,
   onNotificationClick,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
@@ -1164,6 +1165,27 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     await unsubscribeBeforeLeaving('origin');
 
     expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(false);
+  });
+
+  it('reports a failed save until a later save succeeds', async () => {
+    const originSubscribe = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('rejected'))
+      .mockResolvedValue({ subscribed: true });
+    mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
+      subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
+      unsubscribe: mocks.unsubscribePush,
+      deleteByCapability: mocks.deleteByCapabilityPush
+    }));
+    vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
+
+    await refreshPushSubscriptions();
+    expect(hasFailedPushRegistration('remote')).toBe(false);
+    expect(hasFailedPushRegistration('origin')).toBe(true);
+
+    await refreshPushSubscriptions();
+    expect(hasFailedPushRegistration('origin')).toBe(false);
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
   });
 
   it('never asks for permission', async () => {
