@@ -127,11 +127,15 @@ test.describe('Leave Server', () => {
 
     let openedPopups = 0;
     page.on('popup', () => openedPopups++);
+    // Selecting the signed-out icon opens the server without starting sign-in.
     await remoteSidebarIcon.click();
-    await expect(page.getByRole('menuitem', { name: 'Log in to this server' })).toBeVisible();
+    await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
+    const signedOutView = page.getByTestId('server-signed-out');
+    await expect(signedOutView).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Log in to this server' })).toHaveCount(0);
     expect(openedPopups).toBe(0);
     const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('menuitem', { name: 'Log in to this server' }).click();
+    await signedOutView.getByRole('button', { name: 'Log in to this server' }).click();
     const popup = await popupPromise;
     expect(openedPopups).toBe(1);
     await popup.close();

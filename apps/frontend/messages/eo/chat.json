@@ -83,6 +83,10 @@
       "required_version_value": "{version} aŭ pli nova",
       "check_again": "Kontroli denove"
     },
+    "server_signed_out": {
+      "title": "Vi estas elsalutinta el ĉi tiu servilo",
+      "body": "Ensalutu por legi kaj sendi mesaĝojn en ĉi tiu servilo."
+    },
     "threads": {
       "title": "Miaj Fadenoj",
       "subtitle": "Fadenoj, kiujn vi sekvas",

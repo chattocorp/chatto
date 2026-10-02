@@ -85,6 +85,10 @@
       "required_version_value": "{version} vai jaunāka",
       "check_again": "Pārbaudīt vēlreiz"
     },
+    "server_signed_out": {
+      "title": "Jūs esat izrakstījies no šī servera",
+      "body": "Piesakieties, lai šajā serverī lasītu un sūtītu ziņojumus."
+    },
     "threads": {
       "title": "Mani pavedieni",
       "subtitle": "Pavedieni, kuriem sekojat",

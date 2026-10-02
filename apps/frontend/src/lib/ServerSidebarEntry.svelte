@@ -206,24 +206,10 @@
     }
   }
 
-  async function handleServerClick(event: MouseEvent): Promise<void> {
-    if (signInRequired) {
-      event.preventDefault();
-      const icon = event.currentTarget;
-      if (icon instanceof HTMLElement) {
-        const bounds = icon.getBoundingClientRect();
-        contextMenu = { position: { x: bounds.right, y: bounds.top }, presentation: 'auto' };
-      }
-      return;
-    }
-    if (recoveryNeeded) {
-      event.preventDefault();
-      await serverRegistry.recoverServer(serverId);
-      if (stores.isAuthenticated && stores.serverInfo.compatibility.status === 'supported') {
-        await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
-      }
-      return;
-    }
+  // Selecting a server with a problem opens it, and the server view explains
+  // the problem. Recovery runs in the background and never opens sign-in.
+  function handleServerClick(): void {
+    if (recoveryNeeded) void serverRegistry.recoverServer(serverId);
   }
 
   // Single dispatcher for icon clicks — kind comes from serverIndicator()

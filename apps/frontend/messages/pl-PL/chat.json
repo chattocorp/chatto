@@ -87,6 +87,10 @@
       "required_version_value": "{version} lub nowsza",
       "check_again": "Sprawdź ponownie"
     },
+    "server_signed_out": {
+      "title": "Wylogowano Cię z tego serwera",
+      "body": "Zaloguj się, aby czytać i wysyłać wiadomości na tym serwerze."
+    },
     "threads": {
       "title": "Moje wątki",
       "subtitle": "Wątki, które obserwujesz",

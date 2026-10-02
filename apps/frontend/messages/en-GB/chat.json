@@ -83,6 +83,10 @@
       "required_version_value": "{version} or newer",
       "check_again": "Check Again"
     },
+    "server_signed_out": {
+      "title": "You are signed out of this server",
+      "body": "Log in to read and send messages on this server."
+    },
     "threads": {
       "title": "My Threads",
       "subtitle": "Threads you're following",

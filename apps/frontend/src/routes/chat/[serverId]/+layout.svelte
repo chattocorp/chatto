@@ -4,6 +4,8 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';
   import ServerUnavailable from '$lib/components/chat/ServerUnavailable.svelte';
+  import ServerSignedOut from '$lib/components/chat/ServerSignedOut.svelte';
+  import { showsServerSignedOut } from '$lib/components/chat/serverSignedOut';
   import { PageTitle } from '$lib/ui';
 
   let { children } = $props();
@@ -18,6 +20,20 @@
   // An unsupported, unknown, or unreachable server never produces a server
   // view. Explain the problem instead of the server chrome and its fog.
   const compatibilityProblem = $derived(serverStore?.serverInfo.compatibilityProblem ?? null);
+
+  // A known remote server that this client cannot sign in to. Explain this
+  // instead of server chrome that would stay empty.
+  const registration = $derived(serverRegistry.getServer(serverId));
+  const signedOutRegistration = $derived(
+    registration &&
+      serverStore &&
+      showsServerSignedOut(registration, {
+        isOrigin: serverRegistry.isOriginServer(serverId),
+        hasDisplayableView: serverStore.realtimeSync.hasDisplayableView
+      })
+      ? registration
+      : null
+  );
 </script>
 
 <!-- Authentication replacement recreates same-ID server resources, so key by
@@ -32,9 +48,11 @@
       {#if compatibilityProblem}
         <ServerUnavailable
           reason={compatibilityProblem}
-          registration={serverRegistry.getServer(serverId)}
+          {registration}
           onretry={() => serverRegistry.recoverServer(serverId)}
         />
+      {:else if signedOutRegistration}
+        <ServerSignedOut registration={signedOutRegistration} />
       {:else}
         <Chrome>
           {#if serverStore.realtimeSync.hasDisplayableView}

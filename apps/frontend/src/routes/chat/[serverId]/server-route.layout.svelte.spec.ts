@@ -33,6 +33,10 @@ import type { ServerCompatibilityProblem } from '@chatto/client/server/compatibi
 
 type RegisteredState = {
   reauthRequiredAt: number | null;
+  token?: string | null;
+  name?: string;
+  url?: string;
+  iconUrl?: string | null;
   checkingPermissions?: boolean;
   userId?: string;
   connectionStatus?: 'connected' | 'disconnected';
@@ -43,6 +47,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
     recoverServer: vi.fn(),
+    activeServerId: 'origin',
     routeId: '/chat/[serverId]/[roomId]',
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
@@ -90,12 +95,16 @@ vi.mock('$app/state', () => ({
   }
 }));
 
+vi.mock('$lib/auth/reauth', () => ({
+  startRemoteReauthentication: vi.fn()
+}));
+
 vi.mock('$lib/auth/returnNavigation', () => ({
   saveReturnUrl: vi.fn()
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
+  getActiveServer: () => mocks.activeServerId
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -118,6 +127,7 @@ import Layout from './+layout.svelte';
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.routeId = '/chat/[serverId]/[roomId]';
+  mocks.activeServerId = 'origin';
   mocks.servers = new SvelteMap([['origin', { reauthRequiredAt: null, userId: 'viewer-1' }]]);
   mocks.store.realtimeSync = new RealtimeProjectionSyncState();
   mocks.store.realtimeSync.markCaughtUp('ready');
@@ -259,5 +269,58 @@ describe('server route authentication privacy', () => {
     mocks.servers!.set('origin', { reauthRequiredAt: null, userId: 'viewer-1' });
     await expect.element(page.getByTestId('server-chrome')).toBeInTheDocument();
     expect(container.querySelector('[data-testid="server-unavailable"]')).toBeNull();
+  });
+  it('explains a signed-out remote server instead of rendering its chrome and routes', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', {
+      reauthRequiredAt: null,
+      token: null,
+      name: 'Remote Server',
+      url: 'https://remote.example.test',
+      iconUrl: null
+    });
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Log in to this server' })).toBeVisible();
+    expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
+    expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
+  });
+
+  it('keeps the chrome for a remote server that needs reauthentication over loaded data', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', {
+      reauthRequiredAt: Date.now(),
+      token: 'expired-token',
+      name: 'Remote Server',
+      url: 'https://remote.example.test',
+      iconUrl: null
+    });
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-chrome')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="server-signed-out"]')).toBeNull();
+  });
+
+  it('explains a remote server that needs reauthentication before any data loads', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.servers!.set('remote', {
+      reauthRequiredAt: Date.now(),
+      token: 'rejected-token',
+      name: 'Remote Server',
+      url: 'https://remote.example.test',
+      iconUrl: null
+    });
+    mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Rooms</main>') }
+    });
+
+    await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
+    expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
   });
 });

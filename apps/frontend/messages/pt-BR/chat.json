@@ -83,6 +83,10 @@
       "required_version_value": "{version} ou mais recente",
       "check_again": "Verificar novamente"
     },
+    "server_signed_out": {
+      "title": "Você saiu deste servidor",
+      "body": "Entre para ler e enviar mensagens neste servidor."
+    },
     "threads": {
       "title": "Meus tópicos",
       "subtitle": "Tópicos que você está seguindo",

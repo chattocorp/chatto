@@ -83,6 +83,10 @@
       "required_version_value": "{version} ou plus récente",
       "check_again": "Vérifiez à nouveau"
     },
+    "server_signed_out": {
+      "title": "Vous êtes déconnecté de ce serveur",
+      "body": "Connectez-vous pour lire et envoyer des messages sur ce serveur."
+    },
     "threads": {
       "title": "Mes discussions",
       "subtitle": "Sujets que vous suivez",

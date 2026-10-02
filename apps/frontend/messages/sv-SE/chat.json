@@ -83,6 +83,10 @@
       "required_version_value": "{version} eller senare",
       "check_again": "Kontrollera igen"
     },
+    "server_signed_out": {
+      "title": "Du är utloggad från den här servern",
+      "body": "Logga in för att läsa och skicka meddelanden på den här servern."
+    },
     "threads": {
       "title": "Mina trådar",
       "subtitle": "Trådar du följer",

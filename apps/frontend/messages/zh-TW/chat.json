@@ -83,6 +83,10 @@
       "required_version_value": "{version} 或更新版本",
       "check_again": "重新檢查"
     },
+    "server_signed_out": {
+      "title": "你已登出此伺服器",
+      "body": "登入後即可在此伺服器上閱讀和傳送訊息。"
+    },
     "threads": {
       "title": "我的討論串",
       "subtitle": "你追蹤的討論串",

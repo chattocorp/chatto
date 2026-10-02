@@ -127,14 +127,15 @@ describe('server route layout load', () => {
     expect(mocks.saveReturnUrl).not.toHaveBeenCalled();
   });
 
-  it('redirects when the initial remote viewer request ends without a viewer', async () => {
+  it('keeps a signed-out remote server on its route instead of the origin login', async () => {
     mocks.serverId = 'remote';
     mocks.origin = false;
     mocks.store.currentUser.loading = true;
     mocks.store.currentUser.user = undefined;
 
-    await expect(routeLoad(null)).rejects.toMatchObject({ status: 302, location: '/login' });
+    await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
     expect(mocks.store.currentUser.load).toHaveBeenCalledOnce();
+    expect(mocks.saveReturnUrl).not.toHaveBeenCalled();
   });
 
   it('keeps the shell mounted for reauthentication recovery', async () => {

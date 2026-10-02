@@ -83,6 +83,10 @@
       "required_version_value": "{version} nebo novější",
       "check_again": "Zkontrolovat znovu"
     },
+    "server_signed_out": {
+      "title": "Jste odhlášeni z tohoto serveru",
+      "body": "Přihlaste se, abyste mohli na tomto serveru číst a posílat zprávy."
+    },
     "threads": {
       "title": "Moje vlákna",
       "subtitle": "Vlákna, která sledujete",

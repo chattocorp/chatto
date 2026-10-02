@@ -74,14 +74,19 @@ recommendation, not a trust or reciprocal relationship.
   most six active requests and a ten-second timeout for each request. A
   registered server that does not provide a Neighborhood contributes no
   results and does not count as a failure.
-- Joining a server first loads its current public sign-in data from that
-  server. The user starts this request with the join action. The sign-in
-  window opens from that action. If the current version is not compatible or
-  sign-in is not available, the client closes the window, stops the join, and
-  shows the current action for that server.
+- Joining a server adds it to the gutter without a session. The join does not
+  open the server or start sign-in, and the directory stays open, so the user
+  can add more servers. The entry then shows the joined state and an open
+  action. The server view tells the user that they are signed out and offers
+  **Log in to this server**, which opens the sign-in window (FDR-023). Before
+  it adds a recommended server, the client loads the server's current public
+  data. The user starts this request with the join action. If the current
+  version is not compatible or sign-in is not available, the client stops the
+  join and shows the current action for that server.
 - An advertised server that is already registered remains visible and is
-  marked as joined. Opening, joining, or signing in to a server from the dialog
-  replaces the dialog's history entry, so Back does not reopen the dialog.
+  marked as joined. Its action opens the server, also when the client has no
+  session for it. Opening a server from the dialog replaces the dialog's
+  history entry, so Back does not reopen the dialog.
 - An unregistered server has a join action only when its discovered version is
   compatible with the client. When the version is incompatible or unknown,
   the client opens the server origin in a new tab. The server can then provide
@@ -176,7 +181,7 @@ missing method explicitly.
 
 **Decision:** The Server Directory does not remove an advertised origin when
 that server is already in the device-local server catalogue. It marks the
-server as joined and offers the applicable open or sign-in action.
+server as joined and offers an action that opens the server.
 
 **Why:** The complete directory shows the recommendation network without
 making entries disappear after a user joins them.
@@ -227,7 +232,7 @@ remove it or change it to an external origin.
 **Decision:** The Server Directory does not add an unregistered server when
 the discovered version is below the client's minimum supported version or is
 unknown. It opens the canonical server origin in a new tab. Registered servers
-keep their open or sign-in action.
+keep their open action.
 
 **Why:** The remote server can provide a client that matches its release. The
 current client must not start a server registration flow that it cannot

@@ -83,6 +83,10 @@
       "required_version_value": "{version} eller nyere",
       "check_again": "Sjekk igjen"
     },
+    "server_signed_out": {
+      "title": "Du er logget ut av denne serveren",
+      "body": "Logg inn for å lese og sende meldinger på denne serveren."
+    },
     "threads": {
       "title": "Mine tråder",
       "subtitle": "Tråder du følger",

@@ -83,6 +83,10 @@
       "required_version_value": "{version} 或更高版本",
       "check_again": "重新检查"
     },
+    "server_signed_out": {
+      "title": "你已退出此服务器",
+      "body": "登录后即可在此服务器上阅读和发送消息。"
+    },
     "threads": {
       "title": "我的话题串",
       "subtitle": "你关注的话题串",

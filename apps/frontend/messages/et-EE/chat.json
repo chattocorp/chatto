@@ -83,6 +83,10 @@
       "required_version_value": "{version} või uuem",
       "check_again": "Kontrollige uuesti"
     },
+    "server_signed_out": {
+      "title": "Olete sellest serverist välja logitud",
+      "body": "Logige sisse, et selles serveris sõnumeid lugeda ja saata."
+    },
     "threads": {
       "title": "Minu lõimed",
       "subtitle": "Lõimed, mida jälgite",

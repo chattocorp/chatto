@@ -4,6 +4,7 @@
   import { type RegisteredServer } from '@chatto/client/server/registry';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { TopOverlayNotice } from '$lib/ui';
+  import { showsServerSignedOut } from '$lib/components/chat/serverSignedOut';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
 
@@ -12,8 +13,17 @@
   const originServer = $derived(serverRegistry.originServer);
   const originNeedsReauth = $derived(originServer?.reauthRequiredAt != null);
   const activeServer = $derived(serverRegistry.getServer(getActiveServer()));
+  // Without loaded chat data, the server route itself shows the signed-out
+  // view and its log-in action, so the notice would only repeat it.
   const activeRemoteNeedsReauth = $derived(
-    !!activeServer && activeServer.id !== originServer?.id && activeServer.reauthRequiredAt != null
+    !!activeServer &&
+      activeServer.id !== originServer?.id &&
+      activeServer.reauthRequiredAt != null &&
+      !showsServerSignedOut(activeServer, {
+        isOrigin: false,
+        hasDisplayableView:
+          serverRegistry.tryGetStore(activeServer.id)?.realtimeSync.hasDisplayableView ?? false
+      })
   );
 
   const noticeServer = $derived.by<RegisteredServer | null>(() => {

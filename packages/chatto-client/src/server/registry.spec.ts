@@ -277,6 +277,46 @@ describe('ServerRegistry', () => {
     });
   });
 
+  describe('addSignedOutServer', () => {
+    it('registers a remote server without a session', async () => {
+      const registry = await createRegistry();
+      registry.removeAll();
+
+      const id = registry.addSignedOutServer('https://remote.example.com', {
+        name: 'Remote',
+        iconUrl: 'https://remote.example.com/icon.png'
+      });
+
+      expect(id).toBe('remote-example-com');
+      expect(registry.getServer(id)).toMatchObject({
+        url: 'https://remote.example.com',
+        name: 'Remote',
+        iconUrl: 'https://remote.example.com/icon.png',
+        token: null,
+        reauthRequiredAt: null
+      });
+      expect(registry.tryGetStore(id)).toBeDefined();
+      expect(registry.isAuthenticated(id)).toBe(false);
+    });
+
+    it('returns an existing registration with the same URL unchanged', async () => {
+      const registry = await createRegistry();
+      registry.removeAll();
+      registry.addServer(
+        makeServer({ id: 'existing', url: 'https://Remote.example.com', token: 'kept' })
+      );
+
+      const id = registry.addSignedOutServer('https://remote.example.com', {
+        name: 'Other',
+        iconUrl: null
+      });
+
+      expect(id).toBe('existing');
+      expect(registry.servers).toHaveLength(1);
+      expect(registry.getServer('existing')?.token).toBe('kept');
+    });
+  });
+
   describe('removeServer', () => {
     it('removes an instance by ID', async () => {
       const registry = await createRegistry();

@@ -1,6 +1,11 @@
 import { test, expect } from './setup';
 import { TIMEOUTS } from './constants';
-import { getRoomOnRemote, postMessageOnRemote } from './fixtures/multiServer';
+import {
+  getRoomOnRemote,
+  expectSignedOutViewGone,
+  joinServerAndStartSignIn,
+  postMessageOnRemote
+} from './fixtures/multiServer';
 import { createProductionUser, startProductionServer } from './fixtures/productionServer';
 import { stopServer, type ServerInfo } from './fixtures/server';
 
@@ -69,9 +74,7 @@ test.describe('supported release baseline', () => {
       await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
-      const popupPromise = page.waitForEvent('popup');
-      await page.getByRole('button', { name: 'Join', exact: true }).click();
-      const remoteLoginPage = await popupPromise;
+      const remoteLoginPage = await joinServerAndStartSignIn(page);
 
       await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
         timeout: TIMEOUTS.REALTIME_EVENT
@@ -87,6 +90,7 @@ test.describe('supported release baseline', () => {
       const popupClosed = remoteLoginPage.waitForEvent('close');
       await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
       await popupClosed;
+      await expectSignedOutViewGone(page);
 
       await expect(page).toHaveURL(/localhost.*\/chat\/127\.0\.0\.1(\/|$)/, {
         timeout: TIMEOUTS.COMPLEX_OPERATION

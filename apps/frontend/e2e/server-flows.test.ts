@@ -3,11 +3,13 @@ import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import {
-  startSecondServer,
-  stopSecondServer,
   createUserOnRemote,
   getRoomOnRemote,
-  postMessageOnRemote
+  expectSignedOutViewGone,
+  joinServerAndStartSignIn,
+  postMessageOnRemote,
+  startSecondServer,
+  stopSecondServer
 } from './fixtures/multiServer';
 import { connectPost } from './fixtures/connectHelpers';
 import type { ServerInfo } from './fixtures/server';
@@ -284,9 +286,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
-    return popupPromise;
+    return joinServerAndStartSignIn(page);
   }
 
   test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({
@@ -335,6 +335,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
     const popupClosed = remoteLoginPage.waitForEvent('close');
     await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
     await popupClosed;
+    await expectSignedOutViewGone(page);
 
     // Post-PR(a) the OAuth callback drops the user directly into the
     // newly-added remote instance's chat tree (`/chat/<hostname>/...`).
@@ -377,6 +378,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
     const popupClosed = remoteLoginPage.waitForEvent('close');
     await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
     await popupClosed;
+    await expectSignedOutViewGone(page);
 
     const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
     await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {

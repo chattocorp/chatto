@@ -5,6 +5,7 @@ import AuthStatusNotice from './AuthStatusNotice.svelte';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeServerId: 'origin',
+    hasDisplayableView: true,
     servers: [] as Array<{ id: string; name: string; reauthRequiredAt: number | null }>,
     beginOriginReauthentication: vi.fn(),
     startRemoteReauthentication: vi.fn(() => Promise.resolve()),
@@ -20,7 +21,14 @@ vi.mock('$lib/client', async () => ({
     },
     getServer(id: string) {
       return mocks.servers.find((server) => server.id === id);
-    }
+    },
+    tryGetStore: () => ({
+      realtimeSync: {
+        get hasDisplayableView() {
+          return mocks.hasDisplayableView;
+        }
+      }
+    })
   }
 }));
 
@@ -43,6 +51,7 @@ describe('AuthStatusNotice', () => {
   beforeEach(() => {
     mocks.activeServerId = 'origin';
     mocks.servers = [];
+    mocks.hasDisplayableView = true;
     mocks.beginOriginReauthentication.mockReset();
     mocks.startRemoteReauthentication.mockClear();
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
@@ -63,7 +72,7 @@ describe('AuthStatusNotice', () => {
     expect(mocks.beginOriginReauthentication).toHaveBeenCalledOnce();
   });
 
-  it('shows an active remote reauth notice with a reconnect action', async () => {
+  it('shows an active remote reauth notice with a reconnect action over loaded data', async () => {
     mocks.activeServerId = 'remote';
     const remote = { id: 'remote', name: 'Remote', reauthRequiredAt: 456 };
     mocks.servers = [{ id: 'origin', name: 'Home', reauthRequiredAt: null }, remote];
@@ -79,5 +88,19 @@ describe('AuthStatusNotice', () => {
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(remote);
     });
+  });
+
+  it('leaves an active remote without loaded data to its signed-out view', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.hasDisplayableView = false;
+    mocks.servers = [
+      { id: 'origin', name: 'Home', reauthRequiredAt: null },
+      { id: 'remote', name: 'Remote', reauthRequiredAt: 456 }
+    ];
+
+    const { container } = render(AuthStatusNotice);
+
+    expect(container.textContent).not.toContain('Remote needs sign-in');
+    expect(container.querySelector('button')).toBeNull();
   });
 });

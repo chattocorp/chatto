@@ -83,6 +83,10 @@
       "required_version_value": "{version} of nieuwer",
       "check_again": "Opnieuw controleren"
     },
+    "server_signed_out": {
+      "title": "Je bent afgemeld bij deze server",
+      "body": "Meld je aan om berichten op deze server te lezen en te versturen."
+    },
     "threads": {
       "title": "Mijn discussies",
       "subtitle": "Discussies die je volgt",

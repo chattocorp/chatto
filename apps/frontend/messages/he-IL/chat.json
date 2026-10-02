@@ -85,6 +85,10 @@
       "required_version_value": "{version} ומעלה",
       "check_again": "בדוק שוב"
     },
+    "server_signed_out": {
+      "title": "אינך מחובר לשרת הזה",
+      "body": "התחבר כדי לקרוא ולשלוח הודעות בשרת הזה."
+    },
     "threads": {
       "title": "השרשורים שלי",
       "subtitle": "שרשורים שאתה עוקב אחריהם",

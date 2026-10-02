@@ -83,6 +83,10 @@
       "required_version_value": "{version} 以降",
       "check_again": "もう一度確認"
     },
+    "server_signed_out": {
+      "title": "このサーバーからログアウトしています",
+      "body": "このサーバーでメッセージを読んだり送信したりするには、ログインしてください。"
+    },
     "threads": {
       "title": "私のスレッド",
       "subtitle": "あなたがフォローしているスレッド",

@@ -1050,6 +1050,34 @@ export class ServerRegistry {
     });
   }
 
+  /**
+   * Register a remote server without a session and return its ID. When a
+   * server with the same URL is already registered, return that server and
+   * leave it unchanged. The URL comparison ignores case, the same as the
+   * completion of a sign-in, so a later sign-in adds its session to this
+   * registration. The server stays signed out until the host starts sign-in.
+   *
+   * @throws Error when the registry cannot add the server, for example after
+   *   it was disposed.
+   */
+  addSignedOutServer(url: string, profile: { name: string; iconUrl: string | null }): string {
+    const existing = this.servers.find((server) => server.url.toLowerCase() === url.toLowerCase());
+    if (existing) return existing.id;
+    const id = generateServerId(
+      url,
+      this.servers.map((server) => server.id)
+    );
+    this.addServer({
+      id,
+      url,
+      name: profile.name || 'Chatto',
+      iconUrl: profile.iconUrl,
+      addedAt: Date.now()
+    });
+    if (!this.getServer(id)) throw new Error('The server could not be registered.');
+    return id;
+  }
+
   /** Remove a server by ID. Disposes its event bus, store, and connection state. */
   removeServer(id: string): boolean {
     return batch(() => {

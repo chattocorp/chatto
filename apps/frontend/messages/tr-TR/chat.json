@@ -83,6 +83,10 @@
       "required_version_value": "{version} veya daha yeni",
       "check_again": "Tekrar Kontrol Edin"
     },
+    "server_signed_out": {
+      "title": "Bu sunucudaki oturumunuz kapalı",
+      "body": "Bu sunucuda mesaj okumak ve göndermek için oturum açın."
+    },
     "threads": {
       "title": "Konularım",
       "subtitle": "Takip ettiğiniz konular",

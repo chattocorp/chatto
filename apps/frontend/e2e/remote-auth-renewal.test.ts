@@ -211,5 +211,15 @@ test.describe('Remote bearer renewal', () => {
     await page.reload();
     const icon = page.locator('[data-testid="server-icon"][href*="127.0.0.1"]').first();
     await expect(icon).toHaveAttribute('title', /Sign in to reconnect/, { timeout: 20_000 });
+
+    // No chat data is loaded after the reload, so selecting the server shows
+    // the signed-out view instead of empty server chrome and a notice.
+    await icon.click();
+    const signedOutView = page.getByTestId('server-signed-out');
+    await expect(signedOutView).toBeVisible();
+    await expect(
+      signedOutView.getByRole('button', { name: 'Log in to this server' })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toHaveCount(0);
   });
 });
