@@ -439,7 +439,7 @@ async function currentBrowserEndpoint(serverId: string): Promise<string | null> 
 export async function retryPushRegistration(serverId: string): Promise<boolean> {
   if (getPermission() !== 'granted') return false;
   const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
-  return target ? ensureRegistered(target) : false;
+  return target ? ensureRegistered(target, { manual: true }) : false;
 }
 
 /**
@@ -517,24 +517,77 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
+ * The failure of the browser's push service in this page session, or null.
+ * The browser reports "push service error" when it cannot register with its
+ * push service, for example when the profile holds too many registrations.
+ * After such a failure, automatic saves create no new browser subscriptions
+ * for any server until an explicit retry succeeds or the page reloads; each
+ * further attempt could leave another registration behind.
+ */
+let pushServiceFailure: string | null = null;
+/** Serializes browser subscribe calls so that one failure stops the others. */
+let browserSubscribeTail: Promise<unknown> = Promise.resolve();
+
+function isPushServiceFailure(reason: string): boolean {
+  return /push service error/i.test(reason);
+}
+
+/** Creates a browser subscription, one at a time across all servers. */
+function subscribeInBrowser(
+  registration: ServiceWorkerRegistration,
+  applicationServerKey: Uint8Array<ArrayBuffer>,
+  manual: boolean
+): Promise<PushSubscription> {
+  const operation = browserSubscribeTail.then(async () => {
+    if (pushServiceFailure && !manual) throw new Error(pushServiceFailure);
+    try {
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+      pushServiceFailure = null;
+      return subscription;
+    } catch (error) {
+      const reason = technicalReason(error);
+      if (isPushServiceFailure(reason)) pushServiceFailure = reason;
+      throw error;
+    }
+  });
+  browserSubscribeTail = operation.catch(() => undefined);
+  return operation;
+}
+
+/**
  * Ensure the current browser push subscription is stored on the server.
  * Browser/OS permission is the user-facing source of truth. This never asks
  * for permission; without a granted permission it returns false. Saves for
  * one server run one after another.
+ *
+ * @param options.manual - An explicit user retry. It may create a browser
+ *   subscription even after the browser's push service failed in this page.
  */
-export async function ensureRegistered(target: PushRegistrationTarget): Promise<boolean> {
+export async function ensureRegistered(
+  target: PushRegistrationTarget,
+  options: { manual?: boolean } = {}
+): Promise<boolean> {
   const saved = { endpoint: null as string | null, failure: 'Unknown failure' };
   let registered = false;
   try {
     registered = await enqueuePushRegistration(target.serverId, (signal) =>
-      ensureRegisteredOnce(target.serverId, target.vapidPublicKey, signal, {
-        saved: (endpoint) => {
-          saved.endpoint = endpoint;
-        },
-        failed: (reason) => {
-          saved.failure = reason;
+      ensureRegisteredOnce(
+        target.serverId,
+        target.vapidPublicKey,
+        signal,
+        options.manual === true,
+        {
+          saved: (endpoint) => {
+            saved.endpoint = endpoint;
+          },
+          failed: (reason) => {
+            saved.failure = reason;
+          }
         }
-      })
+      )
     );
   } catch (error) {
     saved.failure = technicalReason(error);
@@ -563,6 +616,7 @@ async function ensureRegisteredOnce(
   serverId: string,
   vapidPublicKey: string,
   signal: AbortSignal,
+  manual: boolean,
   report: { saved: (endpoint: string) => void; failed: (reason: string) => void }
 ): Promise<boolean> {
   if (!isSupported()) {
@@ -618,10 +672,7 @@ async function ensureRegisteredOnce(
     }
 
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey
-      });
+      subscription = await subscribeInBrowser(registration, applicationServerKey, manual);
       createdSubscription = true;
       if (isPushRegistrationSuspended(serverId, signal)) {
         if (shouldInvalidateCancelledPushRegistration(serverId)) {

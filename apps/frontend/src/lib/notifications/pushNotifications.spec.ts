@@ -1229,6 +1229,28 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     window.localStorage.removeItem('chatto.push-registration.refresh.origin');
   });
 
+  it('stops creating browser subscriptions after a push service error', async () => {
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockRejectedValue(
+      new DOMException('Registration failed - push service error', 'AbortError')
+    );
+    vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
+
+    await refreshPushSubscriptions();
+
+    // Both servers need a new subscription, but only the first one asks the
+    // browser; the second fails without another registration attempt.
+    expect(subscribe).toHaveBeenCalledOnce();
+    expect(pushRegistrationFailure('origin')).toContain('push service error');
+    expect(pushRegistrationFailure('remote')).toContain('push service error');
+
+    // An explicit retry still asks the browser and lifts the stop on success.
+    subscribe.mockResolvedValue(makeSubscription('https://push.example/recovered'));
+    await expect(retryPushRegistration('origin')).resolves.toBe(true);
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(pushRegistrationFailure('origin')).toBeNull();
+  });
+
   it('never asks for permission', async () => {
     permission = 'default';
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
