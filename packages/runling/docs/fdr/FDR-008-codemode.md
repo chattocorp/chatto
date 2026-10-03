@@ -32,10 +32,20 @@ results before the model reads them.
   fail, in the same script and in later turns. Calls that the script started
   before that result arrived are not blocked, as for parallel calls in one model
   step.
-- Agent logs and activity show each call from a script like a model call.
-- Pi writes the complete output of a script that is longer than its output limit
-  to a file in the system temporary directory, and does not delete it. Set
-  `TMPDIR` to a private directory when tool results are sensitive.
+- A script stops after `codemode.timeoutMs`, ten minutes by default. A script can
+  set a shorter deadline in its `// @options:` line, but not a longer one.
+- A script receives only the text of a tool result. Images, `details`, and
+  `terminate` do not reach it. Register tools that return images or end the
+  turn with `exposure: 'model-only'`, so that the model calls them directly.
+- Agent logs show each call from a script. Agent activity reports the script as
+  one `codemode` call, so failed calls in a script do not count separately
+  toward task failure limits.
+- When the output of a script is longer than its output limit, Pi writes the
+  complete output to a file in the temporary directory and names the file in the
+  result. For an agent without the `read` tool, Runling deletes the file at once
+  and removes its name from the result. Otherwise, Runling deletes the file when
+  the agent ends. Set `TMPDIR` to a private directory when tool results are
+  sensitive.
 - `store()` keeps small values for later scripts of the same agent. With
   `sessionFile`, the values stay after a restart. A fork does not get them.
 - Without the option, agents have no `codemode` tool.

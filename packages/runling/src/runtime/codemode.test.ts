@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -14,7 +14,8 @@ import {
 } from '@earendil-works/pi-ai';
 import { Type } from 'typebox';
 import { createWorkflowContext } from './context.ts';
-import { agent, defineAgentExtension, type AgentOptions } from './agent.ts';
+import { agent, defineAgentExtension, type AgentActivity, type AgentOptions } from './agent.ts';
+import { withScriptDeadline } from './codemode.ts';
 
 // A real Pi session with a scripted model: codemode runs real scripts in its sandbox. The faux
 // provider comes from a second, test-only pi-ai copy (Runling's own undici satisfies its peer
@@ -252,4 +253,79 @@ test('scripts reach only the agent’s tools', async () => {
   expect(seen).toContain('first');
   expect(seen).not.toMatch(/scriptOnly|extra|bash|read|write/);
   expect(calls).toEqual([]);
+});
+
+test('scripts get a deadline that they can shorten but not extend', async () => {
+  expect(withScriptDeadline('return 1;', 1000)).toBe('// @options: {"timeout_ms":1000}\nreturn 1;');
+  expect(withScriptDeadline('// @options: {"timeout_ms": 50}\nreturn 1;', 1000)).toBe(
+    '// @options: {"timeout_ms":50}\nreturn 1;'
+  );
+  expect(
+    withScriptDeadline('// @options: {"max_output_tokens": 9, "timeout_ms": 5000}\nreturn 1;', 1000)
+  ).toBe('// @options: {"max_output_tokens":9,"timeout_ms":1000}\nreturn 1;');
+  // Pi refuses invalid options, so they stay as written.
+  expect(withScriptDeadline('// @options: nope\nreturn 1;', 1000)).toBe(
+    '// @options: nope\nreturn 1;'
+  );
+  let seen = '';
+  await runScript('while (true) {}', { tools: [], codemode: { timeoutMs: 300 } }, [
+    (context) => {
+      seen = lastToolResult(context);
+      return fauxAssistantMessage('done');
+    }
+  ]);
+  expect(seen).toContain('Script timed out');
+});
+
+test('the complete output of a long script stays only while an agent can read it', async () => {
+  const spill = join(directory, 'spill');
+  await mkdir(spill);
+  vi.stubEnv('TMPDIR', spill);
+  const code = '// @options: {"max_output_tokens": 10}\nreturn "x".repeat(1000);';
+  try {
+    let seen = '';
+    await runScript(code, { tools: [] }, [
+      (context) => {
+        seen = lastToolResult(context);
+        return fauxAssistantMessage('done');
+      }
+    ]);
+    // Without read, the file is deleted at once and the result does not name it.
+    expect(seen).toContain('truncated output');
+    expect(seen).not.toContain('Full output');
+    expect(await readdir(spill)).toEqual([]);
+    let kept: string[] = [];
+    await runScript(code, { tools: ['read'] }, [
+      async (context) => {
+        seen = lastToolResult(context);
+        kept = await readdir(spill);
+        return fauxAssistantMessage('done');
+      }
+    ]);
+    // With read, the agent can read the file until it ends.
+    expect(seen).toContain('Full output');
+    expect(kept).toHaveLength(1);
+    await vi.waitFor(async () => expect(await readdir(spill)).toEqual([]));
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
+test('a script reports as one tool activity', async () => {
+  const calls: string[] = [];
+  const activity: AgentActivity[] = [];
+  await runScript(
+    'await Promise.allSettled([tools.first({}), tools.first({}), tools.first({})]); throw new Error("stop");',
+    {
+      tools: ['first'],
+      extensions: [recordingTool('first', calls, 'one')],
+      onActivity: (event) => activity.push(event)
+    },
+    [fauxAssistantMessage('done')]
+  );
+  expect(calls).toHaveLength(3);
+  expect(activity.map(({ toolName, phase }) => `${toolName} ${phase}`)).toEqual([
+    'codemode started',
+    'codemode failed'
+  ]);
 });

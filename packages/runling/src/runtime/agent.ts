@@ -2,9 +2,9 @@ import type { WorkflowContext } from './context.ts';
 import { requireDirectory } from './directory.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { dirname } from 'node:path';
+import { rm } from 'node:fs/promises';
 import {
   createAgentSession,
-  createCodemodeExtension,
   convertToLlm,
   DefaultResourceLoader,
   defineTool,
@@ -18,6 +18,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { Type, type Static } from 'typebox';
 import webFetchExtension from '../../extensions/web-fetch.ts';
+import { codemodeExtension, DEFAULT_SCRIPT_TIMEOUT_MS } from './codemode.ts';
 import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
@@ -205,9 +206,10 @@ export interface RunAgentOptions {
    * a script passes the same `tool_call` and `tool_result` hooks as a model call, so trust
    * policies and extension gates still apply. With `mode: 'only'`, the other tools are hidden
    * from the model, which reaches them through scripts. Scripts cannot run classifier or image
-   * models, and they cannot call `report_outcome`.
+   * models, and they cannot call `report_outcome`. A script stops after `timeoutMs` (default ten
+   * minutes). See FDR-008.
    */
-  codemode?: boolean | { mode?: 'on' | 'only' };
+  codemode?: boolean | { mode?: 'on' | 'only'; timeoutMs?: number };
   /** Keep the agent's conversation in this JSONL file. When the file exists, the agent
    * continues that conversation, for example after a cancellation or restart. The file holds
    * the complete model context, so keep it private. A fork does not use it. It cannot be
@@ -422,6 +424,8 @@ async function createRunlingAgent(
     : undefined;
 
   const resources = options.resources;
+  // Files with the complete output of long scripts, which the agent deletes when it ends.
+  const codemodeFiles = new Set<string>();
   const extensionsEnabled = resources?.extensions !== false;
   const settingsManager = SettingsManager.create(cwd, agentDir);
   const retrySettings = settingsManager.getRetrySettings();
@@ -442,10 +446,13 @@ async function createRunlingAgent(
         ? [
             {
               name: 'runling-codemode',
-              factory: createCodemodeExtension({
+              factory: codemodeExtension({
                 mode: options.codemode === true ? 'on' : (options.codemode.mode ?? 'on'),
-                // Scripts must not spend money on models that the agent's owner did not choose.
-                models: false
+                timeoutMs:
+                  (options.codemode !== true && options.codemode.timeoutMs) ||
+                  DEFAULT_SCRIPT_TIMEOUT_MS,
+                keepFullOutput: (options.tools ?? ['read']).includes('read'),
+                keptFiles: codemodeFiles
               })
             }
           ]
@@ -520,6 +527,7 @@ async function createRunlingAgent(
     finishSteering();
     if (running) abortSession(session, agentLog);
     session.dispose();
+    for (const file of codemodeFiles) void rm(file, { force: true }).catch(() => {});
   };
 
   const runOutcome: RunlingAgent['runOutcome'] = async (
@@ -640,7 +648,8 @@ async function createRunlingAgent(
 
         if (event.type === 'tool_execution_start' && event.toolName !== 'report_outcome') {
           toolStartedAt.set(event.toolCallId, performance.now());
-          activity(event.toolName, 'started');
+          // A codemode script reports as one call; the calls in it appear only in the log.
+          if (!event.parentToolCallId) activity(event.toolName, 'started');
           const action = describeTool(event.toolName, event.args, cwd);
           agentLog.info(highlightToolAction(event.toolName, action));
         }
@@ -648,7 +657,8 @@ async function createRunlingAgent(
         if (event.type === 'tool_execution_end' && event.toolName !== 'report_outcome') {
           const startedAt = toolStartedAt.get(event.toolCallId);
           toolStartedAt.delete(event.toolCallId);
-          activity(event.toolName, event.isError ? 'failed' : 'succeeded', event.result);
+          if (!event.parentToolCallId)
+            activity(event.toolName, event.isError ? 'failed' : 'succeeded', event.result);
           const duration =
             startedAt === undefined ? '' : ` in ${formatDuration(performance.now() - startedAt)}`;
 

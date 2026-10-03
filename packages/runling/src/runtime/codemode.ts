@@ -1,0 +1,76 @@
+/** Runling's codemode: Pi's codemode tool with limits that the agent's owner controls. See FDR-008. */
+import { rm } from 'node:fs/promises';
+import { createCodemodeExtension, type ExtensionAPI } from '@earendil-works/pi-coding-agent';
+
+/** Longest script run unless the agent sets `codemode.timeoutMs`. */
+export const DEFAULT_SCRIPT_TIMEOUT_MS = 10 * 60_000;
+
+const OPTIONS_PREFIX = '// @options:';
+
+/**
+ * Give a script a deadline of at most `maxMs`. Pi reads options from an optional first line, and a
+ * script without a `timeout_ms` option never times out. A shorter deadline in the script stays.
+ * A first line with invalid options stays unchanged: Pi then refuses the script.
+ */
+export function withScriptDeadline(code: string, maxMs: number): string {
+  const newline = code.indexOf('\n');
+  const first = (newline === -1 ? code : code.slice(0, newline)).replace(/\r$/, '').trimStart();
+  if (!first.startsWith(OPTIONS_PREFIX))
+    return `${OPTIONS_PREFIX} ${JSON.stringify({ timeout_ms: maxMs })}\n${code}`;
+  let options: unknown;
+  try {
+    options = JSON.parse(first.slice(OPTIONS_PREFIX.length));
+  } catch {
+    return code;
+  }
+  if (typeof options !== 'object' || options === null || Array.isArray(options)) return code;
+  const requested = (options as { timeout_ms?: unknown }).timeout_ms;
+  const timeout =
+    typeof requested === 'number' && requested > 0 ? Math.min(requested, maxMs) : maxMs;
+  const rest = newline === -1 ? '' : code.slice(newline);
+  return `${OPTIONS_PREFIX} ${JSON.stringify({ ...options, timeout_ms: timeout })}${rest}`;
+}
+
+export interface CodemodeSettings {
+  mode: 'on' | 'only';
+  timeoutMs: number;
+  /** Keep the file with the complete output of a long script until the agent ends, for agents
+   * that can read it. Otherwise Runling deletes the file at once. */
+  keepFullOutput: boolean;
+  /** Receives the paths of kept files, which the agent deletes when it ends. */
+  keptFiles: Set<string>;
+}
+
+/** Pi writes the complete output of a long script to a temporary file and names it in the result. */
+const FULL_OUTPUT_NOTE = /\n\n\[Full output: [^\n]*\]$/;
+
+export function codemodeExtension(settings: CodemodeSettings) {
+  // Scripts must not spend money on models that the agent's owner did not choose.
+  const codemode = createCodemodeExtension({ mode: settings.mode, models: false });
+  return (pi: ExtensionAPI) => {
+    codemode(pi);
+    pi.on('tool_call', (event) => {
+      if (event.toolName !== 'codemode' || event.parentToolCallId) return;
+      const input = event.input as { code?: unknown };
+      if (typeof input.code === 'string')
+        input.code = withScriptDeadline(input.code, settings.timeoutMs);
+    });
+    pi.on('tool_result', async (event) => {
+      if (event.toolName !== 'codemode') return;
+      const path = (event.details as { fullOutputPath?: unknown } | undefined)?.fullOutputPath;
+      if (typeof path !== 'string') return;
+      if (settings.keepFullOutput) {
+        settings.keptFiles.add(path);
+        return;
+      }
+      // Without a read tool, the file serves no purpose and can hold sensitive tool output.
+      await rm(path, { force: true });
+      return {
+        content: event.content.map((item) =>
+          item.type === 'text' ? { ...item, text: item.text.replace(FULL_OUTPUT_NOTE, '') } : item
+        ),
+        details: { ...(event.details as object), fullOutputPath: undefined }
+      };
+    });
+  };
+}
