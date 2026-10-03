@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Desteklenen iOS/iPadOS sürümlerinde Chatto'yu Ana Ekrana ekleyin ve anlık bildirimleri etkinleştirmek için uygulama simgesinden açın.",
         "blocked_title": "Anlık bildirimler engellendi",
         "blocked_description": "Tarayıcınızda veya işletim sistemi ayarlarınızda bildirimleri etkinleştirin, ardından Chatto'yi tekrar açın.",
-        "enabled_description": "Chatto anahtar olarak tarayıcınızı veya işletim sistemi bildirim izninizi kullanır. Bildirimleri kapatmak için tarayıcınızda veya işletim sistemi ayarlarınızda bu site için bildirimleri devre dışı bırakın.",
         "test_button": "Test bildirimi gönder",
         "testing": "Gönderiliyor…",
         "test_sent": "Test bildirimi gönderildi.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Bu cihazda anlık bildirimler ayarlanamadı",
         "setup_failed_description": "Tarayıcı veya sunucu aboneliği reddetti. Chatto, uygulamaya döndüğünüzde yeniden dener.",
         "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin.",
-        "setup_failed_details": "Teknik ayrıntılar: {reason}"
+        "setup_failed_details": "Teknik ayrıntılar: {reason}",
+        "disabled_title": "Anlık bildirimler bu cihazda kapalı",
+        "device_wide": "Anlık bildirimleri açmak veya kapatmak bu cihazdaki tüm sunucular için geçerlidir.",
+        "turn_off": "Anlık bildirimleri kapat",
+        "turning_off": "Kapatılıyor…",
+        "turn_off_failed": "Anlık bildirimler tüm sunucular için kapatılamadı.",
+        "prompt_unanswered": "Tarayıcınız izin isteğini göstermedi. Tarayıcınızın site ayarlarında bu site için bildirimlere izin verin."
       },
       "push_prompt": {
         "title": "Anlık bildirimleri etkinleştir",

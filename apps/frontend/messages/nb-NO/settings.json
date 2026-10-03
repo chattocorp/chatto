@@ -272,7 +272,6 @@
         "ios_home_screen_description": "På støttede versjoner av iOS/iPadOS legger du til Chatto på startskjermen og åpner den fra appikonet for å aktivere push-varslinger.",
         "blocked_title": "Push-varsler blokkert",
         "blocked_description": "Aktiver varsler i nettleseren eller OS-innstillingene, og åpne Chatto igjen.",
-        "enabled_description": "Chatto bruker nettleser- eller OS-varslingstillatelsen din som bryter. For å slå av varsler, deaktiver dem for dette nettstedet i nettleseren eller OS-innstillingene.",
         "test_button": "Send testvarsel",
         "testing": "Sender …",
         "test_sent": "Testvarsel er sendt.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Push-varsler kunne ikke konfigureres på denne enheten",
         "setup_failed_description": "Nettleseren eller serveren avviste abonnementet. Chatto prøver igjen når du kommer tilbake til appen.",
         "test_rate_limited": "Vent noen sekunder før du sender et nytt testvarsel.",
-        "setup_failed_details": "Tekniske detaljer: {reason}"
+        "setup_failed_details": "Tekniske detaljer: {reason}",
+        "disabled_title": "Push-varsler er slått av på denne enheten",
+        "device_wide": "Å slå push-varsler av eller på gjelder alle servere på denne enheten.",
+        "turn_off": "Slå av push-varsler",
+        "turning_off": "Slår av…",
+        "turn_off_failed": "Push-varsler kunne ikke slås av for alle servere.",
+        "prompt_unanswered": "Nettleseren din viste ikke tillatelsesforespørselen. Tillat varsler for dette nettstedet i nettstedsinnstillingene i nettleseren din."
       },
       "push_prompt": {
         "title": "Aktiver push-varsler",

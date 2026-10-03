@@ -116,7 +116,9 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-When a signed-in server supports push and browser permission is unset, Chatto shows an invitation to enable push notifications. **Enable** opens the browser or operating-system permission prompt. **Not now**, or a dismissed prompt, hides the invitation on this device for 14 days. Each server's notification settings also offer **Enable** while permission is unset. If the user blocks notifications, Chatto does not ask again; the user can change the choice in browser or operating-system settings. The browser permission is the only switch.
+When a signed-in server supports push and browser permission is unset, Chatto shows an invitation to enable push notifications. **Enable** opens the browser or operating-system permission prompt. **Not now**, or a dismissed prompt, hides the invitation on this device for 14 days. Each server's notification settings also offer **Enable** while permission is unset. If the user blocks notifications, Chatto does not ask again; the user can change the choice in browser or operating-system settings.
+
+Push is on for every registered server or for none of them. While push is on, any server's notification settings offer **Turn off push notifications**, which stops push from every server on this device. **Enable** in the same settings turns it on again for all servers.
 
 Each server's notification settings show whether that server sends push notifications to this device. When it does, the panel names the browser and platform, and the address where notifications open Chatto. Use **Send test notification** to check delivery to your devices.
 

@@ -13,12 +13,16 @@ const mocks = vi.hoisted(() => ({
   webPushRuntime: true,
   retryPushRegistration: vi.fn(),
   enablePushOnAllServers: vi.fn(),
+  disablePushOnAllServers: vi.fn(),
+  disabledOnDevice: false,
   sendTestNotification: vi.fn(),
   hasSavedPushRegistration: vi.fn()
 }));
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
   enablePushOnAllServers: mocks.enablePushOnAllServers,
+  disablePushOnAllServers: mocks.disablePushOnAllServers,
+  isPushDisabledOnThisDevice: () => mocks.disabledOnDevice,
   getPermission: () => mocks.permission,
   getPushCapability: () => mocks.capability,
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
@@ -57,6 +61,9 @@ describe('PushDeviceSettings', () => {
     mocks.sendTestNotification.mockResolvedValue(true);
     mocks.enablePushOnAllServers.mockReset();
     mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'granted', registrations: [] });
+    mocks.disablePushOnAllServers.mockReset();
+    mocks.disablePushOnAllServers.mockResolvedValue(undefined);
+    mocks.disabledOnDevice = false;
     window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
@@ -131,7 +138,9 @@ describe('PushDeviceSettings', () => {
     await expect
       .element(screen.getByRole('status'))
       .toHaveTextContent('Setting up push notifications for this device…');
-    expect(screen.container.querySelector('button')).toBeNull();
+    await expect
+      .element(screen.getByRole('button', { name: 'Send test notification' }))
+      .not.toBeInTheDocument();
   });
 
   it('offers to enable push while permission is unset', async () => {
@@ -158,6 +167,59 @@ describe('PushDeviceSettings', () => {
 
     await expect.poll(() => isPushPromptSnoozed()).toBe(true);
     window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
+  });
+
+  it('explains a permission request that the browser did not show', async () => {
+    mocks.permission = 'default';
+    mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'default', registrations: [] });
+    const screen = renderSettings();
+
+    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+
+    await expect.element(screen.getByText(/did not show the permission request/)).toBeVisible();
+    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
+  });
+
+  it('turns push off for every server on this device', async () => {
+    const screen = renderSettings();
+
+    await expect.element(screen.getByText(/applies to every server on this device/)).toBeVisible();
+    await screen.getByRole('button', { name: 'Turn off push notifications' }).click();
+
+    expect(mocks.disablePushOnAllServers).toHaveBeenCalledOnce();
+  });
+
+  it('offers to turn push on again after the user turned it off', async () => {
+    mocks.disabledOnDevice = true;
+    const screen = renderSettings();
+
+    await expect
+      .element(screen.getByText('Push notifications are turned off on this device'))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Turn off push notifications' }))
+      .not.toBeInTheDocument();
+    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+
+    expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+  });
+
+  it('offers a retry when push could not be turned off for every server', async () => {
+    mocks.disablePushOnAllServers.mockImplementation(async () => {
+      mocks.disabledOnDevice = true;
+      throw new Error('server unreachable');
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const screen = renderSettings();
+
+    await screen.getByRole('button', { name: 'Turn off push notifications' }).click();
+
+    await expect
+      .element(screen.getByText('Push notifications could not be turned off for every server.'))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    expect(mocks.disablePushOnAllServers).toHaveBeenCalledTimes(2);
+    error.mockRestore();
   });
 
   it('explains blocked permission', async () => {

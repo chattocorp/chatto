@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Sur les versions prises en charge d’iOS/iPadOS, ajoutez Chatto à l’écran d’accueil et ouvrez-le à partir de l’icône de l’application pour activer les notifications poussées.",
         "blocked_title": "Notifications poussées bloquées",
         "blocked_description": "Activez les notifications dans les paramètres de votre navigateur ou de votre système d'exploitation, puis ouvrez à nouveau Chatto.",
-        "enabled_description": "Chatto utilise l'autorisation de notification de votre navigateur ou de votre système d'exploitation comme commutateur. Pour désactiver les notifications, désactivez-les pour ce site dans les paramètres de votre navigateur ou de votre système d'exploitation.",
         "test_button": "Envoyer une notification de test",
         "testing": "Envoi en cours…",
         "test_sent": "Notification de test envoyée.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Impossible de configurer les notifications poussées sur cet appareil",
         "setup_failed_description": "Le navigateur ou le serveur a refusé l’abonnement. Chatto réessaiera quand vous reviendrez dans l’application.",
         "test_rate_limited": "Attendez quelques secondes avant d’envoyer une autre notification de test.",
-        "setup_failed_details": "Détails techniques : {reason}"
+        "setup_failed_details": "Détails techniques : {reason}",
+        "disabled_title": "Les notifications poussées sont désactivées sur cet appareil",
+        "device_wide": "L’activation ou la désactivation des notifications poussées s’applique à tous les serveurs sur cet appareil.",
+        "turn_off": "Désactiver les notifications poussées",
+        "turning_off": "Désactivation…",
+        "turn_off_failed": "Les notifications poussées n’ont pas pu être désactivées pour tous les serveurs.",
+        "prompt_unanswered": "Votre navigateur n’a pas affiché la demande d’autorisation. Autorisez les notifications pour ce site dans les paramètres du site de votre navigateur."
       },
       "push_prompt": {
         "title": "Activer les notifications poussées",

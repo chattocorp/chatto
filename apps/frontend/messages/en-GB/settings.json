@@ -272,7 +272,6 @@
         "ios_home_screen_description": "On supported iOS/iPadOS versions, add Chatto to the Home Screen and open it from the app icon to enable push notifications.",
         "blocked_title": "Push notifications blocked",
         "blocked_description": "Enable notifications in your browser or OS settings, then open Chatto again.",
-        "enabled_description": "Chatto uses your browser or OS notification permission as the switch. To turn notifications off, disable them for this site in your browser or OS settings.",
         "test_button": "Send test notification",
         "testing": "Sending…",
         "test_sent": "Test notification sent.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Push notifications could not be set up on this device",
         "setup_failed_description": "The browser or the server rejected the subscription. Chatto tries again when you return to the app.",
         "test_rate_limited": "Wait a few seconds before you send another test notification.",
-        "setup_failed_details": "Technical details: {reason}"
+        "setup_failed_details": "Technical details: {reason}",
+        "disabled_title": "Push notifications are turned off on this device",
+        "device_wide": "Turning push notifications on or off applies to every server on this device.",
+        "turn_off": "Turn off push notifications",
+        "turning_off": "Turning off…",
+        "turn_off_failed": "Push notifications could not be turned off for every server.",
+        "prompt_unanswered": "Your browser did not show the permission request. Allow notifications for this site in your browser’s site settings."
       },
       "push_prompt": {
         "title": "Enable push notifications",

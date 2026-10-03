@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  disablePushOnAllServers,
   enablePushOnAllServers,
   ensureRegistered,
   getPushCapability,
   getPushRegistrationTargets,
   hasSavedPushRegistration,
+  isPushDisabledOnThisDevice,
   pushRegistrationFailure,
   retryPushRegistration,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
@@ -18,7 +20,10 @@ import {
   prepareUiForNotificationPath,
   prepareUiForNotificationTarget
 } from './notificationNavigationUi';
-import { resumePushRegistrationAfterAuthentication } from './pushRegistrationCoordinator';
+import {
+  resumePushRegistrationAfterAuthentication,
+  takeLegacyDisabledPushRegistration
+} from './pushRegistrationCoordinator';
 
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
@@ -1034,6 +1039,85 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(subscription.unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.unsubscribePush.mock.invocationCallOrder[0]
     );
+  });
+});
+
+describe('pushNotifications device-wide opt-out', () => {
+  beforeEach(() => {
+    setUpRegistrationTest();
+    permission = 'granted';
+  });
+
+  it('turns push off for every server on this device', async () => {
+    const subscription = makeSubscription('https://push.example/device');
+    getSubscription.mockResolvedValue(subscription);
+    await expect(ensureRegistered(originTarget)).resolves.toBe(true);
+    mocks.subscribePush.mockClear();
+
+    await disablePushOnAllServers();
+
+    expect(isPushDisabledOnThisDevice()).toBe(true);
+    expect(getPushRegistrationTargets()).toEqual([]);
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(false);
+    expect(subscription.unsubscribe).toHaveBeenCalled();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith('https://push.example/device');
+
+    await refreshPushSubscriptions();
+    await expect(ensureRegistered(originTarget)).resolves.toBe(false);
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
+  });
+
+  it('turns push on again for every server from Enable', async () => {
+    getSubscription.mockResolvedValue(makeSubscription('https://push.example/device'));
+    await disablePushOnAllServers();
+    mocks.subscribePush.mockClear();
+
+    const result = await enablePushOnAllServers();
+
+    expect(isPushDisabledOnThisDevice()).toBe(false);
+    expect(result.registrations).toEqual([
+      expect.objectContaining({ serverId: 'origin', registered: true }),
+      expect.objectContaining({ serverId: 'remote', registered: true })
+    ]);
+    expect(mocks.subscribePush).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops a registration in progress when another tab turns push off', async () => {
+    const subscription = makeSubscription('https://push.example/in-progress');
+    getSubscription.mockResolvedValue(subscription);
+    const save = deferred<{ subscribed: boolean }>();
+    mocks.subscribePush.mockReturnValueOnce(save.promise);
+
+    const registration = ensureRegistered(originTarget);
+    await vi.waitFor(() => expect(mocks.subscribePush).toHaveBeenCalledOnce());
+    // Another tab stores the opt-out while this tab waits for the server.
+    window.localStorage.setItem('chatto.push-registration.disabled', '1');
+    save.resolve({ subscribed: true });
+
+    await expect(registration).resolves.toBe(false);
+    expect(subscription.unsubscribe).toHaveBeenCalled();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith('https://push.example/in-progress');
+  });
+
+  it('keeps an earlier opt-out for a single server as a device-wide opt-out', () => {
+    const storage = new Map<string, string>([
+      ['chatto.push-registration.suspended.origin', 'disabled'],
+      ['chatto.push-registration.suspended.remote', 'leaving']
+    ]);
+    vi.stubGlobal('window', {
+      localStorage: {
+        get length() {
+          return storage.size;
+        },
+        key: (index: number) => [...storage.keys()][index] ?? null,
+        getItem: (key: string) => storage.get(key) ?? null,
+        removeItem: (key: string) => storage.delete(key)
+      }
+    });
+
+    expect(takeLegacyDisabledPushRegistration()).toBe(true);
+    expect([...storage.keys()]).toEqual(['chatto.push-registration.suspended.remote']);
+    expect(takeLegacyDisabledPushRegistration()).toBe(false);
   });
 });
 

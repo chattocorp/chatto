@@ -1,8 +1,10 @@
 <!--
 @component
 
-Shows whether the current server sends push notifications to this device and
-lets the user send a test notification.
+Shows whether the current server sends push notifications to this device,
+lets the user send a test notification, and turns push on or off for this
+device. Push is on for every registered server or for none of them, so the
+switch in any server's panel applies to all servers.
 
 The panel names the browser and platform that receive the notifications and
 the origin that notification clicks open. It never asks for notification
@@ -15,11 +17,13 @@ server has no Web Push configuration or the app does not run in a browser.
   import { m } from '$lib/i18n/messages';
   import { describePushDevice } from '$lib/notifications/pushDevice';
   import {
+    disablePushOnAllServers,
     enablePushOnAllServers,
     getPermission,
     getPushCapability,
     hasSavedPushRegistration,
     isBrowserWebPushRuntime,
+    isPushDisabledOnThisDevice,
     pushRegistrationFailure,
     retryPushRegistration,
     sendTestNotification
@@ -51,8 +55,13 @@ server has no Web Push configuration or the app does not run in a browser.
   const permission = $derived(getPermission());
   const registered = $derived(hasSavedPushRegistration(serverId, store.accountId));
   const registrationFailure = $derived(pushRegistrationFailure(serverId));
+  const disabledOnDevice = $derived(isPushDisabledOnThisDevice());
   let retrying = $state(false);
   let enabling = $state(false);
+  let disabling = $state(false);
+  let turnOffFailed = $state(false);
+  /** The browser closed the permission request, or did not show it at all. */
+  let promptUnanswered = $state(false);
 
   let testing = $state(false);
   let testResult = $state<TestResult | null>(null);
@@ -80,12 +89,27 @@ server has no Web Push configuration or the app does not run in a browser.
 
   async function enable(): Promise<void> {
     enabling = true;
+    turnOffFailed = false;
     try {
       const result = await enablePushOnAllServers();
+      promptUnanswered = result.permission === 'default';
       // A dismissed browser prompt counts as Not now for the invitation too.
-      if (result.permission === 'default') snoozePushPrompt();
+      if (promptUnanswered) snoozePushPrompt();
     } finally {
       enabling = false;
+    }
+  }
+
+  async function turnOff(): Promise<void> {
+    disabling = true;
+    turnOffFailed = false;
+    try {
+      await disablePushOnAllServers();
+    } catch (error) {
+      console.error('Failed to turn push notifications off:', error);
+      turnOffFailed = true;
+    } finally {
+      disabling = false;
     }
   }
 
@@ -114,11 +138,34 @@ server has no Web Push configuration or the app does not run in a browser.
           <p class="font-medium">{m('settings.notifications.push.blocked_title')}</p>
           <p>{m('settings.notifications.push.blocked_description')}</p>
         </Hint>
+      {:else if disabledOnDevice}
+        <div class="flex flex-col gap-1">
+          <p class="font-medium text-text-top">
+            {m('settings.notifications.push.disabled_title')}
+          </p>
+          <p class="text-muted">{m('settings.notifications.push.device_wide')}</p>
+        </div>
+        <div>
+          <Button
+            size="sm"
+            onclick={enable}
+            disabled={enabling}
+            loading={enabling}
+            loadingText={m('settings.notifications.push_prompt.enabling')}
+          >
+            {m('settings.notifications.push_prompt.title')}
+          </Button>
+        </div>
       {:else if permission !== 'granted'}
         <div class="flex flex-col gap-1">
           <p class="font-medium text-text-top">{m('settings.notifications.push.off_title')}</p>
           <p class="text-muted">{m('settings.notifications.push_prompt.message')}</p>
         </div>
+        {#if promptUnanswered}
+          <Hint tone="warning">
+            <p>{m('settings.notifications.push.prompt_unanswered')}</p>
+          </Hint>
+        {/if}
         <div>
           <Button
             size="sm"
@@ -169,7 +216,6 @@ server has no Web Push configuration or the app does not run in a browser.
             </p>
           </div>
         </div>
-        <p class="text-muted">{m('settings.notifications.push.enabled_description')}</p>
         <div class="flex flex-wrap items-center gap-3">
           <Button
             size="sm"
@@ -185,6 +231,36 @@ server has no Web Push configuration or the app does not run in a browser.
           {:else if testResult?.kind === 'failed'}
             <p class="text-danger" role="alert">{testResult.message}</p>
           {/if}
+        </div>
+      {/if}
+      {#if turnOffFailed}
+        <Hint tone="warning">
+          <p>{m('settings.notifications.push.turn_off_failed')}</p>
+        </Hint>
+        <div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onclick={turnOff}
+            disabled={disabling}
+            loading={disabling}
+          >
+            {m('common.retry')}
+          </Button>
+        </div>
+      {:else if capability === 'supported' && permission === 'granted' && !disabledOnDevice}
+        <div class="flex flex-col items-start gap-2">
+          <p class="text-muted">{m('settings.notifications.push.device_wide')}</p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onclick={turnOff}
+            disabled={disabling}
+            loading={disabling}
+            loadingText={m('settings.notifications.push.turning_off')}
+          >
+            {m('settings.notifications.push.turn_off')}
+          </Button>
         </div>
       {/if}
     </div>

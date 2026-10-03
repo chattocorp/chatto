@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Toetatud iOS-i/iPadOS-i versioonides lisage Chatto avakuvale ja avage see tõukemärguannete lubamiseks rakenduse ikooni kaudu.",
         "blocked_title": "Tõukemärguanded on blokeeritud",
         "blocked_description": "Lubage oma brauseris või OS-i seadetes märguanded, seejärel avage Chatto uuesti.",
-        "enabled_description": "Chatto kasutab lülitina teie brauseri või OS-i teavitusluba. Märguannete väljalülitamiseks keelake need sellel saidil oma brauseris või OS-i seadetes.",
         "test_button": "Saada testiteade",
         "testing": "Saatmine…",
         "test_sent": "Testiteatis saadetud.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Tõukemärguandeid ei õnnestunud selles seadmes seadistada",
         "setup_failed_description": "Brauser või server lükkas tellimuse tagasi. Chatto proovib uuesti, kui naasete rakendusse.",
         "test_rate_limited": "Oodake mõni sekund, enne kui saadate uue testmärguande.",
-        "setup_failed_details": "Tehnilised üksikasjad: {reason}"
+        "setup_failed_details": "Tehnilised üksikasjad: {reason}",
+        "disabled_title": "Tõukemärguanded on selles seadmes välja lülitatud",
+        "device_wide": "Tõukemärguannete sisse- või väljalülitamine kehtib selle seadme kõigi serverite kohta.",
+        "turn_off": "Lülita tõukemärguanded välja",
+        "turning_off": "Väljalülitamine…",
+        "turn_off_failed": "Tõukemärguandeid ei õnnestunud kõigi serverite jaoks välja lülitada.",
+        "prompt_unanswered": "Teie brauser ei näidanud loa taotlust. Lubage selle saidi märguanded oma brauseri saidiseadetes."
       },
       "push_prompt": {
         "title": "Luba tõukemärguanded",

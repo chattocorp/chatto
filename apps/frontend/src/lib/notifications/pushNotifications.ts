@@ -13,6 +13,8 @@ import { serverConnectionManager, serverRegistry } from '$lib/client';
 import { SvelteMap } from 'svelte/reactivity';
 import {
   completePushRegistrationRefresh,
+  disablePushRegistrationOnDevice,
+  enablePushRegistrationOnDevice,
   enqueuePushRegistration,
   hasDurablePushCoordinationStorage,
   isPushRegistrationSuspended,
@@ -20,9 +22,11 @@ import {
   pendingPushRegistrationRefresh,
   requestPushRegistrationRefresh,
   shouldInvalidateCancelledPushRegistration,
-  suspendPushRegistrationBeforeLeaving
+  suspendPushRegistrationBeforeLeaving,
+  takeLegacyDisabledPushRegistration
 } from './pushRegistrationCoordinator';
 import { notificationPermission } from './pushPermission.svelte';
+import { pushDeviceOptOut } from './pushDeviceOptOut.svelte';
 
 export type PushRegistrationTarget = {
   serverId: string;
@@ -307,9 +311,12 @@ export function getPermission(): NotificationPermission | null {
   return notificationPermission.current;
 }
 
-/** Return authenticated servers that can accept this client's Web Push route. */
+/**
+ * Return authenticated servers that can accept this client's Web Push route,
+ * or none while the user turned push off on this device. Reactive.
+ */
 export function getPushRegistrationTargets(): PushRegistrationTarget[] {
-  if (!isBrowserWebPushRuntime()) return [];
+  if (!isBrowserWebPushRuntime() || pushDeviceOptOut.current) return [];
 
   return serverRegistry.servers.flatMap((server) => {
     const store = serverRegistry.tryGetStore(server.id);
@@ -328,10 +335,11 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
 }
 
 /**
- * Ask for notification permission, then register every eligible server. This
- * is the only place where Chatto asks the browser for notification
- * permission. Call it from the click handler of an explicit Enable action:
- * browsers accept the request only during a user interaction.
+ * Turn push on for this device: clear the device-wide opt-out, ask for
+ * notification permission, then register every eligible server. This is the
+ * only place where Chatto asks the browser for notification permission. Call
+ * it from the click handler of an explicit Enable action: browsers accept the
+ * request only during a user interaction.
  *
  * The permission request must happen before registration enters its async
  * coordination queue. Some browsers require the call itself to retain the
@@ -352,6 +360,10 @@ export function enablePushOnAllServers(): Promise<EnablePushOnAllServersResult> 
 }
 
 async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResult> {
+  if (pushDeviceOptOut.current) {
+    enablePushRegistrationOnDevice();
+    pushDeviceOptOut.changed();
+  }
   if (getPushRegistrationTargets().length === 0) {
     return { permission: getPermission(), registrations: [] };
   }
@@ -818,6 +830,35 @@ async function retireLegacyOriginSubscription(
   }
 }
 
+/** Whether the user turned push notifications off on this device. Reactive. */
+export function isPushDisabledOnThisDevice(): boolean {
+  return pushDeviceOptOut.current;
+}
+
+/**
+ * Turn push off on this device for every server. Registration stops in every
+ * tab at once; then each server's browser subscription and server record are
+ * removed. Rejects when the opt-out cannot be stored or a server's delivery
+ * to this device could not be stopped.
+ */
+export async function disablePushOnAllServers(): Promise<void> {
+  savedRegistrations.clear();
+  failedRegistrations.clear();
+  try {
+    await disablePushRegistrationOnDevice(
+      serverRegistry.servers.map((server) => server.id),
+      async (serverId) => {
+        const cleanup = await beginUnsubscribe(serverId);
+        if (!cleanup.removedFromBrowser && !(await cleanup.removeFromServer)) {
+          throw new Error('Push delivery could not be stopped for a server');
+        }
+      }
+    );
+  } finally {
+    pushDeviceOptOut.changed();
+  }
+}
+
 /** Establishes a local or server-side delivery fence before navigation. */
 export function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
   savedRegistrations.delete(serverId);
@@ -886,4 +927,12 @@ function arrayBuffersEqual(left: ArrayBuffer, right: Uint8Array<ArrayBuffer>): b
 
 function pushAPI(serverId: string) {
   return serverConnectionManager.getClient(serverId).getAPI(createPushNotificationAPI);
+}
+
+// Earlier versions turned push off for single servers. Push is now on for all
+// servers or none, so an earlier opt-out turns push off on the whole device.
+if (takeLegacyDisabledPushRegistration()) {
+  void disablePushOnAllServers().catch((error: unknown) => {
+    console.error('Failed to turn push off after an earlier opt-out:', error);
+  });
 }

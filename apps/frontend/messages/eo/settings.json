@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Sur subtenataj versioj iOS/iPadOS, aldonu Chatto al la Hejma Ekrano kaj malfermu ĝin de la aplikaĵa ikono por ebligi puŝajn sciigojn.",
         "blocked_title": "Puŝaj sciigoj blokitaj",
         "blocked_description": "Ebligu sciigojn en via retumilo aŭ OS-agordoj, poste malfermu Chatto denove.",
-        "enabled_description": "Chatto uzas vian retumilon aŭ OS-sciigpermeson kiel la ŝaltilon. Por malŝalti sciigojn, malŝaltu ilin por ĉi tiu retejo en via retumilo aŭ OS-agordoj.",
         "test_button": "Sendu testan sciigon",
         "testing": "Sendante...",
         "test_sent": "Testa sciigo sendita.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Ne eblis agordi puŝajn sciigojn en ĉi tiu aparato",
         "setup_failed_description": "La retumilo aŭ la servilo rifuzis la abonon. Chatto reprovos, kiam vi revenos al la aplikaĵo.",
         "test_rate_limited": "Atendu kelkajn sekundojn antaŭ ol sendi alian testan sciigon.",
-        "setup_failed_details": "Teknikaj detaloj: {reason}"
+        "setup_failed_details": "Teknikaj detaloj: {reason}",
+        "disabled_title": "Puŝaj sciigoj estas malŝaltitaj en ĉi tiu aparato",
+        "device_wide": "Ŝalti aŭ malŝalti puŝajn sciigojn validas por ĉiuj serviloj en ĉi tiu aparato.",
+        "turn_off": "Malŝalti puŝajn sciigojn",
+        "turning_off": "Malŝaltante…",
+        "turn_off_failed": "Ne eblis malŝalti puŝajn sciigojn por ĉiuj serviloj.",
+        "prompt_unanswered": "Via retumilo ne montris la permespeton. Permesu sciigojn por ĉi tiu retejo en la retejaj agordoj de via retumilo."
       },
       "push_prompt": {
         "title": "Ebligi puŝajn sciigojn",

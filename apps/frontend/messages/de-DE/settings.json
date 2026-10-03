@@ -272,7 +272,6 @@
         "ios_home_screen_description": "Auf unterstützten iOS-/iPadOS-Versionen kannst du Push-Benachrichtigungen aktivieren, nachdem du Chatto zum Home-Bildschirm hinzugefügt und über das App-Symbol geöffnet hast.",
         "blocked_title": "Push-Benachrichtigungen blockiert",
         "blocked_description": "Aktiviere Benachrichtigungen in deinen Browser- oder Betriebssystemeinstellungen und öffne Chatto danach erneut.",
-        "enabled_description": "Chatto verwendet die Benachrichtigungsberechtigung deines Browsers oder Betriebssystems als Schalter. Um Benachrichtigungen auszuschalten, deaktiviere sie für diese Website in deinen Browser- oder Betriebssystemeinstellungen.",
         "test_button": "Testbenachrichtigung senden",
         "testing": "Wird gesendet…",
         "test_sent": "Testbenachrichtigung gesendet.",
@@ -286,7 +285,13 @@
         "setup_failed_title": "Push-Benachrichtigungen konnten auf diesem Gerät nicht eingerichtet werden",
         "setup_failed_description": "Der Browser oder der Server hat das Abonnement abgelehnt. Chatto versucht es erneut, wenn du zur App zurückkehrst.",
         "test_rate_limited": "Warte ein paar Sekunden, bevor du eine weitere Testbenachrichtigung sendest.",
-        "setup_failed_details": "Technische Details: {reason}"
+        "setup_failed_details": "Technische Details: {reason}",
+        "disabled_title": "Push-Benachrichtigungen sind auf diesem Gerät ausgeschaltet",
+        "device_wide": "Das Ein- oder Ausschalten von Push-Benachrichtigungen gilt für alle Server auf diesem Gerät.",
+        "turn_off": "Push-Benachrichtigungen ausschalten",
+        "turning_off": "Wird ausgeschaltet…",
+        "turn_off_failed": "Push-Benachrichtigungen konnten nicht für alle Server ausgeschaltet werden.",
+        "prompt_unanswered": "Dein Browser hat die Berechtigungsanfrage nicht angezeigt. Erlaube Benachrichtigungen für diese Website in den Website-Einstellungen deines Browsers."
       },
       "push_prompt": {
         "title": "Push-Benachrichtigungen aktivieren",
