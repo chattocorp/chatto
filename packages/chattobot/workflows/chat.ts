@@ -348,6 +348,7 @@ export const conversation = task(
       textDelivery: 'final',
       systemPrompt,
       allowEmptyResponse: true,
+      codemode: true,
       tools: [
         'readThread',
         ...(readAttachment ? ['viewAttachment'] : []),

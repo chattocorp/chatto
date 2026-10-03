@@ -77,6 +77,7 @@ test('the research agent sees only the question and has only web tools', async (
   expect(fake.prompts).toEqual([question]);
   const [options] = fake.created;
   expect(options).toMatchObject({
+    codemode: true,
     label: 'research',
     model: 'test/model',
     tools: ['webSearch', 'browsePage'],

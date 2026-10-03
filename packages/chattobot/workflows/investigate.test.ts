@@ -71,6 +71,7 @@ test('parallel investigations use detached worktrees and expose only read-only t
       'recordFinding',
       'prepareImplementationPlan'
     ]);
+    expect(options.codemode).toBe(true);
     expect(options.resources).toMatchObject({
       extensions: false,
       skills: false,

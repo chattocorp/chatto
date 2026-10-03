@@ -119,6 +119,9 @@ test('the supervisor sees attachment metadata and views attachments in its threa
       attachments: [screenshot]
     });
     expect(agentOptions.tools).toContain('viewAttachment');
+    expect(agentOptions.codemode).toBe(true);
+    // Scripts receive only text, so the model views images directly.
+    expect(tools.get('viewAttachment')).toMatchObject({ exposure: 'model-only' });
     expect(agentOptions.instructions?.join('\n')).toContain('viewAttachment');
     for (let index = 0; index < 30; index++)
       await tools.get('viewAttachment')!.execute(String(index), { attachmentId: 'shot' });

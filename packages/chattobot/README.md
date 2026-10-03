@@ -825,6 +825,23 @@ the classifier's reason. It uses
 The classifier's model provider receives the action text and the maintainers'
 messages.
 
+## Codemode
+
+The supervisor, the research agent, the investigator, and the implementation
+worker have Runling's `codemode` tool (Runling FDR-008). The model can write a
+JavaScript script that calls the agent's own tools, for example to read several
+files or issues in parallel and keep only the relevant lines. Only the script's
+output enters the conversation. Every call from a script passes the same checks
+as a direct call: the maintainer gate, the authorization checks, the research
+and attachment limits, and the block after untrusted content. Scripts cannot
+call `viewAttachment`, because they receive only text, and the model must see the
+image itself.
+
+When the output of a script is longer than its limit, Pi writes the complete
+output to a file in the system temporary directory and does not delete it. The
+output can contain thread messages and GitHub content. On a shared host, set
+`TMPDIR` to a directory that only the bot's user can read.
+
 ## Development
 
 `runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`

@@ -377,6 +377,7 @@ export function createImplementation(
           thinkingLevel: settings.thinkingLevel ?? 'medium',
           label: 'implement',
           tools: WORKER_TOOLS,
+          codemode: true,
           extensions: [tools],
           textDelivery: 'final',
           resources: {
