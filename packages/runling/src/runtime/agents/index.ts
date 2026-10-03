@@ -33,6 +33,15 @@ export {
 
 export { runAgentConversation } from './conversation.ts';
 export {
+  createApprovalQueue,
+  approvalDecisionExtension,
+  toolApprovalGate,
+  type ApprovalAction,
+  type ApprovalRequest,
+  type ApprovalDecision,
+  type ApprovalQueue
+} from './approvals.ts';
+export {
   authorizationGate,
   createAuthorizationClassifier,
   type AuthorizationClassifier,

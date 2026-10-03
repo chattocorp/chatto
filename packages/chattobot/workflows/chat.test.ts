@@ -5,6 +5,7 @@ import type { WebhookContext } from 'runling/web';
 import type { Delivery } from '../chatto/routing.ts';
 import config from '../runling.config.ts';
 import { createChattoBot } from './chat.ts';
+import type { AgentExtensionAPI } from 'runling/agents';
 
 const delivery: Delivery = {
   version: 1,
@@ -17,6 +18,120 @@ const delivery: Delivery = {
   thread_root_id: null,
   message: { id: 'root', author_id: 'alice', body: 'Hello!' }
 };
+
+test.each([null, 'existing-thread'])(
+  'acknowledges a request in %s before continuing with the answer',
+  async (threadRootId) => {
+    const post = vi.fn(async () => {});
+    let acknowledge:
+      | ((id: string, input: { acknowledgement: string }, signal: AbortSignal) => Promise<unknown>)
+      | undefined;
+    const bot = createChattoBot({
+      acknowledge: async () => {},
+      post,
+      typing: async () => {},
+      timeout: 0,
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      createAgent: async (options) => {
+        for (const extension of options.extensions ?? []) {
+          const factory = typeof extension === 'function' ? extension : extension.factory;
+          await factory({
+            on() {},
+            registerTool(definition: { name: string; execute: NonNullable<typeof acknowledge> }) {
+              if (definition.name === 'acknowledgeRequest') acknowledge = definition.execute;
+            }
+          } as unknown as AgentExtensionAPI);
+        }
+        return {
+          async runOutcome(_ctx, _prompt, runOptions) {
+            const signal = new AbortController().signal;
+            await acknowledge!('ack', { acknowledgement: 'I’ll check that.' }, signal);
+            expect(post).toHaveBeenCalledOnce();
+            await expect(
+              acknowledge!('again', { acknowledgement: 'Checking.' }, signal)
+            ).rejects.toThrow('already acknowledged');
+            runOptions?.onText?.('Here is the answer.');
+            return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+          },
+          steer: async () => false,
+          dispose() {}
+        };
+      }
+    });
+    await bot(createWorkflowContext(), { ...delivery, thread_root_id: threadRootId });
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Object),
+      'Here is the answer.',
+      expect.any(AbortSignal)
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      { roomId: 'dm', threadRootId: threadRootId ?? 'root', inReplyTo: 'root' },
+      'I’ll check that.',
+      expect.any(AbortSignal)
+    );
+  }
+);
+
+test('the supervisor can acknowledge with one reaction and no chat reply', async () => {
+  const react = vi.fn(async () => {});
+  const post = vi.fn(async () => {});
+  let tool:
+    | {
+        name: string;
+        execute: (
+          id: string,
+          input: { emoji: string },
+          signal: AbortSignal
+        ) => Promise<{ content: unknown }>;
+      }
+    | undefined;
+  const bot = createChattoBot({
+    acknowledge: async () => {},
+    react,
+    post,
+    typing: async () => {},
+    timeout: 0,
+    readThread: async () => ({ messages: [], olderOmitted: false }),
+    createAgent: async (options) => {
+      expect(options.tools).toContain('reactToMessage');
+      for (const extension of options.extensions ?? []) {
+        const factory = typeof extension === 'function' ? extension : extension.factory;
+        await factory({
+          on() {},
+          registerTool(definition: NonNullable<typeof tool>) {
+            if (definition.name === 'reactToMessage') tool = definition;
+          }
+        } as unknown as AgentExtensionAPI);
+      }
+      return {
+        async runOutcome(_ctx, _prompt, runOptions) {
+          const signal = new AbortController().signal;
+          const result = await tool!.execute('reaction', { emoji: 'thumbsup' }, signal);
+          expect(result.content).toEqual([
+            { type: 'text', text: 'Reaction added to the current user message.' }
+          ]);
+          await expect(tool!.execute('duplicate', { emoji: 'heart' }, signal)).rejects.toThrow(
+            'Only one reaction'
+          );
+          runOptions?.onText?.('Redundant thanks.');
+          return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+        },
+        steer: async () => false,
+        dispose() {}
+      };
+    }
+  });
+  await bot(createWorkflowContext(), delivery);
+  expect(react).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'dm', messageId: 'root' },
+    'thumbsup',
+    expect.any(AbortSignal)
+  );
+  expect(post).not.toHaveBeenCalled();
+});
 
 test.each([
   { trigger: 'direct_message', thread: null },
@@ -93,10 +208,17 @@ test.each([
       output: 'text',
       allowEmptyResponse: true,
       tools: thread
-        ? ['readThread', 'fetchPage', 'investigateChatto', 'task_send', 'task_cancel']
-        : ['readThread', 'fetchPage'],
+        ? [
+            'readThread',
+            'acknowledgeRequest',
+            'fetchPage',
+            'investigateChatto',
+            'task_send',
+            'task_cancel'
+          ]
+        : ['readThread', 'acknowledgeRequest', 'fetchPage'],
       // The prompt hygiene extension comes first, then the gates and tools.
-      extensions: Array(thread ? 6 : 3).fill(expect.any(Function)),
+      extensions: Array(thread ? 6 : 4).fill(expect.any(Function)),
       resources: {
         extensions: false,
         skills: false,
@@ -126,9 +248,11 @@ test('implementation is a separate opt-in tool with host-result reporting instru
     createAgent: async (options) => {
       expect(options.tools).toEqual([
         'readThread',
+        'acknowledgeRequest',
         'fetchPage',
         'implementChatto',
         'askImplementation',
+        'decideApproval',
         'task_send',
         'task_cancel'
       ]);
@@ -251,7 +375,7 @@ test.each([
   expect(JSON.stringify(post.mock.calls)).toContain("couldn't format");
 });
 
-test('rapid follow-ups wait for initial context then steer the same turn in order without waiting for receipts', async () => {
+test('rapid follow-ups wait for initial context and the active answer before starting ordered turns', async () => {
   let releaseHistory!: () => void;
   const history = new Promise<void>((resolve) => {
     releaseHistory = resolve;
@@ -260,7 +384,6 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
   const finished = new Promise<void>((resolve) => {
     finish = resolve;
   });
-  const receipts: Array<() => void> = [];
   const messages: string[] = [];
   let firstRead = true;
   const readThread = vi.fn(async () => {
@@ -275,11 +398,7 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
     await finished;
     return { outcome: 'completed' as const, summary: 'Done', usage: emptyTokenUsage() };
   });
-  const steer = vi.fn(async (prompt: string) => {
-    expect(runOutcome).toHaveBeenCalledOnce();
-    messages.push(JSON.parse(prompt).message.text);
-    return new Promise<boolean>((resolve) => receipts.push(() => resolve(true)));
-  });
+  const steer = vi.fn(async () => true);
   const bot = createChattoBot({
     acknowledge: async () => {},
     post: async () => {},
@@ -314,16 +433,20 @@ test('rapid follow-ups wait for initial context then steer the same turn in orde
     expect(readThread).toHaveBeenCalledOnce();
     expect(steer).not.toHaveBeenCalled();
     releaseHistory();
-    await vi.waitFor(() => expect(steer).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(runOutcome).toHaveBeenCalledOnce());
+    expect(messages).toEqual(['Hello!']);
+    expect(readThread).toHaveBeenCalledOnce();
+    expect(steer).not.toHaveBeenCalled();
+    finish();
+    await vi.waitFor(() => expect(runOutcome).toHaveBeenCalledTimes(3));
     expect(messages).toEqual(['Hello!', 'Use a short answer', 'And include links']);
     expect(readThread).toHaveBeenCalledTimes(3);
   } finally {
     releaseHistory();
-    receipts.forEach((resolve) => resolve());
     finish();
     await running;
   }
-  expect(runOutcome).toHaveBeenCalledOnce();
+  expect(runOutcome).toHaveBeenCalledTimes(3);
 });
 
 test('a later turn gets only new thread messages, read after the saved cursor', async () => {
@@ -498,7 +621,7 @@ test('web research runs in a separate agent and blocks delegation in the supervi
   expect(supervisor!.tools).not.toContain('browsePage');
   expect(supervisor!.trust).toMatchObject({
     untrusted: ['researchWeb'],
-    blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send']
+    blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send', 'decideApproval']
   });
   // The host posts the refusal once per turn, and the rest of the reply still posts.
   expect(post.mock.calls.map(([, text]) => text)).toEqual([
@@ -585,11 +708,74 @@ test('maintainer tools follow the author of the latest human message', async () 
     {
       flag: false,
       gate: { block: true, reason: expect.stringContaining('only when a maintainer asks') },
-      open: undefined
+      open: { block: true, reason: expect.stringContaining('acknowledgeRequest') }
     },
-    { flag: true, gate: undefined, open: undefined }
+    {
+      flag: true,
+      gate: undefined,
+      open: { block: true, reason: expect.stringContaining('acknowledgeRequest') }
+    }
   ]);
   expect(post.mock.calls.filter(([, text]) => text.startsWith('Only a maintainer'))).toHaveLength(
     1
   );
 });
+
+test.each([false, true])(
+  'general web research requires a maintainer and a posted acknowledgement (%s)',
+  async (maintainer) => {
+    let gate:
+      | ((event: {
+          toolName: string;
+          input: unknown;
+          parentToolCallId?: string;
+        }) => Promise<unknown>)
+      | undefined;
+    let ack:
+      | ((id: string, input: { acknowledgement: string }, signal: AbortSignal) => Promise<unknown>)
+      | undefined;
+    const bot = createChattoBot({
+      acknowledge: async () => {},
+      post: async () => {},
+      typing: async () => {},
+      timeout: 0,
+      maintainers: maintainer ? ['alice'] : [],
+      web: { tavilyApiKey: 'unused' },
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      createAgent: async (options) => {
+        for (const extension of options.extensions ?? []) {
+          await (typeof extension === 'function' ? extension : extension.factory)({
+            on(name: string, handler: NonNullable<typeof gate>) {
+              if (name === 'tool_call') gate ??= handler;
+            },
+            registerTool(tool: { name: string; execute: NonNullable<typeof ack> }) {
+              if (tool.name === 'acknowledgeRequest') ack = tool.execute;
+            }
+          } as unknown as AgentExtensionAPI);
+        }
+        expect(options.trust?.blockAfterUntrusted).not.toContain('reactToMessage');
+        return {
+          async runOutcome() {
+            const call = { toolName: 'researchWeb', input: { question: 'HN today' } };
+            expect(await gate!(call)).toMatchObject({ block: true });
+            await ack!('ack', { acknowledgement: 'I’ll check.' }, new AbortController().signal);
+            expect(await gate!({ toolName: 'fetchPage', input: {} })).toBeUndefined();
+            if (maintainer) expect(await gate!(call)).toBeUndefined();
+            else
+              expect(await gate!(call)).toMatchObject({
+                block: true,
+                reason: expect.stringContaining('maintainer')
+              });
+            expect(await gate!({ ...call, parentToolCallId: 'script' })).toMatchObject({
+              block: true
+            });
+            return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+          },
+          steer: async () => false,
+          dispose() {}
+        };
+      }
+    });
+    await bot(createWorkflowContext(), delivery);
+  }
+);

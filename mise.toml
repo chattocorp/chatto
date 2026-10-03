@@ -90,6 +90,7 @@ sources = ["go.mod", "go.sum"]
 [tasks.deps-frontend]
 description = "Install frontend dependencies"
 dir = "."
+env.SHARP_IGNORE_GLOBAL_LIBVIPS = "1"
 run = "pnpm install"
 # package.json also contains app metadata and scripts; the lockfile is the
 # dependency-resolution input that should trigger installs.

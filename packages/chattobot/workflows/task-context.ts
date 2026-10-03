@@ -103,7 +103,12 @@ export function taskNotification(message: string): string {
         : {}),
       ...(value.type === 'task.notice' && isRecord(value.data) ? { data: value.data } : {}),
       ...(value.type === 'task.notice'
-        ? { report: noticeReport(isRecord(value.data) ? value.data.milestone : undefined) }
+        ? {
+            report:
+              isRecord(value.data) && typeof value.data.approvalId === 'string'
+                ? 'Review this ID in pendingApprovals and decide it with decideApproval. This is an internal owner decision, not user-facing progress. Ask a maintainer only if the action exceeds their authorized request.'
+                : noticeReport(isRecord(value.data) ? value.data.milestone : undefined)
+          }
         : {})
     });
   } catch {

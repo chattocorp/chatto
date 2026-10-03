@@ -110,3 +110,59 @@ test.each(['accepted', 'refused'])(
     expect(replies[1]).toBe('Here is the answer to your next question.');
   }
 );
+
+test('a reaction-only turn does not suppress a later background result', async () => {
+  const replies: string[] = [];
+  let react!: (id: string, input: { emoji: string }) => Promise<unknown>;
+  interact.mockImplementationOnce(async (ctx, _agent, _prompt, options) => {
+    await options.prepareMessage('Thanks', 'user');
+    await react('reaction', { emoji: 'heart' });
+    await ctx.emit('Redundant thanks');
+    expect(replies).toEqual([]);
+    await options.prepareMessage('Background result', 'notification');
+    await ctx.emit('The task finished.');
+    return '';
+  });
+  await conversation(
+    {
+      ...createWorkflowContext(),
+      emit: async (text) => {
+        replies.push(text);
+      }
+    },
+    'Thanks',
+    {
+      createAgent: async (options) => {
+        for (const extension of options.extensions ?? [])
+          await (typeof extension === 'function' ? extension : extension.factory)({
+            on() {},
+            registerTool(tool: { name: string; execute: typeof react }) {
+              if (tool.name === 'reactToMessage') react = tool.execute;
+            }
+          } as unknown as AgentExtensionAPI);
+        return { runOutcome: vi.fn(), steer: async () => false, dispose() {} };
+      },
+      model: 'test/model',
+      react: async () => {},
+      delivery: {
+        version: 1,
+        id: 'delivery',
+        type: 'message.created',
+        triggers: ['mention'],
+        occurred_at: 'now',
+        bot_id: 'bot',
+        room_id: 'room',
+        thread_root_id: 'root',
+        message: { id: 'message', author_id: 'human', body: 'Thanks' }
+      },
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      onBusy() {},
+      setReplyContext() {},
+      requester: () => 'human',
+      currentMessageId: () => 'message',
+      isAddressed: () => true,
+      announce: async () => {}
+    }
+  );
+  expect(replies).toEqual(['The task finished.']);
+});

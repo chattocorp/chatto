@@ -24,6 +24,7 @@ are not promises of future behavior.
 
 - [Package README](../README.md): setup, CLI, run references, and releases.
 - [Agent connections](agents.md): agent output, connections, task tools, and background tasks.
+- [Owner approvals](approvals.md): child requests, owner decisions, and tool gates.
 - [Agent steering](agent-steering.md): input delivery and consumption.
 - [Task channels](task-channels.md): task input, output, and cancellation.
 - [Event sources](event-sources.md): external inputs, retained state, and reloads.

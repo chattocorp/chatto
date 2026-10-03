@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { AgentExtensionAPI, AgentOptions, AgentRunOptions } from 'runling/agents';
-import { createAgentTasks } from 'runling/agents';
+import { createAgentTasks, createApprovalQueue } from 'runling/agents';
 import {
   createImplementation,
   implementationCommandEnvKeys,
@@ -115,14 +115,35 @@ type Tool = {
   ) => Promise<{ isError?: boolean; content: { text?: string }[] }>;
 };
 async function workerTools(options: AgentOptions) {
-  const tools = await registeredTools(options);
-  return async (name: string, input: object) => tools.get(name)!.execute('call', input as never);
+  const hooks: ((event: {
+    type: 'tool_call';
+    toolName: string;
+    input: object;
+  }) => Promise<{ block?: boolean; reason?: string } | undefined>)[] = [];
+  const tools = await registeredTools(options, hooks);
+  return async (name: string, input: object) => {
+    for (const hook of hooks) {
+      const decision = await hook({ type: 'tool_call', toolName: name, input });
+      if (decision?.block) throw new Error(decision.reason);
+    }
+    return tools.get(name)!.execute('call', input as never);
+  };
 }
-async function registeredTools(options: AgentOptions) {
+async function registeredTools(
+  options: AgentOptions,
+  hooks: ((event: {
+    type: 'tool_call';
+    toolName: string;
+    input: object;
+  }) => Promise<{ block?: boolean; reason?: string } | undefined>)[] = []
+) {
   const tools = new Map<string, Tool>();
   for (const extension of options.extensions ?? []) {
     const factory = typeof extension === 'function' ? extension : extension.factory;
     await factory({
+      on(name: string, handler: (typeof hooks)[number]) {
+        if (name === 'tool_call') hooks.push(handler);
+      },
       registerTool(tool: Tool) {
         tools.set(tool.name, tool);
       }
@@ -138,6 +159,49 @@ const proposal = {
   summary: 'Correct the value to fix the reported behavior.',
   notes: ['Browser behavior was not checked.']
 };
+
+test.each(['allow', 'deny', 'changed'] as const)(
+  'publication waits for its owner: %s',
+  async (outcome) => {
+    const f = await fixture();
+    const root = createWorkflowContext();
+    const queue = createApprovalQueue({ signal: root.signal });
+    let worktree = '';
+    const implement = createImplementation(f.settings, {
+      execute: f.execute,
+      requestApproval: (ctx, action) => queue.request(action, { signal: ctx.signal, notify() {} }),
+      createAgent: worker(async (options, call) => {
+        worktree = options.cwd;
+        await call('apply_patch', { patch });
+        await call('preparePullRequest', proposal);
+      })
+    });
+    const running = implement(root, { request: 'Fix the value' });
+    await vi.waitFor(() => expect(queue.list()[0]?.action).toBe('prepare_pull_request'));
+    const [prepare] = queue.list();
+    queue.decide(prepare!.id, { decision: 'allow', reason: 'The proposal matches the request.' });
+    await vi.waitFor(() => expect(queue.list()[0]?.action).toBe('publish_pull_request'));
+    expect(f.calls.some(({ args }) => args.includes('push') || args.includes('create'))).toBe(
+      false
+    );
+    const [publication] = queue.list();
+    expect(publication!.details).toMatchObject({
+      repository: 'example/chatto',
+      proposal,
+      tree: expect.any(String)
+    });
+    if (outcome === 'changed')
+      await writeFile(join(worktree, 'example.txt'), 'changed while waiting\n');
+    queue.decide(publication!.id, {
+      decision: outcome === 'deny' ? 'deny' : 'allow',
+      reason: 'Owner decision.'
+    });
+    const result = await running;
+    expect(result.outcome).toBe(outcome === 'allow' ? 'completed' : 'blocked');
+    expect(f.calls.some(({ args }) => args.includes('push'))).toBe(outcome === 'allow');
+    queue.dispose();
+  }
+);
 /** A root context that collects the progress notices a task sends to its parent. Milestone
  * notices, which carry `data`, are left out. */
 function noticeContext(notices: string[]) {
@@ -1283,6 +1347,7 @@ const remoteSubjects = async (f: Awaited<ReturnType<typeof fixture>>, branch: st
 
 test('the supervisor hears each milestone; a CI failure and its job log go to the same worker, which pushes a fix', async () => {
   const f = await fixture();
+  const approvedActions: string[] = [];
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx, { notifyActivity: false });
   const observed: { headCommit: string; stopOnFailure?: boolean }[] = [];
@@ -1304,6 +1369,10 @@ test('the supervisor hears each milestone; a CI failure and its job log go to th
     }
   }));
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    requestApproval: async (_ctx, action) => {
+      approvedActions.push(action.action);
+      return { decision: 'allow', reason: 'Within the delegated fix.' };
+    },
     execute: async (command, args, options) =>
       command === 'gh' && args[0] === 'api'
         ? '2026-01-01T00:00:00.0Z FAIL src/a.spec.ts\n2026-01-01T00:00:00.1Z ##[error]Process completed with exit code 1.'
@@ -1360,6 +1429,11 @@ test('the supervisor hears each milestone; a CI failure and its job log go to th
       proposal.title,
       'fixture'
     ]);
+    expect(approvedActions).toEqual([
+      'prepare_pull_request',
+      'publish_pull_request',
+      'publish_pull_request_update'
+    ]);
   } finally {
     await tasks.dispose();
     await relaying;
@@ -1368,6 +1442,7 @@ test('the supervisor hears each milestone; a CI failure and its job log go to th
 
 test('unrelated CI failures are rerun when their runs finish, and new failures reach the worker first', async () => {
   const f = await fixture();
+  const approvedActions: string[] = [];
   const job = (id: number, name: string) => ({
     name,
     link: `https://github.com/example/chatto/actions/runs/12/job/${id}`
@@ -1398,6 +1473,10 @@ test('unrelated CI failures are rerun when their runs finish, and new failures r
   const prompts: string[] = [];
   const result = await createImplementation(f.settings, {
     execute,
+    requestApproval: async (_ctx, action) => {
+      approvedActions.push(action.action);
+      return { decision: 'allow', reason: 'Within the delegated CI work.' };
+    },
     observeChecks,
     rerunDelayMs: 5,
     createAgent: async (options: AgentOptions) => ({
@@ -1431,7 +1510,54 @@ test('unrelated CI failures are rerun when their runs finish, and new failures r
     ['gh', ['run', 'rerun', '12', '--failed', '--repo', 'example/chatto'], expect.anything()]
   ]);
   expect(await remoteSubjects(f, result.branch)).toEqual([proposal.title, 'fixture']);
+  expect(approvedActions).toEqual([
+    'prepare_pull_request',
+    'publish_pull_request',
+    'rerun_failed_checks'
+  ]);
 });
+
+test.each(['publish_pull_request_update', 'rerun_failed_checks'] as const)(
+  'owner denial prevents the CI effect: %s',
+  async (deniedAction) => {
+    const f = await fixture();
+    let turn = 0;
+    const actions: string[] = [];
+    const execute = vi.fn<ImplementationProcess>(async (command, args, options) =>
+      command === 'gh' && args[0] === 'api'
+        ? 'Reference failure log.'
+        : f.execute(command, args, options)
+    );
+    const result = await createImplementation(f.settings, {
+      execute,
+      observeChecks: async () => ({ ...failedChecks, pending: 0 }),
+      requestApproval: async (_ctx, action) => {
+        actions.push(action.action);
+        return {
+          decision: action.action === deniedAction ? 'deny' : 'allow',
+          reason: 'Owner reviewed the action.'
+        };
+      },
+      createAgent: worker(async (_options, call) => {
+        if (++turn === 1) {
+          await call('apply_patch', { patch });
+          await call('preparePullRequest', proposal);
+        } else if (deniedAction === 'publish_pull_request_update')
+          await call('apply_patch', { patch: regressionPatch });
+        else await call('rerunFailedChecks', {});
+      })
+    })(createWorkflowContext(), { request: 'Fix the value' });
+    expect(result).toMatchObject({ outcome: 'completed', ci: { status: 'unfixed' } });
+    expect(actions).toContain(deniedAction);
+    expect(
+      execute.mock.calls.filter(([command, args]) => command === 'git' && args.includes('push'))
+    ).toHaveLength(1);
+    expect(
+      execute.mock.calls.some(([command, args]) => command === 'gh' && args[1] === 'rerun')
+    ).toBe(false);
+    expect(await remoteSubjects(f, result.branch)).toEqual([proposal.title, 'fixture']);
+  }
+);
 
 test.each(['limit', 'stopped'])(
   'CI repair ends with the PR kept when the %s is reached',

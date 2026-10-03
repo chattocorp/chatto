@@ -20,7 +20,8 @@ export async function runAgentConversation(
     onBusy,
     notifications,
     keepAlive,
-    prepareMessage
+    prepareMessage,
+    steer = true
   }: {
     timeout?: number;
     onBusy?: (busy: boolean) => void;
@@ -30,6 +31,8 @@ export async function runAgentConversation(
     keepAlive?: () => boolean;
     /** Prepare each input once with its trusted origin, including the initial user prompt. */
     prepareMessage?: AgentConnectionOptions['prepareMessage'];
+    /** Set false to prepare queued inputs only when their own turn starts. */
+    steer?: boolean;
   } = {}
 ): Promise<string> {
   validateTimeout(timeout);
@@ -38,7 +41,9 @@ export async function runAgentConversation(
 
   // The connection reads the task inbox even while we await an agent turn.
   // Keep messages it could not steer so they can become the next prompt.
-  const pending = createChannel<string>({ signal: ctx.signal });
+  const pending = createChannel<{ text: string; origin: 'user' | 'notification' }>({
+    signal: ctx.signal
+  });
   const reader = pending[Symbol.asyncIterator]();
   let queuedMessages = 0;
 
@@ -49,20 +54,23 @@ export async function runAgentConversation(
     }
 
     queuedMessages--;
-    return message.value;
+    return !steer && prepareMessage
+      ? await prepareMessage(message.value.text, message.value.origin)
+      : message.value.text;
   };
 
   const connection = connectAgent(ctx, agent, {
     inbox: ctx.inbox,
     notifications,
     prepareMessage,
+    steer,
     onText: (text) => ctx.emit(text),
-    onDelivery: async (text, consumed) => {
+    onInputDelivery: async (text, consumed, origin) => {
       if (consumed) {
         return;
       }
 
-      await pending.send(text);
+      await pending.send({ text, origin });
       queuedMessages++;
     }
   });

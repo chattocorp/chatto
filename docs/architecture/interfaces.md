@@ -15,6 +15,14 @@ context, conversation keys, and accepted-delivery tracking. It has no Runling
 dependency. ChattoBot retains routing, inboxes, cancellation, and
 configuration reload state.
 
+ChattoBot also owns an in-memory Runling approval queue for each supervisor
+conversation. Implementation children send approval notices to their parent.
+The supervisor's `decideApproval` tool releases one pending action. PR proposals,
+publication, later pushes, and CI reruns use this path. Cancellation and restart
+discard pending permission. Existing host restrictions remain in force. See
+[Runling ADR-008](../../packages/runling/docs/adr/ADR-008-parent-owned-approvals.md)
+and the [supervisor](../../packages/chattobot/workflows/chat.ts).
+
 The official mobile client uses the built-in OAuth identity `eu.chattocorp.chatto.mobile`
 and exact callback `eu.chattocorp.chatto.mobile:/oauth/callback`. System authentication
 returns the callback to the client; token exchange and bearer-authenticated

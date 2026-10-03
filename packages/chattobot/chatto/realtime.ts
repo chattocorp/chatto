@@ -146,6 +146,7 @@ async function consume(
       await api.postMessage(destination, body, { signal });
     },
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
+    react: (target, emoji, signal) => api.addReaction(target, emoji, { signal }),
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api),
     acknowledge: createEyesReaction(api)

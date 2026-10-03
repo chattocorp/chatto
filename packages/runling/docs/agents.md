@@ -1,5 +1,7 @@
 # Agent connections
 
+For child actions that need an owner decision, see [owner approvals](approvals.md).
+
 Import agent APIs from `runling/agents`. This entrypoint exports `agent`,
 `runAgent`, `defineAgentExtension`, their types, `connectAgent`, and `taskTool`. Existing
 agent exports from `runling` remain available.
@@ -458,3 +460,8 @@ The helper emits a conversation marker so its model turns and input waits share
 one timeline lane. Working and waiting intervals retain their events and logs;
 other task types keep their existing layout. Channels provide queued delivery,
 not acknowledgement that the external chat service has posted an update.
+
+Set `steer: false` on `runAgentConversation` to queue inputs during a turn.
+The connection retains each input origin. It calls `prepareMessage` only when
+that input starts its own turn, after the previous answer has been delivered.
+The default remains steering. Existing callers do not need to change.

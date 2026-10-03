@@ -219,14 +219,17 @@ export async function failedJobLog(
 
 /** Rerun the failed jobs of the workflow runs behind these checks. Throws when a rerun fails. */
 export async function rerunFailedJobs(access: GitHubAccess, failures: FailedCheck[]) {
-  const runs = new Set(
-    failures.flatMap((check) => actionsJob(access.repository, check.link)?.run ?? [])
-  );
-  if (!runs.size) throw new Error('No GitHub Actions run to rerun');
+  const runs = failedWorkflowRunIds(access.repository, failures);
+  if (!runs.length) throw new Error('No GitHub Actions run to rerun');
   for (const run of runs)
     await access.execute('gh', ['run', 'rerun', run, '--failed', '--repo', access.repository], {
       cwd: access.cwd,
       signal: access.signal,
       timeoutMs: 30_000
     });
+}
+
+/** Exact workflow run IDs eligible for rerun in this repository. Unrelated links are ignored. */
+export function failedWorkflowRunIds(repository: string, failures: FailedCheck[]): string[] {
+  return [...new Set(failures.flatMap((check) => actionsJob(repository, check.link)?.run ?? []))];
 }

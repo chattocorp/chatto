@@ -12,3 +12,4 @@ These records belong to Runling and use independent numbering. See the
 | ADR-005 | [Block tools after untrusted context](ADR-005-untrusted-context.md)                            | Accepted | 2026-09-27 |
 | ADR-006 | [Tasks communicate only with their parent and children](ADR-006-parent-child-communication.md) | Accepted | 2026-09-28 |
 | ADR-007 | [Classify authorization in a separate model call](ADR-007-authorization-classifier.md)         | Accepted | 2026-09-30 |
+| ADR-008 | [Parents own approval of delegated actions](ADR-008-parent-owned-approvals.md)                 | Accepted | 2026-10-03 |

@@ -1,7 +1,7 @@
 # FDR-002: Background agent tasks
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-22
+**Last reviewed:** 2026-10-03
 
 ## Overview
 
@@ -25,6 +25,9 @@ receive selected updates while that workflow runs.
   identify which child output answers the question.
 - The manager stays active while a task runs or an unread notification remains.
   The host must connect notifications to its conversation loop.
+  A conversation can set `steer: false` to queue user inputs and notifications
+  until the active answer is delivered. It prepares each queued input when its
+  own turn starts, with its original trusted origin.
 - Completed and cancelled task snapshots remain available for the manager's
   lifetime. Disposal aborts children and awaits their run cleanup promises.
   Direct cancellation through a run handle also reaches supervision.
@@ -58,6 +61,8 @@ snapshot when preparing a response.
 
 - [ADR-002: Agent ownership](../adr/ADR-002-agent-ownership.md)
 - [ADR-003: Task context](../adr/ADR-003-task-context.md)
+- [ADR-008: Parent-owned approvals](../adr/ADR-008-parent-owned-approvals.md)
+- [FDR-009: Parent-owned approvals](FDR-009-parent-owned-approvals.md)
 - [FDR-003: Task context snapshots](FDR-003-task-context.md)
 - [Agent API guide](../agents.md) and [task channels](../task-channels.md)
 - [Server logs](../server-logs.md)

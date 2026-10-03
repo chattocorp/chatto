@@ -1,10 +1,11 @@
 /** After publication: follow CI on the pull request, give failures and later messages to the same
  * worker, and push its validated fixes, until CI settles. */
 import { Type, type Static, type WorkflowContext } from 'runling';
-import type { AgentTaskUpdate } from 'runling/agents';
+import type { AgentTaskUpdate, ApprovalAction, ApprovalDecision } from 'runling/agents';
 import type { ImplementationMetadata } from './implementation-artifacts.ts';
 import {
   failedJobLog,
+  failedWorkflowRunIds,
   failureKey,
   observePullRequestChecks,
   rerunFailedJobs,
@@ -63,6 +64,11 @@ export interface FollowCiContext {
   observeChecks?: typeof observePullRequestChecks;
   /** Wait after a rerun before CI is read again. Defaults to 30 seconds. */
   rerunDelayMs?: number;
+  /** Parent decides external effects after the local work passes existing host checks. */
+  requestApproval?: (
+    ctx: WorkflowContext<string, AgentTaskUpdate>,
+    action: ApprovalAction
+  ) => Promise<ApprovalDecision>;
 }
 
 const counts = ({ passed, failed, pending, skipped }: PullRequestChecks) => ({
@@ -92,7 +98,8 @@ export async function followCi(
     tree,
     stageTree,
     observeChecks,
-    rerunDelayMs
+    rerunDelayMs,
+    requestApproval
   }: FollowCiContext,
   work: WorkLoop
 ): Promise<CiResult> {
@@ -157,8 +164,40 @@ export async function followCi(
     const fresh = checks?.failures.filter((check) => !toRerun.has(failureKey(check))) ?? [];
     if (checks && !fresh.length) {
       if (checks.status === 'failed' && !checks.pending) {
+        const approvedFailures = structuredClone(checks.failures);
+        if (requestApproval) {
+          const approvedHead = run.head;
+          const decision = await requestApproval(ctx, {
+            action: 'rerun_failed_checks',
+            details: {
+              repository,
+              prUrl,
+              headCommit: approvedHead,
+              runIds: failedWorkflowRunIds(repository, approvedFailures)
+            }
+          });
+          signal.throwIfAborted();
+          if (decision.decision !== 'allow')
+            return unfixed('The owner did not approve rerunning CI.');
+          if (run.waiting.length || run.head !== approvedHead || !(await tree.sameGitState()))
+            return unfixed('The source or request changed while CI approval was pending.');
+          try {
+            const remote = JSON.parse(
+              await execute(
+                'gh',
+                ['pr', 'view', prUrl, '--repo', repository, '--json', 'headRefOid'],
+                { cwd: worktree, signal }
+              )
+            );
+            if (remote.headRefOid !== approvedHead)
+              return unfixed('The PR head changed while CI approval was pending.');
+          } catch {
+            signal.throwIfAborted();
+            return unfixed('Could not verify the PR head after CI approval.');
+          }
+        }
         try {
-          await rerunFailedJobs(access, checks.failures);
+          await rerunFailedJobs(access, approvedFailures);
         } catch {
           signal.throwIfAborted();
           return unfixed('Could not rerun the failed checks.');
@@ -253,6 +292,29 @@ export async function followCi(
       continue;
     }
     if ((await stageTree()) === (await tree.committedTree())) continue;
+    if (requestApproval) {
+      const approvedTree = await stageTree();
+      const approvedHead = run.head;
+      const decision = await requestApproval(ctx, {
+        action: 'publish_pull_request_update',
+        details: {
+          repository,
+          prUrl,
+          branch,
+          headCommit: approvedHead,
+          tree: approvedTree
+        }
+      });
+      signal.throwIfAborted();
+      if (decision.decision !== 'allow')
+        return unfixed('The owner did not approve publishing the PR update.');
+      if (
+        run.waiting.length ||
+        !(await tree.sameGitState()) ||
+        (await stageTree()) !== approvedTree
+      )
+        return unfixed('The source or request changed while update approval was pending.');
+    }
     try {
       await git(worktree, ['diff', '--cached', '--check']);
     } catch {

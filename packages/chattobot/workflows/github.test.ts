@@ -166,7 +166,7 @@ test('anyone can read GitHub; only maintainers can change it; gh output is untru
     expect(options.tools).toEqual(expect.arrayContaining(['gh', 'ghWrite']));
     expect(options.trust).toMatchObject({
       untrusted: ['gh'],
-      blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send']
+      blockAfterUntrusted: ['implementChatto', 'askImplementation', 'task_send', 'decideApproval']
     });
     expect(await gates[0]!({ type: 'tool_call', toolName: 'ghWrite', input: {} })).toBeUndefined();
     await prepare('which issues are in the 0.5.0 milestone?', 'someone-else');

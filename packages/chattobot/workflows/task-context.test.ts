@@ -6,6 +6,22 @@ import {
   userFacingTaskNotifications
 } from './task-context.ts';
 
+test('approval notices wake the owner without instructing it to post internal progress', () => {
+  const notification = JSON.parse(
+    taskNotification(
+      JSON.stringify({
+        type: 'task.notice',
+        task: { id: 'implementation' },
+        text: 'An owner decision is required.',
+        data: { approvalId: 'request' }
+      })
+    )
+  );
+  expect(notification.data).toEqual({ approvalId: 'request' });
+  expect(notification.report).toContain('decideApproval');
+  expect(notification.report).toContain('not user-facing progress');
+});
+
 test('new host phase supersedes an old setup announcement without changing retained history', () => {
   const task = {
     id: 'worker',

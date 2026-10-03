@@ -170,20 +170,32 @@ The package is private and has no npm release workflow.
 
 The bot adds an eyes reaction (`👀`) to the message that starts a conversation,
 before loading context or engaging the agent. Follow-up messages in the active
-thread use only the typing indicator. Duplicate deliveries do not add another reaction. `/cancel` skips
+thread do not get this automatic reaction. Duplicate deliveries do not add another reaction. `/cancel` skips
 the reaction so cancellation stays immediate. The bot needs permission to add
 reactions. A failed reaction logs a warning and the reply continues.
-Reactions run inside the conversation task, with a ten-second timeout and
+
+The supervisor can use `reactToMessage` to add an emoji reaction to the current
+message addressed to the bot. For a simple thanks or acknowledgement, it can
+send a reaction without a text reply, including after web research. After a
+successful reaction, the host suppresses redundant answer text for that turn. Questions and task results still need a
+text reply. The tool permits one call per user message and no calls from
+background notifications. It uses the same Chatto client and reaction permission.
+
+The supervisor uses `acknowledgeRequest` to send a brief text reply before
+research or other longer work. The host blocks reference loading and web
+research until the acknowledgement has been posted. For an initiating root message, it sends this
+reply first to open the thread. The model writes the acknowledgement in the
+user's language. It then continues with the request. Simple follow-up messages
+can still receive only a reaction.
+Automatic eyes reactions run inside the conversation task, with a ten-second timeout and
 cancellation support. Follow-up messages pass through one queue to Pi without
-another reaction request. Event acceptance does not wait
+another automatic reaction request. Event acceptance does not wait
 for the reaction request.
 
 Replies in the same thread use the same agent and conversation history.
 Each new root message starts a separate conversation, including in DMs. Messages sent while
-the agent works are passed to it as steering. Typing indicators stop while it
-waits for another message. Rapid follow-ups wait for the initial context load
-and reach the agent in arrival order. If the active turn cannot consume a
-message as steering, it becomes the next turn in the same run. Send `/cancel`
+the agent works wait until the current reply is posted. Each queued message starts a new turn with its own reply target and requester. Typing indicators stop while it
+waits for another message. Rapid follow-ups wait for the active answer and each starts a new turn in the same run. Send `/cancel`
 in the DM thread or mention the bot with
 `/cancel` in the thread to stop the conversation.
 Duplicate deliveries do not start another run.
@@ -207,7 +219,7 @@ are checked through the configured server's message API, so replies to older bot
 messages also work after restart. If the target cannot be verified, an unmentioned
 message is ignored. Lookup failures produce a safe warning; a mention or DM still works.
 
-Before each agent turn or steering message, the host reads the thread through
+Before each agent turn, the host reads the thread through
 `ThreadService/GetThreadEvents`: on the first turn the root and the newest 100
 replies, later only the messages after its previous read. This applies to both
 DM and channel threads. The prompt carries only the conversation; the supervisor
@@ -252,6 +264,11 @@ put secrets in agent instructions or tool results.
 
 ## Web research
 
+Only maintainers can ask ChattoBot to search the public web or load pages outside
+the Chatto reference allowlist. Other users can still read the Chatto reference
+docs through the bot. This gate runs before the research agent starts, including
+calls from scripts.
+
 ChattoBot can answer questions from the public web through a separate research
 agent. Configure one or both of these optional services:
 
@@ -293,8 +310,8 @@ The investigation and implementation workers have no web access.
 
 Web content can contain instructions that try to control an agent. A research
 result can carry such instructions to the chat agent. After a research result
-enters a conversation, Runling blocks `implementChatto`, `askImplementation`, and
-`task_send` for the rest of that conversation. The bot then posts a fixed message
+enters a conversation, Runling blocks `implementChatto`, `askImplementation`,
+`task_send` and `decideApproval` for the rest of that conversation. The bot then posts a fixed message
 that asks the user to start a new thread. Read-only investigation and
 `task_cancel` remain available.
 
@@ -449,7 +466,7 @@ applied changes as false. The owner is instructed to keep source citations and
 the test limitation in its reply. Proposed changes still need human review.
 
 Each investigation has a ten-minute deadline. `/cancel` cancels the conversation
-and its child investigations. Follow-up messages steer the chat agent, which can
+and its child investigations. Follow-up messages start new supervisor turns, which can
 forward relevant clarifications with `task_send`. The worker consumes these as
 steering when possible and reports any clarification it could not consume.
 The owning conversation remains open while background work is active. Typing
@@ -570,6 +587,22 @@ are recorded separately from the final host checks because edits can make earlie
 setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final
 checks before publication.
+
+The host permits the implementation worker to read, edit in its worktree, and
+run the existing approved checks. These tools do not yet request an owner grant. The worker's PR proposal waits
+for a supervisor decision. Publication, later PR updates, and CI reruns also
+wait for approval. Each decision applies to one exact proposal or source
+revision. If the source or queued request changes while publication waits, the
+host stops it. Existing path, repository, command, and validation checks still
+apply.
+
+Approval requests wake the supervisor without posting internal approval messages
+to the thread. The supervisor can approve steps already covered by the user's
+request. Only it asks the user when more authority is necessary. Pending requests
+expire after five minutes and are denied on cancellation or restart. A resumed
+implementation must request approval again. This uses
+[Runling owner approvals](../runling/docs/approvals.md); it adds no external
+service or provider.
 
 An implementation that stops before publication can continue. This includes a
 cancellation, a blocked worker, and a restart of the bot. The worker keeps its
@@ -802,8 +835,8 @@ The host gives the supervisor only the URLs from a change's output, and adds
 them to the reply when the supervisor leaves them out.
 
 GitHub output is untrusted: anyone can write issue bodies and CI logs. After `gh`
-returns output in a conversation, `implementChatto`, `askImplementation`, and
-`task_send` are blocked in it, as after web research. `ghWrite` stays
+returns output in a conversation, `implementChatto`, `askImplementation`,
+`task_send` and `decideApproval` are blocked in it, as after web research. `ghWrite` stays
 available, because every change needs a maintainer's request. To implement an
 issue, ask for it in a new thread; the supervisor passes `issueNumber` to
 `implementChatto` without reading the issue itself.

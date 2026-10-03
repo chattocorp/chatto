@@ -8,6 +8,9 @@ import { task, Type, type WorkflowContext } from 'runling';
 import {
   agent,
   connectAgent,
+  toolApprovalGate,
+  type ApprovalAction,
+  type ApprovalDecision,
   type AgentOptions,
   type AgentTaskUpdate,
   type RunlingAgent
@@ -142,6 +145,12 @@ export function createImplementation(
     /** Wait after a rerun before CI is read again. Defaults to 30 seconds. */
     rerunDelayMs?: number;
     progressTiming?: Partial<typeof PROGRESS_TIMING>;
+    /** Parent-owned permission path. Standalone hosts retain their own publication policy
+     * when absent; ChattoBot always supplies its supervisor queue. */
+    requestApproval?: (
+      ctx: WorkflowContext<string, AgentTaskUpdate>,
+      action: ApprovalAction
+    ) => Promise<ApprovalDecision>;
   } = {}
 ) {
   const execute = dependencies.execute ?? implementationProcess;
@@ -379,7 +388,26 @@ export function createImplementation(
           tools: WORKER_TOOLS,
           // A repository check alone can take ten minutes.
           codemode: { timeoutMs: 20 * 60_000 },
-          extensions: [tools],
+          extensions: [
+            tools,
+            ...(dependencies.requestApproval
+              ? [
+                  toolApprovalGate({
+                    signal,
+                    tools: {
+                      preparePullRequest: (input) => ({
+                        action: 'prepare_pull_request',
+                        details: {
+                          repository: settings.repository,
+                          proposal: JSON.parse(JSON.stringify(input))
+                        }
+                      })
+                    },
+                    request: (action) => dependencies.requestApproval!(ctx, action)
+                  })
+                ]
+              : [])
+          ],
           textDelivery: 'final',
           resources: {
             extensions: false,
@@ -459,7 +487,7 @@ export function createImplementation(
             );
           // From here on, the worker waits between turns. Later messages go to its next turn.
           run.queueMessages = true;
-          const proposal = state.proposal;
+          const proposal = state.proposal ? structuredClone(state.proposal) : undefined;
           if (!proposal)
             return result('blocked', 'Implementation did not produce a prepared change.');
           if (!(await tree.sameGitState()))
@@ -483,6 +511,31 @@ export function createImplementation(
               'blocked',
               'All recorded checks must pass on the final source tree before publication.'
             );
+          if (dependencies.requestApproval) {
+            const decision = await dependencies.requestApproval(ctx, {
+              action: 'publish_pull_request',
+              details: {
+                repository: settings.repository,
+                branch,
+                baseBranch,
+                tree: finalTree,
+                proposal: { ...proposal },
+                checks: [...checks.keys()]
+              }
+            });
+            signal.throwIfAborted();
+            if (decision.decision !== 'allow')
+              return result('blocked', 'The owner did not approve pull request publication.');
+            if (
+              run.waiting.length ||
+              !(await tree.sameGitState()) ||
+              (await stageTree()) !== finalTree
+            )
+              return result(
+                'blocked',
+                'The source or request changed while publication approval was pending.'
+              );
+          }
           const publication = await publishPullRequest({
             ctx,
             signal,
@@ -531,7 +584,8 @@ export function createImplementation(
               tree,
               stageTree,
               observeChecks: dependencies.observeChecks,
-              rerunDelayMs: dependencies.rerunDelayMs
+              rerunDelayMs: dependencies.rerunDelayMs,
+              requestApproval: dependencies.requestApproval
             },
             work
           );
