@@ -1,4 +1,5 @@
 /** Keep the ChattoBot supervisor responsive to user input and selected task results. */
+import { usePrivateTempDirectory } from '../private-temp.ts';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { log, task, Type, validateTimeout, type WorkflowContext } from 'runling';
@@ -139,6 +140,8 @@ export const conversation = task(
     options: ConversationOptions<ChatSettings>
   ) => {
     validateTimeout(options.timeout);
+    // A system cleaner can delete an idle temporary directory; replace it before agents run.
+    await usePrivateTempDirectory();
     const createAgent = options.createAgent ?? agent;
     const tasks = observeAgentTasks(ctx, {
       maxToolFailures: 3,

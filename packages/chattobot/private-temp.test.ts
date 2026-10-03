@@ -35,3 +35,25 @@ test('a reloaded module returns the same directory instead of nesting a new one'
   vi.resetModules();
   expect(await (await load())()).toBe(first);
 });
+
+test.skipIf(process.platform === 'win32')(
+  'replaces the directory when a system cleaner deleted it',
+  async () => {
+    const usePrivateTempDirectory = await load();
+    const first = await usePrivateTempDirectory();
+    await rm(first, { recursive: true, force: true });
+    const second = await usePrivateTempDirectory();
+    expect(second).not.toBe(first);
+    expect(dirname(second)).toBe(base);
+    expect((await stat(second)).mode & 0o777).toBe(0o700);
+    expect(process.env.TMPDIR).toBe(second);
+  }
+);
+
+test('a failed creation is tried again', async () => {
+  const usePrivateTempDirectory = await load();
+  vi.stubEnv('TMPDIR', join(base, 'missing'));
+  await expect(usePrivateTempDirectory()).rejects.toThrow();
+  vi.stubEnv('TMPDIR', base);
+  expect(dirname(await usePrivateTempDirectory())).toBe(base);
+});
