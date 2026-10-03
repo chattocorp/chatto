@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { ConnectError, Code } from '@connectrpc/connect';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { isPushPromptSnoozed } from '$lib/notifications/pushPrompt';
 import PushDeviceSettings from './PushDeviceSettings.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -11,11 +12,13 @@ const mocks = vi.hoisted(() => ({
   failure: null as string | null,
   webPushRuntime: true,
   retryPushRegistration: vi.fn(),
+  enablePushOnAllServers: vi.fn(),
   sendTestNotification: vi.fn(),
   hasSavedPushRegistration: vi.fn()
 }));
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
+  enablePushOnAllServers: mocks.enablePushOnAllServers,
   getPermission: () => mocks.permission,
   getPushCapability: () => mocks.capability,
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
@@ -52,6 +55,9 @@ describe('PushDeviceSettings', () => {
     mocks.retryPushRegistration.mockResolvedValue(true);
     mocks.sendTestNotification.mockReset();
     mocks.sendTestNotification.mockResolvedValue(true);
+    mocks.enablePushOnAllServers.mockReset();
+    mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'granted', registrations: [] });
+    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
   it('names the device and origin that receive this server’s push notifications', async () => {
@@ -128,14 +134,30 @@ describe('PushDeviceSettings', () => {
     expect(screen.container.querySelector('button')).toBeNull();
   });
 
-  it('explains that Chatto asks the browser while permission is unset', async () => {
+  it('offers to enable push while permission is unset', async () => {
     mocks.permission = 'default';
     const screen = renderSettings();
 
     await expect
       .element(screen.getByText('Push notifications are not allowed on this device yet'))
       .toBeVisible();
-    expect(screen.container.querySelector('a, button')).toBeNull();
+    expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+
+    expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+    expect(isPushPromptSnoozed()).toBe(false);
+  });
+
+  it('treats a dismissed browser prompt as Not now for the invitation', async () => {
+    mocks.permission = 'default';
+    mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'default', registrations: [] });
+    const screen = renderSettings();
+
+    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+
+    await expect.poll(() => isPushPromptSnoozed()).toBe(true);
+    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
   it('explains blocked permission', async () => {

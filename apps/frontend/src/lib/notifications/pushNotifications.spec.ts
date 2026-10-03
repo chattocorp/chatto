@@ -934,22 +934,18 @@ describe('pushNotifications.ensureRegistered', () => {
     ]);
   });
 
-  it('cleans up only a newly created subscription when server save fails', async () => {
+  it('keeps a newly created subscription when the server save fails', async () => {
     permission = 'granted';
-    const existingSubscription = makeSubscription('https://push.example/existing');
-    getSubscription.mockResolvedValueOnce(existingSubscription);
-    mocks.subscribePush.mockResolvedValueOnce({ subscribed: false });
-
-    await expect(ensureRegistered(originTarget)).resolves.toBe(false);
-    expect(existingSubscription.unsubscribe).not.toHaveBeenCalled();
-
     const createdSubscription = makeSubscription('https://push.example/created');
     getSubscription.mockResolvedValueOnce(null);
     subscribe.mockResolvedValueOnce(createdSubscription);
     mocks.subscribePush.mockResolvedValueOnce({ subscribed: false });
 
     await expect(ensureRegistered(originTarget)).resolves.toBe(false);
-    expect(createdSubscription.unsubscribe).toHaveBeenCalledOnce();
+    // The next attempt saves the same subscription instead of creating
+    // another push service registration.
+    expect(createdSubscription.unsubscribe).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
   });
 
   it('still performs local leaving cleanup when browser storage is denied', async () => {
@@ -1189,47 +1185,38 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
   });
 
-  it('backs off after a failed save instead of retrying on every check', async () => {
-    const originSubscribe = vi.fn().mockRejectedValue(new Error('push service error'));
+  it('retries a failed save on the next check without a new browser subscription', async () => {
+    const created = makeSubscription('https://push.example/created');
+    getSubscription.mockResolvedValueOnce(null).mockResolvedValue(created);
+    subscribe.mockResolvedValueOnce(created);
+    const originSubscribe = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValue({ subscribed: true });
     mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
       subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
       unsubscribe: mocks.unsubscribePush,
       deleteByCapability: mocks.deleteByCapabilityPush
     }));
-    const failedAt = start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS;
-    vi.setSystemTime(failedAt);
-    await refreshPushSubscriptions();
-    expect(originSubscribe).toHaveBeenCalledOnce();
+    vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
 
-    // Focus and hourly checks within the back-off do not try again.
-    vi.setSystemTime(failedAt + PUSH_REGISTRATION_REFRESH_INTERVAL_MS - 1);
     await refreshPushSubscriptions();
-    expect(originSubscribe).toHaveBeenCalledOnce();
+    expect(pushRegistrationFailure('origin')).toBe('Error: unavailable');
 
-    vi.setSystemTime(failedAt + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
+    // A focus or hourly check soon after tries the save again.
+    vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS + 60_000);
     await refreshPushSubscriptions();
+
     expect(originSubscribe).toHaveBeenCalledTimes(2);
+    expect(originSubscribe).toHaveBeenLastCalledWith(
+      expect.objectContaining({ endpoint: 'https://push.example/created' }),
+      { signal: expect.any(AbortSignal) }
+    );
+    expect(subscribe).toHaveBeenCalledOnce();
+    expect(pushRegistrationFailure('origin')).toBeNull();
   });
 
-  it('keeps backing off while a refresh request from another tab stays pending', async () => {
-    const originSubscribe = vi.fn().mockRejectedValue(new Error('push service error'));
-    mocks.createPushNotificationAPI.mockImplementation((config: { baseUrl: string }) => ({
-      subscribe: config.baseUrl.includes('origin') ? originSubscribe : mocks.subscribePush,
-      unsubscribe: mocks.unsubscribePush,
-      deleteByCapability: mocks.deleteByCapabilityPush
-    }));
-    // A request marker stays until a save succeeds.
-    window.localStorage.setItem('chatto.push-registration.refresh.origin', 'pending-request');
-
-    for (let round = 0; round < 5; round++) {
-      await Promise.all([refreshPushSubscriptions(), refreshPushSubscriptions()]);
-    }
-
-    expect(originSubscribe).toHaveBeenCalledOnce();
-    window.localStorage.removeItem('chatto.push-registration.refresh.origin');
-  });
-
-  it('stops creating browser subscriptions after a push service error', async () => {
+  it('stops creating browser subscriptions after a failed browser subscribe', async () => {
     getSubscription.mockResolvedValue(null);
     subscribe.mockRejectedValue(
       new DOMException('Registration failed - push service error', 'AbortError')
@@ -1237,18 +1224,27 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
 
     await refreshPushSubscriptions();
+    await refreshPushSubscriptions();
 
-    // Both servers need a new subscription, but only the first one asks the
-    // browser; the second fails without another registration attempt.
+    // Both servers need a new subscription on both checks, but only the first
+    // attempt asks the browser; the others fail without another registration.
     expect(subscribe).toHaveBeenCalledOnce();
     expect(pushRegistrationFailure('origin')).toContain('push service error');
     expect(pushRegistrationFailure('remote')).toContain('push service error');
 
     // An explicit retry still asks the browser and lifts the stop on success.
-    subscribe.mockResolvedValue(makeSubscription('https://push.example/recovered'));
+    const recovered = makeSubscription('https://push.example/recovered');
+    subscribe.mockResolvedValue(recovered);
     await expect(retryPushRegistration('origin')).resolves.toBe(true);
     expect(subscribe).toHaveBeenCalledTimes(2);
     expect(pushRegistrationFailure('origin')).toBeNull();
+
+    // The servers share one PushManager fixture, so the next check finds the
+    // recovered subscription for the other server too and only saves it.
+    getSubscription.mockResolvedValue(recovered);
+    await refreshPushSubscriptions();
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(pushRegistrationFailure('remote')).toBeNull();
   });
 
   it('never asks for permission', async () => {

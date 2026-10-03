@@ -90,7 +90,7 @@ const savedRegistrations = new SvelteMap<string, SavedRegistration>();
  * the server can reject a subscription. Reactive, so settings can explain the
  * failure.
  */
-const failedRegistrations = new SvelteMap<string, { reason: string; failedAt: number }>();
+const failedRegistrations = new SvelteMap<string, string>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
@@ -274,7 +274,7 @@ export function hasSavedPushRegistration(serverId: string, userId: string | null
  * not translated.
  */
 export function pushRegistrationFailure(serverId: string): string | null {
-  return failedRegistrations.get(serverId)?.reason ?? null;
+  return failedRegistrations.get(serverId) ?? null;
 }
 
 /** Formats a browser or transport error for a technical failure reason. */
@@ -330,8 +330,8 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
 /**
  * Ask for notification permission, then register every eligible server. This
  * is the only place where Chatto asks the browser for notification
- * permission. `PushNotificationSetup` calls it automatically, once, while the
- * page has user activation.
+ * permission. Call it from the click handler of an explicit Enable action:
+ * browsers accept the request only during a user interaction.
  *
  * The permission request must happen before registration enters its async
  * coordination queue. Some browsers require the call itself to retain the
@@ -398,14 +398,9 @@ async function refreshReason(
   requestId: string | null,
   now: number
 ): Promise<RefreshReason | null> {
-  // Chrome keeps a push service registration for every failed attempt and
-  // refuses new ones once a profile holds about 1,000. Retrying a failed save
-  // on every focus would fill that limit, so automatic retries wait as long
-  // as a refresh. This also applies to a stored request from another tab: it
-  // stays until a save succeeds. The cross-tab listener still handles a new
-  // request at once, and `retryPushRegistration` retries at once.
-  const failure = failedRegistrations.get(target.serverId);
-  if (failure && now - failure.failedAt < PUSH_REGISTRATION_REFRESH_INTERVAL_MS) return null;
+  // A failed save leaves the reason below in place, so the next check tries
+  // again. After a failed browser subscribe, `subscribeInBrowser` creates no
+  // new browser subscriptions automatically; retries only save again.
   if (requestId) return 'requested-by-another-tab';
   const saved = savedRegistrations.get(target.serverId);
   if (!saved) return 'first-save-in-page';
@@ -517,20 +512,17 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * The failure of the browser's push service in this page session, or null.
- * The browser reports "push service error" when it cannot register with its
- * push service, for example when the profile holds too many registrations.
- * After such a failure, automatic saves create no new browser subscriptions
- * for any server until a manual retry creates one or the page reloads; each
- * further attempt could leave another registration behind.
+ * The latest failed browser subscribe in this page session, or null. Chrome
+ * keeps a push service registration for every failed attempt and refuses new
+ * ones once a profile holds about 1,000; it then reports "push service error".
+ * After any failure, automatic saves create no new browser subscriptions for
+ * any server until a manual retry creates one or the page reloads. Saves of
+ * an existing browser subscription continue, because they create no
+ * registration.
  */
-let pushServiceFailure: unknown = null;
+let browserSubscribeFailure: unknown = null;
 /** Serializes browser subscribe calls so that one failure stops the others. */
 let browserSubscribeTail: Promise<unknown> = Promise.resolve();
-
-function isPushServiceFailure(reason: string): boolean {
-  return /push service error/i.test(reason);
-}
 
 /** Creates a browser subscription, one at a time across all servers. */
 function subscribeInBrowser(
@@ -543,16 +535,16 @@ function subscribeInBrowser(
   const operation = browserSubscribeTail.then(async () => {
     // Work cancelled while it waited for its turn creates no subscription.
     if (isPushRegistrationSuspended(serverId, signal)) return null;
-    if (pushServiceFailure && !manual) throw pushServiceFailure;
+    if (browserSubscribeFailure && !manual) throw browserSubscribeFailure;
     try {
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey
       });
-      pushServiceFailure = null;
+      browserSubscribeFailure = null;
       return subscription;
     } catch (error) {
-      if (isPushServiceFailure(technicalReason(error))) pushServiceFailure = error;
+      browserSubscribeFailure = error;
       throw error;
     }
   });
@@ -606,10 +598,7 @@ export async function ensureRegistered(
       failedRegistrations.delete(target.serverId);
     } else if (!isPushRegistrationSuspended(target.serverId) && getPermission() === 'granted') {
       // Leaving the server and missing permission are not failures.
-      failedRegistrations.set(target.serverId, {
-        reason: saved.failure,
-        failedAt: Date.now()
-      });
+      failedRegistrations.set(target.serverId, saved.failure);
     }
   }
   return registered;
@@ -649,7 +638,6 @@ async function ensureRegisteredOnce(
   let subscription: PushSubscription | null = null;
   let subscriptionAuth: string | null = null;
   let cleanupToken: string | null = null;
-  let createdSubscription = false;
   let api: PushNotificationAPI | null = null;
 
   try {
@@ -683,7 +671,6 @@ async function ensureRegisteredOnce(
         manual
       );
       if (!subscription) return false;
-      createdSubscription = true;
       if (isPushRegistrationSuspended(serverId, signal)) {
         if (shouldInvalidateCancelledPushRegistration(serverId)) {
           await invalidateSubscription(serverId, subscription);
@@ -735,11 +722,10 @@ async function ensureRegisteredOnce(
     }
 
     if (!saved.subscribed) {
+      // Keep the browser subscription: the next check saves it again without
+      // creating another push service registration.
       console.error('Failed to save push subscription');
       report.failed('The server did not save the subscription');
-      if (createdSubscription) {
-        await invalidateSubscription(serverId, subscription);
-      }
       return false;
     }
 
@@ -749,10 +735,12 @@ async function ensureRegisteredOnce(
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
     report.failed(technicalReason(error));
+    // A failed save keeps the browser subscription, so the next check saves it
+    // again without creating another push service registration. Cancelled
+    // work still removes what it may have stored.
     const cancelled = isPushRegistrationSuspended(serverId, signal);
-    const activeSuspension = shouldInvalidateCancelledPushRegistration(serverId);
     if (subscription) {
-      if (activeSuspension || (!cancelled && createdSubscription)) {
+      if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       } else if (cancelled && api) {
         if (subscriptionAuth && cleanupToken) {

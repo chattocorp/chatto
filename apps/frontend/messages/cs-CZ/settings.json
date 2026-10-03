@@ -282,12 +282,19 @@
         "opens_at": "Oznámení otevírají Chatto na adrese {origin}",
         "registering": "Nastavují se push oznámení pro toto zařízení…",
         "off_title": "Push oznámení zatím nejsou na tomto zařízení povolena",
-        "off_description": "Chatto žádá váš prohlížeč o povolení, když aplikaci používáte. Pokud jste žádost zavřeli, znovu načtěte Chatto, abyste ji viděli znovu.",
         "test_failed": "Testovací oznámení se nepodařilo odeslat. Zkuste to znovu za chvíli.",
         "setup_failed_title": "Push oznámení se na tomto zařízení nepodařilo nastavit",
-        "setup_failed_description": "Prohlížeč nebo server odmítl odběr. Chatto to zkusí znovu zítra.",
+        "setup_failed_description": "Prohlížeč nebo server odmítl odběr. Chatto to zkusí znovu, až se do aplikace vrátíte.",
         "test_rate_limited": "Než odešlete další testovací oznámení, počkejte několik sekund.",
         "setup_failed_details": "Technické podrobnosti: {reason}"
+      },
+      "push_prompt": {
+        "title": "Povolit push oznámení",
+        "message": "Dostávejte oznámení o přímých zprávách, zmínkách a odpovědích, i když je Chatto zavřené.",
+        "enable": "Povolit",
+        "enabling": "Povolování…",
+        "enabled": "Push oznámení jsou povolena",
+        "not_now": "Teď ne"
       },
       "sound": {
         "title": "Zvuk upozornění",

@@ -282,12 +282,19 @@
         "opens_at": "Paziņojumi atver Chatto adresē {origin}",
         "registering": "Notiek push paziņojumu iestatīšana šai ierīcei…",
         "off_title": "Push paziņojumi šajā ierīcē vēl nav atļauti",
-        "off_description": "Chatto lūdz pārlūkprogrammai atļauju, kamēr izmantojat lietotni. Ja aizvērāt pieprasījumu, pārlādējiet Chatto, lai to redzētu vēlreiz.",
         "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža.",
         "setup_failed_title": "Šajā ierīcē neizdevās iestatīt push paziņojumus",
-        "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz rīt.",
+        "setup_failed_description": "Pārlūkprogramma vai serveris noraidīja abonementu. Chatto mēģinās vēlreiz, kad atgriezīsieties lietotnē.",
         "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu.",
         "setup_failed_details": "Tehniskā informācija: {reason}"
+      },
+      "push_prompt": {
+        "title": "Iespējot push paziņojumus",
+        "message": "Saņemiet paziņojumus par tiešajiem ziņojumiem, pieminējumiem un atbildēm arī tad, kad Chatto ir aizvērts.",
+        "enable": "Iespējot",
+        "enabling": "Notiek iespējošana…",
+        "enabled": "Push paziņojumi ir iespējoti",
+        "not_now": "Ne tagad"
       },
       "sound": {
         "title": "Paziņojuma skaņa",

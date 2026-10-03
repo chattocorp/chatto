@@ -282,12 +282,19 @@
         "opens_at": "Les notifications ouvrent Chatto sur {origin}",
         "registering": "Configuration des notifications poussées pour cet appareil…",
         "off_title": "Les notifications poussées ne sont pas encore autorisées sur cet appareil",
-        "off_description": "Chatto demande l’autorisation à votre navigateur pendant que vous utilisez l’application. Si vous avez fermé la demande, rechargez Chatto pour la voir à nouveau.",
         "test_failed": "Impossible d’envoyer une notification de test. Réessayez dans un instant.",
         "setup_failed_title": "Impossible de configurer les notifications poussées sur cet appareil",
-        "setup_failed_description": "Le navigateur ou le serveur a refusé l’abonnement. Chatto réessaie demain.",
+        "setup_failed_description": "Le navigateur ou le serveur a refusé l’abonnement. Chatto réessaiera quand vous reviendrez dans l’application.",
         "test_rate_limited": "Attendez quelques secondes avant d’envoyer une autre notification de test.",
         "setup_failed_details": "Détails techniques : {reason}"
+      },
+      "push_prompt": {
+        "title": "Activer les notifications poussées",
+        "message": "Recevez des notifications pour les messages privés, les mentions et les réponses, même lorsque Chatto est fermé.",
+        "enable": "Activer",
+        "enabling": "Activation…",
+        "enabled": "Notifications poussées activées",
+        "not_now": "Pas maintenant"
       },
       "sound": {
         "title": "Son de notification",

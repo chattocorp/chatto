@@ -282,12 +282,19 @@
         "opens_at": "Sciigoj malfermas Chatto ĉe {origin}",
         "registering": "Agordado de puŝaj sciigoj por ĉi tiu aparato…",
         "off_title": "Puŝaj sciigoj ankoraŭ ne estas permesitaj en ĉi tiu aparato",
-        "off_description": "Chatto petas permeson de via retumilo dum vi uzas la aplikaĵon. Se vi fermis la peton, reŝargu Chatto por vidi ĝin denove.",
         "test_failed": "Ne eblis sendi testan sciigon. Reprovu post momento.",
         "setup_failed_title": "Ne eblis agordi puŝajn sciigojn en ĉi tiu aparato",
-        "setup_failed_description": "La retumilo aŭ la servilo rifuzis la abonon. Chatto reprovos morgaŭ.",
+        "setup_failed_description": "La retumilo aŭ la servilo rifuzis la abonon. Chatto reprovos, kiam vi revenos al la aplikaĵo.",
         "test_rate_limited": "Atendu kelkajn sekundojn antaŭ ol sendi alian testan sciigon.",
         "setup_failed_details": "Teknikaj detaloj: {reason}"
+      },
+      "push_prompt": {
+        "title": "Ebligi puŝajn sciigojn",
+        "message": "Ricevu sciigojn pri rektaj mesaĝoj, mencioj kaj respondoj, eĉ kiam Chatto estas fermita.",
+        "enable": "Ebligi",
+        "enabling": "Ebligante…",
+        "enabled": "Puŝaj sciigoj ebligitaj",
+        "not_now": "Ne nun"
       },
       "sound": {
         "title": "Sciiga Sono",

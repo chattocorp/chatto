@@ -282,12 +282,19 @@
         "opens_at": "Meldingen openen Chatto op {origin}",
         "registering": "Pushmeldingen voor dit apparaat worden ingesteld…",
         "off_title": "Pushmeldingen zijn op dit apparaat nog niet toegestaan",
-        "off_description": "Chatto vraagt je browser om toestemming terwijl je de app gebruikt. Heb je het verzoek gesloten, laad Chatto dan opnieuw om het weer te zien.",
         "test_failed": "Kan geen testmelding verzenden. Probeer het zo opnieuw.",
         "setup_failed_title": "Pushmeldingen konden niet worden ingesteld op dit apparaat",
-        "setup_failed_description": "De browser of de server heeft het abonnement geweigerd. Chatto probeert het morgen opnieuw.",
+        "setup_failed_description": "De browser of de server heeft het abonnement geweigerd. Chatto probeert het opnieuw wanneer je terugkeert naar de app.",
         "test_rate_limited": "Wacht een paar seconden voordat je nog een testmelding verstuurt.",
         "setup_failed_details": "Technische details: {reason}"
+      },
+      "push_prompt": {
+        "title": "Pushmeldingen inschakelen",
+        "message": "Ontvang meldingen over directe berichten, vermeldingen en antwoorden, ook als Chatto gesloten is.",
+        "enable": "Inschakelen",
+        "enabling": "Bezig met inschakelen…",
+        "enabled": "Pushmeldingen ingeschakeld",
+        "not_now": "Niet nu"
       },
       "sound": {
         "title": "Meldingsgeluid",

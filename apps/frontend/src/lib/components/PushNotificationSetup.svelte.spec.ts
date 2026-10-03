@@ -1,13 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { userEvent } from 'vitest/browser';
+import { page } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { PUSH_PROMPT_SNOOZE_MS, isPushPromptSnoozed } from '$lib/notifications/pushPrompt';
 import PushNotificationSetup from './PushNotificationSetup.svelte';
 
 const mocks = vi.hoisted(() => ({
   getPermission: vi.fn(),
+  getPushCapability: vi.fn(),
   enablePushOnAllServers: vi.fn(),
+  servers: [] as { id: string; reauthRequiredAt: number | null }[],
   refreshPushSubscriptions: vi.fn(),
   stores: {
     origin: {
@@ -29,12 +32,22 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    get servers() {
+      return mocks.servers;
+    }
+  }
+}));
+
 vi.mock('$lib/notifications/pushNotifications', async () => {
   const { userPreferences: reactivePreferences } =
     await import('$lib/state/userPreferences.svelte');
   return {
     enablePushOnAllServers: mocks.enablePushOnAllServers,
     getPermission: mocks.getPermission,
+    getPushCapability: mocks.getPushCapability,
     getPushRegistrationTargets: () => {
       // Give the mutable fixture the same reactive invalidation behaviour as
       // the real server registry.
@@ -62,13 +75,6 @@ vi.mock('$lib/notifications/pushNotifications', async () => {
   };
 });
 
-function setUserActivation(isActive: boolean): void {
-  Object.defineProperty(navigator, 'userActivation', {
-    configurable: true,
-    value: { isActive, hasBeenActive: isActive }
-  });
-}
-
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
@@ -82,7 +88,10 @@ describe('PushNotificationSetup', () => {
     mocks.refreshPushSubscriptions.mockReset();
     mocks.enablePushOnAllServers.mockReset();
     mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'granted', registrations: [] });
-    setUserActivation(false);
+    mocks.getPushCapability.mockReset();
+    mocks.getPushCapability.mockReturnValue('supported');
+    mocks.servers = [{ id: 'origin', reauthRequiredAt: null }];
+    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
     userPreferences.composerEditor = 'markdown';
     mocks.stores.origin.isAuthenticated = true;
     mocks.stores.origin.currentUser.user.id = 'origin-user';
@@ -157,78 +166,99 @@ describe('PushNotificationSetup', () => {
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
   });
 
-  describe('automatic permission request', () => {
+  describe('invitation to enable push notifications', () => {
+    const invitation = () => page.getByText('Enable push notifications');
+
     beforeEach(() => {
       mocks.getPermission.mockReturnValue('default');
     });
 
-    it('asks at once while the page has user activation', async () => {
-      setUserActivation(true);
-      render(PushNotificationSetup);
-      await settle();
-
-      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+    afterEach(() => {
+      window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
     });
 
-    it('asks on the next interaction that grants user activation, and only once', async () => {
+    it('never asks the browser without a click on Enable', async () => {
       render(PushNotificationSetup);
       await settle();
-      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
-
-      // A key that grants no activation, such as Escape, keeps waiting.
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
-
-      setUserActivation(true);
-      window.dispatchEvent(new MouseEvent('click'));
       window.dispatchEvent(new MouseEvent('click'));
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
 
-      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+      await expect.element(invitation()).toBeVisible();
+      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
     });
 
-    it('falls back to the interaction in browsers without the User Activation API', async () => {
-      Object.defineProperty(navigator, 'userActivation', { configurable: true, value: undefined });
+    it('asks the browser when the user selects Enable', async () => {
       render(PushNotificationSetup);
-      await settle();
-      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
-
-      // Synthetic events are untrusted and cannot grant activation.
-      window.dispatchEvent(new MouseEvent('click'));
-      // Modifier keys do not grant activation in these browsers.
-      await userEvent.keyboard('{Shift}');
-      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
-
-      await userEvent.click(document.body);
+      await page.getByRole('button', { name: 'Enable', exact: true }).click();
 
       expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+      expect(isPushPromptSnoozed()).toBe(false);
+    });
+
+    it('waits 14 days after Not now', async () => {
+      render(PushNotificationSetup);
+      await page.getByRole('button', { name: 'Not now' }).click();
+
+      await expect.element(invitation()).not.toBeInTheDocument();
+      expect(isPushPromptSnoozed()).toBe(true);
+      expect(isPushPromptSnoozed(Date.now() + PUSH_PROMPT_SNOOZE_MS)).toBe(false);
+    });
+
+    it('treats a dismissed browser prompt as Not now', async () => {
+      mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'default', registrations: [] });
+      render(PushNotificationSetup);
+      await page.getByRole('button', { name: 'Enable', exact: true }).click();
+
+      await expect.element(invitation()).not.toBeInTheDocument();
+      expect(isPushPromptSnoozed()).toBe(true);
+    });
+
+    it('stays hidden while an earlier Not now is in effect', async () => {
+      window.localStorage.setItem('chatto:pushPromptSnoozedUntil', String(Date.now() + 60_000));
+      render(PushNotificationSetup);
+      await settle();
+
+      await expect.element(invitation()).not.toBeInTheDocument();
     });
 
     it.each(['granted', 'denied', null] as const)(
-      'does not ask while permission is %s',
+      'does not invite while permission is %s',
       async (permission) => {
         mocks.getPermission.mockReturnValue(permission);
-        setUserActivation(true);
         render(PushNotificationSetup);
         await settle();
-        window.dispatchEvent(new MouseEvent('click'));
 
-        expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+        await expect.element(invitation()).not.toBeInTheDocument();
       }
     );
 
-    it('waits for a server that supports push', async () => {
-      mocks.stores.origin.serverInfo.pushNotificationsEnabled = false;
-      setUserActivation(true);
+    it('does not invite where this browser cannot use push', async () => {
+      mocks.getPushCapability.mockReturnValue('ios_home_screen_required');
       render(PushNotificationSetup);
       await settle();
-      expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
+
+      await expect.element(invitation()).not.toBeInTheDocument();
+    });
+
+    it('waits while a server needs sign-in', async () => {
+      mocks.servers = [{ id: 'origin', reauthRequiredAt: Date.now() }];
+      render(PushNotificationSetup);
+      await settle();
+
+      await expect.element(invitation()).not.toBeInTheDocument();
+    });
+
+    it('waits for a server that supports push', async () => {
+      mocks.stores.origin.serverInfo.pushNotificationsEnabled = false;
+      render(PushNotificationSetup);
+      await settle();
+      await expect.element(invitation()).not.toBeInTheDocument();
 
       mocks.stores.origin.serverInfo.pushNotificationsEnabled = true;
       userPreferences.composerEditor = 'visual';
       await settle();
 
-      expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
+      await expect.element(invitation()).toBeVisible();
     });
   });
 });

@@ -6,8 +6,8 @@ lets the user send a test notification.
 
 The panel names the browser and platform that receive the notifications and
 the origin that notification clicks open. It never asks for notification
-permission itself: Chatto asks the browser automatically, and the panel
-explains that while permission is unset. Renders nothing when the
+permission without the user: while permission is unset, the panel offers an
+Enable action that asks the browser from that click. Renders nothing when the
 server has no Web Push configuration or the app does not run in a browser.
 -->
 <script lang="ts">
@@ -15,6 +15,7 @@ server has no Web Push configuration or the app does not run in a browser.
   import { m } from '$lib/i18n/messages';
   import { describePushDevice } from '$lib/notifications/pushDevice';
   import {
+    enablePushOnAllServers,
     getPermission,
     getPushCapability,
     hasSavedPushRegistration,
@@ -23,6 +24,7 @@ server has no Web Push configuration or the app does not run in a browser.
     retryPushRegistration,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
+  import { snoozePushPrompt } from '$lib/notifications/pushPrompt';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, Panel } from '$lib/ui';
   import { Button } from '$lib/ui/form';
@@ -50,6 +52,7 @@ server has no Web Push configuration or the app does not run in a browser.
   const registered = $derived(hasSavedPushRegistration(serverId, store.accountId));
   const registrationFailure = $derived(pushRegistrationFailure(serverId));
   let retrying = $state(false);
+  let enabling = $state(false);
 
   let testing = $state(false);
   let testResult = $state<TestResult | null>(null);
@@ -72,6 +75,17 @@ server has no Web Push configuration or the app does not run in a browser.
       };
     } finally {
       testing = false;
+    }
+  }
+
+  async function enable(): Promise<void> {
+    enabling = true;
+    try {
+      const result = await enablePushOnAllServers();
+      // A dismissed browser prompt counts as Not now for the invitation too.
+      if (result.permission === 'default') snoozePushPrompt();
+    } finally {
+      enabling = false;
     }
   }
 
@@ -103,7 +117,18 @@ server has no Web Push configuration or the app does not run in a browser.
       {:else if permission !== 'granted'}
         <div class="flex flex-col gap-1">
           <p class="font-medium text-text-top">{m('settings.notifications.push.off_title')}</p>
-          <p class="text-muted">{m('settings.notifications.push.off_description')}</p>
+          <p class="text-muted">{m('settings.notifications.push_prompt.message')}</p>
+        </div>
+        <div>
+          <Button
+            size="sm"
+            onclick={enable}
+            disabled={enabling}
+            loading={enabling}
+            loadingText={m('settings.notifications.push_prompt.enabling')}
+          >
+            {m('settings.notifications.push_prompt.title')}
+          </Button>
         </div>
       {:else if !registered && registrationFailure}
         <Hint tone="warning">

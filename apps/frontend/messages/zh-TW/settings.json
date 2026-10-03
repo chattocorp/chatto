@@ -282,12 +282,19 @@
         "opens_at": "通知會在 {origin} 開啟 Chatto",
         "registering": "正在為此裝置設定推播通知…",
         "off_title": "此裝置尚未允許推播通知",
-        "off_description": "你使用應用程式時，Chatto 會向瀏覽器請求權限。如果你關閉了請求，請重新載入 Chatto 以再次看到它。",
         "test_failed": "無法傳送測試通知。請稍後再試。",
         "setup_failed_title": "無法在此裝置上設定推播通知",
-        "setup_failed_description": "瀏覽器或伺服器拒絕了訂閱。Chatto 會在明天重試。",
+        "setup_failed_description": "瀏覽器或伺服器拒絕了訂閱。你返回應用程式時，Chatto 會重試。",
         "test_rate_limited": "請等待幾秒鐘後再傳送另一則測試通知。",
         "setup_failed_details": "技術詳細資料：{reason}"
+      },
+      "push_prompt": {
+        "title": "啟用推播通知",
+        "message": "即使 Chatto 已關閉，也能收到私訊、提及及回覆的通知。",
+        "enable": "啟用",
+        "enabling": "正在啟用…",
+        "enabled": "推播通知已啟用",
+        "not_now": "稍後再說"
       },
       "sound": {
         "title": "通知音效",

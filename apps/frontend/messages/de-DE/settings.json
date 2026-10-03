@@ -282,12 +282,19 @@
         "opens_at": "Benachrichtigungen öffnen Chatto unter {origin}",
         "registering": "Push-Benachrichtigungen für dieses Gerät werden eingerichtet…",
         "off_title": "Push-Benachrichtigungen sind auf diesem Gerät noch nicht erlaubt",
-        "off_description": "Chatto fragt deinen Browser um Erlaubnis, während du die App nutzt. Wenn du die Anfrage geschlossen hast, lade Chatto neu, um sie erneut zu sehen.",
         "test_failed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es gleich noch einmal.",
         "setup_failed_title": "Push-Benachrichtigungen konnten auf diesem Gerät nicht eingerichtet werden",
-        "setup_failed_description": "Der Browser oder der Server hat das Abonnement abgelehnt. Chatto versucht es morgen erneut.",
+        "setup_failed_description": "Der Browser oder der Server hat das Abonnement abgelehnt. Chatto versucht es erneut, wenn du zur App zurückkehrst.",
         "test_rate_limited": "Warte ein paar Sekunden, bevor du eine weitere Testbenachrichtigung sendest.",
         "setup_failed_details": "Technische Details: {reason}"
+      },
+      "push_prompt": {
+        "title": "Push-Benachrichtigungen aktivieren",
+        "message": "Erhalte Benachrichtigungen über DMs, Erwähnungen und Antworten, auch wenn Chatto geschlossen ist.",
+        "enable": "Aktivieren",
+        "enabling": "Wird aktiviert…",
+        "enabled": "Push-Benachrichtigungen aktiviert",
+        "not_now": "Jetzt nicht"
       },
       "sound": {
         "title": "Benachrichtigungston",

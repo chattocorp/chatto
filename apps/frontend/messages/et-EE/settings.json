@@ -282,12 +282,19 @@
         "opens_at": "Märguanded avavad Chatto aadressil {origin}",
         "registering": "Selle seadme tõukemärguannete seadistamine…",
         "off_title": "Tõukemärguanded pole selles seadmes veel lubatud",
-        "off_description": "Chatto küsib brauserilt luba, kui te rakendust kasutate. Kui sulgesite päringu, laadige Chatto uuesti, et seda uuesti näha.",
         "test_failed": "Testmärguannet ei õnnestunud saata. Proovige hetke pärast uuesti.",
         "setup_failed_title": "Tõukemärguandeid ei õnnestunud selles seadmes seadistada",
-        "setup_failed_description": "Brauser või server lükkas tellimuse tagasi. Chatto proovib homme uuesti.",
+        "setup_failed_description": "Brauser või server lükkas tellimuse tagasi. Chatto proovib uuesti, kui naasete rakendusse.",
         "test_rate_limited": "Oodake mõni sekund, enne kui saadate uue testmärguande.",
         "setup_failed_details": "Tehnilised üksikasjad: {reason}"
+      },
+      "push_prompt": {
+        "title": "Luba tõukemärguanded",
+        "message": "Saage märguandeid otsesõnumite, mainimiste ja vastuste kohta ka siis, kui Chatto on suletud.",
+        "enable": "Luba",
+        "enabling": "Lubamine…",
+        "enabled": "Tõukemärguanded on lubatud",
+        "not_now": "Mitte praegu"
       },
       "sound": {
         "title": "Teavitusheli",

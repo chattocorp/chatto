@@ -282,12 +282,19 @@
         "opens_at": "Notifications open Chatto at {origin}",
         "registering": "Setting up push notifications for this device…",
         "off_title": "Push notifications are not allowed on this device yet",
-        "off_description": "Chatto asks your browser for permission while you use the app. If you dismissed the request, reload Chatto to see it again.",
         "test_failed": "Could not send a test notification. Try again in a moment.",
         "setup_failed_title": "Push notifications could not be set up on this device",
-        "setup_failed_description": "The browser or the server rejected the subscription. Chatto tries again tomorrow.",
+        "setup_failed_description": "The browser or the server rejected the subscription. Chatto tries again when you return to the app.",
         "test_rate_limited": "Wait a few seconds before you send another test notification.",
         "setup_failed_details": "Technical details: {reason}"
+      },
+      "push_prompt": {
+        "title": "Enable push notifications",
+        "message": "Get notified about DMs, mentions, and replies, even when Chatto is closed.",
+        "enable": "Enable",
+        "enabling": "Enabling…",
+        "enabled": "Push notifications enabled",
+        "not_now": "Not now"
       },
       "sound": {
         "title": "Notification Sound",
