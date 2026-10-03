@@ -31,6 +31,7 @@ export function validateDisplayName(name: string): ValidationResult {
       error: `Display name cannot exceed ${MAX_DISPLAY_NAME_LENGTH} characters`
     };
   }
+  let visible = false;
   for (const char of name) {
     if (/[\p{Cc}\p{Zl}\p{Zp}]/u.test(char)) {
       return {
@@ -41,8 +42,12 @@ export function validateDisplayName(name: string): ValidationResult {
     if (/\p{Cf}/u.test(char) && !isDisplayNameFormatChar(char)) {
       return { valid: false, error: m('settings.profile.display_name.invalid') };
     }
+    visible ||=
+      /[\p{L}\p{N}\p{P}\p{S}]/u.test(char) &&
+      !/\p{Default_Ignorable_Code_Point}/u.test(char) &&
+      char !== '\u2800';
   }
-  if (!/[\p{L}\p{N}\p{P}\p{S}]/u.test(name)) {
+  if (!visible) {
     return { valid: false, error: m('settings.profile.display_name.invalid') };
   }
   return { valid: true };

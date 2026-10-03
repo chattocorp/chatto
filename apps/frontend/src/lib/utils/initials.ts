@@ -4,6 +4,13 @@ const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 /** A neutral user icon is used when no text or emoji label is available. */
 export type AvatarLabel = { kind: 'text' | 'emoji'; text: string } | { kind: 'icon' };
 
+/** Ignore blank letter fillers without removing marks or joiners from a grapheme. */
+function hasVisibleInitial(segment: string): boolean {
+  return [...segment].some(
+    (char) => /[\p{L}\p{N}]/u.test(char) && !/\p{Default_Ignorable_Code_Point}/u.test(char)
+  );
+}
+
 /**
  * Choose up to two letter/number initials, then the first complete emoji, then a
  * login initial. Grapheme segmentation keeps combining scripts and joined emoji
@@ -17,7 +24,7 @@ export function getAvatarLabel(
   const initials: string[] = [];
   for (const word of name.split(/\s+/)) {
     for (const { segment } of graphemes.segment(word)) {
-      if (/[\p{L}\p{N}]/u.test(segment)) {
+      if (hasVisibleInitial(segment)) {
         initials.push(segment.toUpperCase());
         break;
       }
@@ -32,7 +39,7 @@ export function getAvatarLabel(
     }
   }
   for (const { segment } of graphemes.segment(login?.trim() ?? '')) {
-    if (/[\p{L}\p{N}]/u.test(segment)) {
+    if (hasVisibleInitial(segment)) {
       return { kind: 'text', text: segment.toUpperCase() };
     }
   }

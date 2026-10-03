@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { getAvatarColour, getAvatarLabel } from './initials';
 
 describe('getAvatarLabel', () => {
+  it('skips invisible letter fillers when finding an initial', () => {
+    expect(getAvatarLabel('\u3164Alice', 'login')).toEqual({ kind: 'text', text: 'A' });
+    expect(getAvatarLabel('\u115F', 'alice')).toEqual({ kind: 'text', text: 'A' });
+  });
   it('uses up to two initials and skips punctuation or emoji words', () => {
     expect(getAvatarLabel('John Robert Doe', 'login')).toEqual({ kind: 'text', text: 'JR' });
     expect(getAvatarLabel('[DEV] ChattoBot', 'login')).toEqual({ kind: 'text', text: 'DC' });

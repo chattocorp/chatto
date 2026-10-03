@@ -33,6 +33,7 @@ func TestValidateDisplayName(t *testing.T) {
 		"John\u200BDoe", "John\u200EDoe", "John\u200FDoe", "John\uFEFFDoe", "John\u2060Doe",
 		"John\u00ADDoe", "John\u061CDoe", "John\u202EDoe", "John\u2066Doe", "John\u2069Doe",
 		" ", "  ", "\u0301", "\u200C\u200D", "\uFE0F", "\U000E0067\U000E007F",
+		"\u115F", "\u1160", "\u3164", "\uFFA0", "\u2800",
 	}
 	for _, name := range invalid {
 		t.Run(name, func(t *testing.T) {

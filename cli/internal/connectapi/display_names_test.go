@@ -39,7 +39,7 @@ func TestDisplayNamesAcrossAccountAPIs(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"Bad\nName", "Bad\u2028Name", "Bad\u202EName", "Bad\u200BName", "\u0301", "\u200D", strings.Repeat("田", 33)} {
+	for _, name := range []string{"Bad\nName", "Bad\u2028Name", "Bad\u202EName", "Bad\u200BName", "\u0301", "\u200D", "\u3164", "\u2800", strings.Repeat("田", 33)} {
 		t.Run("reject "+name, func(t *testing.T) {
 			_, err := operator.CreateUser(env.ctx, connect.NewRequest(&operatorv1.CreateUserRequest{
 				Login: "invalid-display-human", DisplayName: name,

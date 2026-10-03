@@ -47,7 +47,10 @@ func ValidateDisplayName(name string) error {
 		if unicode.Is(unicode.Cf, r) && !isDisplayNameFormatChar(r) {
 			return ErrDisplayNameInvalidCharacter
 		}
-		visible = visible || unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsPunct(r) || unicode.IsSymbol(r)
+		// Hangul fillers are letters and Braille blank is a symbol, but neither
+		// supplies visible content. Joiners and variation selectors do not either.
+		base := unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsPunct(r) || unicode.IsSymbol(r)
+		visible = visible || (base && r != '\u2800' && !unicode.Is(unicode.Other_Default_Ignorable_Code_Point, r))
 	}
 	if !visible {
 		return ErrDisplayNameInvalidCharacter

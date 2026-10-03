@@ -95,7 +95,12 @@ describe('validateDisplayName', () => {
     '\u0301',
     '\u200C\u200D',
     '\uFE0F',
-    '\u{E0067}\u{E007F}'
+    '\u{E0067}\u{E007F}',
+    '\u115F',
+    '\u1160',
+    '\u3164',
+    '\uFFA0',
+    '\u2800'
   ];
   for (const name of invalidNames) {
     it('rejects ' + JSON.stringify(name), () => {
