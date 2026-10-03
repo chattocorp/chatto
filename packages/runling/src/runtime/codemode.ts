@@ -39,6 +39,15 @@ export interface CodemodeSettings {
   keepFullOutput: boolean;
   /** Receives the paths of kept files, which the agent deletes when it ends. */
   keptFiles: Set<string>;
+  /** True after the agent ended; a script that finishes later keeps no file. */
+  ended: () => boolean;
+}
+
+/** Check a script deadline: a positive whole number of milliseconds that Pi accepts. */
+export function validateScriptTimeout(timeoutMs: number): number {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
+    throw new RangeError('codemode.timeoutMs must be whole milliseconds between 1 and 2147483647');
+  return timeoutMs;
 }
 
 /** Pi writes the complete output of a long script to a temporary file and names it in the result. */
@@ -59,7 +68,7 @@ export function codemodeExtension(settings: CodemodeSettings) {
       if (event.toolName !== 'codemode') return;
       const path = (event.details as { fullOutputPath?: unknown } | undefined)?.fullOutputPath;
       if (typeof path !== 'string') return;
-      if (settings.keepFullOutput) {
+      if (settings.keepFullOutput && !settings.ended()) {
         settings.keptFiles.add(path);
         return;
       }

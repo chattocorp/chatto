@@ -18,7 +18,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { Type, type Static } from 'typebox';
 import webFetchExtension from '../../extensions/web-fetch.ts';
-import { codemodeExtension, DEFAULT_SCRIPT_TIMEOUT_MS } from './codemode.ts';
+import { codemodeExtension, DEFAULT_SCRIPT_TIMEOUT_MS, validateScriptTimeout } from './codemode.ts';
 import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
@@ -448,11 +448,13 @@ async function createRunlingAgent(
               name: 'runling-codemode',
               factory: codemodeExtension({
                 mode: options.codemode === true ? 'on' : (options.codemode.mode ?? 'on'),
-                timeoutMs:
+                timeoutMs: validateScriptTimeout(
                   (options.codemode !== true && options.codemode.timeoutMs) ||
-                  DEFAULT_SCRIPT_TIMEOUT_MS,
+                    DEFAULT_SCRIPT_TIMEOUT_MS
+                ),
                 keepFullOutput: (options.tools ?? ['read']).includes('read'),
-                keptFiles: codemodeFiles
+                keptFiles: codemodeFiles,
+                ended: () => disposed
               })
             }
           ]

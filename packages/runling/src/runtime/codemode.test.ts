@@ -15,7 +15,7 @@ import {
 import { Type } from 'typebox';
 import { createWorkflowContext } from './context.ts';
 import { agent, defineAgentExtension, type AgentActivity, type AgentOptions } from './agent.ts';
-import { withScriptDeadline } from './codemode.ts';
+import { validateScriptTimeout, withScriptDeadline } from './codemode.ts';
 
 // A real Pi session with a scripted model: codemode runs real scripts in its sandbox. The faux
 // provider comes from a second, test-only pi-ai copy (Runling's own undici satisfies its peer
@@ -263,6 +263,10 @@ test('scripts get a deadline that they can shorten but not extend', async () => 
   expect(
     withScriptDeadline('// @options: {"max_output_tokens": 9, "timeout_ms": 5000}\nreturn 1;', 1000)
   ).toBe('// @options: {"max_output_tokens":9,"timeout_ms":1000}\nreturn 1;');
+  // Leading spaces and CRLF are read as Pi reads them.
+  expect(withScriptDeadline('  // @options: {"timeout_ms": 5000}\r\nreturn 1;', 1000)).toBe(
+    '// @options: {"timeout_ms":1000}\nreturn 1;'
+  );
   // Pi refuses invalid options, so they stay as written.
   expect(withScriptDeadline('// @options: nope\nreturn 1;', 1000)).toBe(
     '// @options: nope\nreturn 1;'
@@ -328,4 +332,10 @@ test('a script reports as one tool activity', async () => {
     'codemode started',
     'codemode failed'
   ]);
+});
+
+test('script deadlines must be whole milliseconds that Pi accepts', () => {
+  expect(validateScriptTimeout(1000)).toBe(1000);
+  for (const value of [0, -1, 1.5, Number.POSITIVE_INFINITY, 2_147_483_648])
+    expect(() => validateScriptTimeout(value)).toThrow(RangeError);
 });
