@@ -33,20 +33,6 @@ into new or active Runling conversations. It accepts a delivery after inbox
 insertion or successful run registration. Runling itself has no Chatto runtime
 dependency.
 
-The ChattoBot supervisor can add one emoji reaction to its current addressed
-user message through the shared client's `addReaction` operation. A reaction
-can acknowledge a simple message without a text reply. Background notifications
-cannot call this tool.
-The supervisor can also send a text acknowledgement through `acknowledgeRequest`
-before longer work. For an initiating root message, this reply opens the thread.
-The host serializes the acknowledgement with other thread posts. The model
-writes its text, and the tool permits one call per user message.
-
-ChattoBot queues supervisor inputs while an answer is active. A queued input
-does not change the reply target or requester of the active answer. General
-web research requires a maintainer. The Chatto reference allowlist remains
-available to other users. Reactions remain available after research.
-
 The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
 server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix
 is the protobuf package name. It is not the behavioral protocol version.
