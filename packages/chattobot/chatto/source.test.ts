@@ -16,8 +16,6 @@ const mocks = vi.hoisted(() => ({
   bot: vi.fn((_options: Parameters<typeof createChattoBot>[0]) => ({ route: () => {} }))
 }));
 let chatto = fakeChatto({ viewerId: 'bot', routes: () => {} });
-// The real source would change TMPDIR for the test process.
-vi.mock('../private-temp.ts', () => ({ usePrivateTempDirectory: async () => '' }));
 vi.mock('@chatto/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client')>()),
   createClient: () => chatto.createClient(),

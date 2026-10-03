@@ -1,23 +1,30 @@
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 const STATE = Symbol.for('chattobot.privateTemp');
+const BASE = Symbol.for('chattobot.privateTempBase');
+type State = { [STATE]?: unknown; [BASE]?: unknown };
 let base: string;
 beforeEach(async () => {
   base = await mkdtemp(join(tmpdir(), 'chattobot-temp-test-'));
   vi.stubEnv('TMPDIR', base);
   vi.resetModules();
-  delete (globalThis as { [STATE]?: unknown })[STATE];
+  delete (globalThis as State)[STATE];
+  delete (globalThis as State)[BASE];
 });
 afterEach(async () => {
   vi.unstubAllEnvs();
-  delete (globalThis as { [STATE]?: unknown })[STATE];
+  delete (globalThis as State)[STATE];
+  delete (globalThis as State)[BASE];
   await rm(base, { recursive: true, force: true });
 });
 
-const load = async () => (await import('./private-temp.ts')).usePrivateTempDirectory;
+// The test setup mocks this module for all other tests.
+const load = async () =>
+  (await vi.importActual<typeof import('./private-temp.ts')>('./private-temp.ts'))
+    .usePrivateTempDirectory;
 
 test.skipIf(process.platform === 'win32')(
   'creates a directory that only the bot user can read and points TMPDIR at it',
@@ -50,10 +57,32 @@ test.skipIf(process.platform === 'win32')(
   }
 );
 
-test('a failed creation is tried again', async () => {
-  const usePrivateTempDirectory = await load();
-  vi.stubEnv('TMPDIR', join(base, 'missing'));
-  await expect(usePrivateTempDirectory()).rejects.toThrow();
-  vi.stubEnv('TMPDIR', base);
-  expect(dirname(await usePrivateTempDirectory())).toBe(base);
-});
+test.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'a failed creation is tried again',
+  async () => {
+    const usePrivateTempDirectory = await load();
+    await chmod(base, 0o500);
+    try {
+      await expect(usePrivateTempDirectory()).rejects.toThrow();
+    } finally {
+      await chmod(base, 0o700);
+    }
+    expect(dirname(await usePrivateTempDirectory())).toBe(base);
+  }
+);
+
+test.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+  'a failed replacement keeps the system temporary directory as base',
+  async () => {
+    const usePrivateTempDirectory = await load();
+    const first = await usePrivateTempDirectory();
+    await rm(first, { recursive: true, force: true });
+    await chmod(base, 0o500);
+    try {
+      await expect(usePrivateTempDirectory()).rejects.toThrow();
+    } finally {
+      await chmod(base, 0o700);
+    }
+    expect(dirname(await usePrivateTempDirectory())).toBe(base);
+  }
+);

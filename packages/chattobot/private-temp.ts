@@ -8,8 +8,8 @@ import { join } from 'node:path';
 
 // Runling reloads configuration modules without a cache, so the state lives on globalThis.
 const STATE = Symbol.for('chattobot.privateTemp');
-type Directory = { base: string; path: string };
-type State = { [STATE]?: Promise<Directory | undefined> };
+const BASE = Symbol.for('chattobot.privateTempBase');
+type State = { [STATE]?: Promise<string | undefined>; [BASE]?: string };
 
 /** True when `path` is a directory that only this user can read. Windows has no such modes. */
 async function isPrivate(path: string): Promise<boolean> {
@@ -34,11 +34,14 @@ async function isPrivate(path: string): Promise<boolean> {
  */
 export function usePrivateTempDirectory(): Promise<string> {
   const state = globalThis as State;
+  // The system temporary directory, read before TMPDIR points at a private directory. A failed
+  // replacement must not lose it, or later attempts would use the deleted directory as base.
+  state[BASE] ??= tmpdir();
+  const base = state[BASE];
   const next = (state[STATE] ?? Promise.resolve(undefined))
     .catch(() => undefined)
     .then(async (current) => {
-      if (current && (await isPrivate(current.path))) return current;
-      const base = current?.base ?? tmpdir();
+      if (current && (await isPrivate(current))) return current;
       const path = await mkdtemp(join(base, 'chattobot-'));
       process.env.TMPDIR = path;
       process.once('exit', () => {
@@ -49,8 +52,8 @@ export function usePrivateTempDirectory(): Promise<string> {
           // The directory stays private.
         }
       });
-      return { base, path };
+      return path;
     });
   state[STATE] = next;
-  return next.then((directory) => directory!.path);
+  return next as Promise<string>;
 }
