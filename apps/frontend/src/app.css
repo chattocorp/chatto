@@ -5,6 +5,46 @@
 @import 'tailwindcss' source('./');
 @import './prose.css';
 
+/* Account identity colours stay independent of the selected accent and theme.
+   These deep shades keep white labels above 4.5:1 contrast in both themes. */
+:root {
+  --avatar-blue: var(--color-blue-700);
+  --avatar-cyan: var(--color-sky-700);
+  --avatar-teal: var(--color-teal-800);
+  --avatar-green: var(--color-green-800);
+  --avatar-amber: var(--color-amber-800);
+  --avatar-orange: var(--color-orange-800);
+  --avatar-pink: var(--color-pink-700);
+  --avatar-violet: var(--color-violet-700);
+  --avatar-foreground: var(--color-white);
+}
+
+@utility avatar-placeholder {
+  color: var(--avatar-foreground);
+  background-color: var(--avatar-blue);
+  &[data-avatar-colour='cyan'] {
+    background-color: var(--avatar-cyan);
+  }
+  &[data-avatar-colour='teal'] {
+    background-color: var(--avatar-teal);
+  }
+  &[data-avatar-colour='green'] {
+    background-color: var(--avatar-green);
+  }
+  &[data-avatar-colour='amber'] {
+    background-color: var(--avatar-amber);
+  }
+  &[data-avatar-colour='orange'] {
+    background-color: var(--avatar-orange);
+  }
+  &[data-avatar-colour='pink'] {
+    background-color: var(--avatar-pink);
+  }
+  &[data-avatar-colour='violet'] {
+    background-color: var(--avatar-violet);
+  }
+}
+
 /* Registered numbers let the whole design system interpolate depth together. */
 @property --depth-strength {
   syntax: '<number>';

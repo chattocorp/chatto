@@ -38,7 +38,7 @@ func setupConnectError(err error) error {
 		errors.Is(err, core.ErrLoginInvalidCharacter),
 		errors.Is(err, core.ErrUsernameBlocked), errors.Is(err, core.ErrLoginAlreadyTaken):
 		field = "login"
-	case errors.Is(err, core.ErrDisplayNameTooLong), errors.Is(err, core.ErrDisplayNameInvalidCharacter), errors.Is(err, core.ErrDisplayNameInvalidStart):
+	case errors.Is(err, core.ErrDisplayNameTooLong), errors.Is(err, core.ErrDisplayNameInvalidCharacter):
 		field = "display_name"
 	case errors.Is(err, core.ErrPasswordTooShort), errors.Is(err, core.ErrPasswordTooLong):
 		field = "password"

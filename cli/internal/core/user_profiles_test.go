@@ -105,16 +105,16 @@ func TestChattoCore_CreateUser_InvalidDisplayNameCharacters(t *testing.T) {
 		{"with newline", "user5", "John\nDoe", ErrDisplayNameInvalidCharacter},
 		{"with tab", "user6", "John\tDoe", ErrDisplayNameInvalidCharacter},
 
-		// Invalid - zero-width characters
+		// Invisible formatting is rejected; script joiners are allowed.
 		{"with ZWSP", "user7", "John\u200BDoe", ErrDisplayNameInvalidCharacter},
-		{"with ZWJ", "user8", "John\u200DDoe", ErrDisplayNameInvalidCharacter},
+		{"with ZWJ", "user8", "John\u200DDoe", nil},
 
-		// Invalid - consecutive spaces
-		{"double space", "user9", "John  Doe", ErrDisplayNameInvalidCharacter},
+		{"double space", "user9", "John  Doe", nil},
 
-		// Invalid - disallowed punctuation
-		{"with semicolon", "user10", "John; DROP TABLE", ErrDisplayNameInvalidCharacter},
-		{"with at sign", "user11", "user@domain", ErrDisplayNameInvalidCharacter},
+		{"with semicolon", "user10", "John; DROP TABLE", nil},
+		{"with at sign", "user11", "user@domain", nil},
+		{"with brackets", "user12", "[DEV] ChattoBot", nil},
+		{"joined emoji", "user13", "👩‍💻", nil},
 	}
 
 	for _, tt := range tests {
@@ -157,7 +157,10 @@ func TestChattoCore_UpdateUserDisplayName_InvalidCharacters(t *testing.T) {
 		// Invalid updates
 		{"with newline", "Bad\nName", ErrDisplayNameInvalidCharacter},
 		{"with ZWSP", "Bad\u200BName", ErrDisplayNameInvalidCharacter},
-		{"double space", "Bad  Name", ErrDisplayNameInvalidCharacter},
+		{"double space", "Bad  Name", nil},
+		{"brackets and punctuation", "[DEV] Bot (ready)!", nil},
+		{"emoji only", "👩‍💻", nil},
+		{"combining marks only", "\u0301", ErrDisplayNameInvalidCharacter},
 	}
 
 	for _, tt := range tests {

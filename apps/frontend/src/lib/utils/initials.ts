@@ -1,19 +1,61 @@
+/** Generate local avatar labels and stable account colours independently of name validation. */
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+/** A neutral user icon is used when no text or emoji label is available. */
+export type AvatarLabel = { kind: 'text' | 'emoji'; text: string } | { kind: 'icon' };
+
 /**
- * Compute avatar initials from user display name or login.
- * - If displayName exists: extract up to 2 initials (first letter of first two words)
- * - If no displayName: use first character of login
+ * Choose up to two letter/number initials, then the first complete emoji, then a
+ * login initial. Grapheme segmentation keeps combining scripts and joined emoji
+ * intact. Words with no letters or numbers do not contribute an initial.
  */
-export function getAvatarInitials(
+export function getAvatarLabel(
   displayName: string | null | undefined,
   login: string | null | undefined
-): string {
-  if (displayName?.trim()) {
-    const words = displayName.trim().split(/\s+/).filter(Boolean);
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
+): AvatarLabel {
+  const name = displayName?.trim() ?? '';
+  const initials: string[] = [];
+  for (const word of name.split(/\s+/)) {
+    for (const { segment } of graphemes.segment(word)) {
+      if (/[\p{L}\p{N}]/u.test(segment)) {
+        initials.push(segment.toUpperCase());
+        break;
+      }
     }
-    return words[0][0].toUpperCase();
+    if (initials.length === 2) break;
   }
-  const firstLoginChar = login?.trim().charAt(0);
-  return firstLoginChar ? firstLoginChar.toUpperCase() : '?';
+  if (initials.length) return { kind: 'text', text: initials.join('') };
+
+  for (const { segment } of graphemes.segment(name)) {
+    if (/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u.test(segment)) {
+      return { kind: 'emoji', text: segment };
+    }
+  }
+  for (const { segment } of graphemes.segment(login?.trim() ?? '')) {
+    if (/[\p{L}\p{N}]/u.test(segment)) {
+      return { kind: 'text', text: segment.toUpperCase() };
+    }
+  }
+  return { kind: 'icon' };
+}
+
+/** Ordered semantic palette; keep its order stable to preserve account colours. */
+const AVATAR_COLOURS = [
+  'blue',
+  'cyan',
+  'teal',
+  'green',
+  'amber',
+  'orange',
+  'pink',
+  'violet'
+] as const;
+
+/** Hash an immutable account ID with UTF-8 FNV-1a to select one of eight colours. */
+export function getAvatarColour(userId: string): (typeof AVATAR_COLOURS)[number] {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(userId)) {
+    hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+  }
+  return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
 }
