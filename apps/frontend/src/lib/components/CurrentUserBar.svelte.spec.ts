@@ -535,7 +535,7 @@ describe('CurrentUserBar', () => {
       pending.resolve(null);
       await vi.waitFor(() => expect(server.currentUser.user!.customStatus).toBeNull());
       await expect.element(clear).not.toBeInTheDocument();
-      expect(notify).toHaveBeenCalledWith('Status cleared');
+      expect(notify).not.toHaveBeenCalled();
       expect(setPresenceStatus).not.toHaveBeenCalled();
       expect(customStatusEditorModuleLoaded).not.toHaveBeenCalled();
       await screen.getByTestId('current-user-presence-menu').click();
@@ -690,29 +690,34 @@ describe('CurrentUserBar', () => {
     );
   }
 
-  it('saves a custom status from the dialog and closes it', async () => {
-    const notify = vi.spyOn(toast, 'success');
-    vi.mocked(setCustomStatus).mockClear();
-    const { container } = render(CurrentUserBarTestHarness);
-    try {
-      const dialog = await openStatusDialog(container);
-      const text = dialog.querySelector<HTMLInputElement>(
-        '[data-testid="settings-custom-status-text"]'
-      )!;
-      await userEvent.fill(text, 'Deep work');
-      footerButton(dialog, 'Save status')!.click();
+  it.each([null, { emoji: '🍜', text: 'Lunch', expiresAt: null }])(
+    'saves a custom status from the dialog and closes it without a success toast (previous: %j)',
+    async (status) => {
+      server.currentUser.user!.customStatus = status;
+      const notify = vi.spyOn(toast, 'success');
+      vi.mocked(setCustomStatus).mockClear();
+      const { container } = render(CurrentUserBarTestHarness);
+      try {
+        const dialog = await openStatusDialog(container);
+        const text = dialog.querySelector<HTMLInputElement>(
+          '[data-testid="settings-custom-status-text"]'
+        )!;
+        await userEvent.fill(text, 'Deep work');
+        footerButton(dialog, 'Save status')!.click();
 
-      await vi.waitFor(() => {
-        expect(setCustomStatus).toHaveBeenCalledOnce();
-        expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
-      });
-      expect(vi.mocked(setCustomStatus).mock.calls[0][1]).toMatchObject({ text: 'Deep work' });
-      expect(notify).toHaveBeenCalledWith('Status updated');
-    } finally {
-      notify.mockRestore();
-      toast.clear();
+        await vi.waitFor(() => {
+          expect(setCustomStatus).toHaveBeenCalledOnce();
+          expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+        });
+        expect(vi.mocked(setCustomStatus).mock.calls[0][1]).toMatchObject({ text: 'Deep work' });
+        expect(server.currentUser.user!.customStatus?.text).toBe('Deep work');
+        expect(notify).not.toHaveBeenCalled();
+      } finally {
+        notify.mockRestore();
+        toast.clear();
+      }
     }
-  });
+  );
 
   it('closes the status dialog with Cancel without saving', async () => {
     vi.mocked(setCustomStatus).mockClear();
@@ -728,16 +733,24 @@ describe('CurrentUserBar', () => {
   });
 
   it('clears an active status from the status dialog footer', async () => {
+    const notify = vi.spyOn(toast, 'success');
     server.currentUser.user!.customStatus = { emoji: '🍜', text: 'Lunch', expiresAt: null };
     const { container } = render(CurrentUserBarTestHarness);
-    const dialog = await openStatusDialog(container);
+    try {
+      const dialog = await openStatusDialog(container);
 
-    footerButton(dialog, 'Clear status')!.click();
+      footerButton(dialog, 'Clear status')!.click();
 
-    await vi.waitFor(() => {
-      expect(deleteCustomStatus).toHaveBeenCalledOnce();
-      expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
-    });
+      await vi.waitFor(() => {
+        expect(deleteCustomStatus).toHaveBeenCalledOnce();
+        expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+      });
+      expect(server.currentUser.user!.customStatus).toBeNull();
+      expect(notify).not.toHaveBeenCalled();
+    } finally {
+      notify.mockRestore();
+      toast.clear();
+    }
   });
 
   it('picks an emoji inside the status dialog without submitting it', async () => {

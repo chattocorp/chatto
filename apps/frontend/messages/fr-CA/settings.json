@@ -98,9 +98,7 @@
         },
         "emoji_required": "Choisissez un émoji pour votre statut",
         "text_required": "Entrez le texte d'état",
-        "saved": "Mise à jour du statut",
         "save_failed": "Échec de l'enregistrement du statut",
-        "cleared": "Statut effacé",
         "clear_failed": "Échec de l'effacement du statut",
         "save_button": "Sauvegarder l'état",
         "clear_button": "Effacer le statut"

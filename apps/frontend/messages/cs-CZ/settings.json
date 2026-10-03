@@ -98,9 +98,7 @@
         },
         "emoji_required": "Vyberte emodži pro svůj stav",
         "text_required": "Zadejte text stavu",
-        "saved": "Stav aktualizován",
         "save_failed": "Stav se nepodařilo uložit",
-        "cleared": "Stav vymazán",
         "clear_failed": "Stav se nepodařilo vymazat",
         "save_button": "Uložit stav",
         "clear_button": "Vymazat stav"

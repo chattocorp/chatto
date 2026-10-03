@@ -98,9 +98,7 @@
         },
         "emoji_required": "ステータスの絵文字を選択してください",
         "text_required": "ステータステキストを入力してください",
-        "saved": "ステータスが更新されました",
         "save_failed": "ステータスの保存に失敗しました",
-        "cleared": "ステータスがクリアされました",
         "clear_failed": "ステータスのクリアに失敗しました",
         "save_button": "ステータスの保存",
         "clear_button": "ステータスをクリア"

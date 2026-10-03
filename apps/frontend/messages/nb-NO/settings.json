@@ -98,9 +98,7 @@
         },
         "emoji_required": "Velg en emoji for statusen din",
         "text_required": "Skriv inn statustekst",
-        "saved": "Status oppdatert",
         "save_failed": "Kunne ikke lagre status",
-        "cleared": "Status slettet",
         "clear_failed": "Kunne ikke slette status",
         "save_button": "Lagre status",
         "clear_button": "Slett status"

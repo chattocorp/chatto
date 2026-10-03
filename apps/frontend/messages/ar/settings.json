@@ -98,9 +98,7 @@
         },
         "emoji_required": "اختر رمزًا تعبيريًا لحالتك",
         "text_required": "أدخل نص الحالة",
-        "saved": "تم تحديث الحالة",
         "save_failed": "فشل حفظ الحالة",
-        "cleared": "تم مسح الحالة",
         "clear_failed": "فشل في مسح الحالة",
         "save_button": "حفظ الحالة",
         "clear_button": "مسح الحالة"

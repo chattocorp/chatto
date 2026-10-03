@@ -228,7 +228,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
       store.currentUser.update(userId, () => ({ customStatus }));
       if (activeServerId === serverId && activeServerUser?.id === userId) {
         if (statusMenuAnchor === menuAnchor) statusMenuAnchor = null;
-        toast.success(m('settings.profile.status.cleared'));
       }
     } catch {
       if (activeServerId === serverId && activeServerUser?.id === userId) {

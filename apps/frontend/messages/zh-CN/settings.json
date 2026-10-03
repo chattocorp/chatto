@@ -98,9 +98,7 @@
         },
         "emoji_required": "请选择状态表情",
         "text_required": "请输入状态文本",
-        "saved": "状态已更新",
         "save_failed": "状态保存失败",
-        "cleared": "状态已清除",
         "clear_failed": "状态清除失败",
         "save_button": "保存状态",
         "clear_button": "清除状态"

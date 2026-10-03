@@ -98,9 +98,7 @@
         },
         "emoji_required": "Durumunuz için bir emoji seçin",
         "text_required": "Durum metnini girin",
-        "saved": "Durum güncellendi",
         "save_failed": "Durum kaydedilemedi",
-        "cleared": "Durum temizlendi",
         "clear_failed": "Durum temizlenemedi",
         "save_button": "Durumu Kaydet",
         "clear_button": "Durumu Temizle"

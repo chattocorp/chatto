@@ -98,9 +98,7 @@
         },
         "emoji_required": "請為您的狀態選擇表情符號",
         "text_required": "請輸入狀態文字",
-        "saved": "狀態已更新",
         "save_failed": "無法儲存狀態",
-        "cleared": "狀態已清除",
         "clear_failed": "無法清除狀態",
         "save_button": "儲存狀態",
         "clear_button": "清除狀態"

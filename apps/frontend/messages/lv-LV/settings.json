@@ -98,9 +98,7 @@
         },
         "emoji_required": "Izvēlieties emocijzīmes savam statusam",
         "text_required": "Ievadiet statusa tekstu",
-        "saved": "Statuss atjaunināts",
         "save_failed": "Neizdevās saglabāt statusu",
-        "cleared": "Statuss notīrīts",
         "clear_failed": "Neizdevās notīrīt statusu",
         "save_button": "Saglabāt statusu",
         "clear_button": "Notīrīt statusu"
