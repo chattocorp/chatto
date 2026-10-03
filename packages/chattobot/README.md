@@ -838,9 +838,11 @@ call `viewAttachment`, because they receive only text, and the model must see th
 image itself.
 
 When the output of a script is longer than its limit, Pi writes the complete
-output to a file in the system temporary directory and does not delete it. The
-output can contain thread messages and GitHub content. On a shared host, set
-`TMPDIR` to a directory that only the bot's user can read.
+output to a file in the temporary directory and does not delete it. The output
+can contain thread messages and GitHub content. So when the Chatto source
+starts, the bot uses `<temporary directory>/chattobot-<uid>` as its temporary
+directory. Only the bot's user can read it, and the bot empties it at each
+start. The bot does not start when another user owns that path.
 
 ## Development
 
