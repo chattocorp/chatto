@@ -35,8 +35,10 @@ results before the model reads them.
 - A script stops after `codemode.timeoutMs`, ten minutes by default. A script can
   set a shorter deadline in its `// @options:` line, but not a longer one.
 - A script can make at most `codemode.maxCalls` tool calls, 100 by default.
-  Later calls fail in the script, so one request cannot start an unbounded
-  number of tool runs.
+  Later calls fail in the script. Each script of a model response has its own
+  limit.
+- Runling refuses a script whose tool call has no unique ID from the model
+  provider, because the calls in it could not be told apart from direct calls.
 - A script receives only the text of a tool result. Images, `details`, and
   `terminate` do not reach it. Register tools that return images or end the
   turn with `exposure: 'model-only'`, so that the model calls them directly.

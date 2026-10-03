@@ -367,3 +367,39 @@ test('invalid codemode limits fail when the agent is created', async () => {
   for (const codemode of [{ timeoutMs: 0 }, { maxCalls: 0 }])
     await expect(runScript('return 1;', { tools: [], codemode }, [])).rejects.toThrow(RangeError);
 });
+
+test('a script without a unique tool call ID does not run', async () => {
+  const calls: string[] = [];
+  let seen = '';
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall('codemode', { code: 'return await tools.first({});' }, { id: '' })
+    ),
+    (context) => {
+      seen = lastToolResult(context);
+      return fauxAssistantMessage('done');
+    }
+  ]);
+  const instance = await agent({
+    cwd: directory,
+    model: 'faux/model',
+    output: 'text',
+    resources: {
+      extensions: false,
+      skills: false,
+      promptTemplates: false,
+      themes: false,
+      contextFiles: false
+    },
+    codemode: true,
+    tools: ['first'],
+    extensions: [recordingTool('first', calls, 'one')]
+  });
+  try {
+    await instance.runOutcome(createWorkflowContext(), 'Go');
+  } finally {
+    instance.dispose();
+  }
+  expect(calls).toEqual([]);
+  expect(seen).toContain('unique tool call ID');
+});

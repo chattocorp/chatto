@@ -83,6 +83,14 @@ export function codemodeExtension(settings: CodemodeSettings) {
         return;
       }
       if (event.toolName !== 'codemode') return;
+      // Calls from a script carry the script's call ID. Without a unique one, they would look like
+      // direct calls and pass the call limit and gates that refuse script calls.
+      if (!event.toolCallId || calls.has(event.toolCallId))
+        return {
+          block: true,
+          reason: 'codemode needs a unique tool call ID from the model provider.'
+        };
+      calls.set(event.toolCallId, 0);
       const input = event.input as { code?: unknown };
       if (typeof input.code === 'string')
         input.code = withScriptDeadline(input.code, settings.timeoutMs);
