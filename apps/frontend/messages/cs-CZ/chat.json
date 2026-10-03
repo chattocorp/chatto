@@ -122,6 +122,7 @@
         "inactive_note": "Tato oprávnění jsou uložená, ale aktuální oprávnění vlastníka je neumožňují.",
         "read": "Číst všechny zprávy",
         "interactions": "Číst vlákna, která vytvořil nebo ve kterých byl přímo zmíněn",
+        "reply_interactions": "Odpovídat ve vláknech, která zahájil, ve kterých byl přímo zmíněn nebo ve kterých obdržel přímou zprávu",
         "post": "Posílat nové zprávy",
         "room": "#{name}",
         "group": "Skupina: {name}",

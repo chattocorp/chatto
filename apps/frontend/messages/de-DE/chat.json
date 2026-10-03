@@ -122,6 +122,7 @@
         "inactive_note": "Diese Freigaben sind gespeichert, aber die aktuellen Berechtigungen des Besitzers lassen sie nicht zu.",
         "read": "Alle Nachrichten lesen",
         "interactions": "Threads lesen, die er erstellt hat oder in denen er direkt erwähnt wurde",
+        "reply_interactions": "In Threads antworten, die er gestartet hat, in denen er direkt erwähnt wurde oder eine DM erhalten hat",
         "post": "Neue Nachrichten posten",
         "room": "#{name}",
         "group": "Gruppe: {name}",

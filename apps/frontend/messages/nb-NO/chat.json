@@ -122,6 +122,7 @@
         "inactive_note": "Disse tillatelsene er lagret, men eierens gjeldende tillatelser tillater dem ikke.",
         "read": "Lese alle meldinger",
         "interactions": "Lese tråder den har opprettet eller der den er nevnt direkte",
+        "reply_interactions": "Svare i tråder den har startet, der den er nevnt direkte eller der den har mottatt en direktemelding",
         "post": "Sende nye meldinger",
         "room": "#{name}",
         "group": "Gruppe: {name}",

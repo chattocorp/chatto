@@ -122,6 +122,7 @@
         "inactive_note": "Estos permisos están guardados, pero los permisos actuales del propietario no los permiten.",
         "read": "Leer todos los mensajes",
         "interactions": "Leer hilos que creó o donde se le mencionó directamente",
+        "reply_interactions": "Responder en hilos que inició, donde se le mencionó directamente o donde recibió un mensaje directo",
         "post": "Publicar mensajes nuevos",
         "room": "#{name}",
         "group": "Grupo: {name}",

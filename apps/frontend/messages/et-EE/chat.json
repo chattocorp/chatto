@@ -122,6 +122,7 @@
         "inactive_note": "Need õigused on salvestatud, kuid omaniku praegused õigused ei luba neid.",
         "read": "Lugeda kõiki sõnumeid",
         "interactions": "Lugeda lõimi, mille ta lõi või kus teda otse mainiti",
+        "reply_interactions": "Vastata lõimedes, mille ta alustas, kus teda otse mainiti või kus ta sai privaatsõnumi",
         "post": "Saata uusi sõnumeid",
         "room": "#{name}",
         "group": "Rühm: {name}",

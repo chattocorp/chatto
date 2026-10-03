@@ -122,6 +122,7 @@
         "inactive_note": "這些授權已儲存，但擁有者目前的權限不允許使用。",
         "read": "讀取所有訊息",
         "interactions": "讀取它建立的或被直接提及的討論串",
+        "reply_interactions": "在它發起的、被直接提及的或收到私訊的討論串中回覆",
         "post": "發布新訊息",
         "room": "#{name}",
         "group": "群組：{name}",

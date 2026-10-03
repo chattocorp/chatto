@@ -184,6 +184,8 @@ function botPermissionAction(permission: string): string {
       return m('chat.profile.permissions.read');
     case 'message.read-interactions':
       return m('chat.profile.permissions.interactions');
+    case 'message.post-in-interactions':
+      return m('chat.profile.permissions.reply_interactions');
     case 'message.post-in-thread':
       return m('chat.profile.permissions.reply');
     case 'message.manage':

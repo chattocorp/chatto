@@ -122,6 +122,7 @@
         "inactive_note": "Bu izinler kayıtlı, ancak sahibinin mevcut izinleri bunlara izin vermiyor.",
         "read": "Tüm mesajları okuma",
         "interactions": "Oluşturduğu veya doğrudan bahsedildiği konuları okuma",
+        "reply_interactions": "Başlattığı, doğrudan bahsedildiği veya doğrudan mesaj aldığı konularda yanıt verme",
         "post": "Yeni mesajlar gönderme",
         "room": "#{name}",
         "group": "Grup: {name}",

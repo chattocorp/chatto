@@ -122,6 +122,7 @@
         "inactive_note": "Dessa behörigheter är sparade, men ägarens aktuella behörigheter tillåter dem inte.",
         "read": "Läsa alla meddelanden",
         "interactions": "Läsa trådar som den har skapat eller där den har nämnts direkt",
+        "reply_interactions": "Svara i trådar som den har startat, där den har nämnts direkt eller där den har fått ett direktmeddelande",
         "post": "Skicka nya meddelanden",
         "room": "#{name}",
         "group": "Grupp: {name}",

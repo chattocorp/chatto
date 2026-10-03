@@ -122,6 +122,7 @@
         "inactive_note": "Questi permessi sono salvati, ma i permessi attuali del proprietario non li consentono.",
         "read": "Leggere tutti i messaggi",
         "interactions": "Leggere le discussioni che ha creato o in cui è stato menzionato direttamente",
+        "reply_interactions": "Rispondere nelle discussioni che ha avviato, in cui è stato menzionato direttamente o in cui ha ricevuto un messaggio diretto",
         "post": "Pubblicare nuovi messaggi",
         "room": "#{name}",
         "group": "Gruppo: {name}",

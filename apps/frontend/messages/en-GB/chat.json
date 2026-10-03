@@ -122,6 +122,7 @@
         "inactive_note": "These grants are saved, but the owner’s current permissions do not allow them.",
         "read": "Read all messages",
         "interactions": "Read threads it authored or where it was directly mentioned",
+        "reply_interactions": "Reply in threads it started, where it was directly mentioned, or where it received a DM",
         "post": "Post new messages",
         "room": "#{name}",
         "group": "Group: {name}",

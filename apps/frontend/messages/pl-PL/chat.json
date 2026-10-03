@@ -128,6 +128,7 @@
         "inactive_note": "Te uprawnienia są zapisane, ale obecne uprawnienia właściciela na nie nie pozwalają.",
         "read": "Czytać wszystkie wiadomości",
         "interactions": "Czytać wątki, które utworzył lub w których został bezpośrednio wspomniany",
+        "reply_interactions": "Odpowiadać w wątkach, które rozpoczął, w których został bezpośrednio wspomniany lub w których otrzymał wiadomość prywatną",
         "post": "Wysyłać nowe wiadomości",
         "room": "#{name}",
         "group": "Grupa: {name}",

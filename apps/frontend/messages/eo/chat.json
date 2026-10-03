@@ -122,6 +122,7 @@
         "inactive_note": "Ĉi tiuj permesoj estas konservitaj, sed la nunaj permesoj de la posedanto ne permesas ilin.",
         "read": "Legi ĉiujn mesaĝojn",
         "interactions": "Legi fadenojn kiujn ĝi kreis aŭ en kiuj ĝi estis rekte menciita",
+        "reply_interactions": "Respondi en fadenoj kiujn ĝi komencis, en kiuj ĝi estis rekte menciita aŭ en kiuj ĝi ricevis rektan mesaĝon",
         "post": "Afiŝi novajn mesaĝojn",
         "room": "#{name}",
         "group": "Grupo: {name}",

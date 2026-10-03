@@ -125,6 +125,7 @@
         "inactive_note": "Šīs atļaujas ir saglabātas, bet īpašnieka pašreizējās atļaujas tās nepieļauj.",
         "read": "Lasīt visus ziņojumus",
         "interactions": "Lasīt pavedienus, kurus tas izveidojis vai kuros tas tieši pieminēts",
+        "reply_interactions": "Atbildēt pavedienos, kurus tas sācis, kuros tas tieši pieminēts vai kuros tas saņēmis privātu ziņojumu",
         "post": "Sūtīt jaunus ziņojumus",
         "room": "#{name}",
         "group": "Grupa: {name}",

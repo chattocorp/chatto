@@ -122,6 +122,7 @@
         "inactive_note": "Deze machtigingen zijn opgeslagen, maar de huidige machtigingen van de eigenaar staan ze niet toe.",
         "read": "Alle berichten lezen",
         "interactions": "Threads lezen die hij heeft gemaakt of waarin hij rechtstreeks is vermeld",
+        "reply_interactions": "Antwoorden in threads die hij heeft gestart, waarin hij rechtstreeks is vermeld of waarin hij een DM heeft ontvangen",
         "post": "Nieuwe berichten plaatsen",
         "room": "#{name}",
         "group": "Groep: {name}",

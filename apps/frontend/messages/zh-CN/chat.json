@@ -122,6 +122,7 @@
         "inactive_note": "这些授权已保存，但所有者当前的权限不允许使用。",
         "read": "读取所有消息",
         "interactions": "读取它创建的或被直接提及的主题",
+        "reply_interactions": "在它发起的、被直接提及的或收到私信的主题中回复",
         "post": "发布新消息",
         "room": "#{name}",
         "group": "分组：{name}",

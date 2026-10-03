@@ -122,6 +122,7 @@
         "inactive_note": "Ces autorisations sont enregistrées, mais les droits actuels du propriétaire ne les permettent pas.",
         "read": "Lire tous les messages",
         "interactions": "Lire les fils qu’il a créés ou dans lesquels il a été mentionné directement",
+        "reply_interactions": "Répondre dans les fils qu’il a créés, dans lesquels il a été mentionné directement ou dans lesquels il a reçu un message privé",
         "post": "Publier de nouveaux messages",
         "room": "#{name}",
         "group": "Groupe : {name}",
