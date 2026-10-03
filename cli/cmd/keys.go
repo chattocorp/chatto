@@ -398,8 +398,8 @@ type passphraseInput struct {
 // hidden interactive prompt.
 func getPassphrase(input passphraseInput, prompt string, confirm bool) (string, error) {
 	if err := validateSecretSources(
-		"--passphrase-file", input.file != "",
-		"--passphrase-stdin", input.stdin,
+		secretSource{name: "--passphrase-file", selected: input.file != ""},
+		secretSource{name: "--passphrase-stdin", selected: input.stdin},
 	); err != nil {
 		return "", err
 	}
