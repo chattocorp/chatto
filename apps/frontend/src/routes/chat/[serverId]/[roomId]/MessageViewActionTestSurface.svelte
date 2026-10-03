@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { messageBodyActivation } from '$lib/attachments/messageBodyActivation';
 
   let {
     eventId,
     body,
+    onBodyActivate,
     echoedToChannel = false,
     oncontextmenu,
     onmousedown,
@@ -19,6 +21,7 @@
   }: {
     eventId: string;
     body?: string | null;
+    onBodyActivate?: () => void;
     echoedToChannel?: boolean;
     oncontextmenu?: (event: MouseEvent) => void;
     onmousedown?: (event: MouseEvent) => void;
@@ -48,7 +51,11 @@
   {ontouchmove}
   {ontouchcancel}
 >
-  <span data-testid="message-body" bind:this={bodyElement}>{body}</span>
+  <span
+    data-testid="message-body"
+    bind:this={bodyElement}
+    {@attach messageBodyActivation(eventId ? onBodyActivate : undefined)}>{body}</span
+  >
   {#if echoedToChannel}
     <span class="echoed-to-channel-marker" role="img" aria-label="Also sent to channel"></span>
   {/if}
