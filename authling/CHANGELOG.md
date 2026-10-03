@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.3](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.2...authling/v0.1.0-alpha.3) (2026-10-03)
+
+
+### Bug Fixes
+
+* **dev:** keep Authling state per port, reset it, and document client placement ([#2764](https://github.com/chattocorp/chatto/issues/2764)) ([d49c2b5](https://github.com/chattocorp/chatto/commit/d49c2b5c32f909f34a86f1bf857ea58616defe64))
+* **email:** warn on insecure SMTP transport and redact addresses from errors ([#2660](https://github.com/chattocorp/chatto/issues/2660)) ([73a8949](https://github.com/chattocorp/chatto/commit/73a8949c2a55693b5b941f01a44a4554e4415c06))
+
 ## [0.1.0-alpha.2](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.1...authling/v0.1.0-alpha.2) (2026-09-25)
 
 
