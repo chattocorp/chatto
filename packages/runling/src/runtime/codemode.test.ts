@@ -16,7 +16,9 @@ import { Type } from 'typebox';
 import { createWorkflowContext } from './context.ts';
 import { agent, defineAgentExtension, type AgentOptions } from './agent.ts';
 
-// A real Pi session with a scripted model: codemode runs real scripts in its sandbox.
+// A real Pi session with a scripted model: codemode runs real scripts in its sandbox. The faux
+// provider comes from a second, test-only pi-ai copy (Runling's own undici satisfies its peer
+// differently); its stream function is passed by value and shares no state with Pi's copy.
 let directory: string;
 let faux: ReturnType<typeof createFauxCore>;
 beforeEach(async () => {
@@ -100,6 +102,7 @@ test('a script calls the agent’s tools, and only its output reaches the model'
   const calls: string[] = [];
   let seen = '';
   let declared: string[] = [];
+  let results: string[] = [];
   await runScript(
     'const [a, b] = await Promise.all([tools.first({}), tools.second({})]); return a + b;',
     {
@@ -109,6 +112,9 @@ test('a script calls the agent’s tools, and only its output reaches the model'
     [
       (context) => {
         seen = lastToolResult(context);
+        results = context.messages.flatMap((message) =>
+          message.role === 'toolResult' ? [message.toolName] : []
+        );
         declared = getCurrentTools(context.messages).map((tool) => tool.name);
         return fauxAssistantMessage('done');
       }
@@ -116,6 +122,8 @@ test('a script calls the agent’s tools, and only its output reaches the model'
   );
   expect(calls.sort()).toEqual(['first', 'second']);
   expect(seen).toContain('onetwo');
+  // The results of the calls from the script do not enter the transcript.
+  expect(results).toEqual(['codemode']);
   // The model sees the codemode tool next to the agent's own tools.
   expect(declared).toEqual(expect.arrayContaining(['codemode', 'first', 'second']));
 });
@@ -208,4 +216,40 @@ test('mode only hides the agent’s tools from the model but keeps report_outcom
   );
   expect(calls).toEqual(['first']);
   expect(declared.sort()).toEqual(['codemode', 'report_outcome']);
+});
+
+test('scripts reach only the agent’s tools', async () => {
+  const calls: string[] = [];
+  let seen = '';
+  const hidden = defineAgentExtension((pi) => {
+    // Pi makes tools with codemode exposure callable whenever they are registered.
+    pi.registerTool({
+      name: 'scriptOnly',
+      label: 'scriptOnly',
+      description: 'A tool that only scripts would see.',
+      parameters: Type.Object({}),
+      exposure: 'codemode',
+      async execute() {
+        calls.push('scriptOnly');
+        return { content: [{ type: 'text', text: 'secret' }], details: {} };
+      }
+    });
+  });
+  await runScript(
+    'return ALL_TOOLS.map((tool) => tool.name).sort().join(",");',
+    {
+      tools: ['first'],
+      extensions: [recordingTool('first', calls, 'one'), recordingTool('extra', calls, 'x'), hidden]
+    },
+    [
+      (context) => {
+        seen = lastToolResult(context);
+        return fauxAssistantMessage('done');
+      }
+    ]
+  );
+  // Neither Pi's built-in tools, nor extension tools outside `tools`, are callable.
+  expect(seen).toContain('first');
+  expect(seen).not.toMatch(/scriptOnly|extra|bash|read|write/);
+  expect(calls).toEqual([]);
 });

@@ -186,8 +186,9 @@ await using owner = await agent({
 ```
 
 Scripts run in Pi's QuickJS sandbox, without Node APIs, files, network, or
-timers. They can call the agent's active tools, but not `report_outcome` or
-Pi's `models` API. Every call from a script passes the same hooks as a model
+timers. They can call the tools in `tools`, but not `report_outcome` or Pi's
+`models` API. Pi saves the complete output of a long script to a file in the
+system temporary directory. Every call from a script passes the same hooks as a model
 call, so `trust` and authorization gates still apply. See
 [FDR-008](fdr/FDR-008-codemode.md).
 

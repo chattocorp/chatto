@@ -199,8 +199,8 @@ export interface RunAgentOptions {
   /** Block selected tools after untrusted content enters this agent's context. */
   trust?: AgentTrustPolicy;
   /**
-   * Add Pi's `codemode` tool: the model writes a JavaScript script that calls this agent's active
-   * tools, for example several reads in parallel, and only the script's output reaches the model.
+   * Add Pi's `codemode` tool: the model writes a JavaScript script that calls the tools in `tools`,
+   * for example several reads in parallel, and only the script's output reaches the model.
    * Scripts run in a QuickJS sandbox without Node APIs, files, network, or timers. Every call from
    * a script passes the same `tool_call` and `tool_result` hooks as a model call, so trust
    * policies and extension gates still apply. With `mode: 'only'`, the other tools are hidden

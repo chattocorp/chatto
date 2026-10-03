@@ -17,9 +17,11 @@ results before the model reads them.
   from the model, which then reaches them through scripts.
 - Scripts run in Pi's QuickJS sandbox. They have no Node APIs, files, network, or
   timers, and reach the outside only through tools.
-- A script can call the agent's active tools as `tools.<name>(args)`.
-  `report_outcome` is not available to scripts, so only the model reports an
-  outcome. In `only` mode, the model still sees `report_outcome`.
+- A script can call the tools in the agent's `tools` option as
+  `tools.<name>(args)`. Pi's built-in tools and extension tools that are not in
+  `tools` are not available. `report_outcome` is not available to scripts either,
+  so only the model reports an outcome. In `only` mode, the model still sees
+  `report_outcome`.
 - Scripts cannot use Pi's `models` API, so they cannot start classifier or image
   model requests that cost money.
 - Every call from a script passes the same `tool_call` and `tool_result` hooks as
@@ -31,6 +33,11 @@ results before the model reads them.
   before that result arrived are not blocked, as for parallel calls in one model
   step.
 - Agent logs and activity show each call from a script like a model call.
+- Pi writes the complete output of a script that is longer than its output limit
+  to a file in the system temporary directory, and does not delete it. Set
+  `TMPDIR` to a private directory when tool results are sensitive.
+- `store()` keeps small values for later scripts of the same agent. With
+  `sessionFile`, the values stay after a restart. A fork does not get them.
 - Without the option, agents have no `codemode` tool.
 
 ## Design Decisions
