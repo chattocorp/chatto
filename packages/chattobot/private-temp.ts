@@ -19,10 +19,24 @@ type State = { [STATE]?: Promise<string> };
  */
 export function usePrivateTempDirectory(): Promise<string> {
   const state = globalThis as State;
-  state[STATE] ??= mkdtemp(join(tmpdir(), 'chattobot-')).then((directory) => {
-    process.env.TMPDIR = directory;
-    process.once('exit', () => rmSync(directory, { recursive: true, force: true }));
-    return directory;
-  });
+  state[STATE] ??= mkdtemp(join(tmpdir(), 'chattobot-')).then(
+    (directory) => {
+      process.env.TMPDIR = directory;
+      process.once('exit', () => {
+        // A child process can still write there; a failed cleanup must not change the exit.
+        try {
+          rmSync(directory, { recursive: true, force: true });
+        } catch {
+          // The directory stays private.
+        }
+      });
+      return directory;
+    },
+    (error: unknown) => {
+      // A later start tries again.
+      delete state[STATE];
+      throw error;
+    }
+  );
   return state[STATE];
 }

@@ -837,7 +837,7 @@ after untrusted content. Tools that only maintainers can start, and
 `task_cancel`, run only as direct calls, because a script could wait until a
 maintainer writes. Scripts cannot call `viewAttachment`, because they receive
 only text, and the model must see the image itself. Supervisor scripts stop
-after two minutes, worker scripts after twenty, and other scripts after ten.
+after four minutes, worker scripts after twenty, and other scripts after ten.
 
 When the output of a script is longer than its limit, Pi writes the complete
 output to a temporary file. The output can contain thread messages and GitHub

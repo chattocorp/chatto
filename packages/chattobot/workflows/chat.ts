@@ -308,7 +308,12 @@ export const conversation = task(
     const maintainerGate = defineAgentExtension((pi) => {
       pi.on('tool_call', async (event) => {
         // Notifications do not authorize stopping work either: only a person can ask for that.
-        if (event.toolName === 'task_cancel' && (latestOrigin !== 'user' || event.parentToolCallId))
+        if (event.toolName === 'task_cancel' && event.parentToolCallId)
+          return {
+            block: true,
+            reason: 'task_cancel is available only as a direct call, not from a codemode script.'
+          };
+        if (event.toolName === 'task_cancel' && latestOrigin !== 'user')
           return {
             block: true,
             reason:
@@ -355,8 +360,8 @@ export const conversation = task(
       textDelivery: 'final',
       systemPrompt,
       allowEmptyResponse: true,
-      // The supervisor's tools answer within a minute, and a person waits for its reply.
-      codemode: { timeoutMs: 2 * 60_000 },
+      // A person waits for the reply. Research, the slowest tool, has a three-minute limit.
+      codemode: { timeoutMs: 4 * 60_000 },
       tools: [
         'readThread',
         ...(readAttachment ? ['viewAttachment'] : []),

@@ -459,7 +459,14 @@ test('maintainer-only tools run only as direct calls, never from a codemode scri
       });
     expect(await call('ghWrite')).toBeUndefined();
     // A script could wait until a maintainer writes; the gate reads only the latest message.
-    for (const tool of ['ghWrite', 'task_send', 'task_cancel'])
+    for (const tool of [
+      'ghWrite',
+      'investigateChatto',
+      'implementChatto',
+      'askImplementation',
+      'task_send',
+      'task_cancel'
+    ])
       expect(await call(tool, 'script')).toMatchObject({ block: true });
     // Reads stay available to scripts.
     expect(await call('gh', 'script')).toBeUndefined();
