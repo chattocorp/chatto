@@ -128,7 +128,7 @@ describe('Profile settings page', () => {
         container,
         'input[placeholder="Enter your display name"]'
       ) as HTMLInputElement;
-      setInputValue(displayNameInput, 'Ada Lovelace');
+      setInputValue(displayNameInput, '  [DEV] 🕹️ Ada  Lovelace  ');
 
       const saveButton = q(container, 'button[type="submit"]') as HTMLButtonElement;
       await expect.element(saveButton).toBeEnabled();
@@ -136,13 +136,13 @@ describe('Profile settings page', () => {
 
       await vi.waitFor(() => {
         expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
-          displayName: 'Ada Lovelace',
+          displayName: '[DEV] 🕹️ Ada  Lovelace',
           login: undefined,
           bio: undefined
         });
       });
       await expect.element(q(container, 'form')).toHaveTextContent('Profile updated successfully');
-      await expect.element(displayNameInput).toHaveValue('Ada Lovelace');
+      await expect.element(displayNameInput).toHaveValue('[DEV] 🕹️ Ada  Lovelace');
     }
   );
 
@@ -234,11 +234,11 @@ describe('Profile settings page', () => {
       container,
       'input[placeholder="Enter your display name"]'
     ) as HTMLInputElement;
-    setInputValue(displayNameInput, 'John  Doe');
+    setInputValue(displayNameInput, 'John\u200BDoe');
 
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
-    await expect.element(q(container, 'form')).toHaveTextContent('consecutive spaces');
+    await expect.element(q(container, 'form')).toHaveTextContent('Invalid display name');
     expect(mocks.updateProfile).not.toHaveBeenCalled();
   });
 

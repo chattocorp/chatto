@@ -59,10 +59,9 @@ describe('SystemEventGroup', () => {
     });
 
     expect(renderedCopy(container)).toBe('Alice and Bob joined the room');
-    expect([...container.querySelectorAll('bdi')].map((name) => name.textContent)).toEqual([
-      'Alice',
-      'Bob'
-    ]);
+    expect(
+      [...container.querySelectorAll('[data-event-id] > span bdi')].map((name) => name.textContent)
+    ).toEqual(['Alice', 'Bob']);
   });
 
   it('uses comma-separated formatting for three actors', () => {

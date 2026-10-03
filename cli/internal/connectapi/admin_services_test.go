@@ -428,10 +428,10 @@ func TestExternalIdentityCreateDisplayName(t *testing.T) {
 			want:  "sso-user",
 		},
 		{
-			name:  "invalid punctuation falls back",
+			name:  "punctuation is preserved",
 			login: "sso-user",
 			hint:  "User, Inc.",
-			want:  "sso-user",
+			want:  "User, Inc.",
 		},
 		{
 			name:  "too long falls back",
@@ -440,9 +440,15 @@ func TestExternalIdentityCreateDisplayName(t *testing.T) {
 			want:  "sso-user",
 		},
 		{
-			name:  "invalid start falls back",
+			name:  "emoji prefix is preserved",
 			login: "sso-user",
 			hint:  "😀 User",
+			want:  "😀 User",
+		},
+		{
+			name:  "invisible hint falls back",
+			login: "sso-user",
+			hint:  "\u3164",
 			want:  "sso-user",
 		},
 	}
