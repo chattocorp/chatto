@@ -69,7 +69,11 @@ Include this component once in the chat root.
       if (result.permission === 'default') {
         // The user dismissed the browser prompt; treat it as Not now.
         notNow();
-      } else if (result.permission === 'granted') {
+      } else if (
+        result.registrations.length > 0 &&
+        result.registrations.every((registration) => registration.registered)
+      ) {
+        // A failed save shows its reason in the server's notification settings.
         toast.success(m('settings.notifications.push_prompt.enabled'));
       }
     } finally {

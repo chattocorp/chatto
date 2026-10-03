@@ -4,6 +4,7 @@ import { page } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { PUSH_PROMPT_SNOOZE_MS, isPushPromptSnoozed } from '$lib/notifications/pushPrompt';
+import { toast } from '$lib/ui/toast';
 import PushNotificationSetup from './PushNotificationSetup.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -193,6 +194,29 @@ describe('PushNotificationSetup', () => {
 
       expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
       expect(isPushPromptSnoozed()).toBe(false);
+    });
+
+    it('confirms only when every server saved the subscription', async () => {
+      const success = vi.spyOn(toast, 'success');
+      mocks.enablePushOnAllServers.mockResolvedValue({
+        permission: 'granted',
+        registrations: [
+          { serverId: 'origin', registered: true },
+          { serverId: 'remote', registered: false }
+        ]
+      });
+      render(PushNotificationSetup);
+      await page.getByRole('button', { name: 'Enable', exact: true }).click();
+      await settle();
+      expect(success).not.toHaveBeenCalled();
+
+      mocks.enablePushOnAllServers.mockResolvedValue({
+        permission: 'granted',
+        registrations: [{ serverId: 'origin', registered: true }]
+      });
+      await page.getByRole('button', { name: 'Enable', exact: true }).click();
+      await expect.poll(() => success).toHaveBeenCalledWith('Push notifications enabled');
+      success.mockRestore();
     });
 
     it('waits 14 days after Not now', async () => {
