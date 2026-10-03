@@ -34,6 +34,9 @@ results before the model reads them.
   step.
 - A script stops after `codemode.timeoutMs`, ten minutes by default. A script can
   set a shorter deadline in its `// @options:` line, but not a longer one.
+- A script can make at most `codemode.maxCalls` tool calls, 100 by default.
+  Later calls fail in the script, so one request cannot start an unbounded
+  number of tool runs.
 - A script receives only the text of a tool result. Images, `details`, and
   `terminate` do not reach it. Register tools that return images or end the
   turn with `exposure: 'model-only'`, so that the model calls them directly.

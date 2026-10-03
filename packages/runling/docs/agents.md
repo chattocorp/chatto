@@ -187,13 +187,14 @@ await using owner = await agent({
 
 Scripts run in Pi's QuickJS sandbox, without Node APIs, files, network, or
 timers. They can call the tools in `tools`, but not `report_outcome` or Pi's
-`models` API. A script stops after `codemode.timeoutMs` (ten minutes by default).
-Scripts receive only the text of tool results, so register tools that return
-images or end the turn with `exposure: 'model-only'`. Pi saves the complete
-output of a long script to a temporary file, which Runling deletes when the
-agent ends, or at once when the agent has no `read` tool. Set `TMPDIR` to a
-private directory when tool results are sensitive. Every call from a script passes the same hooks as a model
-call, so `trust` and authorization gates still apply. See
+`models` API. A script stops after `codemode.timeoutMs` (ten minutes by default)
+and can make at most `codemode.maxCalls` tool calls (100 by default). Scripts
+receive only the text of tool results, so register tools that return images or
+end the turn with `exposure: 'model-only'`. Pi saves the complete output of a
+long script to a temporary file, which Runling deletes when the agent ends, or
+at once when the agent has no `read` tool. Set `TMPDIR` to a private directory
+when tool results are sensitive. Every call from a script passes the same hooks
+as a model call, so `trust` and authorization gates still apply. See
 [FDR-008](fdr/FDR-008-codemode.md).
 
 ## Tasks as agent tools

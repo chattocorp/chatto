@@ -18,7 +18,13 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { Type, type Static } from 'typebox';
 import webFetchExtension from '../../extensions/web-fetch.ts';
-import { codemodeExtension, DEFAULT_SCRIPT_TIMEOUT_MS, validateScriptTimeout } from './codemode.ts';
+import {
+  codemodeExtension,
+  DEFAULT_SCRIPT_MAX_CALLS,
+  DEFAULT_SCRIPT_TIMEOUT_MS,
+  validateScriptMaxCalls,
+  validateScriptTimeout
+} from './codemode.ts';
 import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
@@ -207,9 +213,9 @@ export interface RunAgentOptions {
    * policies and extension gates still apply. With `mode: 'only'`, the other tools are hidden
    * from the model, which reaches them through scripts. Scripts cannot run classifier or image
    * models, and they cannot call `report_outcome`. A script stops after `timeoutMs` (default ten
-   * minutes). See FDR-008.
+   * minutes) and can make at most `maxCalls` tool calls (default 100). See FDR-008.
    */
-  codemode?: boolean | { mode?: 'on' | 'only'; timeoutMs?: number };
+  codemode?: boolean | { mode?: 'on' | 'only'; timeoutMs?: number; maxCalls?: number };
   /** Keep the agent's conversation in this JSONL file. When the file exists, the agent
    * continues that conversation, for example after a cancellation or restart. The file holds
    * the complete model context, so keep it private. A fork does not use it. It cannot be
@@ -449,8 +455,12 @@ async function createRunlingAgent(
               factory: codemodeExtension({
                 mode: options.codemode === true ? 'on' : (options.codemode.mode ?? 'on'),
                 timeoutMs: validateScriptTimeout(
-                  (options.codemode !== true && options.codemode.timeoutMs) ||
+                  (options.codemode === true ? undefined : options.codemode.timeoutMs) ??
                     DEFAULT_SCRIPT_TIMEOUT_MS
+                ),
+                maxCalls: validateScriptMaxCalls(
+                  (options.codemode === true ? undefined : options.codemode.maxCalls) ??
+                    DEFAULT_SCRIPT_MAX_CALLS
                 ),
                 keepFullOutput: (options.tools ?? ['read']).includes('read'),
                 keptFiles: codemodeFiles,

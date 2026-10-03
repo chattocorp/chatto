@@ -15,7 +15,7 @@ import {
 import { Type } from 'typebox';
 import { createWorkflowContext } from './context.ts';
 import { agent, defineAgentExtension, type AgentActivity, type AgentOptions } from './agent.ts';
-import { validateScriptTimeout, withScriptDeadline } from './codemode.ts';
+import { validateScriptMaxCalls, validateScriptTimeout, withScriptDeadline } from './codemode.ts';
 
 // A real Pi session with a scripted model: codemode runs real scripts in its sandbox. The faux
 // provider comes from a second, test-only pi-ai copy (Runling's own undici satisfies its peer
@@ -338,4 +338,32 @@ test('script deadlines must be whole milliseconds that Pi accepts', () => {
   expect(validateScriptTimeout(1000)).toBe(1000);
   for (const value of [0, -1, 1.5, Number.POSITIVE_INFINITY, 2_147_483_648])
     expect(() => validateScriptTimeout(value)).toThrow(RangeError);
+});
+
+test('a script can make only a limited number of tool calls', async () => {
+  const calls: string[] = [];
+  let seen = '';
+  await runScript(
+    'const results = await Promise.allSettled([1, 2, 3, 4, 5].map(() => tools.first({}))); return results.map((result) => result.status).join(",") + " " + (results[4].reason?.message ?? "");',
+    {
+      tools: ['first'],
+      codemode: { maxCalls: 3 },
+      extensions: [recordingTool('first', calls, 'one')]
+    },
+    [
+      (context) => {
+        seen = lastToolResult(context);
+        return fauxAssistantMessage('done');
+      }
+    ]
+  );
+  expect(calls).toHaveLength(3);
+  expect(seen).toContain('fulfilled,fulfilled,fulfilled,rejected,rejected');
+  expect(seen).toContain('at most 3 tool calls');
+});
+
+test('invalid codemode limits fail when the agent is created', async () => {
+  expect(() => validateScriptMaxCalls(0)).toThrow(RangeError);
+  for (const codemode of [{ timeoutMs: 0 }, { maxCalls: 0 }])
+    await expect(runScript('return 1;', { tools: [], codemode }, [])).rejects.toThrow(RangeError);
 });
