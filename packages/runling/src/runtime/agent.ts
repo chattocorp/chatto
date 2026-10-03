@@ -4,6 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { dirname } from 'node:path';
 import {
   createAgentSession,
+  createCodemodeExtension,
   convertToLlm,
   DefaultResourceLoader,
   defineTool,
@@ -197,6 +198,16 @@ export interface RunAgentOptions {
   signal?: AbortSignal;
   /** Block selected tools after untrusted content enters this agent's context. */
   trust?: AgentTrustPolicy;
+  /**
+   * Add Pi's `codemode` tool: the model writes a JavaScript script that calls this agent's active
+   * tools, for example several reads in parallel, and only the script's output reaches the model.
+   * Scripts run in a QuickJS sandbox without Node APIs, files, network, or timers. Every call from
+   * a script passes the same `tool_call` and `tool_result` hooks as a model call, so trust
+   * policies and extension gates still apply. With `mode: 'only'`, the other tools are hidden
+   * from the model, which reaches them through scripts. Scripts cannot run classifier or image
+   * models, and they cannot call `report_outcome`.
+   */
+  codemode?: boolean | { mode?: 'on' | 'only' };
   /** Keep the agent's conversation in this JSONL file. When the file exists, the agent
    * continues that conversation, for example after a cancellation or restart. The file holds
    * the complete model context, so keep it private. A fork does not use it. It cannot be
@@ -376,6 +387,8 @@ async function createRunlingAgent(
       'Every report must contain the complete current result. If new messages arrive after a report, incorporate them and report the full updated result again. Never refer to a preceding report or replace findings with a meta-summary.'
     ],
     parameters: reportSchema,
+    // Only the model reports the outcome; codemode scripts cannot call it.
+    exposure: 'model-only',
     async execute(_toolCallId, params) {
       activeReport = params;
       reports.push({ ...params });
@@ -425,6 +438,18 @@ async function createRunlingAgent(
     extensionFactories: [
       ...(trust ? [{ name: 'runling-trust', factory: trust.extension }] : []),
       ...(extensionsEnabled ? [{ name: 'runling-web-fetch', factory: webFetchExtension }] : []),
+      ...(options.codemode
+        ? [
+            {
+              name: 'runling-codemode',
+              factory: createCodemodeExtension({
+                mode: options.codemode === true ? 'on' : (options.codemode.mode ?? 'on'),
+                // Scripts must not spend money on models that the agent's owner did not choose.
+                models: false
+              })
+            }
+          ]
+        : []),
       ...(options.extensions ?? [])
     ],
     noExtensions: !extensionsEnabled,
@@ -472,6 +497,7 @@ async function createRunlingAgent(
           'write',
           ...(extensionsEnabled ? ['web_fetch'] : [])
         ]),
+        ...(options.codemode ? ['codemode'] : []),
         ...(textOutput ? [] : ['report_outcome'])
       ])
     ]

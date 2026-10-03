@@ -29,6 +29,8 @@ lifetime.
   `createTrustExtension` from `runling/extensions/trust`.
 - Calls made in the same model step as the untrusted tool, before its result, are
   not blocked. The model has not seen the content at that point.
+- Calls from codemode scripts pass the same checks. See
+  [FDR-008](FDR-008-codemode.md).
 
 ## Design Decisions
 
@@ -51,6 +53,7 @@ return untrusted content in other ways.
 - [ADR-005: Block tools after untrusted context](../adr/ADR-005-untrusted-context.md)
 - [ADR-002: Agent ownership](../adr/ADR-002-agent-ownership.md)
 - [FDR-007: Authorization classifier](FDR-007-authorization-classifier.md)
+- [FDR-008: Codemode](FDR-008-codemode.md)
 - [Agent API guide](../agents.md)
 
 ## Open Questions
