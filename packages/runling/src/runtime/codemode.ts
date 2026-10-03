@@ -95,6 +95,9 @@ export function codemodeExtension(settings: CodemodeSettings) {
       if (typeof input.code === 'string')
         input.code = withScriptDeadline(input.code, settings.timeoutMs);
     });
+    // Every call of a response ends before its turn ends. A refused or aborted script leaves no
+    // entry behind, so a provider that reuses IDs across turns can run later scripts.
+    pi.on('turn_end', () => calls.clear());
     pi.on('tool_result', async (event) => {
       if (event.toolName !== 'codemode' || event.parentToolCallId) return;
       calls.delete(event.toolCallId);

@@ -403,3 +403,42 @@ test('a script without a unique tool call ID does not run', async () => {
   expect(calls).toEqual([]);
   expect(seen).toContain('unique tool call ID');
 });
+
+test('a provider can reuse a tool call ID in a later turn after a refused script', async () => {
+  const calls: string[] = [];
+  let refusals = 0;
+  // Another extension refuses the first script, so its result never reaches Runling's hooks.
+  const refuseOnce = defineAgentExtension((pi) => {
+    pi.on('tool_call', (event) =>
+      event.toolName === 'codemode' && refusals++ === 0
+        ? { block: true, reason: 'Not now.' }
+        : undefined
+    );
+  });
+  const script = (id: string) =>
+    fauxAssistantMessage(
+      fauxToolCall('codemode', { code: 'return await tools.first({});' }, { id })
+    );
+  faux.setResponses([script('call_0'), script('call_0'), fauxAssistantMessage('done')]);
+  const instance = await agent({
+    cwd: directory,
+    model: 'faux/model',
+    output: 'text',
+    resources: {
+      extensions: false,
+      skills: false,
+      promptTemplates: false,
+      themes: false,
+      contextFiles: false
+    },
+    codemode: true,
+    tools: ['first'],
+    extensions: [recordingTool('first', calls, 'one'), refuseOnce]
+  });
+  try {
+    await instance.runOutcome(createWorkflowContext(), 'Go');
+  } finally {
+    instance.dispose();
+  }
+  expect(calls).toEqual(['first']);
+});
