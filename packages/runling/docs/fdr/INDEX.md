@@ -13,3 +13,4 @@ belongs in open questions. See the [documentation index](../README.md).
 | FDR-005 | [Task state in the run inspector](FDR-005-task-state-inspector.md)          | Experimental | 2026-09-24    |
 | FDR-006 | [Tool blocking after untrusted content](FDR-006-untrusted-tool-blocking.md) | Experimental | 2026-09-27    |
 | FDR-007 | [Authorization classifier](FDR-007-authorization-classifier.md)             | Experimental | 2026-09-30    |
+| FDR-008 | [Codemode](FDR-008-codemode.md)                                             | Experimental | 2026-10-03    |

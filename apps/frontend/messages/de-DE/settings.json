@@ -98,9 +98,7 @@
         },
         "emoji_required": "Wähle ein Emoji für deinen Status",
         "text_required": "Gib einen Statustext ein",
-        "saved": "Status aktualisiert",
         "save_failed": "Status konnte nicht gespeichert werden",
-        "cleared": "Status gelöscht",
         "clear_failed": "Status konnte nicht gelöscht werden",
         "save_button": "Status speichern",
         "clear_button": "Status löschen"

@@ -3,7 +3,6 @@
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import { ContextMenu, FormDialog } from '$lib/ui';
   import { Button, Select, TextInput } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast';
   import {
     deleteCustomStatus as deleteCustomStatusViaAPI,
     setCustomStatus as setCustomStatusViaAPI,
@@ -110,8 +109,7 @@
     if (!value) return '';
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
-    const offset = date.getTimezoneOffset() * 60_000;
-    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    return toLocalDatetime(date);
   }
 
   function expiryInputToISO(value: string): string | null {
@@ -233,7 +231,6 @@
       statusText = initialText(customStatus);
       statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
       expiryPreset = initialExpiryPreset(customStatus);
-      toast.success(m('settings.profile.status.saved'));
       onClose?.();
     } catch (err) {
       error = errorMessage(err, m('settings.profile.status.save_failed'));
@@ -255,7 +252,6 @@
       statusText = '';
       expiryPreset = 'today';
       statusExpiresAt = toLocalDatetime(endOfToday());
-      toast.success(m('settings.profile.status.cleared'));
       onClose?.();
     } catch (err) {
       error = errorMessage(err, m('settings.profile.status.clear_failed'));

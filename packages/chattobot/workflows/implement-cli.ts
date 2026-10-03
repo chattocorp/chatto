@@ -1,6 +1,7 @@
 /** Entry point for running the implementation task with `runling run`, outside a Chatto
  * conversation. Settings come from the same environment variables as the bot. Runs started here
  * have no owner key, so the bot cannot resume their artifacts, and they cannot resume the bot's. */
+import { usePrivateTempDirectory } from '../private-temp.ts';
 import { task, Type } from 'runling';
 import { ConfigurationError } from '../settings.ts';
 import { implementationInput } from './implementation-artifacts.ts';
@@ -27,6 +28,7 @@ export default task(
     })
   },
   async (ctx, input) => {
+    await usePrivateTempDirectory();
     const result = await implement(ctx, input);
     const ci = 'ci' in result ? result.ci : undefined;
     const failedChecks = result.checks.filter((check) => !check.passed);

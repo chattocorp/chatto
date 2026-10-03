@@ -198,6 +198,7 @@ export function createInvestigation(
             'recordFinding',
             ...deliverables.map((deliverable) => deliverable.tool)
           ],
+          codemode: true,
           extensions: [
             evidence.extension,
             ...deliverables.map((deliverable) => deliverable.extension)

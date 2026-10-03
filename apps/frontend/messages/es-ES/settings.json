@@ -98,9 +98,7 @@
         },
         "emoji_required": "Elige un emoji para tu estado",
         "text_required": "Introduce un texto de estado",
-        "saved": "Estado actualizado",
         "save_failed": "No se pudo guardar el estado",
-        "cleared": "Estado borrado",
         "clear_failed": "No se pudo borrar el estado",
         "save_button": "Guardar estado",
         "clear_button": "Borrar Estado"

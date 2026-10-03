@@ -187,7 +187,11 @@ func operatorUserCreateCmd() *cobra.Command {
 				return errors.New("--login is required")
 			}
 			passwordSet := cmd.Flags().Changed("password") || passwordFile != "" || passwordStdin
-			if err := validateSecretSources("--password", cmd.Flags().Changed("password"), "--password-file", passwordFile != "", "--password-stdin", passwordStdin); err != nil {
+			if err := validateSecretSources(
+				secretSource{name: "--password", selected: cmd.Flags().Changed("password")},
+				secretSource{name: "--password-file", selected: passwordFile != ""},
+				secretSource{name: "--password-stdin", selected: passwordStdin},
+			); err != nil {
 				return err
 			}
 			if passwordFile != "" {
@@ -284,7 +288,11 @@ func operatorUserSetPasswordCmd() *cobra.Command {
 		Short:   "Set a user's password",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := validateSecretSources("--password", cmd.Flags().Changed("password"), "--password-file", passwordFile != "", "--password-stdin", passwordStdin); err != nil {
+			if err := validateSecretSources(
+				secretSource{name: "--password", selected: cmd.Flags().Changed("password")},
+				secretSource{name: "--password-file", selected: passwordFile != ""},
+				secretSource{name: "--password-stdin", selected: passwordStdin},
+			); err != nil {
 				return err
 			}
 			if passwordFile != "" {
@@ -447,13 +455,19 @@ func operatorUserRoleCmd() *cobra.Command {
 	return roleCmd
 }
 
-func validateSecretSources(sources ...any) error {
+// secretSource pairs an input flag name with its selection state.
+type secretSource struct {
+	name     string
+	selected bool
+}
+
+// validateSecretSources rejects multiple selected inputs and preserves flag order
+// in the error message. Zero selected inputs permits an interactive prompt.
+func validateSecretSources(sources ...secretSource) error {
 	var set []string
-	for i := 0; i+1 < len(sources); i += 2 {
-		name, _ := sources[i].(string)
-		isSet, _ := sources[i+1].(bool)
-		if isSet {
-			set = append(set, name)
+	for _, source := range sources {
+		if source.selected {
+			set = append(set, source.name)
 		}
 	}
 	if len(set) > 1 {

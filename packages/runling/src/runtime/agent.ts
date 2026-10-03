@@ -2,6 +2,7 @@ import type { WorkflowContext } from './context.ts';
 import { requireDirectory } from './directory.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { dirname } from 'node:path';
+import { rm } from 'node:fs/promises';
 import {
   createAgentSession,
   convertToLlm,
@@ -17,6 +18,13 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { Type, type Static } from 'typebox';
 import webFetchExtension from '../../extensions/web-fetch.ts';
+import {
+  codemodeExtension,
+  DEFAULT_SCRIPT_MAX_CALLS,
+  DEFAULT_SCRIPT_TIMEOUT_MS,
+  validateScriptMaxCalls,
+  validateScriptTimeout
+} from './codemode.ts';
 import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
@@ -197,6 +205,17 @@ export interface RunAgentOptions {
   signal?: AbortSignal;
   /** Block selected tools after untrusted content enters this agent's context. */
   trust?: AgentTrustPolicy;
+  /**
+   * Add Pi's `codemode` tool: the model writes a JavaScript script that calls the tools in `tools`,
+   * for example several reads in parallel, and only the script's output reaches the model.
+   * Scripts run in a QuickJS sandbox without Node APIs, files, network, or timers. Every call from
+   * a script passes the same `tool_call` and `tool_result` hooks as a model call, so trust
+   * policies and extension gates still apply. With `mode: 'only'`, the other tools are hidden
+   * from the model, which reaches them through scripts. Scripts cannot run classifier or image
+   * models, and they cannot call `report_outcome`. A script stops after `timeoutMs` (default ten
+   * minutes) and can make at most `maxCalls` tool calls (default 100). See FDR-008.
+   */
+  codemode?: boolean | { mode?: 'on' | 'only'; timeoutMs?: number; maxCalls?: number };
   /** Keep the agent's conversation in this JSONL file. When the file exists, the agent
    * continues that conversation, for example after a cancellation or restart. The file holds
    * the complete model context, so keep it private. A fork does not use it. It cannot be
@@ -376,6 +395,8 @@ async function createRunlingAgent(
       'Every report must contain the complete current result. If new messages arrive after a report, incorporate them and report the full updated result again. Never refer to a preceding report or replace findings with a meta-summary.'
     ],
     parameters: reportSchema,
+    // Only the model reports the outcome; codemode scripts cannot call it.
+    exposure: 'model-only',
     async execute(_toolCallId, params) {
       activeReport = params;
       reports.push({ ...params });
@@ -409,6 +430,8 @@ async function createRunlingAgent(
     : undefined;
 
   const resources = options.resources;
+  // Files with the complete output of long scripts, which the agent deletes when it ends.
+  const codemodeFiles = new Set<string>();
   const extensionsEnabled = resources?.extensions !== false;
   const settingsManager = SettingsManager.create(cwd, agentDir);
   const retrySettings = settingsManager.getRetrySettings();
@@ -425,6 +448,27 @@ async function createRunlingAgent(
     extensionFactories: [
       ...(trust ? [{ name: 'runling-trust', factory: trust.extension }] : []),
       ...(extensionsEnabled ? [{ name: 'runling-web-fetch', factory: webFetchExtension }] : []),
+      ...(options.codemode
+        ? [
+            {
+              name: 'runling-codemode',
+              factory: codemodeExtension({
+                mode: options.codemode === true ? 'on' : (options.codemode.mode ?? 'on'),
+                timeoutMs: validateScriptTimeout(
+                  (options.codemode === true ? undefined : options.codemode.timeoutMs) ??
+                    DEFAULT_SCRIPT_TIMEOUT_MS
+                ),
+                maxCalls: validateScriptMaxCalls(
+                  (options.codemode === true ? undefined : options.codemode.maxCalls) ??
+                    DEFAULT_SCRIPT_MAX_CALLS
+                ),
+                keepFullOutput: (options.tools ?? ['read']).includes('read'),
+                keptFiles: codemodeFiles,
+                ended: () => disposed
+              })
+            }
+          ]
+        : []),
       ...(options.extensions ?? [])
     ],
     noExtensions: !extensionsEnabled,
@@ -472,6 +516,7 @@ async function createRunlingAgent(
           'write',
           ...(extensionsEnabled ? ['web_fetch'] : [])
         ]),
+        ...(options.codemode ? ['codemode'] : []),
         ...(textOutput ? [] : ['report_outcome'])
       ])
     ]
@@ -494,6 +539,7 @@ async function createRunlingAgent(
     finishSteering();
     if (running) abortSession(session, agentLog);
     session.dispose();
+    for (const file of codemodeFiles) void rm(file, { force: true }).catch(() => {});
   };
 
   const runOutcome: RunlingAgent['runOutcome'] = async (
@@ -614,7 +660,8 @@ async function createRunlingAgent(
 
         if (event.type === 'tool_execution_start' && event.toolName !== 'report_outcome') {
           toolStartedAt.set(event.toolCallId, performance.now());
-          activity(event.toolName, 'started');
+          // A codemode script reports as one call; the calls in it appear only in the log.
+          if (!event.parentToolCallId) activity(event.toolName, 'started');
           const action = describeTool(event.toolName, event.args, cwd);
           agentLog.info(highlightToolAction(event.toolName, action));
         }
@@ -622,7 +669,8 @@ async function createRunlingAgent(
         if (event.type === 'tool_execution_end' && event.toolName !== 'report_outcome') {
           const startedAt = toolStartedAt.get(event.toolCallId);
           toolStartedAt.delete(event.toolCallId);
-          activity(event.toolName, event.isError ? 'failed' : 'succeeded', event.result);
+          if (!event.parentToolCallId)
+            activity(event.toolName, event.isError ? 'failed' : 'succeeded', event.result);
           const duration =
             startedAt === undefined ? '' : ` in ${formatDuration(performance.now() - startedAt)}`;
 

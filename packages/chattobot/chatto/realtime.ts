@@ -1,6 +1,7 @@
 import { createApi, createClient, type AddressedMessage, type Server } from '@chatto/client';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
+import { usePrivateTempDirectory } from '../private-temp.ts';
 import { createEyesReaction } from '../reaction.ts';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { webSettings } from '../web.ts';
@@ -103,6 +104,8 @@ function sourceSettings() {
 /** Outbound-only bot source. Conversation state survives reloads for the same bot identity. */
 export const chattoSource: EventSource = async (ctx) => {
   const { serverUrl, apiKey, allowedUserId, ...settings } = sourceSettings();
+  // Before any agent runs: codemode output can contain thread messages.
+  await usePrivateTempDirectory();
   // Each source generation owns its connection and closes it when it ends.
   // A new generation starts from a fresh realtime snapshot. Closing fails the
   // connection's requests in flight, so runs, which can outlive their

@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-03
 
 ## Overview
 
@@ -50,6 +50,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Case-only changes** (for example, `alice` → `Alice`) do not check or start the cooldown.
 - **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the initial-letter placeholder. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
+- **Custom status feedback** — setting, changing, or clearing a status updates the badge and closes the editor or status menu without a success toast. Failed requests still show an error.
 - **Custom status across clients** — setting, changing, or clearing a status updates the current-user badge and status menu in other connected clients of the same account. Opening the editor uses the latest status. No page reload is required.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.

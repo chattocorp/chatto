@@ -377,6 +377,8 @@ export function createImplementation(
           thinkingLevel: settings.thinkingLevel ?? 'medium',
           label: 'implement',
           tools: WORKER_TOOLS,
+          // A repository check alone can take ten minutes.
+          codemode: { timeoutMs: 20 * 60_000 },
           extensions: [tools],
           textDelivery: 'final',
           resources: {

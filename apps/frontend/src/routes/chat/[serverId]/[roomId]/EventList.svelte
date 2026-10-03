@@ -29,6 +29,12 @@
   import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
+  import {
+    keptIndexes,
+    selectionEndpointKeys,
+    TIMELINE_ITEM_KEY_ATTRIBUTE,
+    type TimelineSelectionKeys
+  } from './timelineSelection';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -395,6 +401,23 @@
   // Scroll container and virtualizer handle
   let scrollContainer = $state<HTMLDivElement>();
   let virtualizerHandle = $state<VirtualizerHandle>();
+
+  // The items at the ends of the document selection. The virtualizer keeps every item
+  // between them mounted, because a copy contains only mounted DOM.
+  let selectionKeys = $state<TimelineSelectionKeys | null>(null);
+  const keepMounted = $derived(
+    selectionKeys ? keptIndexes(virtualItems, selectionKeys) : undefined
+  );
+
+  // Record the ends while the anchor item is still mounted. After this, a scroll during
+  // the selection cannot unmount the anchor and break the selection.
+  function trackSelection() {
+    const next = scrollContainer
+      ? selectionEndpointKeys(document.getSelection(), scrollContainer)
+      : null;
+    if (next?.anchor === selectionKeys?.anchor && next?.focus === selectionKeys?.focus) return;
+    selectionKeys = next;
+  }
 
   // Build a DOM command only after fresh authority and the virtualizer are ready.
   const recoveryTarget = $derived.by(() => {
@@ -832,6 +855,7 @@
 </script>
 
 <svelte:window onkeydown={markKeyboardScrollIntent} />
+<svelte:document onselectionchange={trackSelection} />
 
 <div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2" {@attach ownViewport(messageStore)}>
   <ScrollFader
@@ -866,6 +890,8 @@
           scrollRef={scrollContainer}
           shift={isLoadingMore}
           itemSize={60}
+          {keepMounted}
+          itemProps={({ item }) => ({ [TIMELINE_ITEM_KEY_ATTRIBUTE]: item?.key })}
           onscroll={handleVirtuaScroll}
         >
           {#snippet children(item: VirtualItem)}

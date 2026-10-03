@@ -1,4 +1,5 @@
 /** Keep the ChattoBot supervisor responsive to user input and selected task results. */
+import { usePrivateTempDirectory } from '../private-temp.ts';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { log, task, Type, validateTimeout, type WorkflowContext } from 'runling';
@@ -139,6 +140,8 @@ export const conversation = task(
     options: ConversationOptions<ChatSettings>
   ) => {
     validateTimeout(options.timeout);
+    // A system cleaner can delete an idle temporary directory; replace it before agents run.
+    await usePrivateTempDirectory();
     const createAgent = options.createAgent ?? agent;
     const tasks = observeAgentTasks(ctx, {
       maxToolFailures: 3,
@@ -308,6 +311,11 @@ export const conversation = task(
     const maintainerGate = defineAgentExtension((pi) => {
       pi.on('tool_call', async (event) => {
         // Notifications do not authorize stopping work either: only a person can ask for that.
+        if (event.toolName === 'task_cancel' && event.parentToolCallId)
+          return {
+            block: true,
+            reason: 'task_cancel is available only as a direct call, not from a codemode script.'
+          };
         if (event.toolName === 'task_cancel' && latestOrigin !== 'user')
           return {
             block: true,
@@ -315,6 +323,13 @@ export const conversation = task(
               'task_cancel is available only when a person in this thread asks to stop the work. A notification is not such a request.'
           };
         if (!MAINTAINER_TOOLS.has(event.toolName)) return;
+        // A codemode script can wait until a maintainer writes, and the checks below read the latest
+        // message. So these tools run only as direct calls of the model.
+        if (event.parentToolCallId)
+          return {
+            block: true,
+            reason: `${event.toolName} is available only as a direct call, not from a codemode script.`
+          };
         if (latestOrigin === 'user' && requesterIsMaintainer()) return;
         // Notifications wake the agent but do not authorize work; postRefusal stays silent there.
         // One exception: the completion notification of a plan can start its implementation once,
@@ -348,6 +363,9 @@ export const conversation = task(
       textDelivery: 'final',
       systemPrompt,
       allowEmptyResponse: true,
+      // A person waits for the reply. Research, the slowest tool, has a three-minute limit.
+      // Anyone in a thread can ask for a script, and each gh call starts a process.
+      codemode: { timeoutMs: 4 * 60_000, maxCalls: 30 },
       tools: [
         'readThread',
         ...(readAttachment ? ['viewAttachment'] : []),

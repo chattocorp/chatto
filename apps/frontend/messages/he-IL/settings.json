@@ -98,9 +98,7 @@
         },
         "emoji_required": "בחר אימוג'י לסטטוס שלך",
         "text_required": "הזן טקסט לסטטוס",
-        "saved": "הסטטוס עודכן",
         "save_failed": "נכשל בשמירת הסטטוס",
-        "cleared": "סטטוס נוקה",
         "clear_failed": "נכשל בניקוי הסטטוס",
         "save_button": "שמור סטטוס",
         "clear_button": "נקה סטטוס"

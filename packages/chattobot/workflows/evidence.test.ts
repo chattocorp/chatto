@@ -146,3 +146,18 @@ test('a citation covers at most 40 lines', async () => {
     new AbortController().signal
   );
 });
+
+test('parallel findings cannot pass the limit, for example from a codemode script', async () => {
+  const { root, finding } = await fixture();
+  const collector = evidenceCollector(root, new AbortController().signal);
+  let execute!: (id: string, value: Finding) => Promise<unknown>;
+  const factory =
+    typeof collector.extension === 'function' ? collector.extension : collector.extension.factory;
+  await factory({
+    registerTool(tool: { execute: typeof execute }) {
+      execute = tool.execute;
+    }
+  } as unknown as AgentExtensionAPI);
+  await Promise.all(Array.from({ length: 20 }, (_, i) => execute(`parallel-${i}`, finding)));
+  expect(collector.findings).toHaveLength(12);
+});

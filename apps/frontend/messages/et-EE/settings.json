@@ -98,9 +98,7 @@
         },
         "emoji_required": "Valige oma oleku jaoks emotikon",
         "text_required": "Sisestage olekutekst",
-        "saved": "Olek värskendatud",
         "save_failed": "Oleku salvestamine ebaõnnestus",
-        "cleared": "Olek kustutatud",
         "clear_failed": "Oleku kustutamine ebaõnnestus",
         "save_button": "Salvesta olek",
         "clear_button": "Tühjenda olek"

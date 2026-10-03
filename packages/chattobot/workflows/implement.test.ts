@@ -177,6 +177,7 @@ test('implements in an isolated worktree, records final checks, pushes and verif
     execute: f.execute,
     createAgent: worker(async (options, call) => {
       expect(options.tools).toContain('apply_patch');
+      expect(options.codemode).toEqual({ timeoutMs: 1_200_000 });
       expect(options.tools).not.toContain('write');
       expect(options.tools).not.toContain('bash');
       expect(options.tools).toContain('runCheck');

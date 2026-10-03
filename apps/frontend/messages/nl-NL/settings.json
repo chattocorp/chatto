@@ -98,9 +98,7 @@
         },
         "emoji_required": "Kies een emoji voor je status",
         "text_required": "Voer statustekst in",
-        "saved": "Status bijgewerkt",
         "save_failed": "Kan status niet opslaan",
-        "cleared": "Status gewist",
         "clear_failed": "Kan de status niet wissen",
         "save_button": "Status opslaan",
         "clear_button": "Status wissen"

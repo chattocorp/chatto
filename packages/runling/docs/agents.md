@@ -171,6 +171,32 @@ after cheaper deterministic gates. See
 [ADR-007](adr/ADR-007-authorization-classifier.md) and
 [FDR-007](fdr/FDR-007-authorization-classifier.md).
 
+## Codemode
+
+Set `codemode` to let the model write a JavaScript script that calls the agent's
+tools. Only the script's output reaches the model, so a script can run several
+calls in parallel and filter large results first:
+
+```ts
+await using owner = await agent({
+  cwd: '.',
+  tools: ['readIssue', 'searchIssues'],
+  codemode: true // or { mode: 'only' } to reach the other tools only through scripts
+});
+```
+
+Scripts run in Pi's QuickJS sandbox, without Node APIs, files, network, or
+timers. They can call the tools in `tools`, but not `report_outcome` or Pi's
+`models` API. A script stops after `codemode.timeoutMs` (ten minutes by default)
+and can make at most `codemode.maxCalls` tool calls (100 by default). Scripts
+receive only the text of tool results, so register tools that return images or
+end the turn with `exposure: 'model-only'`. Pi saves the complete output of a
+long script to a temporary file, which Runling deletes when the agent ends, or
+at once when the agent has no `read` tool. Set `TMPDIR` to a private directory
+when tool results are sensitive. Every call from a script passes the same hooks
+as a model call, so `trust` and authorization gates still apply. See
+[FDR-008](fdr/FDR-008-codemode.md).
+
 ## Tasks as agent tools
 
 `taskTool(ctx, definition, run)` adapts an explicit task call to a text-result

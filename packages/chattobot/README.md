@@ -825,6 +825,31 @@ the classifier's reason. It uses
 The classifier's model provider receives the action text and the maintainers'
 messages.
 
+## Codemode
+
+The supervisor, the research agent, the investigator, and the implementation
+worker have Runling's `codemode` tool (Runling FDR-008). The model can write a
+JavaScript script that calls the agent's own tools, for example to read several
+files or issues in parallel and keep only the relevant lines. Only the script's
+output enters the conversation. Every call from a script passes the same checks
+as a direct call: the authorization checks, the research limit, and the block
+after untrusted content. Tools that only maintainers can start, and
+`task_cancel`, run only as direct calls, because a script could wait until a
+maintainer writes. Scripts cannot call `viewAttachment`, because they receive
+only text, and the model must see the image itself. Supervisor scripts stop
+after four minutes, worker scripts after twenty, and other scripts after ten.
+A supervisor script can make at most 30 tool calls, and other scripts 100.
+
+When the output of a script is longer than its limit, Pi writes the complete
+output to a temporary file. The output can contain thread messages and GitHub
+content. Runling deletes the file at once for agents without a read tool, and
+when the agent ends otherwise. When the Chatto source or the implementation CLI
+starts, the bot also creates a directory with a random name in the temporary
+directory, which only the bot's user can read, and points `TMPDIR` at it. The
+bot removes the directory when its process ends; after a crash, it stays. On
+Windows, Node does not use `TMPDIR`, and the temporary directory already belongs
+to the user.
+
 ## Development
 
 `runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`

@@ -128,6 +128,8 @@ export function evidenceCollector(
 ) {
   const findings: Finding[] = [];
   const extension = defineAgentExtension((pi) => {
+    // Findings whose citation check is still running.
+    let pending = 0;
     pi.registerTool({
       name: 'recordFinding',
       label: 'Record source evidence',
@@ -139,13 +141,15 @@ export function evidenceCollector(
           details: { accepted },
           ...(isError ? { isError: true } : {})
         });
-        // Limits are normal answers, not tool failures: repeated failures stop the task.
-        if (findings.length >= MAX_FINDINGS)
+        // Limits are normal answers, not tool failures: repeated failures stop the task. Checks in
+        // progress count too, so that parallel calls cannot pass the limit.
+        if (findings.length + pending >= MAX_FINDINGS)
           return answer(
             `The finding limit (${MAX_FINDINGS}) is reached. Finish your report with the findings recorded so far.`,
             false
           );
         finding = structuredClone(finding);
+        pending++;
         try {
           await verifyFinding(
             root,
@@ -153,6 +157,7 @@ export function evidenceCollector(
             toolSignal ? AbortSignal.any([signal, toolSignal]) : signal
           );
         } catch (error) {
+          pending--;
           signal.throwIfAborted();
           toolSignal?.throwIfAborted();
           return answer(
@@ -161,6 +166,7 @@ export function evidenceCollector(
             true
           );
         }
+        pending--;
         signal.throwIfAborted();
         findings.push(structuredClone(finding));
         await onFinding?.(finding);

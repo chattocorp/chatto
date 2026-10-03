@@ -445,3 +445,30 @@ test('a timed-out change warns that it may have applied', async () => {
     { decision: 'allow', reason: 'Requested.' }
   );
 });
+
+test('maintainer-only tools run only as direct calls, never from a codemode script', async () => {
+  await supervisor(async ({ gates, prepare }) => {
+    await prepare('file an issue about the flaky test');
+    const call = (toolName: string, parentToolCallId?: string) =>
+      gates[0]!({
+        type: 'tool_call',
+        toolName,
+        input: {},
+        toolCallId: parentToolCallId ? `${parentToolCallId}/1` : 'call',
+        ...(parentToolCallId ? { parentToolCallId } : {})
+      });
+    expect(await call('ghWrite')).toBeUndefined();
+    // A script could wait until a maintainer writes; the gate reads only the latest message.
+    for (const tool of [
+      'ghWrite',
+      'investigateChatto',
+      'implementChatto',
+      'askImplementation',
+      'task_send',
+      'task_cancel'
+    ])
+      expect(await call(tool, 'script')).toMatchObject({ block: true });
+    // Reads stay available to scripts.
+    expect(await call('gh', 'script')).toBeUndefined();
+  });
+});
