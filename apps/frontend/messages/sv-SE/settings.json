@@ -281,7 +281,7 @@
         "test_failed": "Det gick inte att skicka ett testmeddelande. Försök igen om en stund.",
         "test_rate_limited": "Vänta några sekunder innan du skickar ett nytt testmeddelande.",
         "turn_off_failed": "Push-meddelanden kunde inte stängas av för alla servrar.",
-        "prompt_unanswered": "Din webbläsare visade inte begäran om tillstånd. Tillåt aviseringar för den här webbplatsen i webbläsarens webbplatsinställningar.",
+        "prompt_unanswered": "Aviseringar är inte tillåtna för den här webbplatsen. Tillåt aviseringar i webbläsarens webbplatsinställningar för att slå på dem.",
         "label": "Push-meddelanden på den här enheten",
         "description": "{device} · Gäller alla servrar på den här enheten.",
         "setup_failed": "Push-meddelanden kunde inte konfigureras: {reason}"

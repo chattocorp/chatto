@@ -281,7 +281,7 @@
         "test_failed": "無法傳送測試通知。請稍後再試。",
         "test_rate_limited": "請等待幾秒鐘後再傳送另一則測試通知。",
         "turn_off_failed": "無法為所有伺服器關閉推播通知。",
-        "prompt_unanswered": "你的瀏覽器沒有顯示權限請求。請在瀏覽器的網站設定中允許此網站傳送通知。",
+        "prompt_unanswered": "此網站的通知未獲允許。若要開啟通知，請在瀏覽器的網站設定中允許通知。",
         "label": "此裝置上的推播通知",
         "description": "{device} · 套用到此裝置上的所有伺服器。",
         "setup_failed": "無法設定推播通知：{reason}"

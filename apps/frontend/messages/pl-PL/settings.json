@@ -281,7 +281,7 @@
         "test_failed": "Nie można wysłać powiadomienia testowego. Spróbuj ponownie za chwilę.",
         "test_rate_limited": "Odczekaj kilka sekund, zanim wyślesz kolejne powiadomienie testowe.",
         "turn_off_failed": "Nie udało się wyłączyć powiadomień push dla wszystkich serwerów.",
-        "prompt_unanswered": "Twoja przeglądarka nie wyświetliła prośby o zgodę. Zezwól na powiadomienia dla tej witryny w ustawieniach witryny w przeglądarce.",
+        "prompt_unanswered": "Powiadomienia nie są dozwolone dla tej witryny. Aby je włączyć, zezwól na powiadomienia w ustawieniach witryny w przeglądarce.",
         "label": "Powiadomienia push na tym urządzeniu",
         "description": "{device} · Dotyczy wszystkich serwerów na tym urządzeniu.",
         "setup_failed": "Nie udało się skonfigurować powiadomień push: {reason}"

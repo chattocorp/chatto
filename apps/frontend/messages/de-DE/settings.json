@@ -281,7 +281,7 @@
         "test_failed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es gleich noch einmal.",
         "test_rate_limited": "Warte ein paar Sekunden, bevor du eine weitere Testbenachrichtigung sendest.",
         "turn_off_failed": "Push-Benachrichtigungen konnten nicht für alle Server ausgeschaltet werden.",
-        "prompt_unanswered": "Dein Browser hat die Berechtigungsanfrage nicht angezeigt. Erlaube Benachrichtigungen für diese Website in den Website-Einstellungen deines Browsers.",
+        "prompt_unanswered": "Benachrichtigungen sind für diese Website nicht erlaubt. Um sie einzuschalten, erlaube Benachrichtigungen in den Website-Einstellungen deines Browsers.",
         "label": "Push-Benachrichtigungen auf diesem Gerät",
         "description": "{device} · Gilt für alle Server auf diesem Gerät.",
         "setup_failed": "Push-Benachrichtigungen konnten nicht eingerichtet werden: {reason}"

@@ -281,7 +281,7 @@
         "test_failed": "Test bildirimi gönderilemedi. Birazdan tekrar deneyin.",
         "test_rate_limited": "Başka bir test bildirimi göndermeden önce birkaç saniye bekleyin.",
         "turn_off_failed": "Anlık bildirimler tüm sunucular için kapatılamadı.",
-        "prompt_unanswered": "Tarayıcınız izin isteğini göstermedi. Tarayıcınızın site ayarlarında bu site için bildirimlere izin verin.",
+        "prompt_unanswered": "Bu site için bildirimlere izin verilmiyor. Bildirimleri açmak için tarayıcınızın site ayarlarında bildirimlere izin verin.",
         "label": "Bu cihazda anlık bildirimler",
         "description": "{device} · Bu cihazdaki tüm sunucular için geçerlidir.",
         "setup_failed": "Anlık bildirimler ayarlanamadı: {reason}"

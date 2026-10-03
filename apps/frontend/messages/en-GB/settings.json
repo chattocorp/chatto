@@ -281,7 +281,7 @@
         "test_failed": "Could not send a test notification. Try again in a moment.",
         "test_rate_limited": "Wait a few seconds before you send another test notification.",
         "turn_off_failed": "Push notifications could not be turned off for every server.",
-        "prompt_unanswered": "Your browser did not show the permission request. Allow notifications for this site in your browser’s site settings.",
+        "prompt_unanswered": "Notifications are not allowed for this site. To turn them on, allow notifications in your browser’s site settings.",
         "label": "Push notifications on this device",
         "description": "{device} · Applies to every server on this device.",
         "setup_failed": "Push notifications could not be set up: {reason}"

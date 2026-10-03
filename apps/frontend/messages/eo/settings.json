@@ -281,7 +281,7 @@
         "test_failed": "Ne eblis sendi testan sciigon. Reprovu post momento.",
         "test_rate_limited": "Atendu kelkajn sekundojn antaŭ ol sendi alian testan sciigon.",
         "turn_off_failed": "Ne eblis malŝalti puŝajn sciigojn por ĉiuj serviloj.",
-        "prompt_unanswered": "Via retumilo ne montris la permespeton. Permesu sciigojn por ĉi tiu retejo en la retejaj agordoj de via retumilo.",
+        "prompt_unanswered": "Sciigoj ne estas permesataj por ĉi tiu retejo. Por ŝalti ilin, permesu sciigojn en la retejaj agordoj de via retumilo.",
         "label": "Puŝaj sciigoj en ĉi tiu aparato",
         "description": "{device} · Validas por ĉiuj serviloj en ĉi tiu aparato.",
         "setup_failed": "Ne eblis agordi puŝajn sciigojn: {reason}"

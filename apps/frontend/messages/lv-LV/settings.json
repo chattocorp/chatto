@@ -281,7 +281,7 @@
         "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz pēc brīža.",
         "test_rate_limited": "Pagaidiet dažas sekundes, pirms sūtāt vēl vienu testa paziņojumu.",
         "turn_off_failed": "Push paziņojumus neizdevās izslēgt visiem serveriem.",
-        "prompt_unanswered": "Jūsu pārlūkprogramma neparādīja atļaujas pieprasījumu. Atļaujiet paziņojumus šai vietnei pārlūkprogrammas vietnes iestatījumos.",
+        "prompt_unanswered": "Šai vietnei paziņojumi nav atļauti. Lai tos ieslēgtu, atļaujiet paziņojumus pārlūkprogrammas vietnes iestatījumos.",
         "label": "Push paziņojumi šajā ierīcē",
         "description": "{device} · Attiecas uz visiem šīs ierīces serveriem.",
         "setup_failed": "Push paziņojumus neizdevās iestatīt: {reason}"

@@ -281,7 +281,7 @@
         "test_failed": "Testmärguannet ei õnnestunud saata. Proovige hetke pärast uuesti.",
         "test_rate_limited": "Oodake mõni sekund, enne kui saadate uue testmärguande.",
         "turn_off_failed": "Tõukemärguandeid ei õnnestunud kõigi serverite jaoks välja lülitada.",
-        "prompt_unanswered": "Teie brauser ei näidanud loa taotlust. Lubage selle saidi märguanded oma brauseri saidiseadetes.",
+        "prompt_unanswered": "Selle saidi märguanded pole lubatud. Nende sisselülitamiseks lubage märguanded oma brauseri saidiseadetes.",
         "label": "Tõukemärguanded selles seadmes",
         "description": "{device} · Kehtib selle seadme kõigi serverite kohta.",
         "setup_failed": "Tõukemärguandeid ei õnnestunud seadistada: {reason}"

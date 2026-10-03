@@ -281,7 +281,7 @@
         "test_failed": "Kan geen testmelding verzenden. Probeer het zo opnieuw.",
         "test_rate_limited": "Wacht een paar seconden voordat je nog een testmelding verstuurt.",
         "turn_off_failed": "Pushmeldingen konden niet voor alle servers worden uitgeschakeld.",
-        "prompt_unanswered": "Je browser heeft het toestemmingsverzoek niet getoond. Sta meldingen voor deze site toe in de site-instellingen van je browser.",
+        "prompt_unanswered": "Meldingen zijn niet toegestaan voor deze site. Sta meldingen toe in de site-instellingen van je browser om ze aan te zetten.",
         "label": "Pushmeldingen op dit apparaat",
         "description": "{device} · Geldt voor alle servers op dit apparaat.",
         "setup_failed": "Pushmeldingen konden niet worden ingesteld: {reason}"

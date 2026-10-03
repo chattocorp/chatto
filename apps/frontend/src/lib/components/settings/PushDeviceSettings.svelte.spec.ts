@@ -152,7 +152,7 @@ describe('PushDeviceSettings', () => {
     expect(isPushPromptSnoozed()).toBe(false);
   });
 
-  it('explains a permission request that the browser did not show', async () => {
+  it('explains a permission request that ended without a decision', async () => {
     mocks.permission = 'default';
     mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'default', registrations: [] });
     const screen = renderSettings();
@@ -162,7 +162,7 @@ describe('PushDeviceSettings', () => {
 
     await expect
       .element(screen.getByRole('alert'))
-      .toHaveTextContent(/did not show the permission request/);
+      .toHaveTextContent(/Notifications are not allowed for this site/);
     await expect.element(checkbox).not.toBeChecked();
     // A dismissed browser prompt counts as Not now for the invitation too.
     expect(isPushPromptSnoozed()).toBe(true);

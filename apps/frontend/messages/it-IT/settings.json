@@ -281,7 +281,7 @@
         "test_failed": "Impossibile inviare una notifica di prova. Riprova tra un momento.",
         "test_rate_limited": "Attendi qualche secondo prima di inviare un’altra notifica di prova.",
         "turn_off_failed": "Non è stato possibile disattivare le notifiche push per tutti i server.",
-        "prompt_unanswered": "Il tuo browser non ha mostrato la richiesta di autorizzazione. Consenti le notifiche per questo sito nelle impostazioni del sito del tuo browser.",
+        "prompt_unanswered": "Le notifiche non sono consentite per questo sito. Per attivarle, consenti le notifiche nelle impostazioni del sito del tuo browser.",
         "label": "Notifiche push su questo dispositivo",
         "description": "{device} · Vale per tutti i server su questo dispositivo.",
         "setup_failed": "Non è stato possibile configurare le notifiche push: {reason}"

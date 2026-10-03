@@ -281,7 +281,7 @@
         "test_failed": "Impossible d’envoyer une notification de test. Réessayez dans un instant.",
         "test_rate_limited": "Attendez quelques secondes avant d’envoyer une autre notification de test.",
         "turn_off_failed": "Les notifications poussées n’ont pas pu être désactivées pour tous les serveurs.",
-        "prompt_unanswered": "Votre navigateur n’a pas affiché la demande d’autorisation. Autorisez les notifications pour ce site dans les paramètres du site de votre navigateur.",
+        "prompt_unanswered": "Les notifications ne sont pas autorisées pour ce site. Pour les activer, autorisez les notifications dans les paramètres du site de votre navigateur.",
         "label": "Notifications poussées sur cet appareil",
         "description": "{device} · S’applique à tous les serveurs sur cet appareil.",
         "setup_failed": "Les notifications poussées n’ont pas pu être configurées : {reason}"

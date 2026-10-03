@@ -281,7 +281,7 @@
         "test_failed": "Testovací oznámení se nepodařilo odeslat. Zkuste to znovu za chvíli.",
         "test_rate_limited": "Než odešlete další testovací oznámení, počkejte několik sekund.",
         "turn_off_failed": "Push oznámení se nepodařilo vypnout pro všechny servery.",
-        "prompt_unanswered": "Váš prohlížeč žádost o povolení nezobrazil. Povolte oznámení pro tento web v nastavení webu ve svém prohlížeči.",
+        "prompt_unanswered": "Oznámení nejsou pro tento web povolena. Chcete-li je zapnout, povolte oznámení v nastavení webu ve svém prohlížeči.",
         "label": "Push oznámení na tomto zařízení",
         "description": "{device} · Platí pro všechny servery na tomto zařízení.",
         "setup_failed": "Push oznámení se nepodařilo nastavit: {reason}"

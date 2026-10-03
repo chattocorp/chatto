@@ -281,7 +281,7 @@
         "test_failed": "Kunne ikke sende et testvarsel. Prøv igjen om litt.",
         "test_rate_limited": "Vent noen sekunder før du sender et nytt testvarsel.",
         "turn_off_failed": "Push-varsler kunne ikke slås av for alle servere.",
-        "prompt_unanswered": "Nettleseren din viste ikke tillatelsesforespørselen. Tillat varsler for dette nettstedet i nettstedsinnstillingene i nettleseren din.",
+        "prompt_unanswered": "Varsler er ikke tillatt for dette nettstedet. Tillat varsler i nettstedsinnstillingene i nettleseren din for å slå dem på.",
         "label": "Push-varsler på denne enheten",
         "description": "{device} · Gjelder alle servere på denne enheten.",
         "setup_failed": "Push-varsler kunne ikke konfigureres: {reason}"
