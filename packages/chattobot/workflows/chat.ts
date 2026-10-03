@@ -308,13 +308,20 @@ export const conversation = task(
     const maintainerGate = defineAgentExtension((pi) => {
       pi.on('tool_call', async (event) => {
         // Notifications do not authorize stopping work either: only a person can ask for that.
-        if (event.toolName === 'task_cancel' && latestOrigin !== 'user')
+        if (event.toolName === 'task_cancel' && (latestOrigin !== 'user' || event.parentToolCallId))
           return {
             block: true,
             reason:
               'task_cancel is available only when a person in this thread asks to stop the work. A notification is not such a request.'
           };
         if (!MAINTAINER_TOOLS.has(event.toolName)) return;
+        // A codemode script can wait until a maintainer writes, and the checks below read the latest
+        // message. So these tools run only as direct calls of the model.
+        if (event.parentToolCallId)
+          return {
+            block: true,
+            reason: `${event.toolName} is available only as a direct call, not from a codemode script.`
+          };
         if (latestOrigin === 'user' && requesterIsMaintainer()) return;
         // Notifications wake the agent but do not authorize work; postRefusal stays silent there.
         // One exception: the completion notification of a plan can start its implementation once,
@@ -348,7 +355,8 @@ export const conversation = task(
       textDelivery: 'final',
       systemPrompt,
       allowEmptyResponse: true,
-      codemode: true,
+      // The supervisor's tools answer within a minute, and a person waits for its reply.
+      codemode: { timeoutMs: 2 * 60_000 },
       tools: [
         'readThread',
         ...(readAttachment ? ['viewAttachment'] : []),

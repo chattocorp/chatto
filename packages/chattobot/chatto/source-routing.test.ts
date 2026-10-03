@@ -5,6 +5,8 @@ import { chattoSource } from './realtime.ts';
 import { fakeChatto, settle } from './fake-chatto.ts';
 
 const chatto = fakeChatto({ viewerId: 'bot', routes: () => {} });
+// The real source would change TMPDIR for the test process.
+vi.mock('../private-temp.ts', () => ({ usePrivateTempDirectory: async () => '' }));
 vi.mock('@chatto/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@chatto/client')>()),
   createClient: () => chatto.createClient(),
