@@ -838,6 +838,7 @@ after untrusted content. Tools that only maintainers can start, and
 maintainer writes. Scripts cannot call `viewAttachment`, because they receive
 only text, and the model must see the image itself. Supervisor scripts stop
 after four minutes, worker scripts after twenty, and other scripts after ten.
+A supervisor script can make at most 30 tool calls, and other scripts 100.
 
 When the output of a script is longer than its limit, Pi writes the complete
 output to a temporary file. The output can contain thread messages and GitHub

@@ -361,7 +361,8 @@ export const conversation = task(
       systemPrompt,
       allowEmptyResponse: true,
       // A person waits for the reply. Research, the slowest tool, has a three-minute limit.
-      codemode: { timeoutMs: 4 * 60_000 },
+      // Anyone in a thread can ask for a script, and each gh call starts a process.
+      codemode: { timeoutMs: 4 * 60_000, maxCalls: 30 },
       tools: [
         'readThread',
         ...(readAttachment ? ['viewAttachment'] : []),
