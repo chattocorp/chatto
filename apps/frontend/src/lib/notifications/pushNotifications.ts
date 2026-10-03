@@ -391,7 +391,9 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
   const registrations = await Promise.all(
     targets.map(async (target): Promise<PushRegistrationResult> => {
       try {
-        return { ...target, registered: await ensureRegistered(target) };
+        // An explicit Enable may create a browser subscription even after an
+        // automatic attempt failed in this page.
+        return { ...target, registered: await ensureRegistered(target, { manual: true }) };
       } catch (error) {
         console.error('Failed to enable push notifications:', error);
         return { ...target, registered: false };

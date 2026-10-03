@@ -1331,6 +1331,22 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     expect(pushRegistrationFailure('remote')).toBeNull();
   });
 
+  it('lets Enable create a browser subscription after a failed attempt', async () => {
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockRejectedValueOnce(
+      new DOMException('Registration failed - push service error', 'AbortError')
+    );
+    vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
+    await refreshPushSubscriptions();
+    expect(subscribe).toHaveBeenCalledOnce();
+
+    subscribe.mockResolvedValue(makeSubscription('https://push.example/enabled'));
+    const result = await enablePushOnAllServers();
+
+    expect(result.registrations.every((registration) => registration.registered)).toBe(true);
+    expect(subscribe).toHaveBeenCalledTimes(3);
+  });
+
   it('never asks for permission', async () => {
     permission = 'default';
     vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);

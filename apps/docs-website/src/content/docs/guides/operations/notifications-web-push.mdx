@@ -116,11 +116,11 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-When a signed-in server supports push and browser permission is unset, Chatto shows an invitation to enable push notifications. **Enable** opens the browser or operating-system permission prompt. **Not now**, or a dismissed prompt, hides the invitation on this device for 14 days. Each server's notification settings also offer **Enable** while permission is unset. If the user blocks notifications, Chatto does not ask again; the user can change the choice in browser or operating-system settings.
+When a signed-in server supports push and browser permission is unset, Chatto shows an invitation to enable push notifications. **Enable** opens the browser or operating-system permission prompt. **Not now**, or a dismissed prompt, hides the invitation on this device for 14 days. If the user blocks notifications, Chatto does not ask again; the user can change the choice in browser or operating-system settings.
 
-Push is on for every registered server or for none of them. While push is on, any server's notification settings offer **Turn off push notifications**, which stops push from every server on this device. **Enable** in the same settings turns it on again for all servers.
+Push is on for every registered server or for none of them. Each server's notification settings have one checkbox, **Push notifications on this device**. Unchecking it stops push from every server on this device; checking it turns push on again for all servers and asks the browser for permission if necessary.
 
-Each server's notification settings show whether that server sends push notifications to this device. When it does, the panel names the browser and platform, and the address where notifications open Chatto. Use **Send test notification** to check delivery to your devices.
+While push is on, use **Send test notification** in a server's notification settings to check delivery to your devices.
 
 When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. While permission is granted, Chatto also registers servers that the user adds or signs in to later, without asking again. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 

@@ -67,15 +67,13 @@ describe('PushDeviceSettings', () => {
     window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
-  it('names the device and origin that receive this server’s push notifications', async () => {
+  it('shows that push is on for every server on this device', async () => {
     const screen = renderSettings();
+    const checkbox = screen.getByRole('checkbox', { name: 'Push notifications on this device' });
 
+    await expect.element(checkbox).toBeChecked();
     await expect
-      .element(screen.getByText('This server sends push notifications to this device.'))
-      .toBeVisible();
-    await expect.element(screen.getByText('Firefox on macOS')).toBeVisible();
-    await expect
-      .element(screen.getByText(`Notifications open Chatto at ${window.location.host}`))
+      .element(screen.getByText('Firefox on macOS · Applies to every server on this device.'))
       .toBeVisible();
     expect(mocks.hasSavedPushRegistration).toHaveBeenCalledWith('origin', 'viewer-1');
   });
@@ -121,11 +119,10 @@ describe('PushDeviceSettings', () => {
     const screen = renderSettings();
 
     await expect
-      .element(screen.getByText('Push notifications could not be set up on this device'))
-      .toBeVisible();
-    await expect
-      .element(screen.getByTestId('push-setup-failure'))
-      .toHaveTextContent('Technical details: AbortError: Registration failed - push service error');
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent(
+        'Push notifications could not be set up: AbortError: Registration failed - push service error'
+      );
     await screen.getByRole('button', { name: 'Try Again' }).click();
 
     expect(mocks.retryPushRegistration).toHaveBeenCalledWith('origin');
@@ -136,87 +133,74 @@ describe('PushDeviceSettings', () => {
     const screen = renderSettings();
 
     await expect
-      .element(screen.getByRole('status'))
-      .toHaveTextContent('Setting up push notifications for this device…');
+      .element(screen.getByText('Setting up push notifications for this device…'))
+      .toBeVisible();
     await expect
       .element(screen.getByRole('button', { name: 'Send test notification' }))
       .not.toBeInTheDocument();
   });
 
-  it('offers to enable push while permission is unset', async () => {
+  it('turns push on from the checkbox while permission is unset', async () => {
     mocks.permission = 'default';
     const screen = renderSettings();
+    const checkbox = screen.getByRole('checkbox', { name: 'Push notifications on this device' });
 
-    await expect
-      .element(screen.getByText('Push notifications are not allowed on this device yet'))
-      .toBeVisible();
-    expect(mocks.enablePushOnAllServers).not.toHaveBeenCalled();
-
-    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+    await expect.element(checkbox).not.toBeChecked();
+    await checkbox.click();
 
     expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
     expect(isPushPromptSnoozed()).toBe(false);
-  });
-
-  it('treats a dismissed browser prompt as Not now for the invitation', async () => {
-    mocks.permission = 'default';
-    mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'default', registrations: [] });
-    const screen = renderSettings();
-
-    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
-
-    await expect.poll(() => isPushPromptSnoozed()).toBe(true);
-    window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
   it('explains a permission request that the browser did not show', async () => {
     mocks.permission = 'default';
     mocks.enablePushOnAllServers.mockResolvedValue({ permission: 'default', registrations: [] });
     const screen = renderSettings();
+    const checkbox = screen.getByRole('checkbox', { name: 'Push notifications on this device' });
 
-    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+    await checkbox.click();
 
-    await expect.element(screen.getByText(/did not show the permission request/)).toBeVisible();
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent(/did not show the permission request/);
+    await expect.element(checkbox).not.toBeChecked();
+    // A dismissed browser prompt counts as Not now for the invitation too.
+    expect(isPushPromptSnoozed()).toBe(true);
     window.localStorage.removeItem('chatto:pushPromptSnoozedUntil');
   });
 
   it('turns push off for every server on this device', async () => {
     const screen = renderSettings();
 
-    await expect.element(screen.getByText(/applies to every server on this device/)).toBeVisible();
-    await screen.getByRole('button', { name: 'Turn off push notifications' }).click();
+    await screen.getByRole('checkbox', { name: 'Push notifications on this device' }).click();
 
     expect(mocks.disablePushOnAllServers).toHaveBeenCalledOnce();
   });
 
-  it('offers to turn push on again after the user turned it off', async () => {
+  it('turns push on again after the user turned it off', async () => {
     mocks.disabledOnDevice = true;
     const screen = renderSettings();
+    const checkbox = screen.getByRole('checkbox', { name: 'Push notifications on this device' });
 
+    await expect.element(checkbox).not.toBeChecked();
     await expect
-      .element(screen.getByText('Push notifications are turned off on this device'))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole('button', { name: 'Turn off push notifications' }))
+      .element(screen.getByRole('button', { name: 'Send test notification' }))
       .not.toBeInTheDocument();
-    await screen.getByRole('button', { name: 'Enable push notifications' }).click();
+    await checkbox.click();
 
     expect(mocks.enablePushOnAllServers).toHaveBeenCalledOnce();
   });
 
   it('offers a retry when push could not be turned off for every server', async () => {
-    mocks.disablePushOnAllServers.mockImplementation(async () => {
-      mocks.disabledOnDevice = true;
-      throw new Error('server unreachable');
-    });
+    mocks.disablePushOnAllServers.mockRejectedValue(new Error('server unreachable'));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const screen = renderSettings();
 
-    await screen.getByRole('button', { name: 'Turn off push notifications' }).click();
+    await screen.getByRole('checkbox', { name: 'Push notifications on this device' }).click();
 
     await expect
-      .element(screen.getByText('Push notifications could not be turned off for every server.'))
-      .toBeVisible();
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent('Push notifications could not be turned off for every server.');
     await screen.getByRole('button', { name: 'Try Again' }).click();
     expect(mocks.disablePushOnAllServers).toHaveBeenCalledTimes(2);
     error.mockRestore();
