@@ -14,6 +14,8 @@ thread history, reactions, typing refresh, addressing recognition, reply
 context, conversation keys, and accepted-delivery tracking. It has no Runling
 dependency. ChattoBot retains routing, inboxes, cancellation, and
 configuration reload state.
+Failed source investigations retain a host-written `failureSummary` for the
+supervisor. Raw command errors, output, and local paths are not included.
 
 ChattoBot also owns an in-memory Runling approval queue for each supervisor
 conversation. Implementation children send approval notices to their parent.

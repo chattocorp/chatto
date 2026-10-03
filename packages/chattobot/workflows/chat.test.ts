@@ -75,63 +75,72 @@ test.each([null, 'existing-thread'])(
   }
 );
 
-test('the supervisor can acknowledge with one reaction and no chat reply', async () => {
-  const react = vi.fn(async () => {});
-  const post = vi.fn(async () => {});
-  let tool:
-    | {
-        name: string;
-        execute: (
-          id: string,
-          input: { emoji: string },
-          signal: AbortSignal
-        ) => Promise<{ content: unknown }>;
+test.each([false, true])(
+  'a reaction does not discard a substantive answer (%s)',
+  async (answer) => {
+    const react = vi.fn(async () => {});
+    const post = vi.fn(async () => {});
+    let tool:
+      | {
+          name: string;
+          execute: (
+            id: string,
+            input: { emoji: string },
+            signal: AbortSignal
+          ) => Promise<{ content: unknown }>;
+        }
+      | undefined;
+    const bot = createChattoBot({
+      acknowledge: async () => {},
+      react,
+      post,
+      typing: async () => {},
+      timeout: 0,
+      readThread: async () => ({ messages: [], olderOmitted: false }),
+      createAgent: async (options) => {
+        expect(options.tools).toContain('reactToMessage');
+        for (const extension of options.extensions ?? []) {
+          const factory = typeof extension === 'function' ? extension : extension.factory;
+          await factory({
+            on() {},
+            registerTool(definition: NonNullable<typeof tool>) {
+              if (definition.name === 'reactToMessage') tool = definition;
+            }
+          } as unknown as AgentExtensionAPI);
+        }
+        return {
+          async runOutcome(_ctx, _prompt, runOptions) {
+            const signal = new AbortController().signal;
+            const result = await tool!.execute('reaction', { emoji: 'thumbsup' }, signal);
+            expect(result.content).toEqual([
+              { type: 'text', text: 'Reaction added to the current user message.' }
+            ]);
+            await expect(tool!.execute('duplicate', { emoji: 'heart' }, signal)).rejects.toThrow(
+              'Only one reaction'
+            );
+            if (answer) runOptions?.onText?.('Here are my capabilities.');
+            return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
+          },
+          steer: async () => false,
+          dispose() {}
+        };
       }
-    | undefined;
-  const bot = createChattoBot({
-    acknowledge: async () => {},
-    react,
-    post,
-    typing: async () => {},
-    timeout: 0,
-    readThread: async () => ({ messages: [], olderOmitted: false }),
-    createAgent: async (options) => {
-      expect(options.tools).toContain('reactToMessage');
-      for (const extension of options.extensions ?? []) {
-        const factory = typeof extension === 'function' ? extension : extension.factory;
-        await factory({
-          on() {},
-          registerTool(definition: NonNullable<typeof tool>) {
-            if (definition.name === 'reactToMessage') tool = definition;
-          }
-        } as unknown as AgentExtensionAPI);
-      }
-      return {
-        async runOutcome(_ctx, _prompt, runOptions) {
-          const signal = new AbortController().signal;
-          const result = await tool!.execute('reaction', { emoji: 'thumbsup' }, signal);
-          expect(result.content).toEqual([
-            { type: 'text', text: 'Reaction added to the current user message.' }
-          ]);
-          await expect(tool!.execute('duplicate', { emoji: 'heart' }, signal)).rejects.toThrow(
-            'Only one reaction'
-          );
-          runOptions?.onText?.('Redundant thanks.');
-          return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
-        },
-        steer: async () => false,
-        dispose() {}
-      };
-    }
-  });
-  await bot(createWorkflowContext(), delivery);
-  expect(react).toHaveBeenCalledExactlyOnceWith(
-    { roomId: 'dm', messageId: 'root' },
-    'thumbsup',
-    expect.any(AbortSignal)
-  );
-  expect(post).not.toHaveBeenCalled();
-});
+    });
+    await bot(createWorkflowContext(), delivery);
+    expect(react).toHaveBeenCalledExactlyOnceWith(
+      { roomId: 'dm', messageId: 'root' },
+      'thumbsup',
+      expect.any(AbortSignal)
+    );
+    if (answer)
+      expect(post).toHaveBeenCalledWith(
+        expect.any(Object),
+        'Here are my capabilities.',
+        expect.any(AbortSignal)
+      );
+    else expect(post).not.toHaveBeenCalled();
+  }
+);
 
 test.each([
   { trigger: 'direct_message', thread: null },

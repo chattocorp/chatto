@@ -176,14 +176,15 @@ reactions. A failed reaction logs a warning and the reply continues.
 
 The supervisor can use `reactToMessage` to add an emoji reaction to the current
 message addressed to the bot. For a simple thanks or acknowledgement, it can
-send a reaction without a text reply, including after web research. After a
-successful reaction, the host suppresses redundant answer text for that turn. Questions and task results still need a
+send a reaction without a text reply, including after web research. The model
+ends simple acknowledgement turns without text. A reaction does not suppress
+an answer to a question. Questions and task results still need a
 text reply. The tool permits one call per user message and no calls from
 background notifications. It uses the same Chatto client and reaction permission.
 
 The supervisor uses `acknowledgeRequest` to send a brief text reply before
-research or other longer work. The host blocks reference loading and web
-research until the acknowledgement has been posted. For an initiating root message, it sends this
+research or other longer work. The host blocks reference loading, web research,
+and GitHub reads until the acknowledgement has been posted. For an initiating root message, it sends this
 reply first to open the thread. The model writes the acknowledgement in the
 user's language. It then continues with the request. Simple follow-up messages
 can still receive only a reaction.
@@ -350,7 +351,10 @@ branch's remote-tracking ref instead, for example `refs/remotes/origin/main`, so
 plans and changes start from the same branch. Uncommitted changes
 in the supplied checkout are not included. Configure the selected model's
 credentials in Pi or the host environment, then restart ChattoBot and start a new
-conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent.
+conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent. The
+configured directory must exist. A missing directory stops the investigation
+with a safe explanation in `failureSummary`; the supervisor can report the
+cause. Subprocess errors do not expose command output.
 
 The chat agent can call `investigateChatto` with a question and relevant context.
 It supplies a brief announcement in the language of the message that it answers. The tool posts that

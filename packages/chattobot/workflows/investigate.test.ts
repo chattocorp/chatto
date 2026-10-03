@@ -769,3 +769,64 @@ test('the registered tool runs a child workflow and returns its evidence', async
   expect(mocks.agent).toHaveBeenCalledOnce();
   await tasks.dispose();
 });
+
+test('an unavailable source checkout produces a safe diagnosis before an agent starts', async () => {
+  const settings = await fixture();
+  const createAgent = vi.fn();
+  const investigate = createInvestigation(
+    { ...settings, directory: join(settings.directory, 'missing') },
+    createAgent
+  );
+  await expect(
+    investigate(createWorkflowContext(), { question: 'Check this finding' })
+  ).rejects.toThrow(
+    'The configured source checkout is unavailable. Check CHATTO_SOURCE_DIRECTORY.'
+  );
+  expect(createAgent).not.toHaveBeenCalled();
+});
+
+test.each(['checkout', 'command', 'unknown'] as const)(
+  'a failed investigation retains a safe diagnosis: %s',
+  async (failure) => {
+    const settings = await fixture();
+    if (failure === 'unknown') mocks.agent.mockRejectedValueOnce(new Error('private diagnostic'));
+    const expected =
+      failure === 'checkout'
+        ? 'The configured source checkout is unavailable. Check CHATTO_SOURCE_DIRECTORY.'
+        : failure === 'command'
+          ? 'git rev-parse failed (exit 128)'
+          : 'The source investigation failed unexpectedly before returning findings.';
+    const ctx = createWorkflowContext();
+    const tasks = createAgentTasks(ctx, { notifyActivity: false });
+    let call!: (id: string, input: unknown) => Promise<{ content: { text: string }[] }>;
+    const extension = investigationExtension(
+      ctx,
+      {
+        ...settings,
+        ...(failure === 'checkout' ? { directory: join(settings.directory, 'missing') } : {}),
+        ...(failure === 'command' ? { baseRef: 'nonexistent-test-ref' } : {})
+      },
+      async () => {},
+      tasks
+    );
+    await (typeof extension === 'function' ? extension : extension.factory)({
+      registerTool(tool: { execute: typeof call }) {
+        call = tool.execute;
+      }
+    } as unknown as AgentExtensionAPI);
+    try {
+      const handle = JSON.parse(
+        (await call('call', { question: 'Check the code', announcement: 'I’ll check the source.' }))
+          .content[0]!.text
+      );
+      await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('failed'));
+      const { taskSummaries } = await import('./task-context.ts');
+      const [summary] = taskSummaries(tasks.list());
+      expect(summary?.failureSummary).toBe(expected);
+      expect(summary?.failureSummary).not.toContain('private diagnostic');
+      expect(summary?.failureSummary).not.toContain(settings.directory);
+    } finally {
+      await tasks.dispose();
+    }
+  }
+);

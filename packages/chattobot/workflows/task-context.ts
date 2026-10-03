@@ -27,11 +27,16 @@ export function taskContext(tasks: AgentTaskState[]): SupervisorTask[] {
     if (task.status !== 'running') {
       // A cancelled or failed task returns no result; its artifact ID still allows continuing.
       const artifactId = task.state?.artifactId;
+      const failureSummary =
+        task.name === 'Chatto source investigation' && task.status === 'failed'
+          ? task.state?.failureSummary
+          : undefined;
       delete current.state;
       delete current.stateAt;
       delete current.stateAgeMs;
       if (typeof artifactId === 'string' && task.status !== 'completed')
         current.state = { artifactId };
+      if (typeof failureSummary === 'string') current.state = { ...current.state, failureSummary };
     }
     return current;
   });
@@ -52,6 +57,8 @@ export interface TaskSummary {
   latest?: string;
   provider?: AgentTaskState['provider'];
   failureReason?: AgentTaskState['failureReason'];
+  /** Safe host diagnosis for a failed source investigation. Excludes raw errors and output. */
+  failureSummary?: string;
   /** For a finished task: its outcome and short summary. */
   outcome?: unknown;
   summary?: unknown;
@@ -81,6 +88,9 @@ export function taskSummaries(tasks: AgentTaskState[]): TaskSummary[] {
       ...(latest ? { latest: latest.length > 300 ? `${latest.slice(0, 300)}…` : latest } : {}),
       ...(task.provider ? { provider: task.provider } : {}),
       ...(task.failureReason ? { failureReason: task.failureReason } : {}),
+      ...(typeof current!.state?.failureSummary === 'string'
+        ? { failureSummary: current!.state.failureSummary }
+        : {}),
       ...(result ? { outcome: result.outcome, summary: result.summary } : {}),
       ...(typeof artifactId === 'string' ? { artifactId } : {})
     };

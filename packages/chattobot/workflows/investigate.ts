@@ -1,6 +1,4 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { task, Type, type WorkflowContext } from 'runling';
@@ -20,8 +18,7 @@ import type { ImplementationSettings } from './implement.ts';
 import { setting, thinkingSetting } from '../settings.ts';
 import { implementationPlanSchema, type InvestigationPlans } from './plan.ts';
 import { feasibilitySchema, PURPOSE_DELIVERABLES, type DeliveredValues } from './deliverables.ts';
-
-const execute = promisify(execFile);
+import { HostCommandError, implementationProcess } from './implementation-process.ts';
 const parameters = Type.Object({
   question: Type.String({
     minLength: 1,
@@ -129,15 +126,21 @@ export function createInvestigation(
       input = { ...input, purpose };
       const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(timeoutMs)]);
       const git = async (cwd: string, args: string[], commandSignal = signal) => {
-        const { stdout } = await execute('git', ['-c', 'core.hooksPath=/dev/null', ...args], {
+        return await implementationProcess('git', ['-c', 'core.hooksPath=/dev/null', ...args], {
           cwd,
           signal: commandSignal,
-          timeout: 30_000,
-          maxBuffer: 8 * 1024 * 1024
+          timeoutMs: 30_000
         });
-        return stdout;
       };
       signal.throwIfAborted();
+      try {
+        if (!(await stat(directory)).isDirectory()) throw new Error('Not a directory');
+      } catch {
+        signal.throwIfAborted();
+        throw new HostCommandError(
+          'The configured source checkout is unavailable. Check CHATTO_SOURCE_DIRECTORY.'
+        );
+      }
       const baseCommit = (
         await git(directory, [
           'rev-parse',
@@ -384,6 +387,19 @@ export function investigationExtension(
               question: input.question,
               context: input.context,
               purpose: input.purpose
+            }).catch(async (error: unknown) => {
+              if (ctx.signal.aborted) throw error;
+              const failure =
+                error instanceof HostCommandError
+                  ? error
+                  : new HostCommandError(
+                      'The source investigation failed unexpectedly before returning findings.'
+                    );
+              await ctx.emit({
+                type: 'state',
+                value: { phase: 'failed', failureSummary: failure.message }
+              });
+              throw failure;
             });
             if (result.outcome === 'completed' && result.plan) {
               plans.set(run.id, structuredClone(result.plan));

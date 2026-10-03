@@ -111,14 +111,14 @@ test.each(['accepted', 'refused'])(
   }
 );
 
-test('a reaction-only turn does not suppress a later background result', async () => {
+test('a reaction preserves both an answer and a later background result', async () => {
   const replies: string[] = [];
   let react!: (id: string, input: { emoji: string }) => Promise<unknown>;
   interact.mockImplementationOnce(async (ctx, _agent, _prompt, options) => {
     await options.prepareMessage('Thanks', 'user');
     await react('reaction', { emoji: 'heart' });
-    await ctx.emit('Redundant thanks');
-    expect(replies).toEqual([]);
+    await ctx.emit('Here are my capabilities.');
+    expect(replies).toEqual(['Here are my capabilities.']);
     await options.prepareMessage('Background result', 'notification');
     await ctx.emit('The task finished.');
     return '';
@@ -164,5 +164,5 @@ test('a reaction-only turn does not suppress a later background result', async (
       announce: async () => {}
     }
   );
-  expect(replies).toEqual(['The task finished.']);
+  expect(replies).toEqual(['Here are my capabilities.', 'The task finished.']);
 });

@@ -56,8 +56,9 @@ async function supervisor(
   const commands: { args: readonly string[]; token: string }[] = [];
   const tokens: GitHubPermissions[] = [];
   let requester = 'maintainer';
+  let messageId = 'message';
   // Messages that reached the bot as deliveries; others in the thread are only context.
-  const addressed = new Set<string>();
+  const addressed = new Set<string>(['message']);
   const classify = vi.fn(async (_request: AuthorizationRequest) => decision);
   const run: GhRunner = async (args, { token }) => {
     commands.push({ args, token });
@@ -88,6 +89,7 @@ async function supervisor(
         requester = author;
         const id = `m${thread.length}`;
         addressed.add(id);
+        messageId = id;
         if (inThread) thread.push({ id, role: 'human', body: message, authorId: author });
         return JSON.parse(await options.prepareMessage(message, 'user'));
       },
@@ -153,7 +155,7 @@ async function supervisor(
       onBusy() {},
       setReplyContext() {},
       requester: () => requester,
-      currentMessageId: () => undefined,
+      currentMessageId: () => messageId,
       isAddressed: (id) => addressed.has(id),
       announce: async () => {},
       ...extra
@@ -162,7 +164,7 @@ async function supervisor(
 }
 
 test('anyone can read GitHub; only maintainers can change it; gh output is untrusted', async () => {
-  await supervisor(async ({ options, gates, prepare }) => {
+  await supervisor(async ({ options, gates, prepare, tools, commands }) => {
     expect(options.tools).toEqual(expect.arrayContaining(['gh', 'ghWrite']));
     expect(options.trust).toMatchObject({
       untrusted: ['gh'],
@@ -170,6 +172,14 @@ test('anyone can read GitHub; only maintainers can change it; gh output is untru
     });
     expect(await gates[0]!({ type: 'tool_call', toolName: 'ghWrite', input: {} })).toBeUndefined();
     await prepare('which issues are in the 0.5.0 milestone?', 'someone-else');
+    expect(await gates[0]!({ type: 'tool_call', toolName: 'gh', input: {} })).toMatchObject({
+      block: true,
+      reason: expect.stringContaining('acknowledgeRequest')
+    });
+    expect(commands).toEqual([]);
+    await tools
+      .get('acknowledgeRequest')!
+      .execute('ack', { acknowledgement: 'I’ll list the issues.' });
     expect(await gates[0]!({ type: 'tool_call', toolName: 'gh', input: {} })).toBeUndefined();
     expect(await gates[0]!({ type: 'tool_call', toolName: 'ghWrite', input: {} })).toMatchObject({
       block: true
@@ -447,7 +457,7 @@ test('a timed-out change warns that it may have applied', async () => {
 });
 
 test('maintainer-only tools run only as direct calls, never from a codemode script', async () => {
-  await supervisor(async ({ gates, prepare }) => {
+  await supervisor(async ({ gates, prepare, tools }) => {
     await prepare('file an issue about the flaky test');
     const call = (toolName: string, parentToolCallId?: string) =>
       gates[0]!({
@@ -468,7 +478,8 @@ test('maintainer-only tools run only as direct calls, never from a codemode scri
       'task_cancel'
     ])
       expect(await call(tool, 'script')).toMatchObject({ block: true });
-    // Reads stay available to scripts.
+    await tools.get('acknowledgeRequest')!.execute('ack', { acknowledgement: 'I’ll check.' });
+    // Reads stay available to scripts after acknowledgement.
     expect(await call('gh', 'script')).toBeUndefined();
   });
 });
