@@ -521,10 +521,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * The browser reports "push service error" when it cannot register with its
  * push service, for example when the profile holds too many registrations.
  * After such a failure, automatic saves create no new browser subscriptions
- * for any server until an explicit retry succeeds or the page reloads; each
+ * for any server until a manual retry creates one or the page reloads; each
  * further attempt could leave another registration behind.
  */
-let pushServiceFailure: string | null = null;
+let pushServiceFailure: unknown = null;
 /** Serializes browser subscribe calls so that one failure stops the others. */
 let browserSubscribeTail: Promise<unknown> = Promise.resolve();
 
@@ -534,12 +534,16 @@ function isPushServiceFailure(reason: string): boolean {
 
 /** Creates a browser subscription, one at a time across all servers. */
 function subscribeInBrowser(
+  serverId: string,
+  signal: AbortSignal,
   registration: ServiceWorkerRegistration,
   applicationServerKey: Uint8Array<ArrayBuffer>,
   manual: boolean
-): Promise<PushSubscription> {
+): Promise<PushSubscription | null> {
   const operation = browserSubscribeTail.then(async () => {
-    if (pushServiceFailure && !manual) throw new Error(pushServiceFailure);
+    // Work cancelled while it waited for its turn creates no subscription.
+    if (isPushRegistrationSuspended(serverId, signal)) return null;
+    if (pushServiceFailure && !manual) throw pushServiceFailure;
     try {
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -548,8 +552,7 @@ function subscribeInBrowser(
       pushServiceFailure = null;
       return subscription;
     } catch (error) {
-      const reason = technicalReason(error);
-      if (isPushServiceFailure(reason)) pushServiceFailure = reason;
+      if (isPushServiceFailure(technicalReason(error))) pushServiceFailure = error;
       throw error;
     }
   });
@@ -672,7 +675,14 @@ async function ensureRegisteredOnce(
     }
 
     if (!subscription) {
-      subscription = await subscribeInBrowser(registration, applicationServerKey, manual);
+      subscription = await subscribeInBrowser(
+        serverId,
+        signal,
+        registration,
+        applicationServerKey,
+        manual
+      );
+      if (!subscription) return false;
       createdSubscription = true;
       if (isPushRegistrationSuspended(serverId, signal)) {
         if (shouldInvalidateCancelledPushRegistration(serverId)) {
