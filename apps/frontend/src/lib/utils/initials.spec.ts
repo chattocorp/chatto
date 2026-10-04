@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAvatarColour, getAvatarLabel } from './initials';
+import { getAvatarLabel } from './initials';
 
 describe('getAvatarLabel', () => {
   it('skips invisible letter fillers when finding an initial', () => {
@@ -51,19 +51,5 @@ describe('getAvatarLabel', () => {
     expect(getAvatarLabel(null, null)).toEqual({ kind: 'icon' });
     expect(getAvatarLabel(undefined, undefined)).toEqual({ kind: 'icon' });
     expect(getAvatarLabel('!!!', '   ')).toEqual({ kind: 'icon' });
-  });
-});
-
-describe('getAvatarColour', () => {
-  it('keeps the palette mapping stable for immutable IDs', () => {
-    // Fixed FNV-1a fixtures protect the palette order and hash algorithm.
-    expect(getAvatarColour('a')).toBe('amber');
-    expect(getAvatarColour('b')).toBe('orange');
-    expect(getAvatarColour('user-1')).toBe(getAvatarColour('user-1'));
-  });
-
-  it('assigns all eight colours across account IDs', () => {
-    const colours = new Set(Array.from({ length: 100 }, (_, i) => getAvatarColour('user-' + i)));
-    expect(colours.size).toBe(8);
   });
 });

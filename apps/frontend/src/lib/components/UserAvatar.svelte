@@ -4,7 +4,7 @@
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import { m } from '$lib/i18n/messages';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
-  import { getAvatarColour, getAvatarLabel } from '$lib/utils/initials';
+  import { getAvatarLabel } from '$lib/utils/initials';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
@@ -91,7 +91,6 @@
   const label = $derived(
     user ? getAvatarLabel(user.displayName, user.login) : { kind: 'icon' as const }
   );
-  const colour = $derived(user ? getAvatarColour(user.id) : 'blue');
 
   const avatarUrl = $derived(
     user && !user.deleted
@@ -136,8 +135,7 @@
     [
       avatarClass,
       textSizeClasses[size],
-      'flex items-center justify-center font-semibold ring-1 ring-inset ring-muted/15',
-      user?.deleted ? 'bg-surface-emphasized text-muted' : 'avatar-placeholder'
+      'flex items-center justify-center bg-surface-emphasized font-semibold text-muted ring-1 ring-inset ring-muted/15'
     ]
       .filter(Boolean)
       .join(' ')
@@ -169,7 +167,7 @@
         <span class="iconify icon-[uil--user-times]" aria-hidden="true"></span>
       </div>
     {:else}
-      <div class={placeholderClass} data-avatar-colour={colour} role="img" aria-label={user.login}>
+      <div class={placeholderClass} role="img" aria-label={user.login}>
         {#if label.kind === 'icon'}
           <span class="icon-[uil--user]" aria-hidden="true"></span>
         {:else}

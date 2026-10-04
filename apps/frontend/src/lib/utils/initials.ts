@@ -1,4 +1,4 @@
-/** Generate local avatar labels and stable account colours independently of name validation. */
+/** Generate local avatar labels independently of name validation. */
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 /** A neutral user icon is used when no text or emoji label is available. */
@@ -44,25 +44,4 @@ export function getAvatarLabel(
     }
   }
   return { kind: 'icon' };
-}
-
-/** Ordered semantic palette; keep its order stable to preserve account colours. */
-const AVATAR_COLOURS = [
-  'blue',
-  'cyan',
-  'teal',
-  'green',
-  'amber',
-  'orange',
-  'pink',
-  'violet'
-] as const;
-
-/** Hash an immutable account ID with UTF-8 FNV-1a to select one of eight colours. */
-export function getAvatarColour(userId: string): (typeof AVATAR_COLOURS)[number] {
-  let hash = 0x811c9dc5;
-  for (const byte of new TextEncoder().encode(userId)) {
-    hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
-  }
-  return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
 }

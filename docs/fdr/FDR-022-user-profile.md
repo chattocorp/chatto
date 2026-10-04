@@ -46,7 +46,7 @@ at append returns to the caller instead of replaying the batch.
 omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 - **Display name** — freely editable by a human or bot account. Shown in messages, member lists, and mention autocomplete. A name accepts visible, single-line Unicode text, including punctuation and emoji at the start. Surrounding whitespace is trimmed; internal spaces are preserved. The limit is 32 Unicode code points. Controls, line breaks, directional controls, and unsupported invisible formatting are rejected. Script joiners, variation selectors, and emoji tags are allowed. Whitespace, combining marks, and formatting alone do not make a valid name. Username rules do not change.
-- **Fallback avatar** — when an avatar is absent or cannot load, the client uses the first letter or number from up to two words that contain one. It keeps complete Unicode characters and their combining marks. If the name has no letters or numbers, it uses the first complete emoji, then the login initial, then a user icon. Each account has a stable background colour with a readable foreground. A name change does not change the colour. These avatars are generated locally and need no external service.
+- **Fallback avatar** — when an avatar is absent or cannot load, the client uses the first letter or number from up to two words that contain one. It keeps complete Unicode characters and their combining marks. If the name has no letters or numbers, it uses the first complete emoji, then the login initial, then a user icon. All accounts use the same neutral surface background and muted foreground, which follow the selected surface tone and theme. These avatars are generated locally and need no external service.
 - **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Human and bot logins use the same rules: they start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message. A change by a bot owner or bot manager follows the same rule as a change by the bot. A change by an account manager does not check or start the cooldown.
 - **Case-only changes** (for example, `alice` → `Alice`) do not check or start the cooldown.
 - **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the fallback avatar. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
@@ -214,9 +214,9 @@ The startup screen in `app.html` paints before the stylesheet loads, so it canno
 
 ### 18. Display names do not determine avatar support
 
-**Decision:** Display names accept visible, single-line Unicode text. Fallback avatars select initials, emoji, a login initial, or a user icon independently of name validation. Each account has a stable colour.
+**Decision:** Display names accept visible, single-line Unicode text. Fallback avatars select initials, emoji, a login initial, or a user icon independently of name validation. All accounts use the same neutral styling.
 **Why:** A display name is presentation text. Users need natural names, script joiners, and complete emoji. An avatar must work with these names without imposing username rules.
-**Tradeoff:** A fallback avatar cannot uniquely identify an account. The client continues to show the name and login where account identity matters. Colour is an extra visual cue, not an identity or permission signal.
+**Tradeoff:** A fallback avatar cannot uniquely identify an account. The client continues to show the name and login where account identity matters.
 
 ## Permissions
 

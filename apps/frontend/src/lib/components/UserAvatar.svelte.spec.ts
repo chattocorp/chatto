@@ -17,7 +17,7 @@ function computedBackgroundColor(color: string): string {
 }
 
 describe('UserAvatar', () => {
-  it('updates Unicode labels without changing the account colour', async () => {
+  it('updates Unicode labels', async () => {
     const user = {
       id: 'user-1',
       login: 'alice',
@@ -27,11 +27,9 @@ describe('UserAvatar', () => {
     };
     const view = render(UserAvatar, { props: { user, useLiveProfile: false } });
     const avatar = q(view.container, '[aria-label="alice"]')!;
-    const colour = avatar.getAttribute('data-avatar-colour');
     expect(avatar.textContent?.trim()).toBe('DA');
     await view.rerender({ user: { ...user, displayName: '👩‍💻' } });
     await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('👩‍💻');
-    expect(avatar.getAttribute('data-avatar-colour')).toBe(colour);
     await view.rerender({ user: { ...user, displayName: '!!!' } });
     await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('A');
   });
@@ -50,52 +48,38 @@ describe('UserAvatar', () => {
       q(view.container, 'span[aria-hidden="true"]')?.classList.contains('icon-[uil--user]')
     ).toBe(true);
     await view.rerender({ user: { ...user, deleted: true } });
-    expect(q(view.container, '.avatar-placeholder')).toBeNull();
     expect(q(view.container, '.bg-surface-emphasized')).toBeTruthy();
     expect(
       q(view.container, 'span[aria-hidden="true"]')?.classList.contains('icon-[uil--user-times]')
     ).toBe(true);
   });
 
-  it('keeps all eight palette labels above 4.5:1 contrast in both themes', async () => {
+  it('uses the same neutral surface and muted label for different accounts in both themes', async () => {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     const user = {
       id: 'a',
-      login: 'palette',
-      displayName: 'Palette',
+      login: 'avatar',
+      displayName: 'Avatar',
       avatarUrl: null,
       presenceStatus: PresenceStatus.OFFLINE
     };
     const view = render(UserAvatar, { props: { user, useLiveProfile: false } });
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 1;
-    const context = canvas.getContext('2d')!;
-    function luminance(colour: string): number {
-      context.fillStyle = colour;
-      context.fillRect(0, 0, 1, 1);
-      const channels = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map((byte) => {
-        const channel = byte / 255;
-        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-      });
-      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-    }
     try {
       for (const theme of ['light', 'dark']) {
         root.setAttribute('data-theme', theme);
-        const colours = new Set<string>();
-        for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+        for (const id of ['a', 'b']) {
           await view.rerender({ user: { ...user, id } });
-          const avatar = q(view.container, '[aria-label="palette"]')!;
-          colours.add(avatar.getAttribute('data-avatar-colour')!);
+          const avatar = q(view.container, '[aria-label="avatar"]')!;
           const style = getComputedStyle(avatar);
-          const foreground = luminance(style.color);
-          const background = luminance(style.backgroundColor);
-          expect(
-            (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
-          ).toBeGreaterThanOrEqual(4.5);
+          const tokens = getComputedStyle(root);
+          expect(style.backgroundColor).toBe(
+            computedBackgroundColor(tokens.getPropertyValue('--color-surface-emphasized'))
+          );
+          expect(style.color).toBe(
+            computedBackgroundColor(tokens.getPropertyValue('--color-muted'))
+          );
         }
-        expect(colours.size).toBe(8);
       }
     } finally {
       if (previousTheme === null) root.removeAttribute('data-theme');
@@ -287,10 +271,10 @@ describe('UserAvatar', () => {
     });
 
     const image = q(view.container, 'img[alt="alice"]');
-    expect(q(view.container, '.avatar-placeholder')).toBeNull();
+    expect(q(view.container, '.bg-surface-emphasized')).toBeNull();
     expect(view.container.querySelector('.skeleton')).toBeNull();
     image?.dispatchEvent(new Event('error'));
     await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('👩‍💻');
-    expect(q(view.container, '[data-avatar-colour]')).toBeTruthy();
+    expect(q(view.container, '.bg-surface-emphasized.text-muted')).toBeTruthy();
   });
 });

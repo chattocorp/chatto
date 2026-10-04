@@ -405,15 +405,11 @@ state ownership, not the visual treatment of their forms.
 
 Use semantic tokens instead of Tailwind palette colors for application chrome.
 
-Generated user avatars use `avatar-placeholder` with `data-avatar-colour`.
-The eight account colours are Blue, Cyan, Teal, Green, Amber, Orange, Pink,
-and Violet, in that order. The immutable account ID selects a stable colour;
-the name and the selected app accent do not change it. The `--avatar-*` tokens
-use the deep shades of the accent palettes and `--avatar-foreground` supplies
-white labels. Each pair must have at least 4.5:1 contrast in light and dark
-themes. Uploaded avatars and deleted-account placeholders keep their own
-presentation. Avatar labels use complete Unicode graphemes for initials or
-emoji; a user icon is the last fallback. Generation needs no external service.
+Generated user avatars use `bg-surface-emphasized` with `text-muted` and a
+subtle inset ring. They follow the selected surface tone and theme. All
+accounts use the same neutral styling. Avatar labels use complete Unicode
+graphemes for initials or emoji; a user icon is the last fallback. Generation
+needs no external service.
 Media overlays may use literal black and white where contrast must be
 independent of the active theme.
 
