@@ -23,6 +23,13 @@ function api() {
 }
 
 describe('BOT_CAPABILITIES', () => {
+  it('never writes the same grant for two capabilities', () => {
+    const keys = BOT_CAPABILITIES.flatMap((capability) =>
+      capability.grants.map((grant) => `${grant.scope.tier}:${grant.permission}`)
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   it('only grants known permissions at a scope where they apply', () => {
     for (const capability of BOT_CAPABILITIES) {
       for (const grant of capability.grants) {
@@ -47,11 +54,6 @@ describe('botCapabilityGrants', () => {
       'dm:message.post',
       'server:message.read'
     ]);
-  });
-
-  it('writes a shared grant once', () => {
-    const grants = botCapabilityGrants(['post', 'post']);
-    expect(grants.map((grant) => grant.permission)).toEqual(['message.post', 'message.echo']);
   });
 });
 

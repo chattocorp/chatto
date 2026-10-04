@@ -92,31 +92,24 @@ const CAPABILITIES_BY_ID = new Map(
 export type BotCapabilityGrantRequest = BotCapabilityGrant & { capabilityId: BotCapabilityId };
 
 /**
- * Returns the grants of the selected capabilities in catalogue order. A grant
- * that two capabilities share appears once.
+ * Returns the grants of the selected capabilities in catalogue order. No two
+ * capabilities share a grant; a spec checks this.
  */
 export function botCapabilityGrants(ids: Iterable<BotCapabilityId>): BotCapabilityGrantRequest[] {
   const selected = new Set(ids);
-  const seen = new Set<string>();
-  const grants: BotCapabilityGrantRequest[] = [];
-  for (const capability of BOT_CAPABILITIES) {
-    if (!selected.has(capability.id)) continue;
-    for (const grant of capability.grants) {
-      const key = `${grant.scope.tier}:${grant.permission}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      grants.push({ ...grant, capabilityId: capability.id });
-    }
-  }
-  return grants;
+  return BOT_CAPABILITIES.filter((capability) => selected.has(capability.id)).flatMap(
+    (capability) => capability.grants.map((grant) => ({ ...grant, capabilityId: capability.id }))
+  );
 }
 
 /**
  * Reports whether the creator can give the capability to a bot they own. The
  * server rejects a bot grant that the owner does not hold (owner ceiling), so
  * the dialog locks such a capability. It checks every grant against the
- * creator's server-scope permissions. A DM-scope decision of the creator can
- * differ; the apply step reports that case.
+ * creator's effective server-scope permissions. This is an approximation:
+ * a DM-scope decision of the creator can differ, and the server owner's
+ * implicit authority only shows in privileged mode, while the owner ceiling
+ * always includes it. The apply step reports a rejected grant.
  */
 export function botCapabilityAvailable(
   id: BotCapabilityId,
