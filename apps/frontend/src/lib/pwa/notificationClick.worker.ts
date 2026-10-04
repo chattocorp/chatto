@@ -14,8 +14,9 @@ interface NotificationClickMessageChannel {
 }
 
 export interface NotificationClickClient {
+  focused?: boolean;
+  visibilityState?: DocumentVisibilityState;
   focus?: () => Promise<NotificationClickClient | null>;
-  navigate?: (url: string) => Promise<NotificationClickClient | null>;
   postMessage?: (message: unknown, transfer?: unknown[]) => void;
 }
 
@@ -31,7 +32,7 @@ interface NotificationClickLogger {
   warn: (...args: unknown[]) => void;
 }
 
-export type NotificationClickRouteResult = 'client' | 'navigate' | 'open';
+export type NotificationClickRouteResult = 'client' | 'open';
 
 export interface NotificationClickRouteOptions {
   ackTimeoutMs?: number;
@@ -120,16 +121,36 @@ function notifyClientAndWaitForAck(
 async function focusClient(
   client: NotificationClickClient,
   logger?: NotificationClickLogger
-): Promise<NotificationClickClient | null> {
-  if (typeof client.focus !== 'function') return null;
+): Promise<void> {
+  if (typeof client.focus !== 'function') return;
   try {
-    return await client.focus();
+    await client.focus();
   } catch (err) {
     logger?.warn('[SW] Failed to focus existing window:', err);
-    return null;
   }
 }
 
+/** Focused windows first, then visible ones, so the click reaches the window the user sees. */
+function clientPriority(client: NotificationClickClient): number {
+  if (client.focused) return 0;
+  if (client.visibilityState === 'visible') return 1;
+  return 2;
+}
+
+/**
+ * Route a notification click to `rawUrl` after normalizing it to this origin.
+ *
+ * A notification click allows exactly one window action: Chromium consumes
+ * the click's window-interaction allowance on the first `focus()` or
+ * `openWindow()` call. The worker that shows push notifications is a
+ * per-server worker with a narrow `/__chatto/push/…/` scope, so it never
+ * controls the app windows and `WindowClient.navigate()` always fails there.
+ *
+ * Each open window is therefore asked, in priority order, to route in place.
+ * The page acknowledges on receipt. Only an acknowledged window receives the
+ * single `focus()`. When no window acknowledges, the unused allowance opens
+ * the target in a new window.
+ */
 export async function routeNotificationClick(
   rawUrl: string | undefined,
   origin: string,
@@ -142,27 +163,17 @@ export async function routeNotificationClick(
     ackTimeoutMs: options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS,
     createMessageChannel: options.createMessageChannel ?? createDefaultMessageChannel
   };
-  const clientList = await clients.matchAll({
-    type: 'window',
-    includeUncontrolled: true
-  });
+  const clientList = [
+    ...(await clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    }))
+  ].sort((a, b) => clientPriority(a) - clientPriority(b));
 
   for (const client of clientList) {
-    const initiallyFocusedClient = await focusClient(client, options.logger);
-    const focusedClient = initiallyFocusedClient ?? client;
-    const acknowledged = await notifyClientAndWaitForAck(focusedClient, url, ackOptions);
-    if (acknowledged) {
+    if (await notifyClientAndWaitForAck(client, url, ackOptions)) {
+      await focusClient(client, options.logger);
       return 'client';
-    }
-
-    try {
-      const navigatedClient = await focusedClient.navigate?.(url);
-      if (navigatedClient) {
-        if (!initiallyFocusedClient) await focusClient(navigatedClient, options.logger);
-        return 'navigate';
-      }
-    } catch (err) {
-      options.logger?.warn('[SW] Failed to navigate existing window:', err);
     }
   }
 

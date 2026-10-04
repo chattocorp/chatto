@@ -58,6 +58,12 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 **Why:** Self-hosted servers should install with their own visible identity without requiring a custom frontend build.
 **Tradeoff:** Browsers decide when to refresh installed PWA metadata and may cache it aggressively, so existing installs or tabs may keep the previous name or icon until the browser revalidates the metadata or the user reinstalls the app.
 
+### 6. Notification clicks ask open windows before they open a window
+
+**Decision:** A notification click sends the target URL to the open application windows in this order: focused, visible, then hidden. The first window that acknowledges routes in place, and the worker then focuses it. The page acknowledges when the message arrives, before it routes. When no window acknowledges, the worker opens the target in a new window. The worker does not use `WindowClient.navigate()`.
+**Why:** The push worker has a narrow scope, so it never controls an application window, and browsers reject `navigate()` from a worker that does not control the window. Chromium also allows only one window action (`focus()` or `openWindow()`) for each click. If the worker focuses a window before it knows that the window can route, it cannot open a window afterwards, and the click does nothing.
+**Tradeoff:** A window that receives the message after the acknowledgement timeout routes late, and a new window also opens.
+
 ## Related
 
 - **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-103 (cached-first client startup, superseded), [ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md) (no chat data in device storage)

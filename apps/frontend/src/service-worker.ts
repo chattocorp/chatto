@@ -302,8 +302,7 @@ self.addEventListener('push', (event) => {
 /**
  * Handle notification clicks.
  * Prefer postMessage to an already-open client so the SPA can route via
- * `goto()` (no full reload). Fall back to `WindowClient.navigate()` or
- * `openWindow()` when no client is open or messaging fails.
+ * `goto()` (no full reload). Open a new window when no client acknowledges.
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

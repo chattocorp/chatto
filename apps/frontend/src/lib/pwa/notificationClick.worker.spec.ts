@@ -43,19 +43,14 @@ describe('routeNotificationClick', () => {
     );
   });
 
-  it('focuses the window before using acknowledged SPA routing', async () => {
+  it('focuses a window only after it acknowledges SPA routing', async () => {
     const channel = createAcknowledgingMessageChannel();
     const focus = vi.fn(async () => client);
-    const navigate = vi.fn(async () => client);
     const postMessage = vi.fn((_message, transfer) => {
       const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
       ackPort.postMessage({ type: 'notification-click-ack' });
     });
-    const client: NotificationClickClient = {
-      focus,
-      navigate,
-      postMessage
-    };
+    const client: NotificationClickClient = { focus, postMessage };
     const clients = clientsWith([client]);
 
     const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
@@ -63,24 +58,18 @@ describe('routeNotificationClick', () => {
     });
 
     expect(result).toBe('client');
-    expect(focus).toHaveBeenCalledOnce();
     expect(postMessage).toHaveBeenCalledWith({ type: 'notification-click', url: TARGET_URL }, [
       channel.port2
     ]);
-    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(postMessage.mock.invocationCallOrder[0]);
-    expect(navigate).not.toHaveBeenCalled();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(postMessage.mock.invocationCallOrder[0]).toBeLessThan(focus.mock.invocationCallOrder[0]);
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
-  it('falls back to WindowClient.navigate before focusing when the SPA does not acknowledge', async () => {
+  it('keeps the single window action for openWindow when no window acknowledges', async () => {
     const focus = vi.fn(async () => client);
-    const navigate = vi.fn(async () => client);
     const postMessage = vi.fn();
-    const client: NotificationClickClient = {
-      focus,
-      navigate,
-      postMessage
-    };
+    const client: NotificationClickClient = { focus, postMessage };
     const clients = clientsWith([client]);
 
     const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
@@ -88,30 +77,35 @@ describe('routeNotificationClick', () => {
       createMessageChannel: createAcknowledgingMessageChannel
     });
 
-    expect(result).toBe('navigate');
+    expect(result).toBe('open');
     expect(postMessage).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith(TARGET_URL);
-    expect(focus).toHaveBeenCalledOnce();
-    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(postMessage.mock.invocationCallOrder[0]);
-    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
-    expect(clients.openWindow).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
-  it('tries later window clients when an earlier client cannot route or navigate', async () => {
-    const staleClient: NotificationClickClient = {
-      focus: vi.fn(async () => staleClient),
-      navigate: vi.fn(async () => null),
-      postMessage: vi.fn()
-    };
-    const activeClient: NotificationClickClient = {
-      focus: vi.fn(async () => activeClient),
-      navigate: vi.fn(async () => activeClient),
-      postMessage: vi.fn((_message, transfer) => {
-        const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
-        ackPort.postMessage({ type: 'notification-click-ack' });
-      })
-    };
-    const clients = clientsWith([staleClient, activeClient]);
+  it('asks focused, then visible, then hidden windows and stops at the first acknowledgement', async () => {
+    const order: string[] = [];
+    function windowClient(
+      name: string,
+      state: Pick<NotificationClickClient, 'focused' | 'visibilityState'>,
+      acknowledges: boolean
+    ): NotificationClickClient {
+      const client: NotificationClickClient = {
+        ...state,
+        focus: vi.fn(async () => client),
+        postMessage: vi.fn((_message, transfer) => {
+          order.push(name);
+          if (!acknowledges) return;
+          const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
+          ackPort.postMessage({ type: 'notification-click-ack' });
+        })
+      };
+      return client;
+    }
+    const hidden = windowClient('hidden', { visibilityState: 'hidden' }, true);
+    const visible = windowClient('visible', { visibilityState: 'visible' }, true);
+    const focused = windowClient('focused', { focused: true, visibilityState: 'visible' }, false);
+    const clients = clientsWith([hidden, visible, focused]);
 
     const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
       ackTimeoutMs: 1,
@@ -119,11 +113,10 @@ describe('routeNotificationClick', () => {
     });
 
     expect(result).toBe('client');
-    expect(staleClient.postMessage).toHaveBeenCalledOnce();
-    expect(staleClient.navigate).toHaveBeenCalledWith(TARGET_URL);
-    expect(staleClient.focus).toHaveBeenCalledOnce();
-    expect(activeClient.postMessage).toHaveBeenCalledOnce();
-    expect(activeClient.focus).toHaveBeenCalledOnce();
+    expect(order).toEqual(['focused', 'visible']);
+    expect(focused.focus).not.toHaveBeenCalled();
+    expect(visible.focus).toHaveBeenCalledOnce();
+    expect(hidden.postMessage).not.toHaveBeenCalled();
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
