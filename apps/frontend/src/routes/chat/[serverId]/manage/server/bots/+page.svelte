@@ -144,7 +144,8 @@
   }
 
   function openCreate() {
-    if (!canCreateBots) return;
+    // Wait until the grants of the previous bot are done.
+    if (!canCreateBots || createLoading) return;
     createLogin = '';
     createDisplayName = '';
     createCapabilities = [];
@@ -187,11 +188,15 @@
               connection.getAPI(createPermissionAPI),
               created.bot.id,
               capabilities
-            ).then(({ failed }) => {
-              if (failed.length === 0) return false;
-              if (componentActive) toast.warning(m('settings.bots.capabilities.apply_failed'));
-              return true;
-            });
+            )
+              .then(({ failed }) => failed.length > 0)
+              .catch(() => true)
+              .then((failed) => {
+                if (failed && componentActive) {
+                  toast.warning(m('settings.bots.capabilities.apply_failed'));
+                }
+                return failed;
+              });
       await createdBotGrants;
     } catch (error) {
       if (!componentActive) return;
@@ -248,7 +253,7 @@
             />
           </div>
           {#if canCreateBots}
-            <Button size="sm" onclick={openCreate}>
+            <Button size="sm" loading={createLoading} onclick={openCreate}>
               <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
               {m('settings.bots.create')}
             </Button>

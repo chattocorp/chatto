@@ -38,6 +38,7 @@ let server: TestServerScope;
 import BotsPage from './+page.svelte';
 
 const HELPER_PERMISSIONS = {
+  'message.react': true,
   'message.read': true,
   'message.post': true,
   'message.read-interactions': true,
@@ -209,6 +210,34 @@ describe('Bot administration page', () => {
     await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(2));
     expect(permissions.setUserPermission.mock.calls.map(([request]) => request.permission)).toEqual(
       ['message.read-interactions', 'message.post-in-interactions']
+    );
+  });
+
+  it('navigates only after the grants finish when the key dialog closes early', async () => {
+    server.permissions.canCreateBots = true;
+    server.permissions.serverScope = HELPER_PERMISSIONS;
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    permissions.setUserPermission.mockImplementation(async (request: SetUserPermissionRequest) => {
+      await released;
+      return {
+        decision: {
+          permission: request.permission,
+          scope: request.scope,
+          decision: PermissionDecision.ALLOW
+        }
+      };
+    });
+    const { container } = render(BotsPage);
+
+    await createHelperBot(container, [/React to messages/]);
+    await userEvent.click(page.getByRole('button', { name: 'Got it' }));
+    await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(1));
+    expect(navigation.goto).not.toHaveBeenCalled();
+
+    release();
+    await vi.waitFor(() =>
+      expect(navigation.goto).toHaveBeenCalledWith('/chat/-/manage/server/bots/B1')
     );
   });
 
