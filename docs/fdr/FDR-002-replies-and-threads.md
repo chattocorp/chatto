@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-28
 
 ## Overview
 
@@ -63,6 +63,8 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - A successful Threading Mode change appears as an actor-attributed room timeline event. The same ordered realtime update also refreshes room metadata, so open composers and reply actions react immediately.
 - Before a user posts another root within five minutes of their latest root in the room, the client checks whether that previous root now has a thread. If it does, the client asks whether to continue in that thread or post the prepared root as-is. This also covers a thread another user established after the root was posted. Cancelling preserves the draft. The prompt is omitted when the user cannot post in that thread or when the current room policy forbids thread replies.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
+- Clicking or tapping message body text in room and direct-message timelines opens its thread. An echo opens its source thread. If no thread exists, the pane opens only when the user can reply in a thread and the room permits threads. Opening the pane does not post a message or add reply attribution. Existing threads remain readable without posting permission.
+- Body activation opens immediately on a click or tap. Links, mentions, timestamp controls, drag selection, and touch action sheets keep their own behavior. A normal click that clears an old selection can open the thread. Double-click selection can be interrupted because the first click opens the pane. Messages inside a thread and search or preview cards do not use this shortcut. Existing thread controls remain available to keyboard users.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
 - My Threads lists followed conversations with their root, latest visible
   reply, participant preview, reply count, activity time, reply unread state,

@@ -19,6 +19,7 @@ identity, body rendering, and row geometry consistent.
   import { LoadingFog } from '$lib/ui';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import { m } from '$lib/i18n/messages';
+  import { messageBodyActivation } from '$lib/attachments/messageBodyActivation';
 
   let {
     eventId,
@@ -41,6 +42,7 @@ identity, body rendering, and row geometry consistent.
     timestampSettings,
     timestampLocale,
     onMentionClick,
+    onBodyActivate,
     onActorClick,
     onActorContextMenu,
     onActorTouchStart,
@@ -81,6 +83,8 @@ identity, body rendering, and row geometry consistent.
     timestampSettings?: TimeFormatSettings;
     timestampLocale?: string;
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
+    /** Optional pointer shortcut; callers retain keyboard-accessible thread controls. */
+    onBodyActivate?: () => void;
     onActorClick?: (event: MouseEvent) => void;
     onActorContextMenu?: (event: MouseEvent) => void;
     onActorTouchStart?: (event: TouchEvent) => void;
@@ -219,7 +223,12 @@ identity, body rendering, and row geometry consistent.
       {#if deleted}
         <span class="text-muted italic">{m('room.message.meta.deleted')}</span>
       {:else if body}
-        <div bind:this={bodyElement} class="pointer-fine:select-text">
+        <!-- Reading eventId recreates the attachment when a virtualized row changes message. -->
+        <div
+          bind:this={bodyElement}
+          class={['pointer-fine:select-text', onBodyActivate && 'cursor-pointer']}
+          {@attach messageBodyActivation(eventId ? onBodyActivate : undefined)}
+        >
           <MessageContent
             {body}
             {members}

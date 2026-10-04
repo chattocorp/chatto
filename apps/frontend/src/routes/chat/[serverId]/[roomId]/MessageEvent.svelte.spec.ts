@@ -161,6 +161,77 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('opens bodies without attribution and respects thread scope and room policy', async () => {
+    const onOpenThread = vi.fn();
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), onOpenThread }
+    });
+    const tap = () => {
+      const body = q(rendered.container, '[data-testid="message-body"]')!;
+      body.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, isPrimary: true, pointerType: 'touch' })
+      );
+      body.dispatchEvent(
+        new PointerEvent('click', { bubbles: true, pointerType: 'touch', detail: 1 })
+      );
+    };
+    tap();
+    expect(onOpenThread).toHaveBeenLastCalledWith('regular-message');
+    onOpenThread.mockClear();
+    await rendered.rerender({
+      event: messageEvent(),
+      permalinkThreadRootEventId: 'regular-message'
+    });
+    tap();
+    expect(onOpenThread).not.toHaveBeenCalled();
+    await rendered.rerender({
+      event: messageEvent(),
+      permalinkThreadRootEventId: null,
+      threadingMode: RoomThreadingMode.ENABLED,
+      canPostInThread: false
+    });
+    tap();
+    expect(onOpenThread).not.toHaveBeenCalled();
+    await rendered.rerender({ event: messageEvent({ threadExists: true }) });
+    tap();
+    expect(onOpenThread).toHaveBeenLastCalledWith('regular-message');
+    onOpenThread.mockClear();
+    await rendered.rerender({
+      event: messageEvent(),
+      permalinkThreadRootEventId: null,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    tap();
+    expect(onOpenThread).not.toHaveBeenCalled();
+    await rendered.rerender({
+      event: messageEvent({ threadExists: true }),
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    tap();
+    expect(onOpenThread).toHaveBeenLastCalledWith('regular-message');
+    await rendered.rerender({
+      event: messageEvent({ echoOfEventId: 'reply', echoFromThreadRootEventId: 'source-root' })
+    });
+    tap();
+    expect(onOpenThread).toHaveBeenLastCalledWith('source-root');
+  });
+
+  it('cancels a press when a virtualized row changes identity before release', async () => {
+    const onOpenThread = vi.fn();
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), onOpenThread }
+    });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    body.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, isPrimary: true, pointerType: 'mouse' })
+    );
+    await rendered.rerender({ event: messageEvent({ id: 'next-message' }) });
+    body.dispatchEvent(
+      new PointerEvent('click', { bubbles: true, pointerType: 'mouse', detail: 1 })
+    );
+    expect(onOpenThread).not.toHaveBeenCalled();
+  });
+
   it('opens the target user menu on a mention right-click', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;
