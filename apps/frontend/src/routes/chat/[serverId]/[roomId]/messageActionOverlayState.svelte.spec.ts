@@ -23,12 +23,20 @@ describe('MessageActionOverlayState', () => {
     // A menu opens the emoji picker and then closes itself.
     state.open('a', { kind: 'menu', position: { x: 1, y: 2 } });
     state.open('a', { kind: 'emoji', position: { x: 1, y: 2 }, presentation: 'auto' });
-    state.close('menu');
+    state.close({ kind: 'menu' });
     expect(state.overlay?.kind).toBe('emoji');
 
-    state.close('emoji');
+    state.close({ kind: 'emoji' });
     expect(state.overlay).toBeNull();
     expect(state.eventId).toBeNull();
+  });
+
+  it('ignores a late close from another message', () => {
+    const state = new MessageActionOverlayState();
+
+    state.open('b', { kind: 'menu', position: { x: 1, y: 2 } });
+    state.close({ kind: 'menu', eventId: 'a' });
+    expect(state.isOpenFor('b')).toBe(true);
   });
 
   it('hands the reply quote to one reply only', () => {

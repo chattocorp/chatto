@@ -52,8 +52,8 @@ surface-specific sizing and menu semantics.
   }
 
   function handleOpenReactionDetails() {
-    onOpenReactionDetails?.();
     onClose();
+    onOpenReactionDetails?.();
   }
 
   function handleReply() {

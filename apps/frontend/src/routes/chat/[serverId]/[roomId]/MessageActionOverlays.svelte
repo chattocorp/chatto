@@ -4,12 +4,16 @@ the touch action sheet, the emoji picker, or the reaction details.
 `MessageActionOverlayHost` binds it to the message that owns the overlay.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import type { MessageActionModel } from './messageActionModel';
-  import type { MessageActionOverlayState } from './messageActionOverlayState.svelte';
+  import type {
+    MessageActionOverlay,
+    MessageActionOverlayState
+  } from './messageActionOverlayState.svelte';
 
   let messageActionMenuModule: Promise<typeof import('./MessageActionMenu.svelte')> | null = null;
   let messageActionMenuLoadAttempt = $state(0);
@@ -48,16 +52,21 @@ the touch action sheet, the emoji picker, or the reaction details.
   } = $props();
 
   const overlay = $derived(overlays.overlay);
+  // The owner keys this component by message ID. Closing unmounts this component, and
+  // its props then stop resolving, so handlers that run after a close use this copy.
+  const eventId = untrack(() => messageEventId);
+
+  function close(kind: MessageActionOverlay['kind']): void {
+    overlays.close({ kind, eventId });
+  }
 
   $effect(() => {
-    if (reactions.length === 0) overlays.close('reactions');
+    if (reactions.length === 0) close('reactions');
   });
-
-  // Closing unmounts this component, and its props then stop resolving. Read them first.
 
   // The menu closes itself after it opens another overlay. The kind-scoped close keeps it.
   function openEmojiPicker(presentation: 'menu' | 'sheet'): void {
-    overlays.open(messageEventId, {
+    overlays.open(eventId, {
       kind: 'emoji',
       position: overlay?.kind === 'menu' ? overlay.position : { x: 0, y: 0 },
       presentation: presentation === 'sheet' ? 'sheet' : 'auto'
@@ -67,7 +76,7 @@ the touch action sheet, the emoji picker, or the reaction details.
   async function handleEmojiSelect(emoji: string): Promise<void> {
     const { serverId, toggleReaction } = action;
     getRecentEmojis(serverId).recordReaction(emoji);
-    overlays.close('emoji');
+    close('emoji');
     await toggleReaction(emoji);
   }
 </script>
@@ -84,11 +93,11 @@ the touch action sheet, the emoji picker, or the reaction details.
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
       {action}
       hasReactions={reactions.length > 0}
-      onOpenReactionDetails={() => overlays.open(messageEventId, { kind: 'reactions' })}
+      onOpenReactionDetails={() => overlays.open(eventId, { kind: 'reactions' })}
       linkUrl={presentation === 'menu' ? overlays.linkUrl : null}
       imageUrl={presentation === 'menu' ? overlays.imageUrl : null}
       onOpenEmojiPicker={action.canReact ? () => openEmojiPicker(presentation) : undefined}
-      onClose={() => overlays.close(presentation)}
+      onClose={() => close(presentation)}
     />
   {:catch}
     {@render loadError(() => (messageActionMenuLoadAttempt += 1))}
@@ -96,7 +105,7 @@ the touch action sheet, the emoji picker, or the reaction details.
 {/snippet}
 
 {#if overlay?.kind === 'menu'}
-  <ContextMenu position={overlay.position} class="min-w-72" onclose={() => overlays.close('menu')}>
+  <ContextMenu position={overlay.position} class="min-w-72" onclose={() => close('menu')}>
     {@render actionMenu('menu')}
   </ContextMenu>
 {:else if overlay?.kind === 'sheet'}
@@ -104,7 +113,7 @@ the touch action sheet, the emoji picker, or the reaction details.
     presentation="sheet"
     role="dialog"
     ariaLabel={m('room.message.actions.toolbar')}
-    onclose={() => overlays.close('sheet')}
+    onclose={() => close('sheet')}
   >
     {@render actionMenu('sheet')}
   </ContextMenu>
@@ -115,7 +124,7 @@ the touch action sheet, the emoji picker, or the reaction details.
     role="dialog"
     ariaLabel={m('room.message.actions.add_reaction')}
     scrollDismissal="user"
-    onclose={() => overlays.close('emoji')}
+    onclose={() => close('emoji')}
   >
     {#await loadEmojiPicker(emojiPickerLoadAttempt)}
       <LoadingFog class="m-2 h-28 w-64 max-w-full" />
@@ -123,7 +132,7 @@ the touch action sheet, the emoji picker, or the reaction details.
       <EmojiPicker
         serverId={action.serverId}
         onSelect={handleEmojiSelect}
-        onClose={() => overlays.close('emoji')}
+        onClose={() => close('emoji')}
       />
     {:catch}
       {@render loadError(() => (emojiPickerLoadAttempt += 1))}
@@ -137,9 +146,9 @@ the touch action sheet, the emoji picker, or the reaction details.
       {roomId}
       {messageEventId}
       {reactions}
-      onClose={() => overlays.close('reactions')}
+      onClose={() => close('reactions')}
     />
   {:catch}
-    {@render loadError(() => overlays.close('reactions'))}
+    {@render loadError(() => close('reactions'))}
   {/await}
 {/if}

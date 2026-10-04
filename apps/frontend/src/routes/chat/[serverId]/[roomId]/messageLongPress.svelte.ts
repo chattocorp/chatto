@@ -78,9 +78,12 @@ export class MessageLongPressGesture {
     if (!this.#fired) this.#stopListeningForPressEnd();
   }
 
+  /**
+   * Stops the gesture when its row unmounts. The opening-click guard stays: the row can
+   * unmount while the finger is still down, and the guard removes itself.
+   */
   dispose(): void {
     this.finish();
-    this.#clearOpeningClickGuard();
   }
 
   #stopListeningForPressEnd(): void {

@@ -50,6 +50,12 @@ export class MessageActionOverlayState {
     return this.overlay !== null && this.eventId === eventId;
   }
 
+  /** True when the context menu or the touch action sheet is open for the message. */
+  isMenuOpenFor(eventId: string): boolean {
+    const kind = this.overlay?.kind;
+    return this.eventId === eventId && (kind === 'menu' || kind === 'sheet');
+  }
+
   /** True when a floating overlay is open for the message and its toolbar must stay visible. */
   keepsToolbarVisibleFor(eventId: string): boolean {
     const kind = this.overlay?.kind;
@@ -66,11 +72,14 @@ export class MessageActionOverlayState {
   }
 
   /**
-   * Closes the open overlay. With `kind`, closes only an overlay of that kind, so a menu
-   * that opens another overlay and then closes itself does not close the new overlay.
+   * Closes the open overlay. `kind` and `eventId` limit the close to a matching overlay.
+   * A menu that opens another overlay and then closes itself does not close the new
+   * overlay, and a late close from one message does not close the overlay of another.
    */
-  close(kind?: MessageActionOverlay['kind']): void {
-    if (!this.overlay || (kind && this.overlay.kind !== kind)) return;
+  close(scope: { kind?: MessageActionOverlay['kind']; eventId?: string } = {}): void {
+    if (!this.overlay) return;
+    if (scope.kind && this.overlay.kind !== scope.kind) return;
+    if (scope.eventId && this.eventId !== scope.eventId) return;
     this.eventId = null;
     this.overlay = null;
     this.linkUrl = null;

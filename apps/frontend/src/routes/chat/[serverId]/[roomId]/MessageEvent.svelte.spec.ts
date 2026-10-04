@@ -230,6 +230,57 @@ describe('MessageEvent action model integration', () => {
     expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined();
   });
 
+  it('quotes the selection captured at open after the row unmounts', async () => {
+    const onOpenThread = vi.fn();
+    const event = messageEvent({ body: 'Quote this selection' });
+    const rendered = render(MessageEventTestHarness, { props: { event, onOpenThread } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+
+    q(rendered.container, '[data-testid="message-row"]')!.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 2 })
+    );
+    await openContextMenu(rendered.container);
+    await rendered.rerender({ event, onOpenThread, showMessage: false });
+    menuButton(rendered.container, 'Reply in thread')!.click();
+
+    expect(onOpenThread).toHaveBeenCalledWith(
+      event.id,
+      expect.objectContaining({ quoteText: 'Quote this selection' })
+    );
+  });
+
+  it('clears the selected text when the message menu closes', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+
+    await openContextMenu(rendered.container);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
+    expect(window.getSelection()!.isCollapsed).toBe(true);
+  });
+
+  it('ignores the context menu event of a touch long press', async () => {
+    const { container } = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const row = q(container, '[data-testid="message-row"]')!;
+
+    vi.useFakeTimers();
+    row.dispatchEvent(new Event('touchstart', { bubbles: true, cancelable: true }));
+    vi.advanceTimersByTime(500);
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    flushSync();
+    vi.useRealTimers();
+
+    await vi.waitFor(() => expect(actionSheetButton(container, 'Copy message link')).toBeTruthy());
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
   it('keeps the message menu for a mention without a current member', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;

@@ -179,7 +179,7 @@
     if (prefersTouch && !canUseHoverActions) {
       longPress.cancel();
     }
-    if (!hasOpenActionOverlay) {
+    if (!actionOverlays.isMenuOpenFor(event.id)) {
       selectedReplyQuoteSnapshot = null;
     }
   }
@@ -215,7 +215,7 @@
       mentionedUserId &&
       members.some((member) => member.id === mentionedUserId)
     ) {
-      actionOverlays.close('menu');
+      actionOverlays.close({ kind: 'menu', eventId: event.id });
       showPopoverForMember(mentionedUserId, mention.getBoundingClientRect());
       return;
     }
@@ -236,7 +236,6 @@
   }
 
   // MessagePostedEvent-specific data (threading, inReplyTo, etc.)
-  // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions
   const messageEvent = $derived(target.messageEvent);
   const isEcho = $derived(target.isEcho);
   const threadRootEventId = $derived(target.threadRootEventId);
@@ -445,7 +444,7 @@
       compact ? (hasVisualEmbed ? 'mt-1.5' : '') : 'mt-4',
       isCurrentUserMentioned ? 'bg-warning/10' : ''
     ]}
-    rowClass={longPress.active || hasOpenActionOverlay ? 'bg-surface' : ''}
+    rowClass={longPress.active || actionOverlays.isMenuOpenFor(event.id) ? 'bg-surface' : ''}
     {members}
     roleHandles={mentionRoleHandles}
     timestampSettings={userSettings}
