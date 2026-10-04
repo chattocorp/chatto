@@ -45,97 +45,32 @@ func isFreshAuthAt(at time.Time, now time.Time) bool {
 	return !at.IsZero() && now.Sub(at) >= 0 && now.Sub(at) <= FreshAuthWindow
 }
 
+// RequireFreshAuthForBearerToken and MarkBearerTokenFresh are rare
+// account-security operations. They validate the token through the stream
+// leader, so a re-verification on another replica is always visible.
 func (c *ChattoCore) RequireFreshAuthForBearerToken(ctx context.Context, token string) error {
-	data, err := c.authTokenData(ctx, token)
+	credential, err := c.validateRuntimeCredential(ctx, token, AuthTokenPresentationBearer, authoritativeCredentialRead)
 	if err != nil {
 		return err
 	}
-	if !data.canSatisfyFreshAuth() {
+	if credential.Kind != AuthTokenKindFirstPartySession {
 		return ErrFreshAuthRequired
 	}
-	if isFreshAuthAt(data.FreshAuthAt, time.Now()) {
+	if isFreshAuthAt(credential.FreshAuthAt, time.Now()) {
 		return nil
 	}
 	return ErrFreshAuthRequired
 }
 
 func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, source string) error {
-	data, err := c.authTokenData(ctx, token)
+	credential, err := c.validateRuntimeCredential(ctx, token, AuthTokenPresentationBearer, authoritativeCredentialRead)
 	if err != nil {
 		return err
 	}
-	if data.Kind != AuthTokenKindFirstPartySession {
+	if credential.Kind != AuthTokenKindFirstPartySession {
 		return ErrFreshAuthRequired
 	}
-	now := time.Now()
-	if err := c.markRenewableSessionFresh(ctx, data.RenewableSessionID, method, source, now); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d AuthTokenData) canSatisfyFreshAuth() bool {
-	if d.Kind != "" {
-		return d.Kind == AuthTokenKindFirstPartySession
-	}
-	return d.FreshAuthSource != "" && d.FreshAuthSource != "oauth_code_exchange"
-}
-
-// authTokenData resolves a bearer token for fresh-authentication checks and
-// updates. These are rare account-security operations, so it reads through the
-// stream leader: a re-verification on another replica is always visible.
-func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthTokenData, error) {
-	if token == "" {
-		return AuthTokenData{}, ErrAuthTokenNotFound
-	}
-	key := c.authTokenKey(token)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return AuthTokenData{}, ErrAuthTokenNotFound
-		}
-		return AuthTokenData{}, fmt.Errorf("failed to get auth token: %w", err)
-	}
-
-	var tokenData AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, ErrAuthTokenNotFound
-	}
-	if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
-		return AuthTokenData{}, ErrAuthTokenNotFound
-	}
-	if tokenData.UserID == "" {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, ErrAuthTokenNotFound
-	}
-	if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !time.Now().Before(tokenData.ExpiresAt) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, ErrAuthTokenNotFound
-	}
-	session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, time.Now())
-	if err != nil {
-		if errors.Is(err, ErrRefreshTokenNotFound) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return AuthTokenData{}, ErrAuthTokenNotFound
-		}
-		return AuthTokenData{}, err
-	}
-	if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return AuthTokenData{}, ErrAuthTokenNotFound
-	}
-	tokenData.FreshAuthAt = session.FreshAuthAt
-	tokenData.FreshAuthMethod = session.FreshAuthMethod
-	tokenData.FreshAuthSource = session.FreshAuthSource
-	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
-		if errors.Is(err, ErrAuthenticationRevoked) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return AuthTokenData{}, ErrAuthTokenNotFound
-		}
-		return AuthTokenData{}, err
-	}
-	return tokenData, nil
+	return c.markRenewableSessionFresh(ctx, credential.RenewableSessionID, method, source, time.Now())
 }
 
 // RequireFreshAuthForCookieSession reads the cookie record through the stream

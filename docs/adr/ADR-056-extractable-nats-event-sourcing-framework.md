@@ -125,7 +125,7 @@ accept a result quickly and decide a negative result again with `Get`.
 `UpdateWithTTL` adds the revision-checked TTL update that the bucket API does
 not have. Chatto binds all of its buckets through this type. Authling still
 uses plain `jetstream.KeyValue.Get` on buckets that allow direct gets, so the
-same lag can affect it; it is the expected second consumer. Applications keep
+same lag can affect it. Authling is the expected second consumer. Applications keep
 bucket names, configuration, value codecs, and the choice of which hot reads
 accept an older revision.
 

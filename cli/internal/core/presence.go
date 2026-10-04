@@ -233,17 +233,7 @@ func shouldIgnoreAutomaticPresenceWrite(existingData, incomingData []byte) bool 
 }
 
 func (s *PresenceModel) putPresenceWithTTL(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
-	ack, err := s.js.Publish(
-		ctx,
-		"$KV.MEMORY_CACHE."+key,
-		data,
-		jetstream.WithExpectLastSequencePerSubject(revision),
-		jetstream.WithMsgTTL(PresenceTTL),
-	)
-	if err != nil {
-		return 0, err
-	}
-	return ack.Sequence, nil
+	return s.memoryCacheKV.UpdateWithTTL(ctx, key, data, revision, PresenceTTL)
 }
 
 // GetUserPresence retrieves a user's current presence status.
@@ -253,7 +243,8 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 }
 
 // GetUserPresences returns watcher-backed presence for bulk read hydration.
-// Singular reads remain KV-backed so mutation responses retain read-your-writes.
+// Singular reads use the KV bucket directly; their liveness read can come from
+// any replica.
 func (c *ChattoCore) GetUserPresences(ctx context.Context, userIDs []string) (map[string]string, error) {
 	return c.presenceModel.GetUserPresences(ctx, userIDs)
 }

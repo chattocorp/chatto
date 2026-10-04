@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 )
@@ -282,6 +285,50 @@ func TestChattoCore_FreshAuthIgnoresLaggingReplica(t *testing.T) {
 	}
 	if err := chattoCore.RequireFreshAuthForCookieSession(ctx, cookieID); err != nil {
 		t.Fatalf("RequireFreshAuthForCookieSession with a lagging replica: %v", err)
+	}
+}
+
+func TestChattoCore_ValidAccessTokenDoesNotReadThroughLeader(t *testing.T) {
+	chattoCore, nc := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "fast-access-user", "Fast Access User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bearer, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	accessKey := chattoCore.authTokenKey(bearer.AccessToken)
+	var leaderReads atomic.Int64
+	subscription, err := nc.Subscribe("$JS.API.STREAM.MSG.GET.KV_RUNTIME_STATE", func(message *nats.Msg) {
+		if strings.Contains(string(message.Data), accessKey) {
+			leaderReads.Add(1)
+		}
+	})
+	if err != nil {
+		t.Fatalf("subscribe to leader reads: %v", err)
+	}
+	t.Cleanup(func() { _ = subscription.Unsubscribe() })
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	for range 3 {
+		if got, err := chattoCore.ValidateAuthToken(ctx, bearer.AccessToken); err != nil || got != user.Id {
+			t.Fatalf("ValidateAuthToken = %q, %v", got, err)
+		}
+	}
+	// The counter sees one leader read; a validation read would add more.
+	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, accessKey); err != nil {
+		t.Fatalf("leader read: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for leaderReads.Load() < 1 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if reads := leaderReads.Load(); reads != 1 {
+		t.Fatalf("leader reads of the access record = %d, want only the control read", reads)
 	}
 }
 
