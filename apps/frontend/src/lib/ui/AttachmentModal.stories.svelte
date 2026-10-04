@@ -2,6 +2,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import AttachmentModal from './AttachmentModal.svelte';
   import AttachmentPreview from './AttachmentPreview.svelte';
+  import { renderMarkdown } from '$lib/markdown';
   const { Story } = defineMeta({
     title: 'UI/Attachment viewer',
     component: AttachmentModal,
@@ -27,6 +28,17 @@
   let documentOpen = $state(false);
   const archiveDescription =
     'Project files and reference material for the next release.\n\nIncludes source files, illustrations, and notes from the design review.';
+  let markdownOpen = $state(false);
+  const markdownSource =
+    '# Project review\n\nA **rendered Markdown** attachment.\n\n' +
+    '- Read the report\n- Download the original\n\n' +
+    '| Feature | Status |\n| --- | --- |\n| Preview | Ready |\n\n' +
+    '```ts\nconst preview = true;\n```\n\n' +
+    Array.from(
+      { length: 12 },
+      (_, i) => `## Section ${i + 1}\n\nDocument content stays inside the scrolling preview.\n\n`
+    ).join('');
+  const markdownDocument = renderMarkdown(markdownSource);
 </script>
 
 <Story name="Image gallery" asChild>
@@ -62,6 +74,38 @@
           onerror={async () => null}
         />
       {/key}
+    </AttachmentModal>
+  {/if}
+</Story>
+<Story name="Markdown document" asChild>
+  <button class="btn-action" onclick={() => (markdownOpen = true)}>Open Markdown</button>
+  {#if markdownOpen}
+    <AttachmentModal
+      filename="Project review.md"
+      contentType="text/markdown"
+      description="Notes from the project review."
+      size={markdownSource.length}
+      downloadUrl={'data:text/markdown,' + encodeURIComponent(markdownSource)}
+      ondownload={() => {}}
+      onclose={() => (markdownOpen = false)}
+    >
+      {#await markdownDocument then markdownHtml}
+        <AttachmentPreview
+          item={{
+            id: 'markdown',
+            filename: 'Project review.md',
+            contentType: 'text/markdown',
+            width: 0,
+            height: 0
+          }}
+          serverId="story"
+          url={null}
+          busy={false}
+          {markdownHtml}
+          onpreview={() => {}}
+          onerror={async () => null}
+        />
+      {/await}
     </AttachmentModal>
   {/if}
 </Story>

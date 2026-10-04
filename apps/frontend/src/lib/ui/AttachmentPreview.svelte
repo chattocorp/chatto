@@ -8,6 +8,7 @@ component on selection changes so playback and consent cannot cross items.
   import { m } from '$lib/i18n/messages';
   import ZoomableImage from './ZoomableImage.svelte';
   import LoadingFog from './LoadingFog.svelte';
+  import MarkdownHtml from './MarkdownHtml.svelte';
   import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
   import { isHtmlAttachment } from '@chatto/client/timeline/messageAttachments';
   import { assetUrlForServer } from '@chatto/client/util/assetUrls';
@@ -17,6 +18,7 @@ component on selection changes so playback and consent cannot cross items.
     serverId,
     url,
     busy,
+    markdownHtml = null,
     zoomable = false,
     onpreview,
     onerror
@@ -25,6 +27,8 @@ component on selection changes so playback and consent cannot cross items.
     serverId: string;
     url: string | null;
     busy: boolean;
+    /** Audited Markdown renderer output; null means no document is ready. */
+    markdownHtml?: string | null;
     /** Static image previews can use the viewer's zoom surface. */
     zoomable?: boolean;
     onpreview: () => void;
@@ -35,7 +39,16 @@ component on selection changes so playback and consent cannot cross items.
   const id = $props.id();
 </script>
 
-{#if html && !url}
+{#if markdownHtml !== null}
+  <section
+    class="h-full min-h-0 w-full overflow-y-auto p-4"
+    aria-label={m('room.attachment.html_viewer.preview_title', { filename: item.filename })}
+  >
+    <div class="prose max-w-none min-w-0 wrap-anywhere" dir="auto">
+      <MarkdownHtml html={markdownHtml} />
+    </div>
+  </section>
+{:else if html && !url}
   <div class="flex max-h-full flex-col items-center gap-3 overflow-y-auto p-4 text-center">
     <button
       type="button"

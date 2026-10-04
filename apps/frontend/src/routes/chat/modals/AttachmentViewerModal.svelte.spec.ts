@@ -1,5 +1,5 @@
 import '../../../app.css';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
@@ -12,7 +12,8 @@ const mocks = vi.hoisted(() => ({
   page: { state: {} as { modal?: AttachmentViewerModalState } }
 }));
 // Asset URLs resolve against the server that owns the attachment's server ID.
-vi.mock('@chatto/client/server/serverIds', () => ({
+vi.mock('@chatto/client/server/serverIds', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client/server/serverIds')>()),
   ownerOfServerId: () => ({ getServer: () => ({ url: 'https://remote.example' }) })
 }));
 vi.mock('$lib/client', async () => ({
@@ -246,6 +247,183 @@ describe('HTML viewer', () => {
       resolve(freshUrls());
       await tick();
       expect(view.container.querySelector('iframe')).toBeNull();
+    }
+  );
+});
+
+/** Viewer tests use controlled byte responses, including responses that ignore abort. */
+describe('Markdown attachment previews', () => {
+  const fetchDocument = vi.fn<typeof fetch>();
+
+  function documentModal(expired = false) {
+    const modal = modalState(expired);
+    modal.items[0].filename = 'report.md';
+    modal.items[0].contentType = 'text/markdown';
+    return modal;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchDocument.mockReset();
+    vi.stubGlobal('fetch', fetchDocument);
+    fetchDocument.mockResolvedValue(new Response('# Report\n\nDocument body.'));
+    mocks.refreshUrls.mockResolvedValue(freshUrls());
+    mocks.getMetadata.mockResolvedValue({ size: 1536 });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('automatically renders Markdown and preserves metadata and the original download', async () => {
+    fetchDocument.mockResolvedValue(
+      new Response(
+        '# Report\n\n**Summary**\n\n- First item\n- Second item\n\n' +
+          '| Item | Status |\n| --- | --- |\n| Preview | Ready |\n\n' +
+          '[Reference](https://example.com)\n\n```text\nexample code\n```\n\n@alice'
+      )
+    );
+    const modal = documentModal();
+    modal.items[0].description = 'Notes from the author.';
+    const view = mount(modal);
+    await expect.element(view.getByRole('heading', { name: 'Report', exact: true })).toBeVisible();
+    expect(view.container.querySelector('strong')?.textContent).toBe('Summary');
+    expect(view.container.querySelectorAll('li')).toHaveLength(2);
+    expect(view.container.querySelector('table')).not.toBeNull();
+    expect(view.container.querySelector('pre code')?.textContent).toContain('example code');
+    expect(view.container.querySelector('[data-mention-handle]')).toBeNull();
+    await expect
+      .element(view.getByRole('link', { name: 'Reference' }))
+      .toHaveAttribute('rel', 'noopener noreferrer');
+    await expect.element(view.getByText('Notes from the author.')).toBeVisible();
+    await expect.element(view.getByText('1.5 KiB', { exact: true })).toBeVisible();
+    await expect
+      .element(view.getByRole('link', { name: 'Download', exact: true }))
+      .toHaveAttribute('href', 'https://remote.example/assets/files/html?access=ticket&download=1');
+    expect(view.container.querySelector('iframe')).toBeNull();
+    expect(fetchDocument).toHaveBeenCalledExactlyOnceWith(
+      'https://remote.example/assets/files/html?access=ticket',
+      { signal: expect.any(AbortSignal), credentials: 'omit', referrerPolicy: 'no-referrer' }
+    );
+    expect(mocks.refreshUrls).not.toHaveBeenCalled();
+  });
+
+  it.each(['text/plain', 'application/octet-stream', ''])(
+    'automatically previews a Markdown filename with type %s',
+    async (contentType) => {
+      const modal = documentModal();
+      modal.items[0].contentType = contentType;
+      const view = mount(modal);
+      await expect
+        .element(view.getByRole('heading', { name: 'Report', exact: true }))
+        .toBeVisible();
+    }
+  );
+
+  it('keeps raw HTML and embedded images inert', async () => {
+    fetchDocument.mockResolvedValue(
+      new Response(
+        '# Safe\n\n<script>alert(1)</script>\n\n<img src="https://example.com/tracker">\n\n' +
+          '![Tracker](https://example.com/image.png)\n\n[Unsafe](javascript:alert(1))'
+      )
+    );
+    const view = mount(documentModal());
+    await expect.element(view.getByRole('heading', { name: 'Safe' })).toBeVisible();
+    expect(view.container.querySelector('script, img, iframe')).toBeNull();
+    expect(view.container.querySelector('a[href^="javascript:"]')).toBeNull();
+    expect(fetchDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an empty file as a valid preview', async () => {
+    fetchDocument.mockResolvedValue(new Response(''));
+    const view = mount(documentModal());
+    await expect.poll(() => view.container.querySelector('.markdown-html') !== null).toBe(true);
+    expect(view.container.textContent).not.toContain('No preview is available');
+  });
+
+  it('keeps loading active until the document body has been read and rendered', async () => {
+    let resolve!: (body: string) => void;
+    const response = new Response();
+    const read = vi.spyOn(response, 'text').mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        })
+    );
+    fetchDocument.mockResolvedValue(response);
+    const view = mount(documentModal());
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+    await expect
+      .element(view.getByRole('link', { name: 'Download', exact: true }))
+      .toHaveAttribute('aria-disabled', 'true');
+    expect(view.container.querySelector('.markdown-html')).toBeNull();
+    resolve('# Loaded document');
+    await expect
+      .element(view.getByRole('heading', { name: 'Loaded document', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(view.getByRole('link', { name: 'Download', exact: true }))
+      .toHaveAttribute('aria-disabled', 'false');
+  });
+
+  it('refreshes an expired URL before requesting document bytes', async () => {
+    const view = mount(documentModal(true));
+    await expect.element(view.getByRole('heading', { name: 'Report', exact: true })).toBeVisible();
+    expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
+    expect(fetchDocument.mock.calls[0][0]).toBe('about:blank');
+  });
+
+  it('refreshes and retries once after a failed byte request', async () => {
+    fetchDocument.mockResolvedValueOnce(new Response('', { status: 403 }));
+    const view = mount(documentModal());
+    await expect.element(view.getByRole('heading', { name: 'Report', exact: true })).toBeVisible();
+    expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
+    expect(fetchDocument).toHaveBeenCalledTimes(2);
+  });
+
+  it('bounds automatic recovery and allows a manual retry', async () => {
+    fetchDocument.mockRejectedValue(new TypeError('Request failed'));
+    const view = mount(documentModal());
+    await expect.element(view.getByRole('alert')).toBeVisible();
+    expect(fetchDocument).toHaveBeenCalledTimes(2);
+    expect(mocks.refreshUrls).toHaveBeenCalledTimes(1);
+    fetchDocument.mockResolvedValue(new Response('# Recovered'));
+    await view.getByRole('button', { name: 'Try Again', exact: true }).click();
+    await expect.element(view.getByRole('heading', { name: 'Recovered' })).toBeVisible();
+    expect(fetchDocument).toHaveBeenCalledTimes(3);
+    expect(mocks.refreshUrls).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['navigate', 'close', 'unmount'])(
+    'aborts pending bytes and discards late content after %s',
+    async (action) => {
+      let resolve!: (response: Response) => void;
+      fetchDocument.mockImplementationOnce(
+        () =>
+          new Promise((done) => {
+            resolve = done;
+          })
+      );
+      const modal = documentModal();
+      modal.items.push({ ...modal.items[0], id: 'next', filename: 'next.md' });
+      const view = mount(modal);
+      await expect.poll(() => fetchDocument.mock.calls.length).toBe(1);
+      const signal = (fetchDocument.mock.calls[0][1] as RequestInit).signal!;
+      if (action === 'navigate') {
+        await view.getByRole('button', { name: 'Next image' }).click();
+        await expect
+          .element(view.getByRole('heading', { name: 'Report', exact: true }))
+          .toBeVisible();
+      } else if (action === 'close') {
+        await view.getByRole('button', { name: 'Close', exact: true }).click();
+      } else await view.unmount();
+      await expect.poll(() => signal.aborted).toBe(true);
+      const response = new Response('# Stale document');
+      const read = vi.spyOn(response, 'text');
+      resolve(response);
+      await expect.poll(() => read.mock.settledResults[0]?.type).toBe('fulfilled');
+      await tick();
+      await expect
+        .poll(() => view.container.textContent?.includes('Stale document') ?? false)
+        .toBe(false);
+      expect(mocks.refreshUrls).not.toHaveBeenCalled();
     }
   );
 });
