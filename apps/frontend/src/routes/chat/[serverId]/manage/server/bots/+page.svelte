@@ -4,6 +4,7 @@
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createBotAPI } from '@chatto/client/api/bots';
+  import { createPermissionAPI } from '@chatto/client/api/permissions';
   import { createUserAPI } from '@chatto/client/api/users';
   import {
     DataTable,
@@ -15,7 +16,9 @@
     PaneContent,
     PaneHeader
   } from '$lib/ui';
+  import BotCapabilityPicker from '$lib/components/bots/BotCapabilityPicker.svelte';
   import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
+  import { applyBotCapabilities, type BotCapabilityId } from '$lib/components/bots/botCapabilities';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
@@ -98,11 +101,14 @@
   let createVisible = $state(false);
   let createLogin = $state('');
   let createDisplayName = $state('');
+  let createCapabilities = $state<BotCapabilityId[]>([]);
   let createLoading = $state(false);
   let createError = $state<string | null>(null);
   let apiKeyVisible = $state(false);
   let apiKey = $state('');
   let createdBotId = $state<string | null>(null);
+  /** After the API key dialog closes, open the Permissions tab of the new bot. */
+  let openCreatedBotPermissions = false;
 
   const botLoginSchema = z
     .string()
@@ -133,6 +139,7 @@
     if (!canCreateBots) return;
     createLogin = '';
     createDisplayName = '';
+    createCapabilities = [];
     createError = null;
     createVisible = true;
   }
@@ -149,11 +156,20 @@
         displayName: createDisplayName.trim()
       });
       if (!componentActive || !serverScope.isCurrent()) return;
+      const capabilities = createCapabilities;
+      const { failed } = await applyBotCapabilities(
+        connection.getAPI(createPermissionAPI),
+        created.bot.id,
+        capabilities
+      );
+      if (!componentActive || !serverScope.isCurrent()) return;
       createdBotId = created.bot.id;
+      openCreatedBotPermissions = capabilities.length === 0 || failed.length > 0;
       createVisible = false;
       apiKey = created.apiKey;
       apiKeyVisible = true;
-      toast.success(m('settings.bots.created'));
+      if (failed.length > 0) toast.warning(m('settings.bots.capabilities.apply_failed'));
+      else toast.success(m('settings.bots.created'));
       void queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.botsRoot(serverId, connection)
       });
@@ -171,11 +187,11 @@
     apiKey = '';
     createdBotId = null;
     if (botId) {
+      const params = { serverId: serverIdToSegment(serverScope.serverId), botId };
       void goto(
-        resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-          serverId: serverIdToSegment(serverScope.serverId),
-          botId
-        })
+        openCreatedBotPermissions
+          ? resolve('/chat/[serverId]/manage/server/bots/[botId]/permissions', params)
+          : resolve('/chat/[serverId]/manage/server/bots/[botId]', params)
       );
     }
   }
@@ -278,6 +294,7 @@
 <FormDialog
   bind:visible={createVisible}
   title={m('settings.bots.create_title')}
+  size="lg"
   submitLabel={m('settings.bots.create')}
   submitIcon="iconify icon-[uil--robot]"
   loading={createLoading}
@@ -301,6 +318,10 @@
     maxlength={32}
     required
     bind:value={createDisplayName}
+  />
+  <BotCapabilityPicker
+    bind:selected={createCapabilities}
+    serverScope={serverScope.store.permissions.serverScope}
   />
 </FormDialog>
 

@@ -507,6 +507,40 @@
       "create_title": "创建机器人帐户",
       "create_failed": "创建机器人失败",
       "created": "机器人已创建",
+      "capabilities": {
+        "legend": "这个机器人可以做什么？",
+        "hint": "你可以任意组合。机器人只在它所在的聊天室和私信中执行操作。你之后可以在“权限”选项卡中更改。",
+        "unavailable": "你没有此权限。",
+        "apply_failed": "部分权限未能授予机器人。请在“权限”选项卡中检查。",
+        "interactions": {
+          "title": "回复提及和话题",
+          "description": "阅读有人提及机器人的话题并在其中回复。"
+        },
+        "direct_messages": {
+          "title": "在私信中聊天",
+          "description": "阅读并回复他人与机器人发起的私信。"
+        },
+        "post": {
+          "title": "发送消息",
+          "description": "发送消息和话题回复。"
+        },
+        "read_all": {
+          "title": "阅读所有消息",
+          "description": "阅读每条消息，而不仅是自己的话题。"
+        },
+        "react": {
+          "title": "回应消息",
+          "description": "为消息添加表情回应。"
+        },
+        "attach": {
+          "title": "附加文件",
+          "description": "在自己的消息中附加文件。"
+        },
+        "join_rooms": {
+          "title": "查找并加入聊天室",
+          "description": "查看聊天室列表并自行加入聊天室。"
+        }
+      },
       "username": "用户名",
       "display_name": "显示名称",
       "profile_title": "个人资料",

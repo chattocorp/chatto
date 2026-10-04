@@ -507,6 +507,40 @@
       "create_title": "Izveidojiet robotprogrammatūras kontu",
       "create_failed": "Neizdevās izveidot robotu",
       "created": "Bots izveidots",
+      "capabilities": {
+        "legend": "Ko šis bots var darīt?",
+        "hint": "Izvēlieties jebkuru kombināciju. Bots darbojas tikai istabās un tiešajās ziņās, kuru dalībnieks tas ir. Jūs varat to vēlāk mainīt cilnē Atļaujas.",
+        "unavailable": "Jums nav šīs atļaujas.",
+        "apply_failed": "Dažas atļaujas botam neizdevās piešķirt. Pārbaudiet tās cilnē Atļaujas.",
+        "interactions": {
+          "title": "Atbildēt uz pieminējumiem un pavedienos",
+          "description": "Lasīt pavedienus, kuros kāds piemin botu, un atbildēt tajos."
+        },
+        "direct_messages": {
+          "title": "Tērzēt tiešajās ziņās",
+          "description": "Lasīt un rakstīt tiešajās ziņās, ko kāds sāk ar botu."
+        },
+        "post": {
+          "title": "Publicēt ziņas",
+          "description": "Publicēt ziņas un atbildes pavedienos."
+        },
+        "read_all": {
+          "title": "Lasīt visas ziņas",
+          "description": "Lasīt katru ziņu, ne tikai savus pavedienus."
+        },
+        "react": {
+          "title": "Reaģēt uz ziņām",
+          "description": "Pievienot ziņām emocijzīmju reakcijas."
+        },
+        "attach": {
+          "title": "Pievienot failus",
+          "description": "Pievienot failus savām ziņām."
+        },
+        "join_rooms": {
+          "title": "Atrast istabas un pievienoties",
+          "description": "Redzēt istabu sarakstu un pievienoties istabām bez palīdzības."
+        }
+      },
       "username": "Lietotājvārds",
       "display_name": "Parādītais nosaukums",
       "profile_title": "Profils",

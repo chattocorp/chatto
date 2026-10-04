@@ -507,6 +507,40 @@
       "create_title": "Bot Hesabı Oluştur",
       "create_failed": "Bot oluşturulamadı",
       "created": "Bot oluşturuldu",
+      "capabilities": {
+        "legend": "Bu bot neler yapabilir?",
+        "hint": "Herhangi bir kombinasyon seçin. Bot yalnızca üyesi olduğu odalarda ve doğrudan mesajlarda işlem yapar. Bunu daha sonra İzinler sekmesinde değiştirebilirsiniz.",
+        "unavailable": "Bu izne sahip değilsiniz.",
+        "apply_failed": "Bazı izinler bota verilemedi. Bunları İzinler sekmesinde kontrol edin.",
+        "interactions": {
+          "title": "Bahsetmelere ve ileti dizilerine yanıt verme",
+          "description": "Birinin bottan bahsettiği ileti dizilerini okuma ve yanıtlama."
+        },
+        "direct_messages": {
+          "title": "Doğrudan mesajlarda sohbet etme",
+          "description": "Birinin botla başlattığı doğrudan mesajları okuma ve yazma."
+        },
+        "post": {
+          "title": "Mesaj gönderme",
+          "description": "Mesaj ve ileti dizisi yanıtları gönderme."
+        },
+        "read_all": {
+          "title": "Tüm mesajları okuma",
+          "description": "Yalnızca kendi ileti dizilerini değil, her mesajı okuma."
+        },
+        "react": {
+          "title": "Mesajlara tepki verme",
+          "description": "Mesajlara emoji tepkileri ekleme."
+        },
+        "attach": {
+          "title": "Dosya ekleme",
+          "description": "Kendi mesajlarına dosya ekleme."
+        },
+        "join_rooms": {
+          "title": "Oda bulma ve katılma",
+          "description": "Oda listesini görme ve odalara yardım almadan katılma."
+        }
+      },
       "username": "Kullanıcı adı",
       "display_name": "Görünen Ad",
       "profile_title": "Profil",

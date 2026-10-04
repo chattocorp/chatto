@@ -106,6 +106,8 @@ export const patterns = {
   anyAdminUser: /\/chat\/-\/manage\/server\/members\/[a-zA-Z0-9]+/,
   /** Any bot overview page: /chat/-/manage/server/bots/{id} */
   anyAdminBot: /\/chat\/-\/manage\/server\/bots\/[a-zA-Z0-9]+$/,
+  /** Any bot permissions page: /chat/-/manage/server/bots/{id}/permissions */
+  anyAdminBotPermissions: /\/chat\/-\/manage\/server\/bots\/[a-zA-Z0-9]+\/permissions$/,
   /** Any non-admin chat route (home instance or instance-agnostic) */
   nonAdmin: /\/chat\/(?:-(?:\/(?!manage(?:\/|$))|$)|notifications|preferences)/,
   /** Chat root or any room (used after redirects) */

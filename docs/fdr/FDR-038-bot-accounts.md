@@ -164,6 +164,28 @@ exercise more authority than its human owner currently possesses.
   durable mention fact.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
+- The Create Bot dialog of the bundled frontend offers **bot capabilities**
+  as tiles. The creator can select any combination. Each capability is a fixed
+  set of allows at server scope or Direct messages scope:
+
+  | Capability                  | Allows                                                              |
+  | --------------------------- | ------------------------------------------------------------------- |
+  | Answer mentions and threads | Server: `message.read-interactions`, `message.post-in-interactions` |
+  | Chat in direct messages     | Direct messages: `message.read`, `message.post`                     |
+  | Post messages               | Server: `message.post`, `message.echo`                              |
+  | Read all messages           | Server: `message.read`                                              |
+  | React to messages           | Server: `message.react`                                             |
+  | Attach files                | Server: `message.attach`                                            |
+  | Find and join rooms         | Server: `room.list`, `room.join`                                    |
+
+  After `CreateBot` succeeds, the frontend writes each allow with
+  `AdminPermissionService.SetUserPermission`, one request at a time. The server
+  does not store the capability. A capability is disabled when the creator
+  does not have all of its permissions at server scope, because the owner
+  ceiling rejects such a grant. When no capability is selected, or when a
+  grant fails, the frontend shows the API key and then opens the Permissions
+  tab of the bot. A failed grant also shows a warning.
+
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
   channel room that is not archived. A confirmation dialog explains that the
@@ -454,6 +476,24 @@ does not clear an earlier failure. An empty history does not prove successful
 delivery. Access is checked before sending. The message body is
 the currently readable version, so it can change between attempts after an
 edit. Retracted or inaccessible messages are not sent.
+
+### 13. Combinable capabilities instead of bot templates
+
+**Decision:** Bot creation offers combinable capabilities, not fixed templates
+such as "help bot" or "announcement bot". The bundled frontend owns the
+catalogue and applies it with the normal bot permission mutation after
+creation. `CreateBot` does not change.
+**Why:** A new bot has no permissions, so a blank matrix is the hardest step of
+bot setup. Fixed templates do not fit many integrations, and each new use case
+would need a new template. Small capabilities combine into the common cases:
+a help bot is _Answer mentions and threads_ plus _Chat in direct messages_,
+and an announcement bot is _Post messages_. A capability names a reader task,
+so creators do not need to know the permission catalogue.
+**Tradeoff:** The grants are not atomic with bot creation. A failed grant
+leaves a partial setup, so the frontend opens the Permissions tab. Other
+clients do not get the catalogue; they use the permission API directly.
+Server-scope capabilities also apply in DMs, because a DM check falls back to
+server scope.
 
 ## Permissions
 

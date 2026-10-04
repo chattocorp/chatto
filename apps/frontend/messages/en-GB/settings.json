@@ -507,6 +507,40 @@
       "create_title": "Create Bot Account",
       "create_failed": "Failed to create bot",
       "created": "Bot created",
+      "capabilities": {
+        "legend": "What can this bot do?",
+        "hint": "Select any combination. The bot only acts in rooms and DMs that it is a member of. You can change this later on the Permissions tab.",
+        "unavailable": "You do not have this permission.",
+        "apply_failed": "Some permissions could not be given to the bot. Check them on the Permissions tab.",
+        "interactions": {
+          "title": "Answer mentions and threads",
+          "description": "Read and reply in threads where someone mentions the bot."
+        },
+        "direct_messages": {
+          "title": "Chat in direct messages",
+          "description": "Read and post in DMs that people start with the bot."
+        },
+        "post": {
+          "title": "Post messages",
+          "description": "Post messages and thread replies."
+        },
+        "read_all": {
+          "title": "Read all messages",
+          "description": "Read every message, not only its own threads."
+        },
+        "react": {
+          "title": "React to messages",
+          "description": "Add emoji reactions to messages."
+        },
+        "attach": {
+          "title": "Attach files",
+          "description": "Attach files to its messages."
+        },
+        "join_rooms": {
+          "title": "Find and join rooms",
+          "description": "See the room list and join rooms without help."
+        }
+      },
       "username": "Username",
       "display_name": "Display Name",
       "profile_title": "Profile",

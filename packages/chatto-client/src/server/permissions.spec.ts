@@ -43,7 +43,9 @@ describe('serverPermissionsFromViewer', () => {
   it('grants nothing before the viewer projection loads', () => {
     expect(NO_SERVER_PERMISSIONS.loaded).toBe(false);
     expect(Object.isFrozen(NO_SERVER_PERMISSIONS)).toBe(true);
-    for (const [key, value] of Object.entries(NO_SERVER_PERMISSIONS)) {
+    const { serverScope, ...flags } = NO_SERVER_PERMISSIONS;
+    expect(serverScope).toEqual({});
+    for (const [key, value] of Object.entries(flags)) {
       expect(value, key).toBe(false);
     }
   });
@@ -70,14 +72,18 @@ describe('serverPermissionsFromViewer', () => {
     expect(serverPermissionsFromViewer(viewer({}, { [permission]: true }))).toEqual({
       ...NO_SERVER_PERMISSIONS,
       loaded: true,
-      [flag]: true
+      [flag]: true,
+      serverScope: { [permission]: true }
     });
     expect(serverPermissionsFromViewer(viewer({}, { [permission]: false }))[flag]).toBe(false);
   });
 
-  it('ignores unrelated or missing effective permissions', () => {
-    expect(
-      serverPermissionsFromViewer(viewer({}, { 'message.post': true, 'room.create': true }))
-    ).toEqual({ ...NO_SERVER_PERMISSIONS, loaded: true });
+  it('keeps permissions without a dedicated flag in serverScope only', () => {
+    const effective = { 'message.post': true, 'room.create': false };
+    expect(serverPermissionsFromViewer(viewer({}, effective))).toEqual({
+      ...NO_SERVER_PERMISSIONS,
+      loaded: true,
+      serverScope: effective
+    });
   });
 });

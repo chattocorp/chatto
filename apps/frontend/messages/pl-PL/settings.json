@@ -507,6 +507,40 @@
       "create_title": "Utwórz konto bota",
       "create_failed": "Nie udało się utworzyć bota",
       "created": "Bot został utworzony",
+      "capabilities": {
+        "legend": "Co może robić ten bot?",
+        "hint": "Wybierz dowolne połączenie. Bot działa tylko w pokojach i wiadomościach prywatnych, których jest członkiem. Możesz to później zmienić na karcie Uprawnienia.",
+        "unavailable": "Nie masz tego uprawnienia.",
+        "apply_failed": "Nie udało się nadać botowi niektórych uprawnień. Sprawdź je na karcie Uprawnienia.",
+        "interactions": {
+          "title": "Odpowiadanie na wzmianki i w wątkach",
+          "description": "Czytanie wątków, w których ktoś wspomina bota, i odpowiadanie w nich."
+        },
+        "direct_messages": {
+          "title": "Czat w wiadomościach prywatnych",
+          "description": "Czytanie i pisanie w wiadomościach prywatnych, które ktoś rozpoczyna z botem."
+        },
+        "post": {
+          "title": "Publikowanie wiadomości",
+          "description": "Publikowanie wiadomości i odpowiedzi w wątkach."
+        },
+        "read_all": {
+          "title": "Czytanie wszystkich wiadomości",
+          "description": "Czytanie każdej wiadomości, nie tylko własnych wątków."
+        },
+        "react": {
+          "title": "Reagowanie na wiadomości",
+          "description": "Dodawanie reakcji emoji do wiadomości."
+        },
+        "attach": {
+          "title": "Załączanie plików",
+          "description": "Załączanie plików do własnych wiadomości."
+        },
+        "join_rooms": {
+          "title": "Znajdowanie pokojów i dołączanie",
+          "description": "Wyświetlanie listy pokojów i dołączanie do nich bez pomocy."
+        }
+      },
       "username": "Nazwa użytkownika",
       "display_name": "Nazwa wyświetlana",
       "profile_title": "Profil",

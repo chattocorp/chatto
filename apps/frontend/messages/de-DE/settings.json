@@ -507,6 +507,40 @@
       "create_title": "Bot-Konto erstellen",
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
+      "capabilities": {
+        "legend": "Was kann dieser Bot?",
+        "hint": "Wähle eine beliebige Kombination. Der Bot handelt nur in Räumen und DMs, in denen er Mitglied ist. Du kannst das später im Tab „Berechtigungen“ ändern.",
+        "unavailable": "Du hast diese Berechtigung nicht.",
+        "apply_failed": "Einige Berechtigungen konnten dem Bot nicht gegeben werden. Prüfe sie im Tab „Berechtigungen“.",
+        "interactions": {
+          "title": "Auf Erwähnungen und Threads antworten",
+          "description": "Threads lesen und darin antworten, in denen jemand den Bot erwähnt."
+        },
+        "direct_messages": {
+          "title": "In Direktnachrichten chatten",
+          "description": "DMs lesen und darin schreiben, die jemand mit dem Bot beginnt."
+        },
+        "post": {
+          "title": "Nachrichten senden",
+          "description": "Nachrichten und Antworten in Threads senden."
+        },
+        "read_all": {
+          "title": "Alle Nachrichten lesen",
+          "description": "Jede Nachricht lesen, nicht nur die eigenen Threads."
+        },
+        "react": {
+          "title": "Auf Nachrichten reagieren",
+          "description": "Emoji-Reaktionen zu Nachrichten hinzufügen."
+        },
+        "attach": {
+          "title": "Dateien anhängen",
+          "description": "Dateien an die eigenen Nachrichten anhängen."
+        },
+        "join_rooms": {
+          "title": "Räume finden und beitreten",
+          "description": "Die Raumliste sehen und Räumen ohne Hilfe beitreten."
+        }
+      },
       "username": "Benutzername",
       "display_name": "Anzeigename",
       "profile_title": "Profil",

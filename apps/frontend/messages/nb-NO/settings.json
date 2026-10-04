@@ -507,6 +507,40 @@
       "create_title": "Opprett bot-konto",
       "create_failed": "Kunne ikke opprette bot",
       "created": "Bote opprettet",
+      "capabilities": {
+        "legend": "Hva kan denne boten gjøre?",
+        "hint": "Velg en hvilken som helst kombinasjon. Boten handler bare i rom og direktemeldinger den er medlem av. Du kan endre dette senere i fanen Tillatelser.",
+        "unavailable": "Du har ikke denne tillatelsen.",
+        "apply_failed": "Noen tillatelser kunne ikke gis til boten. Kontroller dem i fanen Tillatelser.",
+        "interactions": {
+          "title": "Svare på omtaler og tråder",
+          "description": "Lese og svare i tråder der noen nevner boten."
+        },
+        "direct_messages": {
+          "title": "Chatte i direktemeldinger",
+          "description": "Lese og skrive i direktemeldinger som noen starter med boten."
+        },
+        "post": {
+          "title": "Sende meldinger",
+          "description": "Sende meldinger og svar i tråder."
+        },
+        "read_all": {
+          "title": "Lese alle meldinger",
+          "description": "Lese hver melding, ikke bare egne tråder."
+        },
+        "react": {
+          "title": "Reagere på meldinger",
+          "description": "Legge til emojireaksjoner på meldinger."
+        },
+        "attach": {
+          "title": "Legge ved filer",
+          "description": "Legge ved filer i egne meldinger."
+        },
+        "join_rooms": {
+          "title": "Finne og bli med i rom",
+          "description": "Se romlisten og bli med i rom uten hjelp."
+        }
+      },
       "username": "Brukernavn",
       "display_name": "Visningsnavn",
       "profile_title": "Profil",

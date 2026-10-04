@@ -507,6 +507,40 @@
       "create_title": "Crea un account Bot",
       "create_failed": "Impossibile creare il bot",
       "created": "Bot creato",
+      "capabilities": {
+        "legend": "Cosa può fare questo bot?",
+        "hint": "Seleziona qualsiasi combinazione. Il bot agisce solo nelle stanze e nei messaggi diretti di cui è membro. Puoi cambiarlo più tardi nella scheda Autorizzazioni.",
+        "unavailable": "Non hai questa autorizzazione.",
+        "apply_failed": "Non è stato possibile dare alcune autorizzazioni al bot. Controllale nella scheda Autorizzazioni.",
+        "interactions": {
+          "title": "Rispondere a menzioni e thread",
+          "description": "Leggere e rispondere nei thread in cui qualcuno menziona il bot."
+        },
+        "direct_messages": {
+          "title": "Chattare nei messaggi diretti",
+          "description": "Leggere e scrivere nei messaggi diretti che qualcuno avvia con il bot."
+        },
+        "post": {
+          "title": "Pubblicare messaggi",
+          "description": "Pubblicare messaggi e risposte nei thread."
+        },
+        "read_all": {
+          "title": "Leggere tutti i messaggi",
+          "description": "Leggere ogni messaggio, non solo i propri thread."
+        },
+        "react": {
+          "title": "Reagire ai messaggi",
+          "description": "Aggiungere reazioni emoji ai messaggi."
+        },
+        "attach": {
+          "title": "Allegare file",
+          "description": "Allegare file ai propri messaggi."
+        },
+        "join_rooms": {
+          "title": "Trovare stanze ed entrarvi",
+          "description": "Vedere l’elenco delle stanze ed entrarvi senza aiuto."
+        }
+      },
       "username": "Nome utente",
       "display_name": "Nome visualizzato",
       "profile_title": "Profilo",

@@ -507,6 +507,40 @@
       "create_title": "Créer un compte de robot",
       "create_failed": "Échec de la création du bot",
       "created": "Bot créé",
+      "capabilities": {
+        "legend": "Que peut faire ce bot ?",
+        "hint": "Sélectionnez n’importe quelle combinaison. Le bot agit uniquement dans les salons et messages privés dont il est membre. Vous pourrez modifier cela plus tard dans l’onglet Autorisations.",
+        "unavailable": "Vous n’avez pas cette autorisation.",
+        "apply_failed": "Certaines autorisations n’ont pas pu être accordées au bot. Vérifiez-les dans l’onglet Autorisations.",
+        "interactions": {
+          "title": "Répondre aux mentions et aux fils",
+          "description": "Lire les fils où quelqu’un mentionne le bot et y répondre."
+        },
+        "direct_messages": {
+          "title": "Discuter en messages privés",
+          "description": "Lire et écrire dans les messages privés que des personnes ouvrent avec le bot."
+        },
+        "post": {
+          "title": "Publier des messages",
+          "description": "Publier des messages et des réponses dans les fils."
+        },
+        "read_all": {
+          "title": "Lire tous les messages",
+          "description": "Lire chaque message, pas seulement ses propres fils."
+        },
+        "react": {
+          "title": "Réagir aux messages",
+          "description": "Ajouter des réactions emoji aux messages."
+        },
+        "attach": {
+          "title": "Joindre des fichiers",
+          "description": "Joindre des fichiers à ses messages."
+        },
+        "join_rooms": {
+          "title": "Trouver et rejoindre des salons",
+          "description": "Voir la liste des salons et les rejoindre sans aide."
+        }
+      },
       "username": "Nom d'utilisateur",
       "display_name": "Nom d'affichage",
       "profile_title": "Profil",

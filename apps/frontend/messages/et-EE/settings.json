@@ -507,6 +507,40 @@
       "create_title": "Looge roboti konto",
       "create_failed": "Boti loomine ebaõnnestus",
       "created": "Bot loodud",
+      "capabilities": {
+        "legend": "Mida see bot teha saab?",
+        "hint": "Valige mis tahes kombinatsioon. Bot tegutseb ainult ruumides ja otsesõnumites, mille liige ta on. Saate seda hiljem muuta vahekaardil Load.",
+        "unavailable": "Teil ei ole seda luba.",
+        "apply_failed": "Mõnda luba ei õnnestunud botile anda. Kontrollige neid vahekaardil Load.",
+        "interactions": {
+          "title": "Mainimistele ja lõimedes vastamine",
+          "description": "Lõimede lugemine, kus keegi botit mainib, ja neis vastamine."
+        },
+        "direct_messages": {
+          "title": "Otsesõnumites vestlemine",
+          "description": "Otsesõnumite lugemine ja kirjutamine, mida keegi botiga alustab."
+        },
+        "post": {
+          "title": "Sõnumite postitamine",
+          "description": "Sõnumite ja lõimevastuste postitamine."
+        },
+        "read_all": {
+          "title": "Kõigi sõnumite lugemine",
+          "description": "Iga sõnumi lugemine, mitte ainult oma lõimede."
+        },
+        "react": {
+          "title": "Sõnumitele reageerimine",
+          "description": "Sõnumitele emoji-reaktsioonide lisamine."
+        },
+        "attach": {
+          "title": "Failide manustamine",
+          "description": "Failide manustamine oma sõnumitele."
+        },
+        "join_rooms": {
+          "title": "Ruumide leidmine ja nendega liitumine",
+          "description": "Ruumide loendi nägemine ja ruumidega liitumine ilma abita."
+        }
+      },
       "username": "Kasutajanimi",
       "display_name": "Kuvatav nimi",
       "profile_title": "Profiil",

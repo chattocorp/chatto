@@ -507,6 +507,40 @@
       "create_title": "Criar conta de bot",
       "create_failed": "Falha ao criar o bot",
       "created": "Bot criado",
+      "capabilities": {
+        "legend": "O que este bot pode fazer?",
+        "hint": "Selecione qualquer combinação. O bot só age nas salas e mensagens diretas das quais é membro. Você pode mudar isso depois na aba Permissões.",
+        "unavailable": "Você não tem esta permissão.",
+        "apply_failed": "Não foi possível dar algumas permissões ao bot. Confira-as na aba Permissões.",
+        "interactions": {
+          "title": "Responder a menções e tópicos",
+          "description": "Ler e responder em tópicos onde alguém menciona o bot."
+        },
+        "direct_messages": {
+          "title": "Conversar em mensagens diretas",
+          "description": "Ler e escrever nas mensagens diretas que alguém inicia com o bot."
+        },
+        "post": {
+          "title": "Publicar mensagens",
+          "description": "Publicar mensagens e respostas em tópicos."
+        },
+        "read_all": {
+          "title": "Ler todas as mensagens",
+          "description": "Ler todas as mensagens, não só os próprios tópicos."
+        },
+        "react": {
+          "title": "Reagir a mensagens",
+          "description": "Adicionar reações com emoji às mensagens."
+        },
+        "attach": {
+          "title": "Anexar arquivos",
+          "description": "Anexar arquivos às próprias mensagens."
+        },
+        "join_rooms": {
+          "title": "Encontrar salas e entrar",
+          "description": "Ver a lista de salas e entrar nelas sem ajuda."
+        }
+      },
       "username": "Nome de usuário",
       "display_name": "Nome de exibição",
       "profile_title": "Perfil",

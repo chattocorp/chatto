@@ -507,6 +507,40 @@
       "create_title": "Bot-account maken",
       "create_failed": "Kan geen bot maken",
       "created": "Bot gemaakt",
+      "capabilities": {
+        "legend": "Wat kan deze bot doen?",
+        "hint": "Kies een willekeurige combinatie. De bot werkt alleen in kamers en privéberichten waarvan hij lid is. Je kunt dit later wijzigen op het tabblad Rechten.",
+        "unavailable": "Je hebt dit recht niet.",
+        "apply_failed": "Sommige rechten konden niet aan de bot worden gegeven. Controleer ze op het tabblad Rechten.",
+        "interactions": {
+          "title": "Reageren op vermeldingen en threads",
+          "description": "Threads lezen waarin iemand de bot vermeldt en daarin antwoorden."
+        },
+        "direct_messages": {
+          "title": "Chatten in privéberichten",
+          "description": "Lezen en schrijven in privéberichten die iemand met de bot begint."
+        },
+        "post": {
+          "title": "Berichten plaatsen",
+          "description": "Berichten en antwoorden in threads plaatsen."
+        },
+        "read_all": {
+          "title": "Alle berichten lezen",
+          "description": "Elk bericht lezen, niet alleen de eigen threads."
+        },
+        "react": {
+          "title": "Reageren op berichten",
+          "description": "Emoji-reacties aan berichten toevoegen."
+        },
+        "attach": {
+          "title": "Bestanden bijvoegen",
+          "description": "Bestanden aan de eigen berichten toevoegen."
+        },
+        "join_rooms": {
+          "title": "Kamers vinden en eraan deelnemen",
+          "description": "De kamerlijst zien en zonder hulp aan kamers deelnemen."
+        }
+      },
       "username": "Gebruikersnaam",
       "display_name": "Weergavenaam",
       "profile_title": "Profiel",

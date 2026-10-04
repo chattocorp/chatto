@@ -20,10 +20,28 @@ permissions and cannot sign in through the login forms.
 
 1. Open **Server Admin → Bots** and select **Create Bot**.
 2. Enter a username and a display name.
-3. Copy the API key before you close the dialog. Chatto cannot show it again.
-4. Open the detail page of the bot and select **Permissions**. Enable the
-   server, room-group, or room permissions that the integration needs.
-5. Enable `room.join` for the rooms that the bot needs. In the **Joined** row
+3. Optional: select what the bot can do. You can select any combination of
+   these capabilities:
+
+   | Capability | Grants |
+   | --- | --- |
+   | Answer mentions and threads | `message.read-interactions` and `message.post-in-interactions` at server scope |
+   | Chat in direct messages | `message.read` and `message.post` at Direct messages scope |
+   | Post messages | `message.post` and `message.echo` at server scope |
+   | Read all messages | `message.read` at server scope |
+   | React to messages | `message.react` at server scope |
+   | Attach files | `message.attach` at server scope |
+   | Find and join rooms | `room.list` and `room.join` at server scope |
+
+   A server-scope grant also applies in the DMs of the bot. You can only
+   select a capability when you have all of its permissions yourself. If you
+   select no capability, the bot gets no permissions.
+4. Copy the API key before you close the dialog. Chatto cannot show it again.
+   If you selected no capability, or if Chatto could not give a permission,
+   the **Permissions** page of the bot opens next.
+5. On the **Permissions** page of the bot, enable or remove server,
+   room-group, or room permissions as the integration needs.
+6. Enable `room.join` for the rooms that the bot needs. In the **Joined** row
    at the top of the matrix, select each room to add the bot, and confirm.
    Clear a room to remove the bot.
 

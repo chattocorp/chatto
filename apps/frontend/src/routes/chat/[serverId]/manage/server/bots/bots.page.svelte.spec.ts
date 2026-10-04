@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { mockService } from '$lib/test-utils';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
+import {
+  PermissionDecision,
+  PermissionScopeKind,
+  type SetUserPermissionRequest
+} from '@chatto/api-types/admin/v1/permissions_pb';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -18,6 +24,7 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 // Server handlers: the page runs the real bot and user API clients against them.
 const bots = mockService(BotService);
 const users = mockService(UserService);
+const permissions = mockService(AdminPermissionService);
 let server: TestServerScope;
 
 import BotsPage from './+page.svelte';
@@ -33,7 +40,11 @@ describe('Bot administration page', () => {
     queryClient.clear();
     vi.clearAllMocks();
     server = createTestServerScope({
-      routes: (router) => router.service(BotService, bots).service(UserService, users)
+      routes: (router) =>
+        router
+          .service(BotService, bots)
+          .service(UserService, users)
+          .service(AdminPermissionService, permissions)
     });
     bots.listBots.mockReturnValue({ bots: [], page: { totalCount: 0n, hasMore: false } });
     users.batchGetUsers.mockReturnValue({ users: [] });
@@ -87,6 +98,74 @@ describe('Bot administration page', () => {
       (button) => button.textContent?.trim() === 'Create bot'
     );
     expect(submit?.disabled).toBe(false);
+  });
+
+  it('locks capabilities that the creator does not hold', async () => {
+    server.permissions.canCreateBots = true;
+    server.permissions.serverScope = { 'message.read': true, 'room.list': true };
+    const { container } = render(BotsPage);
+
+    await userEvent.click(createButton(container)!);
+
+    await expect
+      .element(page.getByRole('checkbox', { name: /Read all messages/ }))
+      .not.toBeDisabled();
+    await expect
+      .element(page.getByRole('checkbox', { name: /Find and join rooms/ }))
+      .toBeDisabled();
+  });
+
+  it('grants the selected capabilities after it creates the bot', async () => {
+    server.permissions.canCreateBots = true;
+    server.permissions.serverScope = {
+      'message.read': true,
+      'message.post': true,
+      'message.read-interactions': true,
+      'message.post-in-interactions': true
+    };
+    bots.createBot.mockReturnValue({
+      bot: {
+        user: {
+          id: 'B1',
+          login: 'helper',
+          displayName: 'Helper',
+          bot: { ownerUserId: 'viewer-1' }
+        },
+        ownerUserId: 'viewer-1'
+      },
+      apiKey: 'secret-key'
+    });
+    permissions.setUserPermission.mockImplementation((request: SetUserPermissionRequest) => ({
+      decision: {
+        permission: request.permission,
+        scope: request.scope,
+        decision: PermissionDecision.ALLOW
+      }
+    }));
+    const { container } = render(BotsPage);
+
+    await userEvent.click(createButton(container)!);
+    await userEvent.fill(document.querySelector<HTMLInputElement>('#bot-login')!, 'helper');
+    await userEvent.fill(document.querySelector<HTMLInputElement>('#bot-display-name')!, 'Helper');
+    await userEvent.click(page.getByRole('checkbox', { name: /Answer mentions and threads/ }));
+    await userEvent.click(page.getByRole('checkbox', { name: /Chat in direct messages/ }));
+    await userEvent.click(page.getByRole('button', { name: 'Create bot', exact: true }).last());
+
+    await vi.waitFor(() => expect(permissions.setUserPermission).toHaveBeenCalledTimes(4));
+    expect(
+      permissions.setUserPermission.mock.calls.map(([request]) => [
+        request.userId,
+        request.scope?.kind,
+        request.permission,
+        request.decision
+      ])
+    ).toEqual([
+      ['B1', PermissionScopeKind.SERVER, 'message.read-interactions', PermissionDecision.ALLOW],
+      ['B1', PermissionScopeKind.SERVER, 'message.post-in-interactions', PermissionDecision.ALLOW],
+      ['B1', PermissionScopeKind.DM, 'message.read', PermissionDecision.ALLOW],
+      ['B1', PermissionScopeKind.DM, 'message.post', PermissionDecision.ALLOW]
+    ]);
+    await expect.element(page.getByText('Save This API Key')).toBeInTheDocument();
   });
 
   it('renders bot and owner identities with avatars and display names', async () => {
