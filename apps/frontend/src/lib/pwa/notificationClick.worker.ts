@@ -40,7 +40,7 @@ interface NotificationClickLogger {
 export type NotificationClickRouteResult = 'client' | 'focus' | 'open';
 
 export interface NotificationClickRouteOptions {
-  /** Total time that all visible windows together have to acknowledge. */
+  /** Total time that the asked windows together have to acknowledge. */
   ackTimeoutMs?: number;
   createMessageChannel?: () => NotificationClickMessageChannel;
   logger?: NotificationClickLogger;
@@ -193,7 +193,9 @@ export async function routeNotificationClick(
   const [first] = clientList;
   if (first?.visibilityState === 'hidden') {
     if (await focusClient(first, options.logger)) {
-      postClickMessage(first, url);
+      if (!postClickMessage(first, url)) {
+        options.logger?.warn('[SW] Failed to send notification click to focused window');
+      }
       return 'focus';
     }
   } else {

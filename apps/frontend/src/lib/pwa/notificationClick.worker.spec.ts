@@ -149,6 +149,51 @@ describe('routeNotificationClick', () => {
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
+  it('opens a new window when focusing the hidden window fails', async () => {
+    const warn = vi.fn();
+    const client: NotificationClickClient = {
+      visibilityState: 'hidden',
+      focus: vi.fn(async () => {
+        throw new Error('Not allowed to focus a window.');
+      }),
+      postMessage: vi.fn()
+    };
+    const clients = clientsWith([client]);
+
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      createMessageChannel: createAcknowledgingMessageChannel,
+      logger: { warn }
+    });
+
+    expect(result).toBe('open');
+    expect(warn).toHaveBeenCalledOnce();
+    expect(client.postMessage).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
+  });
+
+  it('does not focus a hidden window when a visible window does not acknowledge', async () => {
+    vi.useFakeTimers();
+    const hidden: NotificationClickClient = {
+      visibilityState: 'hidden',
+      focus: vi.fn(async () => hidden),
+      postMessage: vi.fn()
+    };
+    const visible: NotificationClickClient = { visibilityState: 'visible', postMessage: vi.fn() };
+    const clients = clientsWith([hidden, visible]);
+
+    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 750,
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+    await vi.advanceTimersByTimeAsync(750);
+
+    await expect(routed).resolves.toBe('open');
+    expect(visible.postMessage).toHaveBeenCalledOnce();
+    expect(hidden.postMessage).not.toHaveBeenCalled();
+    expect(hidden.focus).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
+  });
+
   it('shares one acknowledgement deadline across windows', async () => {
     vi.useFakeTimers();
     const first: NotificationClickClient = { visibilityState: 'visible', postMessage: vi.fn() };
