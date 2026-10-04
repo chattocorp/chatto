@@ -25,7 +25,8 @@ export {
   createMentionRoles,
   getMentionRoles,
   createRoomPermissions,
-  getRoomPermissions
+  getRoomPermissions,
+  useRoomPermissions
 } from './context.svelte';
 export { RoomMembersStore, ROOM_MEMBERS_PAGE_SIZE } from '@chatto/client/room/members';
 export type { RoomMember } from '@chatto/client/room/members';

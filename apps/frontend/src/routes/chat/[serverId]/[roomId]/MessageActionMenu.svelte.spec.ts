@@ -3,8 +3,8 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 import MessageActionMenuTestHarness from './MessageActionMenuTestHarness.svelte';
-import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
-import { MessageEventInteractionState } from './messageEventInteractions.svelte';
+import MessageActionOverlays from './MessageActionOverlays.svelte';
+import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 
 const mocks = vi.hoisted(() => ({
@@ -474,18 +474,16 @@ describe('MessageActionMenu', () => {
       expect(baseProps.onClose).toHaveBeenCalledOnce();
     });
 
-    it('notifies the message owner when the sheet is dismissed natively', async () => {
-      const interactions = new MessageEventInteractionState();
-      interactions.showActionSheet = true;
-      const onClose = vi.fn();
-      const { container } = render(MessageEventActionOverlays, {
+    it('closes the sheet when it is dismissed natively', async () => {
+      const overlays = new MessageActionOverlayState();
+      overlays.open('message-event-1', { kind: 'sheet' });
+      const { container } = render(MessageActionOverlays, {
         props: {
-          interactions,
+          overlays,
           action: buildAction(),
           roomId: 'room-1',
           messageEventId: 'message-event-1',
-          reactions: [],
-          onClose
+          reactions: []
         }
       });
       const dialog = q(container, 'dialog') as HTMLDialogElement;
@@ -496,8 +494,8 @@ describe('MessageActionMenu', () => {
       dialog.close();
 
       await vi.waitFor(() => {
-        expect(interactions.showActionSheet).toBe(false);
-        expect(onClose).toHaveBeenCalledOnce();
+        expect(overlays.overlay).toBeNull();
+        expect(overlays.eventId).toBeNull();
       });
     });
   });

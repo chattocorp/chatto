@@ -6,6 +6,7 @@
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import type { MessageActionOverlayState } from './messageActionOverlayState.svelte';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
@@ -14,6 +15,7 @@
     roomId,
     permalinkThreadRootEventId = null,
     messageStore = null,
+    actionOverlays,
     onOpenThread,
     activeCallId = null,
     onOpenCall,
@@ -25,6 +27,7 @@
     roomId: string;
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
+    actionOverlays: MessageActionOverlayState;
     onOpenThread?: OpenThreadHandler;
     activeCallId?: string | null;
     onOpenCall?: () => void;
@@ -42,6 +45,7 @@
     {roomId}
     {permalinkThreadRootEventId}
     {messageStore}
+    {actionOverlays}
     {onOpenThread}
     {onOpenUser}
     {threadingMode}

@@ -7,7 +7,6 @@ import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttac
 import { q } from '$lib/test-utils';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
-import { TimelineRowPins } from './timelineRowPins';
 
 const mocks = vi.hoisted(() => ({
   copyImageToClipboard: vi.fn(),
@@ -196,20 +195,39 @@ describe('MessageEvent action model integration', () => {
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Target User');
   });
 
-  it('pins its timeline row while the emoji picker is open', async () => {
-    const rowPins = new TimelineRowPins();
-    const rendered = render(MessageEventTestHarness, {
-      props: { event: messageEvent(), rowPins }
-    });
+  it('keeps the emoji picker open when its row unmounts', async () => {
+    const event = messageEvent();
+    const rendered = render(MessageEventTestHarness, { props: { event } });
 
     (q(rendered.container, 'button[aria-label="Add reaction"]') as HTMLButtonElement).click();
     await vi.waitFor(() =>
       expect(q(rendered.container, 'input[placeholder="Search emojis..."]')).toBeTruthy()
     );
-    expect([...rowPins.keys]).toEqual(['regular-message']);
+
+    // The virtualizer unmounts the row, for example when the keyboard shrinks the timeline.
+    await rendered.rerender({ event, showMessage: false });
+    expect(rendered.container.querySelector('[data-testid="message-row"]')).toBeNull();
 
     await selectPickerEmoji(rendered.container, 'check', 'white_check_mark');
-    await vi.waitFor(() => expect(rowPins.keys.size).toBe(0));
+    await vi.waitFor(() =>
+      expect(mocks.actions.toggleReaction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ messageEventId: 'regular-message' }),
+        '✅',
+        false
+      )
+    );
+  });
+
+  it('opens reaction details from the message menu', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+
+    await openContextMenu(rendered.container);
+    menuButton(rendered.container, 'Reactions')!.click();
+
+    await vi.waitFor(() =>
+      expect(document.querySelector('dialog[open]')?.querySelector('[role="tablist"]')).toBeTruthy()
+    );
+    expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined();
   });
 
   it('keeps the message menu for a mention without a current member', async () => {
@@ -308,7 +326,7 @@ describe('MessageEvent action model integration', () => {
     expect(link.href).toBe(new URL('/linked/path', window.location.href).href);
   });
 
-  it('drops a clicked link when a virtualized row changes message', async () => {
+  it('closes a menu when its message leaves and keeps a clicked link with its message', async () => {
     const firstMessage = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: firstMessage } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;
@@ -319,12 +337,17 @@ describe('MessageEvent action model integration', () => {
     await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeTruthy());
 
     await rendered.rerender({ event: messageEvent({ id: 'next-message' }) });
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
 
-    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeUndefined());
-    expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy();
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
 
     await rendered.rerender({ event: firstMessage });
-    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
   });
 
   it('shows an Echo link only for an echoed reply in the thread pane', async () => {

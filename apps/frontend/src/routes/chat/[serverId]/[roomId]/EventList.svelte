@@ -23,6 +23,9 @@
   import RoomEvent from './RoomEvent.svelte';
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
+  import MessageActionOverlayHost from './MessageActionOverlayHost.svelte';
+  import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
+  import { isDeletedMessage } from './messageEventModel';
   import SystemEventGroup from './SystemEventGroup.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
@@ -35,7 +38,6 @@
     TIMELINE_ITEM_KEY_ATTRIBUTE,
     type TimelineSelectionKeys
   } from './timelineSelection';
-  import { setTimelineRowPins, TimelineRowPins } from './timelineRowPins';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -151,11 +153,15 @@
   const userInteractions = new MessageUserInteractionState(() => roomMembers);
   const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
   const canStartDMs = $derived(stores.permissions?.canStartDMs ?? false);
+  // Message action overlays live outside the virtualized rows, so they stay open when
+  // the row of their message unmounts.
+  const actionOverlays = new MessageActionOverlayState();
   let overlayScope = untrack(() => `${serverScope.serverId}:${roomId}`);
   $effect(() => {
     const nextScope = `${serverScope.serverId}:${roomId}`;
     if (nextScope !== overlayScope) {
       userInteractions.close();
+      actionOverlays.close();
       overlayScope = nextScope;
     }
   });
@@ -187,6 +193,19 @@
     })
   );
   let filteredEvents = $derived(visibleTombstoneEvents(timelineEvents));
+  // The message that owns the open action overlay, while the timeline shows it as a message.
+  const actionOverlayEvent = $derived.by(() => {
+    const eventId = actionOverlays.eventId;
+    if (!eventId) return null;
+    const event = filteredEvents.find((candidate) => candidate.id === eventId);
+    return event && isMessagePostedEvent(event.event) && !isDeletedMessage(event.event)
+      ? event
+      : null;
+  });
+  // Close the overlay when its message leaves the timeline or becomes a tombstone.
+  $effect(() => {
+    if (actionOverlays.eventId && !actionOverlayEvent) untrack(() => actionOverlays.close());
+  });
   let messageEventCount = $derived(
     filteredEvents.filter((event) => isMessagePostedEvent(event.event)).length
   );
@@ -406,20 +425,9 @@
   // The items at the ends of the document selection. The virtualizer keeps every item
   // between them mounted, because a copy contains only mounted DOM.
   let selectionKeys = $state<TimelineSelectionKeys | null>(null);
-  // Rows that own an open overlay. The overlay is part of the row, so the row must stay
-  // mounted while the overlay is open, also when it leaves the viewport.
-  const rowPins = new TimelineRowPins();
-  setTimelineRowPins(rowPins);
-  const keepMounted = $derived.by(() => {
-    const selected = selectionKeys ? keptIndexes(virtualItems, selectionKeys) : [];
-    const pinned =
-      rowPins.keys.size > 0
-        ? virtualItems.flatMap((item, index) => (rowPins.keys.has(item.key) ? [index] : []))
-        : [];
-    // Virtua merges duplicates and sorts the indexes.
-    const indexes = [...selected, ...pinned];
-    return indexes.length > 0 ? indexes : undefined;
-  });
+  const keepMounted = $derived(
+    selectionKeys ? keptIndexes(virtualItems, selectionKeys) : undefined
+  );
 
   // Record the ends while the anchor item is still mounted. After this, a scroll during
   // the selection cannot unmount the anchor and break the selection.
@@ -946,6 +954,7 @@
                   {roomId}
                   {permalinkThreadRootEventId}
                   {messageStore}
+                  {actionOverlays}
                   onOpenThread={getOpenThreadHandler(eventData)}
                   activeCallId={serverUi(stores).activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
@@ -982,6 +991,20 @@
         <span aria-hidden="true" class="iconify icon-[uil--arrow-down]"></span>
       </div>
     </button>
+  {/if}
+
+  {#if actionOverlayEvent}
+    {#key actionOverlayEvent.id}
+      <MessageActionOverlayHost
+        overlays={actionOverlays}
+        event={actionOverlayEvent}
+        {roomId}
+        {permalinkThreadRootEventId}
+        {messageStore}
+        onOpenThread={getOpenThreadHandler(actionOverlayEvent)}
+        {threadingMode}
+      />
+    {/key}
   {/if}
 
   {#key `${serverScope.serverId}:${roomId}`}

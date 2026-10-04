@@ -7,8 +7,8 @@ import { __resetRecentEmojisForTests, getRecentEmojis } from '$lib/state/recentE
 import { serverStorageKey } from '@chatto/client/storage/serverStorage';
 import MessageHoverBar from './MessageHoverBar.svelte';
 import MessageActionMenuTestHarness from './MessageActionMenuTestHarness.svelte';
-import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
-import { MessageEventInteractionState } from './messageEventInteractions.svelte';
+import MessageActionOverlays from './MessageActionOverlays.svelte';
+import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 
 const SERVER_ID = 'recent-reactions-server';
@@ -69,18 +69,22 @@ async function selectEmoji(container: HTMLElement, query: string, title: string)
 }
 
 function renderReactionPicker() {
-  const interactions = new MessageEventInteractionState();
-  interactions.openEmojiPicker();
-  const overlay = render(MessageEventActionOverlays, {
+  const overlays = new MessageActionOverlayState();
+  overlays.open('message-event-1', {
+    kind: 'emoji',
+    position: { x: 0, y: 0 },
+    presentation: 'auto'
+  });
+  const overlay = render(MessageActionOverlays, {
     props: {
-      interactions,
+      overlays,
       action: buildAction(),
       roomId: 'room-1',
       messageEventId: 'message-event-1',
       reactions: []
     }
   });
-  return { ...overlay, interactions };
+  return { ...overlay, overlays };
 }
 
 beforeEach(() => {
@@ -106,7 +110,7 @@ describe('Recent quick reactions integration', () => {
     const picker = renderReactionPicker();
     await vi.waitFor(() => expect(picker.container.querySelector('input')).not.toBeNull());
     await selectEmoji(picker.container, 'check', 'white_check_mark');
-    expect(picker.interactions.emojiPickerPosition).toBeNull();
+    expect(picker.overlays.overlay).toBeNull();
     expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(expect.anything(), '✅', false);
     for (const surface of surfaces) {
       expect(quickReactionLabels(surface.container)).toEqual([...PINNED_REACTIONS, '✅']);
@@ -156,7 +160,7 @@ describe('Recent quick reactions integration', () => {
     await vi.waitFor(() => expect(picker.container.querySelector('input')).not.toBeNull());
     await selectEmoji(picker.container, 'fire', 'fire');
     expect(getRecentEmojis(SERVER_ID).quickReactions).toEqual([...PINNED_REACTIONS, '🔥']);
-    expect(picker.interactions.emojiPickerPosition).toBeNull();
+    expect(picker.overlays.overlay).toBeNull();
     completeRequest();
   });
 

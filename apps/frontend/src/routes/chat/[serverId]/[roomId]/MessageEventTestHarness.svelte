@@ -19,7 +19,8 @@
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import { setTimelineRowPins, type TimelineRowPins } from './timelineRowPins';
+  import MessageActionOverlayHost from './MessageActionOverlayHost.svelte';
+  import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
@@ -38,7 +39,7 @@
     showMessage = true,
     threadingMode = RoomThreadingMode.ENABLED,
     onOpenThread,
-    rowPins
+    actionOverlays = new MessageActionOverlayState()
   }: {
     event: TimelineEventView;
     userStore?: UserStore;
@@ -55,12 +56,9 @@
     showMessage?: boolean;
     threadingMode?: RoomThreadingMode;
     onOpenThread?: OpenThreadHandler;
-    /** Pins of the enclosing timeline, as `EventList` provides them. */
-    rowPins?: TimelineRowPins;
+    /** The timeline's message action overlays, as `EventList` provides them. */
+    actionOverlays?: MessageActionOverlayState;
   } = $props();
-
-  const pins = untrack(() => rowPins);
-  if (pins) setTimelineRowPins(pins);
 
   const connection = {} as ServerConnection;
   const users = untrack(() => userStore ?? new UserStore());
@@ -114,6 +112,14 @@
   }));
   provideUserProfiles(() => users);
 
+  // Like EventList, the host's event resolves to null as soon as the overlay closes.
+  const overlayEvent = $derived(actionOverlays.eventId === event.id ? event : null);
+  // Like EventList: an overlay closes when its message leaves the timeline.
+  $effect(() => {
+    if (actionOverlays.eventId && actionOverlays.eventId !== event.id)
+      untrack(() => actionOverlays.close());
+  });
+
   const messageStore = {
     ensureEvent: () => undefined,
     getEventById: () => undefined,
@@ -128,9 +134,23 @@
     {roomId}
     {permalinkThreadRootEventId}
     messageStore={messageStore as never}
+    {actionOverlays}
     {threadingMode}
     {onOpenThread}
     onOpenUser={(user, anchorRect) => userInteractions.showUser(user, anchorRect)}
+  />
+{/if}
+
+<!-- Like EventList: the overlay host stays while the message is in the timeline. -->
+{#if overlayEvent}
+  <MessageActionOverlayHost
+    overlays={actionOverlays}
+    event={overlayEvent}
+    {roomId}
+    {permalinkThreadRootEventId}
+    messageStore={messageStore as never}
+    {onOpenThread}
+    {threadingMode}
   />
 {/if}
 

@@ -61,6 +61,12 @@ export function getRoomPermissions(): RoomPermissions {
   return state.current;
 }
 
+/** Capture the permissions context during initialization, then read it later. */
+export function useRoomPermissions(): () => RoomPermissions {
+  const state = getRoomPermissionsState();
+  return () => state.current;
+}
+
 const [getMentionRolesState, setMentionRolesState] = createContext<() => MentionRole[]>();
 
 export function createMentionRoles(getRoles: () => MentionRole[] = () => []) {
