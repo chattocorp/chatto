@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-28
+**Last reviewed:** 2026-10-04
 
 ## Overview
 
@@ -48,7 +48,10 @@ targets, unread counts, read state, or deletion semantics.
 - Rows use concise, full localized sentences without message previews.
   Reaction rows show the emoji that were given.
 - Opening a row navigates to the selected occurrence's exact room, thread, and
-  event. The occurrence is marked Read only after the target is displayed.
+  event. The occurrence is marked Read only after the target is visible and
+  highlighted. An interrupted load keeps the selected target until navigation
+  completes or the user leaves the destination or selects another target.
+  A failed jump does not itself mark the occurrence Read.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
 - The bundled client reads a room or thread only up to the newest message that

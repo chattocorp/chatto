@@ -236,7 +236,9 @@ describe('EventList jump completion', () => {
 
     await expect.element(page.getByText('msg-target', { exact: true })).toBeInTheDocument();
     await expect.element(page.getByTestId('virtualizer-scroll-index')).not.toHaveTextContent('');
-    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledExactlyOnceWith(true));
+    await vi.waitFor(() =>
+      expect(onComplete).toHaveBeenCalledExactlyOnceWith(true, 'msg-target', null)
+    );
   });
 
   it('signals completion after bounded retries when the target is not rendered', async () => {
@@ -249,17 +251,25 @@ describe('EventList jump completion', () => {
       }
     });
 
-    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledExactlyOnceWith(false), {
-      timeout: 2_000
-    });
+    await vi.waitFor(
+      () => expect(onComplete).toHaveBeenCalledExactlyOnceWith(false, 'msg-target', null),
+      { timeout: 2_000 }
+    );
   });
 
-  it('cancels completion for a superseded scroll target', async () => {
+  it('completes an ordinary jump after cancelling its pending notification target', async () => {
     const onComplete = vi.fn();
     const rendered = render(EventListTestHarness, {
       props: {
         eventIds: ['msg-new'],
         scrollToEventId: 'msg-old',
+        pendingHighlightId: 'msg-old',
+        highlightRequest: {
+          roomId: 'room-1',
+          threadRootEventId: null,
+          eventId: 'msg-old',
+          notificationId: 'notification-old'
+        },
         onComplete
       }
     });
@@ -267,11 +277,69 @@ describe('EventList jump completion', () => {
     await rendered.rerender({
       eventIds: ['msg-new'],
       scrollToEventId: 'msg-new',
+      pendingHighlightId: null,
+      highlightRequest: null,
       onComplete
     });
 
     await expect.element(page.getByText('msg-new', { exact: true })).toBeInTheDocument();
-    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledExactlyOnceWith(true));
+    await vi.waitFor(() =>
+      expect(onComplete).toHaveBeenCalledExactlyOnceWith(true, 'msg-new', null)
+    );
+  });
+
+  it('acknowledges only the latest request after another click on the same message', async () => {
+    const onComplete = vi.fn();
+    const first = {
+      roomId: 'room-1',
+      threadRootEventId: null,
+      eventId: 'msg-target',
+      notificationId: 'notification-1'
+    };
+    const second = { ...first, notificationId: 'notification-2' };
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: ['msg-target'],
+        scrollToEventId: 'msg-target',
+        highlightRequest: first,
+        onComplete
+      }
+    });
+    await vi.waitFor(() =>
+      expect(page.getByText('msg-target', { exact: true }).element().classList).toContain(
+        'highlight-flash'
+      )
+    );
+
+    await rendered.rerender({ highlightRequest: second });
+    await vi.waitFor(() =>
+      expect(onComplete).toHaveBeenCalledExactlyOnceWith(true, 'msg-target', second)
+    );
+  });
+
+  it('does not acknowledge a mounted target outside the timeline viewport', async () => {
+    const onComplete = vi.fn();
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: ['msg-target'],
+        scrollToEventId: null,
+        onComplete
+      }
+    });
+    // The virtualizer mock mounts the row but does not move it into the viewport.
+    // Place the whole list outside its clipping viewport before starting the jump.
+    const container = rendered.container.querySelector(
+      '[data-testid="messages-container"]'
+    ) as HTMLElement;
+    expect(container).not.toBeNull();
+    container.style.height = '1px';
+    container.style.overflow = 'hidden';
+    await rendered.rerender({ scrollToEventId: 'msg-target' });
+
+    await vi.waitFor(
+      () => expect(onComplete).toHaveBeenCalledExactlyOnceWith(false, 'msg-target', null),
+      { timeout: 2_000 }
+    );
   });
 
   it('cancels a pending scroll attempt when unmounted', async () => {

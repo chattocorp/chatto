@@ -49,6 +49,7 @@
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import { appState } from '$lib/state/globals.svelte';
   import type { TimelineReadPosition } from './readThroughTracker';
+  import type { PendingHighlight } from '$lib/state/server/pendingHighlight';
 
   let {
     roomId,
@@ -72,6 +73,7 @@
     onReachedBottom,
     onReadPosition,
     pendingHighlightId = null,
+    highlightRequest = null,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     roomId: string;
@@ -94,7 +96,11 @@
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
     /** Reports whether a jump-to-message request found and highlighted its target. */
-    onScrollToEventComplete?: (landed: boolean) => void;
+    onScrollToEventComplete?: (
+      landed: boolean,
+      eventId: string,
+      request: PendingHighlight | null
+    ) => void;
     onReachedBottom?: () => void;
     /**
      * Reports the newest position that the viewer can see when it changes.
@@ -104,6 +110,8 @@
     onReadPosition?: (position: TimelineReadPosition) => void;
     // Suppress auto-scroll while a highlight is pending
     pendingHighlightId?: string | null;
+    /** Stable identity, including repeated notification clicks on the same message. */
+    highlightRequest?: PendingHighlight | null;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -325,7 +333,16 @@
   $effect(() => {
     let cancelled = false;
     const targetId = scrollToEventId;
-    if (!targetId || !virtualizerHandle || virtualItems.length === 0) return;
+    const request = highlightRequest;
+    if (
+      !targetId ||
+      (request !== null && request.eventId !== targetId) ||
+      !virtualizerHandle ||
+      virtualItems.length === 0 ||
+      stores.realtimeSync.isRecoveringSnapshot
+    ) {
+      return;
+    }
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
     viewport.beginJump();
@@ -348,6 +365,13 @@
         const target = (scrollContainer ?? document).querySelector(eventSelector(targetId));
         if (!(target instanceof HTMLElement)) continue;
 
+        // A mounted virtual row can still be outside the viewport while its
+        // measured offset settles. Do not acknowledge it until it is visible.
+        if (!eventIsVisible(target)) continue;
+
+        target.classList.remove('highlight-flash');
+        // Restart the animation when another click selects the same mounted row.
+        void target.offsetWidth;
         target.classList.add('highlight-flash');
         target.addEventListener('animationend', () => target.classList.remove('highlight-flash'), {
           once: true
@@ -355,17 +379,18 @@
 
         await new Promise((resolve) => setTimeout(resolve, 200));
         if (cancelled) return;
+        if (!eventIsVisible(target)) continue;
         const distance = distanceFromBottom();
         if (distance === null) return;
         viewport.settleJump(distance);
         reportReadPosition();
-        onScrollToEventComplete?.(true);
+        onScrollToEventComplete?.(true, targetId, request);
         return;
       }
 
       if (cancelled) return;
       reportReadPosition();
-      onScrollToEventComplete?.(false);
+      onScrollToEventComplete?.(false, targetId, request);
     });
 
     return () => {
@@ -421,6 +446,7 @@
 
   // Build a DOM command only after fresh authority and the virtualizer are ready.
   const recoveryTarget = $derived.by(() => {
+    if (scrollToEventId || pendingHighlightId) return null;
     const position = recoveryViewport(messageStore);
     if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot) return null;
     const items = virtualItems;
@@ -635,6 +661,14 @@
     return `[data-event-id="${CSS.escape(eventId)}"]`;
   }
 
+  /** A jump succeeds only while its mounted row intersects this timeline's viewport. */
+  function eventIsVisible(target: HTMLElement): boolean {
+    if (!target.isConnected || !scrollContainer) return false;
+    const bounds = target.getBoundingClientRect();
+    const visible = scrollContainer.getBoundingClientRect();
+    return bounds.height > 0 && bounds.bottom > visible.top && bounds.top < visible.bottom;
+  }
+
   // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
   // browser may have throttled virtua's measurements or our auto-scroll effect
   // while hidden, leaving shouldScrollToBottom=true even though the scroll has
@@ -652,6 +686,7 @@
   let underfilledBackfillInFlight = false;
 
   function exitJumpedModeAtPresent(bottomDistance: number): boolean {
+    if (scrollToEventId || pendingHighlightId) return false;
     if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50) return false;
 
     viewport.followBottom();

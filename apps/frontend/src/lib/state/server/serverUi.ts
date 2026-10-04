@@ -124,16 +124,20 @@ export class ServerUi {
       connection.getAPI(createRoomCommandAPI)
     );
 
-    store.onReset(({ retainView }) => {
+    store.onReset(({ privacy, retainView }) => {
+      // Navigation targets contain no cached message content. Keep an unfinished
+      // jump through snapshot recovery, but never across a viewer privacy reset.
+      if (privacy) this.pendingHighlights.clear();
       if (retainView) return;
       this.voiceCall.handleProjectionReset();
       this.roomDirectory.resetOptimisticState();
       this.roomUnread.clear();
-      this.pendingHighlights.clear();
       this.adminRoomLayout.resetProjectionState();
       this.#forEachSearch((search) => search.clearResults());
     });
     store.onRoomAccessLost(({ roomId, messagesOnly, removed }) => {
+      const highlight = this.pendingHighlights.current;
+      if (highlight?.roomId === roomId) this.pendingHighlights.complete(highlight);
       if (!messagesOnly) this.voiceCall.handleRoomAccessRevoked(roomId);
       if (removed) {
         this.roomDirectory.removeMembershipProjection(roomId);

@@ -79,25 +79,27 @@ describe('message link resolver', () => {
       `/chat/remote.example/room-1${threadId ? `/${threadId}` : ''}`,
       { replaceState: true }
     );
-    expect(highlights.consume('room-1', threadId)).toEqual({
+    expect(highlights.peek('room-1', threadId)).toEqual({
+      roomId: 'room-1',
+      threadRootEventId: threadId,
       eventId: 'message-1',
       notificationId: null
     });
-    expect(highlights.consume('room-1', threadId)).toBeNull();
+    expect(highlights.has('room-1', threadId)).toBe(true);
   });
 
   it('keeps the room highlight fallback for a missing target', async () => {
     getMessage.mockResolvedValue(null);
     await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1');
     expect(goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true });
-    expect(highlights.consume('room-1', null)?.eventId).toBe('message-1');
+    expect(highlights.peek('room-1', null)?.eventId).toBe('message-1');
   });
 
   it('returns to the room without a highlight when the request fails', async () => {
     getMessage.mockRejectedValue(new Error('Request failed'));
     await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1');
     expect(goto).toHaveBeenCalledWith('/chat/-/room-1', { replaceState: true });
-    expect(highlights.consume('room-1', null)).toBeNull();
+    expect(highlights.peek('room-1', null)).toBeNull();
   });
 
   it.each([false, true])('ignores a stale request (failure: %s)', async (fails) => {
@@ -109,7 +111,7 @@ describe('message link resolver', () => {
     });
     await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1', () => current);
     expect(goto).not.toHaveBeenCalled();
-    expect(highlights.consume('room-1', 'message-1')).toBeNull();
-    expect(highlights.consume('room-1', null)).toBeNull();
+    expect(highlights.peek('room-1', 'message-1')).toBeNull();
+    expect(highlights.peek('room-1', null)).toBeNull();
   });
 });

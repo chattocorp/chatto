@@ -110,7 +110,7 @@
     };
   };
 
-  const navigation = new RoomNavigationState();
+  const navigation = new RoomNavigationState(serverUi(stores).pendingHighlights);
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
     navigation.prepareThreadOpen(roomId, threadRootEventId, options);
@@ -141,13 +141,22 @@
     const mountedStores = stores;
     const selectedRoomId = roomId;
     const hydrateRoom = shouldHydrateRoom;
-    if (hydrateRoom) untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
+    const restoreLatest = () => {
+      // The historical window belongs to an unfinished jump, even if the room
+      // remounts or its hydration state changes before the target is rendered.
+      if (hydrateRoom && !navigation.highlightFor(selectedRoomId, null)) {
+        mountedStores.restoreProjectedRoomWindow(selectedRoomId);
+      }
+    };
+    untrack(restoreLatest);
     return () => {
       // Invalidate any historical-window request before this room becomes
       // inactive. Its late response must not replace the retained latest
       // projection while another room is being rendered.
-      navigation.clearMainHighlight();
-      if (hydrateRoom) untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
+      untrack(() => {
+        if (selectedRoomId !== roomId) navigation.clearMainHighlight(selectedRoomId);
+        restoreLatest();
+      });
     };
   });
 
@@ -239,7 +248,7 @@
   // current roomId. Three sources, in priority order:
   //   1. A nested thread message route (/room/thread/m/message).
   //   2. PendingHighlightStore — set by in-app navigations (notification
-  //      clicks, message-link redirects). One-shot, consumed-on-success.
+  //      clicks, message-link redirects). Retained until the pane completes it.
   //   3. ?highlight= URL param — for shareable permalinks. Stripped after
   //      consumption so a refresh doesn't re-fire it.
   // The ConversationPane that shows the target timeline performs the jump.
@@ -259,11 +268,7 @@
       return;
     }
 
-    const pending = serverUi(stores).pendingHighlights.consume(roomId, threadId ?? null);
-    if (pending) {
-      applyHighlight(pending.eventId, pending.notificationId);
-      return;
-    }
+    if (navigation.highlightFor(roomId, threadId ?? null)) return;
 
     const fromUrl = navigation.consumeHighlightParam(
       roomId,
@@ -455,8 +460,19 @@
   // Only an explicit open requests focus. Saved panels have no pending request.
   let focusSearchOnOpen = $state<RoomSidebarPresentation | null>(null);
 
-  beforeNavigate(() => {
+  beforeNavigate(({ to }) => {
     focusSearchOnOpen = null;
+    const highlight = navigation.highlight;
+    // A click can queue the next room's request before navigation starts.
+    // Cancel only a request for the room that this view currently owns.
+    if (
+      highlight?.roomId === roomId &&
+      (to?.params?.serverId !== serverSegment ||
+        to?.params?.roomId !== highlight.roomId ||
+        (to?.params?.threadId ?? null) !== highlight.threadRootEventId)
+    ) {
+      navigation.clearHighlight(highlight);
+    }
   });
 
   function searchFocused(presentation: RoomSidebarPresentation): void {
@@ -661,7 +677,7 @@
           onThreadMessageSent: (threadRootEventId, event) =>
             openThread(threadRootEventId, { highlightEventId: event?.id })
         }}
-        highlight={navigation.highlightFor(roomId, null)}
+        highlight={room.roomData?.room.id === roomId ? navigation.highlightFor(roomId, null) : null}
         onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
         onOpenThread={openThread}
         onOpenCall={openRoomCall}
@@ -773,7 +789,9 @@
             slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
             slowModeBypassed={!!room.roomData?.canManageRoom ||
               !!room.roomData?.canManageOthersMessage}
-            highlight={navigation.highlightFor(roomId, threadId)}
+            highlight={room.roomData?.room.id === roomId
+              ? navigation.highlightFor(roomId, threadId)
+              : null}
             composerInput={navigation.composerInputFor(roomId, threadId)}
             presentation={threadPanePresentation}
             {threadingMode}

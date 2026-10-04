@@ -60,6 +60,7 @@ thread IDs can change while the pane stays mounted.
   import { threadParticipantIds } from './threadParticipants';
   import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
   import { ReadThroughTracker, type TimelineReadPosition } from './readThroughTracker';
+  import { clearTimelineViewport } from '$lib/state/room/timelineViewport';
 
   let {
     roomId,
@@ -249,6 +250,12 @@ thread IDs can change while the pane stays mounted.
   // around a target that the loaded window does not contain.
   jumpState.setJumpHandler(async (eventId: string) => {
     if (!canReadMessages) return false;
+    // A quote jump replaces an unfinished notification jump without reading it.
+    // Release its pending target so EventList can scroll to the new message.
+    const pending = highlight;
+    if (pending && pending.eventId !== eventId) onHighlightComplete?.(pending);
+    // An explicit target takes precedence over the position saved for recovery.
+    clearTimelineViewport(messageStore);
     return jumpState.show(messageStore, eventId);
   });
 
@@ -261,21 +268,13 @@ thread IDs can change while the pane stays mounted.
     if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
   });
 
-  // Jump to each highlight request once.
-  let handledHighlight: PendingHighlight | null = null;
-  let highlightRequest = 0;
+  // A snapshot can interrupt loading. Keep the request in its owner and retry
+  // after recovery; disposal of this pane never acknowledges the request.
   $effect(() => {
     const target = highlight;
-    if (!target) {
-      handledHighlight = null;
-      highlightRequest += 1;
-      return;
-    }
-    if (handledHighlight === target) return;
-    handledHighlight = target;
-    const request = ++highlightRequest;
-    const current = () =>
-      request === highlightRequest && highlight === target && serverScope.isCurrent();
+    if (!target || stores.realtimeSync.isRecoveringSnapshot) return;
+    let cancelled = false;
+    const current = () => !cancelled && highlight === target && serverScope.isCurrent();
 
     void (async () => {
       await tick();
@@ -287,12 +286,11 @@ thread IDs can change while the pane stays mounted.
         onHighlightComplete?.(target);
         return;
       }
-      if (target.notificationId) {
-        void stores.notifications.markOccurrenceRead(target.notificationId).catch((error) => {
-          console.error('Failed to mark displayed notification read:', error);
-        });
-      }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   let composerApi = $state<MessageComposerApi | null>(null);
@@ -384,9 +382,20 @@ thread IDs can change while the pane stays mounted.
       typingUserIds={typingIndicator.userIds}
       typingMembers={members}
       pendingHighlightId={highlight?.eventId ?? null}
-      onScrollToEventComplete={(landed) => {
+      highlightRequest={highlight}
+      onScrollToEventComplete={(landed, eventId, request) => {
+        // Completion names the request that started the scroll. A later click
+        // on the same message must not be cleared by this callback.
+        if (jumpState.scrollToEventId !== eventId || highlight !== request) return;
         jumpState.scrollToEventId = null;
-        if (highlight) onHighlightComplete?.(highlight);
+        if (request) {
+          if (landed && request.notificationId) {
+            void stores.notifications.markOccurrenceRead(request.notificationId).catch((error) => {
+              console.error('Failed to mark displayed notification read:', error);
+            });
+          }
+          onHighlightComplete?.(request);
+        }
         if (!landed) toast.error(m('room.jump_failed'));
       }}
       {threadingMode}

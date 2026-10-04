@@ -100,11 +100,20 @@ describe('RoomNavigationState', () => {
   it('drops only a room-timeline highlight when the room becomes inactive', () => {
     const state = new RoomNavigationState();
     state.beginHighlight('room-1', null, 'message-1');
-    state.clearMainHighlight();
+    state.clearMainHighlight('room-1');
     expect(state.highlight).toBeNull();
 
     state.beginHighlight('room-1', 'thread-1', 'message-2');
-    state.clearMainHighlight();
+    state.clearMainHighlight('room-1');
     expect(state.highlightFor('room-1', 'thread-1')?.eventId).toBe('message-2');
+  });
+
+  it('does not let the previous room cleanup clear the next room request', () => {
+    const state = new RoomNavigationState();
+    state.beginHighlight('room-2', null, 'message-2');
+
+    state.clearMainHighlight('room-1');
+
+    expect(state.highlightFor('room-2', null)?.eventId).toBe('message-2');
   });
 });

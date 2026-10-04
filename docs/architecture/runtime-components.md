@@ -46,6 +46,17 @@ client keeps no chat data on the device, so each page load starts without a
 resume cursor and receives a fresh snapshot. See
 [ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md).
 
+The bundled frontend's per-server
+[`PendingHighlightStore`](../../apps/frontend/src/lib/state/server/pendingHighlight.ts)
+owns the active message jump. The request keeps its object identity through
+room hydration, snapshot replacement, and component remounts.
+[`RoomNavigationState`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/roomNavigationState.svelte.ts)
+reads this store instead of keeping a separate highlight. The timeline reports
+the completed request only after its target is visible and highlighted. A late
+completion cannot clear a newer request. Navigation away from the destination,
+loss of room access, a viewer privacy reset, and server disposal cancel the
+request. See [FDR-012](../fdr/FDR-012-notifications.md).
+
 The experimental iOS shell under `apps/mobile/` bundles the shared frontend
 with Capacitor at `capacitor://localhost`. Its persistent webview store owns
 client state. The native launch-screen view covers WebKit startup until a

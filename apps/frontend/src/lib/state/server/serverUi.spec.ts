@@ -134,6 +134,30 @@ describe('serverUi', () => {
     expect(layout).toHaveBeenCalledOnce();
   });
 
+  it('retains an unfinished jump through snapshot replacement but clears it at a privacy reset', () => {
+    const { store, emit } = fakeStore();
+    const ui = serverUi(store);
+    ui.pendingHighlights.set('R1', null, 'M1', 'N1');
+    const request = ui.pendingHighlights.current;
+
+    emit.reset({ privacy: false, retainView: false });
+    expect(ui.pendingHighlights.current).toBe(request);
+    emit.reset({ privacy: true, retainView: false });
+    expect(ui.pendingHighlights.current).toBeNull();
+  });
+
+  it('cancels a jump only when access to its destination is lost', () => {
+    const { store, emit } = fakeStore();
+    const ui = serverUi(store);
+    ui.pendingHighlights.set('R1', null, 'M1');
+    const request = ui.pendingHighlights.current;
+
+    emit.roomAccessLost({ roomId: 'R2', messagesOnly: true, removed: false });
+    expect(ui.pendingHighlights.current).toBe(request);
+    emit.roomAccessLost({ roomId: 'R1', messagesOnly: true, removed: false });
+    expect(ui.pendingHighlights.current).toBeNull();
+  });
+
   it('removes search plaintext of a room, a deleted author, and changed messages', () => {
     const { store, emit } = fakeStore();
     const ui = serverUi(store);
