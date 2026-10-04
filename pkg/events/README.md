@@ -81,7 +81,8 @@ revision or no entry. A read that must see a preceding write, or that decides
 an OCC update, a claim, or a revocation, then works from stale state.
 
 `KeyValue` wraps a bucket handle and keeps its complete
-`jetstream.KeyValue` interface. `Get` and `GetRevision` read through the
+`jetstream.KeyValue` interface. It supports only the default JetStream API:
+`NewKeyValue` rejects a context with a domain or a different API prefix. `Get` and `GetRevision` read through the
 stream leader and keep the semantics of the bucket's own methods. `Latest`
 returns the newest entry for a key or wildcard filter, including delete,
 purge, and expiry markers. `UpdateWithTTL` replaces a revision and sets a new
