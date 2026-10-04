@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Publikowanie wiadomości",
-          "description": "Publikowanie wiadomości i odpowiedzi w wątkach."
+          "description": "Publikowanie nowych wiadomości w pokojach i wiadomościach prywatnych."
         },
         "read_all": {
           "title": "Czytanie wszystkich wiadomości",

@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Publier des messages",
-          "description": "Publier des messages et des réponses dans les fils."
+          "description": "Publier de nouveaux messages dans les salons et les messages privés."
         },
         "read_all": {
           "title": "Lire tous les messages",

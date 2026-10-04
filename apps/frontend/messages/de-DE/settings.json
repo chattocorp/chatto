@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Nachrichten senden",
-          "description": "Nachrichten und Antworten in Threads senden."
+          "description": "Neue Nachrichten in Räumen und DMs senden."
         },
         "read_all": {
           "title": "Alle Nachrichten lesen",

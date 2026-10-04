@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Sende meldinger",
-          "description": "Sende meldinger og svar i tråder."
+          "description": "Sende nye meldinger i rom og direktemeldinger."
         },
         "read_all": {
           "title": "Lese alle meldinger",

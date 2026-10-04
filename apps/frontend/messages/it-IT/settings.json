@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Pubblicare messaggi",
-          "description": "Pubblicare messaggi e risposte nei thread."
+          "description": "Pubblicare nuovi messaggi nelle stanze e nei messaggi diretti."
         },
         "read_all": {
           "title": "Leggere tutti i messaggi",

@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "发送消息",
-          "description": "发送消息和话题回复。"
+          "description": "在聊天室和私信中发送新消息。"
         },
         "read_all": {
           "title": "阅读所有消息",

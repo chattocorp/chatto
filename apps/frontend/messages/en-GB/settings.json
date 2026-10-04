@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Post messages",
-          "description": "Post messages and thread replies."
+          "description": "Post new messages in rooms and DMs."
         },
         "read_all": {
           "title": "Read all messages",

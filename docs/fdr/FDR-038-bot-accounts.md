@@ -178,13 +178,19 @@ exercise more authority than its human owner currently possesses.
   | Attach files                | Server: `message.attach`                                            |
   | Find and join rooms         | Server: `room.list`, `room.join`                                    |
 
-  After `CreateBot` succeeds, the frontend writes each allow with
-  `AdminPermissionService.SetUserPermission`, one request at a time. The server
+  In a DM, every message creates an interaction for each participant. So
+  _Answer mentions and threads_ lets the bot read and reply in every DM
+  thread that it is in, not only where someone mentions it.
+
+  After `CreateBot` succeeds, the frontend shows the API key and writes each
+  allow with `AdminPermissionService.SetUserPermission`, one request at a time. The server
   does not store the capability. A capability is disabled when the creator
   does not have all of its permissions at server scope, because the owner
-  ceiling rejects such a grant. When no capability is selected, or when a
-  grant fails, the frontend shows the API key and then opens the Permissions
-  tab of the bot. A failed grant also shows a warning.
+  ceiling rejects such a grant. The check is approximate: the creator's DM-scope
+  decision can differ, and a server owner's implicit authority shows only in
+  privileged mode. When no capability is selected, or when a grant fails, the
+  Permissions tab of the bot opens after the API key dialog closes. A failed
+  grant also shows a warning.
 
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
@@ -204,7 +210,8 @@ exercise more authority than its human owner currently possesses.
   `message.read-interactions` grant for related threads. The broad grant
   includes the narrow permission. Each grant is bounded by sufficient
   effective authority on its owner. DM membership remains necessary, and the
-  bot also needs a DM-scoped broad or interaction read grant.
+  bot also needs a broad or interaction read grant at DM or server scope. A
+  DM check falls back to server scope.
 - A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
   has `message.post` or the DM already exists. A human must start a DM that
   includes the bot. The bot can then interact in that DM through its normal

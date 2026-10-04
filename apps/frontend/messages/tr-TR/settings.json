@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Mesaj gönderme",
-          "description": "Mesaj ve ileti dizisi yanıtları gönderme."
+          "description": "Odalarda ve doğrudan mesajlarda yeni mesaj gönderme."
         },
         "read_all": {
           "title": "Tüm mesajları okuma",

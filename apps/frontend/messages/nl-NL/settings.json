@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Berichten plaatsen",
-          "description": "Berichten en antwoorden in threads plaatsen."
+          "description": "Nieuwe berichten plaatsen in kamers en privéberichten."
         },
         "read_all": {
           "title": "Alle berichten lezen",

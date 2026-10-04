@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Skicka meddelanden",
-          "description": "Skicka meddelanden och svar i trådar."
+          "description": "Skicka nya meddelanden i rum och direktmeddelanden."
         },
         "read_all": {
           "title": "Läsa alla meddelanden",

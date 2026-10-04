@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "傳送訊息",
-          "description": "傳送訊息和討論串回覆。"
+          "description": "在聊天室和私訊中傳送新訊息。"
         },
         "read_all": {
           "title": "閱讀所有訊息",

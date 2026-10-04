@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Publicēt ziņas",
-          "description": "Publicēt ziņas un atbildes pavedienos."
+          "description": "Publicēt jaunas ziņas istabās un tiešajās ziņās."
         },
         "read_all": {
           "title": "Lasīt visas ziņas",

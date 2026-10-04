@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Sõnumite postitamine",
-          "description": "Sõnumite ja lõimevastuste postitamine."
+          "description": "Uute sõnumite postitamine ruumides ja otsesõnumites."
         },
         "read_all": {
           "title": "Kõigi sõnumite lugemine",

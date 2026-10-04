@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Publicar mensagens",
-          "description": "Publicar mensagens e respostas em tópicos."
+          "description": "Publicar novas mensagens em salas e mensagens diretas."
         },
         "read_all": {
           "title": "Ler todas as mensagens",

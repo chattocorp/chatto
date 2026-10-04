@@ -522,7 +522,7 @@
         },
         "post": {
           "title": "Odesílat zprávy",
-          "description": "Odesílat zprávy a odpovědi ve vláknech."
+          "description": "Odesílat nové zprávy v místnostech a přímých zprávách."
         },
         "read_all": {
           "title": "Číst všechny zprávy",
