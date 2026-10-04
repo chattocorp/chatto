@@ -17,18 +17,20 @@ import (
 
 // syncPreference reads only the latest RUNTIME_STATE choice before a privacy
 // decision. Neither choices nor changes are written to the durable event log.
+// It reads through the stream leader: a privacy decision must not resurrect an
+// older mode from a lagging replica.
 func (s *PresenceModel) syncPreference(ctx context.Context, userID string) (uint64, error) {
 	if !validPresenceUserID(userID) {
 		return 0, nil
 	}
-	entry, err := s.readPreferenceRecord(ctx, presenceKey(userID))
+	entry, err := readRuntimeStateLastMsg(ctx, s.js, presenceKey(userID))
 	if errors.Is(err, nats.ErrMsgNotFound) {
 		return 0, nil
 	}
 	if err != nil {
 		return 0, err
 	}
-	if entry.Header.Get("KV-Operation") != "" {
+	if isRuntimeStateTombstone(entry) {
 		s.hub.applyPreference(userID, nil, entry.Sequence)
 		return 0, nil
 	}
@@ -40,28 +42,10 @@ func (s *PresenceModel) syncPreference(ctx context.Context, userID string) (uint
 	return entry.Sequence, nil
 }
 
-// readPreferenceRecord deliberately uses the leader-routed management read.
-// The newer KV/Stream Get helpers use DirectGet when available, which can read
-// a lagging NATS replica. Privacy decisions must not resurrect an older mode.
-func (s *PresenceModel) readPreferenceRecord(ctx context.Context, key string) (*nats.RawStreamMsg, error) {
-	opts := s.js.Options()
-	options := []nats.JSOpt{nats.MaxWait(opts.DefaultTimeout)}
-	if opts.Domain != "" {
-		options = append(options, nats.Domain(opts.Domain))
-	} else if opts.APIPrefix != "" {
-		options = append(options, nats.APIPrefix(opts.APIPrefix))
-	}
-	reader, err := s.js.Conn().JetStream(options...)
-	if err != nil {
-		return nil, err
-	}
-	return reader.GetLastMsg("KV_RUNTIME_STATE", "$KV.RUNTIME_STATE."+key, nats.Context(ctx))
-}
-
 // waitPreferencesCurrent uses one shared watcher barrier for a bulk read.
 // It does not issue a separate KV request for every hydrated user.
 func (s *PresenceModel) waitPreferencesCurrent(ctx context.Context) error {
-	last, err := s.readPreferenceRecord(ctx, "presence.>")
+	last, err := readRuntimeStateLastMsg(ctx, s.js, "presence.>")
 	if errors.Is(err, nats.ErrMsgNotFound) {
 		return nil
 	}

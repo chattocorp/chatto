@@ -2,12 +2,14 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 )
 
@@ -65,6 +67,126 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	}
 	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !isRuntimeStateKeyAbsent(err) {
 		t.Fatalf("revoked renewable session lookup error = %v, want absent key", err)
+	}
+}
+
+// laggingReplicaKV answers Get as a DirectGet served by a NATS follower that
+// has not applied later writes: a key in stale returns its older entry, or
+// jetstream.ErrKeyNotFound when that entry is nil.
+type laggingReplicaKV struct {
+	jetstream.KeyValue
+	stale map[string]jetstream.KeyValueEntry
+}
+
+func (kv laggingReplicaKV) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	if entry, ok := kv.stale[key]; ok {
+		if entry == nil {
+			return nil, jetstream.ErrKeyNotFound
+		}
+		return entry, nil
+	}
+	return kv.KeyValue.Get(ctx, key)
+}
+
+// lagReplica makes later direct reads of RUNTIME_STATE use stale.
+func lagReplica(core *ChattoCore, stale map[string]jetstream.KeyValueEntry) {
+	core.storage.runtimeStateKV = laggingReplicaKV{KeyValue: core.storage.runtimeStateKV, stale: stale}
+}
+
+func TestChattoCore_RefreshBearerSessionIgnoresLaggingReplicaReads(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-replica-user", "Lagging Replica User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, _, ok := chattoCore.parseRefreshToken(initial.RefreshToken)
+	if !ok {
+		t.Fatal("initial refresh credential did not parse")
+	}
+	sessionKey := chattoCore.renewableSessionKey(sessionID)
+	stale, err := chattoCore.storage.runtimeStateKV.Get(ctx, sessionKey)
+	if err != nil {
+		t.Fatalf("get initial renewable session: %v", err)
+	}
+	lagReplica(chattoCore, map[string]jetstream.KeyValueEntry{sessionKey: stale})
+
+	// A follower that still holds generation 0 must neither fail the rotation's
+	// confirmation nor make the next refresh look like token reuse.
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
+	if err != nil {
+		t.Fatalf("RefreshBearerSession with a lagging replica: %v", err)
+	}
+	if _, generation, ok := chattoCore.parseRefreshToken(rotated.RefreshToken); !ok || generation != 1 {
+		t.Fatalf("rotated refresh generation = %d, %v; want 1", generation, ok)
+	}
+	next, err := chattoCore.RefreshBearerSession(ctx, rotated.RefreshToken, testRefreshRequestIDB, "")
+	if err != nil {
+		t.Fatalf("second RefreshBearerSession with a lagging replica: %v", err)
+	}
+	if got, err := chattoCore.ValidateAuthToken(ctx, next.AccessToken); err != nil || got != user.Id {
+		t.Fatalf("ValidateAuthToken after second rotation = %q, %v", got, err)
+	}
+}
+
+func TestChattoCore_AccessValidationIgnoresLaggingReplicaReads(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-access-user", "Lagging Access User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, _, ok := chattoCore.parseRefreshToken(initial.RefreshToken)
+	if !ok {
+		t.Fatal("initial refresh credential did not parse")
+	}
+	sessionKey := chattoCore.renewableSessionKey(sessionID)
+	stale, err := chattoCore.storage.runtimeStateKV.Get(ctx, sessionKey)
+	if err != nil {
+		t.Fatalf("get initial renewable session: %v", err)
+	}
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
+	if err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+
+	// The follower has neither the new access record nor the new generation.
+	accessKey := chattoCore.authTokenKey(rotated.AccessToken)
+	lagReplica(chattoCore, map[string]jetstream.KeyValueEntry{sessionKey: stale, accessKey: nil})
+
+	if got, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); err != nil || got != user.Id {
+		t.Fatalf("ValidateAuthToken with a lagging replica = %q, %v", got, err)
+	}
+	if _, err := chattoCore.getRuntimeStateLatest(ctx, accessKey); err != nil {
+		t.Fatalf("validation removed the new access record: %v", err)
+	}
+}
+
+func TestChattoCore_ExchangeAuthCodeIgnoresLaggingReplicaMiss(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-code-user", "Lagging Code User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	redirectURI := "https://example.com/callback"
+	code, err := chattoCore.CreateAuthCode(ctx, user.Id, redirectURI, GenerateCodeChallenge(verifier), "S256")
+	if err != nil {
+		t.Fatalf("CreateAuthCode: %v", err)
+	}
+	lagReplica(chattoCore, map[string]jetstream.KeyValueEntry{chattoCore.authCodeKey(code): nil})
+
+	if _, _, err := chattoCore.ExchangeAuthCode(ctx, code, verifier, redirectURI); err != nil {
+		t.Fatalf("ExchangeAuthCode with a lagging replica: %v", err)
 	}
 }
 

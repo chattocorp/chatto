@@ -133,7 +133,7 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 		return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
 	}
 	key := c.authTokenKey(sessionID)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getRuntimeStateConfirmingAbsence(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
@@ -165,7 +165,7 @@ func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID s
 
 	key := c.authTokenKey(sessionID)
 	for attempt := 0; attempt < 8; attempt++ {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		entry, err := c.getRuntimeStateLatest(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 				return nil, ErrCookieSessionNotFound
@@ -310,7 +310,7 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 
 	key := c.authTokenKey(sessionID)
 	for attempt := 0; attempt < 8; attempt++ {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		entry, err := c.getRuntimeStateLatest(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 				return nil, false, ErrCookieSessionNotFound
@@ -417,7 +417,7 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 			tokenKeys = append(tokenKeys, key)
 		}
 		for _, key := range tokenKeys {
-			entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+			entry, err := c.getRuntimeStateLatest(ctx, key)
 			if err != nil {
 				if errors.Is(err, jetstream.ErrKeyNotFound) {
 					continue

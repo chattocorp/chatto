@@ -86,7 +86,7 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
 	key := c.authTokenKey(token)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getRuntimeStateConfirmingAbsence(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return AuthTokenData{}, nil, ErrAuthTokenNotFound
@@ -110,7 +110,7 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
-	session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, time.Now())
+	session, err := c.validateRenewableSessionForAccess(ctx, tokenData.RenewableSessionID, tokenData.AccessGeneration, time.Now())
 	if err != nil {
 		if errors.Is(err, ErrRefreshTokenNotFound) {
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
@@ -151,7 +151,7 @@ func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, meth
 		return ErrCookieSessionNotFound
 	}
 	key := c.authTokenKey(sessionID)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getRuntimeStateLatest(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ErrCookieSessionNotFound

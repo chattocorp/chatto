@@ -184,7 +184,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 	}
 
 	key := c.authTokenKey(handle)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getRuntimeStateConfirmingAbsence(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
@@ -220,7 +220,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
-		session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, now)
+		session, err := c.validateRenewableSessionForAccess(ctx, tokenData.RenewableSessionID, tokenData.AccessGeneration, now)
 		if err != nil {
 			if errors.Is(err, ErrRefreshTokenNotFound) {
 				_ = c.storage.runtimeStateKV.Delete(ctx, key)
@@ -350,7 +350,7 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 		return "", false, nil
 	}
 	key := c.authTokenKey(token)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getRuntimeStateLatest(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return "", false, nil
@@ -422,7 +422,7 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 
 	revoked := 0
 	for _, key := range keys {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		entry, err := c.getRuntimeStateLatest(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
@@ -470,7 +470,7 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 	}
 	revoked := 0
 	for _, key := range keys {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		entry, err := c.getRuntimeStateLatest(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue

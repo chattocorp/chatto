@@ -72,6 +72,13 @@ window. See [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) and
   recovery nonce. Each revision preserves or advances its explicit expiry and
   sets its per-message TTL to the remaining lifetime. A loopback-client
   revision can instead shorten its expiry to the fixed loopback window.
+  Refresh, revocation, and every update read this record through the stream
+  leader, not through a direct get. A direct get can come from a replica that
+  lags behind a committed rotation. Refresh would then see an older generation
+  and reject a valid credential or treat it as reuse. Access-token validation
+  runs on every request, so it uses a direct get. It reads through the leader
+  only when the record is missing or older than the presented access
+  generation.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
   generation, and the established typed-credential metadata. Validation

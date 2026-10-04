@@ -175,7 +175,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientSession(ctx context.Context, code,
 func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Context, code, codeVerifier, redirectURI, clientID, resource string) (BearerSessionCredentials, string, error) {
 	key := c.authCodeKey(code)
 
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	entry, err := c.getRuntimeStateLatest(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
