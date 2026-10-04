@@ -307,3 +307,37 @@ func TestKeyValueGetTreatsExpiryMarkersAsMissing(t *testing.T) {
 		t.Fatalf("Get after expiry = %v, want ErrKeyNotFound", err)
 	}
 }
+
+func TestNewKeyValueAcceptsOnlyTheDefaultAPI(t *testing.T) {
+	ctx := testContext(t)
+	connection := startTestNATS(t)
+	js, err := jetstream.New(connection)
+	if err != nil {
+		t.Fatalf("create JetStream context: %v", err)
+	}
+	bucket, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "KV_API_TEST"})
+	if err != nil {
+		t.Fatalf("create bucket: %v", err)
+	}
+	defaultAPI, err := jetstream.NewWithAPIPrefix(connection, "$JS.API")
+	if err != nil {
+		t.Fatalf("create default-prefix context: %v", err)
+	}
+	if _, err := NewKeyValue(defaultAPI, bucket); err != nil {
+		t.Fatalf("NewKeyValue with the default prefix: %v", err)
+	}
+	domain, err := jetstream.NewWithDomain(connection, "hub")
+	if err != nil {
+		t.Fatalf("create domain context: %v", err)
+	}
+	if _, err := NewKeyValue(domain, bucket); err == nil {
+		t.Fatal("NewKeyValue accepted a JetStream domain")
+	}
+	prefixed, err := jetstream.NewWithAPIPrefix(connection, "tenant.API")
+	if err != nil {
+		t.Fatalf("create prefixed context: %v", err)
+	}
+	if _, err := NewKeyValue(prefixed, bucket); err == nil {
+		t.Fatal("NewKeyValue accepted a non-default API prefix")
+	}
+}

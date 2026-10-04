@@ -32,8 +32,9 @@ var (
 // can report jetstream.ErrKeyExists for a key that a lagging replica still
 // shows. GetAnyReplica is the opt-in fast read for hot paths.
 //
-// The bucket must be a plain bucket: not a mirror, and not reached through a
-// subject transform.
+// The bucket must be a plain bucket on the default JetStream API: not a
+// mirror, not in another domain, and not reached through a subject transform
+// or API prefix.
 type KeyValue struct {
 	jetstream.KeyValue
 	js jetstream.JetStream
@@ -43,36 +44,28 @@ type KeyValue struct {
 	leader  nats.JetStreamContext
 	stream  string
 	subject string
-	// putSubject prefixes keys for writes. Like nats.go, it puts a non-default
-	// JetStream API prefix or domain in front of the KV subject.
-	putSubject string
 }
 
-// NewKeyValue binds leader-routed reads to bucket. js must reach the same
-// JetStream domain or API prefix as the bucket handle.
+// NewKeyValue binds leader-routed reads to bucket. It rejects a JetStream
+// context with a domain or a non-default API prefix.
 func NewKeyValue(js jetstream.JetStream, bucket jetstream.KeyValue) (*KeyValue, error) {
 	if js == nil || bucket == nil {
 		return nil, errors.New("key-value bucket and JetStream context are required")
 	}
 	opts := js.Options()
-	legacyOptions := []nats.JSOpt{nats.MaxWait(opts.DefaultTimeout)}
-	if opts.Domain != "" {
-		legacyOptions = append(legacyOptions, nats.Domain(opts.Domain))
-	} else if opts.APIPrefix != "" {
-		legacyOptions = append(legacyOptions, nats.APIPrefix(opts.APIPrefix))
+	if opts.Domain != "" || (opts.APIPrefix != "" && strings.TrimSuffix(opts.APIPrefix, ".")+"." != jetstream.DefaultAPIPrefix) {
+		return nil, errors.New("key-value reads support only the default JetStream API")
 	}
-	leader, err := js.Conn().JetStream(legacyOptions...)
+	leader, err := js.Conn().JetStream(nats.MaxWait(opts.DefaultTimeout))
 	if err != nil {
 		return nil, fmt.Errorf("bind leader reads for bucket %q: %w", bucket.Bucket(), err)
 	}
-	subject := "$KV." + bucket.Bucket() + "."
 	return &KeyValue{
-		KeyValue:   bucket,
-		js:         js,
-		leader:     leader,
-		stream:     "KV_" + bucket.Bucket(),
-		subject:    subject,
-		putSubject: jetStreamAPIPrefix(opts) + subject,
+		KeyValue: bucket,
+		js:       js,
+		leader:   leader,
+		stream:   "KV_" + bucket.Bucket(),
+		subject:  "$KV." + bucket.Bucket() + ".",
 	}, nil
 }
 
@@ -141,7 +134,7 @@ func (kv *KeyValue) UpdateWithTTL(ctx context.Context, key string, value []byte,
 	if ttl <= 0 {
 		return 0, errors.New("key-value TTL must be positive")
 	}
-	message := nats.NewMsg(kv.putSubject + key)
+	message := nats.NewMsg(kv.subject + key)
 	message.Data = value
 	ack, err := kv.js.PublishMsg(ctx, message,
 		jetstream.WithExpectLastSequencePerSubject(revision),
@@ -208,22 +201,6 @@ func keyValueReadError(err error) error {
 		return fmt.Errorf("%w: %w", jetstream.ErrBucketNotFound, err)
 	}
 	return err
-}
-
-// jetStreamAPIPrefix returns the prefix that nats.go puts in front of KV
-// writes: none for the default API, otherwise the domain or API prefix.
-func jetStreamAPIPrefix(opts jetstream.JetStreamOptions) string {
-	if opts.Domain != "" {
-		return "$JS." + opts.Domain + ".API."
-	}
-	prefix := opts.APIPrefix
-	if prefix != "" && !strings.HasSuffix(prefix, ".") {
-		prefix += "."
-	}
-	if prefix == jetstream.DefaultAPIPrefix {
-		return ""
-	}
-	return prefix
 }
 
 func keyValueKeyValid(key string, pattern *regexp.Regexp) bool {
