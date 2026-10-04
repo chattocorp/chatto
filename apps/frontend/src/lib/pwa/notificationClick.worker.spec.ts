@@ -82,26 +82,22 @@ describe('routeNotificationClick', () => {
     expect(hidden.postMessage).toHaveBeenCalledOnce();
   });
 
-  it('ignores windows outside the chat app', async () => {
-    const oauth = windowClient({
-      url: `${ORIGIN}/servers/authorize?mode=popup`,
+  it('ignores windows that do not run the app', async () => {
+    const attachment = windowClient({
+      url: `${ORIGIN}/assets/files/asset-1`,
       focused: true,
       visibilityState: 'visible'
     });
-    const attachment = windowClient({
-      url: `${ORIGIN}/assets/file.png`,
-      visibilityState: 'visible'
-    });
-    const chat = windowClient({ url: `${ORIGIN}/chat`, visibilityState: 'hidden' });
+    const loadedAtRoot = windowClient({ url: `${ORIGIN}/`, visibilityState: 'hidden' });
 
     await expect(
-      routeNotificationClick(TARGET_URL, ORIGIN, clientsWith([oauth, attachment, chat]))
+      routeNotificationClick(TARGET_URL, ORIGIN, clientsWith([attachment, loadedAtRoot]))
     ).resolves.toBe('client');
-    expect(chat.postMessage).toHaveBeenCalledOnce();
+    expect(attachment.focus).not.toHaveBeenCalled();
+    expect(loadedAtRoot.postMessage).toHaveBeenCalledOnce();
 
-    const clients = clientsWith([oauth, attachment]);
+    const clients = clientsWith([attachment]);
     await expect(routeNotificationClick(TARGET_URL, ORIGIN, clients)).resolves.toBe('open');
-    expect(oauth.focus).not.toHaveBeenCalled();
     expect(attachment.focus).not.toHaveBeenCalled();
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });

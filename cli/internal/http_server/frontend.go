@@ -406,6 +406,9 @@ func serveFrontendFile(c *gin.Context, clientFS fs.FS, filePath string) error {
 	return nil
 }
 
+// isReservedNonFrontendPath reports paths that never serve the frontend. The
+// frontend's notification-click worker (notificationClick.worker.ts) keeps a
+// copy of this list to skip windows that do not run the app.
 func isReservedNonFrontendPath(urlPath string) bool {
 	return hasPathSegmentPrefix(urlPath, "/api") ||
 		hasPathSegmentPrefix(urlPath, "/auth") ||

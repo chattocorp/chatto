@@ -90,13 +90,23 @@ async function focusClient(
 }
 
 /**
- * Only chat windows route clicks. Other same-origin windows, such as OAuth
- * pages or an opened attachment, must not take the click.
+ * Path prefixes that the server never serves to the app, for example opened
+ * attachments under `/assets`. Keep in sync with `isReservedNonFrontendPath`
+ * in `cli/internal/http_server/frontend.go`.
  */
-function isChatWindow(client: NotificationClickClient): boolean {
+const NON_APP_PATH_PREFIXES = ['/api', '/auth', '/assets', '/.well-known'];
+
+/**
+ * Whether `client` runs the app and so can route a click. `Client.url` is the
+ * URL that loaded the document; client-side navigation does not change it. A
+ * window that the app loaded at `/` or `/login` is therefore an app window.
+ */
+function isAppWindow(client: NotificationClickClient): boolean {
   try {
     const { pathname } = new URL(client.url ?? '');
-    return pathname === '/chat' || pathname.startsWith('/chat/');
+    return !NON_APP_PATH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
   } catch {
     return false;
   }
@@ -112,8 +122,8 @@ function clientPriority(client: NotificationClickClient): number {
 /**
  * Route a notification click to `rawUrl` after normalizing it to this origin.
  *
- * The worker focuses the best open chat window and sends it the target URL,
- * and the page routes in place. When no chat window is open, or focus fails,
+ * The worker focuses the best open app window and sends it the target URL,
+ * and the page routes in place. When no app window is open, or focus fails,
  * the worker opens the target in a new window.
  *
  * The worker that shows push notifications has a narrow `/__chatto/push/…/`
@@ -135,7 +145,7 @@ export async function routeNotificationClick(
       includeUncontrolled: true
     }))
   ]
-    .filter(isChatWindow)
+    .filter(isAppWindow)
     .sort((a, b) => clientPriority(a) - clientPriority(b));
 
   if (target && (await focusClient(target, options.logger))) {
