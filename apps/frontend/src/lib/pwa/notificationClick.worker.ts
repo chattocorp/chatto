@@ -30,8 +30,9 @@ function isChatPath(pathname: string): boolean {
 }
 
 /**
- * Normalize a notification target to a URL on `origin`. A cross-origin chat
- * URL keeps its path, query, and hash. Any other target becomes `/chat`.
+ * Normalize a notification target to a URL on `origin`. A same-origin URL
+ * stays as it is. A cross-origin chat URL keeps its path, query, and hash on
+ * `origin`. Any other target becomes `/chat`.
  */
 export function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {
   const fallback = new URL(NOTIFICATION_CLICK_FALLBACK_PATH, origin).href;

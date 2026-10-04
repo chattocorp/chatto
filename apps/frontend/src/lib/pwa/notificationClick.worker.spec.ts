@@ -16,7 +16,7 @@ function clientsWith(matches: NotificationClickClient[]) {
 }
 
 describe('routeNotificationClick', () => {
-  it('normalizes click targets before activation attempts', () => {
+  it('normalizes click targets', () => {
     expect(
       normalizeNotificationClickUrl(
         'https://configured.example/chat/-/room-1?highlight=event-1#message',
