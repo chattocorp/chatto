@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	. "hmans.de/chatto/pkg/events"
@@ -88,16 +89,80 @@ func TestKeyValueReadsIgnoreLaggingReplica(t *testing.T) {
 		t.Fatalf("GetRevision = %v, %v", entry, err)
 	}
 
-	// GetAnyReplica accepts the older revision, but confirms a miss.
+	if entry, err := kv.Get(ctx, "created"); err != nil || string(entry.Value()) != "fresh" {
+		t.Fatalf("Get of an entry that the replica misses = %v, %v", entry, err)
+	}
+
+	// GetAnyReplica is the replica's answer; callers decide negatives with Get.
 	if entry, err := kv.GetAnyReplica(ctx, "updated"); err != nil || string(entry.Value()) != "old" {
 		t.Fatalf("GetAnyReplica on an older revision = %v, %v", entry, err)
 	}
-	if entry, err := kv.GetAnyReplica(ctx, "created"); err != nil || string(entry.Value()) != "fresh" {
-		t.Fatalf("GetAnyReplica on a lagging miss = %v, %v", entry, err)
+	if _, err := kv.GetAnyReplica(ctx, "created"); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("GetAnyReplica on a lagging miss = %v, want ErrKeyNotFound", err)
 	}
-	if _, err := kv.GetAnyReplica(ctx, "missing"); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Fatalf("GetAnyReplica on a missing key = %v, want ErrKeyNotFound", err)
+}
+
+func TestKeyValueGetUsesLeaderReadsOnTheWire(t *testing.T) {
+	ctx := testContext(t)
+	connection := startTestNATS(t)
+	js, err := jetstream.New(connection)
+	if err != nil {
+		t.Fatalf("create JetStream context: %v", err)
 	}
+	bucket, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "KV_WIRE_TEST"})
+	if err != nil {
+		t.Fatalf("create bucket: %v", err)
+	}
+	status, err := bucket.Status(ctx)
+	if err != nil {
+		t.Fatalf("bucket status: %v", err)
+	}
+	if !status.(*jetstream.KeyValueBucketStatus).StreamInfo().Config.AllowDirect {
+		t.Fatal("test bucket does not allow direct gets")
+	}
+	if _, err := bucket.Put(ctx, "key", []byte("value")); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	kv := newTestKeyValue(t, js, bucket)
+
+	leaderReads := make(chan *nats.Msg, 8)
+	directReads := make(chan *nats.Msg, 8)
+	for subject, reads := range map[string]chan *nats.Msg{
+		"$JS.API.STREAM.MSG.GET.KV_KV_WIRE_TEST": leaderReads,
+		"$JS.API.DIRECT.GET.KV_KV_WIRE_TEST.>":   directReads,
+		"$JS.API.DIRECT.GET.KV_KV_WIRE_TEST":     directReads,
+	} {
+		subscription, err := connection.ChanSubscribe(subject, reads)
+		if err != nil {
+			t.Fatalf("subscribe to %s: %v", subject, err)
+		}
+		t.Cleanup(func() { _ = subscription.Unsubscribe() })
+	}
+	if err := connection.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	expectRead := func(name string, want, other chan *nats.Msg) {
+		t.Helper()
+		select {
+		case <-want:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s sent no request on the expected subject", name)
+		}
+		select {
+		case message := <-other:
+			t.Fatalf("%s also sent a request to %s", name, message.Subject)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	if _, err := kv.Get(ctx, "key"); err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	expectRead("Get", leaderReads, directReads)
+	if _, err := kv.GetAnyReplica(ctx, "key"); err != nil {
+		t.Fatalf("GetAnyReplica: %v", err)
+	}
+	expectRead("GetAnyReplica", directReads, leaderReads)
 }
 
 func TestKeyValueGetTreatsRemovalsAsMissing(t *testing.T) {
@@ -128,8 +193,18 @@ func TestKeyValueGetTreatsRemovalsAsMissing(t *testing.T) {
 	if _, err := kv.GetRevision(ctx, "deleted", other.Revision()); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("GetRevision of another key's revision = %v, want ErrKeyNotFound", err)
 	}
+	if latest, err := kv.GetRevision(ctx, "other", 0); err != nil || latest.Revision() != other.Revision() {
+		t.Fatalf("GetRevision 0 = %v, %v; want the latest revision", latest, err)
+	}
 	if _, err := kv.Get(ctx, "wild.*"); !errors.Is(err, jetstream.ErrInvalidKey) {
 		t.Fatalf("Get with a wildcard = %v, want ErrInvalidKey", err)
+	}
+
+	if err := js.DeleteKeyValue(ctx, bucket.Bucket()); err != nil {
+		t.Fatalf("DeleteKeyValue: %v", err)
+	}
+	if _, err := kv.Get(ctx, "other"); !errors.Is(err, jetstream.ErrBucketNotFound) {
+		t.Fatalf("Get from a deleted bucket = %v, want ErrBucketNotFound", err)
 	}
 }
 
@@ -189,8 +264,21 @@ func TestKeyValueUpdateWithTTLChecksRevision(t *testing.T) {
 	if err != nil || string(entry.Value()) != "two" || entry.Revision() != updated {
 		t.Fatalf("Get after UpdateWithTTL = %v, %v", entry, err)
 	}
-	if _, err := kv.UpdateWithTTL(ctx, "record", []byte("stale"), created, time.Hour); err == nil {
-		t.Fatal("UpdateWithTTL with a stale revision succeeded")
+	stream, err := js.Stream(ctx, "KV_KV_TTL_TEST")
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	stored, err := stream.GetMsg(ctx, updated)
+	if err != nil {
+		t.Fatalf("GetMsg: %v", err)
+	}
+	if ttl := stored.Header.Get(jetstream.MsgTTLHeader); ttl != time.Hour.String() {
+		t.Fatalf("stored TTL header = %q, want %q", ttl, time.Hour.String())
+	}
+	_, err = kv.UpdateWithTTL(ctx, "record", []byte("stale"), created, time.Hour)
+	var apiErr *jetstream.APIError
+	if !errors.As(err, &apiErr) || apiErr.ErrorCode != jetstream.JSErrCodeStreamWrongLastSequence {
+		t.Fatalf("UpdateWithTTL with a stale revision = %v, want a wrong-last-sequence conflict", err)
 	}
 	if _, err := kv.UpdateWithTTL(ctx, "record", []byte("x"), updated, 0); err == nil {
 		t.Fatal("UpdateWithTTL without a TTL succeeded")

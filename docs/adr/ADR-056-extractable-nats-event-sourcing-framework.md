@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-30
 
-**Updated:** 2026-09-03
+**Updated:** 2026-10-04
 
 ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and projection snapshot cohorts. The framework
@@ -45,6 +45,8 @@ Framework-owned responsibilities are:
   TTL;
 - exact-sequence stream-message reads with bounded concurrency and an optional
   process-local cache with sliding idle expiry;
+- key-value reads through the stream leader, an explicit fast read from any
+  replica, and revision-checked TTL updates;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
 - bounded durable pull-worker execution over application-configured consumers,
@@ -94,20 +96,6 @@ reader supplies explicit sequence invalidation and complete clearing, and its
 run lifecycle removes expired entries. The cache is disposable and is not a
 projection, checkpoint, snapshot, or source of domain truth.
 
-`KeyValue` is the consistent-read boundary for key-value buckets. It wraps a
-bucket handle and keeps its interface, but reads `Get` and `GetRevision`
-through the stream leader. JetStream otherwise serves these reads through
-DirectGet, and a lagging follower can answer with an older revision or no
-entry. Chatto observed this failure: a refresh grant re-read its session right
-after a committed rotation and rejected the valid credential. `Latest` adds
-leader-routed reads of the newest entry for a filter, including removal
-markers. `GetAnyReplica` is an explicit fast read for hot paths that confirms a
-miss through the leader. `UpdateWithTTL` adds the revision-checked TTL update
-that the bucket API lacks. Chatto binds all of its buckets through this type.
-Authling reads its buckets through the same `KeyValue.Get` API and is the next
-consumer. Applications keep bucket names, configuration, value codecs, and the
-choice of which hot reads may accept an older revision.
-
 The framework uses `github.com/jellydator/ttlcache/v3` for synchronized cache
 storage, sliding expiry, and expired-entry deletion. It keeps stream
 validation, read limits, byte copying, invalidation fencing, and lifecycle
@@ -123,6 +111,23 @@ functions; applications keep their envelope codecs, subjects, semantic
 validation, aggregate command methods, and composition. This extraction
 follows the two-consumer rule above rather than a desire to shorten one
 application's wiring.
+
+`KeyValue` is the consistent-read boundary for key-value buckets. It wraps a
+bucket handle and keeps its interface. JetStream serves the bucket's `Get`
+through a direct get when the bucket allows it. Any replica can then answer,
+and a replica that lags behind a committed write returns an older revision or
+no entry. Chatto observed this failure: a refresh grant read its session again
+right after a committed rotation and rejected the valid credential.
+`KeyValue.Get` and `GetRevision` therefore read through the stream leader.
+`Latest` reads the newest entry for a filter through the leader, including
+removal markers. `GetAnyReplica` is the bucket's own read, for hot paths that
+accept a result quickly and decide a negative result again with `Get`.
+`UpdateWithTTL` adds the revision-checked TTL update that the bucket API does
+not have. Chatto binds all of its buckets through this type. Authling still
+uses plain `jetstream.KeyValue.Get` on buckets that allow direct gets, so the
+same lag can affect it; it is the expected second consumer. Applications keep
+bucket names, configuration, value codecs, and the choice of which hot reads
+accept an older revision.
 
 The framework is configured with a concrete JetStream stream; it does not
 assume that an application has only one event log or that the log is named

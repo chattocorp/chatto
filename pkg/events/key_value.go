@@ -17,7 +17,8 @@ var (
 	validKeyValueFilter = regexp.MustCompile(`^[-/_=\.a-zA-Z0-9*]*[>]?$`)
 )
 
-// KeyValue is a jetstream.KeyValue whose reads observe every committed write.
+// KeyValue is a jetstream.KeyValue whose Get, GetRevision, and Latest observe
+// every committed write.
 //
 // JetStream serves KeyValue.Get through DirectGet when the bucket allows it,
 // which is the default for buckets that nats.go creates. Any replica can then
@@ -26,8 +27,8 @@ var (
 // and revocations then decide from stale state.
 //
 // KeyValue routes Get and GetRevision through the stream leader. Every other
-// method is the bound bucket's. GetAnyReplica is the opt-in fast read for hot
-// paths that tolerate an older revision.
+// method is the bound bucket's, including watchers, key listings, and history.
+// GetAnyReplica is the opt-in fast read for hot paths.
 //
 // The bucket must be a plain bucket: not a mirror, and not reached through a
 // subject transform.
@@ -40,6 +41,9 @@ type KeyValue struct {
 	leader  nats.JetStreamContext
 	stream  string
 	subject string
+	// putSubject prefixes keys for writes. Like nats.go, it puts a non-default
+	// JetStream API prefix or domain in front of the KV subject.
+	putSubject string
 }
 
 // NewKeyValue binds leader-routed reads to bucket. js must reach the same
@@ -59,12 +63,14 @@ func NewKeyValue(js jetstream.JetStream, bucket jetstream.KeyValue) (*KeyValue, 
 	if err != nil {
 		return nil, fmt.Errorf("bind leader reads for bucket %q: %w", bucket.Bucket(), err)
 	}
+	subject := "$KV." + bucket.Bucket() + "."
 	return &KeyValue{
-		KeyValue: bucket,
-		js:       js,
-		leader:   leader,
-		stream:   "KV_" + bucket.Bucket(),
-		subject:  "$KV." + bucket.Bucket() + ".",
+		KeyValue:   bucket,
+		js:         js,
+		leader:     leader,
+		stream:     "KV_" + bucket.Bucket(),
+		subject:    subject,
+		putSubject: jetStreamAPIPrefix(opts) + subject,
 	}, nil
 }
 
@@ -80,8 +86,11 @@ func (kv *KeyValue) Get(ctx context.Context, key string) (jetstream.KeyValueEntr
 
 // GetRevision returns the entry for key at revision through the stream leader.
 // It returns jetstream.ErrKeyNotFound when that revision belongs to another
-// key or removes this one.
+// key or removes this one. Revision 0 means the latest revision, as in nats.go.
 func (kv *KeyValue) GetRevision(ctx context.Context, key string, revision uint64) (jetstream.KeyValueEntry, error) {
+	if revision == 0 {
+		return kv.Get(ctx, key)
+	}
 	if !keyValueKeyValid(key, validKeyValueKey) {
 		return nil, jetstream.ErrInvalidKey
 	}
@@ -111,18 +120,12 @@ func (kv *KeyValue) Latest(ctx context.Context, filter string) (jetstream.KeyVal
 	return kv.entry(message), nil
 }
 
-// GetAnyReplica reads key through DirectGet when the bucket allows it. Any
-// replica can answer, so the entry can be an older revision. A missing key is
-// confirmed through the stream leader, so a lagging replica never hides an
-// entry that was just created. Use it only on hot paths where an older
-// revision of an existing entry cannot cause a wrong decision, or where the
-// caller detects that case and reads again with Get.
+// GetAnyReplica is the bucket's own Get. When the bucket allows direct gets,
+// any replica can answer, so the result can be an older revision, or a miss
+// for an entry that a lagging replica has not applied yet. Use it on hot paths
+// to accept a result quickly, and decide a negative result again with Get.
 func (kv *KeyValue) GetAnyReplica(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
-	entry, err := kv.KeyValue.Get(ctx, key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return kv.Get(ctx, key)
-	}
-	return entry, err
+	return kv.KeyValue.Get(ctx, key)
 }
 
 // UpdateWithTTL replaces key if its latest revision is revision, and sets a
@@ -135,7 +138,7 @@ func (kv *KeyValue) UpdateWithTTL(ctx context.Context, key string, value []byte,
 	if ttl <= 0 {
 		return 0, errors.New("key-value TTL must be positive")
 	}
-	message := nats.NewMsg(kv.subject + key)
+	message := nats.NewMsg(kv.putSubject + key)
 	message.Data = value
 	ack, err := kv.js.PublishMsg(ctx, message,
 		jetstream.WithExpectLastSequencePerSubject(revision),
@@ -188,11 +191,32 @@ func keyValueOperation(header nats.Header) jetstream.KeyValueOp {
 	return jetstream.KeyValuePut
 }
 
+// keyValueReadError maps legacy JetStream errors to the errors that
+// jetstream.KeyValue returns.
 func keyValueReadError(err error) error {
-	if errors.Is(err, nats.ErrMsgNotFound) {
+	switch {
+	case errors.Is(err, nats.ErrMsgNotFound):
 		return jetstream.ErrKeyNotFound
+	case errors.Is(err, nats.ErrStreamNotFound):
+		return fmt.Errorf("%w: %w", jetstream.ErrBucketNotFound, err)
 	}
 	return err
+}
+
+// jetStreamAPIPrefix returns the prefix that nats.go puts in front of KV
+// writes: none for the default API, otherwise the domain or API prefix.
+func jetStreamAPIPrefix(opts jetstream.JetStreamOptions) string {
+	if opts.Domain != "" {
+		return "$JS." + opts.Domain + ".API."
+	}
+	prefix := opts.APIPrefix
+	if prefix == "" || prefix == jetstream.DefaultAPIPrefix {
+		return ""
+	}
+	if !strings.HasSuffix(prefix, ".") {
+		prefix += "."
+	}
+	return prefix
 }
 
 func keyValueKeyValid(key string, pattern *regexp.Regexp) bool {

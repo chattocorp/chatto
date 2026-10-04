@@ -87,10 +87,12 @@ returns the newest entry for a key or wildcard filter, including delete,
 purge, and expiry markers. `UpdateWithTTL` replaces a revision and sets a new
 per-message TTL, which the bucket API supports only on `Create`.
 
-`GetAnyReplica` is the fast read for hot paths. It accepts a DirectGet result,
-which can be an older revision, and confirms a miss through the leader. Use it
-only where an older revision of an existing entry cannot cause a wrong
-decision, or where the caller detects that case and calls `Get`.
+`GetAnyReplica` is the bucket's own read, for hot paths. Any replica can
+answer, so the result can be an older revision, or a miss for an entry that
+the replica has not applied yet. Accept a result from `GetAnyReplica`, but
+decide a negative result again with `Get`: a missing entry, or an entry that
+causes a rejection. Use it only where an older revision that the caller
+accepts cannot cause a wrong decision.
 
 ```go
 bucket, err := js.CreateOrUpdateKeyValue(ctx, config)
@@ -102,8 +104,12 @@ if err != nil {
 	return err
 }
 
-entry, err := kv.Get(ctx, key)            // sees every committed write
-token, err := kv.GetAnyReplica(ctx, key)  // hot path; may be an older revision
+entry, err := kv.Get(ctx, key) // sees every committed write
+
+cached, err := kv.GetAnyReplica(ctx, key) // hot path; can be an older revision
+if errors.Is(err, jetstream.ErrKeyNotFound) {
+	cached, err = kv.Get(ctx, key) // decide the miss through the leader
+}
 ```
 
 Bind every bucket handle that the application reads through `NewKeyValue`, so
