@@ -56,7 +56,7 @@ export class MessageActionOverlayState {
     return this.eventId === eventId && (kind === 'menu' || kind === 'sheet');
   }
 
-  /** True when a floating overlay is open for the message and its toolbar must stay visible. */
+  /** True when the context menu or the emoji picker is open for the message; its toolbar stays visible. */
   keepsToolbarVisibleFor(eventId: string): boolean {
     const kind = this.overlay?.kind;
     return this.eventId === eventId && (kind === 'menu' || kind === 'emoji');

@@ -4,7 +4,8 @@ the touch action sheet, the emoji picker, or the reaction details.
 `MessageActionOverlayHost` binds it to the message that owns the overlay.
 -->
 <script lang="ts" module>
-  // The host remounts for every opened overlay. Keep the lazy modules across remounts.
+  // The host remounts for each message whose overlay opens. Keep the lazy modules across
+  // remounts.
   let messageActionMenuModule: Promise<typeof import('./MessageActionMenu.svelte')> | null = null;
   let emojiPickerModule: Promise<typeof import('$lib/components/EmojiPicker.svelte')> | null = null;
 
