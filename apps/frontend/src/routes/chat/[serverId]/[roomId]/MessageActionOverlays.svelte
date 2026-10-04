@@ -2,12 +2,12 @@
 Renders the open message action overlay of one timeline: the desktop context menu,
 the touch action sheet, the emoji picker, or the reaction details.
 
-The timeline renders this host outside its virtualized rows, so an overlay stays open
-when the virtualizer unmounts the row of its message. The owner renders the host only
-while `event` is in the loaded timeline, and keys it by the message ID.
+`EventList` renders this component outside its virtualized rows, so an overlay stays open
+when the virtualizer unmounts the row of its message. `EventList` renders it only while
+`event` is in the loaded timeline, and keys it by the message ID.
 -->
 <script lang="ts" module>
-  // The host remounts for each message whose overlay opens. Keep the lazy modules across
+  // This component remounts for each message whose overlay opens. Keep the lazy modules across
   // remounts.
   let messageActionMenuModule: Promise<typeof import('./MessageActionMenu.svelte')> | null = null;
   let emojiPickerModule: Promise<typeof import('$lib/components/EmojiPicker.svelte')> | null = null;

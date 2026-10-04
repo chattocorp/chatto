@@ -37,9 +37,9 @@ export type MessageActionTargetInput = {
  * Binds one timeline message to its actions: permissions, reply and thread routing, pins,
  * and the `MessageActionModel` that every action surface uses.
  *
- * The message row creates one for its toolbar and footer. The message action overlay host
- * creates one for the message that owns the open overlay, so the overlay keeps working
- * after the virtualizer unmounts the row.
+ * The message row creates one for its toolbar and footer. `MessageActionOverlays` creates
+ * one for the message that owns the open overlay, so the overlay keeps working after the
+ * virtualizer unmounts the row.
  *
  * Construct it during component initialization: it captures the server scope, the room
  * permissions, and the composer context.
@@ -134,15 +134,18 @@ export class MessageActionTarget {
     const editThreadRootEventId = this.#references?.editThreadRootEventId ?? null;
     const editChannelEchoEventId = this.#references?.editChannelEchoEventId ?? null;
 
-    let canReply: boolean;
-    if (disabled && this.isInThreadPane) canReply = false;
-    else if (this.isEcho) canReply = !disabled && canThread && !!echoRoot;
-    else if (this.isInThreadPane) canReply = this.#canReplyInThread;
-    else if (this.isRootMessage && threadingMode === RoomThreadingMode.REQUIRED)
-      canReply = canThread;
-    else if (this.isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED)
-      canReply = canThread || canPost;
-    else canReply = canPost;
+    const canReply =
+      disabled && this.isInThreadPane
+        ? false
+        : this.isEcho
+          ? !disabled && canThread && !!echoRoot
+          : this.isInThreadPane
+            ? this.#canReplyInThread
+            : this.isRootMessage && threadingMode === RoomThreadingMode.REQUIRED
+              ? canThread
+              : this.isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED
+                ? canThread || canPost
+                : canPost;
 
     const canSecondaryRoomReply =
       this.isRootMessage &&
