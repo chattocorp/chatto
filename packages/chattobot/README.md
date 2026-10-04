@@ -197,7 +197,6 @@ announcements. The model writes all of these messages in the user's language.
 A missing final choice gets one corrective turn. Only `finishTurn` is available
 during that correction. If no choice follows, the existing reply-failure path
 ends the conversation. This does not retry external work or provider failures.
-See [FDR-049](../../docs/fdr/FDR-049-chattobot-conversation-completion.md).
 
 Automatic eyes reactions run inside the conversation task, with a ten-second timeout and
 cancellation support. Follow-up messages pass through one queue to Pi without
