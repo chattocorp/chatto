@@ -424,3 +424,48 @@ test('an arrival during research cannot retarget the answer or change its reques
     ['second', 'Answer to Another question']
   ]);
 });
+
+test('typing requires a posted work announcement and resets before a reaction-only turn', async () => {
+  vi.useFakeTimers();
+  const typing = vi.fn(async () => {});
+  const bot = chattoConversation({
+    name: 'Typing intent',
+    settings: {},
+    acknowledge: async () => {},
+    typing,
+    post: async () => {},
+    async task(ctx, _prompt, options) {
+      options.onBusy(true);
+      // Even a slow reaction decision must not show a typing indicator.
+      await vi.advanceTimersByTimeAsync(9000);
+      expect(typing).not.toHaveBeenCalled();
+      await options.announce("I'll investigate.", ctx.signal);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(typing).toHaveBeenCalledOnce();
+      options.onBusy(false);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(typing).toHaveBeenCalledOnce();
+      options.onBusy(true);
+      await vi.advanceTimersByTimeAsync(9000);
+      expect(typing).toHaveBeenCalledOnce();
+      return '';
+    }
+  });
+  try {
+    await bot(createWorkflowContext(), {
+      version: 1,
+      id: 'reply',
+      type: 'message.created',
+      triggers: ['direct_message'],
+      occurred_at: 'now',
+      bot_id: 'bot',
+      room_id: 'dm',
+      thread_root_id: 'root',
+      message: { id: 'reply', author_id: 'human', body: 'Thanks' }
+    });
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(typing).toHaveBeenCalledOnce();
+  } finally {
+    vi.useRealTimers();
+  }
+});

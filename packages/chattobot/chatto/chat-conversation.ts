@@ -85,6 +85,7 @@ export function chattoConversation<Settings>({
       // work, so a tool does not need to announce it again in different words.
       let pending = Promise.resolve();
       let turn = 0;
+      let responding = false;
       let assistantTurn = -1;
       let last: { text: string; origin: 'assistant' | 'announcement'; at: number } | undefined;
       const send = (
@@ -105,6 +106,8 @@ export function chattoConversation<Settings>({
           await post(target, text, signal);
           if (origin === 'assistant') assistantTurn = sentTurn;
           last = { text: normalized, origin, at: Date.now() };
+          // A posted announcement commits this turn to a later text response.
+          if (origin === 'announcement' && turn === sentTurn) responding = true;
         });
         pending = next.catch(() => {});
         return next;
@@ -117,6 +120,7 @@ export function chattoConversation<Settings>({
             ...settings,
             onBusy: (busy) => {
               if (busy) turn++;
+              responding = false;
               onBusy(busy);
             },
             delivery,
@@ -143,6 +147,7 @@ export function chattoConversation<Settings>({
           destination,
           post: (_destination, text, signal) => send(text, signal, 'assistant'),
           typing,
+          isResponding: () => responding,
           acknowledge,
           delivery,
           onMessage: (message) => messages.push(message)
