@@ -310,7 +310,7 @@ func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
 		keys = append(keys, roomID)
 	}
 
-	kvReads := countKeyValueReads(t, nc, "RUNTIME_STATE")
+	kvReads := countKeyValueReads(t, nc, "RUNTIME_STATE", userID)
 	for _, roomID := range keys {
 		got, exists, err := core.PeekLastReadEventID(ctx, userID, roomID)
 		if err != nil {

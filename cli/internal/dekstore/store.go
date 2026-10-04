@@ -115,9 +115,12 @@ func (s *Store) Get(ctx context.Context, ref string) (*runtimestatev1.UserDataEn
 	if err := ValidateRef(ref); err != nil {
 		return nil, err
 	}
-	// Content keys never change after Create, so any replica may answer; a
-	// miss is confirmed through the stream leader.
+	// Content keys never change after Create, so any replica may answer. A
+	// miss is decided again through the stream leader.
 	entry, err := s.kv.GetAnyReplica(ctx, ref)
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		entry, err = s.kv.Get(ctx, ref)
+	}
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, encryption.ErrKeyNotFound

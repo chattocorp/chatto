@@ -189,11 +189,15 @@ func decodeCallKeyRecord(keyRef string, data []byte) ([]byte, error) {
 }
 
 // getEntry reads a KEK from any replica. KEKs never change after Create, so
-// an older revision is the same key; a miss is confirmed through the stream
-// leader, so a key created on another replica is never reported missing.
-// Reads remain eventually consistent: a result can still precede a shred.
+// an older revision is the same key. A miss is decided again through the
+// stream leader, so a key created through another replica is never reported
+// missing. A successful read can still precede a shred.
 func (b *Builtin) getEntry(ctx context.Context, keyRef string) (jetstream.KeyValueEntry, error) {
-	return b.kv.GetAnyReplica(ctx, keyPath(keyRef))
+	entry, err := b.kv.GetAnyReplica(ctx, keyPath(keyRef))
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		return b.kv.Get(ctx, keyPath(keyRef))
+	}
+	return entry, err
 }
 
 func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {

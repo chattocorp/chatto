@@ -133,7 +133,8 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 		return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
 	}
 	key := c.authTokenKey(sessionID)
-	entry, err := c.storage.runtimeStateKV.GetAnyReplica(ctx, key)
+	// The returned revision fences later saves and deletes, so read the latest.
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
@@ -282,6 +283,20 @@ func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID str
 		return nil, ErrCookieSessionNotFound
 	}
 	credential, err := c.ValidatePresentedRuntimeCredential(ctx, sessionID, AuthTokenPresentationCookie)
+	return c.cookieSessionFromCredential(credential, err)
+}
+
+// validateCookieCredentialAuthoritatively is ValidateCookieCredential through
+// the stream leader, for rare decisions that must see the latest record.
+func (c *ChattoCore) validateCookieCredentialAuthoritatively(ctx context.Context, sessionID string) (*runtimestatev1.CookieSession, error) {
+	if sessionID == "" {
+		return nil, ErrCookieSessionNotFound
+	}
+	credential, err := c.validateRuntimeCredential(ctx, sessionID, AuthTokenPresentationCookie, authoritativeCredentialRead)
+	return c.cookieSessionFromCredential(credential, err)
+}
+
+func (c *ChattoCore) cookieSessionFromCredential(credential ValidatedRuntimeCredential, err error) (*runtimestatev1.CookieSession, error) {
 	if err != nil {
 		if errors.Is(err, ErrAuthTokenNotFound) {
 			return nil, ErrCookieSessionNotFound

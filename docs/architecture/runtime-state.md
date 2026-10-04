@@ -33,11 +33,12 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 
 Chatto binds every bucket handle through `events.KeyValue`. The buckets allow
 direct gets, and a lagging replica can then answer with an older revision or
-no entry. `Get` therefore reads through the stream leader. Hot paths that
-tolerate an older revision use `GetAnyReplica`, which confirms a miss through
-the leader: access-token and cookie validation, renewable-session checks
-during access validation (with a leader read when the session is older than
-the token), wrapped DEK and KEK reads, and presence liveness.
+no entry. `Get` therefore reads through the stream leader. These hot paths
+read with `GetAnyReplica` and decide a miss or a rejection again with `Get`:
+
+- access-token and cookie validation, including the renewable-session check
+- wrapped DEK and KEK reads
+- presence liveness and presence metrics, where a miss means offline
 
 **ENCRYPTION_KEYS keys:**
 

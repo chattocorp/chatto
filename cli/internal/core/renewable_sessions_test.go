@@ -192,6 +192,99 @@ func TestChattoCore_ExchangeAuthCodeIgnoresLaggingReplicaMiss(t *testing.T) {
 	}
 }
 
+// staleRuntimeEntry returns the current entry for key with change applied to
+// its JSON value, as a lagging replica can answer.
+func staleRuntimeEntry[T any](t *testing.T, core *ChattoCore, key string, change func(*T)) jetstream.KeyValueEntry {
+	t.Helper()
+	entry, err := core.storage.runtimeStateKV.Get(testContext(t), key)
+	if err != nil {
+		t.Fatalf("get %s: %v", key, err)
+	}
+	var value T
+	if err := json.Unmarshal(entry.Value(), &value); err != nil {
+		t.Fatalf("decode %s: %v", key, err)
+	}
+	change(&value)
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("encode %s: %v", key, err)
+	}
+	return benchmarkKVEntry{key: key, value: data, revision: entry.Revision()}
+}
+
+func TestChattoCore_CookieValidationIgnoresLaggingExpiry(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-cookie-user", "Lagging Cookie User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sessionID, _, err := chattoCore.CreateCookieSession(ctx, user.Id, "test_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+	key := chattoCore.authTokenKey(sessionID)
+	current, err := chattoCore.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("get cookie session: %v", err)
+	}
+	// The follower still shows the window that a renewal already moved.
+	lagReplica(t, chattoCore, map[string]jetstream.KeyValueEntry{
+		key: staleRuntimeEntry(t, chattoCore, key, func(data *AuthTokenData) {
+			data.ExpiresAt = time.Now().Add(-time.Minute)
+		}),
+	})
+
+	if _, err := chattoCore.ValidateCookieCredential(ctx, sessionID); err != nil {
+		t.Fatalf("ValidateCookieCredential with a lagging expiry: %v", err)
+	}
+	if after, err := chattoCore.storage.runtimeStateKV.Get(ctx, key); err != nil || after.Revision() != current.Revision() {
+		t.Fatalf("cookie session after validation = %v, %v; want it unchanged", after, err)
+	}
+	loaded, err := chattoCore.LoadCookieSessionValue(ctx, sessionID, time.Now())
+	if err != nil || loaded.Revision != current.Revision() {
+		t.Fatalf("LoadCookieSessionValue = revision %d, %v; want %d", loaded.Revision, err, current.Revision())
+	}
+}
+
+func TestChattoCore_FreshAuthIgnoresLaggingReplica(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lagging-fresh-user", "Lagging Fresh User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bearer, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, _, ok := chattoCore.parseRefreshToken(bearer.RefreshToken)
+	if !ok {
+		t.Fatal("refresh credential did not parse")
+	}
+	cookieID, _, err := chattoCore.CreateCookieSession(ctx, user.Id, "test_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+
+	// The follower has not applied the re-verification that just made both
+	// sessions fresh.
+	expired := time.Now().Add(-FreshAuthWindow - time.Minute)
+	sessionKey := chattoCore.renewableSessionKey(sessionID)
+	cookieKey := chattoCore.authTokenKey(cookieID)
+	lagReplica(t, chattoCore, map[string]jetstream.KeyValueEntry{
+		sessionKey: staleRuntimeEntry(t, chattoCore, sessionKey, func(session *RenewableSession) { session.FreshAuthAt = expired }),
+		cookieKey:  staleRuntimeEntry(t, chattoCore, cookieKey, func(data *AuthTokenData) { data.FreshAuthAt = expired }),
+	})
+
+	if err := chattoCore.RequireFreshAuthForBearerToken(ctx, bearer.AccessToken); err != nil {
+		t.Fatalf("RequireFreshAuthForBearerToken with a lagging replica: %v", err)
+	}
+	if err := chattoCore.RequireFreshAuthForCookieSession(ctx, cookieID); err != nil {
+		t.Fatalf("RequireFreshAuthForCookieSession with a lagging replica: %v", err)
+	}
+}
+
 func TestChattoCore_RefreshBearerSessionRejectsReusedRequestIDForNewRotation(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

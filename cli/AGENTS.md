@@ -89,9 +89,9 @@ authorization, live events, backup and restore, and backend tests.
 - Bind every key-value bucket handle through `events.NewKeyValue`. Chatto's
   buckets allow direct gets, so a plain `KeyValue.Get` can come from a lagging
   replica with an older revision or no entry. The bound `Get` reads through
-  the stream leader. Use `GetAnyReplica` only on hot paths where an older
-  revision of an existing entry cannot cause a wrong decision, or where the
-  caller detects it, and give the reason in a comment.
+  the stream leader. A hot path can read with `GetAnyReplica` to accept a
+  result quickly, but it must decide a miss or a rejection again with `Get`,
+  and give the reason in a comment.
 - Give each KV watcher on `RUNTIME_STATE` exactly one key filter. JetStream
   scans every message block for a watcher with more than one filter. The
   bucket gets many writes and has thousands of sparse blocks. Thus, a

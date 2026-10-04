@@ -42,13 +42,19 @@ func bindTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.Key
 	return kv
 }
 
-// countKeyValueReads counts message-get requests for bucket from any client,
-// through the stream leader or through DirectGet.
-func countKeyValueReads(t *testing.T, nc *nats.Conn, bucket string) func() int64 {
+// countKeyValueReads counts read requests for bucket keys that contain match,
+// through the stream leader or through DirectGet, from any client.
+func countKeyValueReads(t *testing.T, nc *nats.Conn, bucket, match string) func() int64 {
 	t.Helper()
 	var reads atomic.Int64
+	count := func(message *nats.Msg) {
+		// DirectGet puts the key in the subject; a leader read puts it in the body.
+		if strings.Contains(message.Subject, match) || strings.Contains(string(message.Data), match) {
+			reads.Add(1)
+		}
+	}
 	for _, subject := range []string{"$JS.API.STREAM.MSG.GET.KV_" + bucket, "$JS.API.DIRECT.GET.KV_" + bucket + ".>", "$JS.API.DIRECT.GET.KV_" + bucket} {
-		subscription, err := nc.Subscribe(subject, func(*nats.Msg) { reads.Add(1) })
+		subscription, err := nc.Subscribe(subject, count)
 		if err != nil {
 			t.Fatalf("subscribe to %s: %v", subject, err)
 		}

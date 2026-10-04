@@ -101,8 +101,9 @@ func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (str
 	if _, err := s.syncPreference(ctx, userID); err != nil {
 		return PresenceStatusOffline, err
 	}
-	// Liveness is advisory and read once per member for @here, so any
-	// replica may answer. The privacy choice above was read through the leader.
+	// Liveness is advisory and many reads find no entry, so any replica may
+	// answer and a miss means offline. The privacy choice above was read
+	// through the stream leader.
 	entry, err := s.memoryCacheKV.GetAnyReplica(ctx, presenceKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrInvalidKey) {
