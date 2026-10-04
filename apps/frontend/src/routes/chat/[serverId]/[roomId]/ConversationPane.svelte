@@ -368,6 +368,9 @@ thread IDs can change while the pane stays mounted.
       {onOpenProfile}
       unreadAfterEventId={unread.unreadMarkerEventId}
       onReachedBottom={() => unread.clearUnreadMarker()}
+      onJumpToPresent={() => {
+        if (highlight) onHighlightComplete?.(highlight);
+      }}
       onReadPosition={handleReadPosition}
       typingUserIds={typingIndicator.userIds}
       typingMembers={members}

@@ -1158,6 +1158,28 @@ describe('Room local message echo', () => {
     expect(getToasts()).toHaveLength(0);
   });
 
+  it('lets jump to present cancel a pending notification highlight without reading it', async () => {
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="complete-highlight"]')).toBeEnabled();
+
+    (q(container, '[data-testid="request-present"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent(/^$/);
+    expect(highlights.current).toBeNull();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    expect(getToasts()).toHaveLength(0);
+  });
+
   it('retries an interrupted root notification jump after the room remounts', async () => {
     highlights.set('room-1', null, 'msg-linked', 'notification-linked');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({

@@ -29,6 +29,7 @@
     isLoading = false,
     isJumpedMode = false,
     onJumpToPresent,
+    onPresentRequested,
     pendingHighlightId = null,
     highlightRequest = null,
     hasReachedStart = false,
@@ -47,6 +48,7 @@
     isLoading?: boolean;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
+    onPresentRequested?: () => void;
     pendingHighlightId?: string | null;
     highlightRequest?: PendingHighlight | null;
     hasReachedStart?: boolean;
@@ -169,5 +171,6 @@
   {highlightRequest}
   {unreadAfterEventId}
   onScrollToEventComplete={onComplete}
+  onJumpToPresent={onPresentRequested}
   {onReadPosition}
 />

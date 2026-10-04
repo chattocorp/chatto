@@ -379,12 +379,14 @@ describe('EventList jump completion', () => {
       finishLoading = resolve;
     });
     const onJumpToPresent = vi.fn(() => latestLoaded);
+    const onPresentRequested = vi.fn();
     const rendered = render(EventListTestHarness, {
       props: {
         eventIds: ['msg-target'],
         scrollToEventId: 'msg-target',
         isJumpedMode: true,
         onJumpToPresent,
+        onPresentRequested,
         pendingHighlightId: 'suppress-normal-auto-scroll'
       }
     });
@@ -395,6 +397,7 @@ describe('EventList jump completion', () => {
       .element(page.getByTestId('virtualizer-scroll-alignment'))
       .toHaveTextContent('center');
     (page.getByTestId('jump-to-present').element() as HTMLButtonElement).click();
+    expect(onPresentRequested).toHaveBeenCalledOnce();
     expect(onJumpToPresent).toHaveBeenCalledOnce();
     await expect
       .element(page.getByTestId('virtualizer-scroll-alignment'))

@@ -13,6 +13,7 @@
     emptyMessage = '',
     pendingHighlightId = null,
     highlightRequest = null,
+    onJumpToPresent,
     onReachedBottom,
     onScrollToEventComplete,
     onReadPosition
@@ -30,6 +31,7 @@
       request: PendingHighlight | null
     ) => void;
     highlightRequest?: PendingHighlight | null;
+    onJumpToPresent?: () => void;
     onReadPosition?: (position: TimelineReadPosition) => void;
   } = $props();
 
@@ -45,6 +47,16 @@
 <output data-testid="room-event-ids">{events.map((event) => event.id).join(',')}</output>
 <output data-testid="pending-highlight-id">{pendingHighlightId ?? ''}</output>
 <output data-testid="scroll-target-id">{jumpState.scrollToEventId ?? ''}</output>
+<button
+  type="button"
+  data-testid="request-present"
+  onclick={() => {
+    onJumpToPresent?.();
+    jumpState.reset();
+  }}
+>
+  jump to present
+</button>
 <button
   type="button"
   data-testid="reply-quote-jump"

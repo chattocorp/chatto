@@ -72,6 +72,7 @@
     typingMembers = [],
     onScrollToEventComplete,
     onReachedBottom,
+    onJumpToPresent,
     onReadPosition,
     pendingHighlightId = null,
     highlightRequest = null,
@@ -103,6 +104,8 @@
       request: PendingHighlight | null
     ) => void;
     onReachedBottom?: () => void;
+    /** Report a user return-to-latest request before replacing the current window. */
+    onJumpToPresent?: () => void;
     /**
      * Reports the newest position that the viewer can see when it changes.
      * The conversation reads up to this position, so a jump to an older
@@ -627,6 +630,7 @@
   }
 
   async function handleJumpToPresentClick() {
+    onJumpToPresent?.();
     // The replacement latest window must perform a fresh initial-style bottom
     // scroll. Virtua otherwise preserves the historical window's offset when
     // the keyed data is replaced and can leave the user stranded mid-window.
