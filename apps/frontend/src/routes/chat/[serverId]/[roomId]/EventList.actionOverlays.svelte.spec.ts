@@ -50,6 +50,25 @@ describe('EventList message action overlays', () => {
     });
   });
 
+  it('closes the overlay of the message that the user opened last', async () => {
+    render(EventListTestHarness, {
+      props: { eventIds: ['msg-0', 'msg-1'], scrollToEventId: null, hasReachedStart: true }
+    });
+    await vi.waitFor(() => expect(row('msg-1')).not.toBeNull());
+
+    row('msg-0')!.click();
+    await vi.waitFor(() => expect(actionSheet()).toBeTruthy());
+    row('msg-1')!.click();
+    await vi.waitFor(() => expect(document.querySelectorAll('dialog[open]')).toHaveLength(1));
+
+    document.querySelector<HTMLDialogElement>('dialog[open]')!.close();
+    await vi.waitFor(() => expect(actionSheet()).toBeUndefined());
+
+    // The state closed too, so the next request opens a new sheet.
+    row('msg-0')!.click();
+    await vi.waitFor(() => expect(actionSheet()).toBeTruthy());
+  });
+
   it('keeps an overlay open after its row unmounts and closes it when the message leaves', async () => {
     const eventIds = Array.from({ length: 60 }, (_, i) => `msg-${i}`);
     const rendered = render(EventListTestHarness, {

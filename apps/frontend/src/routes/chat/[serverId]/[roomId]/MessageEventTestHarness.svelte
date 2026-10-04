@@ -143,15 +143,17 @@
 
 <!-- Like EventList: the overlay host stays while the message is in the timeline. -->
 {#if overlayEvent}
-  <MessageActionOverlayHost
-    overlays={actionOverlays}
-    event={overlayEvent}
-    {roomId}
-    {permalinkThreadRootEventId}
-    messageStore={messageStore as never}
-    {onOpenThread}
-    {threadingMode}
-  />
+  {#key overlayEvent.id}
+    <MessageActionOverlayHost
+      overlays={actionOverlays}
+      event={overlayEvent}
+      {roomId}
+      {permalinkThreadRootEventId}
+      messageStore={messageStore as never}
+      {onOpenThread}
+      {threadingMode}
+    />
+  {/key}
 {/if}
 
 <MessageUserOverlays

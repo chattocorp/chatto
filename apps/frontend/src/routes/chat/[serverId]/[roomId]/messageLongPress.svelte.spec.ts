@@ -3,6 +3,8 @@ import { MessageLongPressGesture } from './messageLongPress.svelte';
 
 afterEach(() => {
   vi.useRealTimers();
+  // A fired gesture leaves its opening-click guard; a new press clears it.
+  window.dispatchEvent(new Event('pointerdown'));
 });
 
 describe('MessageLongPressGesture', () => {

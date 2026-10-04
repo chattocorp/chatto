@@ -156,6 +156,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  // A long press under fake timers leaves its opening-click guard; a new press clears it.
+  window.dispatchEvent(new Event('pointerdown'));
   vi.restoreAllMocks();
   window.getSelection()?.removeAllRanges();
 });
@@ -377,7 +379,7 @@ describe('MessageEvent action model integration', () => {
     expect(link.href).toBe(new URL('/linked/path', window.location.href).href);
   });
 
-  it('closes a menu when its message leaves and keeps a clicked link with its message', async () => {
+  it('closes a menu when its message leaves and does not carry its link to another message', async () => {
     const firstMessage = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: firstMessage } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;

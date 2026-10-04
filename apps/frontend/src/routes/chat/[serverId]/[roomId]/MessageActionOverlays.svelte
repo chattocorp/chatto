@@ -3,22 +3,10 @@ Renders the open message action overlay of one timeline: the desktop context men
 the touch action sheet, the emoji picker, or the reaction details.
 `MessageActionOverlayHost` binds it to the message that owns the overlay.
 -->
-<script lang="ts">
-  import { untrack } from 'svelte';
-  import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
-  import { m } from '$lib/i18n/messages';
-  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
-  import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
-  import type { MessageActionModel } from './messageActionModel';
-  import type {
-    MessageActionOverlay,
-    MessageActionOverlayState
-  } from './messageActionOverlayState.svelte';
-
+<script lang="ts" module>
+  // The host remounts for every opened overlay. Keep the lazy modules across remounts.
   let messageActionMenuModule: Promise<typeof import('./MessageActionMenu.svelte')> | null = null;
-  let messageActionMenuLoadAttempt = $state(0);
   let emojiPickerModule: Promise<typeof import('$lib/components/EmojiPicker.svelte')> | null = null;
-  let emojiPickerLoadAttempt = $state(0);
 
   function loadMessageActionMenu(_attempt: number) {
     messageActionMenuModule ??= import('./MessageActionMenu.svelte').catch((error: unknown) => {
@@ -35,6 +23,22 @@ the touch action sheet, the emoji picker, or the reaction details.
     });
     return emojiPickerModule;
   }
+</script>
+
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
+  import { m } from '$lib/i18n/messages';
+  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
+  import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
+  import type { MessageActionModel } from './messageActionModel';
+  import type {
+    MessageActionOverlay,
+    MessageActionOverlayState
+  } from './messageActionOverlayState.svelte';
+
+  let messageActionMenuLoadAttempt = $state(0);
+  let emojiPickerLoadAttempt = $state(0);
 
   let {
     overlays,
