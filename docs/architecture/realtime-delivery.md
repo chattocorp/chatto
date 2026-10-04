@@ -33,14 +33,6 @@ into new or active Runling conversations. It accepts a delivery after inbox
 insertion or successful run registration. Runling itself has no Chatto runtime
 dependency.
 
-ChattoBot selects one final reply, reaction, or silent result for each supervisor
-turn through its own completion tool. Its host delivers only that selection;
-ordinary model text stays out of the thread. Runling supplies the existing
-agent and custom-tool lifecycle. ChattoBot retains the delivery policy and
-calls the shared client for Chatto operations. See
-[FDR-049](../fdr/FDR-049-chattobot-conversation-completion.md) and
-[turn completion](../../packages/chattobot/workflows/turn-completion.ts).
-
 The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
 server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix
 is the protobuf package name. It is not the behavioral protocol version.
