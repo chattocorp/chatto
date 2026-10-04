@@ -7,7 +7,8 @@ in a `<fieldset>` with a legend. A selected tile shows a fill and a check
 badge. The title is the accessible name of the checkbox; the description and
 `disabledReason` describe it. A disabled tile stays focusable, so keyboard and
 screen-reader users can reach the `disabledReason` shown below its
-description, but it does not change its state.
+description. It cannot be selected, but a selected disabled tile can be
+cleared.
 -->
 <script lang="ts">
   import type { ClassValue } from 'svelte/elements';
@@ -58,7 +59,8 @@ description, but it does not change its state.
     aria-disabled={disabled}
     bind:checked
     onclick={(event) => {
-      if (disabled) event.preventDefault();
+      // A disabled tile can still be cleared, so a stale selection never sticks.
+      if (disabled && !checked) event.preventDefault();
     }}
     onchange={(event) => onchange?.(event.currentTarget.checked)}
   />

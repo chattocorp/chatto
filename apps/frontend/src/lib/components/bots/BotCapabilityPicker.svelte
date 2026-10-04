@@ -34,18 +34,19 @@ applies the selection after it creates the bot.
   }
 </script>
 
-<fieldset class="flex flex-col gap-3" {disabled}>
+<fieldset class="flex flex-col gap-3">
   <legend class="mb-1 font-medium text-text-top">{m('settings.bots.capabilities.legend')}</legend>
   <p class="text-sm text-muted">{m('settings.bots.capabilities.hint')}</p>
   <div class="grid gap-3 sm:grid-cols-2">
     {#each BOT_CAPABILITIES as capability (capability.id)}
+      {@const available = botCapabilityAvailable(capability.id, serverScope)}
       <SelectableTile
         checked={selected.includes(capability.id)}
         icon={capability.icon}
         title={m(`settings.bots.capabilities.${capability.id}.title`)}
         description={m(`settings.bots.capabilities.${capability.id}.description`)}
-        disabled={!botCapabilityAvailable(capability.id, serverScope)}
-        disabledReason={m('settings.bots.capabilities.unavailable')}
+        disabled={disabled || !available}
+        disabledReason={available ? undefined : m('settings.bots.capabilities.unavailable')}
         onchange={(checked) => toggle(capability.id, checked)}
       />
     {/each}
