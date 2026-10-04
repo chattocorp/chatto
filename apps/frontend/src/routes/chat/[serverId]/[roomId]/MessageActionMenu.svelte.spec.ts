@@ -3,8 +3,6 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 import MessageActionMenuTestHarness from './MessageActionMenuTestHarness.svelte';
-import MessageActionOverlays from './MessageActionOverlays.svelte';
-import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 
 const mocks = vi.hoisted(() => ({
@@ -472,31 +470,6 @@ describe('MessageActionMenu', () => {
 
       expect(onReplyInRoom).toHaveBeenCalledOnce();
       expect(baseProps.onClose).toHaveBeenCalledOnce();
-    });
-
-    it('closes the sheet when it is dismissed natively', async () => {
-      const overlays = new MessageActionOverlayState();
-      overlays.open('message-event-1', { kind: 'sheet' });
-      const { container } = render(MessageActionOverlays, {
-        props: {
-          overlays,
-          action: buildAction(),
-          roomId: 'room-1',
-          messageEventId: 'message-event-1',
-          reactions: []
-        }
-      });
-      const dialog = q(container, 'dialog') as HTMLDialogElement;
-
-      await vi.waitFor(() => {
-        expect(dialog.open).toBe(true);
-      });
-      dialog.close();
-
-      await vi.waitFor(() => {
-        expect(overlays.overlay).toBeNull();
-        expect(overlays.eventId).toBeNull();
-      });
     });
   });
 });

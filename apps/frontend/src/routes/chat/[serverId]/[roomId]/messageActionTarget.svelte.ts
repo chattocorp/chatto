@@ -90,15 +90,12 @@ export class MessageActionTarget {
       canManageOthersMessage: this.permissions.canManageOthersMessage
     })
   );
-  readonly canDelete = $derived(this.isAuthor || this.permissions.canManageOthersMessage);
 
   readonly #references = $derived(
     this.messageEvent ? resolveMessageEventReferences(this.event.id, this.messageEvent) : null
   );
   readonly isEcho = $derived(this.#references?.isEcho ?? false);
   readonly #editEventId = $derived(this.#references?.editEventId ?? this.event.id);
-  readonly #editThreadRootEventId = $derived(this.#references?.editThreadRootEventId ?? null);
-  readonly #editChannelEchoEventId = $derived(this.#references?.editChannelEchoEventId ?? null);
   readonly threadRootEventId = $derived(this.#references?.threadRootEventId ?? null);
 
   readonly #pinsStore = $derived(
@@ -126,56 +123,48 @@ export class MessageActionTarget {
     this.messageEvent?.canReplyInThread ?? this.permissions.canPostInThread
   );
 
-  readonly #canUseReplyAction = $derived.by(() => {
-    const { threadingMode, onOpenThread } = this.#in;
-    if (threadingMode === RoomThreadingMode.DISABLED && this.isInThreadPane) return false;
-    if (this.isEcho) {
-      return (
-        threadingMode !== RoomThreadingMode.DISABLED &&
-        this.#canReplyInThread &&
-        !!onOpenThread &&
-        !!this.messageEvent?.echoFromThreadRootEventId
-      );
-    }
-    if (this.isInThreadPane) return this.#canReplyInThread;
-    if (this.isRootMessage && threadingMode === RoomThreadingMode.REQUIRED) {
-      return this.#canReplyInThread && !!onOpenThread;
-    }
-    if (this.isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED) {
-      return (this.#canReplyInThread && !!onOpenThread) || this.permissions.canPostMessage;
-    }
-    return this.permissions.canPostMessage;
-  });
-  readonly #canUseSecondaryRoomReply = $derived(
-    this.isRootMessage &&
-      !this.isInThreadPane &&
-      this.#in.threadingMode === RoomThreadingMode.ENCOURAGED &&
-      this.#canReplyInThread &&
-      !!this.#in.onOpenThread &&
-      this.permissions.canPostMessage
-  );
-  readonly #canUseThreadAction = $derived.by(() => {
-    const { threadingMode, onOpenThread, permalinkThreadRootEventId } = this.#in;
-    if (this.isEcho) return !!onOpenThread && !!this.messageEvent?.echoFromThreadRootEventId;
-    if (threadingMode === RoomThreadingMode.DISABLED) {
-      return !permalinkThreadRootEventId && this.isRootMessage && this.hasThread && !!onOpenThread;
-    }
-    return this.#canReplyInThread && !!onOpenThread;
-  });
-
   /** The behavior that every message action surface shares for this message. */
   readonly action = $derived.by(() => {
-    const { roomId, permalinkThreadRootEventId, messageStore, threadingMode } = this.#in;
+    const { roomId, permalinkThreadRootEventId, messageStore, threadingMode, onOpenThread } =
+      this.#in;
+    const disabled = threadingMode === RoomThreadingMode.DISABLED;
+    const canThread = this.#canReplyInThread && !!onOpenThread;
+    const canPost = this.permissions.canPostMessage;
+    const echoRoot = this.messageEvent?.echoFromThreadRootEventId;
+    const editThreadRootEventId = this.#references?.editThreadRootEventId ?? null;
+    const editChannelEchoEventId = this.#references?.editChannelEchoEventId ?? null;
+
+    let canReply: boolean;
+    if (disabled && this.isInThreadPane) canReply = false;
+    else if (this.isEcho) canReply = !disabled && canThread && !!echoRoot;
+    else if (this.isInThreadPane) canReply = this.#canReplyInThread;
+    else if (this.isRootMessage && threadingMode === RoomThreadingMode.REQUIRED)
+      canReply = canThread;
+    else if (this.isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED)
+      canReply = canThread || canPost;
+    else canReply = canPost;
+
+    const canSecondaryRoomReply =
+      this.isRootMessage &&
+      !this.isInThreadPane &&
+      threadingMode === RoomThreadingMode.ENCOURAGED &&
+      canThread &&
+      canPost;
+    const canUseThread = this.isEcho
+      ? !!onOpenThread && !!echoRoot
+      : disabled
+        ? !permalinkThreadRootEventId && this.isRootMessage && this.hasThread && !!onOpenThread
+        : canThread;
     const canAddChannelEcho =
       this.isAuthor &&
-      !!this.#editThreadRootEventId &&
-      threadingMode !== RoomThreadingMode.DISABLED &&
+      !!editThreadRootEventId &&
+      !disabled &&
       this.permissions.canEchoMessage &&
-      this.permissions.canPostMessage;
+      canPost;
     const canRemoveChannelEcho =
       (this.isAuthor || this.permissions.canManageOthersMessage) &&
-      !!this.#editThreadRootEventId &&
-      !!this.#editChannelEchoEventId;
+      !!editThreadRootEventId &&
+      !!editChannelEchoEventId;
     return buildMessageActionModel({
       actions: this.#actions,
       params: {
@@ -186,8 +175,8 @@ export class MessageActionTarget {
         deleteEventId: this.event.id,
         messageBody: this.messageEvent?.body ?? '',
         permalinkThreadRootEventId,
-        threadRootEventId: this.#editThreadRootEventId,
-        channelEchoEventId: this.#editChannelEchoEventId,
+        threadRootEventId: editThreadRootEventId,
+        channelEchoEventId: editChannelEchoEventId,
         canAddChannelEcho,
         canRemoveChannelEcho,
         messageStore
@@ -195,7 +184,7 @@ export class MessageActionTarget {
       reactions: this.messageEvent?.reactions ?? [],
       canReact: this.permissions.canReact,
       canEdit: this.canEdit,
-      canDelete: this.canDelete,
+      canDelete: this.isAuthor || this.permissions.canManageOthersMessage,
       canPin: this.permissions.canPinMessages && Boolean(this.#pinsStore),
       isPinned: this.isPinned,
       togglePin: () => this.#togglePin(),
@@ -203,20 +192,19 @@ export class MessageActionTarget {
         ? m('room.message.actions.reply_thread')
         : m('room.message.actions.reply'),
       replyThreadLabel:
-        this.isEcho ||
-        (this.isRootMessage && threadingMode === RoomThreadingMode.DISABLED && this.hasThread)
+        this.isEcho || (this.isRootMessage && disabled && this.hasThread)
           ? m('room.message.actions.open_thread')
           : m('room.message.actions.reply_thread'),
-      replyInRoom: this.#canUseReplyAction ? () => this.#reply() : undefined,
-      replyThread: this.#canUseThreadAction
-        ? this.isEcho || threadingMode === RoomThreadingMode.DISABLED
+      replyInRoom: canReply ? () => this.#reply() : undefined,
+      replyThread: canUseThread
+        ? this.isEcho || disabled
           ? () => this.openThread()
           : () => this.#startReplyInThread(this.#in.takeReplyQuote())
         : undefined,
-      secondaryReplyInRoomLabel: this.#canUseSecondaryRoomReply
+      secondaryReplyInRoomLabel: canSecondaryRoomReply
         ? m('room.message.actions.reply_room')
         : undefined,
-      secondaryReplyInRoom: this.#canUseSecondaryRoomReply
+      secondaryReplyInRoom: canSecondaryRoomReply
         ? () => this.#startReplyInCurrentComposer(this.#in.takeReplyQuote())
         : undefined
     });

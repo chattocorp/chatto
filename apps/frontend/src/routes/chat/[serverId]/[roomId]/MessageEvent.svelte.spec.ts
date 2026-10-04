@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 import { q } from '$lib/test-utils';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
+import { messageEvent } from './messageEventFixture';
+import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
 
 const mocks = vi.hoisted(() => ({
   copyImageToClipboard: vi.fn(),
@@ -55,62 +56,6 @@ vi.mock('$app/paths', () => ({
       .replace('[threadId]', params?.threadId ?? '')
       .replace('[messageId]', params?.messageId ?? '')
 }));
-
-type MessageOverrides = Partial<{
-  id: string;
-  actorId: string;
-  body: string;
-  attachments: MessageAttachmentView[];
-  threadRootEventId: string | null;
-  echoOfEventId: string | null;
-  echoFromThreadRootEventId: string | null;
-  channelEchoEventId: string | null;
-  threadExists: boolean;
-  replyCount: number;
-}>;
-
-function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
-  const actorId = overrides.actorId ?? 'viewer';
-  return {
-    id: overrides.id ?? 'regular-message',
-    actorId,
-    actor: {
-      id: actorId,
-      login: actorId,
-      displayName: actorId,
-      deleted: false,
-      avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    },
-    createdAt: new Date().toISOString(),
-    event: {
-      kind: TimelineEventKind.MessagePosted,
-      roomId: 'room-1',
-      body: overrides.body ?? 'Hello from this message',
-      attachments: overrides.attachments ?? [],
-      linkPreview: null,
-      reactions: [
-        {
-          emoji: 'thumbsup',
-          count: 1,
-          hasReacted: true,
-          users: [{ id: 'viewer', displayName: 'viewer' }]
-        }
-      ],
-      updatedAt: null,
-      inReplyTo: null,
-      threadRootEventId: overrides.threadRootEventId ?? null,
-      echoOfEventId: overrides.echoOfEventId ?? null,
-      echoFromThreadRootEventId: overrides.echoFromThreadRootEventId ?? null,
-      channelEchoEventId: overrides.channelEchoEventId ?? null,
-      replyCount: overrides.replyCount ?? 0,
-      lastReplyAt: null,
-      threadParticipants: [],
-      threadExists: overrides.threadExists ?? false,
-      viewerIsFollowingThread: false
-    }
-  } as TimelineEventView;
-}
 
 function menuButton(container: HTMLElement, label: string): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
@@ -281,6 +226,25 @@ describe('MessageEvent action model integration', () => {
 
     await vi.waitFor(() => expect(actionSheetButton(container, 'Copy message link')).toBeTruthy());
     expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it('closes the touch sheet when it is dismissed natively', async () => {
+    const actionOverlays = new MessageActionOverlayState();
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), actionOverlays }
+    });
+
+    vi.useFakeTimers();
+    q(container, '[data-testid="message-row"]')!.dispatchEvent(
+      new Event('touchstart', { bubbles: true, cancelable: true })
+    );
+    vi.advanceTimersByTime(500);
+    flushSync();
+    vi.useRealTimers();
+    await vi.waitFor(() => expect(actionSheetButton(container, 'Copy message link')).toBeTruthy());
+
+    container.querySelector<HTMLDialogElement>('dialog[open]')!.close();
+    await vi.waitFor(() => expect(actionOverlays.current).toBeNull());
   });
 
   it('keeps the message menu for a mention without a current member', async () => {

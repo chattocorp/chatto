@@ -97,30 +97,24 @@
     threadingMode,
     takeReplyQuote: takeSelectedReplyQuote
   }));
-  const roomPermissions = $derived(target.permissions);
-  const actor = $derived(target.actor);
-  const deletedActor = $derived(target.deletedActor);
-  const displayName = $derived(target.displayName);
-  const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
+  const authorLoading = $derived(!target.actor && event?.actorResolution === 'loading');
   const actorCallPresence = $derived(
-    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
+    target.actor ? activeCallRooms.getParticipantCallPresence(roomId, target.actor.id) : null
   );
-  const isAuthor = $derived(target.isAuthor);
-  const canEdit = $derived(target.canEdit);
-  const actionModel = $derived(target.action);
 
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
 
   // The timeline renders this message's overlays outside the row; see MessageActionOverlays.
-  const hasOpenActionOverlay = $derived(actionOverlays.isOpenFor(event.id));
+  const actionOverlayKind = $derived(actionOverlays.kindFor(event.id));
+  const actionMenuOpen = $derived(actionOverlayKind === 'menu' || actionOverlayKind === 'sheet');
   const longPress = new MessageLongPressGesture(() => openActionOverlay({ kind: 'sheet' }));
   $effect(() => () => longPress.dispose());
 
   // Clear the reply quote and its selection when this message's overlay closes.
   let hadOpenActionOverlay = false;
   $effect(() => {
-    const open = hasOpenActionOverlay;
+    const open = actionOverlayKind !== null;
     if (hadOpenActionOverlay && !open) untrack(discardSelectedReplyQuote);
     hadOpenActionOverlay = open;
   });
@@ -138,7 +132,7 @@
 
   // Touch handlers for mobile
   function handleTouchStart() {
-    if (actionOverlays.overlay?.kind === 'sheet' && hasOpenActionOverlay) return;
+    if (actionOverlayKind === 'sheet') return;
     longPress.start();
   }
 
@@ -179,7 +173,7 @@
     if (prefersTouch && !canUseHoverActions) {
       longPress.cancel();
     }
-    if (!actionOverlays.isMenuOpenFor(event.id)) {
+    if (!actionMenuOpen) {
       selectedReplyQuoteSnapshot = null;
     }
   }
@@ -204,8 +198,7 @@
     e.preventDefault();
     // Browsers may synthesize this event during a touch long press, including
     // on hybrid devices; that gesture already owns the action sheet.
-    if (longPress.pending || (hasOpenActionOverlay && actionOverlays.overlay?.kind === 'sheet'))
-      return;
+    if (longPress.pending || actionOverlayKind === 'sheet') return;
     const mention =
       e.target instanceof Element ? e.target.closest<HTMLElement>('.mention[data-user-id]') : null;
     const mentionedUserId = mention?.dataset.userId;
@@ -235,14 +228,8 @@
     );
   }
 
-  // MessagePostedEvent-specific data (threading, inReplyTo, etc.)
-  const messageEvent = $derived(target.messageEvent);
-  const isEcho = $derived(target.isEcho);
-  const threadRootEventId = $derived(target.threadRootEventId);
-  const isPinned = $derived(target.isPinned);
-
-  // Common message data for rendering (body, attachments, reactions, updatedAt)
-  const msg = $derived(messageEvent);
+  // The posted message: body, attachments, reactions, threading, and reply attribution.
+  const msg = $derived(target.messageEvent);
 
   const timestamp = $derived(
     event ? formatMessageTime(event.createdAt, userSettings, activeLocale) : ''
@@ -260,16 +247,13 @@
   }
 
   const isEdited = $derived(msg?.updatedAt != null);
-  const hasReplies = $derived(target.hasReplies);
-  const hasThread = $derived(target.hasThread);
-  const isEchoedToChannel = $derived(target.isEchoedToChannel);
 
   const threadFollow = new ThreadFollowState({
     getConnection: connection,
     getSnapshot: () => ({
       roomId,
       threadRootEventId: event.id,
-      following: messageEvent ? (messageEvent.viewerIsFollowingThread ?? false) : null
+      following: msg ? (msg.viewerIsFollowingThread ?? false) : null
     }),
     beginOptimistic: ({ threadRootEventId }, following) =>
       messageStore?.beginOptimisticThreadFollow(threadRootEventId, following),
@@ -283,9 +267,7 @@
   }
 
   const hasAttachments = $derived((msg?.attachments?.length ?? 0) > 0);
-  const hasVisualEmbed = $derived(
-    hasAttachments || !!messageEvent?.linkPreview || messageLinks.length > 0
-  );
+  const hasVisualEmbed = $derived(hasAttachments || !!msg?.linkPreview || messageLinks.length > 0);
 
   // Message is "deleted" if it has no body AND no attachments.
   // Deleted rows that reach this component have visible context and render as
@@ -293,14 +275,14 @@
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
   const replyTarget = $derived.by(() => {
-    const replyToId = messageEvent?.inReplyTo;
+    const replyToId = msg?.inReplyTo;
     if (!replyToId) return null;
     return messageStore?.getEventById(replyToId);
   });
 
   // Fetch reply target only when it is outside the already-loaded event window.
   $effect(() => {
-    const replyToId = messageEvent?.inReplyTo;
+    const replyToId = msg?.inReplyTo;
     if (!replyToId) return;
     if (!messageStore) return;
     untrack(() => messageStore.ensureEvent(replyToId));
@@ -308,7 +290,7 @@
 
   // Derive reply preview from locally fetched target
   const replyPreview = $derived.by(() => {
-    const replyToId = messageEvent?.inReplyTo;
+    const replyToId = msg?.inReplyTo;
     if (!replyToId) return null;
 
     return buildMessageReplyPreview({
@@ -321,20 +303,20 @@
 
   // Check if this thread has pending reply notifications
   const hasThreadNotification = $derived(
-    hasReplies && event && serverUi(stores).attention.hasThreadNotification(event.id)
+    target.hasReplies && event && serverUi(stores).attention.hasThreadNotification(event.id)
   );
   const hasThreadUnread = $derived(
-    hasReplies &&
+    target.hasReplies &&
       event &&
-      messageEvent?.viewerHasUnreadThread === true &&
+      msg?.viewerHasUnreadThread === true &&
       !serverUi(stores).readViews.covers(roomId, event.id)
   );
   const hasMessageFooter = $derived(
-    (isEcho && !!onOpenThread) ||
-      (hasThread && !!onOpenThread) ||
+    (target.isEcho && !!onOpenThread) ||
+      (target.hasThread && !!onOpenThread) ||
       (msg?.reactions?.length ?? 0) > 0 ||
-      isPinned ||
-      ((isEdited || isEchoedToChannel) && !isDeleted)
+      target.isPinned ||
+      ((isEdited || target.isEchoedToChannel) && !isDeleted)
   );
 
   // Check if current user is mentioned (but not by themselves)
@@ -349,7 +331,7 @@
   );
 
   function showPopoverForActor(e: MouseEvent) {
-    showPopoverForUser(actor, e);
+    showPopoverForUser(target.actor, e);
   }
 
   function showPopoverForMember(userId: string, anchorRect: DOMRect) {
@@ -369,19 +351,14 @@
 
   function scrollToReplyTarget() {
     // For echo events, open the thread and highlight the replied-to message there
-    if (
-      isEcho &&
-      messageEvent?.inReplyTo &&
-      messageEvent.echoFromThreadRootEventId &&
-      onOpenThread
-    ) {
-      onOpenThread(messageEvent.echoFromThreadRootEventId, {
-        highlightEventId: messageEvent.inReplyTo
+    if (target.isEcho && msg?.inReplyTo && msg.echoFromThreadRootEventId && onOpenThread) {
+      onOpenThread(msg.echoFromThreadRootEventId, {
+        highlightEventId: msg.inReplyTo
       });
       return;
     }
 
-    const replyToId = messageEvent?.inReplyTo;
+    const replyToId = msg?.inReplyTo;
     if (!replyToId) return;
 
     // Use jump-to-message state which works with the virtualizer.
@@ -430,10 +407,10 @@
 {#if msg}
   <MessageView
     eventId={event.id}
-    {actor}
-    {displayName}
+    actor={target.actor}
+    displayName={target.displayName}
     {authorLoading}
-    missingActorIsDeleted={deletedActor}
+    missingActorIsDeleted={target.deletedActor}
     body={msg.body}
     deleted={isDeleted}
     viewerLogin={currentUser.user?.login}
@@ -444,7 +421,7 @@
       compact ? (hasVisualEmbed ? 'mt-1.5' : '') : 'mt-4',
       isCurrentUserMentioned ? 'bg-warning/10' : ''
     ]}
-    rowClass={longPress.active || actionOverlays.isMenuOpenFor(event.id) ? 'bg-surface' : ''}
+    rowClass={longPress.active || actionMenuOpen ? 'bg-surface' : ''}
     {members}
     roleHandles={mentionRoleHandles}
     timestampSettings={userSettings}
@@ -522,17 +499,17 @@
         attachments={msg.attachments ?? []}
         serverId={activeServerId}
         {roomId}
-        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
-        canDeleteAttachment={isAuthor}
-        canEditAttachmentDescription={canEdit}
+        eventId={target.isEcho ? msg!.echoOfEventId! : event.id}
+        canDeleteAttachment={target.isAuthor}
+        canEditAttachmentDescription={target.canEdit}
       />
 
-      {#if messageEvent?.linkPreview}
+      {#if msg?.linkPreview}
         <div class="mt-2">
           <LinkPreviewCard
-            preview={messageEvent.linkPreview}
+            preview={msg.linkPreview}
             showDismiss={false}
-            canDelete={isAuthor}
+            canDelete={target.isAuthor}
             serverId={activeServerId}
             {roomId}
             eventId={event.id}
@@ -550,26 +527,26 @@
         <MessageMetaBar
           {roomId}
           serverSegment={serverIdToSegment(activeServerId)}
-          {threadRootEventId}
+          threadRootEventId={target.threadRootEventId}
           reactions={msg?.reactions ?? []}
           edited={isEdited && !isDeleted}
-          channelEchoEventId={isEchoedToChannel && !isDeleted
-            ? messageEvent?.channelEchoEventId
+          channelEchoEventId={target.isEchoedToChannel && !isDeleted
+            ? msg?.channelEchoEventId
             : null}
-          action={actionModel}
-          replyCount={messageEvent?.replyCount}
-          threadExists={messageEvent?.threadExists}
-          threadParticipants={messageEvent?.threadParticipants}
+          action={target.action}
+          replyCount={msg?.replyCount}
+          threadExists={msg?.threadExists}
+          threadParticipants={msg?.threadParticipants}
           {hasThreadNotification}
           {hasThreadUnread}
           isFollowingThread={threadFollow.following}
           isThreadFollowPending={threadFollow.pending}
-          onToggleThreadFollow={hasThread ? toggleThreadFollow : undefined}
+          onToggleThreadFollow={target.hasThread ? toggleThreadFollow : undefined}
           onOpenThread={onOpenThread ? () => target.openThread() : undefined}
-          onOpenEmojiPicker={roomPermissions.canReact
+          onOpenEmojiPicker={target.permissions.canReact
             ? (event) => openEmojiPickerAt({ x: event.clientX, y: event.clientY })
             : undefined}
-          isEchoEvent={isEcho}
+          isEchoEvent={target.isEcho}
         />
       {/if}
     {/snippet}
@@ -577,9 +554,9 @@
     {#snippet actions()}
       {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
-          action={actionModel}
-          forceVisible={actionOverlays.keepsToolbarVisibleFor(event.id)}
-          onOpenEmojiPicker={roomPermissions.canReact
+          action={target.action}
+          forceVisible={actionOverlayKind === 'menu' || actionOverlayKind === 'emoji'}
+          onOpenEmojiPicker={target.permissions.canReact
             ? (event) => {
                 const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
                 openEmojiPickerAt({ x: rect.left, y: rect.bottom + 4 });

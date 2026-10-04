@@ -23,7 +23,7 @@
   import RoomEvent from './RoomEvent.svelte';
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
-  import MessageActionOverlayHost from './MessageActionOverlayHost.svelte';
+  import MessageActionOverlays from './MessageActionOverlays.svelte';
   import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
   import { isDeletedMessage } from './messageEventModel';
   import SystemEventGroup from './SystemEventGroup.svelte';
@@ -195,7 +195,7 @@
   let filteredEvents = $derived(visibleTombstoneEvents(timelineEvents));
   // The message that owns the open action overlay, while the timeline shows it as a message.
   const actionOverlayEvent = $derived.by(() => {
-    const eventId = actionOverlays.eventId;
+    const eventId = actionOverlays.current?.eventId;
     if (!eventId) return null;
     const event = filteredEvents.find((candidate) => candidate.id === eventId);
     return event && isMessagePostedEvent(event.event) && !isDeletedMessage(event.event)
@@ -204,7 +204,7 @@
   });
   // Close the overlay when its message leaves the timeline or becomes a tombstone.
   $effect(() => {
-    if (actionOverlays.eventId && !actionOverlayEvent) untrack(() => actionOverlays.close());
+    if (actionOverlays.current && !actionOverlayEvent) untrack(() => actionOverlays.close());
   });
   let messageEventCount = $derived(
     filteredEvents.filter((event) => isMessagePostedEvent(event.event)).length
@@ -995,7 +995,7 @@
 
   {#if actionOverlayEvent}
     {#key actionOverlayEvent.id}
-      <MessageActionOverlayHost
+      <MessageActionOverlays
         overlays={actionOverlays}
         event={actionOverlayEvent}
         {roomId}

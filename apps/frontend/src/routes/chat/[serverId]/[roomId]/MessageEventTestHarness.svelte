@@ -19,7 +19,7 @@
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import MessageActionOverlayHost from './MessageActionOverlayHost.svelte';
+  import MessageActionOverlays from './MessageActionOverlays.svelte';
   import { MessageActionOverlayState } from './messageActionOverlayState.svelte';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
@@ -113,10 +113,10 @@
   provideUserProfiles(() => users);
 
   // Like EventList, the host's event resolves to null as soon as the overlay closes.
-  const overlayEvent = $derived(actionOverlays.eventId === event.id ? event : null);
+  const overlayEvent = $derived(actionOverlays.current?.eventId === event.id ? event : null);
   // Like EventList: an overlay closes when its message leaves the timeline.
   $effect(() => {
-    if (actionOverlays.eventId && actionOverlays.eventId !== event.id)
+    if (actionOverlays.current && actionOverlays.current.eventId !== event.id)
       untrack(() => actionOverlays.close());
   });
 
@@ -144,7 +144,7 @@
 <!-- Like EventList: the overlay host stays while the message is in the timeline. -->
 {#if overlayEvent}
   {#key overlayEvent.id}
-    <MessageActionOverlayHost
+    <MessageActionOverlays
       overlays={actionOverlays}
       event={overlayEvent}
       {roomId}

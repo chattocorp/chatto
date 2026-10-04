@@ -1,7 +1,10 @@
 <!-- @component
 Renders the open message action overlay of one timeline: the desktop context menu,
 the touch action sheet, the emoji picker, or the reaction details.
-`MessageActionOverlayHost` binds it to the message that owns the overlay.
+
+The timeline renders this host outside its virtualized rows, so an overlay stays open
+when the virtualizer unmounts the row of its message. The owner renders the host only
+while `event` is in the loaded timeline, and keys it by the message ID.
 -->
 <script lang="ts" module>
   // The host remounts for each message whose overlay opens. Keep the lazy modules across
@@ -31,35 +34,53 @@ the touch action sheet, the emoji picker, or the reaction details.
   import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
-  import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
-  import type { MessageActionModel } from './messageActionModel';
+  import type { MessagesStore } from '$lib/state/room';
+  import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
+  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import type {
     MessageActionOverlay,
     MessageActionOverlayState
   } from './messageActionOverlayState.svelte';
+  import { MessageActionTarget } from './messageActionTarget.svelte';
+  import type { OpenThreadHandler } from './threadOpenOptions';
 
   let messageActionMenuLoadAttempt = $state(0);
   let emojiPickerLoadAttempt = $state(0);
 
   let {
     overlays,
-    action,
-    reactions,
+    event,
     roomId,
-    messageEventId
+    permalinkThreadRootEventId = null,
+    messageStore = null,
+    onOpenThread,
+    threadingMode = RoomThreadingMode.ENABLED
   }: {
     overlays: MessageActionOverlayState;
-    /** The actions of the message that owns the open overlay. */
-    action: MessageActionModel;
-    reactions: ReactionSummaryView[];
+    /** The live message that owns the open overlay. */
+    event: TimelineEventView;
     roomId: string;
-    messageEventId: string;
+    permalinkThreadRootEventId?: string | null;
+    messageStore?: MessagesStore | null;
+    onOpenThread?: OpenThreadHandler;
+    threadingMode?: RoomThreadingMode;
   } = $props();
 
-  const overlay = $derived(overlays.overlay);
+  const target = new MessageActionTarget(() => ({
+    event,
+    roomId,
+    permalinkThreadRootEventId,
+    messageStore,
+    onOpenThread,
+    threadingMode,
+    takeReplyQuote: () => overlays.takeReplyQuote()
+  }));
+  const action = $derived(target.action);
+  const reactions = $derived(target.messageEvent?.reactions ?? []);
+  const overlay = $derived(overlays.current);
   // The owner keys this component by message ID. Closing unmounts this component, and
   // its props then stop resolving, so handlers that run after a close use this copy.
-  const eventId = untrack(() => messageEventId);
+  const eventId = untrack(() => event.id);
 
   function close(kind: MessageActionOverlay['kind']): void {
     overlays.close({ kind, eventId });
@@ -99,8 +120,8 @@ the touch action sheet, the emoji picker, or the reaction details.
       {action}
       hasReactions={reactions.length > 0}
       onOpenReactionDetails={() => overlays.open(eventId, { kind: 'reactions' })}
-      linkUrl={presentation === 'menu' ? overlays.linkUrl : null}
-      imageUrl={presentation === 'menu' ? overlays.imageUrl : null}
+      linkUrl={presentation === 'menu' ? overlay?.linkUrl : null}
+      imageUrl={presentation === 'menu' ? overlay?.imageUrl : null}
       onOpenEmojiPicker={action.canReact ? () => openEmojiPicker(presentation) : undefined}
       onClose={() => close(presentation)}
     />
@@ -149,7 +170,7 @@ the touch action sheet, the emoji picker, or the reaction details.
   {:then { default: MessageReactionDetails }}
     <MessageReactionDetails
       {roomId}
-      {messageEventId}
+      messageEventId={eventId}
       {reactions}
       onClose={() => close('reactions')}
     />

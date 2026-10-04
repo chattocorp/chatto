@@ -28,6 +28,10 @@ export type MessageActionOverlayContext = {
   replyQuote?: QuoteInsertionContent | null;
 };
 
+/** The open overlay, the message that owns it, and what the user pointed at. */
+export type OpenMessageActionOverlay = MessageActionOverlay &
+  Omit<MessageActionOverlayContext, 'replyQuote'> & { eventId: string };
+
 /**
  * The message action overlays of one timeline: context menu, touch action sheet, emoji
  * picker, and reaction details.
@@ -38,37 +42,20 @@ export type MessageActionOverlayContext = {
  * shorter. The overlay follows its message, not the row element that showed it.
  */
 export class MessageActionOverlayState {
-  /** The message that owns the open overlay. */
-  eventId = $state<string | null>(null);
-  overlay = $state<MessageActionOverlay | null>(null);
-  linkUrl = $state<string | null>(null);
-  imageUrl = $state<string | null>(null);
-  replyQuote = $state.raw<QuoteInsertionContent | null>(null);
+  current = $state.raw<OpenMessageActionOverlay | null>(null);
+  // Not reactive: only a reply reads it, once.
+  #replyQuote: QuoteInsertionContent | null = null;
 
-  /** True when an overlay is open for the message. */
-  isOpenFor(eventId: string): boolean {
-    return this.overlay !== null && this.eventId === eventId;
-  }
-
-  /** True when the context menu or the touch action sheet is open for the message. */
-  isMenuOpenFor(eventId: string): boolean {
-    const kind = this.overlay?.kind;
-    return this.eventId === eventId && (kind === 'menu' || kind === 'sheet');
-  }
-
-  /** True when the context menu or the emoji picker is open for the message; its toolbar stays visible. */
-  keepsToolbarVisibleFor(eventId: string): boolean {
-    const kind = this.overlay?.kind;
-    return this.eventId === eventId && (kind === 'menu' || kind === 'emoji');
+  /** The kind of the overlay that is open for the message, or null. */
+  kindFor(eventId: string): MessageActionOverlay['kind'] | null {
+    return this.current?.eventId === eventId ? this.current.kind : null;
   }
 
   /** Opens an overlay for a message and replaces any other open overlay. */
   open(eventId: string, overlay: MessageActionOverlay, context: MessageActionOverlayContext = {}) {
-    this.eventId = eventId;
-    this.overlay = overlay;
-    this.linkUrl = context.linkUrl ?? null;
-    this.imageUrl = context.imageUrl ?? null;
-    this.replyQuote = context.replyQuote ?? null;
+    const { replyQuote = null, ...pointer } = context;
+    this.current = { ...overlay, ...pointer, eventId };
+    this.#replyQuote = replyQuote;
   }
 
   /**
@@ -77,20 +64,18 @@ export class MessageActionOverlayState {
    * overlay, and a late close from one message does not close the overlay of another.
    */
   close(scope: { kind?: MessageActionOverlay['kind']; eventId?: string } = {}): void {
-    if (!this.overlay) return;
-    if (scope.kind && this.overlay.kind !== scope.kind) return;
-    if (scope.eventId && this.eventId !== scope.eventId) return;
-    this.eventId = null;
-    this.overlay = null;
-    this.linkUrl = null;
-    this.imageUrl = null;
-    this.replyQuote = null;
+    const current = this.current;
+    if (!current) return;
+    if (scope.kind && current.kind !== scope.kind) return;
+    if (scope.eventId && current.eventId !== scope.eventId) return;
+    this.current = null;
+    this.#replyQuote = null;
   }
 
   /** Returns the quote for a reply from the overlay, and clears it. */
   takeReplyQuote(): QuoteInsertionContent | null {
-    const quote = this.replyQuote;
-    this.replyQuote = null;
+    const quote = this.#replyQuote;
+    this.#replyQuote = null;
     return quote;
   }
 }
