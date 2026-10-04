@@ -58,7 +58,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
 <!-- Container keydown only adds grid navigation; the search input and emoji buttons stay keyboard-operable. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="flex w-88 max-w-full flex-col gap-2 compact-input:w-72 compact-input:gap-1"
+  class="flex w-88 max-w-full flex-col gap-2 in-[.sheet-frame]:w-full compact-input:w-72 compact-input:gap-1"
   onkeydown={handleKeydown}
 >
   <!-- Search section -->
@@ -81,7 +81,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
         {#if searchResults.length === 0}
           <div class="py-6 text-center text-sm text-muted">{m('emoji.no_results')}</div>
         {:else}
-          <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each searchResults as result (result.name)}
               <button
                 type="button"
@@ -101,7 +101,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
           >
             {m('emoji.recently_used')}
           </div>
-          <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each recent as emoji (emoji)}
               <button
                 type="button"
@@ -119,7 +119,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
           >
             {cat.name}
           </div>
-          <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each cat.emojis as entry (entry.name)}
               <button
                 type="button"
