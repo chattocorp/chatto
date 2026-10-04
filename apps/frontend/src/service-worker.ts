@@ -8,10 +8,7 @@
 
 import { APP_BADGE_REFRESH_MESSAGE_TYPE, updateAppBadge } from '$lib/notifications/appBadge';
 import { build, version } from '$service-worker';
-import {
-  routeNotificationClick,
-  type NotificationClickClients
-} from '$lib/pwa/notificationClick.worker';
+import { routeNotificationClick } from '$lib/pwa/notificationClick.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -311,12 +308,7 @@ self.addEventListener('notificationclick', (event) => {
   const rawUrl =
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
-    routeNotificationClick(
-      rawUrl,
-      self.location.origin,
-      self.clients as unknown as NotificationClickClients,
-      { logger: console }
-    ).catch((err) => {
+    routeNotificationClick(rawUrl, self.location.origin, self.clients).catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })
   );

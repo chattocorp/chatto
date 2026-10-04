@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   normalizeNotificationClickUrl,
   routeNotificationClick,
@@ -29,14 +29,17 @@ describe('routeNotificationClick', () => {
     );
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function windowClient(
-    state: Pick<NotificationClickClient, 'url' | 'focused' | 'visibilityState'>
-  ): NotificationClickClient & {
-    focus: ReturnType<typeof vi.fn>;
-    postMessage: ReturnType<typeof vi.fn>;
-  } {
+    state: Partial<Pick<NotificationClickClient, 'url' | 'focused' | 'visibilityState'>>
+  ) {
     const client = {
       url: `${ORIGIN}/chat/-/room-2`,
+      focused: false,
+      visibilityState: 'visible' as DocumentVisibilityState,
       ...state,
       focus: vi.fn(async () => client),
       postMessage: vi.fn()
@@ -45,12 +48,11 @@ describe('routeNotificationClick', () => {
   }
 
   it('focuses the open window, then sends it the click', async () => {
-    const client = windowClient({ focused: true, visibilityState: 'visible' });
+    const client = windowClient({ focused: true });
     const clients = clientsWith([client]);
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients);
+    await routeNotificationClick(TARGET_URL, ORIGIN, clients);
 
-    expect(result).toBe('client');
     expect(client.focus).toHaveBeenCalledOnce();
     expect(client.postMessage).toHaveBeenCalledWith({
       type: 'notification-click',
@@ -76,65 +78,50 @@ describe('routeNotificationClick', () => {
     expect(visible.postMessage).toHaveBeenCalledOnce();
     expect(hidden.postMessage).not.toHaveBeenCalled();
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clientsWith([hidden]));
-    expect(result).toBe('client');
+    const clients = clientsWith([hidden]);
+    await routeNotificationClick(TARGET_URL, ORIGIN, clients);
     expect(hidden.focus).toHaveBeenCalledOnce();
     expect(hidden.postMessage).toHaveBeenCalledOnce();
+    expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
   it('ignores windows that do not run the app', async () => {
-    const attachment = windowClient({
-      url: `${ORIGIN}/assets/files/asset-1`,
-      focused: true,
-      visibilityState: 'visible'
-    });
+    const attachment = windowClient({ url: `${ORIGIN}/assets/files/asset-1`, focused: true });
     const loadedAtRoot = windowClient({ url: `${ORIGIN}/`, visibilityState: 'hidden' });
 
-    await expect(
-      routeNotificationClick(TARGET_URL, ORIGIN, clientsWith([attachment, loadedAtRoot]))
-    ).resolves.toBe('client');
+    await routeNotificationClick(TARGET_URL, ORIGIN, clientsWith([attachment, loadedAtRoot]));
     expect(attachment.focus).not.toHaveBeenCalled();
     expect(loadedAtRoot.postMessage).toHaveBeenCalledOnce();
 
     const clients = clientsWith([attachment]);
-    await expect(routeNotificationClick(TARGET_URL, ORIGIN, clients)).resolves.toBe('open');
+    await routeNotificationClick(TARGET_URL, ORIGIN, clients);
     expect(attachment.focus).not.toHaveBeenCalled();
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
   it('opens a new window instead when focusing fails', async () => {
-    const warn = vi.fn();
-    const rejecting = windowClient({ visibilityState: 'visible' });
-    rejecting.focus.mockRejectedValue(new Error('Not allowed to focus a window.'));
-    const unfocusable = windowClient({ visibilityState: 'hidden' });
-    unfocusable.focus.mockResolvedValue(null);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const client = windowClient({});
+    client.focus.mockRejectedValue(new Error('Not allowed to focus a window.'));
+    const clients = clientsWith([client]);
 
-    for (const client of [rejecting, unfocusable]) {
-      const clients = clientsWith([client]);
-      const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-        logger: { warn }
-      });
+    await routeNotificationClick(TARGET_URL, ORIGIN, clients);
 
-      expect(result).toBe('open');
-      expect(client.postMessage).not.toHaveBeenCalled();
-      expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
-    }
     expect(warn).toHaveBeenCalledOnce();
+    expect(client.postMessage).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
   it('does not open a second window when sending to the focused window fails', async () => {
-    const warn = vi.fn();
-    const client = windowClient({ visibilityState: 'visible' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const client = windowClient({});
     client.postMessage.mockImplementation(() => {
       throw new Error('client gone');
     });
     const clients = clientsWith([client]);
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      logger: { warn }
-    });
+    await routeNotificationClick(TARGET_URL, ORIGIN, clients);
 
-    expect(result).toBe('client');
     expect(warn).toHaveBeenCalledOnce();
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
@@ -142,9 +129,8 @@ describe('routeNotificationClick', () => {
   it('opens a new window when no window client exists', async () => {
     const clients = clientsWith([]);
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients);
+    await routeNotificationClick(TARGET_URL, ORIGIN, clients);
 
-    expect(result).toBe('open');
     expect(clients.matchAll).toHaveBeenCalledWith({
       type: 'window',
       includeUncontrolled: true
@@ -162,7 +148,7 @@ describe('routeNotificationClick', () => {
     for (const url of routes) {
       const clients = clientsWith([]);
 
-      await expect(routeNotificationClick(url, ORIGIN, clients)).resolves.toBe('open');
+      await routeNotificationClick(url, ORIGIN, clients);
       expect(clients.openWindow).toHaveBeenCalledWith(url);
     }
   });
@@ -170,31 +156,23 @@ describe('routeNotificationClick', () => {
   it('maps cross-origin chat payload URLs onto the service worker origin', async () => {
     const clients = clientsWith([]);
 
-    await expect(
-      routeNotificationClick(
-        'https://configured.example/chat/-/room-1?highlight=event-1#message',
-        ORIGIN,
-        clients
-      )
-    ).resolves.toBe('open');
+    await routeNotificationClick(
+      'https://configured.example/chat/-/room-1?highlight=event-1#message',
+      ORIGIN,
+      clients
+    );
 
     expect(clients.openWindow).toHaveBeenCalledWith(
       `${ORIGIN}/chat/-/room-1?highlight=event-1#message`
     );
   });
 
-  it('falls back to the chat entry point for malformed or non-chat cross-origin URLs', async () => {
-    const malformedClients = clientsWith([]);
-    const crossOriginClients = clientsWith([]);
+  it('falls back to the chat entry point for missing, malformed, or non-chat cross-origin URLs', async () => {
+    for (const rawUrl of [undefined, 'http://[', 'https://other.example/settings']) {
+      const clients = clientsWith([]);
 
-    await expect(routeNotificationClick('http://[', ORIGIN, malformedClients)).resolves.toBe(
-      'open'
-    );
-    await expect(
-      routeNotificationClick('https://other.example/settings', ORIGIN, crossOriginClients)
-    ).resolves.toBe('open');
-
-    expect(malformedClients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/chat`);
-    expect(crossOriginClients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/chat`);
+      await routeNotificationClick(rawUrl, ORIGIN, clients);
+      expect(clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/chat`);
+    }
   });
 });
