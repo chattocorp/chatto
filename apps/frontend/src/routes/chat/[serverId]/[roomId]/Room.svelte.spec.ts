@@ -1050,7 +1050,7 @@ describe('Room local message echo', () => {
         routeMessageId: 'thread-message-1'
       }
     });
-    const output = await waitForElement(
+    const output = await waitForElement<HTMLElement>(
       rendered.container,
       '[data-testid="thread-pane-highlight-id"]'
     );
