@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { createWorkflowContext } from 'runling';
+import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { AgentExtensionAPI, AgentOptions } from 'runling/agents';
 
 const { interact } = vi.hoisted(() => ({ interact: vi.fn() }));
@@ -23,6 +23,7 @@ vi.mock('./investigate.ts', async (importOriginal) => ({
       } as never)
 }));
 import { conversation } from './chat.ts';
+import { completionTool } from '../evaluations/scripted-supervisor.ts';
 
 test.each(['accepted', 'refused'])(
   '%s delegation posts one host-owned reply and permits later replies',
@@ -111,16 +112,19 @@ test.each(['accepted', 'refused'])(
   }
 );
 
-test('a reaction preserves both an answer and a later background result', async () => {
+test('a reaction does not suppress the next background result', async () => {
   const replies: string[] = [];
-  let react!: (id: string, input: { emoji: string }) => Promise<unknown>;
-  interact.mockImplementationOnce(async (ctx, _agent, _prompt, options) => {
-    await options.prepareMessage('Thanks', 'user');
-    await react('reaction', { emoji: 'heart' });
-    await ctx.emit('Here are my capabilities.');
-    expect(replies).toEqual(['Here are my capabilities.']);
-    await options.prepareMessage('Background result', 'notification');
-    await ctx.emit('The task finished.');
+  const reactions: string[] = [];
+  interact.mockImplementationOnce(async (ctx, bot, _prompt, options) => {
+    const user = await options.prepareMessage('Thanks', 'user');
+    options.onBusy(true);
+    await bot.runOutcome(ctx, user, { onText: (text: string) => ctx.emit(text) });
+    options.onBusy(false);
+    expect(replies).toEqual([]);
+    const notification = await options.prepareMessage('Background result', 'notification');
+    options.onBusy(true);
+    await bot.runOutcome(ctx, notification, { onText: (text: string) => ctx.emit(text) });
+    options.onBusy(false);
     return '';
   });
   await conversation(
@@ -133,17 +137,25 @@ test('a reaction preserves both an answer and a later background result', async 
     'Thanks',
     {
       createAgent: async (options) => {
-        for (const extension of options.extensions ?? [])
-          await (typeof extension === 'function' ? extension : extension.factory)({
-            on() {},
-            registerTool(tool: { name: string; execute: typeof react }) {
-              if (tool.name === 'reactToMessage') react = tool.execute;
-            }
-          } as unknown as AgentExtensionAPI);
-        return { runOutcome: vi.fn(), steer: async () => false, dispose() {} };
+        const finish = await completionTool(options);
+        return {
+          steer: async () => false,
+          dispose() {},
+          async runOutcome(_ctx, prompt) {
+            if (JSON.parse(prompt).notification) {
+              await expect(finish({ kind: 'react', emoji: 'heart' })).rejects.toThrow(
+                'current user message'
+              );
+              await finish({ kind: 'reply', text: 'The task finished.' });
+            } else await finish({ kind: 'react', emoji: 'heart' });
+            return { outcome: 'completed', summary: '', usage: emptyTokenUsage() };
+          }
+        };
       },
       model: 'test/model',
-      react: async () => {},
+      react: async (_target, emoji) => {
+        reactions.push(emoji);
+      },
       delivery: {
         version: 1,
         id: 'delivery',
@@ -164,5 +176,6 @@ test('a reaction preserves both an answer and a later background result', async 
       announce: async () => {}
     }
   );
-  expect(replies).toEqual(['Here are my capabilities.', 'The task finished.']);
+  expect(reactions).toEqual(['heart']);
+  expect(replies).toEqual(['The task finished.']);
 });

@@ -174,20 +174,31 @@ thread do not get this automatic reaction. Duplicate deliveries do not add anoth
 the reaction so cancellation stays immediate. The bot needs permission to add
 reactions. A failed reaction logs a warning and the reply continues.
 
-The supervisor can use `reactToMessage` to add an emoji reaction to the current
-message addressed to the bot. For a simple thanks or acknowledgement, it can
-send a reaction without a text reply, including after web research. The model
-ends simple acknowledgement turns without text. A reaction does not suppress
-an answer to a question. Questions and task results still need a
-text reply. The tool permits one call per user message and no calls from
-background notifications. It uses the same Chatto client and reaction permission.
+The supervisor ends each turn with `finishTurn`: a reply, a reaction, or silence.
+The host delivers only that choice. Ordinary assistant text is not posted.
+After a choice succeeds, further tools are blocked and extra model text is
+ignored. The choice applies only to that turn; later user messages and task
+results can receive new replies. Runling provides the existing agent lifecycle
+and validated custom tools. The completion policy belongs to ChattoBot.
+
+For a simple thanks or acknowledgement, the supervisor can select a reaction
+without a text reply, including after web research. Questions and task results
+need a reply. Reactions use the same Chatto client and permission as other bot
+reactions. A failed reaction permits a text fallback, but no second reaction
+attempt for that user message. Notification turns cannot react.
 
 The supervisor uses `acknowledgeRequest` to send a brief text reply before
 research or other longer work. The host blocks reference loading, web research,
-and GitHub reads until the acknowledgement has been posted. For an initiating root message, it sends this
-reply first to open the thread. The model writes the acknowledgement in the
-user's language. It then continues with the request. Simple follow-up messages
-can still receive only a reaction.
+and GitHub reads until the acknowledgement has been posted. Short answers and
+casual conversation do not need a separate acknowledgement; a final reply can
+open the thread. Investigation and implementation tools have their own
+announcements. The model writes all of these messages in the user's language.
+
+A missing final choice gets one corrective turn. Only `finishTurn` is available
+during that correction. If no choice follows, the existing reply-failure path
+ends the conversation. This does not retry external work or provider failures.
+See [FDR-049](../../docs/fdr/FDR-049-chattobot-conversation-completion.md).
+
 Automatic eyes reactions run inside the conversation task, with a ten-second timeout and
 cancellation support. Follow-up messages pass through one queue to Pi without
 another automatic reaction request. Event acceptance does not wait
@@ -872,7 +883,8 @@ output enters the conversation. Every call from a script passes the same checks
 as a direct call: the authorization checks, the research limit, and the block
 after untrusted content. Tools that only maintainers can start, and
 `task_cancel`, run only as direct calls, because a script could wait until a
-maintainer writes. Scripts cannot call `viewAttachment`, because they receive
+maintainer writes. Scripts cannot call `finishTurn`, which only the model can use to select delivery.
+They cannot call `viewAttachment`, because they receive
 only text, and the model must see the image itself. Supervisor scripts stop
 after four minutes, worker scripts after twenty, and other scripts after ten.
 A supervisor script can make at most 30 tool calls, and other scripts 100.
@@ -963,7 +975,7 @@ pnpm runling run evaluations/run.ts --input '{"model":"openrouter/google/gemma-4
 ```
 
 This command makes model requests and can incur provider charges. It sends only
-synthetic conversation data and the shared reply policy. It has no tools or
+synthetic conversation data and the shared reply policy. Its only tool selects the final response; it has no
 Chatto connection and reads no source checkout. Set `"dryRun":true` in the input
 to inspect the cases without model requests. The results contain replies, simple
 checks, and a review rubric. Review each reply: passing these checks does not
@@ -982,3 +994,18 @@ This opt-in test uses the production investigation flow with a temporary synthet
 Git repository. It checks actual file access, accepted citations, completion, and
 the owner's reply. It makes paid model requests but sends no real source checkout
 or Chatto conversation. Normal unit-test runs skip it.
+
+To evaluate a complete supervisor conversation with a live model, run from this
+package:
+
+```sh
+CHATTO_EVAL_MODEL=openai/gpt-6-luna mise x -- node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run evaluations/conversation.test.ts
+```
+
+This opt-in evaluation makes paid model requests with synthetic messages. Chatto
+delivery and reference reads use local fixtures; it does not contact Chatto or
+reference sites. It checks the number and kind of delivered responses across
+questions, thanks, repeated feedback, and reference research. Review its printed
+transcript for relevance and tone. Normal test runs skip it. Deterministic
+completion tests also cover stray model text, reaction failure, cancellation,
+and missing final choices.

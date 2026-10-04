@@ -3,7 +3,7 @@ import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { AddReactionRequest } from '@chatto/api-types/api/v1/reactions_pb';
 import { fakeChatto } from './chatto/fake-chatto.ts';
 import { createEyesReaction } from './reaction.ts';
-import { createChattoBot } from './workflows/chat.ts';
+import { scriptedChattoBot as createChattoBot } from './evaluations/scripted-supervisor.ts';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
 import type { WebhookContext } from 'runling/web';
 import type { Delivery } from './chatto/routing.ts';

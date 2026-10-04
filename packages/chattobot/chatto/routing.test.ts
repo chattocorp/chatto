@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { createWorkflowContext, emptyTokenUsage } from 'runling';
-import { createChattoBot } from '../workflows/chat.ts';
+import { scriptedChattoBot as createChattoBot } from '../evaluations/scripted-supervisor.ts';
 import { deliveryConversationKey, type Delivery, type ChattoPost } from './routing.ts';
 import { chattoConversation } from './chat-conversation.ts';
 

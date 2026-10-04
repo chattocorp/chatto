@@ -4,7 +4,7 @@ import type { AgentRunOptions } from 'runling/agents';
 import type { WebhookContext } from 'runling/web';
 import type { Delivery } from '../chatto/routing.ts';
 import config from '../runling.config.ts';
-import { createChattoBot } from './chat.ts';
+import { scriptedChattoBot as createChattoBot } from '../evaluations/scripted-supervisor.ts';
 import type { AgentExtensionAPI } from 'runling/agents';
 
 const delivery: Delivery = {
@@ -72,73 +72,6 @@ test.each([null, 'existing-thread'])(
       'I’ll check that.',
       expect.any(AbortSignal)
     );
-  }
-);
-
-test.each([false, true])(
-  'a reaction does not discard a substantive answer (%s)',
-  async (answer) => {
-    const react = vi.fn(async () => {});
-    const post = vi.fn(async () => {});
-    let tool:
-      | {
-          name: string;
-          execute: (
-            id: string,
-            input: { emoji: string },
-            signal: AbortSignal
-          ) => Promise<{ content: unknown }>;
-        }
-      | undefined;
-    const bot = createChattoBot({
-      acknowledge: async () => {},
-      react,
-      post,
-      typing: async () => {},
-      timeout: 0,
-      readThread: async () => ({ messages: [], olderOmitted: false }),
-      createAgent: async (options) => {
-        expect(options.tools).toContain('reactToMessage');
-        for (const extension of options.extensions ?? []) {
-          const factory = typeof extension === 'function' ? extension : extension.factory;
-          await factory({
-            on() {},
-            registerTool(definition: NonNullable<typeof tool>) {
-              if (definition.name === 'reactToMessage') tool = definition;
-            }
-          } as unknown as AgentExtensionAPI);
-        }
-        return {
-          async runOutcome(_ctx, _prompt, runOptions) {
-            const signal = new AbortController().signal;
-            const result = await tool!.execute('reaction', { emoji: 'thumbsup' }, signal);
-            expect(result.content).toEqual([
-              { type: 'text', text: 'Reaction added to the current user message.' }
-            ]);
-            await expect(tool!.execute('duplicate', { emoji: 'heart' }, signal)).rejects.toThrow(
-              'Only one reaction'
-            );
-            if (answer) runOptions?.onText?.('Here are my capabilities.');
-            return { outcome: 'completed' as const, summary: '', usage: emptyTokenUsage() };
-          },
-          steer: async () => false,
-          dispose() {}
-        };
-      }
-    });
-    await bot(createWorkflowContext(), delivery);
-    expect(react).toHaveBeenCalledExactlyOnceWith(
-      { roomId: 'dm', messageId: 'root' },
-      'thumbsup',
-      expect.any(AbortSignal)
-    );
-    if (answer)
-      expect(post).toHaveBeenCalledWith(
-        expect.any(Object),
-        'Here are my capabilities.',
-        expect.any(AbortSignal)
-      );
-    else expect(post).not.toHaveBeenCalled();
   }
 );
 
@@ -220,14 +153,15 @@ test.each([
         ? [
             'readThread',
             'acknowledgeRequest',
+            'finishTurn',
             'fetchPage',
             'investigateChatto',
             'task_send',
             'task_cancel'
           ]
-        : ['readThread', 'acknowledgeRequest', 'fetchPage'],
+        : ['readThread', 'acknowledgeRequest', 'finishTurn', 'fetchPage'],
       // The prompt hygiene extension comes first, then the gates and tools.
-      extensions: Array(thread ? 6 : 4).fill(expect.any(Function)),
+      extensions: Array(thread ? 7 : 5).fill(expect.any(Function)),
       resources: {
         extensions: false,
         skills: false,
@@ -258,6 +192,7 @@ test('implementation is a separate opt-in tool with host-result reporting instru
       expect(options.tools).toEqual([
         'readThread',
         'acknowledgeRequest',
+        'finishTurn',
         'fetchPage',
         'implementChatto',
         'askImplementation',
@@ -762,7 +697,7 @@ test.each([false, true])(
             }
           } as unknown as AgentExtensionAPI);
         }
-        expect(options.trust?.blockAfterUntrusted).not.toContain('reactToMessage');
+        expect(options.trust?.blockAfterUntrusted).not.toContain('finishTurn');
         return {
           async runOutcome() {
             const call = { toolName: 'researchWeb', input: { question: 'HN today' } };

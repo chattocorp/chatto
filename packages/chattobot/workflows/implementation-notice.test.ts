@@ -28,7 +28,8 @@ async function publishedTurn(reply?: string) {
   interact.mockImplementationOnce(async (ctx, _agent, _prompt, options) => {
     await options.prepareMessage(published, 'notification');
     options.onBusy(true);
-    if (reply) await ctx.emit(reply);
+    // Silent completion still passes through the awaited delivery guard.
+    await ctx.emit(reply ?? '');
     options.onBusy(false);
     await vi.waitFor(() => expect(post).toHaveBeenCalled());
     return 'done';
