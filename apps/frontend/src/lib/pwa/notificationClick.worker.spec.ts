@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   normalizeNotificationClickUrl,
   routeNotificationClick,
@@ -43,14 +43,22 @@ describe('routeNotificationClick', () => {
     );
   });
 
-  it('focuses a window only after it acknowledges SPA routing', async () => {
-    const channel = createAcknowledgingMessageChannel();
-    const focus = vi.fn(async () => client);
-    const postMessage = vi.fn((_message, transfer) => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function acknowledgingPostMessage() {
+    return vi.fn((_message: unknown, transfer?: unknown[]) => {
       const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
       ackPort.postMessage({ type: 'notification-click-ack' });
     });
-    const client: NotificationClickClient = { focus, postMessage };
+  }
+
+  it('focuses a window only after it acknowledges SPA routing', async () => {
+    const channel = createAcknowledgingMessageChannel();
+    const focus = vi.fn(async () => client);
+    const postMessage = acknowledgingPostMessage();
+    const client: NotificationClickClient = { visibilityState: 'visible', focus, postMessage };
     const clients = clientsWith([client]);
 
     const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
@@ -66,10 +74,29 @@ describe('routeNotificationClick', () => {
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
-  it('keeps the single window action for openWindow when no window acknowledges', async () => {
+  it('reports client routing when focusing the acknowledging window fails', async () => {
+    const client: NotificationClickClient = {
+      visibilityState: 'visible',
+      focus: vi.fn(async () => {
+        throw new Error('Not allowed to focus a window.');
+      }),
+      postMessage: acknowledgingPostMessage()
+    };
+    const clients = clientsWith([client]);
+
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      createMessageChannel: createAcknowledgingMessageChannel,
+      logger: { warn: vi.fn() }
+    });
+
+    expect(result).toBe('client');
+    expect(clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('keeps the window action for openWindow when a visible window does not acknowledge', async () => {
     const focus = vi.fn(async () => client);
     const postMessage = vi.fn();
-    const client: NotificationClickClient = { focus, postMessage };
+    const client: NotificationClickClient = { visibilityState: 'visible', focus, postMessage };
     const clients = clientsWith([client]);
 
     const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
@@ -81,6 +108,105 @@ describe('routeNotificationClick', () => {
     expect(postMessage).toHaveBeenCalledOnce();
     expect(focus).not.toHaveBeenCalled();
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
+  });
+
+  it('focuses a hidden window that does not acknowledge so it routes when it resumes', async () => {
+    const focus = vi.fn(async () => client);
+    const postMessage = vi.fn();
+    const client: NotificationClickClient = { visibilityState: 'hidden', focus, postMessage };
+    const clients = clientsWith([client]);
+
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 1,
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+
+    expect(result).toBe('focus');
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('opens a new window when the hidden window cannot be focused', async () => {
+    const client: NotificationClickClient = {
+      visibilityState: 'hidden',
+      focus: vi.fn(async () => null),
+      postMessage: vi.fn()
+    };
+    const clients = clientsWith([client]);
+
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 1,
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+
+    expect(result).toBe('open');
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
+  });
+
+  it('shares one acknowledgement deadline across windows', async () => {
+    vi.useFakeTimers();
+    const first: NotificationClickClient = { visibilityState: 'visible', postMessage: vi.fn() };
+    const second: NotificationClickClient = { visibilityState: 'visible', postMessage: vi.fn() };
+    const clients = clientsWith([first, second]);
+
+    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 750,
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+    await vi.advanceTimersByTimeAsync(750);
+
+    await expect(routed).resolves.toBe('open');
+    expect(first.postMessage).toHaveBeenCalledOnce();
+    expect(second.postMessage).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
+  });
+
+  it('ignores an acknowledgement that arrives after the deadline', async () => {
+    vi.useFakeTimers();
+    let ackPort: { postMessage: (message: unknown) => void } | undefined;
+    const client: NotificationClickClient = {
+      visibilityState: 'visible',
+      focus: vi.fn(async () => client),
+      postMessage: vi.fn((_message: unknown, transfer?: unknown[]) => {
+        ackPort = transfer?.[0] as typeof ackPort;
+      })
+    };
+    const clients = clientsWith([client]);
+
+    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 750,
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+    await vi.advanceTimersByTimeAsync(750);
+    ackPort?.postMessage({ type: 'notification-click-ack' });
+
+    await expect(routed).resolves.toBe('open');
+    expect(client.focus).not.toHaveBeenCalled();
+  });
+
+  it('tries the next window when posting to a window throws', async () => {
+    const broken: NotificationClickClient = {
+      focused: true,
+      visibilityState: 'visible',
+      postMessage: vi.fn(() => {
+        throw new Error('client gone');
+      })
+    };
+    const working: NotificationClickClient = {
+      visibilityState: 'visible',
+      focus: vi.fn(async () => working),
+      postMessage: acknowledgingPostMessage()
+    };
+    const clients = clientsWith([working, broken]);
+
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      createMessageChannel: createAcknowledgingMessageChannel
+    });
+
+    expect(result).toBe('client');
+    expect(broken.postMessage).toHaveBeenCalledOnce();
+    expect(working.focus).toHaveBeenCalledOnce();
   });
 
   it('asks focused, then visible, then hidden windows and stops at the first acknowledgement', async () => {
@@ -95,7 +221,7 @@ describe('routeNotificationClick', () => {
         focus: vi.fn(async () => client),
         postMessage: vi.fn((_message, transfer) => {
           order.push(name);
-          if (!acknowledges) return;
+          if (!acknowledges) throw new Error('window cannot route');
           const ackPort = transfer?.[0] as { postMessage: (message: unknown) => void };
           ackPort.postMessage({ type: 'notification-click-ack' });
         })
@@ -108,7 +234,6 @@ describe('routeNotificationClick', () => {
     const clients = clientsWith([hidden, visible, focused]);
 
     const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 1,
       createMessageChannel: createAcknowledgingMessageChannel
     });
 

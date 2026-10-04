@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-10-02
+**Last reviewed:** 2026-10-04
 
 ## Overview
 
@@ -60,9 +60,9 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ### 6. Notification clicks ask open windows before they open a window
 
-**Decision:** A notification click sends the target URL to the open application windows in this order: focused, visible, then hidden. The first window that acknowledges routes in place, and the worker then focuses it. The page acknowledges when the message arrives, before it routes. When no window acknowledges, the worker opens the target in a new window. The worker does not use `WindowClient.navigate()`.
-**Why:** The push worker has a narrow scope, so it never controls an application window, and browsers reject `navigate()` from a worker that does not control the window. Chromium also allows only one window action (`focus()` or `openWindow()`) for each click. If the worker focuses a window before it knows that the window can route, it cannot open a window afterwards, and the click does nothing.
-**Tradeoff:** A window that receives the message after the acknowledgement timeout routes late, and a new window also opens.
+**Decision:** A notification click sends the target URL to the open application windows in this order: focused, visible, then hidden. All windows share one acknowledgement deadline of 750 ms. The page acknowledges when the message arrives, before it routes. The worker focuses the first window that acknowledges. When no window acknowledges and the first window is hidden, the worker focuses that window, which routes when it resumes. In all other cases, the worker opens the target in a new window. OAuth windows do not listen for click messages. The worker does not use `WindowClient.navigate()`.
+**Why:** The push worker has a narrow scope, so it never controls an application window, and browsers reject `navigate()` from a worker that does not control the window. Browsers allow window actions only briefly after a click: Chromium allows one action (`focus()` or `openWindow()`), and Firefox and WebKit allow actions for about one and two seconds. If the worker focuses a window before it knows that the window can route, it cannot open a window afterwards, and the click does nothing. A frozen background page on a mobile device cannot acknowledge in time, but it receives the message when focus resumes it.
+**Tradeoff:** A visible window that receives the message after the deadline routes late, and a new window also opens. A focused window that does not acknowledge uses the full deadline, so the worker then opens a new window and does not ask the other windows.
 
 ## Related
 

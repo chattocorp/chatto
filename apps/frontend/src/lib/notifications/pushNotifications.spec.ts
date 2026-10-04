@@ -1421,12 +1421,13 @@ describe('onNotificationClick', () => {
     expect(serviceWorker.listenerCount()).toBe(0);
   });
 
-  it('reports a rejected callback without throwing', async () => {
+  it('acknowledges and reports a rejected callback without throwing', async () => {
     const serviceWorker = stubServiceWorker();
     const error = new Error('navigation failed');
     const callback = vi.fn(async () => {
       throw error;
     });
+    const responsePort = { postMessage: vi.fn() };
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     onNotificationClick(callback);
 
@@ -1435,13 +1436,14 @@ describe('onNotificationClick', () => {
         type: 'notification-click',
         url: 'https://chatto.example/chat/-/room-1'
       },
-      ports: []
+      ports: [responsePort as unknown as MessagePort]
     });
 
     await Promise.resolve();
     await Promise.resolve();
 
     expect(callback).toHaveBeenCalledOnce();
+    expect(responsePort.postMessage).toHaveBeenCalledWith({ type: 'notification-click-ack' });
     expect(consoleError).toHaveBeenCalledWith('Failed to route notification click:', error);
     consoleError.mockRestore();
   });
