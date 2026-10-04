@@ -28,7 +28,9 @@ var (
 //
 // KeyValue routes Get and GetRevision through the stream leader. Every other
 // method is the bound bucket's, including watchers, key listings, and history.
-// GetAnyReplica is the opt-in fast read for hot paths.
+// The bucket's Create also checks for a delete marker through DirectGet, so it
+// can report jetstream.ErrKeyExists for a key that a lagging replica still
+// shows. GetAnyReplica is the opt-in fast read for hot paths.
 //
 // The bucket must be a plain bucket: not a mirror, and not reached through a
 // subject transform.
@@ -130,7 +132,8 @@ func (kv *KeyValue) GetAnyReplica(ctx context.Context, key string) (jetstream.Ke
 
 // UpdateWithTTL replaces key if its latest revision is revision, and sets a
 // new per-message TTL. jetstream.KeyValue supports a TTL on Create only. The
-// bucket must allow per-message TTLs. It returns the new revision.
+// bucket must allow per-message TTLs. It returns the new revision, or an error
+// that matches jetstream.ErrKeyRevisionMismatch on a revision conflict.
 func (kv *KeyValue) UpdateWithTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {
 	if !keyValueKeyValid(key, validKeyValueKey) {
 		return 0, jetstream.ErrInvalidKey
@@ -145,6 +148,10 @@ func (kv *KeyValue) UpdateWithTTL(ctx context.Context, key string, value []byte,
 		jetstream.WithMsgTTL(ttl),
 	)
 	if err != nil {
+		// Report a revision conflict as jetstream.KeyValue.Update does.
+		if isWrongLastSequence(err) {
+			return 0, fmt.Errorf("%w: %w", err, jetstream.ErrKeyRevisionMismatch)
+		}
 		return 0, err
 	}
 	return ack.Sequence, nil
@@ -210,11 +217,11 @@ func jetStreamAPIPrefix(opts jetstream.JetStreamOptions) string {
 		return "$JS." + opts.Domain + ".API."
 	}
 	prefix := opts.APIPrefix
-	if prefix == "" || prefix == jetstream.DefaultAPIPrefix {
-		return ""
-	}
-	if !strings.HasSuffix(prefix, ".") {
+	if prefix != "" && !strings.HasSuffix(prefix, ".") {
 		prefix += "."
+	}
+	if prefix == jetstream.DefaultAPIPrefix {
+		return ""
 	}
 	return prefix
 }

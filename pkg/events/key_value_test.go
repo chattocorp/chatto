@@ -276,9 +276,8 @@ func TestKeyValueUpdateWithTTLChecksRevision(t *testing.T) {
 		t.Fatalf("stored TTL header = %q, want %q", ttl, time.Hour.String())
 	}
 	_, err = kv.UpdateWithTTL(ctx, "record", []byte("stale"), created, time.Hour)
-	var apiErr *jetstream.APIError
-	if !errors.As(err, &apiErr) || apiErr.ErrorCode != jetstream.JSErrCodeStreamWrongLastSequence {
-		t.Fatalf("UpdateWithTTL with a stale revision = %v, want a wrong-last-sequence conflict", err)
+	if !errors.Is(err, jetstream.ErrKeyRevisionMismatch) {
+		t.Fatalf("UpdateWithTTL with a stale revision = %v, want ErrKeyRevisionMismatch", err)
 	}
 	if _, err := kv.UpdateWithTTL(ctx, "record", []byte("x"), updated, 0); err == nil {
 		t.Fatal("UpdateWithTTL without a TTL succeeded")

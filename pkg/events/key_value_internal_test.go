@@ -14,6 +14,7 @@ func TestJetStreamAPIPrefixMatchesKeyValuePuts(t *testing.T) {
 	}{
 		{"default API", jetstream.JetStreamOptions{APIPrefix: jetstream.DefaultAPIPrefix}, ""},
 		{"no prefix", jetstream.JetStreamOptions{}, ""},
+		{"default API without dot", jetstream.JetStreamOptions{APIPrefix: "$JS.API"}, ""},
 		{"domain", jetstream.JetStreamOptions{Domain: "hub"}, "$JS.hub.API."},
 		{"API prefix", jetstream.JetStreamOptions{APIPrefix: "tenant.API"}, "tenant.API."},
 		{"API prefix with dot", jetstream.JetStreamOptions{APIPrefix: "tenant.API."}, "tenant.API."},

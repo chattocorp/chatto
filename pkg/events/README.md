@@ -91,7 +91,8 @@ per-message TTL, which the bucket API supports only on `Create`.
 answer, so the result can be an older revision, or a miss for an entry that
 the replica has not applied yet. Accept a result from `GetAnyReplica`, but
 decide a negative result again with `Get`: a missing entry, or an entry that
-causes a rejection. Use it only where an older revision that the caller
+causes a rejection. Skip that second read only where a wrong negative result
+is harmless. Use `GetAnyReplica` only where an older revision that the caller
 accepts cannot cause a wrong decision.
 
 ```go
@@ -114,7 +115,9 @@ if errors.Is(err, jetstream.ErrKeyNotFound) {
 
 Bind every bucket handle that the application reads through `NewKeyValue`, so
 that code that receives a `jetstream.KeyValue` also gets the leader-routed
-`Get`. Watchers and key listings remain the bucket's own.
+`Get`. Watchers, key listings, and history remain the bucket's own. The
+bucket's `Create` also reads a delete marker through a direct get. It can thus
+return `jetstream.ErrKeyExists` for a key that a lagging replica still shows.
 
 ## Publish opaque events
 
