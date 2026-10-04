@@ -20,6 +20,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const readTimeout = 5 * time.Second
@@ -42,7 +43,7 @@ type Server struct {
 
 	js       jetstream.JetStream
 	evt      jetstream.Stream
-	memoryKV jetstream.KeyValue
+	memoryKV *events.KeyValue
 	stats    *evtStats
 	s3       *s3Scanner
 
@@ -141,9 +142,13 @@ func (s *Server) initResources(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("open EVT stream: %w", err)
 	}
-	memoryKV, err := js.KeyValue(ctx, "MEMORY_CACHE")
+	memoryBucket, err := js.KeyValue(ctx, "MEMORY_CACHE")
 	if err != nil {
 		return fmt.Errorf("open MEMORY_CACHE KV bucket: %w", err)
+	}
+	memoryKV, err := events.NewKeyValue(js, memoryBucket)
+	if err != nil {
+		return err
 	}
 	info, err := evt.Info(ctx)
 	if err != nil {
@@ -232,7 +237,8 @@ func (s *Server) presenceSnapshot(ctx context.Context) (map[string]int, error) {
 		return nil, err
 	}
 	for _, key := range keys {
-		entry, err := s.memoryKV.Get(ctx, key)
+		// Presence metrics are advisory; any replica may answer.
+		entry, err := s.memoryKV.GetAnyReplica(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue

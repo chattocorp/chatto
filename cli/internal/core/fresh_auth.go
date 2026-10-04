@@ -86,7 +86,7 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
 	key := c.authTokenKey(token)
-	entry, err := c.getRuntimeStateConfirmingAbsence(ctx, key)
+	entry, err := c.storage.runtimeStateKV.GetAnyReplica(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return AuthTokenData{}, nil, ErrAuthTokenNotFound
@@ -151,7 +151,7 @@ func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, meth
 		return ErrCookieSessionNotFound
 	}
 	key := c.authTokenKey(sessionID)
-	entry, err := c.getRuntimeStateLatest(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ErrCookieSessionNotFound

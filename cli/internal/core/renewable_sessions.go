@@ -351,7 +351,7 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 		if !errors.Is(err, jetstream.ErrKeyExists) {
 			return fmt.Errorf("store bearer access token: %w", err)
 		}
-		entry, getErr := c.getRuntimeStateLatest(ctx, c.authTokenKey(token))
+		entry, getErr := c.storage.runtimeStateKV.Get(ctx, c.authTokenKey(token))
 		if getErr != nil || subtle.ConstantTimeCompare(entry.Value(), value) != 1 {
 			return fmt.Errorf("store bearer access token: deterministic token collision")
 		}
@@ -371,7 +371,7 @@ func accessTokenPresentationForSession(session RenewableSession) AuthTokenPresen
 // latest committed revision; a lagging replica would make a valid refresh
 // look unknown or reused.
 func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string) (RenewableSession, jetstream.KeyValueEntry, error) {
-	entry, err := c.getRuntimeStateLatest(ctx, c.renewableSessionKey(sessionID))
+	entry, err := c.storage.runtimeStateKV.Get(ctx, c.renewableSessionKey(sessionID))
 	return c.decodeRenewableSession(ctx, sessionID, entry, err)
 }
 
@@ -381,7 +381,7 @@ func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string)
 // generation that the caller presents. Then it reads through the stream
 // leader, so a lagging replica cannot reject or delete a just-issued token.
 func (c *ChattoCore) loadRenewableSessionAtLeast(ctx context.Context, sessionID string, generation uint64) (RenewableSession, jetstream.KeyValueEntry, error) {
-	entry, err := c.getRuntimeStateConfirmingAbsence(ctx, c.renewableSessionKey(sessionID))
+	entry, err := c.storage.runtimeStateKV.GetAnyReplica(ctx, c.renewableSessionKey(sessionID))
 	session, entry, err := c.decodeRenewableSession(ctx, sessionID, entry, err)
 	if err == nil && session.CurrentGeneration < generation {
 		return c.loadRenewableSession(ctx, sessionID)

@@ -13,6 +13,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func setupStore(t *testing.T) (*Store, context.Context) {
@@ -22,10 +23,12 @@ func setupStore(t *testing.T) (*Store, context.Context) {
 	t.Cleanup(cancel)
 	js, err := jetstream.New(nc)
 	require.NoError(t, err)
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	bucket, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:  "TEST_RUNTIME_STATE",
 		History: 1,
 	})
+	require.NoError(t, err)
+	kv, err := events.NewKeyValue(js, bucket)
 	require.NoError(t, err)
 	return New(kv, nil), ctx
 }

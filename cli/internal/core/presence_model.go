@@ -5,13 +5,14 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/pkg/events"
 )
 
 // PresenceModel owns live presence state and the per-process presence hub.
 type PresenceModel struct {
 	js             jetstream.JetStream
-	memoryCacheKV  jetstream.KeyValue
-	runtimeStateKV jetstream.KeyValue
+	memoryCacheKV  *events.KeyValue
+	runtimeStateKV *events.KeyValue
 	logger         *log.Logger
 	hub            *PresenceHub
 	putWithTTL     func(context.Context, string, []byte, uint64) (uint64, error)
@@ -20,7 +21,7 @@ type PresenceModel struct {
 // NewPresenceModel uses the existing shared buckets: liveness in MEMORY_CACHE
 // and one current private choice per user in RUNTIME_STATE. Run starts their
 // watchers; no presence projection or event-log writer is installed.
-func NewPresenceModel(js jetstream.JetStream, memoryCacheKV, runtimeStateKV jetstream.KeyValue, logger *log.Logger) *PresenceModel {
+func NewPresenceModel(js jetstream.JetStream, memoryCacheKV, runtimeStateKV *events.KeyValue, logger *log.Logger) *PresenceModel {
 	model := &PresenceModel{
 		js:             js,
 		memoryCacheKV:  memoryCacheKV,

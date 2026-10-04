@@ -261,11 +261,11 @@ func TestDeleteAllUserPushSubscriptionsRejectsPartialKeyListing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get partial-list fixture: %v", err)
 	}
-	chatto.storage.runtimeStateKV = &partialKeyListingKV{
+	chatto.storage.runtimeStateKV = bindTestKeyValue(t, chatto.js, &partialKeyListingKV{
 		KeyValue: realKV,
 		filter:   pushSubscriptionKeyFilter(userID),
 		entries:  []jetstream.KeyValueEntry{firstEntry},
-	}
+	})
 	if deleted, err := chatto.DeleteAllUserPushSubscriptions(ctx, userID); err == nil || deleted != 0 {
 		t.Fatalf("partial listing cleanup = (%d, %v), want (0, error)", deleted, err)
 	}

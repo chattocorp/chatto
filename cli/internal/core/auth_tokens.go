@@ -184,7 +184,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 	}
 
 	key := c.authTokenKey(handle)
-	entry, err := c.getRuntimeStateConfirmingAbsence(ctx, key)
+	entry, err := c.storage.runtimeStateKV.GetAnyReplica(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
@@ -350,7 +350,7 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 		return "", false, nil
 	}
 	key := c.authTokenKey(token)
-	entry, err := c.getRuntimeStateLatest(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return "", false, nil
@@ -422,7 +422,7 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 
 	revoked := 0
 	for _, key := range keys {
-		entry, err := c.getRuntimeStateLatest(ctx, key)
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
@@ -470,7 +470,7 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 	}
 	revoked := 0
 	for _, key := range keys {
-		entry, err := c.getRuntimeStateLatest(ctx, key)
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue

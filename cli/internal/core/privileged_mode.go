@@ -81,7 +81,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 	}
 	key := c.authTokenKey(sessionID)
 	for attempt := 0; attempt < 8; attempt++ {
-		entry, err := c.getRuntimeStateLatest(ctx, key)
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 				return time.Time{}, ErrCookieSessionNotFound

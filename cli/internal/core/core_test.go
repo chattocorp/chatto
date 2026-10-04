@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ============================================================================
@@ -28,6 +30,34 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+// bindTestKeyValue binds leader-routed reads to a test bucket or bucket double.
+func bindTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.KeyValue) *events.KeyValue {
+	t.Helper()
+	kv, err := events.NewKeyValue(js, bucket)
+	if err != nil {
+		t.Fatalf("NewKeyValue: %v", err)
+	}
+	return kv
+}
+
+// countKeyValueReads counts message-get requests for bucket from any client,
+// through the stream leader or through DirectGet.
+func countKeyValueReads(t *testing.T, nc *nats.Conn, bucket string) func() int64 {
+	t.Helper()
+	var reads atomic.Int64
+	for _, subject := range []string{"$JS.API.STREAM.MSG.GET.KV_" + bucket, "$JS.API.DIRECT.GET.KV_" + bucket + ".>", "$JS.API.DIRECT.GET.KV_" + bucket} {
+		subscription, err := nc.Subscribe(subject, func(*nats.Msg) { reads.Add(1) })
+		if err != nil {
+			t.Fatalf("subscribe to %s: %v", subject, err)
+		}
+		t.Cleanup(func() { _ = subscription.Unsubscribe() })
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush read counter: %v", err)
+	}
+	return reads.Load
 }
 
 // setupTestCore is a shared test helper that creates a ChattoCore instance

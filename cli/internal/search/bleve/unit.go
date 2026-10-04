@@ -50,13 +50,21 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	if err != nil {
 		return fmt.Errorf("open RUNTIME_STATE bucket: %w", err)
 	}
-	keyStore := kms.NewBuiltin(encryptionKeys, env.Logger)
+	encryptionKeyReads, err := events.NewKeyValue(env.JS, encryptionKeys)
+	if err != nil {
+		return err
+	}
+	runtimeStateReads, err := events.NewKeyValue(env.JS, runtimeState)
+	if err != nil {
+		return err
+	}
+	keyStore := kms.NewBuiltin(encryptionKeyReads, env.Logger)
 	projection, err := NewProjection(
 		env.Config.SearchProvider.DirectoryOrDefault(),
 		languages,
 		keyStore,
 		keyStore,
-		dekstore.New(runtimeState, env.Logger),
+		dekstore.New(runtimeStateReads, env.Logger),
 		env.Logger,
 	)
 	if err != nil {

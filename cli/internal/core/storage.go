@@ -22,15 +22,18 @@ const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 
 // storage encapsulates JetStream resources used by Chatto Core.
 type storage struct {
-	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
-	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
+	// Key-value buckets are bound through events.NewKeyValue, so Get reads
+	// through the stream leader. Use GetAnyReplica only on hot paths that
+	// tolerate an older revision.
+	encryptionKV   *events.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
+	runtimeStateKV *events.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
 
 	serverAssets       jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream    jetstream.Stream      // EVT - authoritative domain event log (ADR-033/034).
 	logStream          jetstream.Stream      // LOG - retained operational diagnostics; excluded from backups.
 	notificationStream jetstream.Stream      // NOTIFICATIONS - bounded notification lifecycle event log.
 
-	memoryCacheKV      jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	memoryCacheKV      *events.KeyValue      // MEMORY_CACHE - volatile, memory-backed runtime cache state
 	imageCacheStore    jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
 	neighborhoodImages jetstream.ObjectStore // NEIGHBORHOOD_IMAGES - expiring copies of discovered server images
 }
@@ -41,7 +44,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
 	// needed to unwrap it.
-	encryptionKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+	encryptionBucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
 		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 			Bucket:      "ENCRYPTION_KEYS",
 			Description: "KMS key-encryption keys (excluded from backups)",
@@ -53,8 +56,12 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
 	}
+	encryptionKV, err := events.NewKeyValue(js, encryptionBucket)
+	if err != nil {
+		return nil, err
+	}
 
-	runtimeStateKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+	runtimeStateBucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
 		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 			Bucket:         "RUNTIME_STATE",
 			Description:    "Persisted latest-value runtime/user state",
@@ -68,12 +75,20 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RUNTIME_STATE KV bucket: %w", err)
 	}
+	runtimeStateKV, err := events.NewKeyValue(js, runtimeStateBucket)
+	if err != nil {
+		return nil, err
+	}
 
-	memoryCacheKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+	memoryCacheBucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
 		return js.CreateOrUpdateKeyValue(ctx, memoryCacheConfig(cfg))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MEMORY_CACHE KV bucket: %w", err)
+	}
+	memoryCacheKV, err := events.NewKeyValue(js, memoryCacheBucket)
+	if err != nil {
+		return nil, err
 	}
 
 	// Initialize image cache object store (optional, only when enabled)

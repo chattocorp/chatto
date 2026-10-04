@@ -86,15 +86,12 @@ authorization, live events, backup and restore, and backend tests.
   reach the local watcher before returning when read-your-writes matters.
   Watchers belong to the process lifecycle, never to a request, user, or
   WebSocket goroutine.
-- `RUNTIME_STATE` allows direct gets. `KeyValue.Get` and the newer Stream
-  get helpers then use DirectGet, and a lagging replica can answer it with an
-  older revision or no record. When a read must observe a preceding write, or
-  decides an OCC update, a claim, a revocation, or a fence, use the
-  leader-routed `getRuntimeStateLatest` or `readRuntimeStateLastMsg`. A
-  hot-path credential check can use `getRuntimeStateConfirmingAbsence`, which
-  confirms only a miss through the leader. Use it only when an older revision
-  of an existing record cannot cause a wrong decision, or when the caller
-  confirms that itself.
+- Bind every key-value bucket handle through `events.NewKeyValue`. Chatto's
+  buckets allow direct gets, so a plain `KeyValue.Get` can come from a lagging
+  replica with an older revision or no entry. The bound `Get` reads through
+  the stream leader. Use `GetAnyReplica` only on hot paths where an older
+  revision of an existing entry cannot cause a wrong decision, or where the
+  caller detects it, and give the reason in a comment.
 - Give each KV watcher on `RUNTIME_STATE` exactly one key filter. JetStream
   scans every message block for a watcher with more than one filter. The
   bucket gets many writes and has thousands of sparse blocks. Thus, a

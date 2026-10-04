@@ -31,6 +31,14 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 | `MEMORY_CACHE`    | Memory  | No     | Volatile cache state: presence, the cached Neighborhood directory, worker leases and cooldowns, reconciliation counters, and worker health heartbeats                                                                   |
 | `ENCRYPTION_KEYS` | File    | **No** | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE`                                                                                                         |
 
+Chatto binds every bucket handle through `events.KeyValue`. The buckets allow
+direct gets, and a lagging replica can then answer with an older revision or
+no entry. `Get` therefore reads through the stream leader. Hot paths that
+tolerate an older revision use `GetAnyReplica`, which confirms a miss through
+the leader: access-token and cookie validation, renewable-session checks
+during access validation (with a leader read when the session is older than
+the token), wrapped DEK and KEK reads, and presence liveness.
+
 **ENCRYPTION_KEYS keys:**
 
 | Key                  | Description                                                                                                                                                                              |
@@ -41,10 +49,10 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 
 Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content, legacy raw user keys, or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process [`internal/kms`](../../cli/internal/kms/) boundary for KEK creation, DEK wrap/unwrap, legacy-key lookup, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{id}`; that complete key is the content-key ref.
 
-Built-in KMS reads retain DirectGet. Missing keys get up to three retries after
-10, 25, and 50 ms, with caller cancellation and deadlines. Successful reads can
-still return stale values, including after deletion. See the read-consistency
-decision in [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md).
+Built-in KMS reads use `GetAnyReplica`: any replica can answer, and a missing
+key is confirmed through the stream leader. Successful reads can still return
+stale values, including after deletion. See the read-consistency decision in
+[ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md).
 
 The `user.{userId}` namespace remains a live compatibility constraint: message
 bodies written before envelope encryption still need that key to remain

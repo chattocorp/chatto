@@ -88,9 +88,11 @@ func (kv laggingReplicaKV) Get(ctx context.Context, key string) (jetstream.KeyVa
 	return kv.KeyValue.Get(ctx, key)
 }
 
-// lagReplica makes later direct reads of RUNTIME_STATE use stale.
-func lagReplica(core *ChattoCore, stale map[string]jetstream.KeyValueEntry) {
-	core.storage.runtimeStateKV = laggingReplicaKV{KeyValue: core.storage.runtimeStateKV, stale: stale}
+// lagReplica makes later direct reads of RUNTIME_STATE use stale. Reads
+// through the stream leader are unaffected.
+func lagReplica(t *testing.T, core *ChattoCore, stale map[string]jetstream.KeyValueEntry) {
+	t.Helper()
+	core.storage.runtimeStateKV = bindTestKeyValue(t, core.js, laggingReplicaKV{KeyValue: core.storage.runtimeStateKV.KeyValue, stale: stale})
 }
 
 func TestChattoCore_RefreshBearerSessionIgnoresLaggingReplicaReads(t *testing.T) {
@@ -113,7 +115,7 @@ func TestChattoCore_RefreshBearerSessionIgnoresLaggingReplicaReads(t *testing.T)
 	if err != nil {
 		t.Fatalf("get initial renewable session: %v", err)
 	}
-	lagReplica(chattoCore, map[string]jetstream.KeyValueEntry{sessionKey: stale})
+	lagReplica(t, chattoCore, map[string]jetstream.KeyValueEntry{sessionKey: stale})
 
 	// A follower that still holds generation 0 must neither fail the rotation's
 	// confirmation nor make the next refresh look like token reuse.
@@ -160,12 +162,12 @@ func TestChattoCore_AccessValidationIgnoresLaggingReplicaReads(t *testing.T) {
 
 	// The follower has neither the new access record nor the new generation.
 	accessKey := chattoCore.authTokenKey(rotated.AccessToken)
-	lagReplica(chattoCore, map[string]jetstream.KeyValueEntry{sessionKey: stale, accessKey: nil})
+	lagReplica(t, chattoCore, map[string]jetstream.KeyValueEntry{sessionKey: stale, accessKey: nil})
 
 	if got, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); err != nil || got != user.Id {
 		t.Fatalf("ValidateAuthToken with a lagging replica = %q, %v", got, err)
 	}
-	if _, err := chattoCore.getRuntimeStateLatest(ctx, accessKey); err != nil {
+	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, accessKey); err != nil {
 		t.Fatalf("validation removed the new access record: %v", err)
 	}
 }
@@ -183,7 +185,7 @@ func TestChattoCore_ExchangeAuthCodeIgnoresLaggingReplicaMiss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAuthCode: %v", err)
 	}
-	lagReplica(chattoCore, map[string]jetstream.KeyValueEntry{chattoCore.authCodeKey(code): nil})
+	lagReplica(t, chattoCore, map[string]jetstream.KeyValueEntry{chattoCore.authCodeKey(code): nil})
 
 	if _, _, err := chattoCore.ExchangeAuthCode(ctx, code, verifier, redirectURI); err != nil {
 		t.Fatalf("ExchangeAuthCode with a lagging replica: %v", err)

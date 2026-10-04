@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -23,30 +22,30 @@ func (s *PresenceModel) syncPreference(ctx context.Context, userID string) (uint
 	if !validPresenceUserID(userID) {
 		return 0, nil
 	}
-	entry, err := readRuntimeStateLastMsg(ctx, s.js, presenceKey(userID))
-	if errors.Is(err, nats.ErrMsgNotFound) {
+	entry, err := s.runtimeStateKV.Latest(ctx, presenceKey(userID))
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return 0, nil
 	}
 	if err != nil {
 		return 0, err
 	}
-	if isRuntimeStateTombstone(entry) {
-		s.hub.applyPreference(userID, nil, entry.Sequence)
+	if entry.Operation() != jetstream.KeyValuePut {
+		s.hub.applyPreference(userID, nil, entry.Revision())
 		return 0, nil
 	}
 	var value runtimestatev1.PresencePreference
-	if err := proto.Unmarshal(entry.Data, &value); err != nil {
+	if err := proto.Unmarshal(entry.Value(), &value); err != nil {
 		return 0, fmt.Errorf("decode current presence choice: %w", err)
 	}
-	s.hub.applyPreference(userID, &apiv1.PresencePreference{Status: value.Status, Revision: value.Revision}, entry.Sequence)
-	return entry.Sequence, nil
+	s.hub.applyPreference(userID, &apiv1.PresencePreference{Status: value.Status, Revision: value.Revision}, entry.Revision())
+	return entry.Revision(), nil
 }
 
 // waitPreferencesCurrent uses one shared watcher barrier for a bulk read.
 // It does not issue a separate KV request for every hydrated user.
 func (s *PresenceModel) waitPreferencesCurrent(ctx context.Context) error {
-	last, err := readRuntimeStateLastMsg(ctx, s.js, "presence.>")
-	if errors.Is(err, nats.ErrMsgNotFound) {
+	last, err := s.runtimeStateKV.Latest(ctx, "presence.>")
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil
 	}
 	if err != nil {
@@ -56,7 +55,7 @@ func (s *PresenceModel) waitPreferencesCurrent(ctx context.Context) error {
 		s.hub.mu.Lock()
 		seen, changed := s.hub.preferenceWatchRevision, s.hub.preferenceChanged
 		s.hub.mu.Unlock()
-		if seen >= last.Sequence {
+		if seen >= last.Revision() {
 			return nil
 		}
 		select {
