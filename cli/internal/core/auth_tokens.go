@@ -211,6 +211,14 @@ func (r credentialRead) get(ctx context.Context, kv *events.KeyValue, key string
 	return kv.GetAnyReplica(ctx, key)
 }
 
+// discard removes an invalid record after an authoritative read, and only the
+// revision that the read observed. A fast read removes nothing.
+func (r credentialRead) discard(ctx context.Context, kv *events.KeyValue, entry jetstream.KeyValueEntry) {
+	if r == authoritativeCredentialRead {
+		_ = kv.Delete(ctx, entry.Key(), jetstream.LastRevision(entry.Revision()))
+	}
+}
+
 func (c *ChattoCore) validateRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation, read credentialRead) (ValidatedRuntimeCredential, error) {
 	if handle == "" {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
@@ -224,12 +232,8 @@ func (c *ChattoCore) validateRuntimeCredential(ctx context.Context, handle strin
 		}
 		return ValidatedRuntimeCredential{}, fmt.Errorf("failed to get runtime credential: %w", err)
 	}
-	// reject removes the record only after an authoritative read, and only
-	// the revision that this read observed.
 	reject := func() (ValidatedRuntimeCredential, error) {
-		if read == authoritativeCredentialRead {
-			_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
-		}
+		read.discard(ctx, c.storage.runtimeStateKV, entry)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 

@@ -45,23 +45,37 @@ func isFreshAuthAt(at time.Time, now time.Time) bool {
 	return !at.IsZero() && now.Sub(at) >= 0 && now.Sub(at) <= FreshAuthWindow
 }
 
-// RequireFreshAuthForBearerToken and MarkBearerTokenFresh are rare
-// account-security operations. They validate the token through the stream
-// leader, so a re-verification on another replica is always visible.
+// RequireFreshAuthForBearerToken reports ErrFreshAuthRequired unless the
+// bearer token's session re-verified within FreshAuthWindow.
 func (c *ChattoCore) RequireFreshAuthForBearerToken(ctx context.Context, token string) error {
-	credential, err := c.validateRuntimeCredential(ctx, token, AuthTokenPresentationBearer, authoritativeCredentialRead)
+	return c.requireFreshCredential(ctx, token, AuthTokenPresentationBearer, ErrAuthTokenNotFound)
+}
+
+// RequireFreshAuthForCookieSession reports ErrFreshAuthRequired unless the
+// cookie session re-verified within FreshAuthWindow.
+func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, sessionID string) error {
+	return c.requireFreshCredential(ctx, sessionID, AuthTokenPresentationCookie, ErrCookieSessionNotFound)
+}
+
+// requireFreshCredential validates a credential through the stream leader, so
+// a re-verification on another replica is always visible. notFound is the
+// caller's error for an unknown credential.
+func (c *ChattoCore) requireFreshCredential(ctx context.Context, handle string, presentation AuthTokenPresentation, notFound error) error {
+	credential, err := c.validateRuntimeCredential(ctx, handle, presentation, authoritativeCredentialRead)
+	if errors.Is(err, ErrAuthTokenNotFound) {
+		return notFound
+	}
 	if err != nil {
 		return err
 	}
-	if credential.Kind != AuthTokenKindFirstPartySession {
+	if credential.Kind != AuthTokenKindFirstPartySession || !isFreshAuthAt(credential.FreshAuthAt, time.Now()) {
 		return ErrFreshAuthRequired
 	}
-	if isFreshAuthAt(credential.FreshAuthAt, time.Now()) {
-		return nil
-	}
-	return ErrFreshAuthRequired
+	return nil
 }
 
+// MarkBearerTokenFresh records a re-verification on the bearer token's
+// session. It validates the token through the stream leader.
 func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, source string) error {
 	credential, err := c.validateRuntimeCredential(ctx, token, AuthTokenPresentationBearer, authoritativeCredentialRead)
 	if err != nil {
@@ -71,19 +85,6 @@ func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, so
 		return ErrFreshAuthRequired
 	}
 	return c.markRenewableSessionFresh(ctx, credential.RenewableSessionID, method, source, time.Now())
-}
-
-// RequireFreshAuthForCookieSession reads the cookie record through the stream
-// leader, so a re-verification on another replica is always visible.
-func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, sessionID string) error {
-	record, err := c.validateCookieCredentialAuthoritatively(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	if record.GetFreshAuthAt() != nil && isFreshAuthAt(record.GetFreshAuthAt().AsTime(), time.Now()) {
-		return nil
-	}
-	return ErrFreshAuthRequired
 }
 
 func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, method, source string) error {

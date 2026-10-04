@@ -371,11 +371,15 @@ func accessTokenPresentationForSession(session RenewableSession) AuthTokenPresen
 // latest committed revision; a lagging replica would make a valid refresh
 // look unknown or reused.
 func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string) (RenewableSession, jetstream.KeyValueEntry, error) {
-	entry, err := c.storage.runtimeStateKV.Get(ctx, c.renewableSessionKey(sessionID))
-	return c.decodeRenewableSession(ctx, sessionID, entry, err, authoritativeCredentialRead)
+	return c.loadRenewableSessionWith(ctx, sessionID, authoritativeCredentialRead)
 }
 
-func (c *ChattoCore) decodeRenewableSession(ctx context.Context, sessionID string, entry jetstream.KeyValueEntry, err error, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
+// loadRenewableSessionWith reads and decodes the session authority. A fast
+// read can return an older revision and removes nothing; do not use its entry
+// for an update.
+func (c *ChattoCore) loadRenewableSessionWith(ctx context.Context, sessionID string, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
+	key := c.renewableSessionKey(sessionID)
+	entry, err := read.get(ctx, c.storage.runtimeStateKV, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return RenewableSession{}, nil, ErrRefreshTokenNotFound
@@ -384,9 +388,7 @@ func (c *ChattoCore) decodeRenewableSession(ctx context.Context, sessionID strin
 	}
 	var session RenewableSession
 	if err := json.Unmarshal(entry.Value(), &session); err != nil || session.UserID == "" || session.ExpiresAt.IsZero() {
-		if read == authoritativeCredentialRead {
-			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
-		}
+		read.discard(ctx, c.storage.runtimeStateKV, entry)
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	return session, entry, nil
@@ -398,46 +400,32 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 	return c.validateRenewableSessionWith(ctx, sessionID, now, authoritativeCredentialRead)
 }
 
-// validateRenewableSessionWith is validateRenewableSession with an explicit
-// read. A fast read can return an older revision and removes nothing; do not
-// use its entry for an update.
+// validateRenewableSessionWith applies expiry, OAuth client policy, and auth
+// generation to the session that read returns.
 func (c *ChattoCore) validateRenewableSessionWith(ctx context.Context, sessionID string, now time.Time, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
-	entry, err := read.get(ctx, c.storage.runtimeStateKV, c.renewableSessionKey(sessionID))
-	session, entry, err := c.decodeRenewableSession(ctx, sessionID, entry, err, read)
+	session, entry, err := c.loadRenewableSessionWith(ctx, sessionID, read)
 	if err != nil {
 		return RenewableSession{}, nil, err
 	}
-	return c.checkRenewableSession(ctx, sessionID, session, entry, now, read)
-}
-
-// checkRenewableSession applies expiry, OAuth client policy, and auth
-// generation to a loaded session.
-func (c *ChattoCore) checkRenewableSession(ctx context.Context, sessionID string, session RenewableSession, entry jetstream.KeyValueEntry, now time.Time, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
-	// remove deletes an invalid session only after an authoritative read, and
-	// only the revision that this read observed.
-	remove := func() {
-		if read == authoritativeCredentialRead {
-			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
-		}
+	reject := func() (RenewableSession, jetstream.KeyValueEntry, error) {
+		read.discard(ctx, c.storage.runtimeStateKV, entry)
+		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	session = clampLoopbackSessionWindow(session)
 	if !now.Before(session.ExpiresAt) {
-		remove()
-		return RenewableSession{}, nil, ErrRefreshTokenNotFound
+		return reject()
 	}
 	if session.Kind == AuthTokenKindOAuthAccessToken {
 		if err := c.RequireOAuthClientAllowed(ctx, session.ClientID); err != nil {
 			if errors.Is(err, ErrOAuthClientBlocked) {
-				remove()
-				return RenewableSession{}, nil, ErrRefreshTokenNotFound
+				return reject()
 			}
 			return RenewableSession{}, nil, err
 		}
 	}
 	if err := c.RequireAuthenticationAllowed(ctx, session.UserID, session.AuthGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
-			remove()
-			return RenewableSession{}, nil, ErrRefreshTokenNotFound
+			return reject()
 		}
 		return RenewableSession{}, nil, err
 	}

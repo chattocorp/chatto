@@ -43,27 +43,31 @@ func bindTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.Key
 }
 
 // countKeyValueReads counts read requests for bucket keys that contain match,
-// through the stream leader or through DirectGet, from any client.
-func countKeyValueReads(t *testing.T, nc *nats.Conn, bucket, match string) func() int64 {
+// from any client. leader counts reads through the stream leader; direct
+// counts DirectGet reads.
+func countKeyValueReads(t *testing.T, nc *nats.Conn, bucket, match string) (leader, direct func() int64) {
 	t.Helper()
-	var reads atomic.Int64
-	count := func(message *nats.Msg) {
-		// DirectGet puts the key in the subject; a leader read puts it in the body.
-		if strings.Contains(message.Subject, match) || strings.Contains(string(message.Data), match) {
-			reads.Add(1)
-		}
-	}
-	for _, subject := range []string{"$JS.API.STREAM.MSG.GET.KV_" + bucket, "$JS.API.DIRECT.GET.KV_" + bucket + ".>", "$JS.API.DIRECT.GET.KV_" + bucket} {
-		subscription, err := nc.Subscribe(subject, count)
+	var leaderReads, directReads atomic.Int64
+	subscribe := func(subject string, reads *atomic.Int64) {
+		t.Helper()
+		subscription, err := nc.Subscribe(subject, func(message *nats.Msg) {
+			// DirectGet puts the key in the subject; a leader read puts it in the body.
+			if strings.Contains(message.Subject, match) || strings.Contains(string(message.Data), match) {
+				reads.Add(1)
+			}
+		})
 		if err != nil {
 			t.Fatalf("subscribe to %s: %v", subject, err)
 		}
 		t.Cleanup(func() { _ = subscription.Unsubscribe() })
 	}
+	subscribe("$JS.API.STREAM.MSG.GET.KV_"+bucket, &leaderReads)
+	subscribe("$JS.API.DIRECT.GET.KV_"+bucket, &directReads)
+	subscribe("$JS.API.DIRECT.GET.KV_"+bucket+".>", &directReads)
 	if err := nc.Flush(); err != nil {
 		t.Fatalf("flush read counter: %v", err)
 	}
-	return reads.Load
+	return leaderReads.Load, directReads.Load
 }
 
 // setupTestCore is a shared test helper that creates a ChattoCore instance

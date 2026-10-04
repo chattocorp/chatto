@@ -32,15 +32,12 @@ func newTestPresenceModel(t *testing.T) (*PresenceModel, jetstream.KeyValue, *lo
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewPresenceModel(js, bindTestKeyValue(t, js, memoryCacheKV), bindTestKeyValue(t, js, runtimeStateKV), logger), memoryCacheKV, logger
+	return NewPresenceModel(bindTestKeyValue(t, js, memoryCacheKV), bindTestKeyValue(t, js, runtimeStateKV), logger), memoryCacheKV, logger
 }
 
 func TestNewPresenceModelWiresDependencies(t *testing.T) {
 	service, memoryCacheKV, logger := newTestPresenceModel(t)
 
-	if service.js == nil {
-		t.Fatal("JetStream handle was not wired")
-	}
 	if service.memoryCacheKV == nil || service.memoryCacheKV.KeyValue != memoryCacheKV {
 		t.Fatal("memory cache KV was not wired")
 	}

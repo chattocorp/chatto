@@ -44,49 +44,31 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
 	// needed to unwrap it.
-	encryptionBucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
-		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-			Bucket:      "ENCRYPTION_KEYS",
-			Description: "KMS key-encryption keys (excluded from backups)",
-			Storage:     jetstream.FileStorage,
-			History:     1,
-			Replicas:    cfg.Replicas,
-		})
+	encryptionKV, err := createKeyValue(ctx, js, jetstream.KeyValueConfig{
+		Bucket:      "ENCRYPTION_KEYS",
+		Description: "KMS key-encryption keys (excluded from backups)",
+		Storage:     jetstream.FileStorage,
+		History:     1,
+		Replicas:    cfg.Replicas,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
-	}
-	encryptionKV, err := events.NewKeyValue(js, encryptionBucket)
 	if err != nil {
 		return nil, err
 	}
 
-	runtimeStateBucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
-		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-			Bucket:         "RUNTIME_STATE",
-			Description:    "Persisted latest-value runtime/user state",
-			Storage:        jetstream.FileStorage,
-			History:        1,
-			Compression:    true,
-			Replicas:       cfg.Replicas,
-			LimitMarkerTTL: 24 * time.Hour,
-		})
+	runtimeStateKV, err := createKeyValue(ctx, js, jetstream.KeyValueConfig{
+		Bucket:         "RUNTIME_STATE",
+		Description:    "Persisted latest-value runtime/user state",
+		Storage:        jetstream.FileStorage,
+		History:        1,
+		Compression:    true,
+		Replicas:       cfg.Replicas,
+		LimitMarkerTTL: 24 * time.Hour,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create RUNTIME_STATE KV bucket: %w", err)
-	}
-	runtimeStateKV, err := events.NewKeyValue(js, runtimeStateBucket)
 	if err != nil {
 		return nil, err
 	}
 
-	memoryCacheBucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
-		return js.CreateOrUpdateKeyValue(ctx, memoryCacheConfig(cfg))
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create MEMORY_CACHE KV bucket: %w", err)
-	}
-	memoryCacheKV, err := events.NewKeyValue(js, memoryCacheBucket)
+	memoryCacheKV, err := createKeyValue(ctx, js, memoryCacheConfig(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -287,6 +269,17 @@ func neighborhoodImagesConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig
 		TTL:         neighborhoodImageTTL,
 		Replicas:    cfg.Replicas,
 	}
+}
+
+// createKeyValue creates or updates a bucket and binds leader-routed reads.
+func createKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (*events.KeyValue, error) {
+	bucket, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
+		return js.CreateOrUpdateKeyValue(ctx, cfg)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s KV bucket: %w", cfg.Bucket, err)
+	}
+	return events.NewKeyValue(js, bucket)
 }
 
 func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
