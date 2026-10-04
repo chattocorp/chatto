@@ -16,12 +16,15 @@ applies the selection after it creates the bot.
 
   let {
     selected = $bindable([]),
-    serverScope
+    serverScope,
+    disabled = false
   }: {
     /** The selected capabilities, in catalogue order. */
     selected?: BotCapabilityId[];
     /** The creator's effective server-scope permissions. */
     serverScope: Readonly<Record<string, boolean>>;
+    /** Locks every tile, for example while the bot is created. */
+    disabled?: boolean;
   } = $props();
 
   function toggle(id: BotCapabilityId, checked: boolean) {
@@ -31,7 +34,7 @@ applies the selection after it creates the bot.
   }
 </script>
 
-<fieldset class="flex flex-col gap-3">
+<fieldset class="flex flex-col gap-3" {disabled}>
   <legend class="mb-1 font-medium text-text-top">{m('settings.bots.capabilities.legend')}</legend>
   <p class="text-sm text-muted">{m('settings.bots.capabilities.hint')}</p>
   <div class="grid gap-3 sm:grid-cols-2">
