@@ -1,0 +1,222 @@
+package events_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
+
+	. "hmans.de/chatto/pkg/events"
+)
+
+// laggingBucket answers Get as a DirectGet served by a follower that has not
+// applied later writes: a key in stale returns its older entry, or
+// jetstream.ErrKeyNotFound when that entry is nil.
+type laggingBucket struct {
+	jetstream.KeyValue
+	stale map[string]jetstream.KeyValueEntry
+}
+
+func (b laggingBucket) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	if entry, ok := b.stale[key]; ok {
+		if entry == nil {
+			return nil, jetstream.ErrKeyNotFound
+		}
+		return entry, nil
+	}
+	return b.KeyValue.Get(ctx, key)
+}
+
+func setupTestKeyValue(t *testing.T) (jetstream.JetStream, jetstream.KeyValue) {
+	t.Helper()
+	js, err := jetstream.New(startTestNATS(t))
+	if err != nil {
+		t.Fatalf("create JetStream context: %v", err)
+	}
+	bucket, err := js.CreateKeyValue(testContext(t), jetstream.KeyValueConfig{
+		Bucket:         "KV_TEST",
+		History:        1,
+		LimitMarkerTTL: time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("create test bucket: %v", err)
+	}
+	return js, bucket
+}
+
+func newTestKeyValue(t *testing.T, js jetstream.JetStream, bucket jetstream.KeyValue) *KeyValue {
+	t.Helper()
+	kv, err := NewKeyValue(js, bucket)
+	if err != nil {
+		t.Fatalf("NewKeyValue: %v", err)
+	}
+	return kv
+}
+
+func TestKeyValueReadsIgnoreLaggingReplica(t *testing.T) {
+	ctx := testContext(t)
+	js, bucket := setupTestKeyValue(t)
+	if _, err := bucket.Put(ctx, "updated", []byte("old")); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	stale, err := bucket.Get(ctx, "updated")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	revision, err := bucket.Put(ctx, "updated", []byte("new"))
+	if err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if _, err := bucket.Put(ctx, "created", []byte("fresh")); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	kv := newTestKeyValue(t, js, laggingBucket{
+		KeyValue: bucket,
+		stale:    map[string]jetstream.KeyValueEntry{"updated": stale, "created": nil},
+	})
+
+	entry, err := kv.Get(ctx, "updated")
+	if err != nil || string(entry.Value()) != "new" || entry.Revision() != revision {
+		t.Fatalf("Get = %v, %v; want the committed revision %d", entry, err, revision)
+	}
+	if entry.Key() != "updated" || entry.Bucket() != "KV_TEST" || entry.Operation() != jetstream.KeyValuePut {
+		t.Fatalf("Get entry = key %q, bucket %q, operation %v", entry.Key(), entry.Bucket(), entry.Operation())
+	}
+	if entry, err := kv.GetRevision(ctx, "updated", revision); err != nil || string(entry.Value()) != "new" {
+		t.Fatalf("GetRevision = %v, %v", entry, err)
+	}
+
+	// GetAnyReplica accepts the older revision, but confirms a miss.
+	if entry, err := kv.GetAnyReplica(ctx, "updated"); err != nil || string(entry.Value()) != "old" {
+		t.Fatalf("GetAnyReplica on an older revision = %v, %v", entry, err)
+	}
+	if entry, err := kv.GetAnyReplica(ctx, "created"); err != nil || string(entry.Value()) != "fresh" {
+		t.Fatalf("GetAnyReplica on a lagging miss = %v, %v", entry, err)
+	}
+	if _, err := kv.GetAnyReplica(ctx, "missing"); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("GetAnyReplica on a missing key = %v, want ErrKeyNotFound", err)
+	}
+}
+
+func TestKeyValueGetTreatsRemovalsAsMissing(t *testing.T) {
+	ctx := testContext(t)
+	js, bucket := setupTestKeyValue(t)
+	kv := newTestKeyValue(t, js, bucket)
+	for _, key := range []string{"deleted", "purged", "other"} {
+		if _, err := bucket.Put(ctx, key, []byte(key)); err != nil {
+			t.Fatalf("Put %s: %v", key, err)
+		}
+	}
+	if err := bucket.Delete(ctx, "deleted"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if err := bucket.Purge(ctx, "purged"); err != nil {
+		t.Fatalf("Purge: %v", err)
+	}
+
+	for _, key := range []string{"deleted", "purged", "missing"} {
+		if _, err := kv.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
+			t.Fatalf("Get %s = %v, want ErrKeyNotFound", key, err)
+		}
+	}
+	other, err := kv.Get(ctx, "other")
+	if err != nil {
+		t.Fatalf("Get other: %v", err)
+	}
+	if _, err := kv.GetRevision(ctx, "deleted", other.Revision()); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("GetRevision of another key's revision = %v, want ErrKeyNotFound", err)
+	}
+	if _, err := kv.Get(ctx, "wild.*"); !errors.Is(err, jetstream.ErrInvalidKey) {
+		t.Fatalf("Get with a wildcard = %v, want ErrInvalidKey", err)
+	}
+}
+
+func TestKeyValueLatestReturnsMarkersAndMatchesFilters(t *testing.T) {
+	ctx := testContext(t)
+	js, bucket := setupTestKeyValue(t)
+	kv := newTestKeyValue(t, js, bucket)
+	if _, err := bucket.Put(ctx, "presence.a", []byte("a")); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if _, err := bucket.Put(ctx, "presence.b", []byte("b")); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if err := bucket.Delete(ctx, "presence.a"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	latest, err := kv.Latest(ctx, "presence.>")
+	if err != nil {
+		t.Fatalf("Latest wildcard: %v", err)
+	}
+	if latest.Key() != "presence.a" || latest.Operation() != jetstream.KeyValueDelete {
+		t.Fatalf("Latest wildcard = key %q, operation %v; want the delete marker", latest.Key(), latest.Operation())
+	}
+	if entry, err := kv.Latest(ctx, "presence.b"); err != nil || entry.Operation() != jetstream.KeyValuePut {
+		t.Fatalf("Latest key = %v, %v", entry, err)
+	}
+	if _, err := kv.Latest(ctx, "absent.>"); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("Latest without a match = %v, want ErrKeyNotFound", err)
+	}
+}
+
+func TestKeyValueUpdateWithTTLChecksRevision(t *testing.T) {
+	ctx := testContext(t)
+	js, err := jetstream.New(startTestNATS(t))
+	if err != nil {
+		t.Fatalf("create JetStream context: %v", err)
+	}
+	bucket, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:         "KV_TTL_TEST",
+		LimitMarkerTTL: time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("create TTL bucket: %v", err)
+	}
+	kv := newTestKeyValue(t, js, bucket)
+	created, err := kv.Create(ctx, "record", []byte("one"), jetstream.KeyTTL(time.Hour))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	updated, err := kv.UpdateWithTTL(ctx, "record", []byte("two"), created, time.Hour)
+	if err != nil {
+		t.Fatalf("UpdateWithTTL: %v", err)
+	}
+	entry, err := kv.Get(ctx, "record")
+	if err != nil || string(entry.Value()) != "two" || entry.Revision() != updated {
+		t.Fatalf("Get after UpdateWithTTL = %v, %v", entry, err)
+	}
+	if _, err := kv.UpdateWithTTL(ctx, "record", []byte("stale"), created, time.Hour); err == nil {
+		t.Fatal("UpdateWithTTL with a stale revision succeeded")
+	}
+	if _, err := kv.UpdateWithTTL(ctx, "record", []byte("x"), updated, 0); err == nil {
+		t.Fatal("UpdateWithTTL without a TTL succeeded")
+	}
+}
+
+func TestKeyValueGetTreatsExpiryMarkersAsMissing(t *testing.T) {
+	ctx := testContext(t)
+	js, bucket := setupTestKeyValue(t)
+	kv := newTestKeyValue(t, js, bucket)
+	if _, err := bucket.Create(ctx, "expiring", []byte("soon"), jetstream.KeyTTL(time.Second)); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		latest, err := kv.Latest(ctx, "expiring")
+		if err == nil && latest.Operation() == jetstream.KeyValuePurge {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expiry marker did not appear: %v, %v", latest, err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if _, err := kv.Get(ctx, "expiring"); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("Get after expiry = %v, want ErrKeyNotFound", err)
+	}
+}

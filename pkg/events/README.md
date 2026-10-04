@@ -6,7 +6,8 @@ It is an envelope-neutral event-sourcing framework for NATS JetStream,
 providing optimistic-concurrency-controlled publication, ordered projection
 replay, startup and read-your-writes barriers, optional snapshot or checkpoint
 restore, exact stream-message reads with optional process-local caching,
-bounded subject reads, and bounded durable pull-worker execution.
+consistent key-value reads, bounded subject reads, and bounded durable
+pull-worker execution.
 
 The intended reader is an application integrator. This module owns ordering,
 OCC, replay, and delivery mechanics; the application owns event codecs,
@@ -70,6 +71,44 @@ records, err := reader.Messages(ctx, sequences)
 
 The cache is a disposable read accelerator. EVT or another application-owned
 stream remains the source of truth.
+
+## Read key-value buckets consistently
+
+JetStream serves `jetstream.KeyValue.Get` through DirectGet when a bucket
+allows it, and buckets that nats.go creates allow it. Any replica can then
+answer. A follower that lags behind a committed write returns an older
+revision or no entry. A read that must see a preceding write, or that decides
+an OCC update, a claim, or a revocation, then works from stale state.
+
+`KeyValue` wraps a bucket handle and keeps its complete
+`jetstream.KeyValue` interface. `Get` and `GetRevision` read through the
+stream leader and keep the semantics of the bucket's own methods. `Latest`
+returns the newest entry for a key or wildcard filter, including delete,
+purge, and expiry markers. `UpdateWithTTL` replaces a revision and sets a new
+per-message TTL, which the bucket API supports only on `Create`.
+
+`GetAnyReplica` is the fast read for hot paths. It accepts a DirectGet result,
+which can be an older revision, and confirms a miss through the leader. Use it
+only where an older revision of an existing entry cannot cause a wrong
+decision, or where the caller detects that case and calls `Get`.
+
+```go
+bucket, err := js.CreateOrUpdateKeyValue(ctx, config)
+if err != nil {
+	return err
+}
+kv, err := events.NewKeyValue(js, bucket)
+if err != nil {
+	return err
+}
+
+entry, err := kv.Get(ctx, key)            // sees every committed write
+token, err := kv.GetAnyReplica(ctx, key)  // hot path; may be an older revision
+```
+
+Bind every bucket handle that the application reads through `NewKeyValue`, so
+that code that receives a `jetstream.KeyValue` also gets the leader-routed
+`Get`. Watchers and key listings remain the bucket's own.
 
 ## Publish opaque events
 
