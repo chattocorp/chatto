@@ -113,28 +113,26 @@ describe('routeNotificationClick', () => {
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
-  it('focuses a hidden window that does not acknowledge so it routes when it resumes', async () => {
-    vi.useFakeTimers();
+  it('focuses a hidden window at once, then sends it the click without waiting', async () => {
     const focus = vi.fn(async () => client);
     const postMessage = vi.fn();
     const client: NotificationClickClient = { visibilityState: 'hidden', focus, postMessage };
+    const createMessageChannel = vi.fn(createAcknowledgingMessageChannel);
     const clients = clientsWith([client]);
 
-    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 750,
-      createMessageChannel: createAcknowledgingMessageChannel
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      createMessageChannel
     });
-    await vi.advanceTimersByTimeAsync(750);
-    const result = await routed;
 
     expect(result).toBe('focus');
-    expect(postMessage).toHaveBeenCalledOnce();
     expect(focus).toHaveBeenCalledOnce();
+    expect(postMessage).toHaveBeenCalledWith({ type: 'notification-click', url: TARGET_URL }, []);
+    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(postMessage.mock.invocationCallOrder[0]);
+    expect(createMessageChannel).not.toHaveBeenCalled();
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
   it('opens a new window when the hidden window cannot be focused', async () => {
-    vi.useFakeTimers();
     const client: NotificationClickClient = {
       visibilityState: 'hidden',
       focus: vi.fn(async () => null),
@@ -142,14 +140,12 @@ describe('routeNotificationClick', () => {
     };
     const clients = clientsWith([client]);
 
-    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 750,
+    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
       createMessageChannel: createAcknowledgingMessageChannel
     });
-    await vi.advanceTimersByTimeAsync(750);
-    const result = await routed;
 
     expect(result).toBe('open');
+    expect(client.postMessage).not.toHaveBeenCalled();
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
