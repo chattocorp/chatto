@@ -9,21 +9,13 @@ examples use it. See
 
 ## Boundary
 
-- Put generic client behavior here, also when only the bundled frontend uses
-  it now: requests, sessions, realtime delivery, server data, privacy fences,
-  and the operations on server data. The root
-  [AGENTS.md](../../AGENTS.md#chatto-client-and-bundled-frontend) has the
-  rule. A new server feature usually adds a facade in `src/api/` and, when
-  hosts read its data, state in the server or room stores.
-- The frontend keeps some API modules that only its screens use: admin
-  tools, first-run setup, Web Push, and the cross-tab session channel
-  (ADR-111). Do not add generic requests there.
+- Use the `chatto-client-placement` skill to decide whether code goes here or
+  into the frontend.
 - Keep the package framework-neutral. Only `src/svelte/` may import Svelte.
   Do not use runes, `svelte/reactivity`, or `$lib`/`$app` imports anywhere
   else. `src/reactivity/boundary.test.ts` enforces this.
-- Keep UI concerns in the application: translated text, toasts, sounds,
-  navigation, routes, and media. Stores keep error objects and report
-  outcomes; applications turn them into messages.
+- Stores keep error objects and report outcomes. Hosts turn them into
+  messages.
 - Keep client state in the client instance (`src/client.ts`): its registry,
   connection manager, realtime manager, and runtime. Do not add module-level
   state that one client could change for another. Process-wide state, such
@@ -35,12 +27,9 @@ examples use it. See
   stores. The frontend builds its catalogue on the public registry API in
   `$lib/serverCatalogue`. Until phase 2 of ADR-112, the registry still stores
   the device-local server list; do not add new catalogue policy to it.
-- Keep the package integration-shaped: server data, requests, and the
-  operations that integrations need. State that exists only for one host's
-  UI, such as search sessions, highlights, editors, or call media, belongs to
-  that host. Do not call into host state from a store. Hosts derive from store
-  state, and hosts that copy server data subscribe to the store's boundary
-  events (`src/server/storeEvents.ts`). When a store crosses a new privacy or
+- Do not call into host state from a store. Hosts derive from store state,
+  and hosts that copy server data subscribe to the store's boundary events
+  (`src/server/storeEvents.ts`). When a store crosses a new privacy or
   authorization boundary, emit the matching event.
 - Guard every use of `window`, `document`, `navigator`, and `localStorage`.
   Node hosts, such as bots, do not have them or have only part of them.

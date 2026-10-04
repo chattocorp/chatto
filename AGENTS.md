@@ -33,19 +33,12 @@ Chatto has one client: `@chatto/client` in `packages/chatto-client/`. The
 bundled frontend in `apps/frontend/`, ChattoBot, and third-party bots and
 frontends use it. See ADR-111.
 
-- Put generic client behavior in `@chatto/client`: requests to Chatto servers,
-  sessions, realtime delivery, server and room data, privacy fences, and the
-  operations on this data. Do this also when only the bundled frontend uses
-  the behavior now.
-- Put the behavior of the bundled frontend in `apps/frontend/`: components,
-  routes, translated text, toasts, sounds, UI state such as navigation, search
-  sessions, and call media, and the frontend's caches.
-- To decide, ask: does a different host, such as a bot or a different
-  frontend, need this behavior to use Chatto correctly? If yes, put it in
-  `@chatto/client`. If only the screens or flows of the bundled frontend need
-  it, put it in the frontend.
+- Ask: does a bot or a different frontend need this behavior to use Chatto
+  correctly? If yes, put it in `@chatto/client`, also when only the bundled
+  frontend uses it now. If no, put it in the frontend.
 - The frontend uses the client. The client never calls into the frontend.
-  Do not implement client behavior again in the frontend.
+- Use the `chatto-client-placement` skill before you add code to either, or
+  move code between them.
 
 ## Prime Directives
 

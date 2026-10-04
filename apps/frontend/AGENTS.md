@@ -16,14 +16,10 @@ Do not generate playground links for code written into this repository.
 
 - Prefer store classes and small components. Stores own the data lifecycle.
   Components render state and call named store methods.
-- Server data lives in `@chatto/client` (`packages/chatto-client/`):
-  connections, sessions, the realtime projection, and the server and room
-  data. Follow [its instructions](../../packages/chatto-client/AGENTS.md) when
-  you change it. Import its modules as `@chatto/client/<path>`. Put generic
-  client behavior there, also when only this frontend uses it now. Do not
-  implement client behavior again in `$lib`. The root
-  [AGENTS.md](../../AGENTS.md#chatto-client-and-bundled-frontend) has the
-  rule (ADR-111).
+- Server data lives in `@chatto/client` (`packages/chatto-client/`). Use the
+  `chatto-client-placement` skill to decide whether code goes there or into
+  `$lib`. Follow [its instructions](../../packages/chatto-client/AGENTS.md)
+  when you change it. Import its modules as `@chatto/client/<path>`.
   `$lib/client` creates the frontend's one client and exports it with its
   parts: `serverRegistry`, `serverConnectionManager`, and `eventBusManager`.
   Import them from there. The frontend's server catalogue policy, such as
@@ -31,10 +27,9 @@ Do not generate playground links for code written into this repository.
   show, lives in `$lib/serverCatalogue` on top of the registry (ADR-112).
   Each client read in a `$derived`, `$effect`, or template creates a small
   Svelte render effect; read a store value once before a loop.
-- The frontend keeps UI state, Svelte context, routing, translated text,
-  toasts, sounds, and the LiveKit voice-call implementation. Per-server UI
-  state, such as navigation, notification attention, search sessions, and the
-  voice call, lives in `serverUi(store)` (`$lib/state/server/serverUi`).
+- Per-server UI state, such as navigation, notification attention, search
+  sessions, and the voice call, lives in `serverUi(store)`
+  (`$lib/state/server/serverUi`).
   Derive it from the store where you can. A copy of server data is the
   frontend's to clear: subscribe it to the store's boundary events
   (`onReset`, `onRoomAccessLost`, `onUserDeleted`, and the others in
