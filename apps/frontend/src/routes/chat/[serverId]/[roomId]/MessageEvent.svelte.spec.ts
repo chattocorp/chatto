@@ -7,6 +7,7 @@ import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttac
 import { q } from '$lib/test-utils';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
+import { TimelineRowPins } from './timelineRowPins';
 
 const mocks = vi.hoisted(() => ({
   copyImageToClipboard: vi.fn(),
@@ -193,6 +194,22 @@ describe('MessageEvent action model integration', () => {
 
     expect(rendered.container.querySelector('[data-testid="message-row"]')).toBeNull();
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Target User');
+  });
+
+  it('pins its timeline row while the emoji picker is open', async () => {
+    const rowPins = new TimelineRowPins();
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: messageEvent(), rowPins }
+    });
+
+    (q(rendered.container, 'button[aria-label="Add reaction"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(q(rendered.container, 'input[placeholder="Search emojis..."]')).toBeTruthy()
+    );
+    expect([...rowPins.keys]).toEqual(['regular-message']);
+
+    await selectPickerEmoji(rendered.container, 'check', 'white_check_mark');
+    await vi.waitFor(() => expect(rowPins.keys.size).toBe(0));
   });
 
   it('keeps the message menu for a mention without a current member', async () => {

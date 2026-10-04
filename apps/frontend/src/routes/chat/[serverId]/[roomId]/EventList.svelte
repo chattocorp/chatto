@@ -35,6 +35,7 @@
     TIMELINE_ITEM_KEY_ATTRIBUTE,
     type TimelineSelectionKeys
   } from './timelineSelection';
+  import { setTimelineRowPins, TimelineRowPins } from './timelineRowPins';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -405,9 +406,20 @@
   // The items at the ends of the document selection. The virtualizer keeps every item
   // between them mounted, because a copy contains only mounted DOM.
   let selectionKeys = $state<TimelineSelectionKeys | null>(null);
-  const keepMounted = $derived(
-    selectionKeys ? keptIndexes(virtualItems, selectionKeys) : undefined
-  );
+  // Rows that own an open overlay. The overlay is part of the row, so the row must stay
+  // mounted while the overlay is open, also when it leaves the viewport.
+  const rowPins = new TimelineRowPins();
+  setTimelineRowPins(rowPins);
+  const keepMounted = $derived.by(() => {
+    const selected = selectionKeys ? keptIndexes(virtualItems, selectionKeys) : [];
+    const pinned =
+      rowPins.keys.size > 0
+        ? virtualItems.flatMap((item, index) => (rowPins.keys.has(item.key) ? [index] : []))
+        : [];
+    // Virtua merges duplicates and sorts the indexes.
+    const indexes = [...selected, ...pinned];
+    return indexes.length > 0 ? indexes : undefined;
+  });
 
   // Record the ends while the anchor item is still mounted. After this, a scroll during
   // the selection cannot unmount the anchor and break the selection.

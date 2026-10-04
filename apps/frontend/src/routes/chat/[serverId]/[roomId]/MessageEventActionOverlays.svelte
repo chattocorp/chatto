@@ -5,6 +5,7 @@
   import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
+  import { getTimelineRowPins } from './timelineRowPins';
 
   let messageActionMenuModule: Promise<typeof import('./MessageActionMenu.svelte')> | null = null;
   let messageActionMenuLoadAttempt = $state(0);
@@ -52,6 +53,19 @@
 
   $effect(() => {
     if (reactions.length === 0) reactionDetailsVisible = false;
+  });
+
+  // The overlays render inside the timeline row. Keep the row mounted while one is
+  // open, for example when the keyboard for the emoji search shrinks the timeline.
+  const rowPins = getTimelineRowPins();
+  const overlayOpen = $derived(
+    interactions.contextMenuPosition !== null ||
+      interactions.emojiPickerPosition !== null ||
+      interactions.showActionSheet ||
+      reactionDetailsVisible
+  );
+  $effect(() => {
+    if (overlayOpen) return rowPins?.pin(messageEventId);
   });
 
   function closeContextMenu(): void {

@@ -19,6 +19,7 @@
   import MessageUserOverlays from './MessageUserOverlays.svelte';
   import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import { setTimelineRowPins, type TimelineRowPins } from './timelineRowPins';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 
   let {
@@ -36,7 +37,8 @@
     pinStatus = null,
     showMessage = true,
     threadingMode = RoomThreadingMode.ENABLED,
-    onOpenThread
+    onOpenThread,
+    rowPins
   }: {
     event: TimelineEventView;
     userStore?: UserStore;
@@ -53,7 +55,12 @@
     showMessage?: boolean;
     threadingMode?: RoomThreadingMode;
     onOpenThread?: OpenThreadHandler;
+    /** Pins of the enclosing timeline, as `EventList` provides them. */
+    rowPins?: TimelineRowPins;
   } = $props();
+
+  const pins = untrack(() => rowPins);
+  if (pins) setTimelineRowPins(pins);
 
   const connection = {} as ServerConnection;
   const users = untrack(() => userStore ?? new UserStore());
