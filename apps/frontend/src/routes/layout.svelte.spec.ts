@@ -6,7 +6,6 @@ import { q, testSnippet } from '$lib/test-utils';
 import type { PublicServerInfo } from '@chatto/client/api/server';
 import { sidebarNav } from '$lib/state/globals.svelte';
 import { serverRegistry } from '$lib/client';
-import { onNotificationClick } from '$lib/notifications/notificationClick';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -252,18 +251,6 @@ describe('OAuth page layout', () => {
     window.dispatchEvent(pointer('pointerup', 310));
     await tick();
     expect(sidebarNav.isOpen).toBe(false);
-  });
-
-  it('does not route notification clicks in OAuth windows', async () => {
-    page.route.id = '/oauth/consent';
-    Object.assign(page, { url: new URL('https://chat.example.test/oauth/consent') });
-    const view = renderLayout();
-    await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
-    expect(onNotificationClick).not.toHaveBeenCalled();
-
-    page.route.id = '/register';
-    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
-    expect(onNotificationClick).toHaveBeenCalledOnce();
   });
 
   it.each([

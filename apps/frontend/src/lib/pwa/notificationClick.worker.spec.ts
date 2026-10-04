@@ -94,15 +94,18 @@ describe('routeNotificationClick', () => {
   });
 
   it('keeps the window action for openWindow when a visible window does not acknowledge', async () => {
+    vi.useFakeTimers();
     const focus = vi.fn(async () => client);
     const postMessage = vi.fn();
     const client: NotificationClickClient = { visibilityState: 'visible', focus, postMessage };
     const clients = clientsWith([client]);
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 1,
+    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 750,
       createMessageChannel: createAcknowledgingMessageChannel
     });
+    await vi.advanceTimersByTimeAsync(750);
+    const result = await routed;
 
     expect(result).toBe('open');
     expect(postMessage).toHaveBeenCalledOnce();
@@ -111,15 +114,18 @@ describe('routeNotificationClick', () => {
   });
 
   it('focuses a hidden window that does not acknowledge so it routes when it resumes', async () => {
+    vi.useFakeTimers();
     const focus = vi.fn(async () => client);
     const postMessage = vi.fn();
     const client: NotificationClickClient = { visibilityState: 'hidden', focus, postMessage };
     const clients = clientsWith([client]);
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 1,
+    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 750,
       createMessageChannel: createAcknowledgingMessageChannel
     });
+    await vi.advanceTimersByTimeAsync(750);
+    const result = await routed;
 
     expect(result).toBe('focus');
     expect(postMessage).toHaveBeenCalledOnce();
@@ -128,6 +134,7 @@ describe('routeNotificationClick', () => {
   });
 
   it('opens a new window when the hidden window cannot be focused', async () => {
+    vi.useFakeTimers();
     const client: NotificationClickClient = {
       visibilityState: 'hidden',
       focus: vi.fn(async () => null),
@@ -135,10 +142,12 @@ describe('routeNotificationClick', () => {
     };
     const clients = clientsWith([client]);
 
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 1,
+    const routed = routeNotificationClick(TARGET_URL, ORIGIN, clients, {
+      ackTimeoutMs: 750,
       createMessageChannel: createAcknowledgingMessageChannel
     });
+    await vi.advanceTimersByTimeAsync(750);
+    const result = await routed;
 
     expect(result).toBe('open');
     expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);

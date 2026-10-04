@@ -150,8 +150,8 @@ function clientPriority(client: NotificationClickClient): number {
  *
  * Browsers allow window actions only briefly after a click. In Chromium, the
  * first `focus()` or `openWindow()` call also uses up the click's permission,
- * so the click allows one window action. Firefox and WebKit allow window
- * actions for about one and two seconds after the click.
+ * so the click allows one window action. Firefox allows window actions for
+ * about one second after the click on desktop, and WebKit for about two.
  *
  * The worker that shows push notifications has a narrow `/__chatto/push/…/`
  * scope. It never controls the app windows, so `WindowClient.navigate()`
@@ -172,7 +172,7 @@ export async function routeNotificationClick(
 ): Promise<NotificationClickRouteResult> {
   const url = normalizeNotificationClickUrl(rawUrl, origin);
   const createMessageChannel = options.createMessageChannel ?? createDefaultMessageChannel;
-  const deadline = Date.now() + (options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS);
+  const deadline = performance.now() + (options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS);
   const clientList = [
     ...(await clients.matchAll({
       type: 'window',
@@ -181,7 +181,7 @@ export async function routeNotificationClick(
   ].sort((a, b) => clientPriority(a) - clientPriority(b));
 
   for (const client of clientList) {
-    const remainingMs = deadline - Date.now();
+    const remainingMs = deadline - performance.now();
     if (remainingMs <= 0) break;
     if (await notifyClientAndWaitForAck(client, url, remainingMs, createMessageChannel)) {
       await focusClient(client, options.logger);

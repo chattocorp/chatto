@@ -75,12 +75,10 @@
   });
 
   // Route push-notification clicks via SvelteKit's client-side navigation
-  // instead of a full document load. Same-URL clicks become a no-op;
-  // cross-URL clicks just update the route. OAuth windows do not listen, so
-  // the service worker routes the click to an app window instead.
-  $effect(() => {
-    if (standaloneOAuth) return;
-    return onNotificationClick((url) => {
+  // instead of letting the SW do a full document navigation. Same-URL
+  // clicks become a no-op; cross-URL clicks just update the route.
+  $effect(() =>
+    onNotificationClick((url) => {
       try {
         const target = new URL(url);
         if (target.origin !== window.location.origin) return;
@@ -89,8 +87,8 @@
       } catch {
         // Ignore malformed URLs from the SW.
       }
-    });
-  });
+    })
+  );
 
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(() => {
