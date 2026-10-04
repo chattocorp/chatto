@@ -33,6 +33,7 @@
   import { tick } from 'svelte';
   import ConversationPane from './ConversationPane.svelte';
   import RoomWindowLifecycle from './RoomWindowLifecycle.svelte';
+  import RoomRouteHighlight from './RoomRouteHighlight.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import {
@@ -222,42 +223,10 @@
     }
   });
 
-  // Resolve the pending highlight once room data has loaded for the
-  // current roomId. Three sources, in priority order:
-  //   1. A nested thread message route (/room/thread/m/message).
-  //   2. PendingHighlightStore — set by in-app navigations (notification
-  //      clicks, message-link redirects). Retained until the pane completes it.
-  //   3. ?highlight= URL param — for shareable permalinks. Stripped after
-  //      consumption so a refresh doesn't re-fire it.
-  // The ConversationPane that shows the target timeline performs the jump.
-  $effect(() => {
-    if (!room.roomData) return;
-    // Room.svelte lives in +layout and is reused across roomId changes; bail
-    // until the new room's data has actually loaded.
-    if (room.roomData.room.id !== roomId) return;
-
-    const threadMessageTarget = navigation.consumeThreadMessageRoute(
-      roomId,
-      threadId,
-      routeMessageId
-    );
-    if (threadMessageTarget !== undefined) {
-      if (threadMessageTarget) applyHighlight(threadMessageTarget);
-      return;
-    }
-
-    if (navigation.highlightFor(roomId, threadId ?? null)) return;
-
-    const fromUrl = navigation.consumeHighlightParam(
-      roomId,
-      threadId,
-      page.url.searchParams.get('highlight')
-    );
-    if (!fromUrl) return;
-
-    applyHighlight(fromUrl);
-    void removeHighlightParam(roomId, threadId, fromUrl);
-  });
+  const highlightParam = $derived(page.url.searchParams.get('highlight'));
+  const routeHighlightKey = $derived(
+    JSON.stringify([roomId, threadId ?? null, routeMessageId ?? null, highlightParam])
+  );
 
   /**
    * Remove a consumed `?highlight=` parameter so a refresh does not repeat the
@@ -291,11 +260,6 @@
     } catch (error) {
       console.warn('Failed to remove the highlight parameter:', error);
     }
-  }
-
-  /** Ask the pane that shows the target timeline to jump to the message. */
-  function applyHighlight(eventId: string, notificationId: string | null = null): void {
-    navigation.beginHighlight(roomId, threadId ?? null, eventId, notificationId);
   }
 
   // Header action visibility — flat derivations keep the template clean
@@ -605,6 +569,20 @@
   the new (empty) data.
 -->
 <PageTitle title={presentation.pageTitle} />
+
+{#if room.roomData?.room.id === roomId}
+  {#key routeHighlightKey}
+    <RoomRouteHighlight
+      {roomId}
+      {threadId}
+      messageId={routeMessageId}
+      {highlightParam}
+      {navigation}
+      onQueryConsumed={(targetRoomId, targetThreadId, eventId) =>
+        void removeHighlightParam(targetRoomId, targetThreadId, eventId)}
+    />
+  {/key}
+{/if}
 
 {#key roomId}
   {#if shouldHydrateRoom}

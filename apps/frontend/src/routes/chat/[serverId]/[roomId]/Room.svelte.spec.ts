@@ -1042,6 +1042,28 @@ describe('Room local message echo', () => {
     expect(highlights.peek('room-1', 'thread-root')?.eventId).toBe('thread-message');
   });
 
+  it('activates a new nested thread target without repeating a completed route', async () => {
+    const rendered = render(Room, {
+      props: {
+        roomId: 'room-1',
+        threadId: 'thread-root',
+        routeMessageId: 'thread-message-1'
+      }
+    });
+    const output = await waitForElement(
+      rendered.container,
+      '[data-testid="thread-pane-highlight-id"]'
+    );
+    await expect.element(output).toHaveTextContent('thread-message-1');
+    highlights.complete(highlights.current!);
+    await expect.element(output).toHaveTextContent(/^$/);
+
+    await rendered.rerender({ routeMessageId: 'thread-message-2' });
+
+    await expect.element(output).toHaveTextContent('thread-message-2');
+    expect(highlights.current?.eventId).toBe('thread-message-2');
+  });
+
   describe('?highlight= permalinks', () => {
     afterEach(() => {
       mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1');

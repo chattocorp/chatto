@@ -69,8 +69,8 @@ export class RoomNavigationState {
 
   /**
    * Return a `?highlight=` permalink target once per room, thread, and target.
-   * The effect that reads the parameter can run again before the URL update
-   * that removes it. A missing parameter resets the guard.
+   * Route activation can repeat during hydration or before the URL update
+   * removes the parameter. A missing parameter resets the guard.
    */
   consumeHighlightParam(
     roomId: string,
