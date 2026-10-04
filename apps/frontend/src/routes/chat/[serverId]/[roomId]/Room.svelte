@@ -407,11 +407,13 @@
     const highlight = navigation.highlight;
     // A click can queue the next room's request before navigation starts.
     // Cancel only a request for the room that this view currently owns.
+    // The main timeline stays mounted when a same-room thread opens or changes.
     if (
       highlight?.roomId === roomId &&
       (to?.params?.serverId !== serverSegment ||
         to?.params?.roomId !== highlight.roomId ||
-        (to?.params?.threadId ?? null) !== highlight.threadRootEventId)
+        (highlight.threadRootEventId !== null &&
+          (to?.params?.threadId ?? null) !== highlight.threadRootEventId))
     ) {
       navigation.clearHighlight(highlight);
     }

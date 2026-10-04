@@ -1345,6 +1345,62 @@ describe('Room local message echo', () => {
     expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [undefined, 'thread-root'],
+    ['thread-root', 'thread-other'],
+    ['thread-root', undefined]
+  ])('retains a pending root jump when the thread changes from %s to %s', async (from, to) => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround!: (page: AroundPage) => void;
+    mocks.timeline.getRoomEventsAround.mockReturnValue(
+      new Promise<AroundPage>((resolve) => (resolveAround = resolve))
+    );
+    highlights.set('room-1', null, 'msg-linked', 'notification-linked');
+    const request = highlights.current;
+    const rendered = render(Room, { props: { roomId: 'room-1', threadId: from } });
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce());
+
+    const beforeNavigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    beforeNavigate({ to: { params: { serverId: '-', roomId: 'room-1', threadId: to } } });
+    await rendered.rerender({ threadId: to });
+
+    expect(highlights.current).toBe(request);
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    resolveAround({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const complete = q(
+      rendered.container,
+      '[data-testid="complete-highlight"]'
+    ) as HTMLButtonElement;
+    await expect.element(complete).toBeEnabled();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    complete.click();
+    await vi.waitFor(() =>
+      expect(mocks.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith('notification-linked')
+    );
+    expect(highlights.current).toBeNull();
+  });
+
+  it.each([undefined, 'thread-other'])(
+    'cancels a thread notification request when its destination thread changes to %s',
+    async (threadId) => {
+      highlights.set('room-1', 'thread-root', 'thread-message', 'notification-thread');
+      render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+      await vi.waitFor(() => expect(mocks.beforeNavigate).toHaveBeenCalled());
+
+      const beforeNavigate = mocks.beforeNavigate.mock.calls.at(-1)![0];
+      beforeNavigate({ to: { params: { serverId: '-', roomId: 'room-1', threadId } } });
+
+      expect(highlights.current).toBeNull();
+      expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
+    }
+  );
+
   it('keeps a request queued for the next room when navigation leaves the current room', async () => {
     render(Room, { props: { roomId: 'room-1' } });
     await vi.waitFor(() => expect(mocks.beforeNavigate).toHaveBeenCalled());
