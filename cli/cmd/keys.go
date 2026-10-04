@@ -19,6 +19,7 @@ import (
 	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/pkg/events"
 	"hmans.de/chatto/pkg/natsauth"
 )
 
@@ -126,7 +127,11 @@ func runKeysExport(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to create JetStream context", "error", err)
 	}
 
-	kv, err := js.KeyValue(ctx, "ENCRYPTION_KEYS")
+	bucket, err := js.KeyValue(ctx, "ENCRYPTION_KEYS")
+	if err != nil {
+		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
+	}
+	kv, err := events.NewKeyValue(js, bucket)
 	if err != nil {
 		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
 	}
@@ -208,15 +213,16 @@ func runKeysImport(cmd *cobra.Command, args []string) {
 	log.Info("Key import complete", "imported", imported, "skipped_existing", skippedExisting, "skipped_wrapped_deks", skippedWrappedDEKs)
 }
 
-func openOrCreateKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
-	kv, err := js.KeyValue(ctx, cfg.Bucket)
-	if err == nil {
-		return kv, nil
+// openOrCreateKeyValue opens or creates a bucket and binds leader-routed reads.
+func openOrCreateKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (*events.KeyValue, error) {
+	bucket, err := js.KeyValue(ctx, cfg.Bucket)
+	if errors.Is(err, jetstream.ErrBucketNotFound) {
+		bucket, err = js.CreateOrUpdateKeyValue(ctx, cfg)
 	}
-	if !errors.Is(err, jetstream.ErrBucketNotFound) {
+	if err != nil {
 		return nil, err
 	}
-	return js.CreateOrUpdateKeyValue(ctx, cfg)
+	return events.NewKeyValue(js, bucket)
 }
 
 func keyRefForImport(key ExportedKey) string {
