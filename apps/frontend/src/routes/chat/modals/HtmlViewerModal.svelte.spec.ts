@@ -11,7 +11,8 @@ const mocks = vi.hoisted(() => ({
   page: { state: {} as { modal?: HtmlViewerModalState } }
 }));
 // Asset URLs resolve against the server that owns the attachment's server ID.
-vi.mock('@chatto/client/server/serverIds', () => ({
+vi.mock('@chatto/client/server/serverIds', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@chatto/client/server/serverIds')>()),
   ownerOfServerId: () => ({ getServer: () => ({ url: 'https://remote.example' }) })
 }));
 vi.mock('$lib/client', async () => ({
