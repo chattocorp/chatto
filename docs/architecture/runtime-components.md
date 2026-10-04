@@ -51,8 +51,13 @@ The bundled frontend's per-server
 owns the active message jump. The request keeps its object identity through
 room hydration, snapshot replacement, and component remounts.
 [`RoomNavigationState`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/roomNavigationState.svelte.ts)
-reads this store instead of keeping a separate highlight. The timeline reports
-the completed request only after its target is visible and highlighted. A late
+reads this store instead of keeping a separate highlight. The keyed
+[`HighlightJump`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/HighlightJump.svelte)
+component owns one load attempt; unmounting cancels its completion report.
+[`RoomWindowLifecycle`](../../apps/frontend/src/routes/chat/[serverId]/[roomId]/RoomWindowLifecycle.svelte)
+restores the latest window on room activation and cleanup, unless a root jump
+still owns that window. The timeline's scroll attachment reports a successful
+request only after its target is visible and highlighted. A late
 completion cannot clear a newer request. Navigation away from the destination,
 loss of room access, a viewer privacy reset, and server disposal cancel the
 request. See [FDR-012](../fdr/FDR-012-notifications.md).

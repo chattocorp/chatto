@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import {
     clearTimelineViewport,
     isLoadingOlder,
@@ -329,9 +330,8 @@
     }
   });
 
-  // Scroll to a specific event by ID (for jump-to-message)
-  $effect(() => {
-    let cancelled = false;
+  // The DOM command exists only while the requested timeline is ready.
+  const scrollTarget = $derived.by(() => {
     const targetId = scrollToEventId;
     const request = highlightRequest;
     if (
@@ -341,62 +341,78 @@
       virtualItems.length === 0 ||
       stores.realtimeSync.isRecoveringSnapshot
     ) {
-      return;
+      return null;
     }
-
-    // Disable auto-scroll so it doesn't race with the jump scroll.
-    viewport.beginJump();
-
-    void tick().then(async () => {
-      // A replaced virtual window can take several frames to index, measure,
-      // and mount its target. The initial attempt plus 60 retries preserves the
-      // existing bounded wait without a separate callback state machine.
-      for (let attempt = 0; attempt <= 60 && !cancelled; attempt++) {
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        if (cancelled) return;
-
-        const targetIndex = virtualItems.findIndex(
-          (item) => item.type === 'event' && item.event.id === targetId
-        );
-        if (targetIndex !== -1) safeScrollToIndex(targetIndex, { align: 'center' });
-
-        // Scope lookup to this EventList so the thread pane cannot highlight
-        // the matching event in the main room timeline.
-        const target = (scrollContainer ?? document).querySelector(eventSelector(targetId));
-        if (!(target instanceof HTMLElement)) continue;
-
-        // A mounted virtual row can still be outside the viewport while its
-        // measured offset settles. Do not acknowledge it until it is visible.
-        if (!eventIsVisible(target)) continue;
-
-        target.classList.remove('highlight-flash');
-        // Restart the animation when another click selects the same mounted row.
-        void target.offsetWidth;
-        target.classList.add('highlight-flash');
-        target.addEventListener('animationend', () => target.classList.remove('highlight-flash'), {
-          once: true
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        if (cancelled) return;
-        if (!eventIsVisible(target)) continue;
-        const distance = distanceFromBottom();
-        if (distance === null) return;
-        viewport.settleJump(distance);
-        reportReadPosition();
-        onScrollToEventComplete?.(true, targetId, request);
-        return;
-      }
-
-      if (cancelled) return;
-      reportReadPosition();
-      onScrollToEventComplete?.(false, targetId, request);
-    });
-
-    return () => {
-      cancelled = true;
-    };
+    return { eventId: targetId, request };
   });
+
+  /** Scroll and highlight within this list; detachment cancels an unfinished command. */
+  function scrollToMessage(
+    command: { eventId: string; request: PendingHighlight | null } | null
+  ): Attachment<HTMLDivElement> {
+    return (element) => {
+      if (!command) return;
+      const { eventId: targetId, request } = command;
+      let cancelled = false;
+
+      void tick().then(async () => {
+        if (cancelled) return;
+        // Disable auto-scroll so it doesn't race with the jump scroll.
+        viewport.beginJump();
+        // A replaced virtual window can take several frames to index, measure,
+        // and mount its target. The initial attempt plus 60 retries preserves the
+        // existing bounded wait without a separate callback state machine.
+        for (let attempt = 0; attempt <= 60 && !cancelled; attempt++) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          if (cancelled) return;
+
+          const targetIndex = virtualItems.findIndex(
+            (item) => item.type === 'event' && item.event.id === targetId
+          );
+          if (targetIndex !== -1) safeScrollToIndex(targetIndex, { align: 'center' });
+
+          // Scope lookup to this EventList so the thread pane cannot highlight
+          // the matching event in the main room timeline.
+          const target = element.querySelector(eventSelector(targetId));
+          if (!(target instanceof HTMLElement)) continue;
+
+          // A mounted virtual row can still be outside the viewport while its
+          // measured offset settles. Do not acknowledge it until it is visible.
+          if (!eventIsVisible(target)) continue;
+
+          target.classList.remove('highlight-flash');
+          // Restart the animation when another click selects the same mounted row.
+          void target.offsetWidth;
+          target.classList.add('highlight-flash');
+          target.addEventListener(
+            'animationend',
+            () => target.classList.remove('highlight-flash'),
+            {
+              once: true
+            }
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          if (cancelled) return;
+          if (!eventIsVisible(target)) continue;
+          const distance = distanceFromBottom();
+          if (distance === null) return;
+          viewport.settleJump(distance);
+          reportReadPosition();
+          onScrollToEventComplete?.(true, targetId, request);
+          return;
+        }
+
+        if (cancelled) return;
+        reportReadPosition();
+        onScrollToEventComplete?.(false, targetId, request);
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    };
+  }
 
   async function landOnUnreadSeparator(requestedTimelineKey: string) {
     const current = () =>
@@ -909,6 +925,7 @@
       class="mt-auto mobile-presentation:px-1"
       {@attach restoreViewport(recoveryTarget)}
       {@attach landOnUnreadEntry(unreadEntryLanding)}
+      {@attach scrollToMessage(scrollTarget)}
     >
       {#if isLoading}
         <!-- Sits at the bottom, where the newest messages will appear. -->

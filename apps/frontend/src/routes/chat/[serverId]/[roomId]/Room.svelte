@@ -32,6 +32,7 @@
   import { LoadingFog, PageTitle, PaneHeader, HeaderIconButton, LoadRetry } from '$lib/ui';
   import { tick } from 'svelte';
   import ConversationPane from './ConversationPane.svelte';
+  import RoomWindowLifecycle from './RoomWindowLifecycle.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import {
@@ -136,29 +137,6 @@
   const shouldHydrateRoom = $derived(
     stores.realtimeSync.isRecoveringSnapshot || (Boolean(room.roomData) && canReadMessages)
   );
-
-  $effect(() => {
-    const mountedStores = stores;
-    const selectedRoomId = roomId;
-    const hydrateRoom = shouldHydrateRoom;
-    const restoreLatest = () => {
-      // The historical window belongs to an unfinished jump, even if the room
-      // remounts or its hydration state changes before the target is rendered.
-      if (hydrateRoom && !navigation.highlightFor(selectedRoomId, null)) {
-        mountedStores.restoreProjectedRoomWindow(selectedRoomId);
-      }
-    };
-    untrack(restoreLatest);
-    return () => {
-      // Invalidate any historical-window request before this room becomes
-      // inactive. Its late response must not replace the retained latest
-      // projection while another room is being rendered.
-      untrack(() => {
-        if (selectedRoomId !== roomId) navigation.clearMainHighlight(selectedRoomId);
-        restoreLatest();
-      });
-    };
-  });
 
   // --- Extracted hooks ---
   const roomPinsStore = $derived(
@@ -627,6 +605,17 @@
   the new (empty) data.
 -->
 <PageTitle title={presentation.pageTitle} />
+
+{#key roomId}
+  {#if shouldHydrateRoom}
+    <RoomWindowLifecycle
+      {roomId}
+      store={stores}
+      {navigation}
+      isActive={(selectedRoomId) => selectedRoomId === roomId}
+    />
+  {/if}
+{/key}
 
 {#if room.roomData !== null}
   <div

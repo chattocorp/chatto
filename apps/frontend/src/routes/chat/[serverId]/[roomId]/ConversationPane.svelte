@@ -33,7 +33,7 @@ thread IDs can change while the pane stays mounted.
 </script>
 
 <script lang="ts">
-  import { onDestroy, tick, untrack, type Snippet } from 'svelte';
+  import { onDestroy, untrack, type Snippet } from 'svelte';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '@chatto/client/api/readState';
   import { dropZone } from '$lib/dom/dropZone.svelte';
@@ -55,6 +55,7 @@ thread IDs can change while the pane stays mounted.
   import { EmptyState } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import EventList from './EventList.svelte';
+  import HighlightJump from './HighlightJump.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { threadParticipantIds } from './threadParticipants';
@@ -268,31 +269,6 @@ thread IDs can change while the pane stays mounted.
     if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
   });
 
-  // A snapshot can interrupt loading. Keep the request in its owner and retry
-  // after recovery; disposal of this pane never acknowledges the request.
-  $effect(() => {
-    const target = highlight;
-    if (!target || stores.realtimeSync.isRecoveringSnapshot) return;
-    let cancelled = false;
-    const current = () => !cancelled && highlight === target && serverScope.isCurrent();
-
-    void (async () => {
-      await tick();
-      if (!current()) return;
-      const jumped = await jumpState.jumpToMessage(target.eventId);
-      if (!current()) return;
-      if (!jumped) {
-        toast.error(m('room.jump_failed'));
-        onHighlightComplete?.(target);
-        return;
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  });
-
   let composerApi = $state<MessageComposerApi | null>(null);
 
   // Apply a quote or reply that another pane requested before this composer existed.
@@ -349,6 +325,20 @@ thread IDs can change while the pane stays mounted.
       : undefined
   );
 </script>
+
+{#if highlight && !stores.realtimeSync.isRecoveringSnapshot}
+  {#key highlight}
+    <HighlightJump
+      request={highlight}
+      jump={(eventId) => jumpState.jumpToMessage(eventId)}
+      onFailed={(request) => {
+        if (highlight !== request || !serverScope.isCurrent()) return;
+        toast.error(m('room.jump_failed'));
+        onHighlightComplete?.(request);
+      }}
+    />
+  {/key}
+{/if}
 
 <div
   class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}
