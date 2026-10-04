@@ -12,9 +12,9 @@ import {
 /**
  * Listen for notification-click messages from the service worker.
  * The SW posts these so the SPA can route via `goto()` (client-side
- * navigation, no full reload). The page acknowledges on receipt, before it
- * routes: the SW only waits briefly, and a slow route load must not make it
- * open a second window.
+ * navigation, no full reload). The page replies on receipt, before it routes,
+ * because workers from earlier releases wait briefly for a reply and can open a
+ * second window without one.
  */
 export function onNotificationClick(callback: (url: string) => void | Promise<void>): () => void {
   if (!('serviceWorker' in navigator)) {

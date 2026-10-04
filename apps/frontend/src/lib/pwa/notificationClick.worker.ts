@@ -1,23 +1,17 @@
-export const NOTIFICATION_CLICK_ACK_TIMEOUT_MS = 750;
 export const NOTIFICATION_CLICK_MESSAGE_TYPE = 'notification-click';
+/**
+ * Reply type that workers from earlier releases wait for. Current workers do
+ * not wait for a reply; pages still send it so that an earlier worker does
+ * not also open a new window.
+ */
 export const NOTIFICATION_CLICK_ACK_MESSAGE_TYPE = 'notification-click-ack';
 const NOTIFICATION_CLICK_FALLBACK_PATH = '/chat';
-
-interface NotificationClickPort {
-  onmessage: ((event: MessageEvent) => void) | null;
-  close?: () => void;
-}
-
-interface NotificationClickMessageChannel {
-  port1: NotificationClickPort;
-  port2: unknown;
-}
 
 export interface NotificationClickClient {
   focused?: boolean;
   visibilityState?: DocumentVisibilityState;
   focus?: () => Promise<NotificationClickClient | null>;
-  postMessage?: (message: unknown, transfer?: unknown[]) => void;
+  postMessage?: (message: unknown) => void;
 }
 
 export interface NotificationClickClients {
@@ -32,17 +26,10 @@ interface NotificationClickLogger {
   warn: (...args: unknown[]) => void;
 }
 
-/**
- * How a click was routed: an open window acknowledged and routed it
- * (`client`), a hidden window was focused and asked to route it without an
- * acknowledgement (`focus`), or a new window opened the target (`open`).
- */
-export type NotificationClickRouteResult = 'client' | 'focus' | 'open';
+/** How a click was routed: an open window got it (`client`), or a new window opened the target (`open`). */
+export type NotificationClickRouteResult = 'client' | 'open';
 
 export interface NotificationClickRouteOptions {
-  /** Total time that the asked windows together have to acknowledge. */
-  ackTimeoutMs?: number;
-  createMessageChannel?: () => NotificationClickMessageChannel;
   logger?: NotificationClickLogger;
 }
 
@@ -77,60 +64,15 @@ export function normalizeNotificationClickUrl(rawUrl: string | undefined, origin
   return sameOriginURLForPath(origin, NOTIFICATION_CLICK_FALLBACK_PATH);
 }
 
-function createDefaultMessageChannel(): NotificationClickMessageChannel {
-  return new MessageChannel();
-}
-
-function isNotificationClickAck(message: unknown): boolean {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'type' in message &&
-    message.type === NOTIFICATION_CLICK_ACK_MESSAGE_TYPE
-  );
-}
-
 /** Send the click message to `client`. Returns false when the window cannot receive it. */
-function postClickMessage(
-  client: NotificationClickClient,
-  url: string,
-  transfer: unknown[] = []
-): boolean {
+function postClickMessage(client: NotificationClickClient, url: string): boolean {
   if (typeof client.postMessage !== 'function') return false;
   try {
-    client.postMessage({ type: NOTIFICATION_CLICK_MESSAGE_TYPE, url }, transfer);
+    client.postMessage({ type: NOTIFICATION_CLICK_MESSAGE_TYPE, url });
     return true;
   } catch {
     return false;
   }
-}
-
-function notifyClientAndWaitForAck(
-  client: NotificationClickClient,
-  url: string,
-  timeoutMs: number,
-  createMessageChannel: () => NotificationClickMessageChannel
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    const channel = createMessageChannel();
-    let settled = false;
-    const timeout = setTimeout(() => finish(false), timeoutMs);
-
-    function finish(acknowledged: boolean) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      channel.port1.onmessage = null;
-      channel.port1.close?.();
-      resolve(acknowledged);
-    }
-
-    channel.port1.onmessage = (event) => {
-      if (isNotificationClickAck(event.data)) finish(true);
-    };
-
-    if (!postClickMessage(client, url, [channel.port2])) finish(false);
-  });
 }
 
 async function focusClient(
@@ -156,23 +98,15 @@ function clientPriority(client: NotificationClickClient): number {
 /**
  * Route a notification click to `rawUrl` after normalizing it to this origin.
  *
- * Browsers allow window actions only briefly after a click. In Chromium, the
- * first `focus()` or `openWindow()` call also uses up the click's permission,
- * so the click allows one window action. Firefox allows window actions for
- * about one second after the click on desktop, and WebKit for about two.
+ * The worker focuses the best open window and sends it the target URL, and the
+ * page routes in place. When no window is open, or focus fails, the worker
+ * opens the target in a new window.
  *
  * The worker that shows push notifications has a narrow `/__chatto/push/…/`
  * scope. It never controls the app windows, so `WindowClient.navigate()`
- * always fails there.
- *
- * When all windows are hidden, the worker focuses the first one at once and
- * then sends it the message. It does not wait for an acknowledgement: a
- * frozen background page cannot acknowledge, but it gets the message when the
- * focus resumes it. Otherwise, the worker asks the windows, in priority
- * order, to route in place. The page acknowledges on receipt, and all windows
- * share one acknowledgement deadline. The worker focuses the window that
- * acknowledges. In all other cases, the worker opens the target in a new
- * window.
+ * always fails there. Chromium allows one window action (`focus()` or
+ * `openWindow()`) per click, so the worker focuses before it sends the message
+ * and does not wait for a reply.
  */
 export async function routeNotificationClick(
   rawUrl: string | undefined,
@@ -181,32 +115,18 @@ export async function routeNotificationClick(
   options: NotificationClickRouteOptions = {}
 ): Promise<NotificationClickRouteResult> {
   const url = normalizeNotificationClickUrl(rawUrl, origin);
-  const createMessageChannel = options.createMessageChannel ?? createDefaultMessageChannel;
-  const deadline = performance.now() + (options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS);
-  const clientList = [
+  const [target] = [
     ...(await clients.matchAll({
       type: 'window',
       includeUncontrolled: true
     }))
   ].sort((a, b) => clientPriority(a) - clientPriority(b));
 
-  const [first] = clientList;
-  if (first?.visibilityState === 'hidden') {
-    if (await focusClient(first, options.logger)) {
-      if (!postClickMessage(first, url)) {
-        options.logger?.warn('[SW] Failed to send notification click to focused window');
-      }
-      return 'focus';
+  if (target && (await focusClient(target, options.logger))) {
+    if (!postClickMessage(target, url)) {
+      options.logger?.warn('[SW] Failed to send notification click to focused window');
     }
-  } else {
-    for (const client of clientList) {
-      const remainingMs = deadline - performance.now();
-      if (remainingMs <= 0) break;
-      if (await notifyClientAndWaitForAck(client, url, remainingMs, createMessageChannel)) {
-        await focusClient(client, options.logger);
-        return 'client';
-      }
-    }
+    return 'client';
   }
 
   await clients.openWindow(url);
