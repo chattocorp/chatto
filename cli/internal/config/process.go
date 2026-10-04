@@ -48,6 +48,7 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 
 type WebserverConfig struct {
 	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
+	RedirectToPrimaryHost  bool          `toml:"redirect_to_primary_host" env:"CHATTO_WEBSERVER_REDIRECT_TO_PRIMARY_HOST" comment:"Temporarily redirect HTML browser page requests on exact configured aliases to webserver.url. OAuth callbacks, APIs, MCP, assets, and WebSockets stay on their requested host. Default: false."`
 	AllowedOrigins         []string      `toml:"allowed_origins,commented" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional exact public origins that can use cookie authentication, publish the bundled frontend OAuth identity, and serve MCP through a reverse proxy. API responses to a request on such an origin use that origin in absolute URLs. Do not include paths or configure both HTTP and HTTPS for the same request host. Wildcards apply only to CORS and authorize none of these behaviors."`
 	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
 	TrustedProxies         []string      `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`

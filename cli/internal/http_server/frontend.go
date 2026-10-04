@@ -301,8 +301,11 @@ func frontendContentType(filePath string) string {
 
 // serveSPAFallback serves the 200.html file as a fallback for SPA routing.
 // It injects OpenGraph meta tags based on the URL path.
-// Returns true if the fallback was served successfully, false if an error occurred.
+// Returns true if the page was served or redirected, false if an error occurred.
 func (s *HTTPServer) serveSPAFallback(c *gin.Context, clientFS fs.FS) bool {
+	if s.redirectFrontendToPrimaryHost(c) {
+		return true
+	}
 	content, err := readFrontendIdentityFile(clientFS, "200.html")
 	if err != nil {
 		log.Error("Failed to read 200.html for SPA fallback", "error", err)

@@ -62,6 +62,10 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called _Instance_ in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
+**Primary URL** — The server's official URL, configured with `webserver.url`.
+Optional primary-host redirects send browser page navigation from exact
+server aliases to this URL. See [FDR-049](fdr/FDR-049-primary-host-redirect.md).
+
 **Neighbor** — Chatto server that another server advertises in its public directory. A Neighbor has a canonical origin. It is a recommendation, not a trust or reciprocal relationship. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
 **Neighborhood** — Servers that one Chatto server discovers through its Neighbors: each direct Neighbor, plus servers that a mutually advertising Neighbor mutually recommends, to at most two mutual hops. The server discovers its Neighborhood in the background and publishes a cached result. See [FDR-042](fdr/FDR-042-chatto-neighbors.md) and [ADR-106](adr/ADR-106-server-side-neighborhood-discovery.md).

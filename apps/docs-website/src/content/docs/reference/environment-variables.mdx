@@ -27,6 +27,15 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Port to listen on.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_REDIRECT_TO_PRIMARY_HOST" toml="webserver.redirect_to_primary_host" default="false">
+  Redirect HTML browser page requests on exact configured aliases to `webserver.url`.
+  List those aliases in `webserver.allowed_origins`. The temporary `307` redirect
+  preserves the path and query and uses `Cache-Control: no-store`. OAuth callbacks,
+  API and MCP requests, static and uploaded assets, and WebSocket connections
+  keep their requested host. Leave this disabled if the primary URL points to
+  another server. Set it back to `false` to stop redirects.
+</EnvVar>
+
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" toml="webserver.cookie_signing_secret" required>
   256-bit hex secret for signing browser-flow cookies and CSRF proofs. The opaque `chatto_auth_*` authentication cookies do not contain signed user data. Generate with `openssl rand -hex 32`.
 </EnvVar>

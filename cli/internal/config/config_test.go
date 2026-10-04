@@ -55,6 +55,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 
 	// Set required env vars
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_REDIRECT_TO_PRIMARY_HOST", "true")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "000102030405060708090a0b0c0d0e0f")
 	t.Setenv("CHATTO_WEBSERVER_API_COMPRESSION", "false")
@@ -75,6 +76,9 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	// Verify env vars were applied
 	if cfg.Webserver.Port != 4000 {
 		t.Errorf("expected port 4000, got %d", cfg.Webserver.Port)
+	}
+	if !cfg.Webserver.RedirectToPrimaryHost {
+		t.Error("expected primary-host redirect enabled from environment")
 	}
 	if cfg.Webserver.CookieSigningSecret != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
 		t.Errorf("expected cookie secret to be set from env var")

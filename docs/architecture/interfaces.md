@@ -1,5 +1,12 @@
 # Interface Inventory
 
+The bundled HTML frontend can redirect browser page navigation from exact
+configured aliases to `webserver.url` when `webserver.redirect_to_primary_host`
+is enabled. Redirects use `307` with `Cache-Control: no-store` and preserve the
+path and query. The primary host, protocol endpoints, static assets, and the
+frontend OAuth popup callback keep their requested origin. See
+[FDR-049](../fdr/FDR-049-primary-host-redirect.md).
+
 The internal [`@chatto/client`](../../packages/chatto-client/README.md) package
 is the Chatto client. The bundled frontend, ChattoBot, and the local Runling
 bot use it. It owns the ConnectRPC facades, sessions, the realtime transport
