@@ -30,12 +30,13 @@ describe('routeNotificationClick', () => {
   });
 
   function windowClient(
-    state: Pick<NotificationClickClient, 'focused' | 'visibilityState'>
+    state: Pick<NotificationClickClient, 'url' | 'focused' | 'visibilityState'>
   ): NotificationClickClient & {
     focus: ReturnType<typeof vi.fn>;
     postMessage: ReturnType<typeof vi.fn>;
   } {
     const client = {
+      url: `${ORIGIN}/chat/-/room-2`,
       ...state,
       focus: vi.fn(async () => client),
       postMessage: vi.fn()
@@ -79,6 +80,30 @@ describe('routeNotificationClick', () => {
     expect(result).toBe('client');
     expect(hidden.focus).toHaveBeenCalledOnce();
     expect(hidden.postMessage).toHaveBeenCalledOnce();
+  });
+
+  it('ignores windows outside the chat app', async () => {
+    const oauth = windowClient({
+      url: `${ORIGIN}/servers/authorize?mode=popup`,
+      focused: true,
+      visibilityState: 'visible'
+    });
+    const attachment = windowClient({
+      url: `${ORIGIN}/assets/file.png`,
+      visibilityState: 'visible'
+    });
+    const chat = windowClient({ url: `${ORIGIN}/chat`, visibilityState: 'hidden' });
+
+    await expect(
+      routeNotificationClick(TARGET_URL, ORIGIN, clientsWith([oauth, attachment, chat]))
+    ).resolves.toBe('client');
+    expect(chat.postMessage).toHaveBeenCalledOnce();
+
+    const clients = clientsWith([oauth, attachment]);
+    await expect(routeNotificationClick(TARGET_URL, ORIGIN, clients)).resolves.toBe('open');
+    expect(oauth.focus).not.toHaveBeenCalled();
+    expect(attachment.focus).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
   });
 
   it('opens a new window instead when focusing fails', async () => {

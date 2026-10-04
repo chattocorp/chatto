@@ -8,6 +8,7 @@ export const NOTIFICATION_CLICK_ACK_MESSAGE_TYPE = 'notification-click-ack';
 const NOTIFICATION_CLICK_FALLBACK_PATH = '/chat';
 
 export interface NotificationClickClient {
+  url?: string;
   focused?: boolean;
   visibilityState?: DocumentVisibilityState;
   focus?: () => Promise<NotificationClickClient | null>;
@@ -88,6 +89,19 @@ async function focusClient(
   }
 }
 
+/**
+ * Only chat windows route clicks. Other same-origin windows, such as OAuth
+ * pages or an opened attachment, must not take the click.
+ */
+function isChatWindow(client: NotificationClickClient): boolean {
+  try {
+    const { pathname } = new URL(client.url ?? '');
+    return pathname === '/chat' || pathname.startsWith('/chat/');
+  } catch {
+    return false;
+  }
+}
+
 /** Focused windows first, then visible ones, so the click reaches the window the user sees. */
 function clientPriority(client: NotificationClickClient): number {
   if (client.focused) return 0;
@@ -98,9 +112,9 @@ function clientPriority(client: NotificationClickClient): number {
 /**
  * Route a notification click to `rawUrl` after normalizing it to this origin.
  *
- * The worker focuses the best open window and sends it the target URL, and the
- * page routes in place. When no window is open, or focus fails, the worker
- * opens the target in a new window.
+ * The worker focuses the best open chat window and sends it the target URL,
+ * and the page routes in place. When no chat window is open, or focus fails,
+ * the worker opens the target in a new window.
  *
  * The worker that shows push notifications has a narrow `/__chatto/push/…/`
  * scope. It never controls the app windows, so `WindowClient.navigate()`
@@ -120,7 +134,9 @@ export async function routeNotificationClick(
       type: 'window',
       includeUncontrolled: true
     }))
-  ].sort((a, b) => clientPriority(a) - clientPriority(b));
+  ]
+    .filter(isChatWindow)
+    .sort((a, b) => clientPriority(a) - clientPriority(b));
 
   if (target && (await focusClient(target, options.logger))) {
     if (!postClickMessage(target, url)) {

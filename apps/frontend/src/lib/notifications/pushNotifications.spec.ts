@@ -1421,6 +1421,20 @@ describe('onNotificationClick', () => {
     expect(serviceWorker.listenerCount()).toBe(0);
   });
 
+  it('routes a click message that has no reply port', async () => {
+    const serviceWorker = stubServiceWorker();
+    const callback = vi.fn();
+    const stop = onNotificationClick(callback);
+
+    serviceWorker.dispatchMessage({
+      data: { type: 'notification-click', url: 'https://chatto.example/chat/-/room-1' },
+      ports: []
+    });
+
+    expect(callback).toHaveBeenCalledWith('https://chatto.example/chat/-/room-1');
+    stop();
+  });
+
   it('acknowledges and reports a rejected callback without throwing', async () => {
     const serviceWorker = stubServiceWorker();
     const error = new Error('navigation failed');
