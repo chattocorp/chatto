@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-28
+**Last reviewed:** 2026-10-05
 
 ## Overview
 
@@ -101,6 +101,13 @@ the backend permission catalog. Update both catalogs together.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
 - Delegated role assignment is bounded by the assigner's own authority. A non-owner may assign a role only when they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
+- Permission editing is bounded by the editor's own authority. To set, deny,
+  or clear one role or direct-user decision, a non-owner must effectively
+  have that permission at the decision's scope. Room and room-group managers
+  follow the same rule at their scope. To delete a role, a non-owner must
+  have every permission that the role allows or denies. Only an effective
+  owner may change their own direct decisions. Bot decisions keep the bot
+  rules in FDR-038.
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions, except for the one-time upgrade grants in Design Decision 9.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
@@ -152,11 +159,11 @@ append failure remains pending for redelivery instead of creating a live-only
 owner that notification cleanup cannot recognize.
 **Tradeoff:** A transient materialization failure can delay completion of email verification. Removing an email from `owners.emails` does not automatically revoke an already materialized owner role, because the server cannot distinguish config-created assignments from manual ones; operators may revoke it after updating configuration.
 
-### 6. Target-user mutations are permission-gated and role assignment is bounded
+### 6. Target-user mutations are permission-gated and delegated authority is bounded
 
-**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
-**Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy, while bounding `role.assign` prevents delegated role managers from granting authority they do not possess or removing restrictions they cannot control.
-**Tradeoff:** A delegated assigner may need the target role's underlying permissions even when they only administer membership. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rule during a rolling upgrade until they are replaced.
+**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. Permission editing uses the same bound: a non-owner may set, deny, or clear a role or direct-user decision only for a permission that they effectively hold at that scope, and may delete a role only when they hold every permission that the role allows or denies. A non-owner may not edit their own direct decisions. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
+**Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy. Without the bounds, `role.manage` or `user.manage-permissions` alone would let a holder grant themselves every permission, which would also make the `role.assign` bound ineffective. The bound covers denies and clears because removing a restriction can restore authority. Direct decisions survive role changes, so a self-edit could copy role authority into a decision that outlasts revocation of that role.
+**Tradeoff:** A delegated assigner or editor may need the underlying permissions even when they only administer membership or settings. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rules during a rolling upgrade until they are replaced.
 
 ### 7. RBAC state is event-sourced
 
@@ -217,10 +224,10 @@ relationships in sync. Tests cover the current relationship.
 
 The full permission catalog is in `cli/internal/core/permission.go`. Key permissions that gate RBAC management itself:
 
-- `role.manage` — configure role definitions and the permissions attached to them.
+- `role.manage` — configure role definitions and the permissions attached to them, bounded for non-owners by their own scoped authority.
 - `role.assign` — assign or revoke roles, bounded for non-owners by the target role's explicit scoped permission decisions.
 - `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, clear login cooldowns, and bypass the holder's own login cooldown.
-- `user.manage-permissions` — edit direct per-user permission overrides.
+- `user.manage-permissions` — edit direct per-user permission overrides of other users, bounded for non-owners by their own scoped authority.
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
 - `message.read` — read message content and message-specific metadata in
   channel rooms and DMs. Fresh servers grant this to `everyone` at server scope.

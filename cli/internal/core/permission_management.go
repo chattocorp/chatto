@@ -220,6 +220,10 @@ func (c *ChattoCore) GetUserPermissionMatrixPage(ctx context.Context, actorID, u
 	return c.buildUserPermissionMatrix(ctx, actorID, user, includeDM, query)
 }
 
+// SetRolePermissionState changes one role decision. Role managers may edit
+// every scope; room managers may edit the groups and rooms that they manage.
+// A non-owner may change only decisions for permissions that they effectively
+// hold at the target scope.
 func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleName string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if roleName == RoleOwner {
 		return fmt.Errorf("%w: owner permissions are granted virtually and cannot be edited", ErrInvalidArgument)
@@ -227,35 +231,34 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 	if roleName == "" {
 		return fmt.Errorf("%w: role name is required", ErrInvalidArgument)
 	}
+	var (
+		coreScope     PermissionScope
+		requireEditor func() error
+	)
 	switch normalizePermissionScope(scope).Kind {
 	case MatrixScopeDM:
 		if scope.ID != "" {
 			return fmt.Errorf("%w: direct-message scope id must be empty", ErrInvalidArgument)
 		}
-		check := func() error { return c.requireCanManageAdminRoles(ctx, actorID) }
-		if err := check(); err != nil {
-			return err
-		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeDM, "", roleName, perm, state, check)
+		coreScope = ScopeDM
+		requireEditor = func() error { return c.requireCanManageAdminRoles(ctx, actorID) }
 	case MatrixScopeGroup:
 		if scope.ID == "" {
 			return fmt.Errorf("%w: group id is required", ErrInvalidArgument)
 		}
-		check := func() error {
+		coreScope = ScopeGroup
+		requireEditor = func() error {
 			if err := c.roomModel.waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
 				return fmt.Errorf("wait for room-group projection: %w", err)
 			}
 			return c.requireCanManageRolePermissionsForGroup(ctx, actorID, scope.ID)
 		}
-		if err := check(); err != nil {
-			return err
-		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeGroup, scope.ID, roleName, perm, state, check)
 	case MatrixScopeRoom:
 		if scope.ID == "" {
 			return fmt.Errorf("%w: room id is required", ErrInvalidArgument)
 		}
-		check := func() error {
+		coreScope = ScopeRoom
+		requireEditor = func() error {
 			if err := c.roomModel.waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
 				return fmt.Errorf("wait for room-group projection: %w", err)
 			}
@@ -264,17 +267,24 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 			}
 			return c.requireCanManageRolePermissionsForRoom(ctx, actorID, scope.ID)
 		}
-		if err := check(); err != nil {
-			return err
-		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeRoom, scope.ID, roleName, perm, state, check)
 	default:
-		check := func() error { return c.requireCanManageAdminRoles(ctx, actorID) }
-		if err := check(); err != nil {
+		coreScope = ScopeServer
+		scope.ID = ""
+		requireEditor = func() error { return c.requireCanManageAdminRoles(ctx, actorID) }
+	}
+	check := func() error {
+		if err := requireEditor(); err != nil {
 			return err
 		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeServer, "", roleName, perm, state, check)
+		if err := validatePermissionDecisionScope(coreScope, perm); err != nil {
+			return err
+		}
+		return c.requirePermissionDecisionWithinAuthority(ctx, actorID, coreScope, scope.ID, perm)
 	}
+	if err := check(); err != nil {
+		return err
+	}
+	return c.applyRolePermissionState(ctx, actorID, coreScope, scope.ID, roleName, perm, state, check)
 }
 
 func (c *ChattoCore) requireCanManageRolePermissionsForGroup(ctx context.Context, actorID, groupID string) error {
@@ -300,6 +310,11 @@ func (c *ChattoCore) requireCanManageRolePermissionsForGroup(ctx context.Context
 	return err
 }
 
+// SetUserPermissionState changes one direct permission decision of a user.
+// Bot decisions follow the bot allowlist rules. For humans, the actor needs
+// user.manage-permissions, a non-owner may change only decisions for
+// permissions that they effectively hold at the target scope, and only an
+// effective owner may change their own direct decisions.
 func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if userID == "" {
 		return fmt.Errorf("%w: user id is required", ErrInvalidArgument)
@@ -314,31 +329,46 @@ func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID
 	if user.GetIsBot() {
 		return c.setBotUserPermissionState(ctx, actorID, userID, scope, perm, state)
 	}
-	check := func() error {
-		return c.requireCanManageUserPermissionTarget(ctx, actorID)
-	}
-	if err := check(); err != nil {
-		return err
-	}
+	var coreScope PermissionScope
 	switch normalizePermissionScope(scope).Kind {
 	case MatrixScopeDM:
 		if scope.ID != "" {
 			return fmt.Errorf("%w: direct-message scope id must be empty", ErrInvalidArgument)
 		}
-		return c.applyUserPermissionState(ctx, actorID, ScopeDM, "", userID, perm, state, check)
+		coreScope = ScopeDM
 	case MatrixScopeGroup:
 		if scope.ID == "" {
 			return fmt.Errorf("%w: group id is required", ErrInvalidArgument)
 		}
-		return c.applyUserPermissionState(ctx, actorID, ScopeGroup, scope.ID, userID, perm, state, check)
+		coreScope = ScopeGroup
 	case MatrixScopeRoom:
 		if scope.ID == "" {
 			return fmt.Errorf("%w: room id is required", ErrInvalidArgument)
 		}
-		return c.applyUserPermissionState(ctx, actorID, ScopeRoom, scope.ID, userID, perm, state, check)
+		coreScope = ScopeRoom
 	default:
-		return c.applyUserPermissionState(ctx, actorID, ScopeServer, "", userID, perm, state, check)
+		coreScope = ScopeServer
+		scope.ID = ""
 	}
+	check := func() error {
+		if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
+			return err
+		}
+		// Direct decisions survive role changes. A non-owner who could edit
+		// their own decisions could copy role authority into them and keep it
+		// after the role is revoked.
+		if actorID == userID && !c.isServerOwner(actorID) {
+			return ErrPermissionDenied
+		}
+		if err := validatePermissionDecisionScope(coreScope, perm); err != nil {
+			return err
+		}
+		return c.requirePermissionDecisionWithinAuthority(ctx, actorID, coreScope, scope.ID, perm)
+	}
+	if err := check(); err != nil {
+		return err
+	}
+	return c.applyUserPermissionState(ctx, actorID, coreScope, scope.ID, userID, perm, state, check)
 }
 
 func (c *ChattoCore) requireCanManageRolePermissionsForRoom(ctx context.Context, actorID, roomID string) error {
@@ -407,7 +437,9 @@ func normalizePermissionScope(scope PermissionTargetScope) PermissionTargetScope
 	return scope
 }
 
-func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, roleName string, perm Permission, state PermissionState, authorize func() error) error {
+// validatePermissionDecisionScope rejects unknown permissions and decisions
+// at a scope where the permission cannot be configured.
+func validatePermissionDecisionScope(scope PermissionScope, perm Permission) error {
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
@@ -419,6 +451,13 @@ func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID strin
 	}
 	if scope == ScopeDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 		return fmt.Errorf("permission %s does not apply at direct-message scope", perm)
+	}
+	return nil
+}
+
+func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, roleName string, perm Permission, state PermissionState, authorize func() error) error {
+	if err := validatePermissionDecisionScope(scope, perm); err != nil {
+		return err
 	}
 
 	var event *evtv1.Event
@@ -460,17 +499,8 @@ func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID strin
 }
 
 func (c *ChattoCore) applyUserPermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, userID string, perm Permission, state PermissionState, authorize func() error) error {
-	if err := ValidatePermission(perm); err != nil {
+	if err := validatePermissionDecisionScope(scope, perm); err != nil {
 		return err
-	}
-	if scope == ScopeRoom && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room scope", perm)
-	}
-	if scope == ScopeGroup && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at group scope", perm)
-	}
-	if scope == ScopeDM && !PermissionAppliesAtScope(perm, ScopeDM) {
-		return fmt.Errorf("permission %s does not apply at direct-message scope", perm)
 	}
 
 	var event *evtv1.Event

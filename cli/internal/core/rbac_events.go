@@ -167,6 +167,23 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *evtv1.Event, ch
 // authorization and validates the cross-aggregate inputs before appending with
 // RBAC OCC. Unrelated chat traffic does not affect the RBAC commit boundary.
 func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *evtv1.Event, check func() error) (uint64, error) {
+	return c.appendRBACEventAtStableRoomInputs(ctx, event, func() error {
+		if requireExistingUser {
+			if _, err := c.GetUser(ctx, userID); err != nil {
+				return err
+			}
+		}
+		if check != nil {
+			return check()
+		}
+		return nil
+	})
+}
+
+// appendRBACEventAtStableRoomInputs is appendRBACEvent for authorization that
+// inspects permission scopes in more than one room, such as the complete
+// decision set of a role. It also stabilizes the room catalog.
+func (c *ChattoCore) appendRBACEventAtStableRoomInputs(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 
 	for attempt := range maxRBACMutationRetries {
@@ -178,17 +195,7 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
 
-		if err := c.authorizeAtStableRoomInputs(ctx, func() error {
-			if requireExistingUser {
-				if _, err := c.GetUser(ctx, userID); err != nil {
-					return err
-				}
-			}
-			if check != nil {
-				return check()
-			}
-			return nil
-		}); err != nil {
+		if err := c.authorizeAtStableRoomInputs(ctx, check); err != nil {
 			return 0, err
 		}
 		subject := rbacSubjectForEvent(event)
@@ -216,7 +223,7 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-	return 0, fmt.Errorf("role assignment OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+	return 0, fmt.Errorf("RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
 func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {

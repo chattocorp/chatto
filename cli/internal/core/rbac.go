@@ -722,7 +722,9 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 
 // DeleteServerRole deletes a custom role and all its associated data.
 // This includes: the role definition, all permission grants, and all user assignments.
-// System roles (owner, admin, moderator, everyone) cannot be deleted.
+// System roles (owner, admin, moderator, everyone) cannot be deleted. Deletion
+// revokes the role from every holder, so a non-system actor needs the same
+// authority as for revocation: every permission that the role allows or denies.
 func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string) error {
 	if IsSystemRole(name) {
 		return ErrCannotDeleteSystemRole
@@ -731,11 +733,11 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDeleted{
 		RbacRoleDeleted: &evtv1.RbacRoleDeletedEvent{RoleName: name},
 	}})
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
+	if _, err := c.appendRBACEventAtStableRoomInputs(ctx, event, func() error {
 		if !c.rbacModel.roleExists(name) {
 			return ErrRoleNotFound
 		}
-		return nil
+		return c.requireRoleDeletionWithinAuthority(ctx, actorID, name)
 	}); err != nil {
 		return err
 	}

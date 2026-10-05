@@ -1,0 +1,261 @@
+package core
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"hmans.de/chatto/internal/authctx"
+)
+
+func createPermissionEditUser(t *testing.T, core *ChattoCore, ctx context.Context, login string) string {
+	t.Helper()
+	user, err := core.CreateUser(ctx, SystemActorID, login, login, "password")
+	if err != nil {
+		t.Fatalf("CreateUser %s: %v", login, err)
+	}
+	return user.Id
+}
+
+func createPermissionEditRoom(t *testing.T, core *ChattoCore, ctx context.Context, name string) string {
+	t.Helper()
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	if err != nil || len(groups) == 0 {
+		t.Fatalf("ListRoomGroupsOrdered: groups=%d err=%v", len(groups), err)
+	}
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, groups[0].GetId(), name, "")
+	if err != nil {
+		t.Fatalf("CreateRoom %s: %v", name, err)
+	}
+	return room.Id
+}
+
+func TestDelegatedUserPermissionEditsStayWithinAuthority(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor := createPermissionEditUser(t, core, ctx, "user-permission-editor")
+	target := createPermissionEditUser(t, core, ctx, "user-permission-target")
+	roomID := createPermissionEditRoom(t, core, ctx, "user-permission-edit-room")
+	if err := core.GrantUserPermission(ctx, SystemActorID, actor, PermUserManagePermissions); err != nil {
+		t.Fatalf("GrantUserPermission user.manage-permissions: %v", err)
+	}
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, roomID, actor, PermMessageManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.manage: %v", err)
+	}
+	server := PermissionTargetScope{Kind: MatrixScopeServer}
+	room := PermissionTargetScope{Kind: MatrixScopeRoom, ID: roomID}
+
+	tests := []struct {
+		name    string
+		subject string
+		scope   PermissionTargetScope
+		perm    Permission
+		state   PermissionState
+		allowed bool
+	}{
+		{"grant beyond authority", target, server, PermRoleManage, PermissionStateAllow, false},
+		{"deny beyond authority", target, server, PermServerManage, PermissionStateDeny, false},
+		{"clear beyond authority", target, server, PermUserDeleteAny, PermissionStateNone, false},
+		{"grant room authority at server scope", target, server, PermMessageManage, PermissionStateAllow, false},
+		{"grant room authority at its room", target, room, PermMessageManage, PermissionStateAllow, true},
+		{"grant held permission", target, server, PermMessageReact, PermissionStateAllow, true},
+		{"deny held permission", target, server, PermMessagePost, PermissionStateDeny, true},
+		{"clear held permission", target, server, PermMessagePost, PermissionStateNone, true},
+		{"grant own held permission", actor, server, PermMessageReact, PermissionStateAllow, false},
+		{"grant own room authority", actor, room, PermMessageManage, PermissionStateAllow, false},
+		{"grant own management authority", actor, server, PermRoleManage, PermissionStateAllow, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scopeKind, scopeID := ScopeServer, ""
+			if tt.scope.Kind == MatrixScopeRoom {
+				scopeKind, scopeID = ScopeRoom, tt.scope.ID
+			}
+			before := core.rbacModel.decision(scopeKind, scopeID, tt.subject, tt.perm)
+			err := core.SetUserPermissionState(ctx, actor, tt.subject, tt.scope, tt.perm, tt.state)
+			if tt.allowed {
+				if err != nil {
+					t.Fatalf("SetUserPermissionState error = %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("SetUserPermissionState error = %v, want permission denied", err)
+			}
+			if after := core.rbacModel.decision(scopeKind, scopeID, tt.subject, tt.perm); after != before {
+				t.Fatalf("decision changed from %s to %s despite denial", before, after)
+			}
+		})
+	}
+}
+
+func TestOwnersMayEditTheirOwnDirectPermissions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner := createPermissionEditUser(t, core, ctx, "self-editing-owner")
+	if err := core.AssignOwnerRole(ctx, owner); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	roomID := createPermissionEditRoom(t, core, ctx, "owner-self-edit-room")
+	scope := PermissionTargetScope{Kind: MatrixScopeRoom, ID: roomID}
+	if err := core.SetUserPermissionState(ctx, owner, owner, scope, PermMessagePost, PermissionStateAllow); err != nil {
+		t.Fatalf("owner self-edit error = %v, want nil", err)
+	}
+	if got := core.rbacModel.decision(ScopeRoom, roomID, owner, PermMessagePost); got != DecisionAllow {
+		t.Fatalf("owner room decision = %s, want allow", got)
+	}
+}
+
+func TestPermissionEditsUseTheActorsPrivilegedModeState(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner := createPermissionEditUser(t, core, ctx, "privileged-permission-owner")
+	target := createPermissionEditUser(t, core, ctx, "privileged-permission-target")
+	if err := core.AssignOwnerRole(ctx, owner); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	credential := func(deadline time.Time) context.Context {
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Kind:                    authctx.RuntimeCredentialKindBearerToken,
+			UserID:                  owner,
+			Handle:                  "permission-edit-session",
+			PrivilegedModeExpiresAt: deadline,
+		})
+	}
+	server := PermissionTargetScope{Kind: MatrixScopeServer}
+
+	if err := core.SetUserPermissionState(credential(time.Time{}), owner, target, server, PermServerManage, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("inactive owner grant error = %v, want permission denied", err)
+	}
+	if err := core.SetUserPermissionState(credential(time.Now().Add(time.Minute)), owner, target, server, PermServerManage, PermissionStateAllow); err != nil {
+		t.Fatalf("active owner grant error = %v, want nil", err)
+	}
+}
+
+func TestDelegatedRolePermissionEditsStayWithinAuthority(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	roleManager := createPermissionEditUser(t, core, ctx, "role-permission-editor")
+	roomManager := createPermissionEditUser(t, core, ctx, "room-permission-editor")
+	roomID := createPermissionEditRoom(t, core, ctx, "role-permission-edit-room")
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "edited", "Edited", "", false); err != nil {
+		t.Fatalf("CreateServerRole edited: %v", err)
+	}
+	if err := core.DenyServerPermission(ctx, SystemActorID, "edited", PermUserDeleteAny); err != nil {
+		t.Fatalf("DenyServerPermission user.delete-any: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, roleManager, PermRoleManage); err != nil {
+		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	}
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, roomID, roomManager, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+	server := PermissionTargetScope{Kind: MatrixScopeServer}
+	room := PermissionTargetScope{Kind: MatrixScopeRoom, ID: roomID}
+
+	tests := []struct {
+		name    string
+		actor   string
+		scope   PermissionTargetScope
+		perm    Permission
+		state   PermissionState
+		allowed bool
+	}{
+		{"role manager grants beyond authority", roleManager, server, PermServerManage, PermissionStateAllow, false},
+		{"role manager clears restriction beyond authority", roleManager, server, PermUserDeleteAny, PermissionStateNone, false},
+		{"role manager grants held permission", roleManager, server, PermMessageReact, PermissionStateAllow, true},
+		{"role manager grants own management authority", roleManager, server, PermRoleManage, PermissionStateAllow, true},
+		{"room manager grants beyond authority", roomManager, room, PermMessageManage, PermissionStateAllow, false},
+		{"room manager grants held room authority", roomManager, room, PermRoomManage, PermissionStateAllow, true},
+		{"room manager denies held permission", roomManager, room, PermMessagePost, PermissionStateDeny, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scopeKind, scopeID := ScopeServer, ""
+			if tt.scope.Kind == MatrixScopeRoom {
+				scopeKind, scopeID = ScopeRoom, tt.scope.ID
+			}
+			before := core.rbacModel.decision(scopeKind, scopeID, "edited", tt.perm)
+			err := core.SetRolePermissionState(ctx, tt.actor, "edited", tt.scope, tt.perm, tt.state)
+			if tt.allowed {
+				if err != nil {
+					t.Fatalf("SetRolePermissionState error = %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("SetRolePermissionState error = %v, want permission denied", err)
+			}
+			if after := core.rbacModel.decision(scopeKind, scopeID, "edited", tt.perm); after != before {
+				t.Fatalf("decision changed from %s to %s despite denial", before, after)
+			}
+		})
+	}
+}
+
+func TestPermissionEditsReportInvalidScopesBeforeAuthority(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor := createPermissionEditUser(t, core, ctx, "invalid-scope-editor")
+	target := createPermissionEditUser(t, core, ctx, "invalid-scope-target")
+	if err := core.AssignServerRole(ctx, SystemActorID, actor, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+	dm := PermissionTargetScope{Kind: MatrixScopeDM}
+
+	if err := core.SetUserPermissionState(ctx, actor, target, dm, PermRoleManage, PermissionStateAllow); err == nil || errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("user DM-scope role.manage error = %v, want scope validation error", err)
+	}
+	if err := core.SetRolePermissionState(ctx, actor, RoleModerator, dm, PermRoleManage, PermissionStateAllow); err == nil || errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("role DM-scope role.manage error = %v, want scope validation error", err)
+	}
+	if err := core.SetUserPermissionState(ctx, actor, target, PermissionTargetScope{Kind: MatrixScopeServer}, Permission("unknown.permission"), PermissionStateAllow); !errors.Is(err, ErrInvalidPermission) {
+		t.Fatalf("unknown permission error = %v, want invalid permission", err)
+	}
+}
+
+func TestDelegatedRoleDeletionStaysWithinAuthority(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor := createPermissionEditUser(t, core, ctx, "role-deleter")
+	if err := core.GrantUserPermission(ctx, SystemActorID, actor, PermRoleManage); err != nil {
+		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	}
+	for _, role := range []struct {
+		name     string
+		decision func(roleName string) error
+		allowed  bool
+	}{
+		{"broader-grant", func(name string) error { return core.GrantServerPermission(ctx, SystemActorID, name, PermServerManage) }, false},
+		{"own-restriction", func(name string) error { return core.DenyServerPermission(ctx, SystemActorID, name, PermMessagePost) }, false},
+		{"held-grant", func(name string) error { return core.GrantServerPermission(ctx, SystemActorID, name, PermMessageReact) }, true},
+	} {
+		t.Run(role.name, func(t *testing.T) {
+			if _, err := core.CreateServerRole(ctx, SystemActorID, role.name, role.name, "", false); err != nil {
+				t.Fatalf("CreateServerRole: %v", err)
+			}
+			if err := role.decision(role.name); err != nil {
+				t.Fatalf("set role decision: %v", err)
+			}
+			if role.name == "own-restriction" {
+				if err := core.AssignServerRole(ctx, SystemActorID, actor, role.name); err != nil {
+					t.Fatalf("AssignServerRole: %v", err)
+				}
+			}
+			err := core.AdminDeleteServerRole(ctx, actor, role.name)
+			if role.allowed {
+				if err != nil {
+					t.Fatalf("AdminDeleteServerRole error = %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("AdminDeleteServerRole error = %v, want permission denied", err)
+			}
+			if !core.rbacModel.roleExists(role.name) {
+				t.Fatal("role was deleted despite denial")
+			}
+		})
+	}
+}

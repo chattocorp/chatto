@@ -295,7 +295,7 @@ authorization, live events, backup and restore, and backend tests.
 
 ## Authorization And RBAC
 
-- Core authorization source of truth lives around `cli/internal/core/permissions.go`,
+- Core authorization source of truth lives around `cli/internal/core/permission.go`,
   `permission_resolver.go`, `can.go`, FDR-001, ADR-040, ADR-096, and ADR-105.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
@@ -334,10 +334,13 @@ authorization, live events, backup and restore, and backend tests.
   DM-scope behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses
   `role.assign`, direct user permissions use `user.manage-permissions`, room
-  bans use `room.ban-member`. A non-owner's role assignment authority is bounded
-  by the target role's explicit scoped permission decisions; assigning requires
-  every allow, revoking requires every allow and deny, and the `owner` role is
-  owner-only.
+  removal uses `room.remove-member`. A non-owner's role assignment authority is
+  bounded by the target role's explicit scoped permission decisions; assigning
+  requires every allow, revoking and deleting a role require every allow and
+  deny, and the `owner` role is owner-only. Changing one role or direct-user
+  decision requires the actor to hold that permission at that scope, and only
+  owners may edit their own direct decisions. Keep these bounds in
+  `role_assignment_authorization.go` and run them inside the RBAC OCC retry.
 - Authorization-sensitive event writes must evaluate authorization inside the
   target aggregate's OCC retry. Request-time authorization is the default. For
   cross-aggregate inputs, capture their authoritative tails, wait for the

@@ -126,13 +126,13 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `call.voice` | All | | Send microphone audio. |
 | `call.camera` | All | | Send camera video. |
 | `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
-| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. |
+| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. A non-owner can change only the settings of permissions that they have at that scope, and can delete only roles whose allows and denies they have. |
 | `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
 | `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
 | `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
-| `user.manage-permissions` | S | Yes | Change the permission settings of one user. |
+| `user.manage-permissions` | S | Yes | Change the permission settings of other users. A non-owner can change only the settings of permissions that they have at that scope. Only owners can change their own settings. |
 | `user.delete-any` | S | Yes | Delete any account. |
 | `user.delete-self` | S | | Delete your own account. |
 | `bot.create` | S | | Create bots that you own. |
@@ -207,6 +207,8 @@ or room-group allows on that user. To remove a user from one room, use
 Allow `room.manage` for a user or role at Room or Room group scope. Add
 `message.manage` and `room.remove-member` at the same scope to let them
 moderate. They must enable privileged mode to use these permissions.
+A room manager can change role permissions only for the permissions that they
+have at that scope.
 
 ### Limit an account to its own conversations
 
@@ -256,6 +258,9 @@ Make these changes on an upgraded server:
   `message.post-in-thread` does not stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
   a more specific scope now overrides them.
+- **Check delegated permission editors.** A user who is not an owner can now
+  change only the permission settings of permissions that they have at that
+  scope. Give these users the permissions that they must manage.
 
 <Aside type="caution">
   Administrators, moderators, and owners must now enable

@@ -1262,6 +1262,18 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
+	// Direct decisions are bounded by the editor's own authority.
+	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
+		UserId:     target.Id,
+		Permission: string(core.PermAdminUsersView),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
+		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("SetUserPermission beyond authority code = %v, want permission denied (err=%v)", errorCode(err), err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermAdminUsersView); err != nil {
+		t.Fatalf("GrantUserPermission admin.view-users: %v", err)
+	}
 	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
 		UserId:     target.Id,
 		Permission: "unknown.permission",
