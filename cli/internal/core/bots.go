@@ -496,6 +496,16 @@ func (c *ChattoCore) CreateBotWithExplicitPermissions(ctx context.Context, actor
 // a decision that changes before the batch commits only leaves a dormant
 // grant, the same as a later loss of the owner's permission.
 func (c *ChattoCore) ownerEntitledBotDefaults(ctx context.Context, ownerID string) ([]botPermissionGrant, error) {
+	// Read the RBAC tail first, so a grant to the owner on another replica is
+	// not missed.
+	filter := evtstream.RBACSubjectFilter()
+	seq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("read RBAC tail: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
+		return nil, fmt.Errorf("wait for RBAC projection: %w", err)
+	}
 	grants := make([]botPermissionGrant, 0, len(defaultBotPermissions))
 	for _, grant := range defaultBotPermissions {
 		kind := KindChannel
