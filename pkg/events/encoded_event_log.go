@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	mrand "math/rand/v2"
 	"strconv"
 	"sync"
 	"time"
@@ -176,20 +177,34 @@ func (l *EncodedEventLog) AppendEventually(ctx context.Context, subject string, 
 			return 0, err
 		}
 
+		lastErr = err
+		if attempt == maxAppendRetries {
+			break
+		}
 		l.logger.Debug("OCC conflict, retrying",
 			"subject", subject,
 			"expected_seq", expectedSeq,
 			"attempt", attempt,
 			"max_attempts", maxAppendRetries)
-		lastErr = err
-		if attempt == maxAppendRetries {
-			break
-		}
 		if err := waitBeforeConflictRetry(ctx, attempt); err != nil {
 			return 0, err
 		}
 	}
 	return 0, fmt.Errorf("append after %d attempts: %w", maxAppendRetries, lastErr)
+}
+
+// waitBeforeConflictRetry waits before OCC conflict retry attempt+1. The delay
+// doubles from 1ms per attempt, plus up to 5ms of jitter so that contending
+// writers do not retry in lockstep.
+func waitBeforeConflictRetry(ctx context.Context, attempt int) error {
+	timer := time.NewTimer(time.Duration(1<<(attempt-1))*time.Millisecond + mrand.N(5*time.Millisecond))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // AppendAt publishes a record with a caller-supplied expected last sequence
