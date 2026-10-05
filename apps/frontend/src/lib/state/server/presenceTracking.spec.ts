@@ -52,4 +52,21 @@ describe('frontend presence tracking', () => {
     stop = undefined;
     await expect(setPresenceStatus(scope, PresenceStatus.ONLINE)).rejects.toThrow('not connected');
   });
+
+  it('keeps the newer tracker active when an older one stops', async () => {
+    const api = reporter();
+    const older = initPresenceTracking(() => [api]);
+    const newer = initPresenceTracking(() => [api]);
+    stop = () => {
+      older.stop();
+      newer.stop();
+    };
+
+    older.stop();
+    newer.sync();
+    await settle();
+
+    await setPresenceStatus(scope, PresenceStatus.AWAY);
+    expect(api.setPreference).toHaveBeenLastCalledWith(PresenceStatus.AWAY, expect.any(String));
+  });
 });
