@@ -146,7 +146,7 @@ func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID
 		return events.StreamPosition{}, ErrInvalidArgument
 	}
 	agg := evtstream.OAuthClientAggregate(clientID)
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
 		if err != nil {
 			return events.StreamPosition{}, err
@@ -210,7 +210,7 @@ func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clien
 	}
 	clientID = strings.TrimSpace(clientID)
 	agg := evtstream.OAuthClientAggregate(clientID)
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
 		if err != nil {
 			return OAuthClientState{}, err

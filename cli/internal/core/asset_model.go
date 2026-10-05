@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"slices"
 	"strings"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -203,8 +205,7 @@ func (s *AssetModel) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorI
 
 	for _, ref := range owned {
 		subtree := s.AssetSubtreeIDs(ref.AssetID)
-		for i := len(subtree) - 1; i >= 0; i-- {
-			assetID := subtree[i]
+		for _, assetID := range slices.Backward(subtree) {
 			if assetID == "" {
 				continue
 			}
@@ -720,7 +721,7 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 	if assetID == "" {
 		return fmt.Errorf("asset event missing asset id")
 	}
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		agg := evtstream.AssetAggregate(assetID)
 		filter := agg.AllEventsFilter()
 		tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)

@@ -256,7 +256,7 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 
 	if _, err := env.users.UpdateUserProfile(env.ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      env.viewer.Id,
-		DisplayName: stringPtr("No Auth"),
+		DisplayName: new("No Auth"),
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateUserProfile code = %v, want unauthenticated", errorCode(err))
 	}
@@ -266,9 +266,9 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 
 	profileResp, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      env.viewer.Id,
-		DisplayName: stringPtr("Connect Profile"),
-		Login:       stringPtr("connect-profile"),
-		Bio:         stringPtr("Connect profile bio"),
+		DisplayName: new("Connect Profile"),
+		Login:       new("connect-profile"),
+		Bio:         new("Connect profile bio"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateUserProfile: %v", err)
@@ -285,7 +285,7 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 	if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: env.viewer.Id,
-		Login:  stringPtr("connect-profile-blocked"),
+		Login:  new("connect-profile-blocked"),
 	})); errorCode(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("UpdateUserProfile during cooldown code = %v, want failed precondition (err=%v)", errorCode(err), err)
 	}
@@ -294,7 +294,7 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 	bypassResp, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: env.viewer.Id,
-		Login:  stringPtr("connect-profile-bypass"),
+		Login:  new("connect-profile-bypass"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateUserProfile with own cooldown bypass: %v", err)
@@ -696,7 +696,7 @@ func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
 			ctx := withArmedBearerCredential(env.ctx, user, token)
 			resp, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 				UserId: user.Id,
-				Login:  stringPtr("self-manager-second"),
+				Login:  new("self-manager-second"),
 			}))
 			if err != nil {
 				t.Fatalf("admin self rename during cooldown: %v", err)
@@ -724,13 +724,13 @@ func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
 			// self-service cooldown rules again.
 			if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 				UserId: user.Id,
-				Login:  stringPtr("self-manager-third"),
+				Login:  new("self-manager-third"),
 			})); err != nil {
 				t.Fatalf("self rename after permission denial: %v", err)
 			}
 			if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 				UserId: user.Id,
-				Login:  stringPtr("self-manager-denied"),
+				Login:  new("self-manager-denied"),
 			})); errorCode(err) != connect.CodeFailedPrecondition {
 				t.Fatalf("second self rename after permission denial = %v, want failed_precondition", err)
 			}
@@ -756,7 +756,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 
 	if _, err := env.users.UpdateUserProfile(env.ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
-		DisplayName: stringPtr("No Auth"),
+		DisplayName: new("No Auth"),
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateUserProfile code = %v, want unauthenticated", errorCode(err))
 	}
@@ -773,7 +773,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	if _, err := env.users.UpdateUserProfile(withCaller(env.ctx, regular), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
-		DisplayName: stringPtr("Denied"),
+		DisplayName: new("Denied"),
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular UpdateUserProfile code = %v, want permission_denied", errorCode(err))
 	}
@@ -793,7 +793,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	if _, err := env.users.UpdateUserProfile(withCaller(env.ctx, regular), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId: regular.Id,
-		Login:  stringPtr("admin-user-regular-bypass"),
+		Login:  new("admin-user-regular-bypass"),
 	})); errorCode(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("regular self UpdateUserProfile during cooldown code = %v, want failed_precondition", errorCode(err))
 	}
@@ -837,7 +837,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	accountUpdateResp, err := env.users.UpdateUserProfile(withCaller(env.ctx, accountManager), connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
-		DisplayName: stringPtr("Account Managed Target"),
+		DisplayName: new("Account Managed Target"),
 	}))
 	if err != nil {
 		t.Fatalf("account manager UpdateUserProfile: %v", err)
@@ -909,8 +909,8 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	resp, err := env.users.UpdateUserProfile(adminCtx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
 		UserId:      target.Id,
-		DisplayName: stringPtr("Managed Target"),
-		Login:       stringPtr("managed-target"),
+		DisplayName: new("Managed Target"),
+		Login:       new("managed-target"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateUserProfile: %v", err)
@@ -1200,7 +1200,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("role.assign-only AssignRole: %v", err)
 	}
-	if !stringSliceContains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+	if !slices.Contains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("role.assign-only AssignRole response = %+v, want assigned moderator", roleAssignerResp.Msg)
 	}
 	if roleAssignerResp.Msg.GetMember().GetHasVerifiedEmail() || len(roleAssignerResp.Msg.GetMember().GetVerifiedEmails()) != 0 || roleAssignerResp.Msg.GetMember().PrimaryVerifiedEmail != nil {
@@ -1213,7 +1213,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("role.assign-only RevokeRole: %v", err)
 	}
-	if stringSliceContains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+	if slices.Contains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("role.assign-only RevokeRole response = %+v, want revoked moderator", roleAssignerRevokeResp.Msg)
 	}
 	if _, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
@@ -1229,7 +1229,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMember assignment limits: %v", err)
 	}
-	if !memberDetails.Msg.GetRoleAssignmentLimitsEnforced() || !stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleModerator) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleOwner) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleEveryone) || stringSliceContains(memberDetails.Msg.GetRevocableRoleNames(), core.RoleEveryone) {
+	if !memberDetails.Msg.GetRoleAssignmentLimitsEnforced() || !slices.Contains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleModerator) || slices.Contains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleOwner) || slices.Contains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleEveryone) || slices.Contains(memberDetails.Msg.GetRevocableRoleNames(), core.RoleEveryone) {
 		t.Fatalf("assignment limits = enforced:%v assignable:%v revocable:%v, want moderator but neither owner nor everyone", memberDetails.Msg.GetRoleAssignmentLimitsEnforced(), memberDetails.Msg.GetAssignableRoleNames(), memberDetails.Msg.GetRevocableRoleNames())
 	}
 
@@ -1240,7 +1240,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AssignRole: %v", err)
 	}
-	if !stringSliceContains(assignResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+	if !slices.Contains(assignResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("AssignRole response = %+v, want assigned moderator", assignResp.Msg)
 	}
 	roles, err := env.core.GetUserRoles(env.ctx, target.Id)
@@ -1258,7 +1258,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RevokeRole: %v", err)
 	}
-	if stringSliceContains(revokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+	if slices.Contains(revokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("RevokeRole response = %+v, want revoked moderator", revokeResp.Msg)
 	}
 	roles, err = env.core.GetUserRoles(env.ctx, target.Id)
@@ -1280,7 +1280,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	env.api.config = config.ChattoConfig{
-		Auth: config.AuthConfig{DirectRegistration: boolPtr(false)},
+		Auth: config.AuthConfig{DirectRegistration: new(false)},
 		Push: config.PushConfig{
 			Enabled:         true,
 			VAPIDPublicKey:  "test-public-key",
@@ -1353,7 +1353,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 
 	if _, err := env.serverState.UpdateServerConfig(env.ctx, connect.NewRequest(&adminv1.UpdateServerConfigRequest{
-		ServerName: stringPtr("Nope"),
+		ServerName: new("Nope"),
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateServerConfig code = %v, want unauthenticated", errorCode(err))
 	}
@@ -1362,7 +1362,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	}
 
 	if _, err := env.serverState.UpdateServerConfig(ctx, connect.NewRequest(&adminv1.UpdateServerConfigRequest{
-		ServerName: stringPtr("Nope"),
+		ServerName: new("Nope"),
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("UpdateServerConfig without permission code = %v, want permission denied", errorCode(err))
 	}
@@ -1383,10 +1383,10 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	}
 
 	resp, err := env.serverState.UpdateServerConfig(ctx, connect.NewRequest(&adminv1.UpdateServerConfigRequest{
-		ServerName:     stringPtr("Connect Settings"),
-		Description:    stringPtr("Description from Connect"),
-		Motd:           stringPtr("MOTD from Connect"),
-		WelcomeMessage: stringPtr("Welcome from Connect"),
+		ServerName:     new("Connect Settings"),
+		Description:    new("Description from Connect"),
+		Motd:           new("MOTD from Connect"),
+		WelcomeMessage: new("Welcome from Connect"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateServerConfig: %v", err)
@@ -1413,7 +1413,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	}
 
 	if _, err := env.serverState.UpdateServerConfig(ctx, connect.NewRequest(&adminv1.UpdateServerConfigRequest{
-		Description: stringPtr("Updated description only"),
+		Description: new("Updated description only"),
 	})); err != nil {
 		t.Fatalf("partial UpdateServerConfig: %v", err)
 	}

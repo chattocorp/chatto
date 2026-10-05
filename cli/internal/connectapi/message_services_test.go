@@ -925,7 +925,7 @@ func TestMessageServiceCreateMessageBroadMentionWithAttachment(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 
 	const targetCount = 12
-	for i := 0; i < targetCount; i++ {
+	for i := range targetCount {
 		user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "large-mention-target-"+strconv.Itoa(i), "Large Mention Target", "password")
 		if err != nil {
 			t.Fatalf("CreateUser target %d: %v", i, err)
@@ -1314,7 +1314,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(env.ctx, connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
 		EventId: original.Id,
-		Body:    stringPtr("ignored"),
+		Body:    new("ignored"),
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateMessage code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
@@ -1326,7 +1326,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
 		EventId: original.Id,
-		Body:    stringPtr("ignored"),
+		Body:    new("ignored"),
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider UpdateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
@@ -1341,7 +1341,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, other), connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
 		EventId: original.Id,
-		Body:    stringPtr("ignored"),
+		Body:    new("ignored"),
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("member without manage UpdateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
@@ -1349,7 +1349,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	authorResp, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
 		EventId: original.Id,
-		Body:    stringPtr("author edit"),
+		Body:    new("author edit"),
 	}))
 	if err != nil {
 		t.Fatalf("author UpdateMessage: %v", err)
@@ -1369,7 +1369,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
 		EventId: original.Id,
-		Body:    stringPtr("hidden edit"),
+		Body:    new("hidden edit"),
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("UpdateMessage without message.read code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
@@ -1387,7 +1387,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:            room.Id,
 		EventId:           original.Id,
-		Body:              stringPtr("invalid echo edit"),
+		Body:              new("invalid echo edit"),
 		AlsoSendToChannel: &echo,
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("root echo-state UpdateMessage code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
@@ -1407,7 +1407,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, moderator), connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
 		EventId: moderated.Id,
-		Body:    stringPtr("moderator edit"),
+		Body:    new("moderator edit"),
 	})); err != nil {
 		t.Fatalf("moderator UpdateMessage: %v", err)
 	}
@@ -1419,7 +1419,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.UpdateMessage(withCaller(env.ctx, moderator), connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:            room.Id,
 		EventId:           moderated.Id,
-		Body:              stringPtr("moderator echo edit"),
+		Body:              new("moderator echo edit"),
 		AlsoSendToChannel: &echo,
 	})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("moderator echo UpdateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)

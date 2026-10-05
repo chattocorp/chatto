@@ -75,13 +75,7 @@ func operatorRoomListCmd() *cobra.Command {
 			if offset < 0 {
 				return errors.New("--offset must be greater than or equal to 0")
 			}
-			requestLimit := limit
-			if requestLimit < 0 {
-				requestLimit = 0
-			}
-			if requestLimit > 100 {
-				requestLimit = 100
-			}
+			requestLimit := min(max(limit, 0), 100)
 			client, err := newOperatorRoomClient()
 			if err != nil {
 				return err

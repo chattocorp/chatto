@@ -200,7 +200,7 @@ func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (
 		return InvitationState{}, err
 	}
 	agg := evtstream.InvitationAggregate(id)
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
 		if err != nil {
 			return InvitationState{}, err

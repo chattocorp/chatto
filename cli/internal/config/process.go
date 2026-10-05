@@ -415,8 +415,8 @@ func validateAbsoluteHTTPSURL(name, raw string) error {
 func hostnameEndsInNumber(hostname string) bool {
 	labels := strings.Split(strings.TrimSuffix(hostname, "."), ".")
 	last := labels[len(labels)-1]
-	if strings.HasPrefix(last, "0x") {
-		last = strings.TrimPrefix(last, "0x")
+	if after, ok := strings.CutPrefix(last, "0x"); ok {
+		last = after
 		if last == "" {
 			return false
 		}

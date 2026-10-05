@@ -1299,8 +1299,8 @@ func TestCompositeGIFFrames_NilDisposal(t *testing.T) {
 	}
 
 	// Fill frames
-	for x := 0; x < 10; x++ {
-		for y := 0; y < 10; y++ {
+	for x := range 10 {
+		for y := range 10 {
 			g.Image[0].SetColorIndex(x, y, 1) // red
 			g.Image[1].SetColorIndex(x, y, 2) // green
 		}

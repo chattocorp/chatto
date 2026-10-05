@@ -3,6 +3,7 @@ package lease
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,7 +20,7 @@ type captureLeaseLogger struct {
 	messages []string
 }
 
-func (l *captureLeaseLogger) record(msg interface{}) {
+func (l *captureLeaseLogger) record(msg any) {
 	message, ok := msg.(string)
 	if !ok {
 		return
@@ -29,20 +30,15 @@ func (l *captureLeaseLogger) record(msg interface{}) {
 	l.messages = append(l.messages, message)
 }
 
-func (l *captureLeaseLogger) Debug(msg interface{}, _ ...interface{}) { l.record(msg) }
-func (l *captureLeaseLogger) Info(msg interface{}, _ ...interface{})  { l.record(msg) }
-func (l *captureLeaseLogger) Warn(msg interface{}, _ ...interface{})  { l.record(msg) }
-func (l *captureLeaseLogger) Error(msg interface{}, _ ...interface{}) { l.record(msg) }
+func (l *captureLeaseLogger) Debug(msg any, _ ...any) { l.record(msg) }
+func (l *captureLeaseLogger) Info(msg any, _ ...any)  { l.record(msg) }
+func (l *captureLeaseLogger) Warn(msg any, _ ...any)  { l.record(msg) }
+func (l *captureLeaseLogger) Error(msg any, _ ...any) { l.record(msg) }
 
 func (l *captureLeaseLogger) contains(want string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	for _, message := range l.messages {
-		if message == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(l.messages, want)
 }
 
 func setupLeaseTest(t *testing.T) (context.Context, jetstream.JetStream, jetstream.KeyValue) {

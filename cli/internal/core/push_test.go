@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"sync"
 	"testing"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -654,13 +655,11 @@ func TestConcurrentPushEndpointOwnershipClaimsHaveOneWinner(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for _, userID := range users {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			_, err := core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser")
 			errs <- err
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -702,13 +701,11 @@ func TestConcurrentSameUserPushSavesKeepLatestRecordActive(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for _, auth := range []string{"auth-a", "auth-b"} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			_, err := core.SavePushSubscription(ctx, userID, endpoint, "key", auth, "browser")
 			errs <- err
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -796,7 +793,7 @@ func TestDeleteAllUserPushSubscriptions(t *testing.T) {
 
 	t.Run("deletes all subscriptions for user", func(t *testing.T) {
 		// Create multiple subscriptions
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			endpoint := "https://push.example.com/device" + string(rune('a'+i))
 			_, _ = core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser")
 		}
@@ -814,7 +811,7 @@ func TestDeleteAllUserPushSubscriptions(t *testing.T) {
 		if len(subs) != 0 {
 			t.Errorf("Expected 0 remaining, got %d", len(subs))
 		}
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			endpoint := "https://push.example.com/device" + string(rune('a'+i))
 			owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint)
 			if err != nil {

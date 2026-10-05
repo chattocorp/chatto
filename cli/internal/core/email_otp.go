@@ -97,7 +97,7 @@ func (c *ChattoCore) createEmailOTP(ctx context.Context, scope, subject string, 
 	var code string
 	var codeKey string
 	var codeRevision uint64
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		code, err = NewVerificationCode()
 		if err != nil {
 			_ = c.rollbackEmailOTPIssuance(ctx, challengeKey, challengeRevision, challengeCreated, ttl)
@@ -180,7 +180,7 @@ func (c *ChattoCore) consumeEmailOTPCode(ctx context.Context, scope, subject str
 
 func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject string, now time.Time, ttl time.Duration) (string, uint64, bool, error) {
 	key := c.emailOTPChallengeKey(scope, subject)
-	for i := 0; i < emailOTPWriteMaxRetries; i++ {
+	for range emailOTPWriteMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if !isRuntimeStateKeyAbsent(err) {
@@ -289,7 +289,7 @@ func (c *ChattoCore) cancelEmailOTP(ctx context.Context, scope, subject, code st
 
 func (c *ChattoCore) decrementEmailOTPIssuance(ctx context.Context, scope, subject string, ttl time.Duration) error {
 	key := c.emailOTPChallengeKey(scope, subject)
-	for i := 0; i < emailOTPWriteMaxRetries; i++ {
+	for range emailOTPWriteMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if isRuntimeStateKeyAbsent(err) {
@@ -363,7 +363,7 @@ func (c *ChattoCore) recordEmailOTPFailure(ctx context.Context, scope, subject s
 	}
 
 	key := c.emailOTPChallengeKey(scope, subject)
-	for i := 0; i < emailOTPWriteMaxRetries; i++ {
+	for range emailOTPWriteMaxRetries {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			if isRuntimeStateKeyAbsent(err) {

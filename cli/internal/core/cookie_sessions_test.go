@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"sync"
 	"testing"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -156,13 +157,11 @@ func TestChattoCore_MigrateLegacyCookieSessionAddsExpiryOnce(t *testing.T) {
 	errs := make(chan error, callers)
 	var wait sync.WaitGroup
 	for range callers {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			record, migrateErr := core.MigrateLegacyCookieSession(ctx, sessionID, now)
 			results <- record
 			errs <- migrateErr
-		}()
+		})
 	}
 	wait.Wait()
 	close(results)
@@ -261,12 +260,10 @@ func TestChattoCore_ConcurrentCookieRenewalKeepsOneStableHandle(t *testing.T) {
 	var wait sync.WaitGroup
 	errs := make(chan error, 2)
 	for range 2 {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			_, _, renewErr := core.RenewCookieSession(ctx, sessionID, now)
 			errs <- renewErr
-		}()
+		})
 	}
 	wait.Wait()
 	close(errs)
@@ -295,7 +292,7 @@ func TestChattoCore_LogoutDeleteFencesConcurrentCookieRenewal(t *testing.T) {
 		t.Fatalf("CreateUser: %v", err)
 	}
 
-	for attempt := 0; attempt < 20; attempt++ {
+	for attempt := range 20 {
 		sessionID, created, err := core.CreateCookieSession(ctx, user.GetId(), "password_login")
 		if err != nil {
 			t.Fatalf("CreateCookieSession attempt %d: %v", attempt, err)

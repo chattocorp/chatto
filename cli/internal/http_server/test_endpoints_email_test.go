@@ -38,7 +38,7 @@ func TestAuthRoutes_TestEmailEndpoint(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", emailResp.StatusCode)
 	}
 
-	var emailResult map[string]interface{}
+	var emailResult map[string]any
 	if err := json.NewDecoder(emailResp.Body).Decode(&emailResult); err != nil {
 		t.Fatalf("Failed to decode email response: %v", err)
 	}

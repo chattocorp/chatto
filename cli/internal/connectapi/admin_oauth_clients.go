@@ -31,10 +31,7 @@ func (s *adminOAuthClientService) ListOAuthClients(ctx context.Context, req *con
 	if offset > total {
 		offset = total
 	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
+	end := min(offset+limit, total)
 	clients := make([]*adminv1.OAuthClient, 0, end-offset)
 	for _, state := range states[offset:end] {
 		clients = append(clients, apiOAuthClient(state))

@@ -343,7 +343,7 @@ func TestChattoCore_BroadMentionPostsNormally(t *testing.T) {
 	}
 
 	const targetCount = 12
-	for i := 0; i < targetCount; i++ {
+	for i := range targetCount {
 		user, err := core.CreateUser(ctx, "system", "large-target-"+string(rune('a'+i)), "Target", "password123")
 		if err != nil {
 			t.Fatalf("CreateUser target %d: %v", i, err)

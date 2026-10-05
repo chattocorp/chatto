@@ -30,13 +30,11 @@ func TestChattoCore_ExchangeAuthCodeConcurrentSingleUse(t *testing.T) {
 	results := make(chan error, attempts)
 	var wg sync.WaitGroup
 	for range attempts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			_, _, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
 			results <- err
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

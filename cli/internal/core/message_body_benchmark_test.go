@@ -70,7 +70,7 @@ func setupMessageBodyBenchmarkPage(b *testing.B, authorCount, messageCount int) 
 	ctx := context.Background()
 
 	authors := make([]string, 0, authorCount)
-	for i := 0; i < authorCount; i++ {
+	for i := range authorCount {
 		user, err := core.CreateUser(ctx, "system", fmt.Sprintf("benchuser%d", i), fmt.Sprintf("Bench User %d", i), "password123")
 		require.NoError(b, err)
 		authors = append(authors, user.Id)
@@ -85,7 +85,7 @@ func setupMessageBodyBenchmarkPage(b *testing.B, authorCount, messageCount int) 
 
 	body := strings.Repeat("message body content ", 8)
 	eventIDs := make([]string, 0, messageCount)
-	for i := 0; i < messageCount; i++ {
+	for i := range messageCount {
 		authorID := authors[i%len(authors)]
 		event, err := core.PostMessage(ctx, KindChannel, room.Id, authorID, body, nil, "", "", nil, false)
 		require.NoError(b, err)

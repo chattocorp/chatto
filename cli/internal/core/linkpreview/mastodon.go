@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -410,10 +411,8 @@ func mastodonHTMLText(source string) string {
 func hasHTMLClass(node *html.Node, className string) bool {
 	for _, attr := range node.Attr {
 		if attr.Key == "class" {
-			for _, value := range strings.Fields(attr.Val) {
-				if value == className {
-					return true
-				}
+			if slices.Contains(strings.Fields(attr.Val), className) {
+				return true
 			}
 		}
 	}

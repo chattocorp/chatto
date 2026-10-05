@@ -5,7 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -73,7 +74,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 		next.observedSequence = next.targetSequence
 	}
 	key := notificationReadBoundaryKey(userID, roomID, threadRootEventID)
-	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
+	for range maxNotificationStateWriteRetries {
 		current, err := m.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			if revision, err := m.kv.Create(ctx, key, encodeNotificationReadBoundary(next), jetstream.KeyTTL(notificationTTL)); err == nil {

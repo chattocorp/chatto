@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"slices"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
@@ -75,7 +76,7 @@ func (s *messageService) reactionSummary(ctx context.Context, viewerID, roomID, 
 		return &apiv1.MessageReaction{
 			Emoji:          summary.Emoji,
 			Count:          int32(len(summary.UserIDs)),
-			HasReacted:     containsString(summary.UserIDs, viewerID),
+			HasReacted:     slices.Contains(summary.UserIDs, viewerID),
 			PreviewUserIds: userIDs,
 		}
 	}

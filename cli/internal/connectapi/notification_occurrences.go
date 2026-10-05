@@ -3,8 +3,10 @@ package connectapi
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"slices"
 	"sort"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -237,13 +239,11 @@ func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.C
 }
 
 func requireSupportedNotificationSignals(occurrences ...*notificationv1.NotificationOccurrence) error {
-	for _, occurrence := range occurrences {
-		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
-			return connect.NewError(
-				connect.CodeUnimplemented,
-				errors.New("notification signal is not supported by this server version"),
-			)
-		}
+	if slices.ContainsFunc(occurrences, core.NotificationOccurrenceHasUnsupportedSignal) {
+		return connect.NewError(
+			connect.CodeUnimplemented,
+			errors.New("notification signal is not supported by this server version"),
+		)
 	}
 	return nil
 }

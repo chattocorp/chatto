@@ -344,10 +344,8 @@ func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T
 	start := make(chan struct{})
 	errs := make(chan error, goroutineCount)
 	var wg sync.WaitGroup
-	for i := 0; i < goroutineCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range goroutineCount {
+		wg.Go(func() {
 			<-start
 			dek, err := resolver.Resolve(ctx, event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 			if err != nil {
@@ -359,7 +357,7 @@ func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T
 				return
 			}
 			errs <- nil
-		}()
+		})
 	}
 
 	close(start)

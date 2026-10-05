@@ -34,12 +34,10 @@ func TestChattoCore_ResetPasswordConcurrentSingleUse(t *testing.T) {
 	results := make(chan error, attempts)
 	var wg sync.WaitGroup
 	for range attempts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			results <- core.ResetPassword(ctx, token, string(hash))
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -76,16 +74,14 @@ func TestChattoCore_CreatePasswordResetTokenThrottlesConcurrentRequests(t *testi
 	results := make(chan error, attempts)
 	var wg sync.WaitGroup
 	for range attempts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			token, err := core.CreatePasswordResetToken(ctx, "reset-throttle@example.com")
 			if err == nil && token == "" {
 				err = errors.New("successful request returned empty token")
 			}
 			results <- err
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

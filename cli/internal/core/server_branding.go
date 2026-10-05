@@ -70,7 +70,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 		c.logger.Info("Uploaded server "+kind+" to S3", "asset_id", assetID, "size", len(webpData))
 		asset.Storage = &evtv1.AssetRecord_S3{S3: &evtv1.S3Asset{
 			Key:    assetID,
-			Bucket: proto.String(c.s3Client.Bucket()),
+			Bucket: new(c.s3Client.Bucket()),
 		}}
 		return asset, nil
 	}

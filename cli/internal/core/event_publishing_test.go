@@ -124,7 +124,7 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
 	if _, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-		ActorID: user.Id, RoomID: room.Id, Name: proto.String("serverevents_room_2"), Description: proto.String("updated"),
+		ActorID: user.Id, RoomID: room.Id, Name: new("serverevents_room_2"), Description: new("updated"),
 	}); err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}

@@ -44,10 +44,10 @@ var (
 )
 
 type Logger interface {
-	Debug(msg interface{}, keyvals ...interface{})
-	Info(msg interface{}, keyvals ...interface{})
-	Warn(msg interface{}, keyvals ...interface{})
-	Error(msg interface{}, keyvals ...interface{})
+	Debug(msg any, keyvals ...any)
+	Info(msg any, keyvals ...any)
+	Warn(msg any, keyvals ...any)
+	Error(msg any, keyvals ...any)
 }
 
 type Options struct {
@@ -459,14 +459,14 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func (l *Lease) logDebug(msg interface{}, keyvals ...interface{}) {
+func (l *Lease) logDebug(msg any, keyvals ...any) {
 	if l.logger != nil {
-		l.logger.Debug(msg, append([]interface{}{"lease", l.name, "owner_id", l.ownerID}, keyvals...)...)
+		l.logger.Debug(msg, append([]any{"lease", l.name, "owner_id", l.ownerID}, keyvals...)...)
 	}
 }
 
-func (l *Lease) logWarn(msg interface{}, keyvals ...interface{}) {
+func (l *Lease) logWarn(msg any, keyvals ...any) {
 	if l.logger != nil {
-		l.logger.Warn(msg, append([]interface{}{"lease", l.name, "owner_id", l.ownerID}, keyvals...)...)
+		l.logger.Warn(msg, append([]any{"lease", l.name, "owner_id", l.ownerID}, keyvals...)...)
 	}
 }

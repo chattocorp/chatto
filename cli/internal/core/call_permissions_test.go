@@ -278,8 +278,7 @@ func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
 	var group sync.WaitGroup
 	results := make(chan error, 2)
 	for _, replica := range []*ChattoCore{first, second} {
-		group.Add(1)
-		go func() { defer group.Done(); results <- replica.seedUpgradePermissions(ctx) }()
+		group.Go(func() { results <- replica.seedUpgradePermissions(ctx) })
 	}
 	group.Wait()
 	close(results)

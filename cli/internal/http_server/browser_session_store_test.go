@@ -36,7 +36,7 @@ func TestBrowserSessionCookieNamesAreBoundedAndStrict(t *testing.T) {
 
 func TestBrowserSessionCookieParsingRejectsAmplification(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "https://chatto.example.test/", nil)
-	for index := 0; index < browserSessionCookieLimit+1; index++ {
+	for index := range browserSessionCookieLimit + 1 {
 		name, err := newBrowserSessionCookieName()
 		if err != nil {
 			t.Fatalf("newBrowserSessionCookieName: %v", err)

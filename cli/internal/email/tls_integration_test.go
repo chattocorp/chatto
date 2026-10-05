@@ -64,17 +64,13 @@ func startTLSProxy(t *testing.T, backend *smtpmock.Server, implicit bool) int {
 		wg.Wait()
 	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				return
 			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				defer conn.Close()
 				_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 				if implicit {
@@ -86,9 +82,9 @@ func startTLSProxy(t *testing.T, backend *smtpmock.Server, implicit bool) int {
 					return
 				}
 				serveSTARTTLS(conn, tlsConfig, backend)
-			}()
+			})
 		}
-	}()
+	})
 
 	return listener.Addr().(*net.TCPAddr).Port
 }

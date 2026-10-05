@@ -34,7 +34,7 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 				Title:       "Story",
 				Description: "Description",
 			},
-			ContentWarning: stringPtr("Spoilers"),
+			ContentWarning: new("Spoilers"),
 			QuotedPost: &evtv1.SocialPostPreview{
 				Provider: "bluesky",
 				Url:      "https://bsky.app/profile/quoted.example/post/quoted",

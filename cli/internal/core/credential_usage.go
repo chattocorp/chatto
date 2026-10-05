@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"maps"
 	"sync"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -141,9 +143,7 @@ func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (l
 	}
 	r.mu.RLock()
 	observed := make(map[string]time.Time, len(r.observed[botID]))
-	for key, observedAt := range r.observed[botID] {
-		observed[key] = observedAt
-	}
+	maps.Copy(observed, r.observed[botID])
 	r.mu.RUnlock()
 
 	lastUsed = make(map[string]time.Time)
@@ -308,7 +308,7 @@ func (r *credentialUsageRecorder) forgetLocal(botID, credentialKey string) {
 
 func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentialKey string, usedAt time.Time) error {
 	key := credentialUsageRuntimeStateKey(botID)
-	for attempt := 0; attempt < 10; attempt++ {
+	for range 10 {
 		entry, err := r.kv.Get(ctx, key)
 		state := &runtimestatev1.CredentialUsageState{LastUsedUnixMillis: make(map[string]int64)}
 		if err != nil {
@@ -347,7 +347,7 @@ func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentia
 
 func (r *credentialUsageRecorder) deletePersisted(ctx context.Context, botID, credentialKey string) error {
 	key := credentialUsageRuntimeStateKey(botID)
-	for attempt := 0; attempt < 10; attempt++ {
+	for range 10 {
 		entry, err := r.kv.Get(ctx, key)
 		if err != nil {
 			if isRuntimeStateKeyAbsent(err) {

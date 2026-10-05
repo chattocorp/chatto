@@ -55,7 +55,7 @@ func TestMessageServiceModeratorEchoRemoval(t *testing.T) {
 				require.NoError(t, env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePost))
 			}
 			response, err := env.messages.UpdateMessage(ctx, connect.NewRequest(&apiv1.UpdateMessageRequest{
-				RoomId: room.Id, EventId: reply.Id, AlsoSendToChannel: boolPtr(false),
+				RoomId: room.Id, EventId: reply.Id, AlsoSendToChannel: new(false),
 			}))
 			if tc.wantRemove {
 				require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestMessageServiceModeratorEchoRemoval(t *testing.T) {
 			// change in the same rejected request must not be committed.
 			_, err = env.messages.UpdateMessage(ctx, connect.NewRequest(&apiv1.UpdateMessageRequest{
 				RoomId: room.Id, EventId: reply.Id,
-				Body: stringPtr("must not land"), AlsoSendToChannel: boolPtr(true),
+				Body: new("must not land"), AlsoSendToChannel: new(true),
 			}))
 			requireConnectCode(t, err, connect.CodePermissionDenied)
 			body, err = env.core.GetMessageBody(env.ctx, reply.Id)
@@ -98,7 +98,7 @@ func TestMessageServiceModeratorEchoRemovalInDM(t *testing.T) {
 	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
 	require.True(t, ok)
 	request := connect.NewRequest(&apiv1.UpdateMessageRequest{
-		RoomId: dm.Id, EventId: reply.Id, AlsoSendToChannel: boolPtr(false),
+		RoomId: dm.Id, EventId: reply.Id, AlsoSendToChannel: new(false),
 	})
 	ctx := withArmedBearerCredential(env.ctx, participant, "echo-participant-session")
 	_, err = env.messages.UpdateMessage(ctx, request)

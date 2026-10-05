@@ -456,6 +456,13 @@ jobs:
         working-directory: authling
         run: mise test
 
+      - name: Lint shared Go modules
+        run: |
+          mise lint-appconfig
+          mise lint-datacrypto
+          mise lint-events
+          mise lint-natsruntime
+
       - name: Run application configuration tests
         run: mise test-appconfig
 
@@ -488,7 +495,7 @@ jobs:
       - name: Build frontend
         run: mise build-frontend
 
-      - name: Vet and check for unused Go code
+      - name: Vet and check Go code for unused code and outdated idioms
         run: mise lint-cli
 
       - name: Verify development data seeding

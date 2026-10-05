@@ -40,7 +40,6 @@ func TestReadStateIndexInitialSnapshotAndReplicaUpdates(t *testing.T) {
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	for _, index := range indexes {
-		index := index
 		go func() {
 			_ = index.Run(runCtx)
 		}()
@@ -208,7 +207,7 @@ func TestReadStateReplicaRacesConvergeWithoutRegression(t *testing.T) {
 	}
 
 	replica := newReadStateReplica(t, core)
-	for n := 0; n < 10; n++ {
+	for n := range 10 {
 		userID := fmt.Sprintf("Uroom-race-%d", n)
 		if err := core.SetLastReadEventID(ctx, KindChannel, userID, room.Id, first.Id); err != nil {
 			t.Fatalf("seed room marker %d: %v", n, err)
@@ -297,7 +296,7 @@ func TestRoomReadMarkerReadsDoNotHitKVPerRoom(t *testing.T) {
 		markerCount = 100
 	)
 	keys := make([]string, 0, markerCount)
-	for n := 0; n < markerCount; n++ {
+	for n := range markerCount {
 		roomID := fmt.Sprintf("Rno-kv-read-%d", n)
 		key := roomReadEventKey(userID, roomID)
 		revision, err := core.storage.runtimeStateKV.Put(ctx, key, []byte("Eindexed"))
@@ -361,7 +360,7 @@ func TestParseReadMarkerKeys(t *testing.T) {
 func BenchmarkReadStateIndexBuild100000Markers(b *testing.B) {
 	const markerCount = 100_000
 	entries := make([]jetstream.KeyValueEntry, 0, markerCount)
-	for n := 0; n < markerCount; n++ {
+	for n := range markerCount {
 		entries = append(entries, benchmarkKVEntry{
 			key:      fmt.Sprintf("read.room.U%d.R%d", n/100, n),
 			value:    []byte("Ebenchmark123"),
@@ -492,7 +491,6 @@ func runConcurrentWrites(t *testing.T, writes ...func() error) {
 	start := make(chan struct{})
 	errs := make(chan error, len(writes))
 	for _, write := range writes {
-		write := write
 		go func() {
 			<-start
 			errs <- write()

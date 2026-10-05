@@ -45,7 +45,7 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 	if region == "" {
 		region = "us-east-1"
 	}
-	endpoint := s3EndpointURL(cfg)
+	endpoint := cfg.EndpointURL()
 
 	client := s3.New(s3.Options{
 		Credentials:                credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
@@ -62,16 +62,6 @@ func NewS3Client(cfg config.S3Config) (*S3Client, error) {
 		pathPrefix:  cfg.PathPrefix,
 		awsEndpoint: cfg.IsAWSEndpoint(),
 	}, nil
-}
-
-func s3EndpointURL(cfg config.S3Config) string {
-	if strings.HasPrefix(cfg.Endpoint, "http://") || strings.HasPrefix(cfg.Endpoint, "https://") {
-		return cfg.Endpoint
-	}
-	if cfg.UseSSLOrDefault() {
-		return "https://" + cfg.Endpoint
-	}
-	return "http://" + cfg.Endpoint
 }
 
 // Bucket returns the configured bucket name.
@@ -275,23 +265,20 @@ func IsNoSuchKeyError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var noSuchKey *types.NoSuchKey
-	if errors.As(err, &noSuchKey) {
+	if _, ok := errors.AsType[*types.NoSuchKey](err); ok {
 		return true
 	}
-	var notFound *types.NotFound
-	if errors.As(err, &notFound) {
+	if _, ok := errors.AsType[*types.NotFound](err); ok {
 		return true
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		switch apiErr.ErrorCode() {
 		case "NoSuchKey", "NotFound", "404":
 			return true
 		}
 	}
-	var respErr *smithyhttp.ResponseError
-	return errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404
+	respErr, ok := errors.AsType[*smithyhttp.ResponseError](err)
+	return ok && respErr.HTTPStatusCode() == 404
 }
 
 // PresignedGetURL generates a presigned GET URL for an S3 object.
@@ -311,19 +298,17 @@ func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.
 }
 
 func isNoSuchBucketError(err error) bool {
-	var noSuchBucket *types.NoSuchBucket
-	if errors.As(err, &noSuchBucket) {
+	if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
 		return true
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		switch apiErr.ErrorCode() {
 		case "NoSuchBucket", "NotFound", "404":
 			return true
 		}
 	}
-	var respErr *smithyhttp.ResponseError
-	return errors.As(err, &respErr) && respErr.HTTPStatusCode() == 404
+	respErr, ok := errors.AsType[*smithyhttp.ResponseError](err)
+	return ok && respErr.HTTPStatusCode() == 404
 }
 
 // S3 key helpers for organizing assets in S3.

@@ -159,7 +159,7 @@ func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, r
 		return nil, err
 	}
 
-	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+	for range maxTimelineHydrationAttempts {
 		seen := make(map[string]struct{}, len(eventIDs))
 		entries := make([]*TimelineEntry, 0, len(eventIDs))
 		bodyReferences := make([]TimelineBodyReference, 0, len(eventIDs))

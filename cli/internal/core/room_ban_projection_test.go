@@ -15,7 +15,7 @@ func TestRoomBanProjectionStableOrder(t *testing.T) {
 	for _, reverse := range []bool{false, true} {
 		t.Run(fmt.Sprintf("reverse_replay_%t", reverse), func(t *testing.T) {
 			p := NewRoomBanProjection()
-			for n := 0; n < 10; n++ {
+			for n := range 10 {
 				i := n
 				if reverse {
 					i = 9 - n
@@ -36,7 +36,7 @@ func TestRoomBanProjectionStableOrder(t *testing.T) {
 				}, uint64(n+1)))
 			}
 			// Both list paths must give the same page boundaries on repeated reads.
-			for read := 0; read < 32; read++ {
+			for range 32 {
 				for _, bans := range [][]RoomBan{p.ActiveBans(now), p.ActiveRoomBans("room", now)} {
 					require.Len(t, bans, 10)
 					for i, ban := range bans {

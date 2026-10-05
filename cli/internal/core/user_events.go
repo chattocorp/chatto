@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -19,7 +20,7 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 	}
 	subject := evtstream.UserAggregate(userID).SubjectFor(event)
 
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := range maxUserMutationRetries {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read user OCC filter seq: %w", err)
@@ -79,7 +80,7 @@ func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string,
 		filter = evtstream.UserAggregate(userID).AllEventsFilter()
 	}
 
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read user OCC filter seq: %w", err)
@@ -109,9 +110,9 @@ func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string,
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
 			}
-			for i := len(chunk) - 1; i >= 0; i-- {
-				if isUserAuthEvent(chunk[i].Event) {
-					if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(chunk[i].Subject, seqs[i])); err != nil {
+			for i, entry := range slices.Backward(chunk) {
+				if isUserAuthEvent(entry.Event) {
+					if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(entry.Subject, seqs[i])); err != nil {
 						return 0, fmt.Errorf("wait for user auth projection: %w", err)
 					}
 					break
@@ -174,7 +175,7 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 	}
 	filter := evtstream.EventSubjectFilter()
 
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read mentionable OCC filter seq: %w", err)
@@ -209,9 +210,9 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 			lastDomainIndex := len(chunk) - 1
 			lastSeq := seqs[lastDomainIndex]
 			lastSubject := chunk[lastDomainIndex].Subject
-			for i := len(chunk) - 1; i >= 0; i-- {
-				if _, ok := evtstream.ParseUserSubject(chunk[i].Subject); ok {
-					if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(chunk[i].Subject, seqs[i])); err != nil {
+			for i, entry := range slices.Backward(chunk) {
+				if _, ok := evtstream.ParseUserSubject(entry.Subject); ok {
+					if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(entry.Subject, seqs[i])); err != nil {
 						return 0, fmt.Errorf("wait for user projection: %w", err)
 					}
 					break
@@ -220,9 +221,9 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 			if err := c.mentionables.waitFor(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for mentionables projection: %w", err)
 			}
-			for i := len(chunk) - 1; i >= 0; i-- {
-				if isUserAuthEvent(chunk[i].Event) {
-					if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(chunk[i].Subject, seqs[i])); err != nil {
+			for i, entry := range slices.Backward(chunk) {
+				if isUserAuthEvent(entry.Event) {
+					if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(entry.Subject, seqs[i])); err != nil {
 						return 0, fmt.Errorf("wait for user auth projection: %w", err)
 					}
 					break

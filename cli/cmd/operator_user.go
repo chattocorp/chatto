@@ -58,13 +58,7 @@ func operatorUserListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			requestLimit := limit
-			if requestLimit < 0 {
-				requestLimit = 0
-			}
-			if requestLimit > 100 {
-				requestLimit = 100
-			}
+			requestLimit := min(max(limit, 0), 100)
 			if offset < 0 {
 				return errors.New("--offset must be greater than or equal to 0")
 			}

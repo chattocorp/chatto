@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,9 +64,7 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
 			return nil, connect.NewNotModifiedError(cacheHeaders)
 		}
-		for name, values := range cacheHeaders {
-			callInfo.ResponseHeader()[name] = values
-		}
+		maps.Copy(callInfo.ResponseHeader(), cacheHeaders)
 	}
 	return connect.NewResponse(response), nil
 }
@@ -86,9 +85,7 @@ func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.R
 		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
 			return nil, connect.NewNotModifiedError(cacheHeaders)
 		}
-		for name, values := range cacheHeaders {
-			callInfo.ResponseHeader()[name] = values
-		}
+		maps.Copy(callInfo.ResponseHeader(), cacheHeaders)
 	}
 	return connect.NewResponse(response), nil
 }
@@ -108,13 +105,13 @@ func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ 
 	for _, record := range directory.GetServers() {
 		profile := &apiv1.ServerPublicProfile{Name: record.GetName(), Version: record.GetVersion()}
 		if description := record.GetDescription(); description != "" {
-			profile.Description = stringPtr(description)
+			profile.Description = new(description)
 		}
 		if logo := record.GetLogo(); logo != nil {
-			profile.LogoUrl = stringPtr(core.NeighborhoodImagePath(logo.GetObjectName()))
+			profile.LogoUrl = new(core.NeighborhoodImagePath(logo.GetObjectName()))
 		}
 		if banner := record.GetBanner(); banner != nil {
-			profile.BannerUrl = stringPtr(core.NeighborhoodImagePath(banner.GetObjectName()))
+			profile.BannerUrl = new(core.NeighborhoodImagePath(banner.GetObjectName()))
 		}
 		response.Servers = append(response.Servers, &discoveryv1.NeighborhoodServer{
 			Origin:               record.GetOrigin(),
@@ -132,9 +129,7 @@ func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ 
 		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
 			return nil, connect.NewNotModifiedError(cacheHeaders)
 		}
-		for name, values := range cacheHeaders {
-			callInfo.ResponseHeader()[name] = values
-		}
+		maps.Copy(callInfo.ResponseHeader(), cacheHeaders)
 	}
 	return connect.NewResponse(response), nil
 }
@@ -183,10 +178,10 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 	if a.core != nil && a.core.ConfigModel() != nil {
 		cm := a.core.ConfigModel()
 		if welcome := cm.GetEffectiveWelcomeMessage(); welcome != "" {
-			profile.WelcomeMessage = stringPtr(welcome)
+			profile.WelcomeMessage = new(welcome)
 		}
 		if cfg := cm.GetServerConfig(); cfg != nil && cfg.GetDescription() != "" {
-			profile.Description = stringPtr(cfg.GetDescription())
+			profile.Description = new(cfg.GetDescription())
 		}
 	}
 
@@ -197,7 +192,7 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 				return nil, err
 			}
 		} else if u != "" {
-			profile.BannerUrl = stringPtr(a.absolutizeServerURL(ctx, u))
+			profile.BannerUrl = new(a.absolutizeServerURL(ctx, u))
 		}
 		lw, lh := 256, 256
 		if u, err := a.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err != nil {
@@ -205,7 +200,7 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 				return nil, err
 			}
 		} else if u != "" {
-			profile.LogoUrl = stringPtr(a.absolutizeServerURL(ctx, u))
+			profile.LogoUrl = new(a.absolutizeServerURL(ctx, u))
 		}
 	}
 

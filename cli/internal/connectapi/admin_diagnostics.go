@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
@@ -32,7 +31,7 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 		Projections:          adminProjectionStates(diagnostics.Projections),
 		AssetCleanup:         adminAssetCleanupStatus(diagnostics.AssetCleanup),
 		DurableWorkers:       adminDurableWorkerStatuses(diagnostics.DurableWorkers),
-		ProjectionsAvailable: proto.Bool(diagnostics.ProjectionsAvailable),
+		ProjectionsAvailable: new(diagnostics.ProjectionsAvailable),
 	}), nil
 }
 

@@ -411,7 +411,7 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 	publishSubject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	occFilter := evtstream.RoomSubjectFilter()
 
-	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
+	for attempt := range maxRoomNameClaimRetries {
 		snapshot := c.roomModel.nameClaimSnapshot(name, excludeRoomID)
 		if snapshot.ConflictingRoomID != "" {
 			return nil, ErrRoomNameExists
@@ -475,7 +475,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	var deletedSeq uint64
 	var groupRemovedSubject string
 	var groupRemovedSeq uint64
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+	for attempt := range maxJoinRoomRetries {
 		streamSeq, err := c.EventPublisher.LastStreamSeq(ctx)
 		if err != nil {
 			return fmt.Errorf("read stream OCC tail before room deletion: %w", err)

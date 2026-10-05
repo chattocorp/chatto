@@ -117,7 +117,7 @@ func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, 
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+	for range maxMoveRoomToGroupRetries {
 		room, err := c.GetRoom(ctx, KindChannel, roomID)
 		if err != nil {
 			return nil, err

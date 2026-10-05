@@ -1,6 +1,7 @@
 package core
 
 import (
+	"maps"
 	"sync"
 	"testing"
 
@@ -32,9 +33,7 @@ func v04DefaultDecisions() []rbacSeedDecision {
 func appendV04RBACLog(t *testing.T, h *testEventHarness, roles map[string]*evtv1.Role, extra []rbacSeedDecision, events ...*evtv1.Event) {
 	t.Helper()
 	ctx := testContext(t)
-	for name, role := range defaultRBACRoles() {
-		roles[name] = role
-	}
+	maps.Copy(roles, defaultRBACRoles())
 	entries := rbacSeedEntries(roles, nil, append(v04DefaultDecisions(), extra...))
 	entries[0].HasOCC = true
 	entries[0].FilterSubject = evtstream.RBACSubjectFilter()
@@ -156,11 +155,9 @@ func TestUpgradePermissionsConcurrentReplicas(t *testing.T) {
 	var group sync.WaitGroup
 	results := make(chan error, 3)
 	for range 3 {
-		group.Add(1)
-		go func() {
-			defer group.Done()
+		group.Go(func() {
 			results <- (&ChattoCore{EventPublisher: h.publisher}).seedUpgradePermissions(ctx)
-		}()
+		})
 	}
 	group.Wait()
 	close(results)

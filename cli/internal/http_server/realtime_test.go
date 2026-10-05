@@ -89,10 +89,10 @@ func sendRealtimeSubscribe(
 		InitialState:    initialState,
 	}
 	if token != "" {
-		subscribe.BearerToken = proto.String(token)
+		subscribe.BearerToken = new(token)
 	}
 	if resumeCursor != "" {
-		subscribe.ResumeCursor = proto.String(resumeCursor)
+		subscribe.ResumeCursor = new(resumeCursor)
 	}
 	sendRealtimeSubscribeMessage(t, conn, subscribe)
 }

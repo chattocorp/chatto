@@ -730,7 +730,7 @@ func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
 		postedEvent(postedOpts{envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 2}),
 		threadCreatedEvent("THREAD", "R1", "ROOT", "AUTHOR", 1),
 	}
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		id := fmt.Sprintf("REPLY-%02d", i)
 		events = append(events, postedEvent(postedOpts{envelopeID: id, eventID: id, roomID: "R1", actorID: fmt.Sprintf("U%02d", i), inThread: "ROOT", at: i + 3}))
 	}

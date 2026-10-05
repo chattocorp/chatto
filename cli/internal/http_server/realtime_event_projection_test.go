@@ -25,7 +25,7 @@ func TestRealtimeMentionsCompactTargetsAndPreserveViewerResolution(t *testing.T)
 		{UserId: "viewer", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}},
 		{UserId: "other", Cause: &evtv1.MessageMention_Here{Here: &evtv1.HereMessageMention{}}},
 	}
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		userID := fmt.Sprintf("recipient-%d", i)
 		if i == 999 {
 			userID = "viewer"
@@ -171,7 +171,7 @@ func TestProjectRealtimeEventDoesNotExposeLegacyAvatarStoragePointer(t *testing.
 			UserId: "user-id",
 			Avatar: &evtv1.DeprecatedAsset{Asset: &evtv1.DeprecatedAsset_S3{S3: &evtv1.S3Asset{
 				Key:    "private/key",
-				Bucket: proto.String("private-bucket"),
+				Bucket: new("private-bucket"),
 			}}},
 		}},
 	})
@@ -344,7 +344,7 @@ func TestProjectRealtimePubSubEventReturnsIsolatedPublicCopy(t *testing.T) {
 }
 
 func TestRealtimeEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
-	publicEvent := &realtimev1.RealtimeEvent{Id: "event-id", ActorId: proto.String("actor-id")}
+	publicEvent := &realtimev1.RealtimeEvent{Id: "event-id", ActorId: new("actor-id")}
 	unknown := protowire.AppendTag(nil, 25000, protowire.BytesType)
 	unknown = protowire.AppendBytes(unknown, nil)
 	publicEvent.ProtoReflect().SetUnknown(unknown)

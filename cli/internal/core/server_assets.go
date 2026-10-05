@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
@@ -270,7 +269,7 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 				Size:        s3Info.Size,
 				Storage: &evtv1.AssetRecord_S3{S3: &evtv1.S3Asset{
 					Key:    logicalID,
-					Bucket: proto.String(c.s3Client.Bucket()),
+					Bucket: new(c.s3Client.Bucket()),
 				}},
 			}, nil
 		}

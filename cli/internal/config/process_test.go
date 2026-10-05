@@ -484,12 +484,12 @@ func TestWebserverConfig_WebSocketCompressionEnabled(t *testing.T) {
 		},
 		{
 			name:        "true returns true",
-			compression: boolPtr(true),
+			compression: new(true),
 			want:        true,
 		},
 		{
 			name:        "false returns false",
-			compression: boolPtr(false),
+			compression: new(false),
 			want:        false,
 		},
 	}
@@ -519,15 +519,15 @@ func TestWebserverConfig_APICompression(t *testing.T) {
 		},
 		{
 			name:        "explicitly disabled with custom threshold",
-			compression: boolPtr(false),
-			minBytes:    intPtr(8192),
+			compression: new(false),
+			minBytes:    new(8192),
 			wantEnabled: false,
 			wantMin:     8192,
 		},
 		{
 			name:        "zero threshold compresses every non-empty response",
-			compression: boolPtr(true),
-			minBytes:    intPtr(0),
+			compression: new(true),
+			minBytes:    new(0),
 			wantEnabled: true,
 			wantMin:     0,
 		},
@@ -551,7 +551,7 @@ func TestWebserverConfig_APICompression(t *testing.T) {
 
 func TestChattoConfig_Validate_APICompressionMinBytes(t *testing.T) {
 	cfg := validTestConfig()
-	cfg.Webserver.APICompressionMinBytes = intPtr(-1)
+	cfg.Webserver.APICompressionMinBytes = new(-1)
 
 	err := cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "webserver.api_compression_min_bytes must not be negative") {

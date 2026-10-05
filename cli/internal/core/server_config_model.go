@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -80,7 +81,7 @@ func (cm *ConfigModel) UpdateServerConfigFunc(
 		return nil, fmt.Errorf("config model: event publisher/projector not configured")
 	}
 
-	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
+	for range maxConfigUpdateRetries {
 		agg, filter, expectedSeq, err := cm.prepareSubject(ctx, ConfigSubjectServer)
 		if err != nil {
 			return nil, err
@@ -293,12 +294,7 @@ func (cm *ConfigModel) GetBlockedUsernamesList() []string {
 func (cm *ConfigModel) IsUsernameBlocked(login string) bool {
 	blockedList := cm.GetBlockedUsernamesList()
 	loginLower := strings.ToLower(login)
-	for _, blocked := range blockedList {
-		if blocked == loginLower {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(blockedList, loginLower)
 }
 
 // parseBlockedUsernames parses a newline-separated string into a slice

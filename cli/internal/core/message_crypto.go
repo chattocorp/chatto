@@ -142,7 +142,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 	filter := agg.AllEventsFilter()
 	subject := agg.Subject(evtstream.EventUserDEKGenerated)
 
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := range maxUserMutationRetries {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return nil, fmt.Errorf("read DEK OCC filter seq: %w", err)

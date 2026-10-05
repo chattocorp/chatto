@@ -32,7 +32,7 @@ func TestLogPaginationScopeAndRetention(t *testing.T) {
 	owner, bot, _ := webhookTestBot(t, c)
 	endpoint, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Logs", "https://example.com", "", true)
 	require.NoError(t, err)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		appendTestLog(t, c, bot, endpoint.ID, fmt.Sprintf("entry%d", i))
 	}
 	// A late replica cold-replays configuration and reads the same retained log.

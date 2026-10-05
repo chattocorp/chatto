@@ -29,7 +29,7 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 	key := notificationVisibilityBoundaryKey(userID, roomID)
 	value := make([]byte, 8)
 	binary.BigEndian.PutUint64(value, sequence)
-	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
+	for range maxNotificationStateWriteRetries {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			if revision, err := m.core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL)); err == nil {
@@ -94,7 +94,7 @@ func (m *NotificationMaterializer) purgeVisibilityBoundaries(ctx context.Context
 }
 
 func (m *NotificationMaterializer) deleteRuntimeStateKey(ctx context.Context, key string) error {
-	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
+	for range maxNotificationStateWriteRetries {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			return nil

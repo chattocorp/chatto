@@ -7,8 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +16,9 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -132,7 +133,7 @@ func TestPayloadMarshal(t *testing.T) {
 		}
 
 		// Unmarshal and verify
-		var result map[string]interface{}
+		var result map[string]any
 		if err := json.Unmarshal(data, &result); err != nil {
 			t.Fatalf("Failed to unmarshal: %v", err)
 		}
@@ -156,7 +157,7 @@ func TestPayloadMarshal(t *testing.T) {
 			t.Error("Push payload must not set a numeric app badge")
 		}
 
-		notification, ok := result["notification"].(map[string]interface{})
+		notification, ok := result["notification"].(map[string]any)
 		if !ok {
 			t.Fatalf("Expected declarative notification object, got %T", result["notification"])
 		}
@@ -176,7 +177,7 @@ func TestPayloadMarshal(t *testing.T) {
 			t.Error("Declarative notification must not set a numeric app badge")
 		}
 
-		notificationData, ok := notification["data"].(map[string]interface{})
+		notificationData, ok := notification["data"].(map[string]any)
 		if !ok {
 			t.Fatalf("Expected declarative notification data object, got %T", notification["data"])
 		}
@@ -199,7 +200,7 @@ func TestPayloadMarshal(t *testing.T) {
 			t.Fatalf("Failed to marshal payload: %v", err)
 		}
 
-		var result map[string]interface{}
+		var result map[string]any
 		if err := json.Unmarshal(data, &result); err != nil {
 			t.Fatalf("Failed to unmarshal: %v", err)
 		}

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"maps"
 	"slices"
 )
 
@@ -92,9 +93,7 @@ func (c *ChattoCore) ListEffectivePermissions(ctx context.Context, actorID, user
 // independent of channel defaults and never affects server/group coverage.
 func effectivePermissionCoverage(scopes []PermissionMatrixScope, allowed map[string]bool) map[string]bool {
 	coverage := make(map[string]bool, len(allowed))
-	for id, grant := range allowed {
-		coverage[id] = grant
-	}
+	maps.Copy(coverage, allowed)
 	for _, scope := range scopes {
 		grant, applicable := allowed[scope.ID]
 		if !applicable || grant {

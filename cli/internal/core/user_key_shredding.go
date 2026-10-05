@@ -116,7 +116,7 @@ func (m *UserKeyShreddingModel) Request(ctx context.Context, actorID, userID str
 func (m *UserKeyShreddingModel) appendRequest(ctx context.Context, actorID, userID string) (*evtv1.Event, uint64, error) {
 	aggregateFilter := evtstream.UserAggregate(userID).AllEventsFilter()
 	subject := evtstream.UserAggregate(userID).Subject(evtstream.EventUserKeyShreddingRequested)
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := range maxUserMutationRetries {
 		aggregateSeq, err := m.core.EventPublisher.LastSubjectSeq(ctx, aggregateFilter)
 		if err != nil {
 			return nil, 0, fmt.Errorf("read user OCC filter seq: %w", err)

@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -594,7 +594,7 @@ func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *As
 		}
 		storage = &evtv1.DeprecatedAsset{
 			Asset: &evtv1.DeprecatedAsset_S3{
-				S3: &evtv1.S3Asset{Key: s3Key, Bucket: proto.String(m.core.s3Client.Bucket())},
+				S3: &evtv1.S3Asset{Key: s3Key, Bucket: new(m.core.s3Client.Bucket())},
 			},
 		}
 	} else {
@@ -648,11 +648,11 @@ func assetUploadTempObjectKey(uploadID string, offset int64) string {
 
 func chunkOffset(key string) int64 {
 	parts := strings.Split(strings.TrimPrefix(key, assetUploadTempObjectPrefix), ".")
-	for i := len(parts) - 1; i >= 0; i-- {
-		if len(parts[i]) != 20 {
+	for _, part := range slices.Backward(parts) {
+		if len(part) != 20 {
 			continue
 		}
-		offset, err := strconv.ParseInt(parts[i], 10, 64)
+		offset, err := strconv.ParseInt(part, 10, 64)
 		if err == nil {
 			return offset
 		}

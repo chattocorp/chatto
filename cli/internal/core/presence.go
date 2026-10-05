@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"strings"
 	"time"
+
+	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -187,7 +188,7 @@ func (s *PresenceModel) refreshPresence(ctx context.Context, userID string) erro
 }
 
 func (s *PresenceModel) writePresence(ctx context.Context, key string, data []byte, forceOverwrite bool) error {
-	for attempt := 0; attempt < maxPresenceWriteRetries; attempt++ {
+	for range maxPresenceWriteRetries {
 		entry, err := s.memoryCacheKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {

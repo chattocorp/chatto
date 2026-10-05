@@ -745,7 +745,6 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 	g, visibilityCtx := errgroup.WithContext(visibilityCtx)
 	g.SetLimit(myEventsVisibilityWorkers)
 	for i := range candidates {
-		i := i
 		g.Go(func() error {
 			principal := candidates[i].principal
 			candidates[i].visible, candidates[i].err = h.canSeeProjectionRoom(principal.authorizationContext(visibilityCtx), principal.userID, roomID, event)
@@ -863,7 +862,6 @@ func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(myEventsVisibilityWorkers)
 	for i, principal := range principals {
-		i, principal := i, principal
 		g.Go(func() error {
 			rooms := make(map[string]struct{})
 			if err := h.model.populateMemberRoomsCache(principal.authorizationContext(gctx), principal.userID, rooms); err != nil {

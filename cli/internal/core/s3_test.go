@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -337,7 +336,7 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		// S3 asset should also store assetID in Key (not the full S3 path)
 		s3Asset := &evtv1.DeprecatedAsset{
 			Asset: &evtv1.DeprecatedAsset_S3{
-				S3: &evtv1.S3Asset{Key: assetID, Bucket: proto.String("test-bucket")},
+				S3: &evtv1.S3Asset{Key: assetID, Bucket: new("test-bucket")},
 			},
 		}
 

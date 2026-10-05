@@ -132,7 +132,7 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 	if input.Name != nil {
 		filter = evtstream.RoomSubjectFilter()
 	}
-	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
+	for range maxRoomNameClaimRetries {
 		position, err := s.core.EventPublisher.LastSubjectPosition(ctx, filter)
 		if err != nil {
 			return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/charmbracelet/log"
@@ -379,7 +380,7 @@ func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.MessageReac
 		result = append(result, &apiv1.MessageReaction{
 			Emoji:          summary.Emoji,
 			Count:          int32(len(summary.UserIDs)),
-			HasReacted:     containsString(summary.UserIDs, h.viewerID),
+			HasReacted:     slices.Contains(summary.UserIDs, h.viewerID),
 			PreviewUserIds: previewUserIDs,
 		})
 	}

@@ -2,10 +2,11 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 	"time"
+
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -83,7 +84,7 @@ func (p *NotificationProjection) Apply(event *notificationv1.NotificationEvent, 
 		}
 		var alertDelivered *bool
 		if signalled.GetAlertExpiresAt() != nil && signalled.GetInitiallyRead() {
-			alertDelivered = proto.Bool(false)
+			alertDelivered = new(false)
 		}
 		stored := &notificationv1.NotificationOccurrence{
 			Id:                         event.GetNotificationId(),
@@ -113,7 +114,7 @@ func (p *NotificationProjection) Apply(event *notificationv1.NotificationEvent, 
 		}
 		occurrence.Read = true
 		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
-			occurrence.AlertDelivered = proto.Bool(false)
+			occurrence.AlertDelivered = new(false)
 		}
 	case *notificationv1.NotificationEvent_Removed:
 		notificationID := event.GetNotificationId()
@@ -137,7 +138,7 @@ func (p *NotificationProjection) Apply(event *notificationv1.NotificationEvent, 
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() || occurrence.AlertDelivered != nil {
 			return nil
 		}
-		occurrence.AlertDelivered = proto.Bool(payload.AlertResolved.GetDelivered())
+		occurrence.AlertDelivered = new(payload.AlertResolved.GetDelivered())
 	default:
 		return fmt.Errorf("unsupported notification event at sequence %d", sequence)
 	}

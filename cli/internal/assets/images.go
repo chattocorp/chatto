@@ -643,10 +643,7 @@ func convertGIFLoopCount(gifLoop int) uint16 {
 	case gifLoop < 0:
 		return 1 // play once
 	default:
-		n := gifLoop + 1
-		if n > 65535 {
-			n = 65535
-		}
+		n := min(gifLoop+1, 65535)
 		return uint16(n)
 	}
 }

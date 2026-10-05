@@ -279,7 +279,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 		skip int
 		take int
 	}
-	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+	for range maxTimelineHydrationAttempts {
 		selected := make([]selectedMessage, 0)
 		totalCount := 0
 		pageEnd := offset + limit

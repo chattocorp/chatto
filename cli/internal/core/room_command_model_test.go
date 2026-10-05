@@ -73,7 +73,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := commands.UpdateRoom(ctx, RoomUpdateInput{
 		ActorID: actor.Id,
 		RoomID:  room.Id,
-		Name:    stringPtrForCoreTest("room-command-renamed"),
+		Name:    new("room-command-renamed"),
 	}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("UpdateRoom without room.manage error = %v, want ErrPermissionDenied", err)
 	}
@@ -84,7 +84,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := commands.UpdateRoom(ctx, RoomUpdateInput{
 		ActorID: actor.Id,
 		RoomID:  room.Id,
-		Name:    stringPtrForCoreTest("room-command-renamed"),
+		Name:    new("room-command-renamed"),
 	}); err != nil {
 		t.Fatalf("UpdateRoom with room-scoped room.manage: %v", err)
 	}
@@ -585,7 +585,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 		}
 		if calls == 2 {
 			_, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
-				ActorID: roomManagerID, RoomID: room.Id, Description: stringPtrForCoreTest("concurrent change"),
+				ActorID: roomManagerID, RoomID: room.Id, Description: new("concurrent change"),
 			})
 			return err
 		}

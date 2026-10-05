@@ -306,14 +306,6 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
-func boolPtr(b bool) *bool {
-	return &b
-}
-
-func intPtr(i int) *int {
-	return &i
-}
-
 func validTestConfig() ChattoConfig {
 	return ChattoConfig{
 		Webserver: WebserverConfig{

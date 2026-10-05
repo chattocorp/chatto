@@ -494,7 +494,7 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource, authorize func(CallRoomSnapshot) error) error {
 	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
-	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
+	for attempt := range callReconcileMaxRetries {
 		if authorize != nil {
 			if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
 				return err
@@ -759,8 +759,7 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 	}
 	snapshots, err := s.livekit.ListCallParticipants(ctx)
 	if err != nil {
-		var permissionErr *callPermissionReconcileError
-		if errors.As(err, &permissionErr) {
+		if _, ok := errors.AsType[*callPermissionReconcileError](err); ok {
 			return err
 		}
 		counterCtx, counterCancel := cleanupContext()
@@ -907,7 +906,7 @@ func (s *CallModel) recordLiveKitListFailure(ctx context.Context) (int, error) {
 	// A different replica may successfully reconcile and delete this key between
 	// failed passes, which makes the counter reflect consecutive failures at the
 	// reconciler role level.
-	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
+	for range callReconcileMaxRetries {
 		entry, err := s.memoryCacheKV.Get(ctx, liveKitReconcileFailureKey)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
@@ -1016,8 +1015,7 @@ func (s *CallModel) reconcileBestEffort(ctx context.Context) error {
 	if err := s.reconcileWithLiveKit(reconcileCtx, func() (context.Context, context.CancelFunc) {
 		return context.WithTimeout(ctx, callReconcileAPITimeout)
 	}); err != nil && !strings.Contains(err.Error(), context.Canceled.Error()) {
-		var listErr *liveKitListFailureError
-		if errors.As(err, &listErr) {
+		if listErr, ok := errors.AsType[*liveKitListFailureError](err); ok {
 			if !listErr.cleanupAttempted {
 				if s.logger != nil {
 					s.logger.Warn(
