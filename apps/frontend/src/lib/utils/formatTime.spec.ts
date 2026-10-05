@@ -10,7 +10,6 @@ import {
   formatDayLabel,
   groupByActivityDate,
   isSameDay,
-  dayPeriodLabels,
   resolveHour12,
   type TimeFormatSettings
 } from './formatTime';
@@ -76,13 +75,6 @@ describe('resolveHour12', () => {
     expect(resolveHour12(undefined, 'en-US')).toBe(true);
     setBrowserLocale('en-US');
     expect(resolveHour12(undefined, 'de')).toBe(true);
-  });
-});
-
-describe('dayPeriodLabels', () => {
-  it('localizes the 12-hour clock periods', () => {
-    expect(dayPeriodLabels('en-US')).toEqual({ am: 'AM', pm: 'PM' });
-    expect(dayPeriodLabels('ja-JP')).toEqual({ am: '午前', pm: '午後' });
   });
 });
 

@@ -15,7 +15,8 @@
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { dayPeriodLabels } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
+  import { dayPeriodLabels } from '$lib/utils/dayPeriods';
 
   type Period = 'am' | 'pm';
   /** The text in each segment, which can be incomplete while the user types. */
@@ -35,7 +36,7 @@
     disabled?: boolean;
   } = $props();
 
-  const periods = $derived(dayPeriodLabels());
+  const periods = $derived(dayPeriodLabels(getLocale()));
   const hourRange = $derived(hour12 ? [1, 12] : [0, 23]);
   let minuteInput = $state<HTMLInputElement>();
   let draft = $state<Draft | null>(null);
