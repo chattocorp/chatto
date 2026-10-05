@@ -7,8 +7,9 @@
 # build and "bootstrap,test_endpoints" for tagged files. Without arguments, the
 # script checks the default build only.
 #
-# Generated protobuf files (*.pb.go) are skipped: protoc-gen-go owns them.
-# To fix findings, run the modernize command printed below with -fix.
+# modernize ignores its own -tags flag, so the script sets build tags through
+# GOFLAGS. Generated protobuf files (*.pb.go) are skipped: protoc-gen-go owns
+# them. To fix findings, run the command that the script prints.
 
 set -euo pipefail
 
@@ -18,8 +19,12 @@ fi
 
 found=0
 for tags in "$@"; do
+	goflags="${GOFLAGS:-}"
+	if [ -n "$tags" ]; then
+		goflags="${goflags:+$goflags }-tags=$tags"
+	fi
 	status=0
-	output="$(modernize -tags="$tags" ./... 2>&1)" || status=$?
+	output="$(GOFLAGS="$goflags" modernize ./... 2>&1)" || status=$?
 	# modernize exits with 3 when it reports diagnostics. Any other non-zero
 	# status means that it could not analyze the module.
 	if [ "$status" -ne 0 ] && [ "$status" -ne 3 ]; then
@@ -29,7 +34,7 @@ for tags in "$@"; do
 	findings="$(printf '%s\n' "$output" | grep -v '\.pb\.go:' | grep -v '^$' || true)"
 	if [ -n "$findings" ]; then
 		printf '%s\n' "$findings" >&2
-		printf 'Fix with: modernize -tags=%q -fix ./...\n' "$tags" >&2
+		printf "Fix with: GOFLAGS='%s' modernize -fix ./...\n" "$goflags" >&2
 		found=1
 	fi
 done
