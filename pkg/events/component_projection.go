@@ -5,12 +5,10 @@
 package events
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"reflect"
 	"slices"
-	"time"
 )
 
 // PreparedMutation is an infallible state change produced by an EventReducer.
@@ -50,66 +48,6 @@ func (f EventReducerFunc[E]) Prepare(event E, sequence uint64) (PreparedMutation
 type PreparedEventProjection[E any] interface {
 	SubjectProjection
 	EventReducer[E]
-}
-
-// ProjectionSnapshotPart is one stable, independently stored part of a
-// projection component snapshot.
-type ProjectionSnapshotPart struct {
-	Key     string
-	Payload []byte
-}
-
-// ProjectionSnapshotComponent is one independently serialized component in a
-// projection snapshot cohort. Part keys are stable within its contract.
-type ProjectionSnapshotComponent struct {
-	Key        string
-	ContractID string
-	Parts      []ProjectionSnapshotPart
-}
-
-// ProjectionSnapshotComponentContract identifies one required component and
-// bounds the number of payload parts that a snapshot source can load.
-type ProjectionSnapshotComponentContract struct {
-	Key        string
-	ContractID string
-	MaxParts   int
-}
-
-// ProjectionSnapshotCohort is component state captured or restored at one
-// event-log cutoff. A cohort is installed as one unit.
-type ProjectionSnapshotCohort struct {
-	GenerationID   string
-	ContractID     string
-	StreamName     string
-	CutoffSequence uint64
-	StreamIdentity string
-	CreatedAt      time.Time
-	Components     []ProjectionSnapshotComponent
-}
-
-// ProjectionSnapshotCohortLoadRequest contains the repository constraints for
-// one projection snapshot cohort.
-type ProjectionSnapshotCohortLoadRequest struct {
-	ProjectionKey  string
-	ContractID     string
-	StreamName     string
-	StreamIdentity string
-	MaxCutoff      uint64
-	Components     []ProjectionSnapshotComponentContract
-}
-
-// ProjectionSnapshotCohortSource loads one complete projection snapshot
-// cohort. It must not return a partial generation.
-type ProjectionSnapshotCohortSource interface {
-	LoadProjectionSnapshotCohort(context.Context, ProjectionSnapshotCohortLoadRequest) (ProjectionSnapshotCohort, error)
-}
-
-type snapshotCohortProjectionState interface {
-	SnapshotComponents() ([]ProjectionSnapshotComponent, error)
-	RestoreComponents([]ProjectionSnapshotComponent) error
-	ResetComponents() error
-	SnapshotCohortContractID() string
-	SnapshotComponentContracts() []ProjectionSnapshotComponentContract
 }
 
 // SnapshotComponentModel is a focused projection model with an independent
@@ -229,15 +167,6 @@ func (p *ComponentizedProjection[E]) prepareComponents(event E, subject string, 
 			mutation.Commit()
 		}
 	}), nil
-}
-
-func matchesAnySubject(filters []compiledSubjectFilter, subject string) bool {
-	for i := range filters {
-		if filters[i].matches(subject) {
-			return true
-		}
-	}
-	return false
 }
 
 // OwnsProjection reports whether model is one of the registered focused
