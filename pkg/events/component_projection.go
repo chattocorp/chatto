@@ -250,11 +250,11 @@ func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapsh
 		if !ok {
 			return fmt.Errorf("projection component %q is missing", component.key)
 		}
-		stored, err := statePartPayload(storedComponent, component.key, component.model.SnapshotContractID())
+		storedPayload, err := statePartPayload(storedComponent, component.key, component.model.SnapshotContractID())
 		if err != nil {
 			return err
 		}
-		payloads[i] = stored
+		payloads[i] = storedPayload
 		payload, err := component.model.Snapshot()
 		if err != nil {
 			return fmt.Errorf("capture projection component %q before restore: %w", component.key, err)
