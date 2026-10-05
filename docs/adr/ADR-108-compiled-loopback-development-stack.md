@@ -11,8 +11,9 @@ Accepted. Supersedes [ADR-078](ADR-078-portless-native-development-stack.md).
 > runs the services directly as parallel tasks, and the
 > `tools/dev-supervisor.sh` wrapper is removed. The stack does not stop
 > processes that it did not start: `mise stop`, the stop step before startup,
-> and the archive cleanup are removed. If a port is in use, the service fails
-> and mise stops the stack.
+> and the archive cleanup are removed. Before startup, `mise dev` runs
+> `tools/check-dev-ports.sh`. If a port is in use, the check lists the process
+> and fails the start.
 
 ## Context
 

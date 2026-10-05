@@ -109,8 +109,9 @@ NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
 identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
 These credentials and accounts are for local development only. Stop `mise dev`
-to stop the services. If a port of the stack is in use, `mise dev` stops with
-an error and does not stop the other process. Stop `mise dev`, then run
+to stop the services. Before it builds anything, `mise dev` checks that its
+ports are free. If a port is in use, it lists the process and stops with an
+error. It does not stop the other process. Stop `mise dev`, then run
 `mise reset` to remove the Chatto data and the Authling data of all ports. To
 reset only one of them, remove `cli/data/` or the Authling identity directory.
 The
