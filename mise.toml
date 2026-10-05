@@ -20,7 +20,7 @@ CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # The development stack uses the workspace port block. The base is
 # `CONDUCTOR_PORT`, or 4000 outside Conductor. Conductor gives each workspace
 # ten ports. Tasks and scripts use these names, not offsets.
-CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}"
+CHATTO_DEV_PORT_BASE = "{% if env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
 # Chatto with its embedded frontend (`mise dev`).
 CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_PORT_BASE}}"
 # Vite frontend development server (`mise dev-frontend`).
