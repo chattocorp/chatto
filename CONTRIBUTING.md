@@ -101,8 +101,7 @@ mise dev-frontend
 
 Vite then serves the frontend at `http://chatto.<workspace>.localhost:<base + 1>`
 and sends API requests to the Chatto server of `mise dev` or `mise dev-full`.
-To use a different
-Chatto server, set `CHATTO_BACKEND_URL`, for example
+To use a different Chatto server, set `CHATTO_BACKEND_URL`, for example
 `CHATTO_BACKEND_URL=https://dev.chatto.run mise dev-frontend`.
 
 Both commands create Chatto owner `alice` and member `bob`; both use the
@@ -118,19 +117,16 @@ and API key path automatically. On an empty server, bootstrap also creates
 TestBot’s outbound webhook. Existing servers keep their saved configuration.
 
 In `mise dev-full`, Chatto uses Authling as its development OIDC provider.
-Chatto stores embedded
-NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
-identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
+Chatto stores embedded NATS data in `cli/data/nats/` and search data in
+`cli/data/search/`. Authling identity data is in `.context/dev/<workspace>/authling/port-<port>/`.
 
 These credentials and accounts are for local development only. Stop
-`mise dev` or `mise dev-full` to stop the services. Before they build anything,
-both commands check that their ports are free. If a port is in use, they list
-the process and stop with an error. They do not stop the other process. Stop
-the stack, then run
-`mise reset` to remove the Chatto data and the Authling data of all ports. To
-reset only one of them, remove `cli/data/` or the Authling identity directory.
-The
-Authling issuer URL includes `<workspace>` and the port, and Authling cannot
+`mise dev` or `mise dev-full` to stop the services. When they start, both
+commands check that their ports are free. If a port is in use, they list the
+process and stop with an error. They do not stop the other process. Stop the
+stack, then run `mise reset` to remove the Chatto data and the Authling data of
+all ports. To reset only one of them, remove `cli/data/` or the Authling
+identity directory. The Authling issuer URL includes `<workspace>` and the port, and Authling cannot
 change its issuer. Thus, a new `<workspace>` or port starts an empty
 Authling in a new state directory. Chatto users that you linked to the previous
 Authling accounts cannot sign in through the new Authling. If the previous port
@@ -220,13 +216,6 @@ To run the docs website development server:
 
 ```sh
 mise dev-docs-website
-```
-
-To run only the bundled Chatto executable, without Authling and the other
-services:
-
-```sh
-mise run chatto run
 ```
 
 To check SPDX/REUSE license metadata:

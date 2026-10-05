@@ -401,7 +401,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto-current"]
 description = "Run the Storybook design-system catalog"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
-# `mise dev` and `mise dev-frontend` use the complete workspace port block.
+# `mise dev-full` and `mise dev-frontend` use the complete workspace port block.
 # Storybook therefore uses the first free loopback port from 6006. Storybook's
 # own fallback checks a different address than the loopback listener.
 run = '''
@@ -425,8 +425,9 @@ run = "tools/check-dev-ports.sh"
 
 [tasks.dev]
 description = "Build and run Chatto"
-# Setup is fast when nothing changed, so a fresh checkout needs only `mise dev`.
-# The port check fails the start early and does not stop other processes.
+# The build tasks install missing tools and Chatto dependencies, so a fresh
+# checkout needs only `mise dev`. The port check fails the start early and does
+# not stop other processes.
 depends = ["check-dev-ports", "build-dev-cli"]
 run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]
 
@@ -836,7 +837,8 @@ run = [
 [tasks.reset]
 description = "Reset the development data of Chatto and Authling"
 confirm = "Are you sure you want to reset the development environment? This will delete all Chatto and Authling data of this workspace."
-# Stop `mise dev` first, so that no service writes during the removal.
+# Stop `mise dev` or `mise dev-full` first, so that no service writes during
+# the removal.
 # Remove the data of every Authling issuer port: Chatto users link to its accounts.
 run = [
   "rm -rf cli/data",
