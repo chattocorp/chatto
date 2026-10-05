@@ -251,6 +251,8 @@ type blueskyExternal struct {
 	Thumb       string `json:"thumb"`
 }
 
+// blueskyAspectRatio holds the source dimensions from a Bluesky image or video
+// view. Chatto uses them only as the aspect ratio.
 type blueskyAspectRatio struct {
 	Width  uint32 `json:"width"`
 	Height uint32 `json:"height"`

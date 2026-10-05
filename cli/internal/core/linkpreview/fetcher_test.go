@@ -145,11 +145,13 @@ func TestApplyBlueskyEmbedIncludesQuotedPostMedia(t *testing.T) {
 
 func TestApplyBlueskyEmbedUsesVideoThumbnail(t *testing.T) {
 	tests := []struct {
-		name  string
-		embed string
+		name      string
+		embed     string
+		wantImage bool
 	}{
 		{
-			name: "video view",
+			name:      "video view",
+			wantImage: true,
 			embed: `{
 				"$type":"app.bsky.embed.video#view",
 				"playlist":"https://video.example/playlist.m3u8",
@@ -159,7 +161,8 @@ func TestApplyBlueskyEmbedUsesVideoThumbnail(t *testing.T) {
 			}`,
 		},
 		{
-			name: "record with video media",
+			name:      "record with video media",
+			wantImage: true,
 			embed: `{
 				"$type":"app.bsky.embed.recordWithMedia#view",
 				"media":{
@@ -169,6 +172,14 @@ func TestApplyBlueskyEmbedUsesVideoThumbnail(t *testing.T) {
 					"alt":"A cat video",
 					"aspectRatio":{"width":720,"height":1280}
 				}
+			}`,
+		},
+		{
+			name: "video view without thumbnail",
+			embed: `{
+				"$type":"app.bsky.embed.video#view",
+				"playlist":"https://video.example/playlist.m3u8",
+				"alt":"A cat video"
 			}`,
 		},
 	}
@@ -200,6 +211,11 @@ func TestApplyBlueskyEmbedUsesVideoThumbnail(t *testing.T) {
 
 			fetcher.applyBlueskyEmbed(context.Background(), snapshot, &embed, &budget, true)
 
+			if !tt.wantImage {
+				assert.Empty(t, fetchedURLs)
+				assert.Empty(t, snapshot.Images)
+				return
+			}
 			assert.Equal(t, []string{"https://video.example/thumbnail.jpg"}, fetchedURLs)
 			require.Len(t, snapshot.Images, 1)
 			assert.Equal(t, "A cat video", snapshot.Images[0].Alt)
