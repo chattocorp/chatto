@@ -69,14 +69,14 @@ type AuthTokenData struct {
 	Source                  string                      `json:"source,omitempty"`
 	Request                 *evtv1.AuditRequestMetadata `json:"request,omitempty"`
 	CreatedAt               time.Time                   `json:"created_at"`
-	ExpiresAt               time.Time                   `json:"expires_at"`
+	ExpiresAt               time.Time                   `json:"expires_at,omitzero"`
 	AuthGeneration          uint64                      `json:"auth_generation,omitempty"`
 	RenewableSessionID      string                      `json:"renewable_session_id,omitempty"`
 	AccessGeneration        uint64                      `json:"access_generation,omitempty"`
-	FreshAuthAt             time.Time                   `json:"fresh_auth_at"`
+	FreshAuthAt             time.Time                   `json:"fresh_auth_at,omitzero"`
 	FreshAuthMethod         string                      `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource         string                      `json:"fresh_auth_source,omitempty"`
-	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at"`
+	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitzero"`
 }
 
 // revokedByAuthGeneration reports whether a newer auth generation already

@@ -72,11 +72,11 @@ type RenewableSession struct {
 	// LastRefreshRequestVerifier is a purpose-separated HMAC of the show-once
 	// recovery nonce. The raw nonce must not enter runtime state or backups.
 	LastRefreshRequestVerifier string    `json:"last_refresh_request_verifier,omitempty"`
-	LastRotatedAt              time.Time `json:"last_rotated_at"`
-	FreshAuthAt                time.Time `json:"fresh_auth_at"`
+	LastRotatedAt              time.Time `json:"last_rotated_at,omitzero"`
+	FreshAuthAt                time.Time `json:"fresh_auth_at,omitzero"`
 	FreshAuthMethod            string    `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource            string    `json:"fresh_auth_source,omitempty"`
-	PrivilegedModeExpiresAt    time.Time `json:"privileged_mode_expires_at"`
+	PrivilegedModeExpiresAt    time.Time `json:"privileged_mode_expires_at,omitzero"`
 }
 
 func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {
