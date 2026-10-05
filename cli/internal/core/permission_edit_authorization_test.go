@@ -205,11 +205,11 @@ func TestPermissionEditsReportInvalidScopesBeforeAuthority(t *testing.T) {
 	}
 	dm := PermissionTargetScope{Kind: MatrixScopeDM}
 
-	if err := core.SetUserPermissionState(ctx, actor, target, dm, PermRoleManage, PermissionStateAllow); err == nil || errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("user DM-scope role.manage error = %v, want scope validation error", err)
+	if err := core.SetUserPermissionState(ctx, actor, target, dm, PermRoleManage, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("user DM-scope role.manage error = %v, want invalid argument", err)
 	}
-	if err := core.SetRolePermissionState(ctx, actor, RoleModerator, dm, PermRoleManage, PermissionStateAllow); err == nil || errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("role DM-scope role.manage error = %v, want scope validation error", err)
+	if err := core.SetRolePermissionState(ctx, actor, RoleModerator, dm, PermRoleManage, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("role DM-scope role.manage error = %v, want invalid argument", err)
 	}
 	if err := core.SetUserPermissionState(ctx, actor, target, PermissionTargetScope{Kind: MatrixScopeServer}, Permission("unknown.permission"), PermissionStateAllow); !errors.Is(err, ErrInvalidPermission) {
 		t.Fatalf("unknown permission error = %v, want invalid permission", err)

@@ -448,13 +448,13 @@ func validatePermissionDecisionScope(scope PermissionScope, perm Permission) err
 		return err
 	}
 	if scope == ScopeRoom && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room scope", perm)
+		return fmt.Errorf("%w: permission %s does not apply at room scope", ErrInvalidArgument, perm)
 	}
 	if scope == ScopeGroup && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at group scope", perm)
+		return fmt.Errorf("%w: permission %s does not apply at group scope", ErrInvalidArgument, perm)
 	}
 	if scope == ScopeDM && !PermissionAppliesAtScope(perm, ScopeDM) {
-		return fmt.Errorf("permission %s does not apply at direct-message scope", perm)
+		return fmt.Errorf("%w: permission %s does not apply at direct-message scope", ErrInvalidArgument, perm)
 	}
 	return nil
 }
